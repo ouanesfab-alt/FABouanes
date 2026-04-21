@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="entity-form-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Utilisateurs</h2>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-4">
+      <div class="card p-3">
+        <h3 class="section-title mb-3">Creer un compte</h3>
+        <form method="post" class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Nom d'utilisateur</label>
+            <input name="username" class="form-control" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Mot de passe (4 chiffres)</label>
+            <input name="password" type="password" class="form-control" inputmode="numeric" pattern="\d{4}" maxlength="4" minlength="4" placeholder="1234" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Role</label>
+            <select name="role" class="form-select">
+              <option value="operator">Operator</option>
+              <option value="manager">Manager</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <button class="btn btn-dark w-100">Creer le compte</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="col-lg-8">
+      <div class="card p-3">
+        <h3 class="section-title mb-3">Comptes existants</h3>
+        <div class="table-responsive">
+          <table class="table js-datagrid align-middle">
+            <thead><tr><th>Utilisateur</th><th>Role</th><th>Cree le</th></tr></thead>
+            <tbody>
+              {% for u in users %}
+              <tr><td class="fw-semibold">{{ u.username }}</td><td>{{ u.role }}</td><td>{{ u.created_at[:10] }}</td></tr>
+              {% else %}
+              <tr><td colspan="3" class="text-muted text-center py-4">Aucun utilisateur.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

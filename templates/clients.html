@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .clients-page{display:flex;flex-direction:column;gap:16px;}
+  .clients-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .clients-summary{color:var(--muted);font-size:.92rem;}
+  .clients-table-card{padding:18px;}
+  .clients-table-wrap{overflow-x:visible;}
+  .clients-table-wrap .table-shell{max-width:1120px;margin:0 auto;width:100%;}
+  .clients-table-wrap .table-search{justify-content:flex-start;}
+  .clients-table-wrap .table-search input{max-width:320px;}
+  .clients-table-wrap .table-scroll{width:100%;margin:0 auto;}
+  .clients-table{margin:0 auto;}
+  .clients-table th,.clients-table td{vertical-align:top;}
+  .clients-table .col-client{width:34%;min-width:220px;}
+  .clients-table .col-phone{width:14%;white-space:nowrap;}
+  .clients-table .col-money{width:1%;text-align:right;white-space:nowrap;}
+  .clients-table .client-link{display:inline-block;max-width:32ch;color:var(--text);font-weight:700;
+    line-height:1.35;text-decoration:none;white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+  .clients-table .client-link:hover{color:var(--text);text-decoration:underline;}
+  @media(max-width:991px){
+    .clients-actions{width:100%;}
+    .clients-actions > *{flex:1 1 220px;}
+  }
+  @media(max-width:767px){
+    .clients-table-card{padding:14px;}
+    .clients-actions{flex-direction:column;}
+    .clients-actions > *{width:100%;flex:1 1 auto;}
+    .clients-table-wrap .table-search input{max-width:none;width:100%;}
+    .clients-table .col-client{min-width:170px;}
+  }
+</style>
+
+<div class="clients-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Clients</h2>
+      <p class="clients-summary mb-0">{{ clients|length }} client(s) enregistres.</p>
+    </div>
+    <div class="clients-actions">
+      <a href="{{ url_for('new_client') }}" class="btn btn-dark"><i class="bi bi-person-plus me-2"></i>Ajouter un client</a>
+      <a href="{{ url_for('import_clients_excel') }}" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-excel me-2"></i>Importer Excel</a>
+    </div>
+  </div>
+
+  <div class="card clients-table-card">
+    <div class="table-responsive clients-table-wrap">
+      <table class="table js-datagrid align-middle clients-table">
+        <thead>
+          <tr>
+            <th class="col-client">Client</th>
+            <th class="col-phone">Telephone</th>
+            <th class="col-money">Dette actuelle</th>
+            <th class="col-money hide-mobile">Total ventes</th>
+            <th class="col-money hide-mobile">Total versements</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in clients %}
+          <tr>
+            <td class="cell-text col-client">
+              <a href="{{ url_for('client_detail', client_id=c.id) }}" class="client-link">{{ c.name }}</a>
+            </td>
+            <td class="cell-num col-phone text-muted">{{ c.phone or '-' }}</td>
+            <td class="cell-num col-money">{{ c.current_debt|money }}</td>
+            <td class="cell-num col-money hide-mobile">{{ c.total_sales|money }}</td>
+            <td class="cell-num col-money hide-mobile">{{ c.total_payments|money }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-muted text-center py-4">Aucun client enregistre.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

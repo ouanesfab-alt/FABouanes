@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  :root{
+    --print-page-width:{{ print_layout.page_width_mm }}mm;
+    --print-page-height:{{ print_layout.page_height_mm }}mm;
+    --print-page-margin:{{ print_layout.page_margin_mm }}mm;
+    --print-content-width:{{ print_layout.content_width_mm }}mm;
+    --print-paper-height:{{ print_layout.paper_height_mm }}mm;
+    --print-gap:{{ print_layout.section_gap_mm }}mm;
+    --print-header-padding:{{ print_layout.header_padding_mm }}mm;
+    --print-body-padding:{{ print_layout.body_padding_mm }}mm;
+    --print-screen-scale:{{ print_layout.screen_scale }};
+    --print-summary-width:{{ print_layout.summary_width_px }}px;
+  }
+  .print-doc-shell{width:min(100%,var(--print-content-width));max-width:var(--print-content-width);margin:0 auto;display:flex;flex-direction:column;gap:var(--print-gap);}
+  .print-doc-paper{background:#fff;border:1px solid #d7dee8;border-radius:6px;box-shadow:0 6px 18px rgba(15,23,42,.05);overflow:hidden;min-height:var(--print-paper-height);}
+  .print-doc-header{padding:var(--print-header-padding) var(--print-body-padding) 6mm;border-bottom:1px solid #d7dee8;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-header-table,.print-doc-partner-table,.print-doc-meta-table{width:100%;table-layout:fixed;border-collapse:separate;}
+  .print-doc-header-table td,.print-doc-partner-table td,.print-doc-meta-table td{vertical-align:top;}
+  .print-doc-header-logo-cell{width:44mm;}
+  .print-doc-header-copy-cell{padding:0 5mm;text-align:center;}
+  .print-doc-header-ref-cell{width:52mm;}
+  .print-doc-partner-table{margin-top:4mm;}
+  .print-doc-partner-cell{width:44mm;padding-right:5mm;}
+  .print-doc-logo{width:28mm;height:28mm;object-fit:contain;flex-shrink:0;}
+  .print-doc-copy{display:flex;flex-direction:column;gap:1.6mm;min-width:0;padding-top:.5mm;align-items:center;text-align:center;}
+  .print-doc-title{margin:0;font-size:16pt;line-height:1.02;font-weight:900;letter-spacing:-.04em;color:#111827;}
+  .print-doc-partner-block{display:flex;flex-direction:column;gap:1mm;width:100%;padding:2.6mm 3mm;border:1px solid #d7dee8;border-radius:6px;background:#fff;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-partner-label{font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;}
+  .print-doc-partner-name{margin:0;font-size:13.4pt;line-height:1.1;font-weight:900;letter-spacing:-.03em;color:#1f2937;overflow-wrap:anywhere;word-break:break-word;}
+  .print-doc-subtitle{margin:0;font-size:8.8pt;line-height:1.35;color:#6b7280;overflow-wrap:anywhere;}
+  .print-doc-reference{border:1px solid #d7dee8;border-radius:6px;padding:10px 12px;background:#fff;}
+  .print-doc-refrow{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid #eef2f7;}
+  .print-doc-refrow:last-child{border-bottom:none;padding-bottom:0;}
+  .print-doc-refrow:first-child{padding-top:0;}
+  .print-doc-refrow span{font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;}
+  .print-doc-refrow strong{font-size:.9rem;color:#111827;text-align:right;overflow-wrap:anywhere;}
+  .print-doc-info{padding:5mm var(--print-body-padding) 0;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-info-meta{display:block;}
+  .print-doc-card{border:1px solid #d7dee8;border-radius:6px;padding:3mm 3.5mm;background:#fff;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-card-label{font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;margin-bottom:4px;}
+  .print-doc-card-value{font-size:9.2pt;font-weight:700;color:#111827;line-height:1.3;overflow-wrap:anywhere;}
+  .print-doc-table-wrap{padding:5mm var(--print-body-padding) 0;}
+  .print-doc-table{width:100%;border-collapse:collapse;table-layout:fixed;}
+  .print-doc-table thead{display:table-header-group;}
+  .print-doc-table tfoot{display:table-footer-group;}
+  .print-doc-table thead th{padding:2.2mm 2.6mm;border:1px solid #d7dee8;background:#f8fafc;color:#374151;font-size:7.3pt;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;}
+  .print-doc-table tbody td{padding:2.4mm 2.6mm;border:1px solid #d7dee8;vertical-align:top;color:#111827;font-size:8.4pt;overflow-wrap:anywhere;word-break:break-word;line-height:1.25;}
+  .print-doc-table tbody tr{break-inside:avoid-page;page-break-inside:avoid;}
+  .print-doc-table .col-right{text-align:right;white-space:nowrap;}
+  .print-doc-summary{display:flex;justify-content:flex-end;padding:5mm var(--print-body-padding) 0;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-summary-box{width:min(100%,var(--print-summary-width));border:1px solid #d7dee8;border-radius:6px;padding:6px 12px;background:#fff;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-summary-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #eef2f7;}
+  .print-doc-summary-row:last-child{border-bottom:none;}
+  .print-doc-summary-row span{font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;}
+  .print-doc-summary-row strong{font-size:.92rem;color:#111827;text-align:right;white-space:nowrap;}
+  .print-doc-summary-row.total strong{font-size:1.05rem;font-weight:900;}
+  .print-doc-footer{padding:5mm var(--print-body-padding) var(--print-body-padding);text-align:center;font-size:8pt;color:#6b7280;border-top:1px solid #eef2f7;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+  @page{size:A4 portrait;margin:{{ print_layout.page_margin_mm }}mm;}
+  @media screen and (min-width:768px){
+    .print-doc-shell{zoom:var(--print-screen-scale);}
+  }
+  @media screen and (max-width:767px){
+    .print-doc-shell{max-width:100%;}
+    .print-doc-paper{min-height:auto;}
+    .print-doc-header{padding:22px 18px 18px;}
+    .print-doc-header-table,.print-doc-partner-table,.print-doc-meta-table,
+    .print-doc-header-table tbody,.print-doc-partner-table tbody,.print-doc-meta-table tbody,
+    .print-doc-header-table tr,.print-doc-partner-table tr,.print-doc-meta-table tr,
+    .print-doc-header-table td,.print-doc-partner-table td,.print-doc-meta-table td{display:block;width:100%!important;}
+    .print-doc-header-copy-cell,.print-doc-header-ref-cell,.print-doc-partner-cell{padding:14px 0 0;}
+    .print-doc-partner-table{margin-top:0;}
+    .print-doc-logo{width:112px;height:112px;}
+    .print-doc-title{font-size:1.7rem;}
+    .print-doc-partner-block{padding:10px 12px;}
+    .print-doc-partner-name{font-size:1.26rem;}
+    .print-doc-info{padding:18px 18px 0;}
+    .print-doc-table-wrap,.print-doc-summary,.print-doc-footer{padding-left:18px;padding-right:18px;}
+    .print-doc-actions{flex-direction:column;align-items:stretch;}
+    .print-doc-actions > *{width:100%;}
+  }
+  @media print{
+    html,body{margin:0!important;padding:0!important;}
+    .no-print,.app-navbar,.page-hero,.table-toolbar,.context-menu,.btn,.dropdown,.alert{display:none !important;}
+    body{padding-top:0 !important;background:#fff !important;}
+    .app-content{padding:0 !important;}
+    .print-doc-paper{box-shadow:none !important;border:0 !important;border-radius:0 !important;min-height:auto !important;}
+    .print-doc-shell{width:var(--print-content-width) !important;max-width:none !important;gap:0 !important;zoom:1 !important;}
+    .print-doc-header-table,.print-doc-partner-table,.print-doc-meta-table,
+    .print-doc-header-table tbody,.print-doc-partner-table tbody,.print-doc-meta-table tbody{display:table !important;width:100% !important;}
+    .print-doc-header-table tr,.print-doc-partner-table tr,.print-doc-meta-table tr{display:table-row !important;}
+    .print-doc-header-table td,.print-doc-partner-table td,.print-doc-meta-table td{display:table-cell !important;width:auto !important;}
+    .print-doc-header-logo-cell{width:44mm !important;}
+    .print-doc-header-ref-cell{width:52mm !important;}
+    .print-doc-partner-cell{width:44mm !important;padding-right:5mm !important;}
+    .print-doc-header-copy-cell{padding:0 5mm !important;}
+    .print-doc-header,.print-doc-info,.print-doc-summary,.print-doc-footer{break-inside:avoid-page;page-break-inside:avoid;}
+    .print-doc-table{page-break-inside:auto;}
+    .print-doc-table thead{display:table-header-group;}
+    .print-doc-table tfoot{display:table-footer-group;}
+    .print-doc-table tr{break-inside:avoid-page;page-break-inside:avoid;}
+  }
+</style>
+
+<div class="print-doc-shell">
+  <article class="print-doc-paper print-card">
+    <header class="print-doc-header">
+      <table class="print-doc-header-table" role="presentation">
+        <tbody>
+          <tr>
+            <td class="print-doc-header-logo-cell">
+              <img src="{{ url_for('static', filename='fab_logo.png') }}" alt="FABOuanes" class="print-doc-logo">
+            </td>
+            <td class="print-doc-header-copy-cell">
+              <div class="print-doc-copy">
+                <h1 class="print-doc-title">{{ doc.title }}</h1>
+                <p class="print-doc-subtitle">{{ doc.subtitle }}</p>
+              </div>
+            </td>
+            <td class="print-doc-header-ref-cell">
+              <div class="print-doc-reference">
+                <div class="print-doc-refrow"><span>Reference</span><strong>{{ doc.number }}</strong></div>
+                <div class="print-doc-refrow"><span>Date</span><strong>{{ doc.printed_date or doc.date }}</strong></div>
+                <div class="print-doc-refrow"><span>Heure</span><strong>{{ doc.printed_time or '-' }}</strong></div>
+                <div class="print-doc-refrow"><span>Total</span><strong>{{ doc.total|money }}</strong></div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <table class="print-doc-partner-table" role="presentation">
+        <tbody>
+          <tr>
+            <td class="print-doc-partner-cell">
+              <div class="print-doc-partner-block">
+                <div class="print-doc-partner-label">{{ doc.partner_label }}</div>
+                <div class="print-doc-partner-name">{{ doc.partner_name }}</div>
+              </div>
+            </td>
+            <td></td>
+            <td class="print-doc-header-ref-cell"></td>
+          </tr>
+        </tbody>
+      </table>
+    </header>
+
+    <section class="print-doc-info print-doc-info-meta">
+      <table class="print-doc-meta-table" role="presentation">
+        <tbody>
+          <tr>
+            <td>
+              <div class="print-doc-card">
+                <div class="print-doc-card-label">Préparé par</div>
+                <div class="print-doc-card-value">{{ printed_by }}</div>
+              </div>
+            </td>
+            <td>
+              <div class="print-doc-card">
+                <div class="print-doc-card-label">Document</div>
+                <div class="print-doc-card-value">{{ doc.number }}</div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="print-doc-table-wrap">
+      <table class="print-doc-table">
+        <colgroup>
+          <col style="width:52%">
+          <col style="width:16%">
+          <col style="width:16%">
+          <col style="width:16%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>{{ doc.item_label }}</th>
+            <th class="col-right">Quantite</th>
+            <th class="col-right">PU</th>
+            <th class="col-right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in doc.lines or [{'item_name': doc.item_name, 'quantity': doc.quantity, 'unit': doc.unit, 'unit_price': doc.unit_price, 'total': doc.total}] %}
+          <tr>
+            <td><strong>{{ line.item_name }}</strong></td>
+            <td class="col-right">{% if line.quantity is not none %}{{ line.quantity }} {{ line.unit }}{% else %}-{% endif %}</td>
+            <td class="col-right">{% if line.unit_price is not none %}{{ line.unit_price|money }}{% else %}-{% endif %}</td>
+            <td class="col-right"><strong>{{ line.total|money }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="print-doc-summary">
+      <div class="print-doc-summary-box">
+        {% if doc.paid is not none %}
+        <div class="print-doc-summary-row">
+          <span>Paye</span>
+          <strong>{{ doc.paid|money }}</strong>
+        </div>
+        {% endif %}
+        {% if doc.due is not none %}
+        <div class="print-doc-summary-row">
+          <span>Reste</span>
+          <strong>{{ doc.due|money }}</strong>
+        </div>
+        {% endif %}
+        <div class="print-doc-summary-row total">
+          <span>Total</span>
+          <strong>{{ doc.total|money }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <footer class="print-doc-footer">
+      FABOuanes - Document commercial
+    </footer>
+  </article>
+
+  <div class="print-doc-actions no-print">
+    <button class="btn btn-outline-secondary" id="btnBack"><i class="bi bi-arrow-left me-1"></i>Retour</button>
+    <div class="d-flex gap-2 flex-wrap">
+      <button class="btn btn-outline-dark" type="button" onclick="window.print()"><i class="bi bi-printer me-2"></i>Imprimer la page</button>
+      <a href="?format=pdf" class="btn btn-dark" id="btnPrint" target="_blank"><i class="bi bi-file-earmark-pdf me-2"></i>Telecharger PDF</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const btn = document.getElementById('btnBack');
+  if (!btn) return;
+  btn.addEventListener('click', function(){
+    const ref = document.referrer || '';
+    if (ref && ref !== window.location.href) {
+      window.location.href = ref;
+      return;
+    }
+    if (history.length > 1) {
+      history.back();
+      return;
+    }
+    window.location.href = '{{ url_for('transactions') }}';
+  });
+})();
+</script>
+{% endblock %}

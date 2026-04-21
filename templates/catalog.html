@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .catalog-page{display:flex;flex-direction:column;gap:16px;}
+  .catalog-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .catalog-summary{color:var(--muted);font-size:.92rem;}
+  .catalog-table-card{padding:18px;}
+  .catalog-table-wrap{overflow-x:visible;}
+  .catalog-table-wrap .table-shell{max-width:1140px;margin:0 auto;width:100%;}
+  .catalog-table-wrap .table-search{justify-content:flex-start;}
+  .catalog-table-wrap .table-search input{max-width:320px;}
+  .catalog-table-wrap .table-scroll{width:100%;margin:0 auto;}
+  .catalog-table{margin:0 auto;}
+  .catalog-table th,.catalog-table td{vertical-align:top;}
+  .catalog-table .col-type{width:16%;min-width:140px;}
+  .catalog-table .col-name{width:34%;min-width:220px;}
+  .catalog-table .col-unit{width:10%;white-space:nowrap;}
+  .catalog-table .col-stock{width:1%;text-align:right;white-space:nowrap;}
+  .catalog-table .col-money{width:1%;text-align:right;white-space:nowrap;}
+  .catalog-table .product-name,.catalog-table .product-type{display:inline-block;color:var(--text);line-height:1.35;
+    white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+  .catalog-table .product-name{font-weight:700;max-width:30ch;}
+  .catalog-table .product-type{color:var(--muted);max-width:18ch;}
+  @media(max-width:991px){
+    .catalog-actions{width:100%;}
+    .catalog-actions > *{flex:1 1 240px;}
+  }
+  @media(max-width:767px){
+    .catalog-table-card{padding:14px;}
+    .catalog-actions{flex-direction:column;}
+    .catalog-actions > *{width:100%;flex:1 1 auto;}
+    .catalog-table-wrap .table-search input{max-width:none;width:100%;}
+    .catalog-table .col-name{min-width:180px;}
+    .catalog-table .col-type{min-width:130px;}
+  }
+</style>
+
+<div class="catalog-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Catalogue</h2>
+      <p class="catalog-summary mb-0">{{ all_products|length }} produit(s) enregistre(s).</p>
+    </div>
+    <div class="catalog-actions">
+      <a href="{{ url_for('new_catalog_item', kind='raw') }}" class="btn btn-dark"><i class="bi bi-box-seam me-2"></i>Ajouter une matiere premiere</a>
+      <a href="{{ url_for('new_catalog_item', kind='finished') }}" class="btn btn-outline-secondary"><i class="bi bi-grid-1x2 me-2"></i>Ajouter un produit final</a>
+    </div>
+  </div>
+
+  <div class="card catalog-table-card">
+    <div class="table-responsive catalog-table-wrap">
+      <table class="table js-datagrid align-middle catalog-table">
+        <thead>
+          <tr>
+            <th class="col-type hide-mobile">Type</th>
+            <th class="col-name">Nom</th>
+            <th class="col-unit">Unite</th>
+            <th class="col-stock">Stock</th>
+            <th class="col-money hide-mobile">Cout</th>
+            <th class="col-money">Prix de vente</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in all_products %}
+          <tr class="context-target"
+              data-delete-label="{{ 'cette matiere premiere' if i.kind == 'Matière première' else 'ce produit' }}"
+              data-edit-url="{{ url_for('edit_raw_material', material_id=i.id) if i.kind == 'Matière première' else url_for('edit_product', product_id=i.id) }}"
+              data-delete-url="{{ url_for('delete_raw_material', material_id=i.id) if i.kind == 'Matière première' else url_for('delete_product', product_id=i.id) }}"
+              data-label="{{ i.name }}">
+            <td class="cell-text col-type hide-mobile"><span class="product-type">{{ i.kind }}</span></td>
+            <td class="cell-text col-name"><span class="product-name">{{ i.name }}</span></td>
+            <td class="cell-text col-unit">{{ i.unit }}</td>
+            <td class="cell-num col-stock">{{ i.stock_qty }}</td>
+            <td class="cell-num col-money hide-mobile">{{ i.avg_cost|money }}</td>
+            <td class="cell-num col-money">{{ i.sale_price|money }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-muted text-center py-4">Aucun produit enregistre.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

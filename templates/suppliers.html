@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="purchases-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Fournisseurs</h2>
+    </div>
+    <div class="purchases-actions">
+      <a href="{{ url_for('new_supplier') }}" class="btn btn-dark"><i class="bi bi-plus-lg me-2"></i>Ajouter un fournisseur</a>
+    </div>
+  </div>
+
+  <div class="card purchases-table-card">
+    <div class="table-responsive">
+      <table class="table js-datagrid align-middle">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th class="hide-mobile">Telephone</th>
+            <th class="hide-mobile">Adresse</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in suppliers %}
+          <tr>
+            <td class="fw-semibold">{{ s.name }}</td>
+            <td class="hide-mobile text-muted">{{ s.phone or '-' }}</td>
+            <td class="hide-mobile text-muted">{{ s.address or '-' }}</td>
+            <td class="cell-text">{{ s.notes or '-' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-muted text-center py-4">Aucun fournisseur.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

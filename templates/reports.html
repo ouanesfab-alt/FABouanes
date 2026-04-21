@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="record-shell">
+  <section class="record-surface">
+    <header class="record-header">
+      <div class="record-copy">
+        <div class="record-kicker">Rapports</div>
+        <h1 class="record-title">Synthese d'activite</h1>
+        <p class="record-subtitle">Vue d'ensemble des ventes, de la production, des dettes et des niveaux de stock.</p>
+      </div>
+      <div class="record-reference">
+        <div class="record-refrow"><span>Chiffre d'affaires</span><strong>{{ profit_stats.revenue|money }}</strong></div>
+        <div class="record-refrow"><span>Cout total</span><strong>{{ profit_stats.cost_of_goods|money }}</strong></div>
+        <div class="record-refrow"><span>Benefice brut</span><strong>{{ profit_stats.gross_profit|money }}</strong></div>
+      </div>
+    </header>
+
+    <section class="record-grid record-grid-three">
+      <div class="record-card">
+        <div class="record-card-label">Chiffre d'affaires</div>
+        <div class="record-card-value">{{ profit_stats.revenue|money }}</div>
+      </div>
+      <div class="record-card">
+        <div class="record-card-label">Cout total des ventes</div>
+        <div class="record-card-value">{{ profit_stats.cost_of_goods|money }}</div>
+      </div>
+      <div class="record-card">
+        <div class="record-card-label">Benefice brut</div>
+        <div class="record-card-value">{{ profit_stats.gross_profit|money }}</div>
+      </div>
+    </section>
+
+    <section class="record-table-wrap">
+      <div class="record-kicker mb-2">Ventes</div>
+      <h2 class="h5 mb-3">Resume journalier ventes</h2>
+      <div class="table-responsive mb-4">
+        <table class="record-table js-datagrid align-middle">
+          <thead><tr><th>Date</th><th>Nb ventes</th><th class="col-right">Total ventes</th><th class="col-right">Paye</th><th class="col-right">Reste</th><th class="col-right">Benefice</th></tr></thead>
+          <tbody>
+            {% for r in sales_summary %}
+            <tr><td>{{ r.sale_date }}</td><td>{{ r.nb_sales }}</td><td class="col-right">{{ r.total_sales|money }}</td><td class="col-right">{{ r.total_paid|money }}</td><td class="col-right">{{ r.total_due|money }}</td><td class="col-right"><strong>{{ r.total_profit|money }}</strong></td></tr>
+            {% else %}
+            <tr><td colspan="6" class="text-muted">Aucune donnee.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="record-kicker mb-2">Production</div>
+      <h2 class="h5 mb-3">Historique de production</h2>
+      <div class="table-responsive mb-4">
+        <table class="record-table js-datagrid align-middle">
+          <thead><tr><th>Date</th><th>Produit</th><th>Qt produite</th><th class="col-right">Cout total</th><th class="col-right">Cout unitaire</th></tr></thead>
+          <tbody>
+            {% for p in production_history %}
+            <tr><td>{{ p.production_date }}</td><td>{{ p.product_name }}</td><td>{{ p.output_quantity }}</td><td class="col-right">{{ p.production_cost|money }}</td><td class="col-right">{{ p.unit_cost|money }}</td></tr>
+            {% else %}
+            <tr><td colspan="5" class="text-muted">Aucune production.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="record-kicker mb-2">Clients</div>
+      <h2 class="h5 mb-3">Clients debiteurs</h2>
+      <div class="table-responsive mb-4">
+        <table class="record-table js-datagrid align-middle">
+          <thead><tr><th>Client</th><th class="col-right">Reste a payer</th></tr></thead>
+          <tbody>
+            {% for d in debt_by_client %}
+            <tr><td>{{ d.name }}</td><td class="col-right"><strong>{{ d.balance|money }}</strong></td></tr>
+            {% else %}
+            <tr><td colspan="2" class="text-muted">Aucune dette.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="record-kicker mb-2">Stock</div>
+      <h2 class="h5 mb-3">Stock matieres premieres</h2>
+      <div class="table-responsive mb-4">
+        <table class="record-table js-datagrid align-middle">
+          <thead><tr><th>Nom</th><th>Stock</th><th class="col-right">Cout</th><th class="col-right">Prix vente</th></tr></thead>
+          <tbody>
+            {% for s in stock_materials %}
+            <tr><td>{{ s.name }}</td><td>{{ s.stock_qty }} {{ s.unit }}</td><td class="col-right">{{ s.avg_cost|money }}</td><td class="col-right">{{ s.sale_price|money }}</td></tr>
+            {% else %}
+            <tr><td colspan="4" class="text-muted">Aucune donnee.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="h5 mb-3">Stock produits finis</h2>
+      <div class="table-responsive">
+        <table class="record-table js-datagrid align-middle">
+          <thead><tr><th>Nom</th><th>Stock</th><th class="col-right">Prix production</th><th class="col-right">Prix vente</th></tr></thead>
+          <tbody>
+            {% for s in stock_products %}
+            <tr><td>{{ s.name }}</td><td>{{ s.stock_qty }} {{ s.default_unit }}</td><td class="col-right">{{ s.avg_cost|money }}</td><td class="col-right">{{ s.sale_price|money }}</td></tr>
+            {% else %}
+            <tr><td colspan="4" class="text-muted">Aucune donnee.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+</div>
+{% endblock %}

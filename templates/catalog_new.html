@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .catalog-form-page{display:flex;flex-direction:column;gap:16px;}
+  .catalog-form-summary{color:var(--muted);font-size:.92rem;}
+  .catalog-form-shell{max-width:880px;margin:0 auto;width:100%;}
+  .catalog-form-card{padding:20px;}
+  .catalog-form-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;}
+  .catalog-form-grid .span-12{grid-column:span 12;}
+  .catalog-form-grid .span-8{grid-column:span 8;}
+  .catalog-form-grid .span-6{grid-column:span 6;}
+  .catalog-form-grid .span-4{grid-column:span 4;}
+  .catalog-form-grid .span-3{grid-column:span 3;}
+  .catalog-form-note{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);
+    color:var(--muted);font-size:.9rem;line-height:1.55;}
+  .catalog-form-hidden[hidden]{display:none !important;}
+  .catalog-form-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .catalog-form-actions > *{flex:1 1 220px;}
+  @media(max-width:767px){
+    .catalog-form-card{padding:16px;}
+    .catalog-form-grid .span-8,.catalog-form-grid .span-6,.catalog-form-grid .span-4,.catalog-form-grid .span-3{grid-column:span 12;}
+    .catalog-form-actions{flex-direction:column;}
+    .catalog-form-actions > *{width:100%;flex:1 1 auto;}
+  }
+</style>
+
+<div class="catalog-form-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">{% if kind == 'raw' %}Nouvelle matiere premiere{% else %}Nouveau produit final{% endif %}</h2>
+      <p class="catalog-form-summary mb-0">Renseigne les informations de base, puis enregistre l'article dans le catalogue.</p>
+    </div>
+  </div>
+
+  <div class="catalog-form-shell">
+    <div class="card catalog-form-card">
+      <form method="post" class="catalog-form-grid">
+        <input type="hidden" name="kind" value="{{ kind }}">
+        <div class="span-6">
+          <label class="form-label">Categorie</label>
+          <select name="category_name" id="catalogCategoryName" class="form-select" data-other-value="{{ other_category_value }}">
+            {% for preset in name_presets %}<option value="{{ preset }}" {% if selected_category == preset %}selected{% endif %}>{{ preset }}</option>{% endfor %}
+            <option value="{{ other_category_value }}" {% if selected_category == other_category_value %}selected{% endif %}>AUTRE</option>
+          </select>
+        </div>
+        <div class="span-6 catalog-form-hidden" id="catalogCustomNameWrap" {% if selected_category != other_category_value %}hidden{% endif %}>
+          <label class="form-label">Preciser / Nom du produit</label>
+          <input name="custom_name" id="catalogCustomName" class="form-control" value="{{ custom_name_value }}" {% if selected_category == other_category_value %}required{% endif %}>
+        </div>
+        <div class="span-3">
+          <label class="form-label">Unite</label>
+          <select name="unit" class="form-select">
+            {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="span-3">
+          <label class="form-label">Stock</label>
+          <input name="stock_qty" type="text" inputmode="decimal" value="0" class="form-control">
+        </div>
+        <div class="span-4">
+          <label class="form-label">Cout moyen par kg</label>
+          <input id="avgCostKg" name="avg_cost" type="text" inputmode="decimal" value="0" class="form-control">
+        </div>
+        <div class="span-4">
+          <label class="form-label">Prix de vente par kg</label>
+          <input id="salePriceKg" name="sale_price" type="text" inputmode="decimal" value="0" class="form-control">
+        </div>
+        {% if kind == 'raw' %}
+        <div class="span-4">
+          <label class="form-label">Seuil d'alerte</label>
+          <input name="alert_threshold" type="text" inputmode="decimal" value="0" class="form-control">
+        </div>
+        {% endif %}
+        <div class="span-12">
+          <div class="catalog-form-note">
+            Les prix saisis ici servent de reference pour les operations et le calcul du benefice.
+            Apercu : 1 kg = <strong><span id="kgPrev">0</span> DA</strong>,
+            1 sac = <strong><span id="sacPrev">0</span> DA</strong>,
+            1 Qt = <strong><span id="qtPrev">0</span> DA</strong>.
+          </div>
+        </div>
+        <div class="span-12 catalog-form-actions">
+          <button class="btn btn-dark">Enregistrer</button>
+          <a href="{{ url_for('catalog') }}" class="btn btn-outline-secondary">Retour</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}<script>
+const priceKg=document.getElementById('salePriceKg');
+function syncPricePreview(){const v=parseFloat(priceKg?.value||0); document.getElementById('kgPrev').textContent=v.toFixed(2); document.getElementById('sacPrev').textContent=(v*50).toFixed(2); document.getElementById('qtPrev').textContent=(v*100).toFixed(2);}
+priceKg?.addEventListener('input', syncPricePreview); syncPricePreview();
+const categorySelect=document.getElementById('catalogCategoryName');
+const customNameWrap=document.getElementById('catalogCustomNameWrap');
+const customNameInput=document.getElementById('catalogCustomName');
+function toggleCatalogCustomName(){
+  const isOther=(categorySelect?.value||'')===(categorySelect?.dataset.otherValue||'__other__');
+  if(customNameWrap) customNameWrap.hidden=!isOther;
+  if(customNameInput) customNameInput.required=isOther;
+}
+categorySelect?.addEventListener('change', toggleCatalogCustomName);
+toggleCatalogCustomName();
+</script>{% endblock %}

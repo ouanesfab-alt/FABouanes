@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="entity-form-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Modifier le fournisseur</h2>
+      <p class="entity-form-summary mb-0">Mets a jour les coordonnees et les notes de {{ supplier.name }}.</p>
+    </div>
+  </div>
+
+  <div class="entity-form-shell is-narrow">
+    <div class="card entity-form-card supplier-edit-card">
+      <form method="post" class="entity-form-grid">
+        <div class="span-6">
+          <label class="form-label">Nom</label>
+          <input name="name" value="{{ supplier.name }}" class="form-control" required>
+        </div>
+        <div class="span-6">
+          <label class="form-label">Telephone</label>
+          <input name="phone" value="{{ supplier.phone }}" class="form-control">
+        </div>
+        <div class="span-12">
+          <label class="form-label">Adresse</label>
+          <input name="address" value="{{ supplier.address }}" class="form-control">
+        </div>
+        <div class="span-12">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-control" rows="3">{{ supplier.notes }}</textarea>
+        </div>
+        <div class="span-12">
+          <div class="entity-form-note supplier-edit-note">
+            Les changements seront visibles dans les prochains achats et dans la fiche detaillee du fournisseur.
+          </div>
+        </div>
+        <div class="span-12 entity-form-actions">
+          <a href="{{ url_for('suppliers') }}" class="btn btn-outline-secondary">Annuler</a>
+          <button class="btn btn-dark">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,23 @@
+{
+  "name": "FABOuanes - Gestion d'equipe",
+  "short_name": "FABOuanes",
+  "description": "Gestion commerciale, production et stocks pour FABOuanes.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "background_color": "#f3f4f6",
+  "theme_color": "#1a2235",
+  "orientation": "portrait-primary",
+  "lang": "fr",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Nouveau client", "url": "/clients/new" },
+    { "name": "Nouvelle vente", "url": "/sales/new" },
+    { "name": "Nouvel achat", "url": "/purchases/new" }
+  ]
+}

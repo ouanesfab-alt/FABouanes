@@ -1,0 +1,9 @@
+Flask>=3.0
+waitress>=3.0
+reportlab>=4.0
+python-dotenv>=1.0
+openpyxl>=3.1
+pywebview>=5.0
+pg8000>=1.31
+gunicorn>=22.0
+qrcode>=8.0

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="entity-form-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Ajouter</h2>
+    </div>
+  </div>
+
+  <div class="entity-form-shell is-narrow">
+    <div class="card entity-form-card">
+      <form class="entity-form-grid" onsubmit="event.preventDefault(); location.href=document.getElementById('targetSelect').value;">
+        <div class="span-12">
+          <label class="form-label">Type d'ajout</label>
+          <select id="targetSelect" class="form-select">
+            {% for key, label, link in options %}
+            <option value="{{ link }}" {% if key == default_target %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="span-12 entity-form-actions">
+          <button class="btn btn-dark" type="submit">Continuer</button>
+          <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

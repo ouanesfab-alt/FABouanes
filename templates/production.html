@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .production-page{display:flex;flex-direction:column;gap:16px;}
+  .production-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .production-summary{color:var(--muted);font-size:.92rem;}
+  .production-table-card{padding:18px;}
+  .production-table-wrap{overflow-x:visible;}
+  .production-table-wrap .table-shell{max-width:1160px;margin:0 auto;width:100%;}
+  .production-table-wrap .table-search{justify-content:flex-start;}
+  .production-table-wrap .table-search input{max-width:320px;}
+  .production-table-wrap .table-scroll{width:100%;margin:0 auto;}
+  .production-table{margin:0 auto;}
+  .production-table th,.production-table td{vertical-align:top;}
+  .production-table .col-date{width:11%;white-space:nowrap;}
+  .production-table .col-product{width:20%;min-width:180px;}
+  .production-table .col-recipe{width:34%;min-width:240px;}
+  .production-table .col-qty{width:1%;text-align:right;white-space:nowrap;}
+  .production-table .col-money{width:1%;text-align:right;white-space:nowrap;}
+  .production-table .col-actions{width:1%;white-space:nowrap;}
+  .production-table .product-text,.production-table .recipe-text{display:inline-block;color:var(--text);line-height:1.35;
+    white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+  .production-table .product-text{font-weight:700;max-width:26ch;}
+  .production-table .recipe-text{max-width:36ch;color:var(--muted);}
+  @media(max-width:991px){
+    .production-actions{width:100%;}
+    .production-actions > *{flex:1 1 240px;}
+  }
+  @media(max-width:767px){
+    .production-table-card{padding:14px;}
+    .production-actions{flex-direction:column;}
+    .production-actions > *{width:100%;flex:1 1 auto;}
+    .production-table-wrap .table-search input{max-width:none;width:100%;}
+    .production-table .col-product{min-width:160px;}
+    .production-table .col-recipe{min-width:200px;}
+  }
+
+  .fab-sheet-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;backdrop-filter:blur(2px);align-items:flex-end;}
+  .fab-sheet-overlay.open{display:flex;}
+  .fab-sheet{background:var(--card);width:100%;border-radius:20px 20px 0 0;max-height:90vh;display:flex;flex-direction:column;animation:sheetUp .28s cubic-bezier(.4,0,.2,1);}
+  @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .fab-sheet-handle{width:40px;height:4px;background:var(--line);border-radius:2px;margin:12px auto 0;flex-shrink:0;}
+  .fab-sheet-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px 10px;border-bottom:1px solid var(--line);flex-shrink:0;}
+  .fab-sheet-header h5{margin:0;font-weight:800;}
+  .fab-sheet-close{background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;padding:4px 8px;border-radius:8px;}
+  .fab-sheet-body{overflow-y:auto;padding:16px 20px;flex:1;}
+  .fab-sheet-footer{padding:12px 20px 20px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;flex-shrink:0;}
+</style>
+
+<div class="production-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Production</h2>
+      <p class="production-summary mb-0">{{ productions|length }} lot(s) enregistre(s).</p>
+    </div>
+    <div class="production-actions">
+      <a href="{{ url_for('new_production') }}" class="btn btn-dark"><i class="bi bi-plus-lg me-2"></i>Ajouter une production</a>
+    </div>
+  </div>
+
+  <div class="card production-table-card">
+    <div class="table-responsive production-table-wrap">
+      <table class="table js-datagrid align-middle production-table">
+        <thead>
+          <tr>
+            <th class="col-date">Date</th>
+            <th class="col-product">Produit final</th>
+            <th class="col-recipe hide-mobile">Recette</th>
+            <th class="col-qty">Qt produite</th>
+            <th class="col-money hide-mobile">Cout total</th>
+            <th class="col-money">Cout/kg</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in productions %}
+          {% set print_url = url_for('print_document', doc_type='production', item_id=p.id) %}
+          <tr class="context-target"
+              data-print-url="{{ print_url }}"
+              data-delete-url="{{ url_for('delete_production', batch_id=p.id) }}"
+              data-delete-label="{{ p.finished_name }} du {{ p.production_date }}"
+              data-label="{{ p.finished_name }} — {{ p.production_date }}">
+            <td class="cell-num col-date text-muted">{{ p.production_date }}</td>
+            <td class="cell-text col-product"><span class="product-text">{{ p.finished_name }}</span></td>
+            <td class="cell-text col-recipe hide-mobile"><span class="recipe-text">{{ p.recipe_text or '-' }}</span></td>
+            <td class="cell-num col-qty">{{ p.output_quantity }} kg</td>
+            <td class="cell-num col-money hide-mobile">{{ p.production_cost|money }}</td>
+            <td class="cell-num col-money">{{ p.unit_cost|money }}</td>
+            <td class="col-actions text-nowrap">
+              <a href="{{ print_url }}" class="btn btn-sm btn-outline-primary me-1" title="Imprimer" onclick="openInvoice(event,this.closest('a').href)"><i class="bi bi-printer"></i></a>
+              <button type="button" class="btn btn-sm btn-outline-secondary me-1"
+                title="Modifier les notes"
+                onclick="editProductionNotes({{ p.id }}, '{{ p.production_date }}', '{{ p.finished_name }}', `{{ p.notes or '' }}`)">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <form method="post" action="{{ url_for('delete_production', batch_id=p.id) }}" class="d-inline"
+                onsubmit="return confirm('Supprimer cette production ? Le stock sera restauré.')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer"><i class="bi bi-trash3"></i></button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-muted text-center py-4">Aucune production enregistree.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="editProdSheet" class="fab-sheet-overlay" onclick="if(event.target===this)closeProdSheet()">
+  <div class="fab-sheet">
+    <div class="fab-sheet-handle"></div>
+    <div class="fab-sheet-header">
+      <h5 id="editProdTitle">Modifier la production</h5>
+      <button class="fab-sheet-close" onclick="closeProdSheet()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <form method="post" action="{{ url_for('edit_production_notes') }}">
+      <div class="fab-sheet-body">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="batch_id" id="editProdId">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Date de production</label>
+          <input type="date" name="production_date" id="editProdDate" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Notes</label>
+          <textarea name="notes" id="editProdNotes" class="form-control" rows="4" placeholder="Observations..."></textarea>
+        </div>
+      </div>
+      <div class="fab-sheet-footer">
+        <button type="button" class="btn btn-outline-secondary" onclick="closeProdSheet()">Annuler</button>
+        <button type="submit" class="btn btn-dark">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editProductionNotes(id, date, name, notes) {
+  document.getElementById('editProdId').value    = id;
+  document.getElementById('editProdDate').value  = date;
+  document.getElementById('editProdNotes').value = notes;
+  document.getElementById('editProdTitle').textContent = 'Modifier — ' + name;
+  document.getElementById('editProdSheet').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeProdSheet() {
+  document.getElementById('editProdSheet').classList.remove('open');
+  document.body.style.overflow = '';
+}
+</script>
+{% endblock %}

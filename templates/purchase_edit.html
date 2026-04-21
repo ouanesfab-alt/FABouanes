@@ -1,0 +1,284 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .doc-lines-shell{display:flex;flex-direction:column;gap:16px;}
+  .doc-lines-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;}
+  .doc-lines-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .doc-lines-list{display:flex;flex-direction:column;gap:12px;}
+  .doc-line-card{border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--surface);}
+  .doc-line-top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap;}
+  .doc-line-grid{display:grid;grid-template-columns:minmax(0,2.4fr) repeat(3,minmax(120px,1fr)) auto;gap:12px;align-items:end;}
+  .doc-line-meta{font-size:.9rem;color:var(--muted);}
+  .doc-line-remove{white-space:nowrap;}
+  .doc-summary-box{display:grid;grid-template-columns:minmax(0,320px);gap:12px;align-items:start;justify-content:end;}
+  .doc-total-card{border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--surface);}
+  .doc-total-value{font-size:1.6rem;font-weight:800;line-height:1;color:var(--text);}
+  @media(max-width:991px){
+    .doc-line-grid{grid-template-columns:1fr 1fr;}
+  }
+  @media(max-width:767px){
+    .doc-summary-box,.doc-line-grid{grid-template-columns:1fr;}
+    .doc-lines-actions{width:100%;}
+    .doc-lines-actions > *{flex:1 1 auto;}
+  }
+</style>
+
+<div class="entity-form-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Modifier un achat</h2>
+    </div>
+  </div>
+
+  <div class="entity-form-shell is-wide">
+    <div class="card entity-form-card purchase-edit-card">
+      <form method="post" class="entity-form-grid" id="purchaseDocumentEditForm">
+        <div class="span-6">
+          <label class="form-label">Fournisseur</label>
+          <select name="supplier_id" class="form-select">
+            <option value="">Sans fournisseur</option>
+            {% for s in suppliers %}<option value="{{ s.id }}" {% if purchase_document.supplier_id == s.id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="span-6">
+          <label class="form-label">Date</label>
+          <input name="purchase_date" type="date" class="form-control" id="purchaseDate" value="{{ purchase_document.purchase_date }}">
+        </div>
+        <div class="span-12">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-control" rows="2" placeholder="Observation globale du bon">{{ purchase_document.notes or '' }}</textarea>
+        </div>
+        <div class="span-12 doc-summary-box">
+          <div class="doc-total-card">
+            <div class="form-label mb-1">Total du bon</div>
+            <div class="doc-total-value" id="purchaseDocumentTotal">0,00 DA</div>
+          </div>
+        </div>
+        <div class="span-12 doc-lines-shell">
+          <div class="doc-lines-header">
+            <div>
+              <label class="form-label mb-1">Lignes d'achat</label>
+            </div>
+            <div class="doc-lines-actions">
+              <button type="button" class="btn btn-outline-secondary" id="addPurchaseLine">
+                <i class="bi bi-plus-lg me-1"></i>Ajouter une ligne
+              </button>
+            </div>
+          </div>
+          <div class="doc-lines-list" id="purchaseLines"></div>
+        </div>
+        <div class="span-12 entity-form-actions">
+          <button class="btn btn-dark"><i class="bi bi-check2-circle me-1"></i>Enregistrer les modifications</button>
+          <a href="{{ url_for('transactions', type='purchase') }}" class="btn btn-outline-secondary">Retour</a>
+        </div>
+        <span id="purchaseStock" hidden></span>
+      </form>
+    </div>
+  </div>
+</div>
+
+<template id="purchaseLineTemplate">
+  <div class="doc-line-card">
+    <div class="doc-line-top">
+      <div class="fw-semibold">Ligne <span class="purchase-line-number"></span></div>
+      <button type="button" class="btn btn-outline-danger btn-sm doc-line-remove">
+        <i class="bi bi-trash3 me-1"></i>Retirer
+      </button>
+    </div>
+    <div class="doc-line-grid">
+      <div>
+        <label class="form-label">Matiere</label>
+        <select name="raw_material_id[]" class="form-select purchase-material" required>
+          {% for r in raw_materials %}
+          <option value="{{ r.id }}" data-unit="{{ r.unit }}" data-price="{{ r.avg_cost }}" data-stock="{{ r.stock_qty }}" data-force-unit="{{ r.force_unit or '' }}" data-custom-name-required="{{ r.custom_name_required or '' }}">{{ r.option_label or r.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="doc-line-meta purchase-meta"></div>
+        <div class="purchase-custom-wrap" hidden>
+          <label class="form-label mt-2">Preciser le produit</label>
+          <input name="custom_item_name[]" type="text" class="form-control purchase-custom-name" placeholder="Nom du produit">
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Quantite</label>
+        <input name="quantity[]" type="text" inputmode="decimal" class="form-control purchase-qty" required placeholder="0">
+      </div>
+      <div>
+        <label class="form-label">Unite</label>
+        <select name="unit[]" class="form-select purchase-unit">
+          {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Prix unitaire</label>
+        <input name="unit_price[]" type="text" inputmode="decimal" class="form-control purchase-price" required placeholder="0">
+      </div>
+      <div>
+        <label class="form-label">Total</label>
+        <input type="text" class="form-control purchase-total" readonly tabindex="-1">
+      </div>
+    </div>
+  </div>
+</template>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  const linesHost = document.getElementById('purchaseLines');
+  const lineTemplate = document.getElementById('purchaseLineTemplate');
+  const addLineBtn = document.getElementById('addPurchaseLine');
+  const totalNode = document.getElementById('purchaseDocumentTotal');
+  const dateInput = document.getElementById('purchaseDate');
+  const initialLines = {{ purchase_lines|tojson }};
+
+  function unitFactor(unit){ unit=(unit||'kg').toLowerCase(); if(unit==='sac') return 50; if(unit==='qt'||unit==='quintal') return 100; return 1; }
+  function parseNum(value){ return parseFloat(String(value||'0').replace(',','.').replace(/\s/g,'')) || 0; }
+  function fmtMoney(value){ return value.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' DA'; }
+
+  if (dateInput){
+    dateInput.max = new Date().toISOString().split('T')[0];
+  }
+
+  function renumberLines(){
+    [...linesHost.querySelectorAll('.doc-line-card')].forEach((row, idx) => {
+      row.querySelector('.purchase-line-number').textContent = idx + 1;
+    });
+  }
+
+  function updateDocumentTotal(){
+    let total = 0;
+    linesHost.querySelectorAll('.doc-line-card').forEach((row) => {
+      total += parseNum(row.querySelector('.purchase-qty')?.value) * parseNum(row.querySelector('.purchase-price')?.value);
+    });
+    totalNode.textContent = fmtMoney(total);
+  }
+
+  function syncCustomField(row){
+    const materialSelect = row.querySelector('.purchase-material');
+    const customWrap = row.querySelector('.purchase-custom-wrap');
+    const customInput = row.querySelector('.purchase-custom-name');
+    const option = materialSelect?.options[materialSelect.selectedIndex];
+    const requireCustomName = (option?.dataset.customNameRequired || '') === '1';
+    customWrap.hidden = !requireCustomName;
+    customInput.required = requireCustomName;
+    if(!requireCustomName){
+      customInput.value = '';
+    }
+  }
+
+  async function syncLine(row, resetPrice){
+    const materialSelect = row.querySelector('.purchase-material');
+    const unitSelect = row.querySelector('.purchase-unit');
+    const priceInput = row.querySelector('.purchase-price');
+    const metaNode = row.querySelector('.purchase-meta');
+    const materialId = materialSelect?.value;
+    if(!materialId) return;
+    const option = materialSelect.options[materialSelect.selectedIndex];
+    const forcedUnit = option.dataset.forceUnit || '';
+    let unit = option.dataset.unit || 'kg';
+    let avgCost = parseFloat(option.dataset.price || 0);
+    let stock = parseFloat(option.dataset.stock || 0);
+    try{
+      const response = await fetch(`/api/item-info?kind=raw&id=${materialId}`);
+      const data = await response.json();
+      if(data.ok){
+        unit = data.item.unit || unit;
+        avgCost = parseFloat(data.item.avg_cost || avgCost || 0);
+        stock = parseFloat(data.item.stock_qty || stock || 0);
+      }
+    }catch(error){}
+    if(forcedUnit){
+      unit = forcedUnit;
+      unitSelect.dataset.touched = '';
+      unitSelect.value = forcedUnit;
+    } else if(!unitSelect.dataset.touched){
+      unitSelect.value = unit;
+    }
+    const displayUnit = forcedUnit || unitSelect.value || unit;
+    if(resetPrice || !priceInput.value){
+      priceInput.value = (avgCost * unitFactor(displayUnit)).toFixed(2);
+    }
+    syncCustomField(row);
+    metaNode.textContent = `Stock: ${(stock / unitFactor(displayUnit)).toFixed(2)} ${displayUnit} | Cout: ${fmtMoney(avgCost * unitFactor(displayUnit))}/${displayUnit}${forcedUnit ? ' | Unite fixe' : ''}`;
+    updateLineTotal(row);
+  }
+
+  function updateLineTotal(row){
+    const qty = parseNum(row.querySelector('.purchase-qty')?.value);
+    const price = parseNum(row.querySelector('.purchase-price')?.value);
+    row.querySelector('.purchase-total').value = qty > 0 && price > 0 ? fmtMoney(qty * price) : '';
+    updateDocumentTotal();
+  }
+
+  function attachLine(row){
+    const materialSelect = row.querySelector('.purchase-material');
+    const unitSelect = row.querySelector('.purchase-unit');
+    const qtyInput = row.querySelector('.purchase-qty');
+    const priceInput = row.querySelector('.purchase-price');
+    const removeBtn = row.querySelector('.doc-line-remove');
+
+    materialSelect.addEventListener('change', () => {
+      unitSelect.dataset.touched = '';
+      syncLine(row, true);
+    });
+    unitSelect.addEventListener('change', () => {
+      const option = materialSelect.options[materialSelect.selectedIndex];
+      if((option?.dataset.forceUnit || '') === 'unite'){
+        unitSelect.value = 'unite';
+        unitSelect.dataset.touched = '';
+      } else {
+        unitSelect.dataset.touched = '1';
+      }
+      syncLine(row, true);
+    });
+    qtyInput.addEventListener('input', () => updateLineTotal(row));
+    priceInput.addEventListener('input', () => updateLineTotal(row));
+    removeBtn.addEventListener('click', () => {
+      if(linesHost.children.length === 1){
+        qtyInput.value = '';
+        priceInput.value = '';
+        updateLineTotal(row);
+        return;
+      }
+      row.remove();
+      renumberLines();
+      updateDocumentTotal();
+    });
+    syncLine(row, true);
+  }
+
+  function addLine(prefill){
+    const fragment = lineTemplate.content.cloneNode(true);
+    const row = fragment.querySelector('.doc-line-card');
+    linesHost.appendChild(row);
+    const materialSelect = row.querySelector('.purchase-material');
+    const unitSelect = row.querySelector('.purchase-unit');
+    const qtyInput = row.querySelector('.purchase-qty');
+    const priceInput = row.querySelector('.purchase-price');
+    const customInput = row.querySelector('.purchase-custom-name');
+
+    if(prefill){
+      materialSelect.value = String(prefill.raw_material_id || materialSelect.value);
+      qtyInput.value = prefill.quantity ?? '';
+      unitSelect.value = prefill.unit || unitSelect.value;
+      priceInput.value = prefill.unit_price ?? '';
+      customInput.value = prefill.custom_item_name || '';
+      unitSelect.dataset.touched = '1';
+    }
+
+    attachLine(row);
+    renumberLines();
+    if(prefill){
+      updateLineTotal(row);
+    }
+  }
+
+  addLineBtn?.addEventListener('click', () => addLine());
+  if(initialLines.length){
+    initialLines.forEach((line) => addLine(line));
+  } else {
+    addLine();
+  }
+})();
+</script>
+{% endblock %}

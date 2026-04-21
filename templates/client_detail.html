@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="record-shell">
+  <section class="record-surface">
+    <header class="record-header">
+      <div class="record-copy">
+        <div class="record-kicker">Client</div>
+        <h1 class="record-title">{{ client.name }}</h1>
+        <p class="record-subtitle">{{ client.phone or '-' }} · {{ client.address or '-' }}</p>
+      </div>
+      <div class="record-reference">
+        <div class="record-refrow"><span>Client</span><strong>#{{ client.id }}</strong></div>
+        <div class="record-refrow"><span>Reste</span><strong>{{ client_balance|money }}</strong></div>
+        <div class="record-refrow"><span>Ouverture</span><strong>{{ stats.opening_credit|money }}</strong></div>
+      </div>
+    </header>
+
+    <section class="record-grid">
+      <div class="record-card">
+        <div class="record-card-label">Credit initial</div>
+        <div class="record-card-value">{{ stats.opening_credit|money }}</div>
+      </div>
+      <div class="record-card">
+        <div class="record-card-label">Achats a credit</div>
+        <div class="record-card-value">{{ stats.credit_sales_total|money }}</div>
+      </div>
+      <div class="record-card">
+        <div class="record-card-label">Versements</div>
+        <div class="record-card-value">{{ stats.total_paid|money }}</div>
+      </div>
+      <div class="record-card">
+        <div class="record-card-label">Reste a payer</div>
+        <div class="record-card-value">{{ client_balance|money }}</div>
+      </div>
+    </section>
+
+    <section class="record-table-wrap">
+      <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
+        <div>
+          <div class="record-kicker">Historique</div>
+          <h2 class="h5 mb-0">Mouvements du client</h2>
+        </div>
+        <div class="record-actions">
+          <a href="{{ url_for('print_client_history', client_id=client.id) }}" class="btn btn-outline-primary" target="_blank">Imprimer l'historique</a>
+          <a href="{{ url_for('edit_client', client_id=client.id) }}" class="btn btn-outline-dark">Editer le client</a>
+          <a href="{{ url_for('clients') }}" class="btn btn-dark">Retour</a>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="record-table js-datagrid align-middle">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Designation d'achat / operation</th>
+                <th class="col-right hide-mobile">Prix d'achat / credit</th>
+                <th class="col-right hide-mobile">Versement</th>
+                <th class="col-right">Reste a payer</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in timeline %}
+            <tr class="context-target"
+                  data-delete-label="{% if item.event_type in ['sale_finished','sale_raw'] %}cette vente{% elif item.event_type in ['payment','advance'] %}cette transaction{% else %}cet element{% endif %}"
+                  data-edit-url="{% if item.event_type == 'sale_finished' %}{{ url_for('edit_sale_document', document_id=item.document_id) if item.document_id else url_for('edit_sale', kind='finished', row_id=item.row_id) }}{% elif item.event_type == 'sale_raw' %}{{ url_for('edit_sale_document', document_id=item.document_id) if item.document_id else url_for('edit_sale', kind='raw', row_id=item.row_id) }}{% elif item.event_type in ['payment','advance'] %}{{ url_for('edit_payment', payment_id=item.row_id) }}{% endif %}"
+                  data-delete-url="{% if item.event_type == 'sale_finished' %}{{ url_for('delete_sale', kind='finished', row_id=item.row_id) }}{% elif item.event_type == 'sale_raw' %}{{ url_for('delete_sale', kind='raw', row_id=item.row_id) }}{% elif item.event_type in ['payment','advance'] %}{{ url_for('delete_payment', payment_id=item.row_id) }}{% endif %}">
+              <td>{{ item.event_date }}</td>
+              <td>{{ item.designation }}</td>
+                <td class="col-right hide-mobile">{{ item.purchase_amount|money }}</td>
+                <td class="col-right hide-mobile">{{ item.payment_amount|money }}</td>
+                <td class="col-right"><strong>{{ item.running_balance|money }}</strong></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-muted">Aucun historique.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+</div>
+{% endblock %}

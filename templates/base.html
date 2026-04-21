@@ -1,0 +1,250 @@
+﻿<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <meta name="theme-color" content="#1a2235">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FABOuanes">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="apple-touch-icon" href="/static/icon-192.png">
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <title>{{ title or "FABOuanes" }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='app.css') }}" rel="stylesheet">
+</head>
+{% set is_print_view = request.path.startswith('/print/') or request.endpoint in ['print_client_history'] %}
+<body class="{% if is_desktop_app %}desktop-app {% endif %}{% if is_print_view %}print-route{% endif %}">
+<script>
+if (document.body.classList.contains('desktop-app') && !document.body.classList.contains('print-route')) {
+  document.documentElement.classList.add('desktop-app-root');
+} else {
+  document.documentElement.classList.remove('desktop-app-root');
+}
+</script>
+{% if g.user and not is_print_view %}
+{% set tools_nav_active = request.endpoint in ['notes_page', 'pdf_reader', 'pdf_reader_file'] %}
+<!-- ── Top Navbar ── -->
+<nav class="app-navbar">
+  <div class="nav-inner">
+    <a href="{{ url_for('index') }}" class="nav-brand" aria-label="Accueil FAB">
+      <img src="{{ url_for('static', filename='fab_logo.png') }}" alt="FABOuanes" class="nav-logo">
+      <span class="nav-brand-text d-none d-sm-flex">
+        <span class="nav-brand-title">FAB</span>
+              </span>
+    </a>
+    <!-- Desktop nav -->
+    <div class="nav-links d-none d-md-flex">
+      <a href="{{ url_for('contacts') }}" class="{{ 'active' if request.endpoint in ['contacts','clients','new_client','suppliers','new_supplier'] else '' }}"><i class="bi bi-people me-1"></i>Contacts</a>
+      <a href="{{ url_for('catalog') }}" class="{{ 'active' if request.endpoint in ['catalog','catalog_new','raw_materials'] else '' }}"><i class="bi bi-box-seam me-1"></i>Produits</a>
+      <a href="{{ url_for('operations') }}" class="{{ 'active' if request.endpoint in ['operations','transactions','sales','purchases','payments'] else '' }}"><i class="bi bi-arrow-left-right me-1"></i>Opérations</a>
+      <a href="{{ url_for('production') }}" class="{{ 'active' if request.endpoint in ['production','new_production'] else '' }}"><i class="bi bi-gear me-1"></i>Production</a>
+      <div class="dropdown">
+        <button type="button" class="nav-link-menu {{ 'active' if tools_nav_active else '' }}" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-folder2-open"></i>
+          <span>Outils</span>
+          <i class="bi bi-chevron-down nav-link-caret"></i>
+        </button>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item {{ 'active' if request.endpoint == 'notes_page' else '' }}" href="{{ url_for('notes_page') }}"><i class="bi bi-journal-text me-2"></i>Bloc-note</a></li>
+          <li><a class="dropdown-item {{ 'active' if request.endpoint in ['pdf_reader','pdf_reader_file'] else '' }}" href="{{ url_for('pdf_reader') }}"><i class="bi bi-file-pdf me-2"></i>Lecteur PDF</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="nav-spacer"></div>
+    <!-- Desktop actions -->
+    <div class="nav-actions">
+      <a href="{{ url_for('quick_add') }}" class="nav-btn d-none d-md-flex"><i class="bi bi-plus-lg"></i>Ajouter</a>
+      <!-- Theme picker -->
+      <div class="dropdown d-none d-md-block">
+        <button class="nav-btn dropdown-toggle border-0" data-bs-toggle="dropdown">🎨</button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><div class="dropdown-header" style="font-size:.7rem;font-weight:700;opacity:.5;text-transform:uppercase;letter-spacing:.08em;">Clairs</div></li>
+          <li><button class="dropdown-item js-theme" data-theme="light">☀️ Clair</button></li>
+          <li><button class="dropdown-item js-theme" data-theme="slate">🩶 Acier</button></li>
+          <li><button class="dropdown-item js-theme" data-theme="sand">🏜️ Sable</button></li>
+          <li><button class="dropdown-item js-theme" data-theme="mint">🌿 Menthe</button></li>
+          <li><button class="dropdown-item js-theme" data-theme="rose">🌸 Rose</button></li>
+          <li><button class="dropdown-item js-theme" data-theme="violet">💜 Violet</button></li>
+          <li><button class="dropdown-item js-theme" data-theme="ocean">🌊 Océan</button></li>
+          <li><button class="dropdown-item js-theme" data-theme="forest">🌲 Forêt</button></li>
+          <li><button class="dropdown-item js-theme" data-theme="gold">✨ Or</button></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><div class="dropdown-header" style="font-size:.7rem;font-weight:700;opacity:.5;text-transform:uppercase;letter-spacing:.08em;">Sombres</div></li>
+          <li><button class="dropdown-item js-theme" data-theme="dark">🌙 Nuit</button></li>
+          <li><button class="dropdown-item js-theme" data-theme="midnight">🔮 Minuit</button></li>
+          <li><button class="dropdown-item js-theme" data-theme="coffee">☕ Café</button></li>
+        </ul>
+      </div>
+      <!-- User -->
+      <div class="dropdown d-none d-md-block">
+        <button class="nav-btn dropdown-toggle border-0" data-bs-toggle="dropdown">
+          <i class="bi bi-person-circle"></i>{{ g.user['username'] }}
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          {% if g.user.role == 'admin' %}<li><a class="dropdown-item" href="{{ url_for('admin_panel') }}"><i class="bi bi-sliders me-2"></i>Paramètres</a></li><li><hr class="dropdown-divider"></li>{% endif %}
+          <li><a class="dropdown-item" href="{{ url_for('change_password') }}"><i class="bi bi-key me-2"></i>Mot de passe</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></li>
+        </ul>
+      </div>
+      <!-- Mobile hamburger -->
+      <button class="nav-hamburger" id="drawerBtn" aria-label="Menu">
+        <i class="bi bi-list"></i>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Mobile Side Drawer ── -->
+<div class="nav-overlay" id="navOverlay"></div>
+<div class="nav-drawer" id="navDrawer">
+  <div class="nav-drawer-header">
+    <div class="d-flex align-items-center gap-2">
+      <img src="{{ url_for('static', filename='fab_logo.png') }}" alt="FABOuanes" style="height:38px;border-radius:6px;">
+      <div>
+        <div style="font-weight:800;color:#fff;line-height:1;">FAB</div>
+        <div style="font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-top:4px;">Navigation</div>
+      </div>
+    </div>
+    <button class="nav-drawer-close" id="drawerClose"><i class="bi bi-x-lg"></i></button>
+  </div>
+  <div class="nav-drawer-body">
+    <div class="drawer-sub">Navigation</div>
+    <a href="{{ url_for('index') }}" class="drawer-link {{ 'active' if request.endpoint == 'index' else '' }}">
+      <i class="bi bi-house"></i> Tableau de bord
+    </a>
+    <a href="{{ url_for('contacts') }}" class="drawer-link {{ 'active' if request.endpoint in ['contacts','clients','suppliers'] else '' }}">
+      <i class="bi bi-people"></i> Contacts
+    </a>
+    <a href="{{ url_for('catalog') }}" class="drawer-link {{ 'active' if request.endpoint == 'catalog' else '' }}">
+      <i class="bi bi-box-seam"></i> Produits & Stocks
+    </a>
+    <a href="{{ url_for('operations') }}" class="drawer-link {{ 'active' if request.endpoint in ['operations','transactions'] else '' }}">
+      <i class="bi bi-arrow-left-right"></i> Opérations
+    </a>
+    <a href="{{ url_for('production') }}" class="drawer-link {{ 'active' if request.endpoint == 'production' else '' }}">
+      <i class="bi bi-gear"></i> Production
+    </a>
+    <div class="drawer-group {{ 'open' if tools_nav_active else '' }}">
+      <button type="button" class="drawer-link drawer-link-btn {{ 'active' if tools_nav_active else '' }}" id="drawerToolsToggle" aria-expanded="{{ 'true' if tools_nav_active else 'false' }}">
+        <span class="drawer-link-main">
+          <i class="bi bi-folder2-open"></i> Outils
+        </span>
+        <i class="bi bi-chevron-down drawer-caret"></i>
+      </button>
+      <div class="drawer-submenu">
+        <a href="{{ url_for('notes_page') }}" class="drawer-sublink {{ 'active' if request.endpoint == 'notes_page' else '' }}">
+          <i class="bi bi-journal-text"></i> Bloc-note
+        </a>
+        <a href="{{ url_for('pdf_reader') }}" class="drawer-sublink {{ 'active' if request.endpoint in ['pdf_reader','pdf_reader_file'] else '' }}">
+          <i class="bi bi-file-pdf"></i> Lecteur PDF
+        </a>
+      </div>
+    </div>
+    <div class="drawer-divider"></div>
+    <div class="drawer-sub">Actions</div>
+    <a href="{{ url_for('quick_add') }}" class="drawer-link {{ 'active' if request.endpoint == 'quick_add' else '' }}">
+      <i class="bi bi-plus-circle"></i> Ajout rapide
+    </a>
+    <div class="drawer-divider"></div>
+    <div class="drawer-sub">Thème</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:0 8px 8px;">
+      <button class="btn btn-sm btn-outline-secondary js-theme" data-theme="light">☀️ Clair</button>
+      <button class="btn btn-sm btn-outline-secondary js-theme" data-theme="dark">🌙 Nuit</button>
+      <button class="btn btn-sm btn-outline-secondary js-theme" data-theme="midnight">🔮 Minuit</button>
+      <button class="btn btn-sm btn-outline-secondary js-theme" data-theme="ocean">🌊 Océan</button>
+      <button class="btn btn-sm btn-outline-secondary js-theme" data-theme="forest">🌲 Forêt</button>
+      <button class="btn btn-sm btn-outline-secondary js-theme" data-theme="sand">🏜️ Sable</button>
+      <button class="btn btn-sm btn-outline-secondary js-theme" data-theme="rose">🌸 Rose</button>
+      <button class="btn btn-sm btn-outline-secondary js-theme" data-theme="violet">💜 Violet</button>
+      <button class="btn btn-sm btn-outline-secondary js-theme" data-theme="mint">🌿 Menthe</button>
+      <button class="btn btn-sm btn-outline-secondary js-theme" data-theme="gold">✨ Or</button>
+      <button class="btn btn-sm btn-outline-secondary js-theme" data-theme="coffee">☕ Café</button>
+      <button class="btn btn-sm btn-outline-secondary js-theme" data-theme="slate">🩶 Acier</button>
+    </div>
+    <div class="drawer-divider"></div>
+    {% if g.user.role == 'admin' %}
+    <a href="{{ url_for('admin_panel') }}" class="drawer-link">
+      <i class="bi bi-sliders"></i> Paramètres système
+    </a>
+    {% endif %}
+    <a href="{{ url_for('change_password') }}" class="drawer-link">
+      <i class="bi bi-key"></i> Mot de passe
+    </a>
+    <a href="{{ url_for('logout') }}" class="drawer-link" style="color:#f87171;">
+      <i class="bi bi-box-arrow-right"></i> Déconnexion
+    </a>
+  </div>
+</div>
+
+<!-- ── Bottom Nav (mobile) ── -->
+<nav class="bot-nav">
+  <div class="bot-nav-inner">
+    <a href="{{ url_for('index') }}" class="bot-tab {{ 'active' if request.endpoint == 'index' else '' }}">
+      <i class="bi bi-house{% if request.endpoint == 'index' %}-fill{% endif %}"></i><span>Accueil</span>
+    </a>
+    <a href="{{ url_for('catalog') }}" class="bot-tab {{ 'active' if request.endpoint in ['catalog','catalog_new','raw_materials'] else '' }}">
+      <i class="bi bi-box-seam{% if request.endpoint in ['catalog','catalog_new','raw_materials'] %}-fill{% endif %}"></i><span>Produits</span>
+    </a>
+    <a href="{{ url_for('operations') }}" class="bot-tab {{ 'active' if request.endpoint in ['operations','transactions','sales','purchases'] else '' }}">
+      <i class="bi bi-arrow-left-right"></i><span>Opérations</span>
+    </a>
+    <a href="{{ url_for('quick_add') }}" class="bot-tab-add" title="Ajouter">
+      <i class="bi bi-plus-lg"></i>
+    </a>
+    <a href="{{ url_for('contacts') }}" class="bot-tab {{ 'active' if request.endpoint in ['contacts','clients','suppliers'] else '' }}">
+      <i class="bi bi-people{% if request.endpoint in ['contacts','clients','suppliers'] %}-fill{% endif %}"></i><span>Contacts</span>
+    </a>
+  </div>
+</nav>
+{% endif %}
+
+<!-- ── Main Content ── -->
+<div class="app-content">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'danger' else 'warning' if category == 'warning' else 'info' }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</div>
+
+<!-- ── Context Menu ── -->
+<div class="pwa-banner" id="pwaBanner" role="status" aria-live="polite">
+  <div>
+    <div class="fw-semibold">Nouvelle version disponible</div>
+    <div class="small text-muted" id="pwaBannerText">Recharge l'application pour recuperer la derniere version.</div>
+  </div>
+  <div class="pwa-banner-actions">
+    <button type="button" class="btn btn-sm btn-outline-secondary" id="pwaDismiss">Plus tard</button>
+    <button type="button" class="btn btn-sm btn-dark" id="pwaReload">Mettre a jour</button>
+  </div>
+</div>
+<div id="contextMenu" class="context-menu">
+  <div class="menu-title" id="contextTitle">Actions</div>
+  <a href="#" id="contextView" style="display:none" onclick="if(this.href&&this.href!=='#')openInvoice(event,this.href)"><i class="bi bi-eye"></i> Voir la facture</a>
+  <a href="#" id="contextPrint" class="cm-print" style="display:none" onclick="if(this.href&&this.href!=='#')openInvoice(event,this.href)"><i class="bi bi-printer"></i> Imprimer</a>
+  <a href="#" id="contextEdit" style="display:none"><i class="bi bi-pencil"></i> Modifier</a>
+  <div class="cm-divider" id="contextDivider" style="display:none"></div>
+  <form id="contextDeleteForm" method="post" style="margin:0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="danger" id="contextDelete" style="display:none"><i class="bi bi-trash3"></i> Supprimer</button>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
+

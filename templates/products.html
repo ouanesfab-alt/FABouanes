@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .product-page{display:flex;flex-direction:column;gap:16px;}
+  .product-layout{display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1fr);gap:16px;}
+  .product-summary{color:var(--muted);font-size:.92rem;}
+  .product-form-card,.product-table-card{padding:18px;}
+  .product-form{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;}
+  .product-form .span-12{grid-column:span 12;}
+  .product-form .span-4{grid-column:span 4;}
+  .product-form .span-6{grid-column:span 6;}
+  .product-table-wrap{overflow-x:visible;}
+  .product-table-wrap .table-shell{max-width:1080px;margin:0 auto;width:100%;}
+  .product-table-wrap .table-search{justify-content:flex-start;}
+  .product-table-wrap .table-search input{max-width:320px;}
+  .product-table-wrap .table-scroll{width:100%;margin:0 auto;}
+  .product-table{margin:0 auto;}
+  .product-table th,.product-table td{vertical-align:top;}
+  .product-table .col-name{width:34%;min-width:220px;}
+  .product-table .col-stock{width:1%;text-align:right;white-space:nowrap;}
+  .product-table .col-unit{width:10%;white-space:nowrap;}
+  .product-table .col-money{width:1%;text-align:right;white-space:nowrap;}
+  .product-table .name-text{display:inline-block;max-width:30ch;color:var(--text);font-weight:700;
+    line-height:1.35;white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+  @media(max-width:991px){
+    .product-layout{grid-template-columns:1fr;}
+  }
+  @media(max-width:767px){
+    .product-form-card,.product-table-card{padding:14px;}
+    .product-form .span-4,.product-form .span-6{grid-column:span 12;}
+    .product-table-wrap .table-search input{max-width:none;width:100%;}
+    .product-table .col-name{min-width:180px;}
+  }
+</style>
+
+<div class="product-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Produits finis</h2>
+      <p class="product-summary mb-0">{{ products|length }} produit(s) enregistre(s).</p>
+    </div>
+  </div>
+
+  <div class="product-layout">
+    <section class="card product-form-card">
+      <h3 class="section-title mb-3">Ajouter un produit</h3>
+      <form method="post" class="product-form">
+        <div class="span-12">
+          <label class="form-label">Nom</label>
+          <input name="name" class="form-control" required>
+        </div>
+        <div class="span-4">
+          <label class="form-label">Unite</label>
+          <input name="default_unit" value="kg" class="form-control">
+        </div>
+        <div class="span-4">
+          <label class="form-label">Stock initial</label>
+          <input name="stock_qty" type="number" step="0.01" value="0" class="form-control">
+        </div>
+        <div class="span-4">
+          <label class="form-label">Prix vente</label>
+          <input name="sale_price" type="number" step="0.01" value="0" class="form-control">
+        </div>
+        <div class="span-12">
+          <label class="form-label">Cout moyen / prix de production</label>
+          <input name="avg_cost" type="number" step="0.01" value="0" class="form-control">
+        </div>
+        <div class="span-12">
+          <button class="btn btn-dark w-100">Enregistrer le produit</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card product-table-card">
+      <h3 class="section-title mb-3">Liste des produits finis</h3>
+      <div class="table-responsive product-table-wrap">
+        <table class="table js-datagrid align-middle product-table">
+          <thead>
+            <tr>
+              <th class="col-name">Nom</th>
+              <th class="col-stock">Stock</th>
+              <th class="col-unit">Unite</th>
+              <th class="col-money">Prix vente</th>
+              <th class="col-money">Prix production</th>
+              <th class="col-money">Benefice unitaire</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in products %}
+            <tr>
+              <td class="cell-text col-name"><span class="name-text">{{ p.name }}</span></td>
+              <td class="cell-num col-stock">{{ p.stock_qty }}</td>
+              <td class="cell-text col-unit">{{ p.default_unit }}</td>
+              <td class="cell-num col-money">{{ p.sale_price|money }}</td>
+              <td class="cell-num col-money">{{ p.avg_cost|money }}</td>
+              <td class="cell-num col-money">{{ (p.sale_price - p.avg_cost)|money }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-muted text-center py-4">Aucun produit fini.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

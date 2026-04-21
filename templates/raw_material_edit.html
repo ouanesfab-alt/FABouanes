@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .raw-edit-page{display:flex;flex-direction:column;gap:16px;}
+  .raw-edit-summary{color:var(--muted);font-size:.92rem;}
+  .raw-edit-shell{max-width:880px;margin:0 auto;width:100%;}
+  .raw-edit-card{padding:20px;}
+  .raw-edit-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;}
+  .raw-edit-grid .span-12{grid-column:span 12;}
+  .raw-edit-grid .span-6{grid-column:span 6;}
+  .raw-edit-grid .span-4{grid-column:span 4;}
+  .raw-edit-note{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);
+    color:var(--muted);font-size:.9rem;line-height:1.55;}
+  .raw-edit-hidden[hidden]{display:none !important;}
+  .raw-edit-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .raw-edit-actions > *{flex:1 1 220px;}
+  @media(max-width:767px){
+    .raw-edit-card{padding:16px;}
+    .raw-edit-grid .span-6,.raw-edit-grid .span-4{grid-column:span 12;}
+    .raw-edit-actions{flex-direction:column;}
+    .raw-edit-actions > *{width:100%;flex:1 1 auto;}
+  }
+</style>
+
+<div class="raw-edit-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Modifier la matiere premiere</h2>
+      <p class="raw-edit-summary mb-0">Mets a jour le stock, les prix et le seuil de {{ material.name }}.</p>
+    </div>
+  </div>
+
+  <div class="raw-edit-shell">
+    <div class="card raw-edit-card">
+      <form method="post" class="raw-edit-grid">
+        <div class="span-6">
+          <label class="form-label">Categorie</label>
+          <select name="category_name" id="rawCategoryName" class="form-select" data-other-value="{{ other_category_value }}">
+            {% for preset in name_presets %}<option value="{{ preset }}" {% if selected_category == preset %}selected{% endif %}>{{ preset }}</option>{% endfor %}
+            <option value="{{ other_category_value }}" {% if selected_category == other_category_value %}selected{% endif %}>AUTRE</option>
+          </select>
+        </div>
+        <div class="span-6 raw-edit-hidden" id="rawCustomNameWrap" {% if selected_category != other_category_value %}hidden{% endif %}>
+          <label class="form-label">Preciser / Nom du produit</label>
+          <input name="custom_name" id="rawCustomName" class="form-control" value="{{ custom_name_value }}" {% if selected_category == other_category_value %}required{% endif %}>
+        </div>
+        <div class="span-4">
+          <label class="form-label">Unite</label>
+          <select name="unit" class="form-select">
+            {% for u in units %}<option value="{{ u }}" {% if material.unit==u %}selected{% endif %}>{{ u }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="span-4">
+          <label class="form-label">Stock</label>
+          <input name="stock_qty" type="text" inputmode="decimal" class="form-control" value="{{ material.stock_qty }}">
+        </div>
+        <div class="span-4">
+          <label class="form-label">Seuil</label>
+          <input name="alert_threshold" type="text" inputmode="decimal" class="form-control" value="{{ material.alert_threshold }}">
+        </div>
+        <div class="span-6">
+          <label class="form-label">Cout achat moyen</label>
+          <input name="avg_cost" type="text" inputmode="decimal" class="form-control" value="{{ material.avg_cost }}">
+        </div>
+        <div class="span-6">
+          <label class="form-label">Prix de vente par kg</label>
+          <input id="salePriceKg" name="sale_price" type="text" inputmode="decimal" class="form-control" value="{{ material.sale_price }}">
+        </div>
+        <div class="span-12">
+          <div class="raw-edit-note">
+            Les operations et le calcul du benefice utilisent les prix enregistres ici.
+            Apercu : 1 kg = <strong><span id="kgPrev">0</span> DA</strong>,
+            1 sac = <strong><span id="sacPrev">0</span> DA</strong>,
+            1 Qt = <strong><span id="qtPrev">0</span> DA</strong>.
+          </div>
+        </div>
+        <div class="span-12 raw-edit-actions">
+          <button class="btn btn-dark">Enregistrer</button>
+          <a href="{{ url_for('catalog') }}" class="btn btn-outline-secondary">Retour</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}<script>
+const priceKg=document.getElementById('salePriceKg');
+function syncPricePreview(){const v=parseFloat(priceKg?.value||0); document.getElementById('kgPrev').textContent=v.toFixed(2); document.getElementById('sacPrev').textContent=(v*50).toFixed(2); document.getElementById('qtPrev').textContent=(v*100).toFixed(2);}
+priceKg?.addEventListener('input', syncPricePreview); syncPricePreview();
+const rawCategorySelect=document.getElementById('rawCategoryName');
+const rawCustomNameWrap=document.getElementById('rawCustomNameWrap');
+const rawCustomNameInput=document.getElementById('rawCustomName');
+function toggleRawCustomName(){
+  const isOther=(rawCategorySelect?.value||'')===(rawCategorySelect?.dataset.otherValue||'__other__');
+  if(rawCustomNameWrap) rawCustomNameWrap.hidden=!isOther;
+  if(rawCustomNameInput) rawCustomNameInput.required=isOther;
+}
+rawCategorySelect?.addEventListener('change', toggleRawCustomName);
+toggleRawCustomName();
+</script>{% endblock %}
