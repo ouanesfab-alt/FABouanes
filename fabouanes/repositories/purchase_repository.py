@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fabouanes.core.db_access import query_db
+from fabouanes.core.db_access import paged_query, query_db
 
 
 def _raw_material_choices():
@@ -25,27 +25,28 @@ def _raw_material_choices():
     )
 
 
-def list_purchase_page_context():
+def list_purchase_page_context(*, page: int, page_size: int):
+    query = """
+        SELECT p.*, s.name AS supplier_name, COALESCE(NULLIF(p.custom_item_name, ''), r.name) AS material_name, COALESCE(p.unit, r.unit, 'kg') AS material_unit,
+               CASE
+                   WHEN lower(COALESCE(p.unit, r.unit, 'kg')) = 'sac' THEN p.quantity / 50.0
+                   WHEN lower(COALESCE(p.unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
+                   ELSE p.quantity
+               END AS display_quantity,
+               CASE
+                   WHEN lower(COALESCE(p.unit, r.unit, 'kg')) = 'sac' THEN p.unit_price * 50.0
+                   WHEN lower(COALESCE(p.unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
+                   ELSE p.unit_price
+               END AS display_unit_price
+        FROM purchases p
+        LEFT JOIN suppliers s ON s.id = p.supplier_id
+        JOIN raw_materials r ON r.id = p.raw_material_id
+        ORDER BY p.id DESC
+    """
+    purchases, pagination = paged_query(query, page=page, page_size=page_size)
     return {
-        "purchases": query_db(
-            """
-            SELECT p.*, s.name AS supplier_name, COALESCE(NULLIF(p.custom_item_name, ''), r.name) AS material_name, COALESCE(p.unit, r.unit, 'kg') AS material_unit,
-                   CASE
-                       WHEN lower(COALESCE(p.unit, r.unit, 'kg')) = 'sac' THEN p.quantity / 50.0
-                       WHEN lower(COALESCE(p.unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
-                       ELSE p.quantity
-                   END AS display_quantity,
-                   CASE
-                       WHEN lower(COALESCE(p.unit, r.unit, 'kg')) = 'sac' THEN p.unit_price * 50.0
-                       WHEN lower(COALESCE(p.unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
-                       ELSE p.unit_price
-                   END AS display_unit_price
-            FROM purchases p
-            LEFT JOIN suppliers s ON s.id = p.supplier_id
-            JOIN raw_materials r ON r.id = p.raw_material_id
-            ORDER BY p.id DESC
-            """
-        ),
+        "purchases": purchases,
+        "purchases_pagination": pagination,
         "suppliers": query_db("SELECT * FROM suppliers ORDER BY name"),
         "raw_materials": _raw_material_choices(),
     }

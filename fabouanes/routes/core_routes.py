@@ -34,6 +34,11 @@ def register_core_routes(app):
         return render_template("dashboard.html", **context)
 
     @login_required
+    def dashboard_summary():
+        target_date = request.args.get("date")
+        return jsonify(dict(get_dashboard_snapshot(target_date)))
+
+    @login_required
     def api_kpi_date():
         target_date = request.args.get("date", date.today().isoformat())
         try:
@@ -170,6 +175,7 @@ def register_core_routes(app):
 
     bind_route(app, "/", "index", index, ["GET"])
     bind_route(app, "/dashboard", "dashboard", dashboard, ["GET"])
+    bind_route(app, "/dashboard/summary", "dashboard_summary", dashboard_summary, ["GET"])
     bind_route(app, "/api/kpi-date", "api_kpi_date", api_kpi_date, ["GET"])
     bind_route(app, "/api/kpi-at-date", "api_kpi_at_date", api_kpi_at_date, ["GET"])
     bind_route(app, "/api/item-info", "api_item_info", api_item_info, ["GET"])

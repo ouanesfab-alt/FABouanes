@@ -2,8 +2,13 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
+coverage.xml
+htmlcov/
 .venv/
+.envrc
 
 # Local runtime data
 backups/
@@ -19,6 +24,7 @@ tests/_runtime_debug/
 dist/
 installer_output/
 build/
+*.zip
 *.spec
 fabouanes/_internal/
 

@@ -1,4 +1,5 @@
 from fabouanes.app_factory import create_app
+from fabouanes.logging_setup import configure_logging
 from fabouanes.runtime_app import ensure_runtime_dirs, init_db, log_server_start
 import os
 import socket
@@ -14,7 +15,7 @@ def _best_lan_ip() -> str:
 
     def add_candidate(value: str) -> None:
         ip = str(value or "").strip()
-        if not ip or ip in seen or ip.startswith("127.") or ip in {"0.0.0.0", "::1"}:
+        if not ip or ip in seen or ip.startswith("127.") or ip.startswith("169.254.") or ip in {"0.0.0.0", "::1"} or ":" in ip:
             return
         seen.add(ip)
         candidates.append(ip)
@@ -33,13 +34,22 @@ def _best_lan_ip() -> str:
         hostname = socket.gethostname()
         for ip in socket.gethostbyname_ex(hostname)[2]:
             add_candidate(ip)
+        for entry in socket.getaddrinfo(hostname, None, family=socket.AF_INET):
+            add_candidate(entry[4][0])
     except OSError:
         pass
+
+    private_priority = ("192.168.", "10.", "172.")
+    for prefix in private_priority:
+        for candidate in candidates:
+            if candidate.startswith(prefix):
+                return candidate
 
     return candidates[0] if candidates else ""
 
 
 if __name__ == "__main__":
+    configure_logging()
     log_server_start()
     host = os.environ.get("FAB_HOST", "0.0.0.0")
     port = int(os.environ.get("FAB_PORT", "5000"))

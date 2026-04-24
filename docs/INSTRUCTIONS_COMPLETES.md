@@ -1,46 +1,60 @@
-# FABOuanes - Guide rapide
+# FABOuanes - Instructions Completes (Reseau)
 
 ## Prerequis
-1. Installe Python 3 depuis `python.org/downloads`.
-2. Prepare une base PostgreSQL accessible depuis la machine.
-3. Copie `.env.example` vers `.env` et renseigne `DATABASE_URL`.
 
-## Lancer l'application
-1. Double-clique sur `LANCER.bat`.
-2. Le script redirige vers `DOUBLE_CLIC_LANCER_TOUT.bat`.
-3. Le lanceur remet `admin / 0000`, puis demarre FastAPI/Uvicorn.
+- Python 3.11+
+- PostgreSQL (local ou Docker)
+- Docker Desktop (option recommandee)
 
-## Lancer FABOuanes en mode reseau Android
-1. Double-clique sur `DOUBLE_CLIC_LANCER_TOUT.bat`.
-2. Le serveur demarre en `FAB_HOST=0.0.0.0`.
-3. L'URL locale reste `http://127.0.0.1:5000` et la connexion mobile utilise l'IP LAN detectee.
+## Scripts principaux
 
-## Lancer les tests
-1. Definis `TEST_DATABASE_URL` vers une base PostgreSQL de test dediee.
-2. Lance `LANCER_TESTS.bat` ou `python -m unittest discover -s tests -v`.
+- `DOUBLE_CLIC_LANCER_TOUT.bat` -> lancement serveur web complet
+- `START_POSTGRES.bat` -> start PostgreSQL + Redis Docker
+- `STOP_POSTGRES.bat` -> stop PostgreSQL + Redis Docker
+- `RESET_ADMIN_SECOURS.bat` -> reset admin manuel uniquement
+- `SEED_DEMO.bat` -> donnees demo optionnelles
+- `GENERER_ZIP_LIVRABLE.bat` -> ZIP propre pour partage
 
-## Creer l'EXE Windows
-1. Double-clique sur `deploy\windows\COMPILER_EXE_AVEC_TESTS.bat`.
-2. Les tests sont lances avant la compilation.
-3. Si tout est bon, l'EXE est genere dans `dist\FABOuanes\FABOuanes.exe`.
+## PostgreSQL Docker
 
-## Docker
-- Un environnement PostgreSQL pret a l'emploi est fourni dans `deploy\docker\docker-compose.yml`.
-- L'URL par defaut cote application est `postgresql://fabouanes:fabouanes_change_me@postgres:5432/fabouanes`.
+Le compose source est:
+- `deploy/docker/docker-compose.yml`
 
-## Donnees
-- Les donnees applicatives vivent desormais dans PostgreSQL.
-- Le projet n'embarque plus de base SQLite `database.db`.
-- Si une ancienne base SQLite `database.db` existe encore dans le dossier applicatif local ou a la racine du projet, elle est importee automatiquement au premier demarrage sur PostgreSQL.
-- Les sauvegardes applicatives PostgreSQL sont stockees dans `C:\Users\NOM\AppData\Local\FABOuanes\backups\local\`.
+URL applicative typique:
+```env
+DATABASE_URL=postgresql://fabouanes:fabouanes_change_me@localhost:5432/fabouanes
+```
 
-## Nettoyage
-- Lance `NETTOYAGE_GENERAL.bat` pour supprimer les logs, `__pycache__` et caches de tests.
+## Base de donnees
 
-## Organisation du projet
-- `fabouanes\` contient le code Python principal.
-- `templates\` et `static\` contiennent l'interface web.
-- `android_wrapper\` contient le client Android Capacitor.
-- `deploy\windows\` contient les scripts de build Windows et Inno Setup.
-- `deploy\docker\` contient les fichiers Docker.
-- `docs\` contient la documentation.
+- Creation des tables automatique au premier demarrage
+- Migrations SQL appliquees automatiquement
+- Import SQLite historique toujours supporte si un ancien `database.db` est present
+
+## API
+
+- `GET /api/v1`
+- `GET /api/v1/ping`
+- `GET /api/v1/dashboard/summary`
+- Swagger: `GET /api/docs`
+
+## Reseau multi-postes
+
+- Lancer serveur sur PC principal
+- Verifier pare-feu Windows
+- Acceder depuis les postes clients via `http://IP_PC_SERVEUR:5000`
+
+## Android wrapper
+
+- Client WebView Capacitor
+- Configuration URL serveur + QR conservee
+- Utilisation uniquement sur meme reseau local pour acces direct
+
+## Tests
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+Integration tests:
+- definir `TEST_DATABASE_URL` (base PostgreSQL de test dediee)

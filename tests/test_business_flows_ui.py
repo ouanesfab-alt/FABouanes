@@ -2,6 +2,19 @@ from tests.business_flow_case import *  # noqa: F401,F403
 
 
 class UiBusinessFlowTests(BusinessFlowTestCase):
+    def test_dashboard_and_transactions_compat_routes_are_available(self) -> None:
+        self._login()
+
+        dashboard_summary = self.client.get("/dashboard/summary")
+        transactions = self.client.get("/transactions")
+        pending = self.client.get("/transactions/pending")
+        api_root = self.client.get("/api/v1")
+
+        self.assertEqual(dashboard_summary.status_code, 200)
+        self.assertEqual(transactions.status_code, 200)
+        self.assertEqual(pending.status_code, 200)
+        self.assertEqual(api_root.status_code, 200)
+
     def test_login_allows_access_to_sales_page(self) -> None:
         self._login()
 

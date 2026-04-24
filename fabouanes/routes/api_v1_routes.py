@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import secrets
 from datetime import datetime, timedelta
 from typing import Any
+from urllib.parse import urlparse
 
 from fabouanes.fastapi_compat import current_app, g, jsonify, request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
@@ -38,6 +40,15 @@ from fabouanes.repositories.sale_repository import build_sellable_items
 from fabouanes.repositories.sale_repository import get_sale
 from fabouanes.repositories.user_repository import get_user_by_id
 from fabouanes.routes.route_utils import bind_route
+from fabouanes.presentation.api_validation import (
+    AuthLoginPayload,
+    AuthRefreshPayload,
+    ClientCreatePayload,
+    PaymentCreatePayload,
+    PurchaseCreatePayload,
+    SaleCreatePayload,
+    validate_payload,
+)
 from fabouanes.services.auth_service import attempt_login
 from fabouanes.services.client_service import create_client_from_form, get_client_detail_context, update_client_from_form
 from fabouanes.services.payment_service import create_payment_from_form, delete_payment_by_id, edit_payment_from_form
@@ -179,6 +190,14 @@ def _json_payload() -> dict[str, Any]:
     return dict(request.get_json(silent=True) or {})
 
 
+def _validated_json_payload(model_type) -> tuple[dict[str, Any], Any]:
+    payload = _json_payload()
+    normalized, errors = validate_payload(model_type, payload)
+    if errors:
+        return {}, _api_error("validation_error", "Payload JSON invalide.", 400, errors)
+    return normalized, None
+
+
 def _form_payload_from_json(payload: dict[str, Any]) -> MultiDict:
     items: list[tuple[str, Any]] = []
     for key, value in payload.items():
@@ -274,16 +293,38 @@ def _client_total_payments_sql(alias: str = "c") -> str:
 
 
 def _api_cors_origin() -> str:
-    return request.headers.get("Origin", "*") or "*"
+    origin = (request.headers.get("Origin") or "").strip()
+    if not origin:
+        return "*"
+    if str(os.environ.get("CORS_ALLOW_ALL", "0")).strip().lower() in {"1", "true", "yes", "on"}:
+        return "*"
+    allowed_raw = str(os.environ.get("CORS_ALLOW_ORIGINS", "http://localhost,http://127.0.0.1")).strip()
+    allowed = {item.strip() for item in allowed_raw.split(",") if item.strip()}
+    if origin in allowed:
+        return origin
+    try:
+        parsed = urlparse(origin)
+        origin_host = parsed.hostname or ""
+    except Exception:
+        return "null"
+    request_host = str(request.host or "").split(":", 1)[0].strip().lower()
+    if request_host and origin_host.lower() == request_host:
+        return origin
+    if origin_host.startswith("192.168.") or origin_host.startswith("10.") or origin_host.startswith("172."):
+        return origin
+    return "null"
 
 
 def _apply_api_cors(response):
     if request.path.startswith("/api/v1/"):
-        response.headers["Access-Control-Allow-Origin"] = _api_cors_origin()
+        origin_value = _api_cors_origin()
+        response.headers["Access-Control-Allow-Origin"] = origin_value
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, X-Requested-With"
+        response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, X-Requested-With, X-Request-ID"
         response.headers["Access-Control-Max-Age"] = "86400"
         response.headers["Vary"] = "Origin"
+        if origin_value != "*" and origin_value != "null":
+            response.headers["Access-Control-Allow-Credentials"] = "true"
         if request.headers.get("Access-Control-Request-Private-Network"):
             response.headers["Access-Control-Allow-Private-Network"] = "true"
     return response
@@ -454,11 +495,24 @@ def register_api_v1_routes(app):
         app.after_request(_apply_api_cors)
         app.config["_FAB_API_V1_CORS"] = True
 
+    def api_root():
+        return _api_success(
+            {
+                "name": "FABOuanes API",
+                "version": "v1",
+                "docs": "/api/docs",
+                "openapi": "/api/openapi.json",
+                "ping": "/api/v1/ping",
+            }
+        )
+
     def api_ping():
         return _api_success(_ping_payload())
 
     def api_auth_login():
-        payload = _json_payload()
+        payload, error_response = _validated_json_payload(AuthLoginPayload)
+        if error_response:
+            return error_response
         result = attempt_login(payload.get("username", ""), payload.get("password", ""))
         if not result["ok"]:
             return _api_error("login_failed", result["message"], int(result.get("status") or 401))
@@ -482,7 +536,9 @@ def register_api_v1_routes(app):
         )
 
     def api_auth_refresh():
-        payload = _json_payload()
+        payload, error_response = _validated_json_payload(AuthRefreshPayload)
+        if error_response:
+            return error_response
         raw_refresh = str(payload.get("refresh_token", "") or "").strip()
         user = _validate_refresh_token(raw_refresh)
         if not user:
@@ -528,7 +584,9 @@ def register_api_v1_routes(app):
         if request.method == "POST":
             if not has_permission(g.user, PERMISSION_CONTACTS_WRITE):
                 return _api_error("forbidden", "Permission refusee.", 403)
-            payload = _json_payload()
+            payload, error_response = _validated_json_payload(ClientCreatePayload)
+            if error_response:
+                return error_response
             client_id = create_client_from_form(payload)
             return _api_success(_client_payload(client_id), status=201)
         where: list[str] = []
@@ -764,7 +822,10 @@ def register_api_v1_routes(app):
         if request.method == "POST":
             if not has_permission(g.user, PERMISSION_OPERATIONS_WRITE):
                 return _api_error("forbidden", "Permission refusee.", 403)
-            created = create_purchase_from_form(_form_payload_from_json(_json_payload()))
+            payload, error_response = _validated_json_payload(PurchaseCreatePayload)
+            if error_response:
+                return error_response
+            created = create_purchase_from_form(_form_payload_from_json(payload))
             if created["mode"] == "line":
                 payload = {"mode": "line", "purchase": _purchase_payload(int(created["print_item_id"]))}
             else:
@@ -849,7 +910,10 @@ def register_api_v1_routes(app):
         if request.method == "POST":
             if not has_permission(g.user, PERMISSION_OPERATIONS_WRITE):
                 return _api_error("forbidden", "Permission refusee.", 403)
-            created = create_sale_from_form(_form_payload_from_json(_json_payload()))
+            payload, error_response = _validated_json_payload(SaleCreatePayload)
+            if error_response:
+                return error_response
+            created = create_sale_from_form(_form_payload_from_json(payload))
             if created["mode"] == "line":
                 payload = {
                     "mode": "line",
@@ -966,7 +1030,10 @@ def register_api_v1_routes(app):
             if not has_permission(g.user, PERMISSION_OPERATIONS_WRITE):
                 return _api_error("forbidden", "Permission refusee.", 403)
             try:
-                payment_id, payment_type = create_payment_from_form(_json_payload())
+                payload, error_response = _validated_json_payload(PaymentCreatePayload)
+                if error_response:
+                    return error_response
+                payment_id, payment_type = create_payment_from_form(payload)
             except FabouanesError as exc:
                 return _api_error_from_exception(exc)
             return _api_success({"payment_type": payment_type, "payment": _payment_payload(payment_id)}, status=201)
@@ -1163,6 +1230,7 @@ def register_api_v1_routes(app):
         rows, meta = _query_list("SELECT * FROM audit_logs ORDER BY id DESC")
         return _api_success(rows, meta)
 
+    bind_route(app, "/api/v1", "api_v1_root", api_root, ["GET"])
     bind_route(app, "/api/v1/ping", "api_v1_ping", api_ping, ["GET"])
     bind_route(app, "/api/v1/auth/login", "api_v1_auth_login", api_auth_login, ["POST"])
     bind_route(app, "/api/v1/auth/refresh", "api_v1_auth_refresh", api_auth_refresh, ["POST"])

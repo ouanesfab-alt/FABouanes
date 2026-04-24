@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from fabouanes.core.db_access import query_db
+from fabouanes.core.db_access import paged_query, query_db
 
 
 def _is_other_operation_item(name: str | None) -> bool:
@@ -47,10 +47,9 @@ def build_sellable_items():
     return items
 
 
-def list_sales_page_context():
+def list_sales_page_context(*, page: int, page_size: int):
     items = build_sellable_items()
-    rows = query_db(
-        """
+    query = """
         SELECT * FROM (
             SELECT s.id, s.document_id, s.client_id, s.sale_date, COALESCE(c.name, 'Comptoir') AS client_name, f.name AS item_name, s.quantity, s.unit, s.total, s.amount_paid, s.balance_due, s.profit_amount, 'Produit fini' AS item_kind, 'finished' AS row_kind
             FROM sales s
@@ -63,10 +62,11 @@ def list_sales_page_context():
             JOIN raw_materials r ON r.id = rs.raw_material_id
         ) x
         ORDER BY sale_date DESC, id DESC
-        """
-    )
+    """
+    rows, pagination = paged_query(query, page=page, page_size=page_size)
     return {
         "sales": rows,
+        "sales_pagination": pagination,
         "clients": query_db("SELECT * FROM clients ORDER BY name"),
         "sellable_items": items,
         "sellable_json": json.dumps(items),

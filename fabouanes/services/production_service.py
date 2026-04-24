@@ -12,8 +12,8 @@ from fabouanes.core.storage import backup_database
 from fabouanes.repositories.production_repository import list_production_page_context, production_form_context
 
 
-def productions_context():
-    return list_production_page_context()
+def productions_context(*, page: int, page_size: int):
+    return list_production_page_context(page=page, page_size=page_size)
 
 
 def new_production_context():

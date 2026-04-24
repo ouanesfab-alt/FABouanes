@@ -218,15 +218,18 @@ class SystemBusinessFlowTests(BusinessFlowTestCase):
         self.assertIn('static\\FABOuanes_desktop.ico', build_script)
         self.assertIn("if not defined FAB_NO_PAUSE pause", build_script)
 
-    def test_double_click_launcher_sets_network_mode_and_resets_admin(self) -> None:
+    def test_double_click_launcher_sets_network_mode_without_auto_admin_reset(self) -> None:
         project_root = Path(__file__).resolve().parents[1]
         launcher_text = (project_root / "DOUBLE_CLIC_LANCER_TOUT.bat").read_text(encoding="utf-8")
         run_prod_text = (project_root / "run_prod.py").read_text(encoding="utf-8")
+        reset_script_text = (project_root / "RESET_ADMIN_SECOURS.bat").read_text(encoding="utf-8")
 
         self.assertIn('set "FAB_HOST=0.0.0.0"', launcher_text)
         self.assertIn('set "FAB_PORT=5000"', launcher_text)
-        self.assertIn("reset_admin_password.py 0000 admin", launcher_text)
+        self.assertNotIn("reset_admin_password.py 0000 admin", launcher_text)
         self.assertIn("run_prod.py", launcher_text)
+        self.assertIn("reset_admin_password.py", reset_script_text)
+        self.assertIn("manuel", reset_script_text.lower())
         self.assertIn("FAB_HOST", run_prod_text)
         self.assertIn("FAB_PORT", run_prod_text)
 

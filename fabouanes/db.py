@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import os
 import re
+import threading
+import atexit
+from time import monotonic
 from collections import OrderedDict
 from pathlib import Path
 
@@ -91,16 +95,29 @@ class CompatCursor:
 
 
 class CompatConnection:
-    def __init__(self, conn, dialect: str):
+    def __init__(self, conn, dialect: str, *, pool=None):
         self.conn = conn
         self.dialect = dialect
+        self.pool = pool
+        self._closed = False
+        self._broken = False
 
     def execute(self, query: str, params: tuple = ()):
+        if self._closed:
+            raise RuntimeError("Connection already closed.")
         q = adapt_query(query, self.dialect)
         if self.dialect == "postgres":
             q = _append_postgres_returning_id(q)
         cur = self.conn.cursor()
-        cur.execute(q, params)
+        try:
+            cur.execute(q, params)
+        except Exception:
+            self._broken = True
+            try:
+                cur.close()
+            except Exception:
+                pass
+            raise
         return CompatCursor(cur, self.dialect)
 
     def executescript(self, script: str):
@@ -118,7 +135,16 @@ class CompatConnection:
         self.conn.rollback()
 
     def close(self):
-        self.conn.close()
+        if self._closed:
+            return
+        self._closed = True
+        if self.pool is None:
+            self.conn.close()
+            return
+        if self._broken:
+            self.pool.discard(self.conn)
+            return
+        self.pool.release(self.conn)
 
 
 def _wrap_rows(rows, description):
@@ -146,6 +172,133 @@ def _postgres_connect(database_url: str):
     )
 
 
+class PgConnectionPool:
+    def __init__(self, database_url: str, *, max_size: int, timeout_seconds: float) -> None:
+        self.database_url = database_url
+        self.max_size = max(1, int(max_size))
+        self.timeout_seconds = max(0.2, float(timeout_seconds))
+        self._idle: list[object] = []
+        self._all: set[object] = set()
+        self._total = 0
+        self._cond = threading.Condition()
+
+    def acquire(self):
+        deadline = monotonic() + self.timeout_seconds
+        with self._cond:
+            while True:
+                if self._idle:
+                    return self._idle.pop()
+                if self._total < self.max_size:
+                    self._total += 1
+                    break
+                remaining = deadline - monotonic()
+                if remaining <= 0:
+                    raise RuntimeError(
+                        "PostgreSQL pool epuise. Augmente DB_POOL_SIZE ou reduis la pression de requetes."
+                    )
+                self._cond.wait(timeout=remaining)
+        try:
+            conn = _postgres_connect(self.database_url)
+            with self._cond:
+                self._all.add(conn)
+            return conn
+        except Exception:
+            with self._cond:
+                self._total = max(0, self._total - 1)
+                self._cond.notify()
+            raise
+
+    def release(self, conn) -> None:
+        if conn is None:
+            return
+        healthy = True
+        try:
+            conn.rollback()
+        except Exception:
+            healthy = False
+        with self._cond:
+            if healthy:
+                self._idle.append(conn)
+            else:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                self._all.discard(conn)
+                self._total = max(0, self._total - 1)
+            self._cond.notify()
+
+    def discard(self, conn) -> None:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        with self._cond:
+            self._all.discard(conn)
+            self._total = max(0, self._total - 1)
+            self._cond.notify()
+
+    def close_all(self) -> None:
+        with self._cond:
+            all_connections = list(self._all)
+            self._all.clear()
+            self._idle.clear()
+            self._total = 0
+            self._cond.notify_all()
+        for conn in all_connections:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+_POOLS: dict[str, PgConnectionPool] = {}
+_POOLS_LOCK = threading.Lock()
+
+
+def _pool_max_size() -> int:
+    raw = (os.environ.get("DB_POOL_SIZE", "") or "").strip()
+    try:
+        value = int(raw) if raw else 20
+    except Exception:
+        value = 20
+    return max(2, min(value, 200))
+
+
+def _pool_timeout_seconds() -> float:
+    raw = (os.environ.get("DB_POOL_TIMEOUT_SECONDS", "") or "").strip()
+    try:
+        value = float(raw) if raw else 8.0
+    except Exception:
+        value = 8.0
+    return max(0.2, min(value, 60.0))
+
+
+def _postgres_pool(database_url: str) -> PgConnectionPool:
+    with _POOLS_LOCK:
+        pool = _POOLS.get(database_url)
+        max_size = _pool_max_size()
+        timeout = _pool_timeout_seconds()
+        if pool is None or pool.max_size != max_size or abs(pool.timeout_seconds - timeout) > 1e-9:
+            if pool is not None:
+                pool.close_all()
+            pool = PgConnectionPool(database_url, max_size=max_size, timeout_seconds=timeout)
+            _POOLS[database_url] = pool
+        return pool
+
+
+def close_all_pools() -> None:
+    with _POOLS_LOCK:
+        pools = list(_POOLS.values())
+        _POOLS.clear()
+    for pool in pools:
+        pool.close_all()
+
+
+atexit.register(close_all_pools)
+
+
 def connect_database(database_url: str, db_path_hint: str | Path):
     normalized = (database_url or "").strip()
     if not normalized:
@@ -155,7 +308,8 @@ def connect_database(database_url: str, db_path_hint: str | Path):
         )
     if not normalized.lower().startswith(("postgres://", "postgresql://")):
         raise RuntimeError("Seules les URL PostgreSQL sont prises en charge.")
-    return CompatConnection(_postgres_connect(normalized), "postgres")
+    pool = _postgres_pool(normalized)
+    return CompatConnection(pool.acquire(), "postgres", pool=pool)
 
 
 def adapt_query(query: str, dialect: str) -> str:

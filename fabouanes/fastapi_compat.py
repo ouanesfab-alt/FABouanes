@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import json
 import logging
 import mimetypes
+import os
 import re
+import secrets
+import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -24,7 +28,6 @@ from starlette.staticfiles import StaticFiles
 from werkzeug.datastructures import FileStorage, MultiDict
 from werkzeug.exceptions import Aborter, HTTPException as WerkzeugHTTPException, NotFound
 from werkzeug.local import LocalProxy
-
 
 _aborter = Aborter()
 _request_var: ContextVar["RequestCompat | None"] = ContextVar("fab_request", default=None)
@@ -264,7 +267,21 @@ class UrlMapCompat:
 
 class Flask(FastAPI):
     def __init__(self, import_name: str, template_folder: str | None = None, static_folder: str | None = None) -> None:
-        super().__init__(docs_url=None, redoc_url=None, openapi_url=None)
+        docs_enabled = (str(os.environ.get("API_DOCS_ENABLED", "1")) or "").strip().lower() not in {
+            "",
+            "0",
+            "false",
+            "no",
+            "off",
+        }
+        docs_url = (os.environ.get("API_DOCS_PATH", "/api/docs") or "").strip() or "/api/docs"
+        redoc_url = (os.environ.get("API_REDOC_PATH", "/api/redoc") or "").strip() or "/api/redoc"
+        openapi_url = (os.environ.get("API_OPENAPI_PATH", "/api/openapi.json") or "").strip() or "/api/openapi.json"
+        super().__init__(
+            docs_url=docs_url if docs_enabled else None,
+            redoc_url=redoc_url if docs_enabled else None,
+            openapi_url=openapi_url if docs_enabled else None,
+        )
         self.import_name = import_name
         self.config: dict[str, Any] = {}
         self.view_functions: dict[str, Any] = {}
@@ -382,11 +399,7 @@ class Flask(FastAPI):
         keep = set(keep_endpoints or {"static"})
         self.view_functions = {name: func for name, func in self.view_functions.items() if name in keep}
         self.url_map = UrlMapCompat()
-        self.router.routes = [
-            route
-            for route in self.router.routes
-            if isinstance(route, Mount) or getattr(route, "name", None) in keep
-        ]
+        self.router.routes = [route for route in self.router.routes if isinstance(route, Mount) or getattr(route, "name", None) in keep]
         for route in self.router.routes:
             if getattr(route, "name", None) in keep:
                 path = getattr(route, "path", None)
@@ -437,6 +450,8 @@ class Flask(FastAPI):
 
     def _dispatch_request(self, endpoint: str, starlette_request: StarletteRequest) -> Response:
         compat_request = RequestCompat(starlette_request, endpoint)
+        request_id = str(starlette_request.headers.get("X-Request-ID", "") or "").strip() or secrets.token_hex(8)
+        setattr(compat_request, "request_id", request_id)
         session_state = self._load_session(starlette_request)
         token_app = _app_var.set(self)
         token_request = _request_var.set(compat_request)
@@ -444,6 +459,7 @@ class Flask(FastAPI):
         token_g = _g_var.set(GState())
         response: Response | None = None
         caught_exc: Exception | None = None
+        started_at = time.perf_counter()
         try:
             try:
                 result: Any = None
@@ -459,7 +475,26 @@ class Flask(FastAPI):
             except Exception as exc:  # pragma: no cover - covered by higher-level tests
                 caught_exc = exc
                 response = self._handle_exception(exc)
-            return self._finalize_response(response, starlette_request, session_state)
+            finalized = self._finalize_response(response, starlette_request, session_state)
+            elapsed_ms = round((time.perf_counter() - started_at) * 1000.0, 2)
+            try:
+                self.logger.info(
+                    json.dumps(
+                        {
+                            "event": "http_request",
+                            "request_id": request_id,
+                            "method": compat_request.method,
+                            "path": compat_request.path,
+                            "status_code": int(getattr(finalized, "status_code", 0) or 0),
+                            "duration_ms": elapsed_ms,
+                            "client_ip": compat_request.remote_addr,
+                        },
+                        ensure_ascii=False,
+                    )
+                )
+            except Exception:
+                pass
+            return finalized
         finally:
             for hook in self._teardown_funcs:
                 try:
@@ -491,6 +526,10 @@ class Flask(FastAPI):
             updated = hook(response)
             if updated is not None:
                 response = updated
+        request_state = _request_var.get()
+        request_id = getattr(request_state, "request_id", "")
+        if request_id:
+            response.headers.setdefault("X-Request-ID", str(request_id))
         self._save_session(response, starlette_request, session_state)
         return response
 
@@ -501,6 +540,29 @@ class Flask(FastAPI):
                 return self._make_response(handler(exc))
         if isinstance(exc, WerkzeugHTTPException):
             return self._make_response(exc)
+        try:
+            request_state = _request_var.get()
+            path = str(getattr(request_state, "path", "") or "")
+            request_id = str(getattr(request_state, "request_id", "") or "")
+            self.logger.exception(
+                json.dumps(
+                    {
+                        "event": "http_exception",
+                        "request_id": request_id,
+                        "path": path,
+                        "exception_type": type(exc).__name__,
+                        "message": str(exc),
+                    },
+                    ensure_ascii=False,
+                )
+            )
+            if path.startswith("/api/"):
+                return JSONResponse(
+                    {"error": {"code": "internal_error", "message": "Erreur interne.", "request_id": request_id}},
+                    status_code=500,
+                )
+        except Exception:
+            pass
         raise exc
 
     def _make_response(self, value: Any) -> Response:

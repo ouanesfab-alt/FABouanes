@@ -6,6 +6,7 @@ from fabouanes.core.activity import log_activity
 from fabouanes.core.db_access import execute_db
 from fabouanes.core.decorators import login_required
 from fabouanes.core.helpers import wants_print_after_submit
+from fabouanes.core.pagination import request_pagination
 from fabouanes.core.storage import backup_database
 from fabouanes.routes.route_utils import bind_route, flash_route_exception
 from fabouanes.services.production_service import (
@@ -27,7 +28,8 @@ def register_production_routes(app):
             except Exception as exc:
                 flash_route_exception(exc)
                 return redirect(url_for("production"))
-        return render_template("production.html", **productions_context())
+        page, page_size = request_pagination()
+        return render_template("production.html", **productions_context(page=page, page_size=page_size))
 
     @login_required
     def new_production():

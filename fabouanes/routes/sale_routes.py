@@ -5,6 +5,7 @@ from fabouanes.fastapi_compat import flash, redirect, render_template, request, 
 from fabouanes.core.db_access import query_db
 from fabouanes.core.decorators import login_required
 from fabouanes.core.helpers import wants_print_after_submit
+from fabouanes.core.pagination import request_pagination
 from fabouanes.routes.route_utils import bind_route, flash_route_exception
 from fabouanes.services.sale_service import (
     create_sale_from_form,
@@ -31,7 +32,8 @@ def register_sale_routes(app):
             except Exception as exc:
                 flash_route_exception(exc)
                 return redirect(url_for("sales"))
-        return render_template("sales.html", **sales_context())
+        page, page_size = request_pagination()
+        return render_template("sales.html", **sales_context(page=page, page_size=page_size))
 
     @login_required
     def new_sale():

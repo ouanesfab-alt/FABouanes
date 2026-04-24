@@ -19,8 +19,12 @@ _PAYMENT_USE_CASES = PaymentUseCases(
 )
 
 
-def payments_context():
-    return cached_result(("payments_context",), _PAYMENT_USE_CASES.payments_context, ttl_seconds=6.0)
+def payments_context(*, page: int, page_size: int):
+    return cached_result(
+        ("payments_context", int(page), int(page_size)),
+        lambda: _PAYMENT_USE_CASES.payments_context(page=page, page_size=page_size),
+        ttl_seconds=8.0,
+    )
 
 
 def new_payment_context():

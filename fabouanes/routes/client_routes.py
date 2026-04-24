@@ -7,6 +7,7 @@ from fabouanes.fastapi_compat import flash, redirect, render_template, request, 
 from fabouanes.core.activity import log_activity
 from fabouanes.core.db_access import execute_db, query_db
 from fabouanes.core.decorators import login_required
+from fabouanes.core.pagination import request_pagination
 from fabouanes.core.storage import backup_database
 from fabouanes.repositories.client_repository import get_client
 from fabouanes.routes.route_utils import bind_route
@@ -26,7 +27,9 @@ def register_client_routes(app):
             create_client_from_form(request.form)
             flash("Client ajoute avec succes.", "success")
             return redirect(url_for("clients"))
-        return render_template("clients.html", **clients_context())
+        page, page_size = request_pagination()
+        search = (request.args.get("q") or "").strip()
+        return render_template("clients.html", **clients_context(page=page, page_size=page_size, search=search))
 
     @login_required
     def new_client():

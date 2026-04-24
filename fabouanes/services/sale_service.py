@@ -17,16 +17,16 @@ from fabouanes.repositories.sale_repository import (
 )
 
 
-def sales_context():
-    return _build_sales_context()
+def sales_context(*, page: int, page_size: int):
+    return _build_sales_context(page=page, page_size=page_size)
 
 
 def sale_form_context():
     return {"sellable_items": build_sellable_items(), "units": unit_choices()}
 
 
-def _build_sales_context():
-    context = list_sales_page_context()
+def _build_sales_context(*, page: int, page_size: int):
+    context = list_sales_page_context(page=page, page_size=page_size)
     context["units"] = unit_choices()
     return context
 

@@ -16,8 +16,8 @@ from fabouanes.repositories.purchase_repository import (
 )
 
 
-def purchases_context():
-    return _build_purchases_context()
+def purchases_context(*, page: int, page_size: int):
+    return _build_purchases_context(page=page, page_size=page_size)
 
 
 def purchase_form_context():
@@ -26,8 +26,8 @@ def purchase_form_context():
     return context
 
 
-def _build_purchases_context():
-    context = list_purchase_page_context()
+def _build_purchases_context(*, page: int, page_size: int):
+    context = list_purchase_page_context(page=page, page_size=page_size)
     context["units"] = unit_choices()
     return context
 

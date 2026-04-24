@@ -27,8 +27,16 @@ def create_client_from_form(form):
     return client_id
 
 
-def clients_context():
-    return cached_result(("clients_context",), lambda: {"clients": list_clients_with_stats()}, ttl_seconds=6.0)
+def clients_context(*, page: int, page_size: int, search: str = ""):
+    def _builder():
+        rows, pagination = list_clients_with_stats(page=page, page_size=page_size, search=search)
+        return {"clients": rows, "pagination": pagination, "clients_total": pagination["total"], "search": search}
+
+    return cached_result(
+        ("clients_context", int(page), int(page_size), str(search or "").strip().lower()),
+        _builder,
+        ttl_seconds=8.0,
+    )
 
 
 def get_client_detail_context(client_id: int):

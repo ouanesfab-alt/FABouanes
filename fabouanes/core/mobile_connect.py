@@ -47,10 +47,17 @@ def _iter_local_ip_candidates() -> list[str]:
         hostname = socket.gethostname()
         for ip in socket.gethostbyname_ex(hostname)[2]:
             add_candidate(ip)
+        for entry in socket.getaddrinfo(hostname, None, family=socket.AF_INET):
+            add_candidate(entry[4][0])
     except OSError:
         pass
 
-    return candidates
+    private_priority = ("192.168.", "10.", "172.")
+    ordered: list[str] = []
+    for prefix in private_priority:
+        ordered.extend([candidate for candidate in candidates if candidate.startswith(prefix) and candidate not in ordered])
+    ordered.extend([candidate for candidate in candidates if candidate not in ordered])
+    return ordered
 
 
 def _get_local_ip() -> str:

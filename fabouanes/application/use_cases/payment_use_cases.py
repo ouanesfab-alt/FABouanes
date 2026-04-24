@@ -18,8 +18,8 @@ class PaymentUseCases:
     audit_event: Callable[..., None]
     backup_database: Callable[[str], None]
 
-    def payments_context(self) -> dict[str, Any]:
-        return self.repository.list_payment_page_context()
+    def payments_context(self, *, page: int, page_size: int) -> dict[str, Any]:
+        return self.repository.list_payment_page_context(page=page, page_size=page_size)
 
     def new_payment_context(self) -> dict[str, Any]:
         return self.repository.payment_form_context()

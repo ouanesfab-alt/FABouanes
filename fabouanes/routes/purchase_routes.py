@@ -4,6 +4,7 @@ from fabouanes.fastapi_compat import flash, redirect, render_template, request, 
 
 from fabouanes.core.decorators import login_required
 from fabouanes.core.helpers import wants_print_after_submit
+from fabouanes.core.pagination import request_pagination
 from fabouanes.routes.route_utils import bind_route, flash_route_exception
 from fabouanes.services.purchase_service import (
     create_purchase_from_form,
@@ -28,7 +29,8 @@ def register_purchase_routes(app):
             except Exception as exc:
                 flash_route_exception(exc)
                 return redirect(url_for("purchases"))
-        return render_template("purchases.html", **purchases_context())
+        page, page_size = request_pagination()
+        return render_template("purchases.html", **purchases_context(page=page, page_size=page_size))
 
     @login_required
     def new_purchase():

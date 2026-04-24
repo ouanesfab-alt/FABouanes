@@ -2,17 +2,19 @@
 setlocal
 cd /d "%~dp0"
 
-title FABOuanes - Lancer les tests
+title FABOuanes - Seed demo optionnel
 set "PYTHON_EXE=.venv\Scripts\python.exe"
 
 echo.
 echo ========================================
-echo   FABOuanes - Tests
+echo   FABOuanes - Seed demo (optionnel)
 echo ========================================
+echo.
+echo Ce script n'ecrase pas les donnees existantes.
 echo.
 
 if not exist "%PYTHON_EXE%" (
-  echo Creation de .venv...
+  echo Environnement .venv introuvable, preparation...
   py -3 -m venv .venv >nul 2>nul
   if errorlevel 1 (
     python -m venv .venv >nul 2>nul
@@ -20,17 +22,13 @@ if not exist "%PYTHON_EXE%" (
 )
 
 if not exist "%PYTHON_EXE%" (
-  echo ERREUR: Python indisponible.
+  echo ERREUR: Python non disponible.
   pause
   exit /b 1
 )
 
 "%PYTHON_EXE%" -m pip install -r requirements.txt >nul
-
-echo Execution des tests...
-echo Note: les tests d'integration utilisent TEST_DATABASE_URL si defini.
-echo.
-"%PYTHON_EXE%" -m unittest discover -s tests -v
+"%PYTHON_EXE%" seed_demo.py
 set "EXIT_CODE=%ERRORLEVEL%"
 echo.
 pause

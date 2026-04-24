@@ -27,12 +27,19 @@ class CleanupContractTests(unittest.TestCase):
         project_root = Path(__file__).resolve().parents[1]
         run_prod_text = (project_root / "run_prod.py").read_text(encoding="utf-8")
         launcher_text = (project_root / "DOUBLE_CLIC_LANCER_TOUT.bat").read_text(encoding="utf-8")
+        reset_text = (project_root / "RESET_ADMIN_SECOURS.bat").read_text(encoding="utf-8")
+        start_pg_text = (project_root / "START_POSTGRES.bat").read_text(encoding="utf-8")
+        stop_pg_text = (project_root / "STOP_POSTGRES.bat").read_text(encoding="utf-8")
 
         self.assertIn("FAB_HOST", run_prod_text)
         self.assertIn("FAB_PORT", run_prod_text)
         self.assertIn('set "FAB_HOST=0.0.0.0"', launcher_text)
         self.assertIn('set "FAB_PORT=5000"', launcher_text)
         self.assertIn("run_prod.py", launcher_text)
+        self.assertNotIn("reset_admin_password.py 0000 admin", launcher_text)
+        self.assertIn("reset_admin_password.py", reset_text)
+        self.assertIn("docker", start_pg_text.lower())
+        self.assertIn("docker", stop_pg_text.lower())
 
     def test_project_no_longer_keeps_flask_shim_or_wsgi_entrypoint(self) -> None:
         project_root = Path(__file__).resolve().parents[1]
@@ -72,3 +79,10 @@ class CleanupContractTests(unittest.TestCase):
 
             self._create_sqlite_users_db(local_source)
             self.assertEqual(detect_sqlite_import_source(app_data_dir, base_dir), local_source)
+
+    def test_gitignore_protects_runtime_artifacts_and_env(self) -> None:
+        project_root = Path(__file__).resolve().parents[1]
+        gitignore_text = (project_root / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn(".venv/", gitignore_text)
+        self.assertIn(".env", gitignore_text)
+        self.assertIn("!.env.example", gitignore_text)

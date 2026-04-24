@@ -4,6 +4,7 @@ from fabouanes.fastapi_compat import flash, redirect, render_template, request, 
 
 from fabouanes.core.decorators import login_required
 from fabouanes.core.helpers import wants_print_after_submit
+from fabouanes.core.pagination import request_pagination
 from fabouanes.routes.route_utils import bind_route, flash_route_exception
 from fabouanes.services.payment_service import (
     create_payment_from_form,
@@ -26,7 +27,8 @@ def register_payment_routes(app):
             except Exception as exc:
                 flash_route_exception(exc)
                 return redirect(url_for("payments"))
-        return render_template("payments.html", **payments_context())
+        page, page_size = request_pagination()
+        return render_template("payments.html", **payments_context(page=page, page_size=page_size))
 
     @login_required
     def new_payment():

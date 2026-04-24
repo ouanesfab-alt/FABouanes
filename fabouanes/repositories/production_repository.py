@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from fabouanes.core.db_access import query_db
+from fabouanes.core.db_access import paged_query, query_db
 from fabouanes.core.helpers import load_saved_recipes
 
 
-def list_production_page_context():
-    batches = query_db(
-        '''
+def list_production_page_context(*, page: int, page_size: int):
+    query = '''
         SELECT pb.*, fp.name AS finished_name,
                COALESCE((
                    SELECT STRING_AGG(r.name || ' ' || CAST(pbi.quantity AS TEXT) || ' ' || r.unit, ' + ' ORDER BY pbi.id)
@@ -17,10 +16,11 @@ def list_production_page_context():
         FROM production_batches pb
         JOIN finished_products fp ON fp.id = pb.finished_product_id
         ORDER BY pb.id DESC
-        '''
-    )
+    '''
+    batches, pagination = paged_query(query, page=page, page_size=page_size)
     return {
         'productions': batches,
+        'productions_pagination': pagination,
         'raw_materials': query_db('SELECT * FROM raw_materials ORDER BY name'),
         'products': query_db('SELECT * FROM finished_products ORDER BY name'),
     }

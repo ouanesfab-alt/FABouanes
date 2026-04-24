@@ -350,6 +350,12 @@ def execute_db(query: str, params: tuple = ()) -> int:
     cur = db.execute(query, params)
     if int(getattr(g, '_db_tx_depth', 0) or 0) == 0:
         db.commit()
+    try:
+        from fabouanes.core.perf_cache import mark_cache_dirty
+
+        mark_cache_dirty()
+    except Exception:
+        pass
     last_id = cur.lastrowid
     cur.close()
     return int(last_id or 0)
@@ -983,17 +989,29 @@ def migrate_db(conn) -> None:
     _indexes = [
         "CREATE INDEX IF NOT EXISTS idx_sales_client_id           ON sales(client_id)",
         "CREATE INDEX IF NOT EXISTS idx_sales_sale_date           ON sales(sale_date)",
+        "CREATE INDEX IF NOT EXISTS idx_sales_doc_id              ON sales(document_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sales_client_date         ON sales(client_id, sale_date DESC)",
         "CREATE INDEX IF NOT EXISTS idx_raw_sales_client_id       ON raw_sales(client_id)",
         "CREATE INDEX IF NOT EXISTS idx_raw_sales_sale_date       ON raw_sales(sale_date)",
+        "CREATE INDEX IF NOT EXISTS idx_raw_sales_doc_id          ON raw_sales(document_id)",
+        "CREATE INDEX IF NOT EXISTS idx_raw_sales_client_date     ON raw_sales(client_id, sale_date DESC)",
         "CREATE INDEX IF NOT EXISTS idx_payments_client_id        ON payments(client_id)",
+        "CREATE INDEX IF NOT EXISTS idx_payments_payment_date     ON payments(payment_date)",
+        "CREATE INDEX IF NOT EXISTS idx_payments_client_date      ON payments(client_id, payment_date DESC)",
         "CREATE INDEX IF NOT EXISTS idx_payments_sale_id          ON payments(sale_id)",
         "CREATE INDEX IF NOT EXISTS idx_payments_raw_sale_id      ON payments(raw_sale_id)",
         "CREATE INDEX IF NOT EXISTS idx_purchases_raw_material_id ON purchases(raw_material_id)",
         "CREATE INDEX IF NOT EXISTS idx_purchases_supplier_id     ON purchases(supplier_id)",
+        "CREATE INDEX IF NOT EXISTS idx_purchases_purchase_date   ON purchases(purchase_date)",
+        "CREATE INDEX IF NOT EXISTS idx_purchases_supplier_date   ON purchases(supplier_id, purchase_date DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_purchases_doc_id          ON purchases(document_id)",
         "CREATE INDEX IF NOT EXISTS idx_prod_batch_product_id     ON production_batches(finished_product_id)",
+        "CREATE INDEX IF NOT EXISTS idx_prod_batch_date           ON production_batches(production_date)",
         "CREATE INDEX IF NOT EXISTS idx_prod_items_batch_id       ON production_batch_items(batch_id)",
         "CREATE INDEX IF NOT EXISTS idx_saved_recipes_product     ON saved_recipes(finished_product_id)",
         "CREATE INDEX IF NOT EXISTS idx_saved_recipe_items_recipe ON saved_recipe_items(recipe_id)",
+        "CREATE INDEX IF NOT EXISTS idx_purchase_docs_supplier    ON purchase_documents(supplier_id, purchase_date DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_sale_docs_client          ON sale_documents(client_id, sale_date DESC)",
         "CREATE INDEX IF NOT EXISTS idx_activity_logs_action      ON activity_logs(action)",
         "CREATE INDEX IF NOT EXISTS idx_activity_logs_username    ON activity_logs(username)",
         "CREATE INDEX IF NOT EXISTS idx_users_role                ON users(role)",
@@ -1378,6 +1396,12 @@ def init_db() -> None:
 
 
     conn.commit()
+    try:
+        from fabouanes.core.perf_cache import mark_cache_dirty
+
+        mark_cache_dirty()
+    except Exception:
+        pass
     conn.close()
 
 

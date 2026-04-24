@@ -12,8 +12,8 @@ from fabouanes.repositories.payment_repository import (
 
 
 class DbPaymentRepository:
-    def list_payment_page_context(self) -> dict[str, Any]:
-        return list_payment_page_context()
+    def list_payment_page_context(self, *, page: int, page_size: int) -> dict[str, Any]:
+        return list_payment_page_context(page=page, page_size=page_size)
 
     def payment_form_context(self) -> dict[str, Any]:
         return payment_form_context()

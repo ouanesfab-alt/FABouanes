@@ -11,6 +11,23 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fabouanes -d fabouanes"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: fabouanes_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   web:
     build:
@@ -19,9 +36,13 @@ services:
     container_name: fabouanes_web
     restart: unless-stopped
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql://fabouanes:fabouanes_change_me@postgres:5432/fabouanes
+      REDIS_URL: redis://redis:6379/0
       SECRET_KEY: change_me_in_production
       SESSION_COOKIE_SECURE: "0"
       DEFAULT_ADMIN_USERNAME: admin

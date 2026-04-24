@@ -1,0 +1,52 @@
+[tool.black]
+line-length = 140
+target-version = ["py311", "py312"]
+include = "\\.pyi?$"
+exclude = """
+/(
+    \\.git
+  | \\.venv
+  | __pycache__
+  | build
+  | dist
+  | tests/_runtime
+)/
+"""
+
+[tool.ruff]
+line-length = 140
+target-version = "py311"
+exclude = [
+  ".git",
+  ".venv",
+  "__pycache__",
+  "build",
+  "dist",
+  "tests/_runtime",
+]
+
+[tool.ruff.lint]
+select = ["F", "E9"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+ignore_missing_imports = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+files = [
+  "fabouanes/presentation/api_validation.py",
+  "fabouanes/logging_setup.py",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["fabouanes"]
+omit = [
+  "tests/*",
+  "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

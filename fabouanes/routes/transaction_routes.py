@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from fabouanes.fastapi_compat import render_template, request
 
-from fabouanes.core.db_access import query_db
+from fabouanes.core.db_access import paged_query
 from fabouanes.core.decorators import login_required
+from fabouanes.core.pagination import request_pagination
 from fabouanes.routes.route_utils import bind_route
 
 
 def register_transaction_routes(app):
     @login_required
     def transactions():
-        rows = query_db(
-            """
+        base_query = """
             SELECT * FROM (
                 SELECT 'Achat' AS tx_type, 'purchase' AS tx_kind, p.id, p.purchase_date AS tx_date,
                        COALESCE(s.name, '-') AS partner_name, COALESCE(NULLIF(p.custom_item_name, ''), r.name) AS designation,
@@ -58,39 +58,102 @@ def register_transaction_routes(app):
                 FROM payments p
                 JOIN clients c ON c.id = p.client_id
             ) t
-            ORDER BY tx_date DESC, id DESC
-            """
-        )
-
+        """
         filter_type = request.args.get("type", "all")
-        filter_name = (request.args.get("name") or "").strip().lower()
+        filter_name = (request.args.get("name") or "").strip()
         filter_date = (request.args.get("date") or "").strip()
-        filter_operation = (request.args.get("operation") or "").strip().lower()
+        filter_operation = (request.args.get("operation") or "").strip()
+        page, page_size = request_pagination()
 
-        filtered_rows = []
-        for row in rows:
-            if filter_type == "purchase" and row["tx_type"] != "Achat":
-                continue
-            if filter_type == "sale" and row["tx_type"] != "Vente":
-                continue
-            if filter_type == "payment" and row["tx_kind"] != "payment":
-                continue
-            if filter_name and filter_name not in f"{row['partner_name']} {row['designation']}".lower():
-                continue
-            if filter_date and str(row["tx_date"]) != filter_date:
-                continue
-            if filter_operation and filter_operation not in str(row["tx_type"]).lower():
-                continue
-            filtered_rows.append(row)
+        where: list[str] = []
+        params: list[object] = []
+        if filter_type == "purchase":
+            where.append("tx_kind = ?")
+            params.append("purchase")
+        elif filter_type == "sale":
+            where.append("tx_type = ?")
+            params.append("Vente")
+        elif filter_type == "payment":
+            where.append("tx_kind = ?")
+            params.append("payment")
+        if filter_name:
+            where.append("(LOWER(COALESCE(partner_name, '')) LIKE LOWER(?) OR LOWER(COALESCE(designation, '')) LIKE LOWER(?))")
+            like_value = f"%{filter_name}%"
+            params.extend([like_value, like_value])
+        if filter_date:
+            where.append("tx_date = ?")
+            params.append(filter_date)
+        if filter_operation:
+            where.append("LOWER(COALESCE(tx_type, '')) LIKE LOWER(?)")
+            params.append(f"%{filter_operation}%")
+
+        filtered_query = base_query
+        if where:
+            filtered_query += " WHERE " + " AND ".join(where)
+        final_query = filtered_query + " ORDER BY tx_date DESC, id DESC"
+        rows, pagination = paged_query(
+            final_query,
+            tuple(params),
+            page=page,
+            page_size=page_size,
+            count_query=f"SELECT COUNT(*) AS c FROM ({filtered_query}) tx_src",
+            count_params=tuple(params),
+        )
 
         return render_template(
             "transactions.html",
-            transactions=filtered_rows,
+            transactions=rows,
+            transactions_pagination=pagination,
             filter_type=filter_type,
-            filter_name=request.args.get("name", ""),
-            filter_date=request.args.get("date", ""),
-            filter_operation=request.args.get("operation", ""),
+            filter_name=filter_name,
+            filter_date=filter_date,
+            filter_operation=filter_operation,
+        )
+
+    @login_required
+    def transactions_pending():
+        page, page_size = request_pagination()
+        pending_query = """
+            SELECT * FROM (
+                SELECT 'Vente' AS tx_type, 'sale_finished' AS tx_kind,
+                       s.id, s.sale_date AS tx_date, COALESCE(c.name, '-') AS partner_name,
+                       f.name AS designation, s.quantity, s.unit, s.unit_price, s.total,
+                       s.amount_paid AS paid, s.balance_due AS due, s.document_id AS document_id
+                FROM sales s
+                LEFT JOIN clients c ON c.id = s.client_id
+                JOIN finished_products f ON f.id = s.finished_product_id
+                WHERE s.balance_due > 0
+                UNION ALL
+                SELECT 'Vente' AS tx_type, 'sale_raw' AS tx_kind,
+                       rs.id, rs.sale_date AS tx_date, COALESCE(c.name, '-') AS partner_name,
+                       COALESCE(NULLIF(rs.custom_item_name, ''), r.name) AS designation,
+                       rs.quantity, rs.unit, rs.unit_price, rs.total,
+                       rs.amount_paid AS paid, rs.balance_due AS due, rs.document_id AS document_id
+                FROM raw_sales rs
+                LEFT JOIN clients c ON c.id = rs.client_id
+                JOIN raw_materials r ON r.id = rs.raw_material_id
+                WHERE rs.balance_due > 0
+            ) t
+            ORDER BY tx_date DESC, id DESC
+        """
+        rows, pagination = paged_query(
+            pending_query,
+            (),
+            page=page,
+            page_size=page_size,
+            count_query=f"SELECT COUNT(*) AS c FROM ({pending_query}) tx_pending",
+            count_params=(),
+        )
+        return render_template(
+            "transactions.html",
+            transactions=rows,
+            transactions_pagination=pagination,
+            filter_type="sale",
+            filter_name="",
+            filter_date="",
+            filter_operation="pending",
         )
 
     bind_route(app, "/operations", "operations", transactions, ["GET"])
     bind_route(app, "/transactions", "transactions", transactions, ["GET"])
+    bind_route(app, "/transactions/pending", "transactions_pending", transactions_pending, ["GET"])
