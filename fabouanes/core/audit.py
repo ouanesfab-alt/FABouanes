@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-from flask import g, has_request_context, request
+from fabouanes.fastapi_compat import g, has_request_context, request
 
 from fabouanes.core.db_access import execute_db, query_db
 

@@ -4,7 +4,7 @@ import re
 import secrets
 import time
 from collections import defaultdict
-from flask import abort, jsonify, request, session
+from fabouanes.fastapi_compat import abort, jsonify, request, session
 
 _rl_store: dict[str, list[float]] = defaultdict(list)
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import render_template, request
+from fabouanes.fastapi_compat import render_template, request
 
 from fabouanes.core.db_access import query_db
 from fabouanes.core.decorators import login_required

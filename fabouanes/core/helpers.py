@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import request
+from fabouanes.fastapi_compat import request
 
 # Thin wrappers to isolate the historical runtime core from routes/services/repositories.
 # Business logic remains centralized for now to preserve stability.
@@ -17,6 +17,15 @@ def wants_print_after_submit() -> bool:
 
 def unit_choices() -> list[str]:
     return _rt().unit_choices()
+
+def catalog_name_form_context(kind: str, current_name: str = '', form_data=None) -> dict[str, object]:
+    return _rt().catalog_name_form_context(kind, current_name=current_name, form_data=form_data)
+
+def resolve_catalog_item_name(form_data) -> str:
+    return _rt().resolve_catalog_item_name(form_data)
+
+def refresh_sale_profits_for_item(item_kind: str, item_id: int, avg_cost: float, sale_price: float | None = None) -> None:
+    return _rt().refresh_sale_profits_for_item(item_kind, item_id, avg_cost, sale_price)
 
 def get_open_credit_entries(client_id: int | None = None):
     return _rt().get_open_credit_entries(client_id)

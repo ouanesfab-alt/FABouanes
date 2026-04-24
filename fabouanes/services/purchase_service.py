@@ -6,7 +6,6 @@ from fabouanes.core.activity import log_activity
 from fabouanes.core.audit import audit_event
 from fabouanes.core.db_access import db_transaction, execute_db, query_db
 from fabouanes.core.helpers import create_purchase_record, reverse_purchase, to_float, unit_choices
-from fabouanes.core.perf_cache import cached_result
 from fabouanes.core.storage import backup_database
 from fabouanes.repositories.purchase_repository import (
     get_purchase,
@@ -18,7 +17,7 @@ from fabouanes.repositories.purchase_repository import (
 
 
 def purchases_context():
-    return cached_result(("purchases_context",), _build_purchases_context, ttl_seconds=6.0)
+    return _build_purchases_context()
 
 
 def purchase_form_context():

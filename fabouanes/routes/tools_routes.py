@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from flask import abort, flash, redirect, render_template, request, send_from_directory, url_for
+from fabouanes.fastapi_compat import abort, flash, redirect, render_template, request, send_from_directory, url_for
 from werkzeug.utils import secure_filename
 
 from fabouanes.config import BASE_DIR

@@ -345,13 +345,15 @@ def build_print_payload(doc_type: str, item_id: int):
         row = query_db(
             """
             SELECT pb.*, fp.name AS item_name,
-                   GROUP_CONCAT(r.name || ' ' || CAST(pbi.quantity AS TEXT) || ' ' || r.unit, ' + ') AS recipe_text
+                   COALESCE((
+                       SELECT STRING_AGG(r.name || ' ' || CAST(pbi.quantity AS TEXT) || ' ' || r.unit, ' + ' ORDER BY pbi.id)
+                       FROM production_batch_items pbi
+                       LEFT JOIN raw_materials r ON r.id = pbi.raw_material_id
+                       WHERE pbi.batch_id = pb.id
+                   ), '') AS recipe_text
             FROM production_batches pb
             JOIN finished_products fp ON fp.id = pb.finished_product_id
-            LEFT JOIN production_batch_items pbi ON pbi.batch_id = pb.id
-            LEFT JOIN raw_materials r ON r.id = pbi.raw_material_id
             WHERE pb.id = ?
-            GROUP BY pb.id
             """,
             (item_id,),
             one=True,

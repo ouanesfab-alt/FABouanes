@@ -3,10 +3,15 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .coverage
+.venv/
 
 # Local runtime data
 backups/
 database.db
+.env
+.env.*
+!.env.example
+*.log
 tests/_runtime/
 tests/_runtime_debug/
 

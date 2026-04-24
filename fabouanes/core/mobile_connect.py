@@ -6,7 +6,7 @@ import os
 import socket
 from functools import lru_cache
 
-from flask import Request
+from fabouanes.fastapi_compat import Request
 
 try:
     import qrcode
@@ -14,7 +14,7 @@ except Exception:  # pragma: no cover - graceful fallback when dependency is mis
     qrcode = None
 
 
-_LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1", "[::1]"}
+_LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1", "[::1]", "testserver", "testserver.local"}
 
 
 def _is_local_host(host: str) -> bool:
@@ -22,20 +22,44 @@ def _is_local_host(host: str) -> bool:
     return not normalized or normalized in _LOCAL_HOSTS or normalized == "0.0.0.0"
 
 
+def _iter_local_ip_candidates() -> list[str]:
+    candidates: list[str] = []
+    seen: set[str] = set()
+
+    def add_candidate(value: str) -> None:
+        ip = str(value or "").strip()
+        if not ip or ip in seen or _is_local_host(ip):
+            return
+        seen.add(ip)
+        candidates.append(ip)
+
+    for probe_host in ("8.8.8.8", "1.1.1.1"):
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            probe.connect((probe_host, 80))
+            add_candidate(probe.getsockname()[0])
+        except OSError:
+            pass
+        finally:
+            probe.close()
+
+    try:
+        hostname = socket.gethostname()
+        for ip in socket.gethostbyname_ex(hostname)[2]:
+            add_candidate(ip)
+    except OSError:
+        pass
+
+    return candidates
+
+
 def _get_local_ip() -> str:
     env_ip = str(os.environ.get("FAB_LAN_IP", "")).strip()
     if env_ip and not _is_local_host(env_ip):
         return env_ip
 
-    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        probe.connect(("8.8.8.8", 80))
-        ip = probe.getsockname()[0]
-        return ip if not _is_local_host(ip) else ""
-    except OSError:
-        return ""
-    finally:
-        probe.close()
+    candidates = _iter_local_ip_candidates()
+    return candidates[0] if candidates else ""
 
 
 def _port_from_request(request: Request) -> str:
@@ -67,6 +91,11 @@ def resolve_mobile_connect_url(request: Request) -> str:
         return _compose_url(scheme, env_host, port)
 
     if env_host == "0.0.0.0":
+        lan_ip = _get_local_ip()
+        if lan_ip:
+            return _compose_url(scheme, lan_ip, port)
+
+    if not env_host:
         lan_ip = _get_local_ip()
         if lan_ip:
             return _compose_url(scheme, lan_ip, port)

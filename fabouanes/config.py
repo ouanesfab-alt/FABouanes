@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 APP_NAME = "FABOuanes"
-BUNDLED_DB_PATH = BASE_DIR / "database.db"
 
 
 def _default_data_dir() -> Path:
@@ -32,5 +31,9 @@ DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
 SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', '0') == '1'
 DEFAULT_ADMIN_USERNAME = os.getenv('DEFAULT_ADMIN_USERNAME', 'admin')
 DEFAULT_ADMIN_PASSWORD = os.getenv('DEFAULT_ADMIN_PASSWORD', '1234')
-ENV = os.getenv('FLASK_ENV', 'production').lower()
+ENV = (
+    os.getenv('APP_ENV')
+    or os.getenv('FAB_ENV')
+    or 'production'
+).lower()
 DEBUG = ENV == 'development'

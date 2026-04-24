@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import flash, redirect, render_template, request, url_for
+from fabouanes.fastapi_compat import flash, redirect, render_template, request, url_for
 
 from fabouanes.core.db_access import query_db
 from fabouanes.core.decorators import login_required
@@ -99,6 +99,6 @@ def register_sale_routes(app):
 
     bind_route(app, "/sales", "sales", sales, ["GET", "POST"])
     bind_route(app, "/sales/new", "new_sale", new_sale, ["GET", "POST"])
-    bind_route(app, "/sales/<kind>/<int:row_id>/edit", "edit_sale", edit_sale, ["GET", "POST"])
     bind_route(app, "/sales/document/<int:document_id>/edit", "edit_sale_document", edit_sale_document, ["GET", "POST"])
+    bind_route(app, "/sales/<kind>/<int:row_id>/edit", "edit_sale", edit_sale, ["GET", "POST"])
     bind_route(app, "/sales/<kind>/<int:row_id>/delete", "delete_sale", delete_sale, ["POST"])

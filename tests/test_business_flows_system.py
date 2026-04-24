@@ -31,12 +31,29 @@ class SystemBusinessFlowTests(BusinessFlowTestCase):
 
     def test_modular_route_handlers_are_registered_for_business_flows(self) -> None:
         self.assertEqual(app.view_functions["clients"].__module__, "fabouanes.routes.client_routes")
+        self.assertEqual(app.view_functions["delete_client"].__module__, "fabouanes.routes.client_routes")
+        self.assertEqual(app.view_functions["suppliers"].__module__, "fabouanes.routes.contact_routes")
+        self.assertEqual(app.view_functions["new_supplier"].__module__, "fabouanes.routes.contact_routes")
         self.assertEqual(app.view_functions["purchases"].__module__, "fabouanes.routes.purchase_routes")
         self.assertEqual(app.view_functions["sales"].__module__, "fabouanes.routes.sale_routes")
         self.assertEqual(app.view_functions["payments"].__module__, "fabouanes.routes.payment_routes")
         self.assertEqual(app.view_functions["production"].__module__, "fabouanes.routes.production_routes")
+        self.assertEqual(app.view_functions["edit_production_notes"].__module__, "fabouanes.routes.production_routes")
         self.assertEqual(app.view_functions["contacts"].__module__, "fabouanes.routes.contact_routes")
         self.assertEqual(app.view_functions["supplier_detail"].__module__, "fabouanes.routes.contact_routes")
+        self.assertEqual(app.view_functions["edit_supplier"].__module__, "fabouanes.routes.contact_routes")
+        self.assertEqual(app.view_functions["delete_supplier"].__module__, "fabouanes.routes.contact_routes")
+        self.assertEqual(app.view_functions["catalog"].__module__, "fabouanes.routes.catalog_routes")
+        self.assertEqual(app.view_functions["new_catalog_item"].__module__, "fabouanes.routes.catalog_routes")
+        self.assertEqual(app.view_functions["raw_materials"].__module__, "fabouanes.routes.catalog_routes")
+        self.assertEqual(app.view_functions["products"].__module__, "fabouanes.routes.catalog_routes")
+        self.assertEqual(app.view_functions["edit_raw_material"].__module__, "fabouanes.routes.catalog_routes")
+        self.assertEqual(app.view_functions["edit_product"].__module__, "fabouanes.routes.catalog_routes")
+        self.assertEqual(app.view_functions["delete_raw_material"].__module__, "fabouanes.routes.catalog_routes")
+        self.assertEqual(app.view_functions["delete_product"].__module__, "fabouanes.routes.catalog_routes")
+        self.assertEqual(app.view_functions["quick_add"].__module__, "fabouanes.routes.catalog_routes")
+        self.assertEqual(app.view_functions["api_item_info"].__module__, "fabouanes.routes.core_routes")
+        self.assertEqual(app.view_functions["api_recipe"].__module__, "fabouanes.routes.core_routes")
         self.assertEqual(app.view_functions["operations"].__module__, "fabouanes.routes.transaction_routes")
         self.assertEqual(app.view_functions["transactions"].__module__, "fabouanes.routes.transaction_routes")
         self.assertEqual(app.view_functions["notes_page"].__module__, "fabouanes.routes.tools_routes")
@@ -151,7 +168,7 @@ class SystemBusinessFlowTests(BusinessFlowTestCase):
 
         from fabouanes.services.backup_service import enqueue_backup_upload
 
-        backup_path = TEST_ROOT / "manual_context_backup.db"
+        backup_path = TEST_ROOT / "manual_context_backup.json"
         backup_path.parent.mkdir(parents=True, exist_ok=True)
         backup_path.write_text("backup", encoding="utf-8")
 
@@ -201,17 +218,17 @@ class SystemBusinessFlowTests(BusinessFlowTestCase):
         self.assertIn('static\\FABOuanes_desktop.ico', build_script)
         self.assertIn("if not defined FAB_NO_PAUSE pause", build_script)
 
-    def test_desktop_launcher_uses_splash_logo_and_desktop_icon(self) -> None:
-        launcher_text = (Path(__file__).resolve().parents[1] / "launcher.py").read_text(encoding="utf-8")
+    def test_double_click_launcher_sets_network_mode_and_resets_admin(self) -> None:
+        project_root = Path(__file__).resolve().parents[1]
+        launcher_text = (project_root / "DOUBLE_CLIC_LANCER_TOUT.bat").read_text(encoding="utf-8")
+        run_prod_text = (project_root / "run_prod.py").read_text(encoding="utf-8")
 
-        self.assertIn("desktop_logo_shield.png", launcher_text)
-        self.assertIn("FABOuanes_desktop.ico", launcher_text)
-        self.assertIn("show_startup_splash", launcher_text)
-        self.assertIn("storage_path=str(WEBVIEW_STORAGE_DIR)", launcher_text)
-        self.assertIn("desktop_install_state.json", launcher_text)
-        self.assertIn("create_pre_migration_backup", launcher_text)
-        self.assertIn('"--bootstrap-only"', launcher_text)
-        self.assertIn('os.environ.get("FAB_HOST", "0.0.0.0")', launcher_text)
+        self.assertIn('set "FAB_HOST=0.0.0.0"', launcher_text)
+        self.assertIn('set "FAB_PORT=5000"', launcher_text)
+        self.assertIn("reset_admin_password.py 0000 admin", launcher_text)
+        self.assertIn("run_prod.py", launcher_text)
+        self.assertIn("FAB_HOST", run_prod_text)
+        self.assertIn("FAB_PORT", run_prod_text)
 
     def test_windows_installer_script_targets_desktop_user_install(self) -> None:
         project_root = Path(__file__).resolve().parents[1]
@@ -236,7 +253,6 @@ class SystemBusinessFlowTests(BusinessFlowTestCase):
         base_template_text = (project_root / "templates" / "base.html").read_text(encoding="utf-8")
         app_css_text = (project_root / "static" / "app.css").read_text(encoding="utf-8")
         app_js_text = (project_root / "static" / "app.js").read_text(encoding="utf-8")
-        launcher_text = (project_root / "launcher.py").read_text(encoding="utf-8")
 
         self.assertIn("def cached_result(", perf_cache_text)
         self.assertIn('("dashboard_snapshot", resolved_date)', dashboard_repo_text)
@@ -256,7 +272,6 @@ class SystemBusinessFlowTests(BusinessFlowTestCase):
         self.assertIn("document.documentElement.classList.add('desktop-app-root');", base_template_text)
         self.assertIn("body.print-route .app-content{max-width:none;padding:0;height:auto;overflow:visible;animation:none;}", app_css_text)
         self.assertIn("body.print-route .alert{display:none!important;}", app_css_text)
-        self.assertIn('os.environ.get("FAB_SERVER_THREADS"', launcher_text)
 
     def test_desktop_icon_assets_are_tightly_cropped_for_windows(self) -> None:
         project_root = Path(__file__).resolve().parents[1]

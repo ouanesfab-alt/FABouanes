@@ -3,7 +3,6 @@ from __future__ import annotations
 import html
 import os
 import shutil
-import sqlite3
 import unittest
 from datetime import date
 from pathlib import Path
@@ -15,12 +14,17 @@ from werkzeug.security import generate_password_hash
 TEST_ROOT = Path(__file__).resolve().parent / "_runtime"
 os.environ["FAB_DATA_DIR"] = str(TEST_ROOT / "data")
 os.environ["LOCALAPPDATA"] = str(TEST_ROOT / "localappdata")
-os.environ["DATABASE_URL"] = ""
 os.environ["SESSION_COOKIE_SECURE"] = "0"
+
+TEST_DATABASE_URL = (os.environ.get("TEST_DATABASE_URL") or "").strip()
+if not TEST_DATABASE_URL:
+    raise unittest.SkipTest("TEST_DATABASE_URL PostgreSQL est requis pour les tests d'integration.")
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
 from app import app, ensure_runtime_dirs, init_db
 from fabouanes import security
 from fabouanes.db import connect_database
+from fabouanes.postgres_support import POSTGRES_TABLE_ORDER
 from fabouanes.runtime_app import DB_PATH, REPORTLAB_AVAILABLE
 
 
@@ -47,18 +51,17 @@ class BusinessFlowTestCase(unittest.TestCase):
 
     def _reset_runtime(self) -> None:
         shutil.rmtree(TEST_ROOT, ignore_errors=True)
-        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-        DB_PATH.write_bytes(b"")
         ensure_runtime_dirs()
+        conn = self._connection()
+        try:
+            conn.execute("TRUNCATE TABLE " + ", ".join(POSTGRES_TABLE_ORDER) + " RESTART IDENTITY CASCADE")
+            conn.commit()
+        finally:
+            conn.close()
 
     def _connection(self):
         DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            return connect_database("", DB_PATH)
-        except sqlite3.OperationalError:
-            ensure_runtime_dirs()
-            DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-            return connect_database("", DB_PATH)
+        return connect_database(TEST_DATABASE_URL, DB_PATH)
 
     def _execute(self, query: str, params: tuple = ()) -> int | None:
         conn = self._connection()

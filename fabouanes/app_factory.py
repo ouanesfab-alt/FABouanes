@@ -4,6 +4,7 @@ from fabouanes.runtime_app import app as runtime_app, ensure_runtime_dirs, init_
 from fabouanes.routes.admin_routes import register_admin_routes
 from fabouanes.routes.api_v1_routes import register_api_v1_routes
 from fabouanes.routes.auth_routes import register_auth_routes
+from fabouanes.routes.catalog_routes import register_catalog_routes
 from fabouanes.routes.contact_routes import register_contact_routes
 from fabouanes.routes.client_routes import register_client_routes
 from fabouanes.routes.core_routes import register_core_routes
@@ -20,6 +21,7 @@ def create_app():
     if not runtime_app.config.get("_FAB_BOOTSTRAPPED"):
         ensure_runtime_dirs()
         init_db()
+        runtime_app.reset_routes({"static"})
         for registrar in (
             register_auth_routes,
             register_core_routes,
@@ -27,6 +29,7 @@ def create_app():
             register_api_v1_routes,
             register_client_routes,
             register_contact_routes,
+            register_catalog_routes,
             register_purchase_routes,
             register_sale_routes,
             register_payment_routes,

@@ -8,14 +8,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from flask import current_app
+from fabouanes.fastapi_compat import current_app
 
 from fabouanes.config import APP_DATA_DIR, DATABASE_URL
 from fabouanes.core.audit import audit_event
 from fabouanes.core.db_access import execute_db, get_setting, query_db, set_setting
 from fabouanes.db import connect_database
+from fabouanes.postgres_support import POSTGRES_BACKUP_SUFFIX, SQLITE_IMPORT_FILE_NAME
 
 SCHEDULER_LOCK_ID = 48216731
+SQLITE_IMPORT_PATH_HINT = APP_DATA_DIR / SQLITE_IMPORT_FILE_NAME
 BACKGROUND_STATE = {
     "started": False,
     "thread": None,
@@ -104,8 +106,7 @@ def _retention_limit_for_type(backup_type: str) -> int:
 
 
 def _apply_retention_to_directory(directory: Path, backup_type: str) -> None:
-    suffix = ".sql" if DATABASE_URL.lower().startswith("postgres") else ".db"
-    files = sorted(directory.glob(f"*{suffix}"), key=lambda path: path.stat().st_mtime, reverse=True)
+    files = sorted(directory.glob(f"*{POSTGRES_BACKUP_SUFFIX}"), key=lambda path: path.stat().st_mtime, reverse=True)
     limit = _retention_limit_for_type(backup_type)
     for old_file in files[limit:]:
         try:
@@ -195,12 +196,10 @@ def run_pending_backup_jobs(limit: int = 3) -> int:
 
 
 def _acquire_postgres_scheduler_lock():
-    if not DATABASE_URL.lower().startswith("postgres"):
-        return True
     if BACKGROUND_STATE.get("leader_conn") is not None:
         return True
     try:
-        leader_conn = connect_database(DATABASE_URL, APP_DATA_DIR / "database.db")
+        leader_conn = connect_database(DATABASE_URL, SQLITE_IMPORT_PATH_HINT)
         row = leader_conn.execute("SELECT pg_try_advisory_lock(?) AS locked", (SCHEDULER_LOCK_ID,)).fetchone()
         locked = bool(row["locked"] if hasattr(row, "keys") else row[0])
         if locked:
@@ -244,7 +243,7 @@ def _background_loop(app) -> None:
     while True:
         try:
             with app.app_context():
-                if DATABASE_URL.lower().startswith("postgres") and not _acquire_postgres_scheduler_lock():
+                if not _acquire_postgres_scheduler_lock():
                     time.sleep(45)
                     continue
                 run_pending_backup_jobs(limit=4)

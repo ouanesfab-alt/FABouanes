@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from flask import g
+from fabouanes.fastapi_compat import g
 from fabouanes.core.db_access import execute_db
 from fabouanes.config import APP_DATA_DIR
 

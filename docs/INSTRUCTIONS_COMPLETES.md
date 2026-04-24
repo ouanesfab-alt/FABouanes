@@ -2,32 +2,40 @@
 
 ## Prerequis
 1. Installe Python 3 depuis `python.org/downloads`.
-2. Pendant l'installation, coche `Add Python to PATH`.
-3. Sous Windows, les scripts privilegient `py -3` puis basculent sur `python` si besoin.
+2. Prepare une base PostgreSQL accessible depuis la machine.
+3. Copie `.env.example` vers `.env` et renseigne `DATABASE_URL`.
 
 ## Lancer l'application
 1. Double-clique sur `LANCER.bat`.
-2. Le script installe les dependances depuis `requirements.txt`.
-3. L'application desktop demarre ensuite via `launcher.py`.
+2. Le script redirige vers `DOUBLE_CLIC_LANCER_TOUT.bat`.
+3. Le lanceur remet `admin / 0000`, puis demarre FastAPI/Uvicorn.
 
 ## Lancer FABOuanes en mode reseau Android
-1. Double-clique sur `LANCER_ANDROID_RESEAU.bat`.
-2. Le script installe les dependances depuis `requirements.txt`.
-3. Le serveur demarre sur le reseau local pour l'application Android.
+1. Double-clique sur `DOUBLE_CLIC_LANCER_TOUT.bat`.
+2. Le serveur demarre en `FAB_HOST=0.0.0.0`.
+3. L'URL locale reste `http://127.0.0.1:5000` et la connexion mobile utilise l'IP LAN detectee.
 
 ## Lancer les tests
-1. Double-clique sur `LANCER_TESTS.bat`.
-2. Le script verifie `requirements.txt` puis execute `python -m unittest discover -s tests -v`.
+1. Definis `TEST_DATABASE_URL` vers une base PostgreSQL de test dediee.
+2. Lance `LANCER_TESTS.bat` ou `python -m unittest discover -s tests -v`.
 
 ## Creer l'EXE Windows
-1. Double-clique sur `COMPILER_EXE_AVEC_TESTS.bat`.
+1. Double-clique sur `deploy\windows\COMPILER_EXE_AVEC_TESTS.bat`.
 2. Les tests sont lances avant la compilation.
 3. Si tout est bon, l'EXE est genere dans `dist\FABOuanes\FABOuanes.exe`.
 
-## Android
-- Le wrapper Android sert a configurer l'URL du serveur, scanner un QR et ouvrir l'application web complete.
-- L'APK debug se construit avec `deploy\android\BUILD_APK_DEBUG.bat`.
-- L'APK attendu est `android_wrapper\android\app\build\outputs\apk\debug\app-debug.apk`.
+## Docker
+- Un environnement PostgreSQL pret a l'emploi est fourni dans `deploy\docker\docker-compose.yml`.
+- L'URL par defaut cote application est `postgresql://fabouanes:fabouanes_change_me@postgres:5432/fabouanes`.
+
+## Donnees
+- Les donnees applicatives vivent desormais dans PostgreSQL.
+- Le projet n'embarque plus de base SQLite `database.db`.
+- Si une ancienne base SQLite `database.db` existe encore dans le dossier applicatif local ou a la racine du projet, elle est importee automatiquement au premier demarrage sur PostgreSQL.
+- Les sauvegardes applicatives PostgreSQL sont stockees dans `C:\Users\NOM\AppData\Local\FABOuanes\backups\local\`.
+
+## Nettoyage
+- Lance `NETTOYAGE_GENERAL.bat` pour supprimer les logs, `__pycache__` et caches de tests.
 
 ## Organisation du projet
 - `fabouanes\` contient le code Python principal.
@@ -36,8 +44,3 @@
 - `deploy\windows\` contient les scripts de build Windows et Inno Setup.
 - `deploy\docker\` contient les fichiers Docker.
 - `docs\` contient la documentation.
-
-## Donnees locales
-- Les donnees utilisateur sont stockees dans `C:\Users\NOM\AppData\Local\FABOuanes\`.
-- Si tu reutilises une ancienne base, conserve simplement le fichier `database.db`.
-- Les dossiers generes (`dist`, `installer_output`, `node_modules`, builds Android) sont des artefacts et ne doivent pas servir de source de verite.

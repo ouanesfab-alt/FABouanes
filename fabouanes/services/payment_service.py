@@ -6,12 +6,12 @@ from fabouanes.core.db_access import db_transaction
 from fabouanes.core.perf_cache import cached_result
 from fabouanes.core.storage import backup_database
 from fabouanes.application.use_cases.payment_use_cases import PaymentUseCases
-from fabouanes.infrastructure.repositories.payment_repository import SQLitePaymentRepository
+from fabouanes.infrastructure.repositories.payment_repository import DbPaymentRepository
 from fabouanes.presentation.schemas import build_payment_command
 
 
 _PAYMENT_USE_CASES = PaymentUseCases(
-    repository=SQLitePaymentRepository(),
+    repository=DbPaymentRepository(),
     transaction_factory=db_transaction,
     log_activity=log_activity,
     audit_event=audit_event,

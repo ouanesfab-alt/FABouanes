@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from functools import wraps
 
-from flask import flash, g, jsonify, redirect, request, url_for
+from fabouanes.fastapi_compat import flash, g, jsonify, redirect, request, url_for
 
 ROLE_ADMIN = "admin"
 ROLE_MANAGER = "manager"
@@ -104,18 +104,23 @@ ENDPOINT_PERMISSIONS: dict[str, dict[str, str]] = {
     "client_detail": {"*": PERMISSION_CONTACTS_READ},
     "print_client_history": {"*": PERMISSION_CONTACTS_READ},
     "edit_client": {"GET": PERMISSION_CONTACTS_WRITE, "POST": PERMISSION_CONTACTS_WRITE},
+    "delete_client": {"POST": PERMISSION_CONTACTS_DELETE},
     "suppliers": {"GET": PERMISSION_CONTACTS_READ, "POST": PERMISSION_CONTACTS_WRITE},
     "new_supplier": {"GET": PERMISSION_CONTACTS_WRITE, "POST": PERMISSION_CONTACTS_WRITE},
     "supplier_detail": {"*": PERMISSION_CONTACTS_READ},
     "edit_supplier": {"GET": PERMISSION_CONTACTS_WRITE, "POST": PERMISSION_CONTACTS_WRITE},
     "delete_supplier": {"POST": PERMISSION_CONTACTS_DELETE},
     "catalog": {"*": PERMISSION_CATALOG_READ},
+    "products": {"*": PERMISSION_CATALOG_READ},
     "raw_materials": {"*": PERMISSION_CATALOG_READ},
     "finished_products": {"*": PERMISSION_CATALOG_READ},
+    "quick_add": {"*": PERMISSION_DASHBOARD_READ},
     "new_catalog_item": {"GET": PERMISSION_CATALOG_WRITE, "POST": PERMISSION_CATALOG_WRITE},
     "edit_raw_material": {"GET": PERMISSION_CATALOG_WRITE, "POST": PERMISSION_CATALOG_WRITE},
+    "edit_product": {"GET": PERMISSION_CATALOG_WRITE, "POST": PERMISSION_CATALOG_WRITE},
     "edit_finished_product": {"GET": PERMISSION_CATALOG_WRITE, "POST": PERMISSION_CATALOG_WRITE},
     "delete_raw_material": {"POST": PERMISSION_CATALOG_DELETE},
+    "delete_product": {"POST": PERMISSION_CATALOG_DELETE},
     "delete_finished_product": {"POST": PERMISSION_CATALOG_DELETE},
     "operations": {"*": PERMISSION_OPERATIONS_READ},
     "transactions": {"*": PERMISSION_OPERATIONS_READ},
@@ -135,6 +140,7 @@ ENDPOINT_PERMISSIONS: dict[str, dict[str, str]] = {
     "delete_payment": {"POST": PERMISSION_OPERATIONS_DELETE},
     "production": {"GET": PERMISSION_PRODUCTION_READ, "POST": PERMISSION_PRODUCTION_WRITE},
     "new_production": {"GET": PERMISSION_PRODUCTION_WRITE, "POST": PERMISSION_PRODUCTION_WRITE},
+    "edit_production_notes": {"POST": PERMISSION_PRODUCTION_WRITE},
     "delete_production": {"POST": PERMISSION_PRODUCTION_DELETE},
     "notes_page": {"*": PERMISSION_TOOLS_READ},
     "pdf_reader": {"*": PERMISSION_TOOLS_READ},

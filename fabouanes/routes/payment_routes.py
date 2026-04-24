@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import flash, redirect, render_template, request, url_for
+from fabouanes.fastapi_compat import flash, redirect, render_template, request, url_for
 
 from fabouanes.core.decorators import login_required
 from fabouanes.core.helpers import wants_print_after_submit

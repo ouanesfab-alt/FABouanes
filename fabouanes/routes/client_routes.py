@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from flask import flash, redirect, render_template, request, url_for
+from fabouanes.fastapi_compat import flash, redirect, render_template, request, url_for
 
+from fabouanes.core.activity import log_activity
+from fabouanes.core.db_access import execute_db, query_db
 from fabouanes.core.decorators import login_required
+from fabouanes.core.storage import backup_database
 from fabouanes.repositories.client_repository import get_client
 from fabouanes.routes.route_utils import bind_route
 from fabouanes.services.client_service import (
@@ -85,9 +88,26 @@ def register_client_routes(app):
             return redirect(url_for("client_detail", client_id=client_id))
         return render_template("client_edit.html", client=client)
 
+    @login_required
+    def delete_client(client_id: int):
+        has_ops = query_db(
+            "SELECT 1 FROM sales WHERE client_id=? UNION SELECT 1 FROM raw_sales WHERE client_id=? UNION SELECT 1 FROM payments WHERE client_id=? LIMIT 1",
+            (client_id, client_id, client_id),
+            one=True,
+        )
+        if has_ops:
+            flash("Impossible de supprimer un client avec historique.", "danger")
+        else:
+            execute_db("DELETE FROM clients WHERE id=?", (client_id,))
+            log_activity("delete_client", "client", client_id, "Suppression client")
+            backup_database("delete_client")
+            flash("Client supprime.", "success")
+        return redirect(url_for("clients"))
+
     bind_route(app, "/clients", "clients", clients, ["GET", "POST"])
     bind_route(app, "/clients/new", "new_client", new_client, ["GET", "POST"])
     bind_route(app, "/clients/import-excel", "import_clients_excel", import_clients_excel, ["GET", "POST"])
     bind_route(app, "/clients/<int:client_id>", "client_detail", client_detail, ["GET"])
     bind_route(app, "/clients/<int:client_id>/print-history", "print_client_history", print_client_history, ["GET"])
     bind_route(app, "/clients/<int:client_id>/edit", "edit_client", edit_client, ["GET", "POST"])
+    bind_route(app, "/clients/<int:client_id>/delete", "delete_client", delete_client, ["POST"])

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from flask import current_app, flash
+from fabouanes.fastapi_compat import current_app, flash
 from fabouanes.domain.exceptions import FabouanesError
 
 

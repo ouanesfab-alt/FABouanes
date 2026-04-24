@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import flash, g, redirect, render_template, request, session, url_for
+from fabouanes.fastapi_compat import flash, g, redirect, render_template, request, session, url_for
 
 from fabouanes.core.activity import log_activity
 from fabouanes.core.audit import audit_event
@@ -57,4 +57,3 @@ def register_auth_routes(app):
     bind_route(app, "/login", "login", login, ["GET", "POST"])
     bind_route(app, "/change-password", "change_password", change_password, ["GET", "POST"])
     bind_route(app, "/logout", "logout", logout, ["GET"])
-

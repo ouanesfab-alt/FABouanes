@@ -5,7 +5,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Any
 
-from flask import current_app, g, jsonify, request
+from fabouanes.fastapi_compat import current_app, g, jsonify, request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.datastructures import MultiDict
 

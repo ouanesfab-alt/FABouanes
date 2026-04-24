@@ -1,10 +1,9 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import re
 import os
 import shutil
-import sqlite3
 import traceback
 import atexit
 import ast
@@ -16,17 +15,24 @@ from functools import wraps
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, session, url_for, send_file, send_from_directory
+from fabouanes.fastapi_compat import Flask, abort, flash, g, jsonify, redirect, render_template, request, send_file, send_from_directory, session, url_for
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import check_password_hash, generate_password_hash
-from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from io import BytesIO
 
-from fabouanes.config import APP_DATA_DIR, BASE_DIR, BUNDLED_DB_PATH, DATABASE_URL, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME, SESSION_COOKIE_SECURE
+from fabouanes.config import APP_DATA_DIR, BASE_DIR, DATABASE_URL, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME, SESSION_COOKIE_SECURE
 from fabouanes.db import connect_database, list_columns
 from fabouanes.core.permissions import has_permission, normalize_role, permission_for_endpoint, permission_denied_response
+from fabouanes.postgres_support import (
+    POSTGRES_BACKUP_SUFFIX,
+    SQLITE_IMPORT_FILE_NAME,
+    create_postgres_backup,
+    import_sqlite_into_postgres,
+    migrate_sqlite_import_metadata,
+    restore_postgres_backup,
+)
 from fabouanes.security import csrf_protect as shared_csrf_protect, ensure_csrf as shared_ensure_csrf, security_headers, validate_password_strength
 from fabouanes.services.backup_service import start_background_services
 
@@ -45,7 +51,8 @@ APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 load_dotenv(BASE_DIR / '.env')
 load_dotenv(APP_DATA_DIR / '.env', override=False)
-DB_PATH = APP_DATA_DIR / 'database.db'
+SQLITE_IMPORT_PATH_HINT = APP_DATA_DIR / SQLITE_IMPORT_FILE_NAME
+DB_PATH = SQLITE_IMPORT_PATH_HINT
 BACKUP_DIR = APP_DATA_DIR / 'backups'
 LOCAL_BACKUP_DIR = BACKUP_DIR / 'local'
 LOG_DIR = APP_DATA_DIR / 'logs'
@@ -56,7 +63,6 @@ IMPORT_DIR = APP_DATA_DIR / 'imports'
 
 
 app = Flask(__name__, template_folder=str(BASE_DIR / 'templates'), static_folder=str(BASE_DIR / 'static'))
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 SECRET_KEY = os.environ.get('SECRET_KEY') or get_setting('secret_key', '') if 'get_setting' in globals() else os.environ.get('SECRET_KEY')
 if not SECRET_KEY:
@@ -81,9 +87,6 @@ def ensure_runtime_dirs() -> None:
     NOTES_DIR.mkdir(parents=True, exist_ok=True)
     PDF_READER_DIR.mkdir(parents=True, exist_ok=True)
     IMPORT_DIR.mkdir(parents=True, exist_ok=True)
-
-    if not DB_PATH.exists() and BUNDLED_DB_PATH.exists():
-        shutil.copy2(BUNDLED_DB_PATH, DB_PATH)
 
 
 def now_str() -> str:
@@ -120,16 +123,16 @@ def read_app_notes() -> str:
 
 
 def write_app_notes(content: str) -> None:
-    """Sauvegarde la note courante et archive une version horodatée."""
+    """Sauvegarde la note courante et archive une version horodatÃ©e."""
     ensure_runtime_dirs()
     path = notes_file_path()
-    # Archiver l'ancienne version si différente
+    # Archiver l'ancienne version si diffÃ©rente
     old_content = path.read_text(encoding='utf-8') if path.exists() else ''
     if old_content.strip() and old_content.strip() != (content or '').strip():
         stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         archive = NOTES_DIR / f'history_{stamp}.txt'
         archive.write_text(old_content, encoding='utf-8')
-        # Garder seulement les 20 dernières versions
+        # Garder seulement les 20 derniÃ¨res versions
         hist_files = sorted(NOTES_DIR.glob('history_*.txt'), reverse=True)
         for old_f in hist_files[20:]:
             try:
@@ -140,7 +143,7 @@ def write_app_notes(content: str) -> None:
 
 
 def list_notes_history() -> list[dict]:
-    """Retourne la liste des versions archivées."""
+    """Retourne la liste des versions archivÃ©es."""
     ensure_runtime_dirs()
     versions = []
     for p in sorted(NOTES_DIR.glob('history_*.txt'), reverse=True)[:20]:
@@ -197,7 +200,7 @@ def parse_flexible_amount(value) -> float:
 
 
 def parse_excel_client_history(file_path) -> dict:
-    """Extrait uniquement la dernière date et le dernier reste à payer de la fiche Excel."""
+    """Extrait uniquement la derniÃ¨re date et le dernier reste Ã  payer de la fiche Excel."""
     try:
         import openpyxl
     except Exception as exc:
@@ -206,7 +209,7 @@ def parse_excel_client_history(file_path) -> dict:
     ws = wb[wb.sheetnames[0]]
     def cell_str(v):
         return str(v).strip() if v is not None else ''
-    # Trouver la ligne d'en-tête
+    # Trouver la ligne d'en-tÃªte
     header_row = None
     for ridx, row in enumerate(ws.iter_rows(values_only=True), start=1):
         vals = [cell_str(v).lower() for v in row]
@@ -225,7 +228,7 @@ def parse_excel_client_history(file_path) -> dict:
         if not any(v is not None and str(v).strip() and str(v).strip().lower() not in {'none', 'nan'}
                    for v in [d, desig, montant, versement, reste]):
             continue
-        # Mettre à jour la dernière date et le dernier solde trouvés
+        # Mettre Ã  jour la derniÃ¨re date et le dernier solde trouvÃ©s
         if d is not None and str(d).strip() and str(d).strip().lower() not in {'none', 'nan'}:
             last_date = parse_flexible_date(d)
         reste_val = parse_flexible_amount(reste)
@@ -235,7 +238,7 @@ def parse_excel_client_history(file_path) -> dict:
 
 
 def parse_excel_client_file(file_path) -> dict:
-    """Extrait les métadonnées du client (nom, téléphone, crédit initial)."""
+    """Extrait les mÃ©tadonnÃ©es du client (nom, tÃ©lÃ©phone, crÃ©dit initial)."""
 
     try:
         import openpyxl
@@ -309,7 +312,7 @@ def parse_excel_client_file(file_path) -> dict:
     if not client_name:
         client_name = file_path.stem.replace('_', ' ').strip()
 
-    notes = f"Importé depuis Excel ({file_path.name}). Lignes détectées: {history_count}."
+    notes = f"ImportÃ© depuis Excel ({file_path.name}). Lignes dÃ©tectÃ©es: {history_count}."
     return {
         'name': client_name.strip(),
         'phone': phone.strip(),
@@ -324,7 +327,7 @@ def parse_excel_client_file(file_path) -> dict:
 
 def get_db():
     if 'db' not in g:
-        g.db = connect_database(DATABASE_URL, DB_PATH)
+        g.db = connect_database(DATABASE_URL, SQLITE_IMPORT_PATH_HINT)
     return g.db
 
 
@@ -431,7 +434,7 @@ def admin_required(view):
         if user is None:
             return redirect(url_for('login'))
         if user['role'] != 'admin':
-            flash('Accès réservé à l’administrateur.', 'danger')
+            flash('AccÃ¨s rÃ©servÃ© Ã  lâ€™administrateur.', 'danger')
             return redirect(url_for('index'))
         return view(*args, **kwargs)
 
@@ -459,16 +462,12 @@ def log_error(exc: Exception, route: str = '') -> None:
 def backup_database(reason: str = 'manual') -> Path:
     ensure_runtime_dirs()
     stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    suffix = 'sql' if DATABASE_URL.lower().startswith('postgres') else 'db'
-    filename = f"database_{stamp}_{reason.replace(' ', '_')}.{suffix}"
+    filename = f"database_{stamp}_{reason.replace(' ', '_')}{POSTGRES_BACKUP_SUFFIX}"
     target = LOCAL_BACKUP_DIR / filename
     db = g.get('db')
     if db is not None:
         db.commit()
-    if DATABASE_URL.lower().startswith('postgres'):
-        target.write_text('-- Backup PostgreSQL logique non implémenté automatiquement dans cette version.\n', encoding='utf-8')
-    else:
-        shutil.copy2(DB_PATH, target)
+    create_postgres_backup(DATABASE_URL, SQLITE_IMPORT_PATH_HINT, target)
     cloud_path = get_setting('gdrive_backup_dir', '').strip()
     if cloud_path:
         try:
@@ -484,7 +483,7 @@ def restore_database_from(path_str: str) -> None:
     db = g.pop('db', None)
     if db is not None:
         db.close()
-    shutil.copy2(path_str, DB_PATH)
+    restore_postgres_backup(DATABASE_URL, SQLITE_IMPORT_PATH_HINT, path_str)
 
 
 def get_cloud_backup_dir() -> Path | None:
@@ -497,16 +496,16 @@ def get_cloud_backup_dir() -> Path | None:
 def list_restore_backups() -> list[dict[str, str]]:
     backups: list[dict[str, str]] = []
     seen: set[tuple[str, str]] = set()
-    for p in sorted(LOCAL_BACKUP_DIR.glob('*.db'), reverse=True):
-        item = {'value': f'local:{p.name}', 'name': p.name, 'source': 'local', 'label': f'Local · {p.name}'}
+    for p in sorted(LOCAL_BACKUP_DIR.glob(f'*{POSTGRES_BACKUP_SUFFIX}'), reverse=True):
+        item = {'value': f'local:{p.name}', 'name': p.name, 'source': 'local', 'label': f'Local - {p.name}'}
         backups.append(item)
         seen.add(('local', p.name))
     cloud_dir = get_cloud_backup_dir()
     if cloud_dir and cloud_dir.exists():
-        for p in sorted(cloud_dir.glob('*.db'), reverse=True):
+        for p in sorted(cloud_dir.glob(f'*{POSTGRES_BACKUP_SUFFIX}'), reverse=True):
             if ('cloud', p.name) in seen:
                 continue
-            backups.append({'value': f'cloud:{p.name}', 'name': p.name, 'source': 'cloud', 'label': f'Google Drive · {p.name}'})
+            backups.append({'value': f'cloud:{p.name}', 'name': p.name, 'source': 'cloud', 'label': f'Google Drive - {p.name}'})
     return backups
 
 
@@ -815,13 +814,10 @@ def migrate_db(conn) -> None:
     conn.execute("CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)")
 
     def has_table(name: str) -> bool:
-        if getattr(conn, 'dialect', 'sqlite') == 'postgres':
-            row = conn.execute(
-                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ?",
-                (name,),
-            ).fetchone()
-        else:
-            row = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone()
+        row = conn.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ?",
+            (name,),
+        ).fetchone()
         return row is not None
 
     def add_column_if_missing(table: str, column: str, ddl: str) -> None:
@@ -832,62 +828,19 @@ def migrate_db(conn) -> None:
         if not has_table('users'):
             return
         columns = table_columns(conn, 'users')
-        if getattr(conn, 'dialect', 'sqlite') == 'sqlite':
-            schema_row = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", ('users',)).fetchone()
-            schema_sql = (schema_row[0] if schema_row else '') or ''
-            if all(column in columns for column in {'is_active', 'last_login_at', 'last_password_change_at'}) and 'manager' in schema_sql and 'operator' in schema_sql:
-                conn.execute("UPDATE users SET role = CASE WHEN lower(COALESCE(role, '')) = 'admin' THEN 'admin' WHEN lower(COALESCE(role, '')) = 'manager' THEN 'manager' ELSE 'operator' END")
-                return
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS users_v11 (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT NOT NULL UNIQUE,
-                    password_hash TEXT NOT NULL,
-                    role TEXT NOT NULL DEFAULT 'operator' CHECK(role IN ('admin','manager','operator')),
-                    must_change_password INTEGER NOT NULL DEFAULT 0,
-                    is_active INTEGER NOT NULL DEFAULT 1,
-                    last_login_at TEXT,
-                    last_password_change_at TEXT,
-                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-                )
-                """
-            )
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO users_v11 (
-                    id, username, password_hash, role, must_change_password, is_active, last_login_at, last_password_change_at, created_at
-                )
-                SELECT
-                    id,
-                    username,
-                    password_hash,
-                    CASE
-                        WHEN lower(COALESCE(role, '')) = 'admin' THEN 'admin'
-                        WHEN lower(COALESCE(role, '')) = 'manager' THEN 'manager'
-                        ELSE 'operator'
-                    END,
-                    COALESCE(must_change_password, 0),
-                    COALESCE(is_active, 1),
-                    last_login_at,
-                    last_password_change_at,
-                    COALESCE(created_at, CURRENT_TIMESTAMP)
-                FROM users
-                """
-            )
-            conn.execute("DROP TABLE users")
-            conn.execute("ALTER TABLE users_v11 RENAME TO users")
-            return
         if columns:
-            try:
-                conn.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check")
-            except Exception:
-                pass
-            try:
-                conn.execute("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin','manager','operator'))")
-            except Exception:
-                pass
             conn.execute("UPDATE users SET role = CASE WHEN lower(role) = 'admin' THEN 'admin' WHEN lower(role) = 'manager' THEN 'manager' ELSE 'operator' END")
+            role_constraint = conn.execute(
+                """
+                SELECT constraint_name
+                FROM information_schema.table_constraints
+                WHERE table_schema = 'public'
+                  AND table_name = 'users'
+                  AND constraint_name = 'users_role_check'
+                """
+            ).fetchone()
+            if role_constraint is None:
+                conn.execute("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin','manager','operator'))")
 
     add_column_if_missing('clients', 'opening_credit', "ALTER TABLE clients ADD COLUMN opening_credit REAL NOT NULL DEFAULT 0")
     add_column_if_missing('users', 'must_change_password', "ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0")
@@ -1026,7 +979,7 @@ def migrate_db(conn) -> None:
     )
 
 
-    # ── Indexes de performance (v37 fix) ─────────────────────────────────────
+    # â”€â”€ Indexes de performance (v37 fix) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     _indexes = [
         "CREATE INDEX IF NOT EXISTS idx_sales_client_id           ON sales(client_id)",
         "CREATE INDEX IF NOT EXISTS idx_sales_sale_date           ON sales(sale_date)",
@@ -1078,7 +1031,7 @@ def migrate_db(conn) -> None:
 
 
 def init_db() -> None:
-    conn = connect_database(DATABASE_URL, DB_PATH)
+    conn = connect_database(DATABASE_URL, SQLITE_IMPORT_PATH_HINT)
     conn.executescript(
         '''
         CREATE TABLE IF NOT EXISTS users (
@@ -1387,6 +1340,8 @@ def init_db() -> None:
     )
 
     migrate_db(conn)
+    import_sqlite_into_postgres(conn, app_data_dir=APP_DATA_DIR, base_dir=BASE_DIR)
+    migrate_sqlite_import_metadata(conn)
 
     admin_exists = conn.execute('SELECT id FROM users WHERE username = ?', (DEFAULT_ADMIN_USERNAME,)).fetchone()
     if not admin_exists:
@@ -1678,15 +1633,15 @@ def catalog_name_form_context(kind: str, current_name: str = '', form_data=None)
     if form_data is not None:
         selected_category = (form_data.get('category_name') or '').strip()
         custom_name = (form_data.get('custom_name') or '').strip()
-        legacy_name = (form_data.get('name') or '').strip()
+        submitted_name = (form_data.get('name') or '').strip()
         if not selected_category:
-            preset_match = _matching_catalog_preset(presets, legacy_name)
+            preset_match = _matching_catalog_preset(presets, submitted_name)
             if preset_match:
                 selected_category = preset_match
                 custom_name = ''
             else:
                 selected_category = OTHER_CATEGORY_VALUE
-                custom_name = legacy_name or custom_name
+                custom_name = submitted_name or custom_name
         elif selected_category != OTHER_CATEGORY_VALUE:
             selected_category = _matching_catalog_preset(presets, selected_category) or selected_category
     else:
@@ -1705,10 +1660,10 @@ def catalog_name_form_context(kind: str, current_name: str = '', form_data=None)
 def resolve_catalog_item_name(form_data) -> str:
     selected_category = (form_data.get('category_name') or '').strip()
     custom_name = (form_data.get('custom_name') or '').strip()
-    legacy_name = (form_data.get('name') or '').strip()
+    submitted_name = (form_data.get('name') or '').strip()
     if selected_category and selected_category != OTHER_CATEGORY_VALUE:
         return selected_category
-    resolved_name = custom_name or legacy_name
+    resolved_name = custom_name or submitted_name
     if not resolved_name:
         raise ValueError("Le nom du produit est obligatoire.")
     return resolved_name
@@ -1743,7 +1698,7 @@ def clients():
                 to_float(request.form.get('opening_credit')),
             ),
         )
-        log_activity('create_client', 'client', None, request.form['name'].strip()); backup_database('create_client'); flash('Client ajouté avec succès.', 'success')
+        log_activity('create_client', 'client', None, request.form['name'].strip()); backup_database('create_client'); flash('Client ajoutÃ© avec succÃ¨s.', 'success')
         return redirect(url_for('clients'))
 
     rows = query_db(
@@ -1776,13 +1731,13 @@ def notes_page():
                 old_content = read_notes_version(filename)
                 if old_content:
                     write_app_notes(old_content)
-                    flash('Version restaurée avec succès.', 'success')
+                    flash('Version restaurÃ©e avec succÃ¨s.', 'success')
                 else:
                     flash('Version introuvable.', 'danger')
         else:
             content = request.form.get('content', '')
             write_app_notes(content)
-            flash('Bloc-note enregistré.', 'success')
+            flash('Bloc-note enregistrÃ©.', 'success')
         return redirect(url_for('notes_page'))
 
     view_version = request.args.get('v', '')
@@ -1809,7 +1764,7 @@ def pdf_reader():
                 target = PDF_READER_DIR / fname
                 if target.exists():
                     target.unlink()
-                    flash(f'PDF supprimé : {fname}', 'success')
+                    flash(f'PDF supprimÃ© : {fname}', 'success')
                 else:
                     flash('Fichier introuvable.', 'warning')
             return redirect(url_for('pdf_reader'))
@@ -1820,11 +1775,11 @@ def pdf_reader():
             return redirect(url_for('pdf_reader'))
         filename = secure_filename(uploaded.filename)
         if not filename.lower().endswith('.pdf'):
-            flash('Seuls les fichiers PDF sont acceptés.', 'danger')
+            flash('Seuls les fichiers PDF sont acceptÃ©s.', 'danger')
             return redirect(url_for('pdf_reader'))
         target = PDF_READER_DIR / filename
         uploaded.save(target)
-        flash(f'PDF ajouté : {filename}', 'success')
+        flash(f'PDF ajoutÃ© : {filename}', 'success')
         return redirect(url_for('pdf_reader', file=filename))
     files = sorted([p.name for p in PDF_READER_DIR.glob('*.pdf')], key=str.lower)
     selected = request.args.get('file', '').strip()
@@ -1867,7 +1822,7 @@ def import_clients_excel():
                 parsed = parse_excel_client_file(temp_path)
                 last = parse_excel_client_history(temp_path)
 
-                # Seul le dernier "reste à payer" est repris comme dette d'ouverture
+                # Seul le dernier "reste Ã  payer" est repris comme dette d'ouverture
                 opening = last['last_balance'] if last['last_balance'] > 0 else parsed['opening_credit']
 
                 existing = query_db('SELECT id FROM clients WHERE lower(trim(name)) = lower(trim(?))', (parsed['name'],), one=True)
@@ -1897,12 +1852,12 @@ def import_clients_excel():
                 except Exception:
                     pass
 
-        log_activity('import_clients_excel', 'client_import', None, f'{created} créés, {updated} mis à jour')
+        log_activity('import_clients_excel', 'client_import', None, f'{created} crÃ©Ã©s, {updated} mis Ã  jour')
         backup_database('import_excel')
         if errors:
             for err in errors[:5]:
                 flash(err, 'danger')
-        flash(f'Import terminé : {created} client(s) créé(s), {updated} mis à jour avec dernier solde.', 'success' if (created or updated) else 'warning')
+        flash(f'Import terminÃ© : {created} client(s) crÃ©Ã©(s), {updated} mis Ã  jour avec dernier solde.', 'success' if (created or updated) else 'warning')
         return redirect(url_for('clients'))
 
     return render_template('client_import.html')
@@ -1927,7 +1882,7 @@ def client_detail(client_id: int):
     )
     raw_sales = query_db(
         '''
-        SELECT rs.id AS row_id, rs.sale_date AS event_date, r.name || ' (matière première) - ' || printf('%.2f', rs.quantity) || ' ' || rs.unit AS designation, rs.total AS purchase_amount,
+        SELECT rs.id AS row_id, rs.sale_date AS event_date, r.name || ' (matiÃ¨re premiÃ¨re) - ' || printf('%.2f', rs.quantity) || ' ' || rs.unit AS designation, rs.total AS purchase_amount,
                0 AS payment_amount, 'sale_raw' AS event_type
         FROM raw_sales rs JOIN raw_materials r ON r.id = rs.raw_material_id
         WHERE rs.client_id = ?
@@ -1938,8 +1893,8 @@ def client_detail(client_id: int):
         '''
         SELECT p.id AS row_id, p.payment_date AS event_date,
                CASE
-                   WHEN p.sale_kind = 'raw' THEN 'Versement lié à vente matière'
-                   WHEN p.sale_kind = 'finished' THEN 'Versement lié à vente produit'
+                   WHEN p.sale_kind = 'raw' THEN 'Versement liÃ© Ã  vente matiÃ¨re'
+                   WHEN p.sale_kind = 'finished' THEN 'Versement liÃ© Ã  vente produit'
                    ELSE COALESCE(NULLIF(p.notes,''), CASE WHEN p.payment_type='avance' THEN 'Avance client' ELSE 'Versement client' END)
                END AS designation,
                CASE WHEN p.payment_type='avance' THEN p.amount ELSE 0 END AS purchase_amount,
@@ -1952,7 +1907,7 @@ def client_detail(client_id: int):
 
     timeline = []
     if float(client['opening_credit']) > 0:
-        timeline.append({'row_id': None, 'event_date': client['created_at'][:10], 'designation': 'Crédit initial (reprise Excel)', 'purchase_amount': float(client['opening_credit']), 'payment_amount': 0.0, 'event_type': 'opening'})
+        timeline.append({'row_id': None, 'event_date': client['created_at'][:10], 'designation': 'CrÃ©dit initial (reprise Excel)', 'purchase_amount': float(client['opening_credit']), 'payment_amount': 0.0, 'event_type': 'opening'})
     timeline.extend([dict(x) for x in finished_sales])
     timeline.extend([dict(x) for x in raw_sales])
     timeline.extend([dict(x) for x in payments])
@@ -1992,7 +1947,7 @@ def edit_client(client_id: int):
                 client_id,
             ),
         )
-        flash('Client modifié avec succès.', 'success')
+        flash('Client modifiÃ© avec succÃ¨s.', 'success')
         return redirect(url_for('client_detail', client_id=client_id))
     return render_template('client_edit.html', client=client)
 
@@ -2010,7 +1965,7 @@ def suppliers():
                 request.form.get('notes', '').strip(),
             ),
         )
-        log_activity('create_supplier', 'supplier', None, request.form['name'].strip()); backup_database('create_supplier'); flash('Fournisseur ajouté avec succès.', 'success')
+        log_activity('create_supplier', 'supplier', None, request.form['name'].strip()); backup_database('create_supplier'); flash('Fournisseur ajoutÃ© avec succÃ¨s.', 'success')
         return redirect(url_for('suppliers'))
     return render_template('suppliers.html', suppliers=query_db('SELECT * FROM suppliers ORDER BY name'))
 
@@ -2025,7 +1980,7 @@ def edit_supplier(supplier_id: int):
     if request.method == 'POST':
         execute_db('UPDATE suppliers SET name=?, phone=?, address=?, notes=? WHERE id=?', (
             request.form['name'].strip(), request.form.get('phone', '').strip(), request.form.get('address', '').strip(), request.form.get('notes', '').strip(), supplier_id))
-        log_activity('update_supplier', 'supplier', supplier_id, request.form['name'].strip()); backup_database('update_supplier'); flash('Fournisseur modifié.', 'success')
+        log_activity('update_supplier', 'supplier', supplier_id, request.form['name'].strip()); backup_database('update_supplier'); flash('Fournisseur modifiÃ©.', 'success')
         return redirect(url_for('suppliers'))
     return render_template('supplier_edit.html', supplier=supplier)
 
@@ -2041,7 +1996,7 @@ def raw_materials():
 def edit_raw_material(material_id: int):
     material = query_db('SELECT * FROM raw_materials WHERE id = ?', (material_id,), one=True)
     if not material:
-        flash('Matière introuvable.', 'danger')
+        flash('MatiÃ¨re introuvable.', 'danger')
         return redirect(url_for('raw_materials'))
     if request.method == 'POST':
         item_name = resolve_catalog_item_name(request.form)
@@ -2050,7 +2005,7 @@ def edit_raw_material(material_id: int):
         execute_db('UPDATE raw_materials SET name=?, unit=?, stock_qty=?, avg_cost=?, sale_price=?, alert_threshold=? WHERE id=?', (
             item_name, request.form['unit'].strip(), to_float(request.form.get('stock_qty')), avg_cost, sale_price, to_float(request.form.get('alert_threshold')), material_id))
         refresh_sale_profits_for_item('raw', material_id, avg_cost, sale_price)
-        log_activity('update_price', 'raw_material', material_id, f"{item_name} | achat={avg_cost} | vente={sale_price}"); backup_database('update_raw_material'); flash('Matière première modifiée.', 'success')
+        log_activity('update_price', 'raw_material', material_id, f"{item_name} | achat={avg_cost} | vente={sale_price}"); backup_database('update_raw_material'); flash('MatiÃ¨re premiÃ¨re modifiÃ©e.', 'success')
         return redirect(url_for('raw_materials'))
     return render_template(
         'raw_material_edit.html',
@@ -2080,7 +2035,7 @@ def edit_product(product_id: int):
         execute_db('UPDATE finished_products SET name=?, default_unit=?, stock_qty=?, sale_price=?, avg_cost=? WHERE id=?', (
             item_name, request.form['default_unit'].strip(), to_float(request.form.get('stock_qty')), sale_price, avg_cost, product_id))
         refresh_sale_profits_for_item('finished', product_id, avg_cost, sale_price)
-        log_activity('update_price', 'finished_product', product_id, f"{item_name} | revient={avg_cost} | vente={sale_price}"); backup_database('update_product'); flash('Produit modifié.', 'success')
+        log_activity('update_price', 'finished_product', product_id, f"{item_name} | revient={avg_cost} | vente={sale_price}"); backup_database('update_product'); flash('Produit modifiÃ©.', 'success')
         return redirect(url_for('products'))
     return render_template(
         'product_edit.html',
@@ -2098,7 +2053,7 @@ def quick_add():
     options = [
         ('client', 'Client', url_for('new_client')),
         ('supplier', 'Fournisseur', url_for('new_supplier')),
-        ('product_raw', 'Matière première', url_for('new_catalog_item', kind='raw')),
+        ('product_raw', 'MatiÃ¨re premiÃ¨re', url_for('new_catalog_item', kind='raw')),
         ('product_finished', 'Produit fini', url_for('new_catalog_item', kind='finished')),
         ('purchase', 'Achat', url_for('new_purchase')),
         ('sale', 'Vente', url_for('new_sale')),
@@ -2123,7 +2078,7 @@ def new_client():
                 to_float(request.form.get('opening_credit')),
             ),
         )
-        log_activity('create_client', 'client', None, request.form['name'].strip()); backup_database('create_client'); flash('Client ajouté avec succès.', 'success')
+        log_activity('create_client', 'client', None, request.form['name'].strip()); backup_database('create_client'); flash('Client ajoutÃ© avec succÃ¨s.', 'success')
         return redirect(url_for('clients'))
     return render_template('client_new.html')
 
@@ -2141,7 +2096,7 @@ def new_supplier():
                 request.form.get('notes', '').strip(),
             ),
         )
-        log_activity('create_supplier', 'supplier', None, request.form['name'].strip()); backup_database('create_supplier'); flash('Fournisseur ajouté avec succès.', 'success')
+        log_activity('create_supplier', 'supplier', None, request.form['name'].strip()); backup_database('create_supplier'); flash('Fournisseur ajoutÃ© avec succÃ¨s.', 'success')
         return redirect(url_for('suppliers'))
     return render_template('supplier_new.html')
 
@@ -2165,7 +2120,7 @@ def new_catalog_item():
                     to_float(request.form.get('alert_threshold')),
                 ),
             )
-            log_activity('create_product', 'raw_material', None, item_name); backup_database('create_raw_material'); flash('Matière première ajoutée.', 'success')
+            log_activity('create_product', 'raw_material', None, item_name); backup_database('create_raw_material'); flash('MatiÃ¨re premiÃ¨re ajoutÃ©e.', 'success')
         else:
             execute_db(
                 'INSERT INTO finished_products (name, default_unit, stock_qty, sale_price, avg_cost) VALUES (?, ?, ?, ?, ?)',
@@ -2177,7 +2132,7 @@ def new_catalog_item():
                     to_float(request.form.get('avg_cost')),
                 ),
             )
-            log_activity('create_product', 'finished_product', None, item_name); backup_database('create_finished_product'); flash('Produit fini ajouté.', 'success')
+            log_activity('create_product', 'finished_product', None, item_name); backup_database('create_finished_product'); flash('Produit fini ajoutÃ©.', 'success')
         return redirect(url_for('catalog'))
     return render_template(
         'catalog_new.html',
@@ -2199,14 +2154,14 @@ def new_purchase():
         purchase_date = request.form.get('purchase_date') or date.today().isoformat()
         notes = request.form.get('notes', '').strip()
         if qty <= 0:
-            flash('La quantité doit être supérieure à zéro.', 'danger')
+            flash('La quantitÃ© doit Ãªtre supÃ©rieure Ã  zÃ©ro.', 'danger')
             return redirect(url_for('new_purchase'))
         try:
             purchase_id = create_purchase_record(supplier_id, raw_id, qty, unit_price, purchase_date, notes, unit)
         except Exception as exc:
             flash(str(exc), 'danger')
             return redirect(url_for('new_purchase'))
-        log_activity('create_purchase', 'purchase', purchase_id, f"matière #{raw_id} qty={qty} {unit}"); backup_database('create_purchase'); flash('Achat enregistré avec succès.', 'success')
+        log_activity('create_purchase', 'purchase', purchase_id, f"matiÃ¨re #{raw_id} qty={qty} {unit}"); backup_database('create_purchase'); flash('Achat enregistrÃ© avec succÃ¨s.', 'success')
         if wants_print_after_submit():
             return redirect(url_for('print_document', doc_type='purchase', item_id=purchase_id))
         return redirect(url_for('purchases'))
@@ -2237,15 +2192,15 @@ def new_sale():
             flash(str(exc), 'danger')
             return redirect(url_for('new_sale'))
         created_doc_type = 'sale_finished' if created_kind == 'finished' else 'sale_raw'
-        log_activity('create_sale', 'sale', created_sale_id, f"{item_kind} #{item_id} qty={qty} {unit} total={total}"); backup_database('create_sale'); flash('Vente enregistrée avec bénéfice estimé.', 'success')
+        log_activity('create_sale', 'sale', created_sale_id, f"{item_kind} #{item_id} qty={qty} {unit} total={total}"); backup_database('create_sale'); flash('Vente enregistrÃ©e avec bÃ©nÃ©fice estimÃ©.', 'success')
         if wants_print_after_submit():
             return redirect(url_for('print_document', doc_type=created_doc_type, item_id=created_sale_id))
         return redirect(url_for('sales'))
     sellable_items = []
     for p in query_db('SELECT id, name, default_unit AS unit, stock_qty, sale_price, avg_cost FROM finished_products ORDER BY name'):
-        sellable_items.append({'key': f"finished:{p['id']}", 'label': f"{p['name']} · produit fini", 'unit': p['unit'], 'stock_qty': p['stock_qty'], 'sale_price': p['sale_price'], 'avg_cost': p['avg_cost']})
+        sellable_items.append({'key': f"finished:{p['id']}", 'label': f"{p['name']} Â· produit fini", 'unit': p['unit'], 'stock_qty': p['stock_qty'], 'sale_price': p['sale_price'], 'avg_cost': p['avg_cost']})
     for r in query_db('SELECT id, name, unit, stock_qty, sale_price, avg_cost FROM raw_materials ORDER BY name'):
-        sellable_items.append({'key': f"raw:{r['id']}", 'label': f"{r['name']} · matière première", 'unit': r['unit'], 'stock_qty': r['stock_qty'], 'sale_price': r['sale_price'], 'avg_cost': r['avg_cost']})
+        sellable_items.append({'key': f"raw:{r['id']}", 'label': f"{r['name']} Â· matiÃ¨re premiÃ¨re", 'unit': r['unit'], 'stock_qty': r['stock_qty'], 'sale_price': r['sale_price'], 'avg_cost': r['avg_cost']})
     return render_template('sale_new.html', clients=query_db('SELECT * FROM clients ORDER BY name'), sellable_items=sellable_items, units=unit_choices())
 
 
@@ -2311,10 +2266,10 @@ def new_production():
         quantities = request.form.getlist('quantity[]')
 
         if production_date > date.today().isoformat():
-            flash('La date de production ne peut pas être dans le futur.', 'danger')
+            flash('La date de production ne peut pas Ãªtre dans le futur.', 'danger')
             return redirect(url_for('new_production'))
         if output_qty <= 0:
-            flash('La quantité produite doit être supérieure à zéro.', 'danger')
+            flash('La quantitÃ© produite doit Ãªtre supÃ©rieure Ã  zÃ©ro.', 'danger')
             return redirect(url_for('new_production'))
         product = query_db('SELECT * FROM finished_products WHERE id = ?', (finished_id,), one=True)
         if not product:
@@ -2331,7 +2286,7 @@ def new_production():
                 continue
             material = query_db('SELECT * FROM raw_materials WHERE id = ?', (int(raw_id),), one=True)
             if not material:
-                flash('Une matière première sélectionnée est introuvable.', 'danger')
+                flash('Une matiÃ¨re premiÃ¨re sÃ©lectionnÃ©e est introuvable.', 'danger')
                 return redirect(url_for('new_production'))
             if qty > float(material['stock_qty']):
                 flash(f"Stock insuffisant pour {material['name']}.", 'danger')
@@ -2341,7 +2296,7 @@ def new_production():
             total_cost += line_cost
             total_recipe_qty += qty
         if not recipe_lines:
-            flash('Ajoute au moins une matière première dans la recette.', 'danger')
+            flash('Ajoute au moins une matiÃ¨re premiÃ¨re dans la recette.', 'danger')
             return redirect(url_for('new_production'))
         try:
             with db_transaction():
@@ -2365,13 +2320,13 @@ def new_production():
         except Exception as exc:
             flash(str(exc), 'danger')
             return redirect(url_for('new_production'))
-        log_activity('create_production', 'production', batch_id, f"produit #{finished_id} sortie={output_qty}kg coût={total_cost}")
+        log_activity('create_production', 'production', batch_id, f"produit #{finished_id} sortie={output_qty}kg coÃ»t={total_cost}")
         backup_database('create_production')
         remainder = output_qty - total_recipe_qty
         if recipe_id:
-            flash(f"Production enregistrée. Recette sauvegardée ({recipe_name or 'Recette ' + product['name']}). Reste théorique: {remainder:.2f} kg.", 'success')
+            flash(f"Production enregistrÃ©e. Recette sauvegardÃ©e ({recipe_name or 'Recette ' + product['name']}). Reste thÃ©orique: {remainder:.2f} kg.", 'success')
         else:
-            flash(f"Production enregistrée avec recette et coût de revient. Reste théorique: {remainder:.2f} kg.", 'success')
+            flash(f"Production enregistrÃ©e avec recette et coÃ»t de revient. Reste thÃ©orique: {remainder:.2f} kg.", 'success')
         if wants_print_after_submit():
             return redirect(url_for('print_document', doc_type='production', item_id=batch_id))
         return redirect(url_for('production'))
@@ -2403,13 +2358,13 @@ def new_payment():
         payment_date = request.form.get('payment_date') or date.today().isoformat()
         notes = request.form.get('notes', '').strip()
         if amount <= 0:
-            flash('Le montant doit être supérieur à zéro.', 'danger')
+            flash('Le montant doit Ãªtre supÃ©rieur Ã  zÃ©ro.', 'danger')
             return redirect(url_for('new_payment', mode=payment_type))
         try:
             payment_id = create_payment_record(client_id, amount, payment_date, notes, sale_link, payment_type)
             log_activity('create_payment', 'payment', payment_id, f"client #{client_id} {payment_type} montant={amount}")
             backup_database('create_payment')
-            flash('Avance enregistrée.' if payment_type == 'avance' else 'Versement enregistré.', 'success')
+            flash('Avance enregistrÃ©e.' if payment_type == 'avance' else 'Versement enregistrÃ©.', 'success')
             if wants_print_after_submit():
                 return redirect(url_for('print_document', doc_type='payment', item_id=payment_id))
             return redirect(url_for('transactions', type='payment'))
@@ -2428,7 +2383,7 @@ def new_payment():
 @app.route('/catalog')
 @login_required
 def catalog():
-    raw_items = query_db("SELECT id, name, unit AS unit, stock_qty, avg_cost, sale_price, 'Matière première' AS kind FROM raw_materials ORDER BY name")
+    raw_items = query_db("SELECT id, name, unit AS unit, stock_qty, avg_cost, sale_price, 'MatiÃ¨re premiÃ¨re' AS kind FROM raw_materials ORDER BY name")
     finished_items = query_db("SELECT id, name, default_unit AS unit, stock_qty, avg_cost, sale_price, 'Produit fini' AS kind FROM finished_products ORDER BY name")
     all_products = sorted([dict(x) for x in raw_items] + [dict(x) for x in finished_items], key=lambda x: (x['kind'], x['name']))
     return render_template('catalog.html', raw_items=raw_items, finished_items=finished_items, all_products=all_products)
@@ -2446,16 +2401,16 @@ def purchases():
         purchase_date = request.form.get('purchase_date') or date.today().isoformat()
         notes = request.form.get('notes', '').strip()
         if qty <= 0:
-            flash('La quantité doit être supérieure à zéro.', 'danger')
+            flash('La quantitÃ© doit Ãªtre supÃ©rieure Ã  zÃ©ro.', 'danger')
             return redirect(url_for('purchases'))
         try:
             purchase_id = create_purchase_record(supplier_id, raw_id, qty, unit_price, purchase_date, notes, unit)
         except Exception as exc:
             flash(str(exc), 'danger')
             return redirect(url_for('purchases'))
-        log_activity('create_purchase', 'purchase', purchase_id, f"matière #{raw_id} qty={qty} {unit}")
+        log_activity('create_purchase', 'purchase', purchase_id, f"matiÃ¨re #{raw_id} qty={qty} {unit}")
         backup_database('create_purchase')
-        flash('Achat enregistré et stock mis à jour.', 'success')
+        flash('Achat enregistrÃ© et stock mis Ã  jour.', 'success')
         return redirect(url_for('purchases'))
 
     return render_template('purchases.html', purchases=query_db('''SELECT p.*, s.name AS supplier_name, r.name AS material_name, r.unit AS material_unit FROM purchases p LEFT JOIN suppliers s ON s.id = p.supplier_id JOIN raw_materials r ON r.id = p.raw_material_id ORDER BY p.id DESC'''), suppliers=query_db('SELECT * FROM suppliers ORDER BY name'), raw_materials=query_db('SELECT * FROM raw_materials ORDER BY name'), units=unit_choices())
@@ -2472,10 +2427,10 @@ def production():
         raw_ids = request.form.getlist('raw_material_id[]')
         quantities = request.form.getlist('quantity[]')
 
-        ingredients: list[tuple[int, float, sqlite3.Row]] = []
+        ingredients: list[tuple[int, float, Any]] = []
         total_cost = 0.0
         if output_qty <= 0:
-            flash('La quantité produite doit être supérieure à zéro.', 'danger')
+            flash('La quantitÃ© produite doit Ãªtre supÃ©rieure Ã  zÃ©ro.', 'danger')
             return redirect(url_for('production'))
 
         for rid, qty_str in zip(raw_ids, quantities):
@@ -2486,7 +2441,7 @@ def production():
                 continue
             raw = query_db('SELECT * FROM raw_materials WHERE id = ?', (int(rid),), one=True)
             if not raw:
-                flash('Une matière première est introuvable.', 'danger')
+                flash('Une matiÃ¨re premiÃ¨re est introuvable.', 'danger')
                 return redirect(url_for('production'))
             if qty > float(raw['stock_qty']):
                 flash(f"Stock insuffisant pour {raw['name']}.", 'danger')
@@ -2495,7 +2450,7 @@ def production():
             total_cost += qty * float(raw['avg_cost'])
 
         if not ingredients:
-            flash('Ajoute au moins une matière première dans la recette.', 'danger')
+            flash('Ajoute au moins une matiÃ¨re premiÃ¨re dans la recette.', 'danger')
             return redirect(url_for('production'))
 
         finished = query_db('SELECT * FROM finished_products WHERE id = ?', (finished_id,), one=True)
@@ -2522,9 +2477,9 @@ def production():
         except Exception as exc:
             flash(str(exc), 'danger')
             return redirect(url_for('production'))
-        log_activity('create_production', 'production', batch_id, f"produit #{finished_id} sortie={output_qty}kg coût={total_cost}")
+        log_activity('create_production', 'production', batch_id, f"produit #{finished_id} sortie={output_qty}kg coÃ»t={total_cost}")
         backup_database('create_production')
-        flash('Production multi-matières enregistrée avec coût de revient.', 'success')
+        flash('Production multi-matiÃ¨res enregistrÃ©e avec coÃ»t de revient.', 'success')
         return redirect(url_for('production'))
 
     batches = query_db(
@@ -2566,16 +2521,16 @@ def sales():
             flash(str(exc), 'danger')
             return redirect(url_for('sales'))
         created_doc_type = 'sale_finished' if created_kind == 'finished' else 'sale_raw'
-        log_activity('create_sale', 'sale', created_sale_id, f"{item_kind} #{item_id} qty={qty} {unit} total={total}"); backup_database('create_sale'); flash('Vente enregistrée avec bénéfice estimé.', 'success')
+        log_activity('create_sale', 'sale', created_sale_id, f"{item_kind} #{item_id} qty={qty} {unit} total={total}"); backup_database('create_sale'); flash('Vente enregistrÃ©e avec bÃ©nÃ©fice estimÃ©.', 'success')
         if wants_print_after_submit():
             return redirect(url_for('print_document', doc_type=created_doc_type, item_id=created_sale_id))
         return redirect(url_for('sales'))
 
     sellable_items = []
     for p in query_db('SELECT id, name, default_unit AS unit, stock_qty, sale_price, avg_cost FROM finished_products ORDER BY name'):
-        sellable_items.append({'key': f"finished:{p['id']}", 'label': f"{p['name']} · produit fini", 'unit': p['unit'], 'stock_qty': p['stock_qty'], 'sale_price': p['sale_price'], 'avg_cost': p['avg_cost']})
+        sellable_items.append({'key': f"finished:{p['id']}", 'label': f"{p['name']} Â· produit fini", 'unit': p['unit'], 'stock_qty': p['stock_qty'], 'sale_price': p['sale_price'], 'avg_cost': p['avg_cost']})
     for r in query_db('SELECT id, name, unit, stock_qty, sale_price, avg_cost FROM raw_materials ORDER BY name'):
-        sellable_items.append({'key': f"raw:{r['id']}", 'label': f"{r['name']} · matière première", 'unit': r['unit'], 'stock_qty': r['stock_qty'], 'sale_price': r['sale_price'], 'avg_cost': r['avg_cost']})
+        sellable_items.append({'key': f"raw:{r['id']}", 'label': f"{r['name']} Â· matiÃ¨re premiÃ¨re", 'unit': r['unit'], 'stock_qty': r['stock_qty'], 'sale_price': r['sale_price'], 'avg_cost': r['avg_cost']})
 
     sales_rows = query_db(
         '''
@@ -2585,7 +2540,7 @@ def sales():
             LEFT JOIN clients c ON c.id = s.client_id
             JOIN finished_products f ON f.id = s.finished_product_id
             UNION ALL
-            SELECT rs.id, rs.sale_date, COALESCE(c.name, 'Comptoir') AS client_name, r.name AS item_name, rs.quantity, rs.unit, rs.total, rs.amount_paid, rs.balance_due, rs.profit_amount, 'Matière première' AS item_kind, 'raw' AS row_kind
+            SELECT rs.id, rs.sale_date, COALESCE(c.name, 'Comptoir') AS client_name, r.name AS item_name, rs.quantity, rs.unit, rs.total, rs.amount_paid, rs.balance_due, rs.profit_amount, 'MatiÃ¨re premiÃ¨re' AS item_kind, 'raw' AS row_kind
             FROM raw_sales rs
             LEFT JOIN clients c ON c.id = rs.client_id
             JOIN raw_materials r ON r.id = rs.raw_material_id
@@ -2613,7 +2568,7 @@ def payments():
         notes = request.form.get('notes', '').strip()
 
         if amount <= 0:
-            flash('Le montant doit être supérieur à zéro.', 'danger')
+            flash('Le montant doit Ãªtre supÃ©rieur Ã  zÃ©ro.', 'danger')
             return redirect(url_for('payments'))
 
         try:
@@ -2624,7 +2579,7 @@ def payments():
 
         log_activity('create_payment', 'payment', payment_id, f"client #{client_id} {payment_type} montant={amount}")
         backup_database('create_payment')
-        flash('Paiement enregistré.', 'success')
+        flash('Paiement enregistrÃ©.', 'success')
         return redirect(url_for('payments'))
 
     rows = query_db(
@@ -2632,7 +2587,7 @@ def payments():
         SELECT p.id, p.*, c.name AS client_name,
                CASE
                    WHEN p.sale_kind = 'finished' AND p.sale_id IS NOT NULL THEN 'Produit #' || p.sale_id
-                   WHEN p.sale_kind = 'raw' AND p.raw_sale_id IS NOT NULL THEN 'Matière #' || p.raw_sale_id
+                   WHEN p.sale_kind = 'raw' AND p.raw_sale_id IS NOT NULL THEN 'MatiÃ¨re #' || p.raw_sale_id
                    ELSE '-'
                END AS sale_ref, p.payment_type
         FROM payments p
@@ -2662,12 +2617,12 @@ def build_print_payload(doc_type: str, item_id: int):
             return None
         return {
             'title': "Bon d'achat",
-            'subtitle': 'Achat matière première',
+            'subtitle': 'Achat matiÃ¨re premiÃ¨re',
             'number': f"ACH-{row['id']:06d}",
             'date': row['purchase_date'],
             'partner_label': 'Fournisseur',
-            'partner_name': row['partner_name'] or 'Non renseigné',
-            'item_label': 'Matière',
+            'partner_name': row['partner_name'] or 'Non renseignÃ©',
+            'item_label': 'MatiÃ¨re',
             'item_name': row['item_name'],
             'quantity': kg_to_display(float(row['quantity']), row['base_unit']),
             'unit': row['base_unit'],
@@ -2722,7 +2677,7 @@ def build_print_payload(doc_type: str, item_id: int):
             return None
         return {
             'title': 'Facture',
-            'subtitle': 'Vente matière première',
+            'subtitle': 'Vente matiÃ¨re premiÃ¨re',
             'number': f"VMP-{row['id']:06d}",
             'date': row['sale_date'],
             'partner_label': 'Client',
@@ -2751,13 +2706,13 @@ def build_print_payload(doc_type: str, item_id: int):
             return None
         label = 'Avance client' if row['payment_type'] == 'avance' else 'Versement client'
         return {
-            'title': 'Reçu',
+            'title': 'ReÃ§u',
             'subtitle': label,
             'number': f"PAY-{row['id']:06d}",
             'date': row['payment_date'],
             'partner_label': 'Client',
             'partner_name': row['partner_name'],
-            'item_label': 'Référence',
+            'item_label': 'RÃ©fÃ©rence',
             'item_name': label,
             'quantity': None,
             'unit': '',
@@ -2785,13 +2740,13 @@ def build_print_payload(doc_type: str, item_id: int):
             return None
         return {
             'title': 'Fiche de production',
-            'subtitle': 'Production enregistrée',
+            'subtitle': 'Production enregistrÃ©e',
             'number': f"PROD-{row['id']:06d}",
             'date': row['production_date'],
             'partner_label': 'Produit fini',
             'partner_name': row['item_name'],
             'item_label': 'Recette',
-            'item_name': row['recipe_text'] or '—',
+            'item_name': row['recipe_text'] or 'â€”',
             'quantity': row['output_quantity'],
             'unit': 'kg',
             'unit_price': row['unit_cost'],
@@ -2829,7 +2784,7 @@ def _sale_document_subtitle(lines: list[dict[str, Any]]) -> str:
     if kinds == {'finished'}:
         return 'Vente produit final'
     if kinds == {'raw'}:
-        return 'Vente matière première'
+        return 'Vente matiÃ¨re premiÃ¨re'
     return 'Vente multi-produits'
 
 
@@ -2864,12 +2819,12 @@ def build_print_payload(doc_type: str, item_id: int):
         lines = [_purchase_line_to_doc_line(row)]
         return {
             'title': "Bon d'achat",
-            'subtitle': 'Achat matière première',
+            'subtitle': 'Achat matiÃ¨re premiÃ¨re',
             'number': f"ACH-{row['id']:06d}",
             'date': row['purchase_date'],
             'partner_label': 'Fournisseur',
-            'partner_name': row['partner_name'] or 'Non renseigné',
-            'item_label': 'Matière',
+            'partner_name': row['partner_name'] or 'Non renseignÃ©',
+            'item_label': 'MatiÃ¨re',
             'item_name': row['item_name'],
             'quantity': row['display_quantity'],
             'unit': row['display_unit'],
@@ -2921,8 +2876,8 @@ def build_print_payload(doc_type: str, item_id: int):
             'number': f"ACH-{doc['id']:06d}",
             'date': doc['purchase_date'],
             'partner_label': 'Fournisseur',
-            'partner_name': doc['partner_name'] or 'Non renseigné',
-            'item_label': 'Matière',
+            'partner_name': doc['partner_name'] or 'Non renseignÃ©',
+            'item_label': 'MatiÃ¨re',
             'item_name': f"{len(lines)} ligne(s)",
             'quantity': None,
             'unit': '',
@@ -2987,7 +2942,7 @@ def build_print_payload(doc_type: str, item_id: int):
         lines = [_sale_line_to_doc_line(row, row['item_name'])]
         return {
             'title': 'Facture',
-            'subtitle': 'Vente matière première',
+            'subtitle': 'Vente matiÃ¨re premiÃ¨re',
             'number': f"VMP-{row['id']:06d}",
             'date': row['sale_date'],
             'partner_label': 'Client',
@@ -3076,13 +3031,13 @@ def build_print_payload(doc_type: str, item_id: int):
             'total': row['amount'],
         }]
         return {
-            'title': 'Reçu',
+            'title': 'ReÃ§u',
             'subtitle': label,
             'number': f"PAY-{row['id']:06d}",
             'date': row['payment_date'],
             'partner_label': 'Client',
             'partner_name': row['partner_name'],
-            'item_label': 'Référence',
+            'item_label': 'RÃ©fÃ©rence',
             'item_name': label,
             'quantity': None,
             'unit': '',
@@ -3110,7 +3065,7 @@ def build_print_payload(doc_type: str, item_id: int):
         if not row:
             return None
         lines = [{
-            'item_name': row['recipe_text'] or '—',
+            'item_name': row['recipe_text'] or 'â€”',
             'quantity': row['output_quantity'],
             'unit': 'kg',
             'unit_price': row['unit_cost'],
@@ -3118,13 +3073,13 @@ def build_print_payload(doc_type: str, item_id: int):
         }]
         return {
             'title': 'Fiche de production',
-            'subtitle': 'Production enregistrée',
+            'subtitle': 'Production enregistrÃ©e',
             'number': f"PROD-{row['id']:06d}",
             'date': row['production_date'],
             'partner_label': 'Produit fini',
             'partner_name': row['item_name'],
             'item_label': 'Recette',
-            'item_name': row['recipe_text'] or '—',
+            'item_name': row['recipe_text'] or 'â€”',
             'quantity': row['output_quantity'],
             'unit': 'kg',
             'unit_price': row['unit_cost'],
@@ -3135,176 +3090,6 @@ def build_print_payload(doc_type: str, item_id: int):
             'lines': lines,
         }
     return None
-
-
-def _generate_invoice_pdf_legacy_old(doc: dict, printed_by: str) -> BytesIO | None:
-    """Generate a PDF invoice in memory using ReportLab. Returns None if unavailable."""
-    if not REPORTLAB_AVAILABLE:
-        return None
-    buf = BytesIO()
-    page_doc = SimpleDocTemplate(
-        buf, pagesize=A4,
-        topMargin=1.8*cm, bottomMargin=1.8*cm,
-        leftMargin=2*cm, rightMargin=2*cm
-    )
-    styles = getSampleStyleSheet()
-    DARK  = colors.HexColor('#1e293b')
-    LIGHT = colors.HexColor('#f8fafc')
-    MUTED = colors.HexColor('#64748b')
-    ACCENT = colors.HexColor('#3b82f6')
-    GREEN = colors.HexColor('#16a34a')
-    RED   = colors.HexColor('#dc2626')
-    story = []
-
-    # ── Header ──────────────────────────────────────────────────────────
-    logo_path = str(BASE_DIR / 'static' / 'fab_logo.png')
-    import os as _os
-    logo_cell = RLImage(logo_path, width=1.6*cm, height=1.6*cm) if _os.path.exists(logo_path) else Paragraph('')
-
-    header_style = ParagraphStyle('hdr', parent=styles['Normal'],
-                                  fontName='Helvetica-Bold', fontSize=18,
-                                  textColor=DARK, leading=22)
-    sub_style    = ParagraphStyle('sub', parent=styles['Normal'],
-                                  fontName='Helvetica', fontSize=9,
-                                  textColor=MUTED)
-    num_style    = ParagraphStyle('num', parent=styles['Normal'],
-                                  fontName='Helvetica-Bold', fontSize=10,
-                                  textColor=DARK, alignment=TA_RIGHT)
-    meta_style   = ParagraphStyle('meta', parent=styles['Normal'],
-                                  fontName='Helvetica', fontSize=9,
-                                  textColor=MUTED, alignment=TA_RIGHT)
-
-    header_table = Table(
-        [[logo_cell,
-          [Paragraph('FABOuanes', header_style), Paragraph(doc.get('subtitle',''), sub_style)],
-          [Paragraph(doc['title'], header_style),
-           Paragraph(f"N° {doc['number']}", num_style),
-           Paragraph(f"Date : {doc['date']}", meta_style)]],
-        ],
-        colWidths=[2*cm, 9*cm, 6*cm]
-    )
-    header_table.setStyle(TableStyle([
-        ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('LEFTPADDING', (0,0), (-1,-1), 4),
-        ('RIGHTPADDING', (0,0), (-1,-1), 4),
-    ]))
-    story.append(header_table)
-    story.append(Spacer(1, 0.3*cm))
-    story.append(HRFlowable(width="100%", thickness=1.5, color=DARK))
-    story.append(Spacer(1, 0.5*cm))
-
-    # ── Partner / Info block ─────────────────────────────────────────────
-    lbl_style  = ParagraphStyle('lbl', parent=styles['Normal'],
-                                fontName='Helvetica-Bold', fontSize=8,
-                                textColor=MUTED, spaceAfter=2)
-    val_style  = ParagraphStyle('val', parent=styles['Normal'],
-                                fontName='Helvetica-Bold', fontSize=11,
-                                textColor=DARK)
-    info_style = ParagraphStyle('info', parent=styles['Normal'],
-                                fontName='Helvetica', fontSize=9, textColor=MUTED)
-
-    partner_block = [
-        Paragraph(doc.get('partner_label',''), lbl_style),
-        Paragraph(doc.get('partner_name',''), val_style),
-    ]
-    printed_block = [
-        Paragraph('Créé par', lbl_style),
-        Paragraph(printed_by, val_style),
-    ]
-    info_tbl = Table(
-        [[partner_block, printed_block]],
-        colWidths=[8.5*cm, 8.5*cm]
-    )
-    info_tbl.setStyle(TableStyle([
-        ('BOX', (0,0), (0,0), 0.5, colors.HexColor('#e2e8f0')),
-        ('BOX', (1,0), (1,0), 0.5, colors.HexColor('#e2e8f0')),
-        ('BACKGROUND', (0,0), (-1,-1), LIGHT),
-        ('LEFTPADDING', (0,0), (-1,-1), 10),
-        ('RIGHTPADDING', (0,0), (-1,-1), 10),
-        ('TOPPADDING', (0,0), (-1,-1), 8),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-        ('ROUNDEDCORNERS', [4, 4, 4, 4]),
-    ]))
-    story.append(info_tbl)
-    story.append(Spacer(1, 0.5*cm))
-
-    # ── Items table ──────────────────────────────────────────────────────
-    th_style = ParagraphStyle('th', parent=styles['Normal'],
-                               fontName='Helvetica-Bold', fontSize=9,
-                               textColor=colors.white)
-    td_style = ParagraphStyle('td', parent=styles['Normal'],
-                               fontName='Helvetica', fontSize=10, textColor=DARK)
-    td_right = ParagraphStyle('tdr', parent=td_style, alignment=TA_RIGHT)
-
-    qty_str = f"{doc['quantity']} {doc['unit']}" if doc.get('quantity') is not None else '—'
-    pu_str  = _fmt_money_pdf(doc.get('unit_price')) if doc.get('unit_price') is not None else '—'
-    tot_str = _fmt_money_pdf(doc.get('total', 0))
-
-    data = [
-        [Paragraph(doc.get('item_label','Article'), th_style),
-         Paragraph('Quantité', th_style),
-         Paragraph('P.U.', th_style),
-         Paragraph('Total', th_style)],
-        [Paragraph(str(doc.get('item_name','—')), td_style),
-         Paragraph(qty_str, td_right),
-         Paragraph(pu_str, td_right),
-         Paragraph(tot_str, td_right)],
-    ]
-    items_tbl = Table(data, colWidths=[9*cm, 3*cm, 3*cm, 2.5*cm])
-    items_tbl.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), DARK),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, LIGHT]),
-        ('GRID', (0,0), (-1,-1), 0.4, colors.HexColor('#e2e8f0')),
-        ('TOPPADDING', (0,0), (-1,-1), 8),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-        ('LEFTPADDING', (0,0), (-1,-1), 8),
-        ('RIGHTPADDING', (0,0), (-1,-1), 8),
-        ('ALIGN', (1,0), (-1,-1), 'RIGHT'),
-    ]))
-    story.append(items_tbl)
-    story.append(Spacer(1, 0.5*cm))
-
-    # ── Totals block ─────────────────────────────────────────────────────
-    totals = []
-    if doc.get('paid') is not None:
-        totals.append(('Payé', _fmt_money_pdf(doc['paid']), GREEN))
-    if doc.get('due') is not None:
-        totals.append(('Reste à payer', _fmt_money_pdf(doc['due']), RED))
-    totals.append(('Montant total', _fmt_money_pdf(doc.get('total', 0)), ACCENT))
-
-    for label, value, col in totals:
-        row_tbl = Table(
-            [[Paragraph(label, ParagraphStyle('tl', parent=styles['Normal'], fontName='Helvetica', fontSize=9, textColor=MUTED)),
-              Paragraph(value, ParagraphStyle('tv', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=11, textColor=col, alignment=TA_RIGHT))]],
-            colWidths=[14*cm, 4*cm]
-        )
-        row_tbl.setStyle(TableStyle([
-            ('LEFTPADDING', (0,0), (-1,-1), 4),
-            ('RIGHTPADDING', (0,0), (-1,-1), 4),
-            ('TOPPADDING', (0,0), (-1,-1), 3),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-        ]))
-        story.append(row_tbl)
-
-    # ── Notes ─────────────────────────────────────────────────────────────
-    if doc.get('notes'):
-        story.append(Spacer(1, 0.4*cm))
-        story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#e2e8f0')))
-        story.append(Spacer(1, 0.3*cm))
-        story.append(Paragraph('Observations', lbl_style))
-        story.append(Paragraph(doc['notes'], info_style))
-
-    # ── Footer ────────────────────────────────────────────────────────────
-    story.append(Spacer(1, 1*cm))
-    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#e2e8f0')))
-    story.append(Spacer(1, 0.2*cm))
-    footer_style = ParagraphStyle('ft', parent=styles['Normal'], fontName='Helvetica',
-                                  fontSize=8, textColor=MUTED, alignment=TA_CENTER)
-    story.append(Paragraph('FABOuanes — Gestion commerciale', footer_style))
-
-    page_doc.build(story)
-    buf.seek(0)
-    return buf
 
 
 def _fmt_money_pdf(val) -> str:
@@ -3649,7 +3434,7 @@ def print_document(doc_type: str, item_id: int):
     }
 
     # Toujours afficher d'abord la facture HTML avec bouton retour.
-    # Le PDF n'est généré que sur demande explicite via ?format=pdf.
+    # Le PDF n'est gÃ©nÃ©rÃ© que sur demande explicite via ?format=pdf.
     want_pdf = request.args.get('format') == 'pdf'
 
     if want_pdf:
@@ -3662,7 +3447,7 @@ def print_document(doc_type: str, item_id: int):
                 as_attachment=True,
                 download_name=filename
             )
-        flash("Génération PDF indisponible. Affichage HTML utilisé à la place.", 'warning')
+        flash("GÃ©nÃ©ration PDF indisponible. Affichage HTML utilisÃ© Ã  la place.", 'warning')
 
     return render_template('print_document.html', doc=payload, printed_by=g.user['username'])
 
@@ -3675,7 +3460,7 @@ def delete_client(client_id: int):
         flash('Impossible de supprimer un client avec historique.', 'danger')
     else:
         execute_db('DELETE FROM clients WHERE id=?', (client_id,))
-        log_activity('delete_client', 'client', client_id, 'Suppression client'); backup_database('delete_client'); flash('Client supprimé.', 'success')
+        log_activity('delete_client', 'client', client_id, 'Suppression client'); backup_database('delete_client'); flash('Client supprimÃ©.', 'success')
     return redirect(url_for('clients'))
 
 
@@ -3683,7 +3468,7 @@ def delete_client(client_id: int):
 @login_required
 def delete_supplier(supplier_id: int):
     execute_db('DELETE FROM suppliers WHERE id=?', (supplier_id,))
-    log_activity('delete_supplier', 'supplier', supplier_id, 'Suppression fournisseur'); backup_database('delete_supplier'); flash('Fournisseur supprimé.', 'success')
+    log_activity('delete_supplier', 'supplier', supplier_id, 'Suppression fournisseur'); backup_database('delete_supplier'); flash('Fournisseur supprimÃ©.', 'success')
     return redirect(url_for('suppliers'))
 
 
@@ -3692,10 +3477,10 @@ def delete_supplier(supplier_id: int):
 def delete_raw_material(material_id: int):
     linked = query_db('SELECT 1 FROM purchases WHERE raw_material_id=? UNION SELECT 1 FROM raw_sales WHERE raw_material_id=? UNION SELECT 1 FROM production_batch_items WHERE raw_material_id=? LIMIT 1', (material_id, material_id, material_id), one=True)
     if linked:
-        flash('Impossible de supprimer une matière avec historique.', 'danger')
+        flash('Impossible de supprimer une matiÃ¨re avec historique.', 'danger')
     else:
         execute_db('DELETE FROM raw_materials WHERE id=?', (material_id,))
-        log_activity('delete_raw_material', 'raw_material', material_id, 'Suppression matière'); backup_database('delete_raw_material'); flash('Matière première supprimée.', 'success')
+        log_activity('delete_raw_material', 'raw_material', material_id, 'Suppression matiÃ¨re'); backup_database('delete_raw_material'); flash('MatiÃ¨re premiÃ¨re supprimÃ©e.', 'success')
     return redirect(url_for('raw_materials'))
 
 
@@ -3707,7 +3492,7 @@ def delete_product(product_id: int):
         flash('Impossible de supprimer un produit avec historique.', 'danger')
     else:
         execute_db('DELETE FROM finished_products WHERE id=?', (product_id,))
-        log_activity('delete_product', 'finished_product', product_id, 'Suppression produit'); backup_database('delete_product'); flash('Produit fini supprimé.', 'success')
+        log_activity('delete_product', 'finished_product', product_id, 'Suppression produit'); backup_database('delete_product'); flash('Produit fini supprimÃ©.', 'success')
     return redirect(url_for('products'))
 
 
@@ -3715,7 +3500,7 @@ def delete_product(product_id: int):
 @login_required
 def delete_purchase(purchase_id: int):
     if reverse_purchase(purchase_id):
-        log_activity('delete_purchase', 'purchase', purchase_id, 'Suppression achat'); backup_database('delete_purchase'); flash('Achat supprimé et stock corrigé.', 'success')
+        log_activity('delete_purchase', 'purchase', purchase_id, 'Suppression achat'); backup_database('delete_purchase'); flash('Achat supprimÃ© et stock corrigÃ©.', 'success')
     else:
         flash('Impossible de supprimer cet achat.', 'danger')
     return redirect(url_for('purchases'))
@@ -3739,7 +3524,7 @@ def edit_production_notes():
     vals = list(updates.values()) + [batch_id]
     execute_db(f"UPDATE production_batches SET {sets} WHERE id=?", tuple(vals))
     log_activity('edit_production_notes', 'production', batch_id, f"date={production_date}")
-    flash('Production mise à jour.', 'success')
+    flash('Production mise Ã  jour.', 'success')
     return redirect(url_for('production'))
 
 
@@ -3747,7 +3532,7 @@ def edit_production_notes():
 @login_required
 def delete_production(batch_id: int):
     if reverse_production(batch_id):
-        log_activity('delete_production', 'production', batch_id, 'Suppression production'); backup_database('delete_production'); flash('Production supprimée et stock corrigé.', 'success')
+        log_activity('delete_production', 'production', batch_id, 'Suppression production'); backup_database('delete_production'); flash('Production supprimÃ©e et stock corrigÃ©.', 'success')
     else:
         flash('Impossible de supprimer cette production.', 'danger')
     return redirect(url_for('production'))
@@ -3757,7 +3542,7 @@ def delete_production(batch_id: int):
 @login_required
 def delete_sale(kind: str, row_id: int):
     if reverse_sale(kind, row_id):
-        log_activity('delete_sale', 'sale', row_id, f"Suppression vente {kind}"); backup_database('delete_sale'); flash('Vente supprimée et stock corrigé.', 'success')
+        log_activity('delete_sale', 'sale', row_id, f"Suppression vente {kind}"); backup_database('delete_sale'); flash('Vente supprimÃ©e et stock corrigÃ©.', 'success')
     else:
         flash('Vente introuvable.', 'danger')
     return redirect(url_for('sales'))
@@ -3773,7 +3558,7 @@ def delete_payment(payment_id: int):
     with db_transaction():
         reverse_payment_allocations(payment)
         execute_db('DELETE FROM payments WHERE id = ?', (payment_id,))
-    log_activity('delete_payment', 'payment', payment_id, 'Suppression transaction client'); backup_database('delete_payment'); flash('Transaction client supprimée.', 'success')
+    log_activity('delete_payment', 'payment', payment_id, 'Suppression transaction client'); backup_database('delete_payment'); flash('Transaction client supprimÃ©e.', 'success')
     return redirect(url_for('transactions', type='payment'))
 
 
@@ -3781,9 +3566,9 @@ def create_purchase_record(supplier_id, raw_id: int, qty: float, unit_price: flo
     with db_transaction():
         material = query_db('SELECT * FROM raw_materials WHERE id = ?', (raw_id,), one=True)
         if not material:
-            raise ValueError('Matière première introuvable.')
+            raise ValueError('MatiÃ¨re premiÃ¨re introuvable.')
         if purchase_date and purchase_date > date.today().isoformat():
-            raise ValueError("La date d'achat ne peut pas être dans le futur.")
+            raise ValueError("La date d'achat ne peut pas Ãªtre dans le futur.")
         total = qty * unit_price
         qty_kg = qty_to_kg(qty, unit)
         unit_price_kg = unit_price_to_kg(unit_price, unit)
@@ -3807,7 +3592,7 @@ def create_sale_record(client_id, item_kind: str, item_id: int, qty: float, unit
     if requested_sale_type not in {'cash', 'credit'}:
         requested_sale_type = 'credit' if client_id else 'cash'
     if requested_sale_type == 'credit' and not client_id:
-        raise ValueError('Une vente à crédit nécessite un client.')
+        raise ValueError('Une vente Ã  crÃ©dit nÃ©cessite un client.')
     effective_sale_type = requested_sale_type
     if effective_sale_type == 'cash':
         amount_paid = total
@@ -3815,10 +3600,10 @@ def create_sale_record(client_id, item_kind: str, item_id: int, qty: float, unit
         amount_paid = max(0.0, min(float(amount_paid_input or 0), total))
     balance_due = round(total - amount_paid, 2)
     if qty <= 0:
-        raise ValueError('La quantité doit être supérieure à zéro.')
-    # Validation date — refuser les dates futures
+        raise ValueError('La quantitÃ© doit Ãªtre supÃ©rieure Ã  zÃ©ro.')
+    # Validation date â€” refuser les dates futures
     if sale_date and sale_date > date.today().isoformat():
-        raise ValueError('La date de vente ne peut pas être dans le futur.')
+        raise ValueError('La date de vente ne peut pas Ãªtre dans le futur.')
     with db_transaction():
         if item_kind == 'finished':
             item = query_db('SELECT * FROM finished_products WHERE id = ?', (item_id,), one=True)
@@ -3835,13 +3620,13 @@ def create_sale_record(client_id, item_kind: str, item_id: int, qty: float, unit
             if amount_paid > 0 and client_id:
                 execute_db('INSERT INTO payments (client_id, sale_id, sale_kind, payment_type, amount, payment_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)', (client_id, row_id, 'finished', 'versement', amount_paid, sale_date, 'Paiement initial vente'))
             if below_cost_warning:
-                flash(f"⚠️ Vente sous coût : {unit_price_kg:.2f} DA/kg < coût de revient {cost_snapshot:.2f} DA/kg — vérifiez le prix.", 'warning')
+                flash(f"âš ï¸ Vente sous coÃ»t : {unit_price_kg:.2f} DA/kg < coÃ»t de revient {cost_snapshot:.2f} DA/kg â€” vÃ©rifiez le prix.", 'warning')
             return 'finished', row_id
         item = query_db('SELECT * FROM raw_materials WHERE id = ?', (item_id,), one=True)
         if not item:
-            raise ValueError('Matière première introuvable.')
+            raise ValueError('MatiÃ¨re premiÃ¨re introuvable.')
         if qty_kg > float(item['stock_qty']):
-            raise ValueError('Stock matière insuffisant.')
+            raise ValueError('Stock matiÃ¨re insuffisant.')
         cost_snapshot = float(item['avg_cost'])
         below_cost_warning = unit_price_kg < cost_snapshot * 0.97 and cost_snapshot > 0
         profit_amount = total - qty_kg * cost_snapshot
@@ -3851,7 +3636,7 @@ def create_sale_record(client_id, item_kind: str, item_id: int, qty: float, unit
         if amount_paid > 0 and client_id:
             execute_db('INSERT INTO payments (client_id, raw_sale_id, sale_kind, payment_type, amount, payment_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)', (client_id, row_id, 'raw', 'versement', amount_paid, sale_date, 'Paiement initial vente'))
         if below_cost_warning:
-            flash(f"⚠️ Vente sous coût : {unit_price_kg:.2f} DA/kg < coût de revient {cost_snapshot:.2f} DA/kg — vérifiez le prix.", 'warning')
+            flash(f"âš ï¸ Vente sous coÃ»t : {unit_price_kg:.2f} DA/kg < coÃ»t de revient {cost_snapshot:.2f} DA/kg â€” vÃ©rifiez le prix.", 'warning')
         return 'raw', row_id
 
 
@@ -3859,9 +3644,9 @@ def create_purchase_record(supplier_id, raw_id: int, qty: float, unit_price: flo
     with db_transaction():
         material = query_db('SELECT * FROM raw_materials WHERE id = ?', (raw_id,), one=True)
         if not material:
-            raise ValueError('Matière première introuvable.')
+            raise ValueError('MatiÃ¨re premiÃ¨re introuvable.')
         if purchase_date and purchase_date > date.today().isoformat():
-            raise ValueError("La date d'achat ne peut pas être dans le futur.")
+            raise ValueError("La date d'achat ne peut pas Ãªtre dans le futur.")
         custom_item_name = str(custom_item_name or '').strip()
         if is_other_operation_name(material['name']):
             unit = OTHER_OPERATION_UNIT
@@ -3892,7 +3677,7 @@ def create_sale_record(client_id, item_kind: str, item_id: int, qty: float, unit
     if requested_sale_type not in {'cash', 'credit'}:
         requested_sale_type = 'credit' if client_id else 'cash'
     if requested_sale_type == 'credit' and not client_id:
-        raise ValueError('Une vente à crédit nécessite un client.')
+        raise ValueError('Une vente Ã  crÃ©dit nÃ©cessite un client.')
     effective_sale_type = requested_sale_type
     if effective_sale_type == 'cash':
         amount_paid = total
@@ -3900,9 +3685,9 @@ def create_sale_record(client_id, item_kind: str, item_id: int, qty: float, unit
         amount_paid = max(0.0, min(float(amount_paid_input or 0), total))
     balance_due = round(total - amount_paid, 2)
     if qty <= 0:
-        raise ValueError('La quantité doit être supérieure à zéro.')
+        raise ValueError('La quantitÃ© doit Ãªtre supÃ©rieure Ã  zÃ©ro.')
     if sale_date and sale_date > date.today().isoformat():
-        raise ValueError('La date de vente ne peut pas être dans le futur.')
+        raise ValueError('La date de vente ne peut pas Ãªtre dans le futur.')
     with db_transaction():
         if item_kind == 'finished':
             custom_item_name = ''
@@ -3925,12 +3710,12 @@ def create_sale_record(client_id, item_kind: str, item_id: int, qty: float, unit
                 execute_db('INSERT INTO payments (client_id, sale_id, sale_kind, payment_type, amount, payment_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)', (client_id, row_id, 'finished', 'versement', amount_paid, sale_date, 'Paiement initial vente'))
             recalc_sale_document_totals(document_id)
             if below_cost_warning:
-                flash(f"Vente sous coût : {unit_price_kg:.2f} DA/kg < coût de revient {cost_snapshot:.2f} DA/kg — vérifiez le prix.", 'warning')
+                flash(f"Vente sous coÃ»t : {unit_price_kg:.2f} DA/kg < coÃ»t de revient {cost_snapshot:.2f} DA/kg â€” vÃ©rifiez le prix.", 'warning')
             return 'finished', row_id
 
         item = query_db('SELECT * FROM raw_materials WHERE id = ?', (item_id,), one=True)
         if not item:
-            raise ValueError('Matière première introuvable.')
+            raise ValueError('MatiÃ¨re premiÃ¨re introuvable.')
         custom_item_name = str(custom_item_name or '').strip()
         if is_other_operation_name(item['name']):
             unit = OTHER_OPERATION_UNIT
@@ -3941,7 +3726,7 @@ def create_sale_record(client_id, item_kind: str, item_id: int, qty: float, unit
         qty_kg = qty_to_kg(qty, unit)
         unit_price_kg = unit_price_to_kg(unit_price, unit)
         if qty_kg > float(item['stock_qty']):
-            raise ValueError('Stock matière insuffisant.')
+            raise ValueError('Stock matiÃ¨re insuffisant.')
         cost_snapshot = float(item['avg_cost'])
         below_cost_warning = unit_price_kg < cost_snapshot * 0.97 and cost_snapshot > 0
         profit_amount = total - qty_kg * cost_snapshot
@@ -3954,13 +3739,13 @@ def create_sale_record(client_id, item_kind: str, item_id: int, qty: float, unit
             execute_db('INSERT INTO payments (client_id, raw_sale_id, sale_kind, payment_type, amount, payment_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)', (client_id, row_id, 'raw', 'versement', amount_paid, sale_date, 'Paiement initial vente'))
         recalc_sale_document_totals(document_id)
         if below_cost_warning:
-            flash(f"Vente sous coût : {unit_price_kg:.2f} DA/kg < coût de revient {cost_snapshot:.2f} DA/kg — vérifiez le prix.", 'warning')
+            flash(f"Vente sous coÃ»t : {unit_price_kg:.2f} DA/kg < coÃ»t de revient {cost_snapshot:.2f} DA/kg â€” vÃ©rifiez le prix.", 'warning')
         return 'raw', row_id
 
 
 def create_payment_record(client_id: int, amount: float, payment_date: str, notes: str, sale_link: str = '', payment_type: str = 'versement') -> int:
     if amount <= 0:
-        raise ValueError('Le montant doit être supérieur à zéro.')
+        raise ValueError('Le montant doit Ãªtre supÃ©rieur Ã  zÃ©ro.')
     with db_transaction():
         client = query_db('SELECT id FROM clients WHERE id = ?', (client_id,), one=True)
         if not client:
@@ -3982,10 +3767,10 @@ def create_payment_record(client_id: int, amount: float, payment_date: str, note
             row_id = int(id_str)
             entry = query_db('SELECT client_id FROM sales WHERE id = ?' if sale_kind == 'finished' else 'SELECT client_id FROM raw_sales WHERE id = ?', (row_id,), one=True)
             if entry and int(entry['client_id'] or 0) != client_id:
-                raise ValueError('Cette créance ne correspond pas au client choisi.')
+                raise ValueError('Cette crÃ©ance ne correspond pas au client choisi.')
             applied = apply_payment_to_entry(sale_kind, row_id, amount)
             if applied <= 0:
-                raise ValueError('Aucune créance ouverte à solder pour ce client.')
+                raise ValueError('Aucune crÃ©ance ouverte Ã  solder pour ce client.')
             allocations = [{'kind': sale_kind, 'id': row_id, 'amount': applied}]
             if sale_kind == 'finished':
                 sale_id = row_id
@@ -4090,7 +3875,7 @@ def transactions():
                    c.name AS partner_name,
                    CASE
                        WHEN p.sale_kind = 'finished' AND p.sale_id IS NOT NULL THEN 'Versement vente #' || p.sale_id
-                       WHEN p.sale_kind = 'raw' AND p.raw_sale_id IS NOT NULL THEN 'Versement vente matière #' || p.raw_sale_id
+                       WHEN p.sale_kind = 'raw' AND p.raw_sale_id IS NOT NULL THEN 'Versement vente matiÃ¨re #' || p.raw_sale_id
                        ELSE CASE WHEN p.payment_type='avance' THEN 'Avance client' ELSE 'Versement client' END
                    END AS designation,
                    NULL AS quantity, NULL AS unit, NULL AS unit_price, p.amount AS total, p.amount AS paid, NULL AS due, NULL AS document_id
@@ -4159,14 +3944,14 @@ def edit_purchase(purchase_id: int):
         purchase_date = request.form.get('purchase_date') or date.today().isoformat()
         notes = request.form.get('notes', '').strip()
         if qty <= 0:
-            flash('La quantité doit être supérieure à zéro.', 'danger')
+            flash('La quantitÃ© doit Ãªtre supÃ©rieure Ã  zÃ©ro.', 'danger')
             return redirect(request.url)
         try:
             with db_transaction():
                 if not reverse_purchase(purchase_id):
-                    raise ValueError("Impossible de modifier cet achat car le stock ne permet pas de l’annuler.")
+                    raise ValueError("Impossible de modifier cet achat car le stock ne permet pas de lâ€™annuler.")
                 create_purchase_record(supplier_id, raw_id, qty, unit_price, purchase_date, notes, request.form.get('unit', 'kg'))
-            log_activity('update_purchase', 'purchase', purchase_id, f"matière #{raw_id} qty={qty}"); backup_database('update_purchase'); flash('Achat modifié.', 'success')
+            log_activity('update_purchase', 'purchase', purchase_id, f"matiÃ¨re #{raw_id} qty={qty}"); backup_database('update_purchase'); flash('Achat modifiÃ©.', 'success')
             return redirect(url_for('transactions', type='purchase'))
         except Exception as e:
             flash(str(e), 'danger')
@@ -4200,13 +3985,13 @@ def edit_sale(kind: str, row_id: int):
                 if not reverse_sale(kind, row_id):
                     raise ValueError('Impossible de modifier cette vente.')
                 create_sale_record(client_id, item_kind, int(item_id_str), qty, unit, unit_price, sale_type, sale_date, notes, amount_paid)
-            log_activity('update_sale', 'sale', row_id, f"{item_kind} #{item_id_str} qty={qty} {unit}"); backup_database('update_sale'); flash('Vente modifiée.', 'success')
+            log_activity('update_sale', 'sale', row_id, f"{item_kind} #{item_id_str} qty={qty} {unit}"); backup_database('update_sale'); flash('Vente modifiÃ©e.', 'success')
             return redirect(url_for('transactions', type='sale'))
         except Exception as e:
             flash(str(e), 'danger')
             return redirect(request.url)
     sellable_items = [
-        {'key': f"raw:{r['id']}", 'label': f"{r['name']} (matière première)", 'unit': r['unit'], 'sale_price': r['sale_price'], 'stock_qty': r['stock_qty'], 'avg_cost': r['avg_cost']}
+        {'key': f"raw:{r['id']}", 'label': f"{r['name']} (matiÃ¨re premiÃ¨re)", 'unit': r['unit'], 'sale_price': r['sale_price'], 'stock_qty': r['stock_qty'], 'avg_cost': r['avg_cost']}
         for r in query_db('SELECT * FROM raw_materials ORDER BY name')
     ] + [
         {'key': f"finished:{p['id']}", 'label': f"{p['name']} (produit fini)", 'unit': p['default_unit'], 'sale_price': p['sale_price'], 'stock_qty': p['stock_qty'], 'avg_cost': p['avg_cost']}
@@ -4234,7 +4019,7 @@ def edit_payment(payment_id: int):
                 reverse_payment_allocations(payment)
                 execute_db('DELETE FROM payments WHERE id = ?', (payment_id,))
                 create_payment_record(client_id, amount, payment_date, notes, sale_link, request.form.get('payment_type', 'versement'))
-            log_activity('update_payment', 'payment', payment_id, f"client #{client_id} {request.form.get('payment_type', 'versement')} montant={amount}"); backup_database('update_payment'); flash('Transaction client modifiée.', 'success')
+            log_activity('update_payment', 'payment', payment_id, f"client #{client_id} {request.form.get('payment_type', 'versement')} montant={amount}"); backup_database('update_payment'); flash('Transaction client modifiÃ©e.', 'success')
             return redirect(url_for('transactions', type='payment'))
         except Exception as e:
             flash(str(e), 'danger')
@@ -4272,21 +4057,21 @@ def handle_unexpected_error(exc):
 
 def log_server_start() -> None:
     ensure_runtime_dirs()
-    conn = connect_database(DATABASE_URL, DB_PATH)
+    conn = connect_database(DATABASE_URL, SQLITE_IMPORT_PATH_HINT)
     conn.execute('CREATE TABLE IF NOT EXISTS system_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, level TEXT NOT NULL, message TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)')
-    conn.execute('INSERT INTO system_logs (level, message, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)', ('info', 'Démarrage du serveur'))
+    conn.execute('INSERT INTO system_logs (level, message, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)', ('info', 'DÃ©marrage du serveur'))
     conn.commit()
     conn.close()
-    write_text_log('system.log', 'INFO | Démarrage du serveur')
+    write_text_log('system.log', 'INFO | DÃ©marrage du serveur')
 
 
 def log_server_stop() -> None:
     try:
-        conn = connect_database(DATABASE_URL, DB_PATH)
-        conn.execute('INSERT INTO system_logs (level, message, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)', ('warning', 'Arrêt du serveur'))
+        conn = connect_database(DATABASE_URL, SQLITE_IMPORT_PATH_HINT)
+        conn.execute('INSERT INTO system_logs (level, message, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)', ('warning', 'ArrÃªt du serveur'))
         conn.commit()
         conn.close()
-        write_text_log('system.log', 'WARNING | Arrêt du serveur')
+        write_text_log('system.log', 'WARNING | ArrÃªt du serveur')
     except Exception:
         pass
 
@@ -4302,3 +4087,4 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
+

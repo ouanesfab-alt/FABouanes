@@ -1,16 +1,21 @@
 from __future__ import annotations
 
-import shutil
 from datetime import datetime
 from pathlib import Path
 
-from flask import g
+from fabouanes.fastapi_compat import g
 
-from fabouanes.config import APP_DATA_DIR, BUNDLED_DB_PATH, DATABASE_URL
+from fabouanes.config import APP_DATA_DIR, DATABASE_URL
 from fabouanes.core.activity import write_text_log
 from fabouanes.core.db_access import get_setting
+from fabouanes.postgres_support import (
+    POSTGRES_BACKUP_SUFFIX,
+    SQLITE_IMPORT_FILE_NAME,
+    create_postgres_backup,
+    restore_postgres_backup,
+)
 
-DB_PATH = APP_DATA_DIR / "database.db"
+SQLITE_IMPORT_PATH_HINT = APP_DATA_DIR / SQLITE_IMPORT_FILE_NAME
 BACKUP_DIR = APP_DATA_DIR / "backups"
 LOCAL_BACKUP_DIR = BACKUP_DIR / "local"
 LOG_DIR = APP_DATA_DIR / "logs"
@@ -28,23 +33,18 @@ def ensure_runtime_dirs() -> None:
     NOTES_DIR.mkdir(parents=True, exist_ok=True)
     PDF_READER_DIR.mkdir(parents=True, exist_ok=True)
     IMPORT_DIR.mkdir(parents=True, exist_ok=True)
-    if not DB_PATH.exists() and BUNDLED_DB_PATH.exists():
-        shutil.copy2(BUNDLED_DB_PATH, DB_PATH)
 
 
 def capture_local_backup_snapshot(reason: str = "manual") -> Path:
     ensure_runtime_dirs()
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    suffix = "sql" if DATABASE_URL.lower().startswith("postgres") else "db"
-    filename = f"database_{stamp}_{reason.replace(' ', '_')}.{suffix}"
+    filename = f"database_{stamp}_{reason.replace(' ', '_')}{POSTGRES_BACKUP_SUFFIX}"
     target = LOCAL_BACKUP_DIR / filename
+    target.parent.mkdir(parents=True, exist_ok=True)
     db = g.get("db")
     if db is not None:
         db.commit()
-    if DATABASE_URL.lower().startswith("postgres"):
-        target.write_text("-- Backup PostgreSQL logique non implemente automatiquement dans cette version.\n", encoding="utf-8")
-    else:
-        shutil.copy2(DB_PATH, target)
+    create_postgres_backup(DATABASE_URL, SQLITE_IMPORT_PATH_HINT, target)
     return target
 
 
@@ -63,12 +63,10 @@ def backup_database(reason: str = "manual", backup_type: str = "event") -> Path:
 
 
 def restore_database_from(path_str: str) -> None:
-    if DATABASE_URL.lower().startswith("postgres"):
-        raise RuntimeError("La restauration PostgreSQL automatique n'est pas prise en charge dans cette version.")
     db = g.pop("db", None)
     if db is not None:
         db.close()
-    shutil.copy2(path_str, DB_PATH)
+    restore_postgres_backup(DATABASE_URL, SQLITE_IMPORT_PATH_HINT, path_str)
 
 
 def get_google_drive_sync_dir() -> Path | None:
@@ -80,7 +78,7 @@ def get_google_drive_sync_dir() -> Path | None:
 
 def list_restore_backups() -> list[dict[str, str]]:
     backups: list[dict[str, str]] = []
-    pattern = "*.sql" if DATABASE_URL.lower().startswith("postgres") else "*.db"
+    pattern = f"*{POSTGRES_BACKUP_SUFFIX}"
     seen_names: set[str] = set()
     for path in sorted(LOCAL_BACKUP_DIR.glob(pattern), reverse=True):
         seen_names.add(path.name)

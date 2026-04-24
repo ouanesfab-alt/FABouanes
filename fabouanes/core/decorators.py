@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import wraps
 
-from flask import g, redirect, url_for
+from fabouanes.fastapi_compat import g, redirect, url_for
 
 from fabouanes.core.permissions import (
     PERMISSION_SETTINGS_MANAGE,
@@ -32,4 +32,3 @@ def admin_required(view):
         return view(*args, **kwargs)
 
     return wrapped
-

@@ -2,19 +2,18 @@ from __future__ import annotations
 
 from datetime import date
 
-from flask import g
+from fabouanes.fastapi_compat import g
 
 from fabouanes.core.activity import log_activity
 from fabouanes.core.audit import audit_event
 from fabouanes.core.db_access import db_transaction, execute_db, query_db
 from fabouanes.core.helpers import reverse_production, save_recipe_definition, to_float
-from fabouanes.core.perf_cache import cached_result
 from fabouanes.core.storage import backup_database
 from fabouanes.repositories.production_repository import list_production_page_context, production_form_context
 
 
 def productions_context():
-    return cached_result(("productions_context",), list_production_page_context, ttl_seconds=6.0)
+    return list_production_page_context()
 
 
 def new_production_context():

@@ -1,12 +1,54 @@
 import os
-from waitress import serve
+import socket
+import uvicorn
+
 from fabouanes.app_factory import create_app
 from fabouanes.runtime_app import log_server_start
 
 app = create_app()
 
+
+def _best_lan_ip() -> str:
+    candidates: list[str] = []
+    seen: set[str] = set()
+
+    def add_candidate(value: str) -> None:
+        ip = str(value or "").strip()
+        if not ip or ip in seen or ip.startswith("127.") or ip in {"0.0.0.0", "::1"}:
+            return
+        seen.add(ip)
+        candidates.append(ip)
+
+    for probe_host in ("8.8.8.8", "1.1.1.1"):
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            probe.connect((probe_host, 80))
+            add_candidate(probe.getsockname()[0])
+        except OSError:
+            pass
+        finally:
+            probe.close()
+
+    try:
+        hostname = socket.gethostname()
+        for ip in socket.gethostbyname_ex(hostname)[2]:
+            add_candidate(ip)
+    except OSError:
+        pass
+
+    return candidates[0] if candidates else ""
+
+
 if __name__ == '__main__':
-    host = os.environ.get('HOST', '0.0.0.0')
-    port = int(os.environ.get('PORT', '5000'))
+    host = os.environ.get('FAB_HOST') or os.environ.get('HOST', '0.0.0.0')
+    port = int(os.environ.get('FAB_PORT') or os.environ.get('PORT', '5000'))
+    os.environ['FAB_HOST'] = host
+    os.environ['FAB_PORT'] = str(port)
+    os.environ['HOST'] = host
+    os.environ['PORT'] = str(port)
+    if host == '0.0.0.0' and not os.environ.get('FAB_LAN_IP'):
+        lan_ip = _best_lan_ip()
+        if lan_ip:
+            os.environ['FAB_LAN_IP'] = lan_ip
     log_server_start()
-    serve(app, host=host, port=port, threads=int(os.environ.get('WAITRESS_THREADS', '8')))
+    uvicorn.run(app, host=host, port=port, log_level=os.environ.get('UVICORN_LOG_LEVEL', 'info'))

@@ -5,13 +5,13 @@ from typing import Any
 from fabouanes.core.db_access import execute_db, query_db
 from fabouanes.core.helpers import create_payment_record, get_open_credit_entries, reverse_payment_allocations
 from fabouanes.repositories.payment_repository import (
-    get_payment as get_legacy_payment,
+    get_payment,
     list_payment_page_context,
     payment_form_context,
 )
 
 
-class SQLitePaymentRepository:
+class DbPaymentRepository:
     def list_payment_page_context(self) -> dict[str, Any]:
         return list_payment_page_context()
 
@@ -19,7 +19,7 @@ class SQLitePaymentRepository:
         return payment_form_context()
 
     def get_payment(self, payment_id: int):
-        return get_legacy_payment(payment_id)
+        return get_payment(payment_id)
 
     def list_clients(self):
         return query_db("SELECT * FROM clients ORDER BY name")
@@ -100,4 +100,3 @@ class SQLitePaymentRepository:
             sale_date=sale["sale_date"],
             total=sale["total"],
         )
-

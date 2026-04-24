@@ -2,15 +2,16 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 
-from flask import g
+from fabouanes.fastapi_compat import g
 from fabouanes.config import DATABASE_URL, APP_DATA_DIR
 from fabouanes.db import connect_database
+from fabouanes.postgres_support import SQLITE_IMPORT_FILE_NAME
 
-DB_PATH = APP_DATA_DIR / "database.db"
+SQLITE_IMPORT_PATH_HINT = APP_DATA_DIR / SQLITE_IMPORT_FILE_NAME
 
 def get_db():
     if "db" not in g:
-        g.db = connect_database(DATABASE_URL, DB_PATH)
+        g.db = connect_database(DATABASE_URL, SQLITE_IMPORT_PATH_HINT)
     return g.db
 
 def query_db(query: str, params: tuple = (), one: bool = False):

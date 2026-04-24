@@ -55,12 +55,16 @@ echo  [3/4] Compilation de l'EXE (3-5 minutes)...
     --onedir --noconsole ^
     --add-data "templates;templates" ^
     --add-data "static;static" ^
-    --add-data "database.db;." ^
     --add-data ".env.example;." ^
-    --hidden-import "flask" ^
-    --hidden-import "flask.templating" ^
-    --hidden-import "waitress" ^
-    --hidden-import "waitress.runner" ^
+    --hidden-import "fastapi" ^
+    --hidden-import "starlette" ^
+    --hidden-import "uvicorn" ^
+    --hidden-import "uvicorn.logging" ^
+    --hidden-import "uvicorn.loops.auto" ^
+    --hidden-import "uvicorn.protocols.http.auto" ^
+    --hidden-import "python_multipart" ^
+    --hidden-import "itsdangerous" ^
+    --hidden-import "anyio" ^
     --hidden-import "requests" ^
     --hidden-import "requests.adapters" ^
     --hidden-import "reportlab.pdfgen" ^
@@ -72,13 +76,13 @@ echo  [3/4] Compilation de l'EXE (3-5 minutes)...
     --hidden-import "dotenv" ^
     --hidden-import "jinja2" ^
     --hidden-import "jinja2.ext" ^
+    --hidden-import "pg8000.dbapi" ^
     --hidden-import "werkzeug" ^
     --hidden-import "werkzeug.serving" ^
-    --hidden-import "sqlite3" ^
     --hidden-import "webview" ^
     --hidden-import "webview.platforms.edgechromium" ^
     --collect-submodules "webview" ^
-    launcher.py
+    run_prod.py
 
 if errorlevel 1 (
     echo.

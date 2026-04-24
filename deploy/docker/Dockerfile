@@ -6,4 +6,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 EXPOSE 8000
-CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:8000", "wsgi:app"]
+CMD ["uvicorn", "asgi:app", "--host", "0.0.0.0", "--port", "8000"]
