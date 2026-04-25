@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .login-screen{min-height:calc(100vh - var(--nav-h) - 12px);display:grid;place-items:center;padding:20px;}
+  .login-shell{width:100%;max-width:940px;display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1fr);background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 28px 64px rgba(15,23,42,.12);}
+  .login-side{position:relative;padding:30px;background:linear-gradient(160deg,#0f172a 0%,#163156 55%,#1e3a6a 100%);color:#fff;display:flex;align-items:center;justify-content:center;}
+  .login-side::before,.login-side::after{content:'';position:absolute;border-radius:999px;pointer-events:none;}
+  .login-side::before{width:240px;height:240px;right:-60px;top:-70px;background:radial-gradient(circle,rgba(96,165,250,.28),transparent 70%);}
+  .login-side::after{width:180px;height:180px;left:-60px;bottom:-70px;background:radial-gradient(circle,rgba(34,197,94,.22),transparent 70%);}
+  .login-brand{position:relative;z-index:1;text-align:center;width:100%;}
+  .login-logo-wrap{width:180px;height:180px;margin:0 auto 18px;border-radius:22px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);display:grid;place-items:center;box-shadow:0 18px 36px rgba(2,6,23,.22);}
+  .login-logo{max-width:136px;max-height:136px;object-fit:contain;filter:drop-shadow(0 14px 24px rgba(0,0,0,.22));}
+  .login-brand h1{font-size:2rem;font-weight:900;letter-spacing:-.03em;margin:0;}
+
+  .login-panel{padding:34px 34px 28px;background:linear-gradient(180deg,rgba(255,255,255,.99),rgba(248,250,252,.98));display:flex;flex-direction:column;}
+  [data-theme="dark"] .login-panel{background:linear-gradient(180deg,#111827,#0f172a);}
+  .login-badge{display:none;}
+  .login-title{font-size:1.9rem;font-weight:900;letter-spacing:-.03em;margin:0 0 6px;color:var(--text);}
+  .login-sub{color:var(--muted);font-size:.94rem;margin-bottom:20px;}
+  .login-form-card{border:1px solid var(--line);border-radius:12px;padding:22px;background:var(--card);box-shadow:0 16px 32px rgba(15,23,42,.06);}
+  .login-alert{margin-bottom:16px;border-radius:12px;}
+  .login-label{font-size:.82rem;font-weight:800;color:var(--text);margin-bottom:8px;display:block;}
+  .login-input-wrap{position:relative;}
+  .login-input-wrap i{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:1rem;z-index:2;}
+  .login-input{height:54px;border-radius:8px;padding:0 16px 0 46px;border:1.5px solid var(--line);background:var(--bg);font-size:1rem;color:var(--text);transition:border-color .2s, box-shadow .2s, background .2s;}
+  .login-input:focus{border-color:#2563eb;box-shadow:0 0 0 4px rgba(37,99,235,.12);background:var(--card);outline:none;}
+  .login-input.password{padding-right:60px;}
+  .toggle-pass{position:absolute;right:12px;top:50%;transform:translateY(-50%);height:36px;width:36px;border:none;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;transition:background .15s,color .15s;z-index:2;display:grid;place-items:center;}
+  .toggle-pass i{pointer-events:none;}
+  .toggle-pass:hover{background:rgba(37,99,235,.08);color:#2563eb;}
+  .login-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0 18px;}
+  .remember-check{display:inline-flex;align-items:center;gap:9px;font-size:.88rem;color:var(--muted);}
+  .remember-check input{width:16px;height:16px;accent-color:#2563eb;}
+  .btn-login{height:54px;border:none;border-radius:8px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:1rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;box-shadow:0 14px 24px rgba(37,99,235,.22);transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;}
+  .btn-login:hover{transform:translateY(-1px);box-shadow:0 18px 28px rgba(37,99,235,.28);filter:brightness(1.02);}
+  @media(max-width:991px){.login-shell{grid-template-columns:1fr}.login-side{padding:22px}.login-panel{padding:24px 22px 22px}.login-logo-wrap{width:156px;height:156px;border-radius:18px}.login-logo{max-width:118px;max-height:118px;}}
+  @media(max-width:575px){.login-screen{padding:10px}.login-shell{border-radius:10px}.login-side{padding:18px}.login-panel{padding:18px 14px 16px}.login-title{font-size:1.45rem}.login-form-card{padding:16px;border-radius:10px}.login-row{flex-direction:column;align-items:flex-start}.login-logo-wrap{width:148px;height:148px}}
+</style>
+
+<div class="login-screen">
+  <div class="login-shell">
+    <div class="login-side">
+      <div class="login-brand">
+        <div class="login-logo-wrap">
+          <img src="{{ url_for('static', filename='fab_logo.png') }}" alt="FABOuanes" class="login-logo">
+        </div>
+        <h1>FAB Ouanes</h1>
+      </div>
+    </div>
+    <div class="login-panel">
+            <div class="login-title">Connexion</div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }} login-alert">{{ msg }}</div>
+        {% endfor %}
+      {% endwith %}
+
+      <div class="login-form-card">
+        <form method="post" action="{{ url_for('login') }}" autocomplete="on">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="mb-3">
+            <label class="login-label">Nom d'utilisateur</label>
+            <div class="login-input-wrap">
+              <i class="bi bi-person"></i>
+              <input name="username" type="text" class="form-control login-input" autocomplete="username" placeholder="Identifiant" required>
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="login-label">Mot de passe</label>
+            <div class="login-input-wrap">
+              <i class="bi bi-key"></i>
+              <input id="passwordInput" name="password" type="password" class="form-control login-input password" autocomplete="current-password" placeholder="Mot de passe" required>
+              <button type="button" class="toggle-pass" id="togglePassword" aria-label="Afficher le mot de passe"><i class="bi bi-eye"></i></button>
+            </div>
+          </div>
+          <div class="login-row">
+            <label class="remember-check"><input type="checkbox" name="remember"> Se souvenir de moi</label>
+          </div>
+          <button type="submit" class="btn-login"><i class="bi bi-box-arrow-in-right"></i>Se connecter</button>
+        </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+if (!localStorage.getItem('fab_theme')) {
+  localStorage.setItem('fab_theme', 'light');
+  document.documentElement.setAttribute('data-theme', 'light');
+}
+const togglePassword = document.getElementById('togglePassword');
+const passwordInput = document.getElementById('passwordInput');
+if (togglePassword && passwordInput) {
+  togglePassword.addEventListener('click', function () {
+    const isPassword = passwordInput.getAttribute('type') === 'password';
+    passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+    this.innerHTML = isPassword ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+  });
+}
+</script>
+{% endblock %}

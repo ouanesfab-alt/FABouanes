@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="entity-form-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Ajouter un client</h2>
+      <p class="entity-form-summary mb-0">Renseigne les coordonnees et le credit initial avant d'enregistrer la fiche.</p>
+    </div>
+  </div>
+
+  <div class="entity-form-shell is-narrow">
+    <div class="card entity-form-card client-form-card">
+      <form method="post" class="entity-form-grid">
+        <div class="span-6">
+          <label class="form-label">Nom</label>
+          <input name="name" class="form-control" required>
+        </div>
+        <div class="span-6">
+          <label class="form-label">Telephone</label>
+          <input name="phone" class="form-control">
+        </div>
+        <div class="span-12">
+          <label class="form-label">Adresse</label>
+          <input name="address" class="form-control">
+        </div>
+        <div class="span-6">
+          <label class="form-label">Credit / dette initiale</label>
+          <input name="opening_credit" type="number" step="0.01" value="0" class="form-control">
+        </div>
+        <div class="span-12">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-control" rows="3"></textarea>
+        </div>
+        <div class="span-12">
+          <div class="entity-form-note client-form-note">
+            Le credit initial sert de point de depart pour le suivi des dettes et des versements du client.
+          </div>
+        </div>
+        <div class="span-12 entity-form-actions">
+          <button class="btn btn-dark">Enregistrer</button>
+          <a href="{{ url_for('clients') }}" class="btn btn-outline-secondary">Retour</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

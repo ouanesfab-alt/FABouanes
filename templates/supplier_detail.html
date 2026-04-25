@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="record-shell">
+  <section class="record-surface">
+    <header class="record-header">
+      <div class="record-copy">
+        <div class="record-kicker">Fournisseur</div>
+        <h1 class="record-title">{{ supplier.name }}</h1>
+        <p class="record-subtitle">{{ supplier.phone or '-' }} · {{ supplier.address or '-' }}</p>
+      </div>
+      <div class="record-reference">
+        <div class="record-refrow"><span>Fournisseur</span><strong>#{{ supplier.id }}</strong></div>
+        <div class="record-refrow"><span>Achats</span><strong>{{ purchases|length }}</strong></div>
+        <div class="record-refrow"><span>Total</span><strong>{{ total_amount|money }}</strong></div>
+      </div>
+    </header>
+
+    <section class="record-grid record-grid-three">
+      <div class="record-card">
+        <div class="record-card-label">Achats enregistres</div>
+        <div class="record-card-value">{{ purchases|length }}</div>
+      </div>
+      <div class="record-card">
+        <div class="record-card-label">Montant total</div>
+        <div class="record-card-value">{{ total_amount|money }}</div>
+      </div>
+      <div class="record-card">
+        <div class="record-card-label">Notes</div>
+        <div class="record-card-value">{{ supplier.notes or '-' }}</div>
+      </div>
+    </section>
+
+    <section class="record-table-wrap">
+      <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
+        <div>
+          <div class="record-kicker">Historique</div>
+          <h2 class="h5 mb-0">Achats du fournisseur</h2>
+        </div>
+        <div class="record-actions">
+          <a href="{{ url_for('edit_supplier', supplier_id=supplier.id) }}" class="btn btn-outline-dark">Editer le fournisseur</a>
+          <a href="{{ url_for('contacts', type='supplier') }}" class="btn btn-dark">Retour</a>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="record-table js-datagrid align-middle">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Designation</th>
+              <th>Quantite</th>
+                <th class="col-right hide-mobile">Prix unitaire</th>
+                <th class="col-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in purchases %}
+            <tr class="context-target"
+                  data-delete-label="cet achat"
+                  data-edit-url="{{ url_for('edit_purchase_document', document_id=item.document_id) if item.document_id else url_for('edit_purchase', purchase_id=item.id) }}"
+                  data-delete-url="{{ url_for('delete_purchase', purchase_id=item.id) }}">
+              <td>{{ item.event_date }}</td>
+              <td>{{ item.designation }}</td>
+              <td>{{ item.quantity }} {{ item.unit }}</td>
+                <td class="col-right hide-mobile">{{ item.unit_price|money }}</td>
+                <td class="col-right"><strong>{{ item.total|money }}</strong></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-muted">Aucun historique.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+</div>
+{% endblock %}

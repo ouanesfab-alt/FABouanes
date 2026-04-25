@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-0">Import clients Excel</h4>
+    <div class="text-muted small">Reprise automatique du dernier solde · continue là où s'était arrêté le client</div>
+  </div>
+  <a href="{{ url_for('clients') }}" class="btn btn-outline-secondary btn-sm">← Retour clients</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card p-3">
+      <h6 class="fw-bold mb-3"><i class="bi bi-upload me-1"></i>Sélectionner les fichiers</h6>
+      <form method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+          <input type="file" name="excel_files" class="form-control" accept=".xlsx,.xlsm" multiple required>
+          <div class="form-text">Un fichier = un client. Plusieurs fichiers possibles à la fois.</div>
+        </div>
+        <button type="submit" class="btn btn-dark w-100">
+          <i class="bi bi-database-up me-1"></i>Lancer l'importation
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card p-3 h-100">
+      <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-1"></i>Ce qui est importé</h6>
+      <div class="d-flex flex-column gap-2 mb-3">
+        <div class="d-flex align-items-center gap-2 border rounded p-2">
+          <span style="font-size:1.4rem">👤</span>
+          <div>
+            <div class="fw-semibold small">Fiche client</div>
+            <div class="text-muted" style="font-size:.81rem">Nom + téléphone détectés depuis les premières lignes</div>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2 border rounded p-2">
+          <span style="font-size:1.4rem">📅</span>
+          <div>
+            <div class="fw-semibold small">Dernière date</div>
+            <div class="text-muted" style="font-size:.81rem">Date de la dernière opération dans la fiche</div>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2 border rounded p-2" style="background:rgba(59,130,246,.05);border-color:rgba(59,130,246,.25)!important">
+          <span style="font-size:1.4rem">💰</span>
+          <div>
+            <div class="fw-semibold small text-primary">Dernier reste à payer</div>
+            <div class="text-muted" style="font-size:.81rem">Enregistré comme crédit d'ouverture · reprise directe de la dette</div>
+          </div>
+        </div>
+      </div>
+      <div class="alert alert-light border-0 py-2 mb-0" style="font-size:.82rem">
+        <i class="bi bi-lightbulb me-1 text-warning"></i>
+        L'historique détaillé n'est pas importé. Seul le solde final compte pour continuer la gestion.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

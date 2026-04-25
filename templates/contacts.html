@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .contacts-page{display:flex;flex-direction:column;gap:16px;}
+  .contacts-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .contacts-summary{color:var(--muted);font-size:.92rem;}
+  .contacts-table-card{padding:18px;}
+  .contacts-filter-row{align-items:stretch;}
+  .contacts-table-wrap{overflow-x:visible;}
+  .contacts-table{margin:0 auto;width:100%;}
+  .contacts-table .col-name{width:34%;min-width:210px;}
+  .contacts-table .col-phone{width:16%;white-space:nowrap;}
+  .contacts-table .col-type{width:12%;white-space:nowrap;}
+  .contacts-table .col-balance{width:1%;white-space:nowrap;text-align:right;}
+  .contacts-table .col-actions{width:1%;white-space:nowrap;text-align:right;}
+  .contacts-link{display:inline-block;max-width:32ch;color:var(--text);font-weight:700;line-height:1.35;text-decoration:none;white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+  .contacts-link:hover{color:var(--text);text-decoration:underline;}
+  @media(max-width:991px){
+    .contacts-actions{width:100%;}
+    .contacts-actions > *{flex:1 1 220px;}
+  }
+  @media(max-width:767px){
+    .contacts-table-card{padding:14px;}
+    .contacts-actions{flex-direction:column;}
+    .contacts-actions > *{width:100%;flex:1 1 auto;}
+    .contacts-filter-row > *{width:100%;}
+    .contacts-table .col-name{min-width:170px;}
+  }
+</style>
+
+<div class="contacts-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Contacts</h2>
+      <p class="contacts-summary mb-0">{{ contacts|length }} contact(s) visibles.</p>
+    </div>
+    <div class="contacts-actions">
+      <div class="dropdown">
+        <button class="btn btn-warning dropdown-toggle" data-bs-toggle="dropdown">
+          <i class="bi bi-plus-lg me-1"></i>Ajouter
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="{{ url_for('new_client') }}"><i class="bi bi-person-plus me-2"></i>Client</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('new_supplier') }}"><i class="bi bi-truck me-2"></i>Fournisseur</a></li>
+        </ul>
+      </div>
+      <a href="{{ url_for('contacts', type='all') }}" class="btn {{ 'btn-dark' if filter_type=='all' else 'btn-outline-secondary' }}">Tous</a>
+      <a href="{{ url_for('contacts', type='client') }}" class="btn {{ 'btn-dark' if filter_type=='client' else 'btn-outline-secondary' }}">Clients</a>
+      <a href="{{ url_for('contacts', type='supplier') }}" class="btn {{ 'btn-dark' if filter_type=='supplier' else 'btn-outline-secondary' }}">Fournis.</a>
+    </div>
+  </div>
+
+  <div class="card contacts-table-card">
+    <form method="get" class="row g-2 mb-3 contacts-filter-row">
+      <input type="hidden" name="type" value="{{ filter_type }}">
+      <div class="col-md-6">
+        <input type="text" name="name" value="{{ filter_name }}" class="form-control" placeholder="Nom, telephone...">
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button class="btn btn-dark w-100">Filtrer</button>
+        <a href="{{ url_for('contacts', type=filter_type) }}" class="btn btn-outline-secondary" aria-label="Reinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
+      </div>
+    </form>
+
+    <div class="table-responsive contacts-table-wrap">
+      <table class="table table-hover js-datagrid align-middle contacts-table">
+        <thead>
+          <tr>
+            <th class="col-name">Nom</th>
+            <th class="col-phone hide-mobile">Telephone</th>
+            <th class="col-type hide-mobile">Type</th>
+            <th class="col-balance">Solde</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in contacts %}
+          <tr class="context-target"
+              data-edit-url="{{ url_for('edit_client', client_id=row.id) if row.contact_type == 'Client' else url_for('edit_supplier', supplier_id=row.id) }}"
+              data-delete-url="{{ url_for('delete_client', client_id=row.id) if row.contact_type == 'Client' else url_for('delete_supplier', supplier_id=row.id) }}"
+              data-print-url="{{ url_for('print_client_history', client_id=row.id) if row.contact_type == 'Client' else '' }}"
+              data-delete-label="{{ row.name }}"
+              data-label="{{ row.name }}">
+            <td class="col-name">
+              <a class="contacts-link" href="{{ url_for('client_detail', client_id=row.id) if row.contact_type == 'Client' else url_for('supplier_detail', supplier_id=row.id) }}">
+                {{ row.name }}
+              </a>
+              <div class="d-md-none text-muted" style="font-size:.78rem;">{{ row.phone or '' }}</div>
+            </td>
+            <td class="col-phone hide-mobile text-muted">{{ row.phone or '-' }}</td>
+            <td class="col-type hide-mobile text-muted">{{ row.contact_type }}</td>
+            <td class="col-balance fw-semibold {{ 'text-danger' if row.contact_type == 'Client' and row.current_balance > 0 else '' }}">
+              {% if row.contact_type == 'Client' and row.current_balance > 0 %}
+                {{ row.current_balance|money }}
+              {% elif row.contact_type == 'Fournisseur' %}
+                <span class="text-muted">-</span>
+              {% else %}
+                <span class="text-success">OK</span>
+              {% endif %}
+            </td>
+            <td class="col-actions text-nowrap">
+              {% if row.contact_type == 'Client' %}
+              <a href="{{ url_for('print_client_history', client_id=row.id) }}" class="btn btn-sm btn-outline-primary" title="Imprimer l'historique client" target="_blank">
+                <i class="bi bi-printer"></i>
+              </a>
+              {% else %}
+              <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-muted text-center py-4">Aucun contact.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

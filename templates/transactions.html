@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .transactions-page{display:flex;flex-direction:column;gap:16px;}
+  .transactions-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .transactions-filter-row{align-items:stretch;}
+  .transactions-table-card{padding:18px;}
+  .transactions-table-wrap{overflow-x:visible;}
+  .transactions-table{margin:0 auto;width:100%;}
+  .transactions-table th,.transactions-table td{vertical-align:top;}
+  .transactions-table .col-date{width:10%;white-space:nowrap;}
+  .transactions-table .col-type{width:12%;}
+  .transactions-table .col-partner{width:18%;min-width:170px;}
+  .transactions-table .col-designation{width:24%;min-width:210px;}
+  .transactions-table .col-qty{width:10%;white-space:nowrap;}
+  .transactions-table .col-money{width:1%;text-align:right;white-space:nowrap;}
+  .transactions-table .col-actions{width:1%;white-space:nowrap;}
+  .transactions-table .partner-text,.transactions-table .designation-text{display:inline-block;max-width:30ch;color:var(--text);line-height:1.35;white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+  .transactions-table .partner-text{font-weight:700;}
+  .transactions-table .designation-text{font-weight:600;}
+  .tx-type{display:inline-flex;align-items:center;justify-content:center;min-width:78px;padding:7px 10px;border-radius:8px;border:1px solid rgba(37,99,235,.16);background:rgba(37,99,235,.08);color:#1d4ed8;font-size:.78rem;font-weight:800;line-height:1;}
+  .tx-type.payment{border-color:rgba(22,163,74,.16);background:rgba(22,163,74,.10);color:#15803d;}
+  .tx-type.purchase{border-color:rgba(217,119,6,.18);background:rgba(217,119,6,.10);color:#b45309;}
+  [data-theme="dark"] .tx-type,[data-theme="midnight"] .tx-type,[data-theme="coffee"] .tx-type{border-color:rgba(96,165,250,.24);background:rgba(96,165,250,.16);color:#bfdbfe;}
+  [data-theme="dark"] .tx-type.payment,[data-theme="midnight"] .tx-type.payment,[data-theme="coffee"] .tx-type.payment{border-color:rgba(74,222,128,.24);background:rgba(74,222,128,.12);color:#86efac;}
+  [data-theme="dark"] .tx-type.purchase,[data-theme="midnight"] .tx-type.purchase,[data-theme="coffee"] .tx-type.purchase{border-color:rgba(251,191,36,.22);background:rgba(251,191,36,.14);color:#fcd34d;}
+  @media(max-width:991px){
+    .transactions-actions{width:100%;}
+    .transactions-actions > *{flex:1 1 220px;}
+  }
+  @media(max-width:767px){
+    .transactions-table-card{padding:14px;}
+    .transactions-actions{flex-direction:column;}
+    .transactions-actions > *{width:100%;flex:1 1 auto;}
+    .transactions-filter-row > *{width:100%;}
+  }
+</style>
+
+<div class="transactions-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Operations</h2>
+    </div>
+    <div class="transactions-actions">
+      <div class="dropdown">
+        <button class="btn btn-warning dropdown-toggle" data-bs-toggle="dropdown">
+          <i class="bi bi-plus-lg me-1"></i>Ajouter
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="{{ url_for('new_purchase') }}">Achat</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('new_sale') }}">Vente</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('new_payment', mode='versement') }}">Versement</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('new_payment', mode='avance') }}">Avance</a></li>
+        </ul>
+      </div>
+      <a href="{{ url_for('operations', type='all') }}" class="btn {{ 'btn-dark' if filter_type=='all' else 'btn-outline-secondary' }}">Toutes</a>
+      <a href="{{ url_for('operations', type='purchase') }}" class="btn {{ 'btn-dark' if filter_type=='purchase' else 'btn-outline-secondary' }}">Achats</a>
+      <a href="{{ url_for('operations', type='sale') }}" class="btn {{ 'btn-dark' if filter_type=='sale' else 'btn-outline-secondary' }}">Ventes</a>
+      <a href="{{ url_for('operations', type='payment') }}" class="btn {{ 'btn-dark' if filter_type=='payment' else 'btn-outline-secondary' }}">Versements / avances</a>
+    </div>
+  </div>
+
+  <div class="card transactions-table-card">
+    <form method="get" class="row g-2 mb-3 transactions-filter-row">
+      <input type="hidden" name="type" value="{{ filter_type }}">
+      <div class="col-md-3">
+        <input type="text" name="name" value="{{ filter_name }}" class="form-control" placeholder="Nom ou designation">
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="date" value="{{ filter_date }}" class="form-control">
+      </div>
+      <div class="col-md-3">
+        <select name="operation" class="form-select">
+          <option value="">Toutes les operations</option>
+          <option value="achat" {{ 'selected' if filter_operation=='achat' else '' }}>Achat</option>
+          <option value="vente" {{ 'selected' if filter_operation=='vente' else '' }}>Vente</option>
+          <option value="versement" {{ 'selected' if filter_operation=='versement' else '' }}>Versement</option>
+          <option value="avance" {{ 'selected' if filter_operation=='avance' else '' }}>Avance</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="page_size" class="form-select">
+          {% for size in [25, 50, 100, 200] %}
+          <option value="{{ size }}" {{ 'selected' if pagination.page_size == size else '' }}>{{ size }} / page</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <button class="btn btn-dark w-100">Filtrer</button>
+        <a href="{{ url_for('operations', type=filter_type) }}" class="btn btn-outline-secondary" aria-label="Reinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
+      </div>
+    </form>
+
+    <div class="table-responsive transactions-table-wrap">
+      <table class="table align-middle table-row-hover transactions-table">
+        <thead>
+          <tr>
+            <th class="col-date">Date</th>
+            <th class="col-type">Type</th>
+            <th class="col-partner">Client / fournisseur</th>
+            <th class="col-designation">Designation</th>
+            <th class="col-qty hide-mobile">Qte</th>
+            <th class="col-money hide-mobile">PU</th>
+            <th class="col-money">Total</th>
+            <th class="col-money hide-mobile">Paye</th>
+            <th class="col-money">Reste</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in transactions %}
+            <tr class="context-target"
+                data-delete-label="{% if row.tx_kind == 'purchase' %}cet achat{% elif row.tx_kind in ['sale_finished','sale_raw'] %}cette vente{% else %}cette transaction{% endif %}"
+                data-edit-url="{% if row.tx_kind == 'purchase' %}{{ url_for('edit_purchase_document', document_id=row.document_id) if row.document_id else url_for('edit_purchase', purchase_id=row.id) }}{% elif row.tx_kind == 'sale_finished' %}{{ url_for('edit_sale_document', document_id=row.document_id) if row.document_id else url_for('edit_sale', kind='finished', row_id=row.id) }}{% elif row.tx_kind == 'sale_raw' %}{{ url_for('edit_sale_document', document_id=row.document_id) if row.document_id else url_for('edit_sale', kind='raw', row_id=row.id) }}{% elif row.tx_kind == 'payment' %}{{ url_for('edit_payment', payment_id=row.id) }}{% endif %}"
+                data-delete-url="{% if row.tx_kind == 'purchase' %}{{ url_for('delete_purchase', purchase_id=row.id) }}{% elif row.tx_kind == 'sale_finished' %}{{ url_for('delete_sale', kind='finished', row_id=row.id) }}{% elif row.tx_kind == 'sale_raw' %}{{ url_for('delete_sale', kind='raw', row_id=row.id) }}{% elif row.tx_kind == 'payment' %}{{ url_for('delete_payment', payment_id=row.id) }}{% endif %}">
+              <td class="cell-num col-date text-muted">{{ row.tx_date }}</td>
+              <td class="cell-text col-type">
+                <span class="tx-type {% if row.tx_kind == 'payment' %}payment{% elif row.tx_kind == 'purchase' %}purchase{% endif %}">{{ row.tx_type }}</span>
+              </td>
+              <td class="cell-text col-partner"><span class="partner-text">{{ row.partner_name }}</span></td>
+              <td class="cell-text col-designation"><span class="designation-text">{{ row.designation }}</span></td>
+              <td class="cell-num col-qty hide-mobile">{% if row.quantity is not none %}{{ row.quantity }} {{ row.unit }}{% else %}-{% endif %}</td>
+              <td class="cell-num col-money hide-mobile">{% if row.unit_price is not none %}{{ row.unit_price|money }}{% else %}-{% endif %}</td>
+              <td class="cell-num col-money">{{ row.total|money }}</td>
+              <td class="cell-num col-money hide-mobile">{% if row.paid is not none %}{{ row.paid|money }}{% else %}-{% endif %}</td>
+              <td class="cell-num col-money">{% if row.due is not none %}{{ row.due|money }}{% else %}-{% endif %}</td>
+              {% set print_doc_type = 'purchase_document' if row.tx_kind == 'purchase' and row.document_id else ('sale_document' if row.tx_kind in ['sale_finished', 'sale_raw'] and row.document_id else ('purchase' if row.tx_kind == 'purchase' else ('sale_finished' if row.tx_kind == 'sale_finished' else ('sale_raw' if row.tx_kind == 'sale_raw' else 'payment')))) %}
+              {% set print_item_id = row.document_id if row.document_id else row.id %}
+              <td class="col-actions text-nowrap">
+                <a href="{{ url_for('print_document', doc_type=print_doc_type, item_id=print_item_id) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Imprimer" onclick="openInvoice(event,this.closest('a').href)"><i class="bi bi-printer"></i></a>
+              </td>
+            </tr>
+          {% else %}
+          <tr><td colspan="10" class="text-muted text-center py-4">Aucune operation.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include '_pagination.html' %}
+  </div>
+</div>
+{% endblock %}

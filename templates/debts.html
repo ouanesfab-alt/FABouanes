@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="sales-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Debits clients</h2>
+    </div>
+  </div>
+
+  <div class="card sales-table-card">
+    <div class="table-responsive">
+      <table class="table js-datagrid align-middle">
+        <thead>
+          <tr>
+            <th>Client</th>
+            <th class="hide-mobile">Telephone</th>
+            <th class="hide-mobile">Adresse</th>
+            <th class="text-end hide-mobile">Total credit</th>
+            <th class="text-end hide-mobile">Total paye</th>
+            <th class="text-end">Reste a payer</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in debts %}
+          <tr>
+            <td class="fw-semibold">{{ d.name }}</td>
+            <td class="hide-mobile text-muted">{{ d.phone or '-' }}</td>
+            <td class="hide-mobile text-muted">{{ d.address or '-' }}</td>
+            <td class="text-end hide-mobile">{{ d.total_credit_sales|money }}</td>
+            <td class="text-end hide-mobile">{{ d.total_paid|money }}</td>
+            <td class="text-end fw-bold text-danger">{{ d.balance_due|money }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-muted text-center py-4">Aucun debit client en cours.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

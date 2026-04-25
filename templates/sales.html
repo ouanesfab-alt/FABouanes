@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .sales-page{display:flex;flex-direction:column;gap:16px;}
+  .sales-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .sales-summary{color:var(--muted);font-size:.92rem;}
+  .sales-filter-row{align-items:stretch;}
+  .sales-table-card{padding:18px;}
+  .sales-table-wrap{overflow-x:visible;}
+  .sales-table-wrap .table-shell{max-width:1180px;margin:0 auto;width:100%;}
+  .sales-table-wrap .table-search{justify-content:flex-start;}
+  .sales-table-wrap .table-search input{max-width:320px;}
+  .sales-table-wrap .table-scroll{width:100%;margin:0 auto;}
+  .sales-table{margin:0 auto;}
+  .sales-table th,.sales-table td{vertical-align:top;}
+  .sales-table .col-date{width:10%;white-space:nowrap;}
+  .sales-table .col-client{width:17%;min-width:170px;}
+  .sales-table .col-item{width:20%;min-width:190px;}
+  .sales-table .col-type{width:10%;}
+  .sales-table .col-qty{width:10%;white-space:nowrap;}
+  .sales-table .col-money{width:1%;text-align:right;white-space:nowrap;}
+  .sales-table .col-actions{width:1%;white-space:nowrap;}
+  .sales-table .client-link,.sales-table .item-text{display:inline-block;max-width:28ch;color:var(--text);
+    line-height:1.35;white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+  .sales-table .client-link{font-weight:700;text-decoration:none;}
+  .sales-table .client-link:hover{color:var(--text);text-decoration:underline;}
+  .sales-table .item-text{font-weight:600;}
+  @media(max-width:991px){
+    .sales-actions{width:100%;}
+    .sales-actions > *{flex:1 1 220px;}
+  }
+  @media(max-width:767px){
+    .sales-table-card{padding:14px;}
+    .sales-actions{flex-direction:column;}
+    .sales-actions > *{width:100%;flex:1 1 auto;}
+    .sales-filter-row > *{width:100%;}
+    .sales-table-wrap .table-search input{max-width:none;width:100%;}
+    .sales-table .col-client{min-width:150px;}
+    .sales-table .col-item{min-width:170px;}
+  }
+</style>
+
+<div class="sales-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Ventes</h2>
+      <p class="sales-summary mb-0">{{ pagination.total }} vente(s) enregistree(s).</p>
+    </div>
+    <div class="sales-actions">
+      <a href="{{ url_for('new_sale') }}" class="btn btn-dark"><i class="bi bi-plus-lg me-2"></i>Ajouter une vente</a>
+      <a href="{{ url_for('operations', type='sale') }}" class="btn btn-outline-secondary"><i class="bi bi-funnel me-2"></i>Voir les operations</a>
+    </div>
+  </div>
+
+  <div class="card sales-table-card">
+    <form method="get" class="row g-2 mb-3 sales-filter-row">
+      <div class="col-md-5">
+        <input type="text" name="q" value="{{ filters.q }}" class="form-control" placeholder="Client ou article">
+      </div>
+      <div class="col-md-3">
+        <input type="date" name="date" value="{{ filters.date }}" class="form-control">
+      </div>
+      <div class="col-md-2">
+        <select name="page_size" class="form-select">
+          {% for size in [25, 50, 100, 200] %}
+          <option value="{{ size }}" {{ 'selected' if pagination.page_size == size else '' }}>{{ size }} / page</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <button class="btn btn-dark w-100">Filtrer</button>
+        <a href="{{ url_for('sales') }}" class="btn btn-outline-secondary" aria-label="Reinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
+      </div>
+    </form>
+    <div class="table-responsive sales-table-wrap">
+      <table class="table align-middle table-row-hover sales-table">
+        <thead>
+          <tr>
+            <th class="col-date">Date</th>
+            <th class="col-client">Client</th>
+            <th class="col-item">Article</th>
+            <th class="col-type hide-mobile">Type</th>
+            <th class="col-qty">Qt</th>
+            <th class="col-money">Total</th>
+            <th class="col-money hide-mobile">Paye</th>
+            <th class="col-money">Reste</th>
+            <th class="col-money hide-mobile">Benefice</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sales %}
+          {% set doc_type = 'sale_document' if s.document_id else ('sale_finished' if s.row_kind == 'finished' else 'sale_raw') %}
+          {% set print_url = url_for('print_document', doc_type=doc_type, item_id=(s.document_id or s.id)) %}
+          {% set delete_url = url_for('delete_sale', kind=s.row_kind, row_id=s.id) %}
+          <tr class="context-target"
+              data-print-url="{{ print_url }}"
+              data-edit-url="{{ url_for('edit_sale_document', document_id=s.document_id) if s.document_id else url_for('edit_sale', kind=s.row_kind, row_id=s.id) }}"
+              data-delete-url="{{ delete_url }}"
+              data-delete-label="{{ s.item_name }} du {{ s.sale_date }}"
+              data-label="{{ s.item_name }} - {{ s.client_name }}">
+            <td class="cell-num col-date text-muted">{{ s.sale_date }}</td>
+            <td class="cell-text col-client">
+              <a href="{{ url_for('client_detail', client_id=s.client_id) if s.client_id else '#' }}" class="client-link{% if not s.client_id %} pe-none text-muted text-decoration-none{% endif %}">
+                {{ s.client_name }}
+              </a>
+            </td>
+            <td class="cell-text col-item"><span class="item-text">{{ s.item_name }}</span></td>
+            <td class="cell-text col-type hide-mobile">{{ s.item_kind }}</td>
+            <td class="cell-num col-qty">{{ s.quantity }} {{ s.unit }}</td>
+            <td class="cell-num col-money">{{ s.total|money }}</td>
+            <td class="cell-num col-money hide-mobile">{{ s.amount_paid|money }}</td>
+            <td class="cell-num col-money">{{ s.balance_due|money }}</td>
+            <td class="cell-num col-money hide-mobile">{{ s.profit_amount|money }}</td>
+            <td class="col-actions text-nowrap">
+              <a href="{{ print_url }}" class="btn btn-sm btn-outline-primary me-1" title="Facture" onclick="openInvoice(event,this.closest('a').href)"><i class="bi bi-printer"></i></a>
+              <a href="{{ url_for('edit_sale_document', document_id=s.document_id) if s.document_id else url_for('edit_sale', kind=s.row_kind, row_id=s.id) }}" class="btn btn-sm btn-outline-secondary me-1" title="Modifier"><i class="bi bi-pencil"></i></a>
+              <form method="post" action="{{ delete_url }}" class="d-inline" onsubmit="return confirm('Supprimer cette vente ?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer"><i class="bi bi-trash3"></i></button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="10" class="text-muted text-center py-4">Aucune vente enregistree.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include '_pagination.html' %}
+  </div>
+</div>
+{% endblock %}

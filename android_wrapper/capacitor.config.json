@@ -1,0 +1,17 @@
+{
+  "appId": "com.fabouanes.mobile",
+  "appName": "FABOuanes Mobile",
+  "webDir": "web",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  },
+  "server": {
+    "cleartext": true,
+    "allowNavigation": [
+      "*"
+    ]
+  }
+}

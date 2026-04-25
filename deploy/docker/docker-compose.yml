@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: fabouanes_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fabouanes
+      POSTGRES_USER: fabouanes
+      POSTGRES_PASSWORD: fabouanes_change_me
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    container_name: fabouanes_web
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://fabouanes:fabouanes_change_me@postgres:5432/fabouanes
+      SECRET_KEY: change_me_in_production
+      SESSION_COOKIE_SECURE: "0"
+      DEFAULT_ADMIN_USERNAME: admin
+      DEFAULT_ADMIN_PASSWORD: ChangeMe!234
+    ports:
+      - "8000:8000"
+    command: gunicorn -w 2 -b 0.0.0.0:8000 wsgi:app
+
+volumes:
+  postgres_data:

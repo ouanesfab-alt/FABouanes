@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .print-doc-shell{width:min(100%,190mm);max-width:190mm;margin:0 auto;display:flex;flex-direction:column;gap:3.5mm;}
+  .print-doc-paper{background:#fff;border:1px solid #d7dee8;border-radius:6px;box-shadow:0 6px 18px rgba(15,23,42,.05);overflow:hidden;min-height:auto;}
+  .print-doc-header{display:grid;grid-template-columns:minmax(42mm,48mm) minmax(0,1fr) minmax(46mm,52mm);align-items:flex-start;gap:5mm;padding:8mm 8mm 6mm;border-bottom:1px solid #d7dee8;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-party{display:flex;flex-direction:column;align-items:flex-start;gap:3mm;min-width:0;}
+  .print-doc-logo{width:28mm;height:28mm;object-fit:contain;flex-shrink:0;}
+  .print-doc-copy{display:flex;flex-direction:column;gap:1.6mm;min-width:0;padding-top:.5mm;}
+  .print-doc-title{margin:0;font-size:16pt;line-height:1.02;font-weight:900;letter-spacing:-.04em;color:#111827;}
+  .print-doc-partner-block{display:flex;flex-direction:column;gap:1mm;width:100%;padding:2.6mm 3mm;border:1px solid #d7dee8;border-radius:6px;background:#fff;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-partner-label{font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;}
+  .print-doc-partner-name{margin:0;font-size:13.4pt;line-height:1.1;font-weight:900;letter-spacing:-.03em;color:#1f2937;overflow-wrap:anywhere;word-break:break-word;}
+  .print-doc-subtitle{margin:0;font-size:8.8pt;line-height:1.35;color:#6b7280;overflow-wrap:anywhere;}
+  .print-doc-reference{border:1px solid #d7dee8;border-radius:6px;padding:10px 12px;background:#fff;}
+  .print-doc-refrow{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid #eef2f7;}
+  .print-doc-refrow:last-child{border-bottom:none;padding-bottom:0;}
+  .print-doc-refrow:first-child{padding-top:0;}
+  .print-doc-refrow span{font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;}
+  .print-doc-refrow strong{font-size:.9rem;color:#111827;text-align:right;overflow-wrap:anywhere;}
+  .print-doc-info{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3mm;padding:5mm 8mm 0;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-card{border:1px solid #d7dee8;border-radius:6px;padding:3mm 3.5mm;background:#fff;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-card-label{font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;margin-bottom:4px;}
+  .print-doc-card-value{font-size:9.2pt;font-weight:700;color:#111827;line-height:1.3;overflow-wrap:anywhere;}
+  .print-doc-table-wrap{padding:5mm 8mm 8mm;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-table{width:100%;border-collapse:collapse;table-layout:fixed;}
+  .print-doc-table thead th{padding:2.2mm 2.6mm;border:1px solid #d7dee8;background:#f8fafc;color:#374151;font-size:7.3pt;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;}
+  .print-doc-table tbody td{padding:2.4mm 2.6mm;border:1px solid #d7dee8;vertical-align:top;color:#111827;font-size:8.4pt;overflow-wrap:anywhere;word-break:break-word;line-height:1.25;}
+  .print-doc-table .col-right{text-align:right;white-space:nowrap;}
+  .print-doc-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+  @page{size:A4 portrait;margin:8mm;}
+  @media(max-width:767px){
+    .print-doc-shell{max-width:100%;}
+    .print-doc-paper{min-height:auto;}
+    .print-doc-header{grid-template-columns:1fr;padding:22px 18px 18px;gap:18px;}
+    .print-doc-party{gap:12px;}
+    .print-doc-logo{width:112px;height:112px;}
+    .print-doc-title{font-size:1.7rem;}
+    .print-doc-partner-block{padding:10px 12px;}
+    .print-doc-partner-name{font-size:1.26rem;}
+    .print-doc-info{grid-template-columns:1fr;padding:18px 18px 0;}
+    .print-doc-table-wrap{padding-left:18px;padding-right:18px;}
+    .print-doc-actions{flex-direction:column;align-items:stretch;}
+    .print-doc-actions > *{width:100%;}
+  }
+  @media print{
+    html,body{margin:0!important;padding:0!important;}
+    .no-print,.app-navbar,.page-hero,.table-toolbar,.context-menu,.btn,.dropdown,.alert{display:none !important;}
+    body{padding-top:0 !important;background:#fff !important;}
+    .app-content{padding:0 !important;}
+    .print-doc-paper{box-shadow:none !important;border:0 !important;border-radius:0 !important;}
+    .print-doc-shell{width:auto !important;max-width:none !important;gap:0 !important;}
+    .print-doc-header,.print-doc-info,.print-doc-table-wrap{break-inside:avoid;page-break-inside:avoid;}
+  }
+</style>
+
+<div class="print-doc-shell">
+  <article class="print-doc-paper print-card">
+    <header class="print-doc-header">
+      <div class="print-doc-party">
+        <img src="{{ url_for('static', filename='fab_logo.png') }}" alt="FABOuanes" class="print-doc-logo">
+        <div class="print-doc-partner-block">
+          <div class="print-doc-partner-label">Client</div>
+          <div class="print-doc-partner-name">{{ client.name }}</div>
+        </div>
+      </div>
+      <div class="print-doc-copy">
+        <h1 class="print-doc-title">Historique client</h1>
+        <p class="print-doc-subtitle">{{ client.phone or '-' }}{% if client.address %} &middot; {{ client.address }}{% endif %}</p>
+      </div>
+      <div class="print-doc-reference">
+        <div class="print-doc-refrow"><span>Client</span><strong>{{ client.name }}</strong></div>
+        <div class="print-doc-refrow"><span>Date</span><strong>{{ printed_date }}</strong></div>
+        <div class="print-doc-refrow"><span>Heure</span><strong>{{ printed_time }}</strong></div>
+        <div class="print-doc-refrow"><span>Solde actuel</span><strong>{{ client_balance|money }}</strong></div>
+      </div>
+    </header>
+
+    <section class="print-doc-info">
+      <div class="print-doc-card">
+        <div class="print-doc-card-label">Telephone</div>
+        <div class="print-doc-card-value">{{ client.phone or '-' }}</div>
+      </div>
+      <div class="print-doc-card">
+        <div class="print-doc-card-label">Adresse</div>
+        <div class="print-doc-card-value">{{ client.address or '-' }}</div>
+      </div>
+      <div class="print-doc-card">
+        <div class="print-doc-card-label">Client ID</div>
+        <div class="print-doc-card-value">#{{ client.id }}</div>
+      </div>
+    </section>
+
+    <section class="print-doc-info">
+      <div class="print-doc-card">
+        <div class="print-doc-card-label">Credit initial</div>
+        <div class="print-doc-card-value">{{ stats.opening_credit|money }}</div>
+      </div>
+      <div class="print-doc-card">
+        <div class="print-doc-card-label">Achats a credit</div>
+        <div class="print-doc-card-value">{{ stats.credit_sales_total|money }}</div>
+      </div>
+      <div class="print-doc-card">
+        <div class="print-doc-card-label">Versements</div>
+        <div class="print-doc-card-value">{{ stats.total_paid|money }}</div>
+      </div>
+    </section>
+
+    <section class="print-doc-table-wrap">
+      <table class="print-doc-table">
+        <colgroup>
+          <col style="width:16%">
+          <col style="width:36%">
+          <col style="width:16%">
+          <col style="width:16%">
+          <col style="width:16%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Operation</th>
+            <th class="col-right">Debit</th>
+            <th class="col-right">Versement</th>
+            <th class="col-right">Solde</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in timeline %}
+          <tr>
+            <td>{{ item.event_date }}</td>
+            <td>{{ item.designation }}</td>
+            <td class="col-right">{{ item.purchase_amount|money }}</td>
+            <td class="col-right">{{ item.payment_amount|money }}</td>
+            <td class="col-right"><strong>{{ item.running_balance|money }}</strong></td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-muted">Aucun historique.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </article>
+
+  <div class="print-doc-actions no-print">
+    <a href="{{ url_for('client_detail', client_id=client.id) }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Retour</a>
+    <button class="btn btn-dark" type="button" onclick="window.print()"><i class="bi bi-printer me-2"></i>Imprimer la page</button>
+  </div>
+</div>
+{% endblock %}

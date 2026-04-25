@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .suppliers-page{display:flex;flex-direction:column;gap:16px;}
+  .suppliers-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .suppliers-summary{color:var(--muted);font-size:.92rem;}
+  .suppliers-table-card{padding:18px;}
+  .suppliers-table .col-name{width:24%;min-width:180px;}
+  .suppliers-table .col-phone{width:18%;white-space:nowrap;}
+  .suppliers-table .col-address{width:28%;min-width:200px;}
+  .suppliers-table .col-notes{width:30%;min-width:220px;}
+  @media(max-width:991px){
+    .suppliers-actions{width:100%;}
+    .suppliers-actions > *{flex:1 1 220px;}
+  }
+  @media(max-width:767px){
+    .suppliers-table-card{padding:14px;}
+    .suppliers-actions{flex-direction:column;}
+    .suppliers-actions > *{width:100%;flex:1 1 auto;}
+    .suppliers-table .col-name{min-width:170px;}
+    .suppliers-table .col-notes{min-width:180px;}
+  }
+</style>
+
+<div class="suppliers-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Fournisseurs</h2>
+      <p class="suppliers-summary mb-0">{{ suppliers|length }} fournisseur(s) enregistre(s).</p>
+    </div>
+    <div class="suppliers-actions">
+      <a href="{{ url_for('new_supplier') }}" class="btn btn-dark"><i class="bi bi-plus-lg me-2"></i>Ajouter un fournisseur</a>
+    </div>
+  </div>
+
+  <div class="card suppliers-table-card">
+    <div class="table-responsive suppliers-table-wrap">
+      <table class="table js-datagrid align-middle suppliers-table">
+        <thead>
+          <tr>
+            <th class="col-name">Nom</th>
+            <th class="col-phone hide-mobile">Telephone</th>
+            <th class="col-address hide-mobile">Adresse</th>
+            <th class="col-notes">Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in suppliers %}
+          <tr>
+            <td class="cell-text col-name fw-semibold">{{ s.name }}</td>
+            <td class="cell-num col-phone hide-mobile text-muted">{{ s.phone or '-' }}</td>
+            <td class="cell-text col-address hide-mobile text-muted">{{ s.address or '-' }}</td>
+            <td class="cell-text col-notes">{{ s.notes or '-' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-muted text-center py-4">Aucun fournisseur.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

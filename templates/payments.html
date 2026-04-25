@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .payments-page{display:flex;flex-direction:column;gap:16px;}
+  .payments-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .payments-summary{color:var(--muted);font-size:.92rem;}
+  .payments-table-card{padding:18px;}
+  .payments-table-wrap{overflow-x:visible;}
+  .payments-table-wrap .table-shell{max-width:1120px;margin:0 auto;width:100%;}
+  .payments-table-wrap .table-search{justify-content:flex-start;}
+  .payments-table-wrap .table-search input{max-width:320px;}
+  .payments-table-wrap .table-scroll{width:100%;margin:0 auto;}
+  .payments-table{margin:0 auto;}
+  .payments-table th,.payments-table td{vertical-align:top;}
+  .payments-table .col-date{width:11%;white-space:nowrap;}
+  .payments-table .col-client{width:22%;min-width:180px;}
+  .payments-table .col-ref{width:16%;min-width:120px;}
+  .payments-table .col-money{width:1%;text-align:right;white-space:nowrap;}
+  .payments-table .col-notes{width:34%;min-width:220px;}
+  .payments-table .col-actions{width:1%;white-space:nowrap;}
+  .payments-table .client-text,.payments-table .notes-text{display:inline-block;color:var(--text);
+    line-height:1.35;white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+  .payments-table .client-text{font-weight:700;max-width:28ch;}
+  .payments-table .notes-text{max-width:34ch;color:var(--muted);}
+  @media(max-width:991px){
+    .payments-actions{width:100%;}
+    .payments-actions > *{flex:1 1 220px;}
+  }
+  @media(max-width:767px){
+    .payments-table-card{padding:14px;}
+    .payments-actions{flex-direction:column;}
+    .payments-actions > *{width:100%;flex:1 1 auto;}
+    .payments-table-wrap .table-search input{max-width:none;width:100%;}
+    .payments-table .col-client{min-width:150px;}
+    .payments-table .col-notes{min-width:180px;}
+  }
+</style>
+
+<div class="payments-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Paiements</h2>
+      <p class="payments-summary mb-0">{{ payments|length }} paiement(s) enregistre(s).</p>
+    </div>
+    <div class="payments-actions">
+      <a href="{{ url_for('new_payment') }}" class="btn btn-dark"><i class="bi bi-plus-lg me-2"></i>Ajouter un versement</a>
+      <a href="{{ url_for('new_payment', mode='avance') }}" class="btn btn-outline-secondary"><i class="bi bi-wallet2 me-2"></i>Ajouter une avance</a>
+    </div>
+  </div>
+
+  <div class="card payments-table-card">
+    <div class="table-responsive payments-table-wrap">
+      <table class="table js-datagrid align-middle payments-table">
+        <thead>
+          <tr>
+            <th class="col-date">Date</th>
+            <th class="col-client">Client</th>
+            <th class="col-ref hide-mobile">Reference</th>
+            <th class="col-money">Montant</th>
+            <th class="col-notes hide-mobile">Notes</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in payments %}
+          <tr>
+            <td class="cell-num col-date text-muted">{{ p.payment_date }}</td>
+            <td class="cell-text col-client"><span class="client-text">{{ p.client_name }}</span></td>
+            <td class="cell-text col-ref hide-mobile">{{ p.sale_ref }}</td>
+            <td class="cell-num col-money">{{ p.amount|money }}</td>
+            <td class="cell-text col-notes hide-mobile"><span class="notes-text">{{ p.notes or '-' }}</span></td>
+            <td class="col-actions text-nowrap">
+              <a href="{{ url_for('print_document', doc_type='payment', item_id=p.id) }}" class="btn btn-sm btn-outline-primary" title="Imprimer" onclick="openInvoice(event,this.closest('a').href)"><i class="bi bi-printer"></i></a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-muted text-center py-4">Aucun paiement enregistre.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

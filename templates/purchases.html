@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .purchases-page{display:flex;flex-direction:column;gap:16px;}
+  .purchases-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .purchases-summary{color:var(--muted);font-size:.92rem;}
+  .purchases-filter-row{align-items:stretch;}
+  .purchases-table-card{padding:18px;}
+  .purchases-table-wrap{overflow-x:visible;}
+  .purchases-table-wrap .table-shell{max-width:1120px;margin:0 auto;width:100%;}
+  .purchases-table-wrap .table-search{justify-content:flex-start;}
+  .purchases-table-wrap .table-search input{max-width:320px;}
+  .purchases-table-wrap .table-scroll{width:100%;margin:0 auto;}
+  .purchases-table{margin:0 auto;}
+  .purchases-table th,.purchases-table td{vertical-align:top;}
+  .purchases-table .col-date{width:11%;white-space:nowrap;}
+  .purchases-table .col-supplier{width:22%;min-width:180px;}
+  .purchases-table .col-material{width:24%;min-width:190px;}
+  .purchases-table .col-qty{width:12%;white-space:nowrap;}
+  .purchases-table .col-money{width:1%;text-align:right;white-space:nowrap;}
+  .purchases-table .col-actions{width:1%;white-space:nowrap;}
+  .purchases-table .supplier-text,.purchases-table .material-text{display:inline-block;max-width:28ch;color:var(--text);
+    line-height:1.35;white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+  .purchases-table .supplier-text{font-weight:700;}
+  .purchases-table .material-text{font-weight:600;}
+  @media(max-width:991px){
+    .purchases-actions{width:100%;}
+    .purchases-actions > *{flex:1 1 220px;}
+  }
+  @media(max-width:767px){
+    .purchases-table-card{padding:14px;}
+    .purchases-actions{flex-direction:column;}
+    .purchases-actions > *{width:100%;flex:1 1 auto;}
+    .purchases-filter-row > *{width:100%;}
+    .purchases-table-wrap .table-search input{max-width:none;width:100%;}
+    .purchases-table .col-supplier{min-width:150px;}
+    .purchases-table .col-material{min-width:170px;}
+  }
+</style>
+
+<div class="purchases-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Achats</h2>
+      <p class="purchases-summary mb-0">{{ pagination.total }} achat(s) enregistre(s).</p>
+    </div>
+    <div class="purchases-actions">
+      <a href="{{ url_for('new_purchase') }}" class="btn btn-dark"><i class="bi bi-plus-lg me-2"></i>Ajouter un achat</a>
+    </div>
+  </div>
+
+  <div class="card purchases-table-card">
+    <form method="get" class="row g-2 mb-3 purchases-filter-row">
+      <div class="col-md-5">
+        <input type="text" name="q" value="{{ filters.q }}" class="form-control" placeholder="Fournisseur ou matiere">
+      </div>
+      <div class="col-md-3">
+        <input type="date" name="date" value="{{ filters.date }}" class="form-control">
+      </div>
+      <div class="col-md-2">
+        <select name="page_size" class="form-select">
+          {% for size in [25, 50, 100, 200] %}
+          <option value="{{ size }}" {{ 'selected' if pagination.page_size == size else '' }}>{{ size }} / page</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <button class="btn btn-dark w-100">Filtrer</button>
+        <a href="{{ url_for('purchases') }}" class="btn btn-outline-secondary" aria-label="Reinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
+      </div>
+    </form>
+    <div class="table-responsive purchases-table-wrap">
+      <table class="table align-middle table-row-hover purchases-table">
+        <thead>
+          <tr>
+            <th class="col-date">Date</th>
+            <th class="col-supplier">Fournisseur</th>
+            <th class="col-material">Matiere</th>
+            <th class="col-qty">Quantite</th>
+            <th class="col-money hide-mobile">PU</th>
+            <th class="col-money">Total</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in purchases %}
+          {% set print_url = url_for('print_document', doc_type=('purchase_document' if p.document_id else 'purchase'), item_id=(p.document_id or p.id)) %}
+          {% set delete_url = url_for('delete_purchase', purchase_id=p.id) %}
+          <tr class="context-target"
+              data-print-url="{{ print_url }}"
+              data-edit-url="{{ url_for('edit_purchase_document', document_id=p.document_id) if p.document_id else url_for('edit_purchase', purchase_id=p.id) }}"
+              data-delete-url="{{ delete_url }}"
+              data-delete-label="{{ p.material_name }} du {{ p.purchase_date }}"
+              data-label="{{ p.material_name }} - {{ p.supplier_name or 'Sans fournisseur' }}">
+            <td class="cell-num col-date text-muted">{{ p.purchase_date }}</td>
+            <td class="cell-text col-supplier"><span class="supplier-text">{{ p.supplier_name or '-' }}</span></td>
+            <td class="cell-text col-material"><span class="material-text">{{ p.material_name }}</span></td>
+            <td class="cell-num col-qty">{{ p.display_quantity|qty }} {{ p.material_unit }}</td>
+            <td class="cell-num col-money hide-mobile">{{ p.display_unit_price|money }}</td>
+            <td class="cell-num col-money">{{ p.total|money }}</td>
+            <td class="col-actions text-nowrap">
+              <a href="{{ print_url }}" class="btn btn-sm btn-outline-primary me-1" title="Facture" onclick="openInvoice(event,this.closest('a').href)"><i class="bi bi-printer"></i></a>
+              <a href="{{ url_for('edit_purchase_document', document_id=p.document_id) if p.document_id else url_for('edit_purchase', purchase_id=p.id) }}" class="btn btn-sm btn-outline-secondary me-1" title="Modifier"><i class="bi bi-pencil"></i></a>
+              <form method="post" action="{{ delete_url }}" class="d-inline" onsubmit="return confirm('Supprimer cet achat ?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer"><i class="bi bi-trash3"></i></button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-muted text-center py-3">Aucun achat enregistre.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include '_pagination.html' %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+
+# Local runtime data
+.env
+**/.env
+backups/
+database.db
+*.db
+*.sqlite
+*.sqlite3
+tests/_runtime/
+tests/_runtime_debug/
+
+# Desktop / build artefacts
+dist/
+installer_output/
+build/
+*.spec
+fabouanes/_internal/
+
+# Android / Node
+android_wrapper/node_modules/
+android_wrapper/android/.gradle/
+android_wrapper/android/build/
+android_wrapper/android/app/build/
+android_wrapper/android/local.properties
+android_wrapper/android/app/src/main/assets/public/
+
+# IDE / OS
+.idea/
+.vscode/
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card p-4">
+  <h3 class="section-title mb-2">Une erreur est survenue</h3>
+  <p class="muted mb-3">L’erreur a été enregistrée dans les logs backend.</p>
+  <div class="alert alert-danger mb-3">{{ error_message }}</div>
+  <a class="btn btn-dark" href="{{ url_for('index') }}">Retour à l’accueil</a>
+</div>
+{% endblock %}

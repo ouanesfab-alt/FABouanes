@@ -1,0 +1,308 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-hero mb-3">
+  <h2 class="section-title mb-1">Parametres et supervision</h2>
+  <p class="text-muted mb-0">Roles, sauvegardes, journal d'audit et etat des traitements.</p>
+</div>
+
+<div class="d-flex flex-column gap-3">
+  <div class="fab-switcher" id="adminSwitchButtons" data-fab-switch-root data-fab-switch-placeholder="adminSwitchPlaceholder">
+    <button type="button" class="fab-switch-btn" data-fab-switch-target="adminCreateUser" aria-controls="adminCreateUser" aria-pressed="false"><i class="bi bi-person-plus"></i> Creer un utilisateur</button>
+    <button type="button" class="fab-switch-btn" data-fab-switch-target="adminCloudBackup" aria-controls="adminCloudBackup" aria-pressed="false"><i class="bi bi-cloud-arrow-up"></i> Sauvegarde Drive</button>
+    <button type="button" class="fab-switch-btn" data-fab-switch-target="adminBackupActions" aria-controls="adminBackupActions" aria-pressed="false"><i class="bi bi-hdd-stack"></i> Actions backup</button>
+    <button type="button" class="fab-switch-btn" data-fab-switch-target="adminUsers" aria-controls="adminUsers" aria-pressed="false"><i class="bi bi-people"></i> Utilisateurs</button>
+    <button type="button" class="fab-switch-btn" data-fab-switch-target="adminAuditLogs" aria-controls="adminAuditLogs" aria-pressed="false"><i class="bi bi-shield-check"></i> Journal d'audit</button>
+    <button type="button" class="fab-switch-btn" data-fab-switch-target="adminBackupJobs" aria-controls="adminBackupJobs" aria-pressed="false"><i class="bi bi-clock-history"></i> Jobs de sauvegarde</button>
+    <button type="button" class="fab-switch-btn" data-fab-switch-target="adminRecentActivity" aria-controls="adminRecentActivity" aria-pressed="false"><i class="bi bi-activity"></i> Activite recente</button>
+    <button type="button" class="fab-switch-btn" data-fab-switch-target="adminSystemLogs" aria-controls="adminSystemLogs" aria-pressed="false"><i class="bi bi-cpu"></i> Systeme</button>
+  </div>
+
+  <div id="adminSwitchPlaceholder" class="card fab-switch-placeholder">
+    <strong>Choisissez un bloc</strong>
+  </div>
+
+  <section id="adminCreateUser" class="card p-3 fab-switch-panel" hidden>
+    <div class="card-header-row">
+      <div>
+        <h5 class="section-title">Creer un utilisateur</h5>
+        <div class="small text-muted mt-1">Ajouter un compte interne et definir son role.</div>
+      </div>
+    </div>
+    <form method="post" class="row g-2">
+      <input type="hidden" name="action" value="create_user">
+      <div class="col-12">
+        <label class="form-label">Nom d'utilisateur</label>
+        <input name="username" class="form-control" required>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Mot de passe (4 chiffres)</label>
+        <input name="password" type="password" class="form-control" inputmode="numeric" pattern="\d{4}" maxlength="4" minlength="4" placeholder="1234" required>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Role</label>
+        <select name="role" class="form-select">
+          <option value="operator">Operator</option>
+          <option value="manager">Manager</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="col-12">
+        <button class="btn btn-dark w-100">Creer le compte</button>
+      </div>
+    </form>
+  </section>
+
+  <section id="adminCloudBackup" class="card p-3 fab-switch-panel" hidden>
+    <div class="card-header-row">
+      <div>
+        <h5 class="section-title">Sauvegarde Google Drive</h5>
+        <div class="small text-muted mt-1">Choisis un dossier local synchronise par Google Drive Desktop pour y copier les sauvegardes.</div>
+      </div>
+    </div>
+    <div class="alert alert-{{ 'success' if settings.gdrive_backup_dir else 'warning' }} mb-3" role="alert">
+      {% if settings.gdrive_backup_dir %}
+      <div class="fw-semibold">Dossier Google Drive configure</div>
+      <div class="text-break">{{ settings.gdrive_backup_dir }}</div>
+      <div class="small mt-2">Les sauvegardes locales seront copiees automatiquement dans ce dossier.</div>
+      {% else %}
+      <div class="fw-semibold">Aucun dossier Google Drive configure</div>
+      <div>Les sauvegardes restent locales tant qu'aucun dossier synchronise n'est renseigne.</div>
+      {% endif %}
+      {% if latest_backup_error %}
+      <div class="small mt-2 text-break">Derniere erreur backup: {{ latest_backup_error.error_message }}</div>
+      {% endif %}
+    </div>
+    <form method="post" class="row g-2">
+      <input type="hidden" name="action" value="save_backup_settings">
+      <div class="col-12">
+        <label class="form-label">Dossier Google Drive local</label>
+        <input name="gdrive_backup_dir" class="form-control" value="{{ settings.gdrive_backup_dir }}" placeholder="Ex: C:\Users\massi\Google Drive\FABOuanes">
+        <div class="small text-muted mt-1">Choisis ici le dossier deja synchronise par Google Drive sur ce PC.</div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Snapshot</label>
+        <input name="backup_snapshot_time" class="form-control" value="{{ settings.backup_snapshot_time }}">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Retention nuit</label>
+        <input name="backup_local_retention" type="number" min="1" class="form-control" value="{{ settings.backup_local_retention }}">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Retention event</label>
+        <input name="backup_event_retention" type="number" min="1" class="form-control" value="{{ settings.backup_event_retention }}">
+      </div>
+      <div class="col-12 d-grid">
+        <button class="btn btn-outline-dark">Enregistrer la configuration</button>
+      </div>
+    </form>
+    <div class="small text-muted mt-2">
+      Aucune connexion Google n'est necessaire dans FABOuanes: Google Drive Desktop se charge de la synchronisation.
+    </div>
+  </section>
+
+  <section id="adminBackupActions" class="card p-3 fab-switch-panel" hidden>
+    <div class="card-header-row">
+      <div>
+        <h5 class="section-title">Actions backup</h5>
+        <div class="small text-muted mt-1">Creer une sauvegarde ou restaurer un snapshot existant.</div>
+      </div>
+    </div>
+    <form method="post" class="d-grid gap-2">
+      <input type="hidden" name="action" value="backup_now">
+      <button class="btn btn-dark">Creer une sauvegarde maintenant</button>
+    </form>
+    <hr>
+    <form method="post" class="row g-2">
+      <input type="hidden" name="action" value="restore_backup">
+      <div class="col-12">
+        <label class="form-label">Restaurer depuis</label>
+        <select name="backup_name" class="form-select" required>
+          <option value="">Choisir une sauvegarde...</option>
+          {% for b in backups %}
+          <option value="{{ b.value }}">{{ b.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12">
+        <button class="btn btn-outline-danger w-100" onclick="return confirm('Restaurer la base actuelle ?')">Restaurer</button>
+      </div>
+    </form>
+  </section>
+
+  <section id="adminUsers" class="card p-3 fab-switch-panel" hidden>
+    <div class="card-header-row">
+      <div>
+        <h5 class="section-title">Utilisateurs</h5>
+        <div class="small text-muted mt-1">Actif, role, derniere connexion et rotation mot de passe.</div>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table js-datagrid align-middle">
+        <thead>
+          <tr><th>Utilisateur</th><th>Role</th><th>Actif</th><th>Derniere connexion</th><th>Mot de passe</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <form method="post" class="table-row-form">
+            <input type="hidden" name="action" value="update_user">
+            <input type="hidden" name="user_id" value="{{ u.id }}">
+            <tr>
+              <td>
+                <div class="fw-semibold">{{ u.username }}</div>
+                <div class="small text-muted">Cree le {{ (u.created_at or '')[:16] }}</div>
+              </td>
+              <td>
+                <select name="role" class="form-select form-select-sm">
+                  <option value="operator" {% if u.role == 'operator' %}selected{% endif %}>operator</option>
+                  <option value="manager" {% if u.role == 'manager' %}selected{% endif %}>manager</option>
+                  <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>admin</option>
+                </select>
+              </td>
+              <td>
+                <select name="is_active" class="form-select form-select-sm">
+                  <option value="1" {% if u.is_active %}selected{% endif %}>Oui</option>
+                  <option value="0" {% if not u.is_active %}selected{% endif %}>Non</option>
+                </select>
+              </td>
+              <td><span class="small text-muted">{{ (u.last_login_at or 'Jamais') }}</span></td>
+              <td><span class="small text-muted">{{ (u.last_password_change_at or 'Jamais') }}</span></td>
+              <td>
+                <button type="submit" class="btn btn-sm btn-outline-dark w-100">Sauver</button>
+              </td>
+            </tr>
+          </form>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="adminAuditLogs" class="card p-3 fab-switch-panel" hidden>
+    <div class="card-header-row">
+      <div>
+        <h5 class="section-title">Journal d'audit</h5>
+        <div class="small text-muted mt-1">Filtres, export CSV et details avant/apres.</div>
+      </div>
+      <a href="{{ url_for('admin_audit_export', **audit_filters) }}" class="btn btn-sm btn-outline-dark">Exporter CSV</a>
+    </div>
+    <form method="get" action="{{ url_for('admin_audit_page') }}" class="row g-2 mb-3">
+      <div class="col-md-2"><input type="date" name="date_from" value="{{ audit_filters.get('date_from','') }}" class="form-control"></div>
+      <div class="col-md-2"><input type="date" name="date_to" value="{{ audit_filters.get('date_to','') }}" class="form-control"></div>
+      <div class="col-md-2"><input type="text" name="actor" value="{{ audit_filters.get('actor','') }}" class="form-control" placeholder="Acteur"></div>
+      <div class="col-md-2"><input type="text" name="action" value="{{ audit_filters.get('action','') }}" class="form-control" placeholder="Action"></div>
+      <div class="col-md-2"><input type="text" name="entity_type" value="{{ audit_filters.get('entity_type','') }}" class="form-control" placeholder="Entite"></div>
+      <div class="col-md-2">
+        <select name="status" class="form-select">
+          <option value="">Tous</option>
+          <option value="success" {% if audit_filters.get('status') == 'success' %}selected{% endif %}>success</option>
+          <option value="failure" {% if audit_filters.get('status') == 'failure' %}selected{% endif %}>failure</option>
+        </select>
+      </div>
+      <div class="col-12 d-flex gap-2">
+        <button class="btn btn-dark">Filtrer</button>
+        <a href="{{ url_for('admin_audit_page') }}" class="btn btn-outline-secondary">Reinitialiser</a>
+      </div>
+    </form>
+    <div class="table-responsive">
+      <table class="table js-datagrid align-middle">
+        <thead>
+          <tr><th>Date</th><th>Acteur</th><th class="hide-mobile">Source</th><th>Action</th><th>Entite</th><th>Statut</th><th class="hide-mobile">Avant / apres</th></tr>
+        </thead>
+        <tbody>
+          {% for log in audit_logs %}
+          <tr>
+            <td>{{ (log.created_at or '')[:16] }}</td>
+            <td><div class="fw-semibold">{{ log.actor_username }}</div><div class="small text-muted">{{ log.actor_role }}</div></td>
+            <td class="hide-mobile">{{ log.source }}</td>
+            <td>{{ log.action }}</td>
+            <td>{{ log.entity_type }}{% if log.entity_id %} #{{ log.entity_id }}{% endif %}</td>
+            <td>
+              <span class="badge {{ 'bg-success' if log.status == 'success' else 'bg-danger' }}">{{ log.status }}</span>
+            </td>
+            <td class="hide-mobile">
+              <div class="small text-muted text-break">{{ log.before_json or '-' }}</div>
+              <div class="small text-break">{{ log.after_json or '-' }}</div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-muted">Aucune entree d'audit.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="adminBackupJobs" class="card p-3 fab-switch-panel" hidden>
+    <div class="card-header-row">
+      <div>
+        <h5 class="section-title">Jobs de sauvegarde</h5>
+        <div class="small text-muted mt-1">Suivi des copies locales, du dossier Drive et des erreurs recentes.</div>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table js-datagrid align-middle">
+        <thead>
+          <tr><th>ID</th><th>Raison</th><th class="hide-mobile">Type</th><th>Statut</th><th class="hide-mobile">Copie Drive</th><th>Cree le</th><th class="hide-mobile">Erreur</th></tr>
+        </thead>
+        <tbody>
+          {% for job in backup_jobs %}
+          <tr>
+            <td>{{ job.id }}</td>
+            <td>{{ job.reason }}</td>
+            <td class="hide-mobile">{{ job.backup_type }}</td>
+            <td>{{ job.status }}</td>
+            <td class="hide-mobile">{{ job.cloud_file_name or '-' }}</td>
+            <td>{{ (job.created_at or '')[:16] }}</td>
+            <td class="small text-break hide-mobile">{{ job.error_message or '-' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-muted">Aucun job de sauvegarde.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="adminRecentActivity" class="card p-3 fab-switch-panel" hidden>
+    <div class="card-header-row">
+      <div>
+        <h5 class="section-title">Activite recente</h5>
+        <div class="small text-muted mt-1">Historique fonctionnel recent des actions internes.</div>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table js-datagrid align-middle">
+        <thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Detail</th></tr></thead>
+        <tbody>
+          {% for log in activity_logs[:20] %}
+          <tr><td>{{ (log.created_at or '')[:16] }}</td><td>{{ log.username }}</td><td>{{ log.action }}</td><td>{{ log.details }}</td></tr>
+          {% else %}
+          <tr><td colspan="4" class="text-muted">Aucune activite.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="adminSystemLogs" class="card p-3 fab-switch-panel" hidden>
+    <div class="card-header-row">
+      <div>
+        <h5 class="section-title">Systeme</h5>
+        <div class="small text-muted mt-1">Logs techniques et messages recents du systeme.</div>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table js-datagrid align-middle">
+        <thead><tr><th>Date</th><th>Niveau</th><th>Message</th></tr></thead>
+        <tbody>
+          {% for log in system_logs %}
+          <tr><td>{{ (log.created_at or '')[:16] }}</td><td>{{ log.level }}</td><td>{{ log.message }}</td></tr>
+          {% else %}
+          <tr><td colspan="3" class="text-muted">Aucun log systeme.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

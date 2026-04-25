@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .raw-page{display:flex;flex-direction:column;gap:16px;}
+  .raw-layout{display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1fr);gap:16px;}
+  .raw-summary{color:var(--muted);font-size:.92rem;}
+  .raw-form-card,.raw-table-card{padding:18px;}
+  .raw-form{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;}
+  .raw-form .span-12{grid-column:span 12;}
+  .raw-form .span-4{grid-column:span 4;}
+  .raw-form .span-6{grid-column:span 6;}
+  .raw-table-wrap{overflow-x:visible;}
+  .raw-table-wrap .table-shell{max-width:1080px;margin:0 auto;width:100%;}
+  .raw-table-wrap .table-search{justify-content:flex-start;}
+  .raw-table-wrap .table-search input{max-width:320px;}
+  .raw-table-wrap .table-scroll{width:100%;margin:0 auto;}
+  .raw-table{margin:0 auto;}
+  .raw-table th,.raw-table td{vertical-align:top;}
+  .raw-table .col-name{width:32%;min-width:220px;}
+  .raw-table .col-unit{width:10%;white-space:nowrap;}
+  .raw-table .col-stock{width:1%;text-align:right;white-space:nowrap;}
+  .raw-table .col-money{width:1%;text-align:right;white-space:nowrap;}
+  .raw-table .name-text{display:inline-block;max-width:30ch;color:var(--text);font-weight:700;
+    line-height:1.35;white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+  @media(max-width:991px){
+    .raw-layout{grid-template-columns:1fr;}
+  }
+  @media(max-width:767px){
+    .raw-form-card,.raw-table-card{padding:14px;}
+    .raw-form .span-4,.raw-form .span-6{grid-column:span 12;}
+    .raw-table-wrap .table-search input{max-width:none;width:100%;}
+    .raw-table .col-name{min-width:180px;}
+  }
+</style>
+
+<div class="raw-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Matieres premieres</h2>
+      <p class="raw-summary mb-0">{{ raw_materials|length }} matiere(s) enregistree(s).</p>
+    </div>
+  </div>
+
+  <div class="raw-layout">
+    <section class="card raw-form-card">
+      <h3 class="section-title mb-3">Ajouter une matiere premiere</h3>
+      <form method="post" class="raw-form">
+        <div class="span-12">
+          <label class="form-label">Nom</label>
+          <input name="name" class="form-control" required>
+        </div>
+        <div class="span-4">
+          <label class="form-label">Unite</label>
+          <input name="unit" value="kg" class="form-control" required>
+        </div>
+        <div class="span-4">
+          <label class="form-label">Stock initial</label>
+          <input name="stock_qty" type="number" step="0.01" class="form-control" value="0">
+        </div>
+        <div class="span-4">
+          <label class="form-label">Seuil</label>
+          <input name="alert_threshold" type="number" step="0.01" class="form-control" value="0">
+        </div>
+        <div class="span-6">
+          <label class="form-label">Cout achat moyen</label>
+          <input name="avg_cost" type="number" step="0.01" class="form-control" value="0">
+        </div>
+        <div class="span-6">
+          <label class="form-label">Prix de vente</label>
+          <input name="sale_price" type="number" step="0.01" class="form-control" value="0">
+        </div>
+        <div class="span-12">
+          <button class="btn btn-dark w-100">Enregistrer</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card raw-table-card">
+      <h3 class="section-title mb-3">Liste des matieres premieres</h3>
+      <div class="table-responsive raw-table-wrap">
+        <table class="table js-datagrid align-middle raw-table">
+          <thead>
+            <tr>
+              <th class="col-name">Nom</th>
+              <th class="col-unit">Unite</th>
+              <th class="col-stock">Stock</th>
+              <th class="col-money">Cout achat</th>
+              <th class="col-money">Prix vente</th>
+              <th class="col-money">Seuil</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in raw_materials %}
+            <tr>
+              <td class="cell-text col-name"><span class="name-text">{{ r.name }}</span></td>
+              <td class="cell-text col-unit">{{ r.unit }}</td>
+              <td class="cell-num col-stock">{{ r.stock_qty }}</td>
+              <td class="cell-num col-money">{{ r.avg_cost|money }}</td>
+              <td class="cell-num col-money">{{ r.sale_price|money }}</td>
+              <td class="cell-num col-money">{{ r.alert_threshold }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-muted text-center py-4">Aucune matiere premiere.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
