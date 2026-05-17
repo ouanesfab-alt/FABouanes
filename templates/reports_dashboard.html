@@ -161,6 +161,110 @@
       {% endif %}
     </div>
   </div>
+
+  <!-- ── Analyse BI de la Rentabilité Nette & Charges ── -->
+  <div class="rpt-top-grid">
+    <div class="rpt-top-card">
+      <div class="rpt-top-title text-success"><i class="bi bi-pie-chart-fill me-2"></i>Rentabilité Opérationnelle (Marge Nette)</div>
+      <div class="d-flex flex-column gap-2 py-1">
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+          <span class="text-muted small">Chiffre d'affaires brut (CA)</span>
+          <span class="fw-bold text-primary">{{ summary.total_sales|money }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+          <span class="text-muted small">Coût des matières & marchandises (COGS)</span>
+          <span class="fw-bold text-danger">- {{ cogs|money }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+          <span class="text-muted small">Marge brute globale</span>
+          <span class="fw-bold text-success">{{ gross_margin|money }} <span class="badge bg-success-subtle text-success ms-1" style="font-size: 0.72rem;">{{ gross_margin_pct }}%</span></span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+          <span class="text-muted small">Charges d'exploitation (Dépenses)</span>
+          <span class="fw-bold text-danger">- {{ expenses_total|money }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center bg-body-tertiary p-2 rounded mt-1">
+          <span class="fw-bold">Bénéfice Net Réel</span>
+          <span class="fw-bold text-primary" style="font-size: 1.15rem;">{{ net_profit|money }} <span class="badge bg-primary ms-1" style="font-size: 0.78rem;">{{ net_margin_pct }}%</span></span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="rpt-top-card">
+      <div class="rpt-top-title text-danger"><i class="bi bi-bar-chart-steps me-2"></i>Charges d'Exploitation par Catégorie</div>
+      {% if expenses_by_cat %}
+      <div class="rpt-chart-wrap" style="height: 190px;"><canvas id="chartExpensesCategory"></canvas></div>
+      {% else %}
+      <p class="text-muted text-center py-5">Aucune dépense catégorisée sur cette période.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Analyse BI de l'Âge des Créances & Dettes Clients ── -->
+  <div class="rpt-top-card">
+    <div class="rpt-top-title text-warning d-flex justify-content-between align-items-center mb-3">
+      <span><i class="bi bi-clock-history me-2"></i>Analyse de l'Ancienneté de la Dette (Âge de la Dette Clients)</span>
+      <span class="badge bg-warning text-dark font-monospace" style="font-size: 0.85rem;">Total Encours : {{ debt_totals.outstanding|money }}</span>
+    </div>
+    <div class="row g-3">
+      <div class="col-lg-8">
+        {% if client_debts %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0" style="font-size: 0.85rem;">
+            <thead>
+              <tr class="table-light">
+                <th>Client</th>
+                <th class="text-end">Dette Totale</th>
+                <th class="text-end text-success">< 30 j</th>
+                <th class="text-end text-warning">30-90 j</th>
+                <th class="text-end text-danger">> 90 j</th>
+                <th class="text-center">Respect Limite</th>
+                <th class="text-end">Délai Recouv. Moyen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in client_debts %}
+              <tr>
+                <td class="fw-bold">{{ d.name }}</td>
+                <td class="text-end fw-semibold text-primary">{{ d.debt|money }}</td>
+                <td class="text-end text-success">{{ d.under_30|money if d.under_30 > 0 else '—' }}</td>
+                <td class="text-end text-warning">{{ d.30_to_90|money if d.30_to_90 > 0 else '—' }}</td>
+                <td class="text-end text-danger">{{ d.over_90|money if d.over_90 > 0 else '—' }}</td>
+                <td class="text-center">
+                  <div class="d-flex align-items-center justify-content-center gap-2">
+                    <div class="progress" style="width: 50px; height: 5px;" title="Utilisation de la limite : {{ d.limit_utilized_pct }}% (Seuil : {{ d.limit|money }})">
+                      <div class="progress-bar {{ 'bg-danger' if d.limit_exceeded else 'bg-primary' }}" role="progressbar" style="width: {{ (100 if d.limit_utilized_pct > 100 else d.limit_utilized_pct)|int }}%"></div>
+                    </div>
+                    <span class="small {{ 'text-danger fw-bold' if d.limit_exceeded else 'text-muted' }}">{{ d.limit_utilized_pct }}%</span>
+                  </div>
+                </td>
+                <td class="text-end">
+                  {% if d.avg_delay is not none %}
+                    <span class="badge bg-secondary-subtle text-secondary" title="Délai de versement moyen">{{ d.avg_delay }} jours</span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-4 mb-0">Aucune créance client active.</p>
+        {% endif %}
+      </div>
+      <div class="col-lg-4 d-flex flex-column align-items-center justify-content-center border-start ps-3">
+        {% if debt_totals.outstanding > 0 %}
+        <div class="w-100" style="max-width: 220px; height: 180px; position: relative;">
+          <canvas id="chartDebtAging"></canvas>
+        </div>
+        {% else %}
+        <p class="text-muted text-center mb-0">Aucune donnée graphique.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -281,6 +385,89 @@ document.addEventListener('DOMContentLoaded', function() {
       },
     });
   }
-});
+
+  // ── Graphique Charges par Catégorie ──
+  const ctxExpCat = document.getElementById('chartExpensesCategory');
+  if (ctxExpCat) {
+    const categories = {{ [e.category for e in expenses_by_cat]|tojson }};
+    const totals = {{ [float(e.total) for e in expenses_by_cat]|tojson }};
+    new Chart(ctxExpCat, {
+      type: 'bar',
+      data: {
+        labels: categories,
+        datasets: [{
+          label: 'Total charges (DA)',
+          data: totals,
+          backgroundColor: isDark ? 'rgba(248, 113, 113, 0.4)' : 'rgba(220, 38, 38, 0.25)',
+          borderColor: isDark ? '#f87171' : '#dc2626',
+          borderWidth: 1.5,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: { label: function(ctx) { return ctx.parsed.x.toLocaleString('fr-FR') + ' DA'; } }
+          }
+        },
+        scales: {
+          x: { beginAtZero: true, grid: { color: gridColor } },
+          y: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // ── Graphique Âge de la Dette Clients ──
+  const ctxDebtAge = document.getElementById('chartDebtAging');
+  if (ctxDebtAge) {
+    new Chart(ctxDebtAge, {
+      type: 'doughnut',
+      data: {
+        labels: ['< 30 jours', '30-90 jours', '> 90 jours'],
+        datasets: [{
+          data: [
+            {{ debt_totals.under_30|float if debt_totals else 0.0 }},
+            {{ debt_totals.30_to_90|float if debt_totals else 0.0 }},
+            {{ debt_totals.over_90|float if debt_totals else 0.0 }}
+          ],
+          backgroundColor: [
+            isDark ? 'rgba(74, 222, 128, 0.7)' : '#16a34a',
+            isDark ? 'rgba(251, 191, 36, 0.7)' : '#d97706',
+            isDark ? 'rgba(248, 113, 113, 0.7)' : '#dc2626'
+          ],
+          borderWidth: isDark ? 2 : 1,
+          borderColor: isDark ? '#1e293b' : '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 12, padding: 8, font: { size: 10 } }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                const val = ctx.raw;
+                const total = {{ debt_totals.outstanding|float if debt_totals else 0.0 }};
+                const pct = total > 0 ? ((val / total) * 100).toFixed(1) + '%' : '0%';
+                return ctx.label + ': ' + val.toLocaleString('fr-FR') + ' DA (' + pct + ')';
+              }
+            }
+          }
+        },
+        cutout: '65%'
+      }
+    });
+  }
+}
+);
 </script>
 {% endblock %}

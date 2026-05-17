@@ -80,6 +80,7 @@
             <th class="col-name">Nom</th>
             <th class="col-unit">Unite</th>
             <th class="col-stock">Stock</th>
+            <th class="col-money hide-mobile text-end" style="width: 1%; white-space: nowrap;">Autonomie</th>
             <th class="col-money hide-mobile">Cout</th>
             <th class="col-money">Prix de vente</th>
           </tr>
@@ -94,12 +95,32 @@
             <td class="cell-text col-type hide-mobile"><span class="product-type">{{ i.kind }}</span></td>
             <td class="cell-text col-name"><span class="product-name">{{ i.name }}</span></td>
             <td class="cell-text col-unit">{{ i.unit }}</td>
-            <td class="cell-num col-stock">{{ i.stock_qty }}</td>
+            <td class="cell-num col-stock">
+              {{ i.stock_qty }}
+              {% if i.is_low %}
+                <span class="badge bg-danger ms-1" style="font-size: 0.7rem; padding: 2px 4px;" title="Alerte stock bas !">Alerte</span>
+              {% elif i.autonomy_status == 'WARNING' %}
+                <span class="badge bg-warning text-dark ms-1" style="font-size: 0.7rem; padding: 2px 4px;" title="Stock critique (< 14 jours)">Prév.</span>
+              {% endif %}
+            </td>
+            <td class="cell-num col-autonomy hide-mobile text-end">
+              {% if i.days_left is not none %}
+                {% if i.days_left <= 7 %}
+                  <span class="text-danger fw-semibold" title="Rupture imminente !"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ i.days_left }} j</span>
+                {% elif i.days_left <= 14 %}
+                  <span class="text-warning fw-semibold" title="Rupture à court terme"><i class="bi bi-exclamation-circle-fill me-1"></i>{{ i.days_left }} j</span>
+                {% else %}
+                  <span class="text-success" title="Stock confortable"><i class="bi bi-check-circle-fill me-1"></i>{{ i.days_left }} j</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted" title="Aucune consommation récente">—</span>
+              {% endif %}
+            </td>
             <td class="cell-num col-money hide-mobile">{{ i.avg_cost|money }}</td>
             <td class="cell-num col-money">{{ i.sale_price|money }}</td>
           </tr>
           {% else %}
-          <tr><td colspan="6" class="text-muted text-center py-4">Aucun produit enregistre.</td></tr>
+          <tr><td colspan="7" class="text-muted text-center py-4">Aucun produit enregistre.</td></tr>
           {% endfor %}
         </tbody>
       </table>

@@ -32,8 +32,58 @@ def catalog_context(args=None, path: str = "/catalog") -> dict:
 
 
 def _build_catalog_context() -> dict:
+    from datetime import date, timedelta
+    cutoff_30d = (date.today() - timedelta(days=30)).isoformat()
+    
+    # Raw materials 30-day velocity
+    raw_velocity_rows = query_db(
+        """
+        WITH consumed AS (
+            SELECT raw_material_id, SUM(qty) AS consumed_30d
+            FROM (
+                SELECT raw_material_id,
+                       CASE
+                           WHEN lower(unit) = 'sac' THEN quantity * 50
+                           WHEN lower(unit) IN ('qt', 'quintal') THEN quantity * 100
+                           ELSE quantity
+                       END AS qty
+                FROM raw_sales
+                WHERE sale_date >= ?
+                UNION ALL
+                SELECT pbi.raw_material_id, pbi.quantity AS qty
+                FROM production_batch_items pbi
+                JOIN production_batches pb ON pb.id = pbi.batch_id
+                WHERE pb.production_date >= ?
+            ) source
+            GROUP BY raw_material_id
+        )
+        SELECT rm.id, COALESCE(c.consumed_30d, 0) AS consumed_30d
+        FROM raw_materials rm
+        LEFT JOIN consumed c ON c.raw_material_id = rm.id
+        """,
+        (cutoff_30d, cutoff_30d)
+    )
+    raw_velocities = {r["id"]: float(r["consumed_30d"]) / 30.0 for r in raw_velocity_rows}
+
+    # Finished products 30-day velocity
+    finished_velocity_rows = query_db(
+        """
+        WITH sold AS (
+            SELECT finished_product_id, SUM(quantity) AS sold_30d
+            FROM sales
+            WHERE sale_date >= ?
+            GROUP BY finished_product_id
+        )
+        SELECT fp.id, COALESCE(s.sold_30d, 0) AS sold_30d
+        FROM finished_products fp
+        LEFT JOIN sold s ON s.finished_product_id = fp.id
+        """,
+        (cutoff_30d,)
+    )
+    finished_velocities = {r["id"]: float(r["sold_30d"]) / 30.0 for r in finished_velocity_rows}
+
     raw_items = query_db(
-        "SELECT id, name, unit AS unit, stock_qty, avg_cost, sale_price, 'Matière première' AS kind FROM raw_materials ORDER BY name"
+        "SELECT id, name, unit AS unit, stock_qty, avg_cost, sale_price, alert_threshold, threshold_qty, 'Matière première' AS kind FROM raw_materials ORDER BY name"
     )
     finished_items = query_db(
         "SELECT id, name, default_unit AS unit, stock_qty, avg_cost, sale_price, 'Produit fini' AS kind FROM finished_products ORDER BY name"
@@ -42,11 +92,44 @@ def _build_catalog_context() -> dict:
     for row in raw_items:
         item = dict(row)
         item["row_kind"] = "raw"
+        
+        # Calculate days left
+        v = raw_velocities.get(item["id"], 0.0)
+        item["days_left"] = int(round(float(item["stock_qty"]) / v)) if v > 0.001 else None
+        
+        # Proactive alerts
+        threshold = float(item["threshold_qty"] or item["alert_threshold"] or 0)
+        is_below_threshold = float(item["stock_qty"]) <= threshold
+        
+        item["is_low"] = is_below_threshold or (item["days_left"] is not None and item["days_left"] <= 7)
+        if item["is_low"]:
+            item["autonomy_status"] = "CRITICAL"
+        elif item["days_left"] is not None and item["days_left"] <= 14:
+            item["autonomy_status"] = "WARNING"
+        else:
+            item["autonomy_status"] = "OK"
+            
         all_products.append(item)
+        
     for row in finished_items:
         item = dict(row)
         item["row_kind"] = "finished"
+        
+        # Calculate days left
+        v = finished_velocities.get(item["id"], 0.0)
+        item["days_left"] = int(round(float(item["stock_qty"]) / v)) if v > 0.001 else None
+        
+        # Proactive alerts
+        item["is_low"] = item["days_left"] is not None and item["days_left"] <= 7
+        if item["is_low"]:
+            item["autonomy_status"] = "CRITICAL"
+        elif item["days_left"] is not None and item["days_left"] <= 14:
+            item["autonomy_status"] = "WARNING"
+        else:
+            item["autonomy_status"] = "OK"
+            
         all_products.append(item)
+        
     all_products = sorted(all_products, key=lambda row: (row["kind"], row["name"]))
     return {
         "raw_items": raw_items,
