@@ -17,6 +17,7 @@ def build_reports_context(date_from: str | None = None, date_to: str | None = No
     """Construit toutes les données nécessaires pour la page de rapports, y compris les analyses BI."""
     from datetime import date, timedelta
     import re
+    from app.core.db_access import query_db
     
     summary = period_summary(date_from, date_to)
     expenses_total = expenses_total_safe(date_from, date_to)
@@ -73,6 +74,8 @@ def build_reports_context(date_from: str | None = None, date_to: str | None = No
         """
     )
     expenses_by_cat = [dict(e) for e in expenses_by_cat_rows]
+    expenses_by_cat_labels = [str(e["category"]) for e in expenses_by_cat]
+    expenses_by_cat_totals = [float(e["total"]) for e in expenses_by_cat]
 
     # ── RAPPORT ANGLAIS/FRANÇAIS SUR L'ÂGE DES DETTES & RETARD DE PAIEMENT CLIENTS ──
     clients = query_db("SELECT id, name, notes, opening_credit FROM clients")
@@ -262,6 +265,8 @@ def build_reports_context(date_from: str | None = None, date_to: str | None = No
         "net_margin_pct": net_margin_pct,
         "gross_margin_pct": gross_margin_pct,
         "expenses_by_cat": expenses_by_cat,
+        "expenses_by_cat_labels": expenses_by_cat_labels,
+        "expenses_by_cat_totals": expenses_by_cat_totals,
         "client_debts": client_debts,
         "debt_totals": debt_totals,
         "chart_labels": chart_labels,
