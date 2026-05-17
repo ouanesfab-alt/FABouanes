@@ -29,7 +29,7 @@
     },8000);
   });
 
-  const today=(new Date()).toISOString().slice(0,10);
+  const today=(new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().slice(0,10);
   document.querySelectorAll('input[type="date"]').forEach(function(input){
     if(input.value || input.dataset.noAutoDate==='1') return;
     const form=input.closest('form');

@@ -100,9 +100,9 @@
             <th class="col-partner">Client / fournisseur</th>
             <th class="col-designation">Designation</th>
             <th class="col-qty">Qte</th>
-            <th class="col-money hide-mobile">PU</th>
+            <th class="col-money">PU</th>
             <th class="col-money">Total</th>
-            <th class="col-money hide-mobile">Paye</th>
+            <th class="col-money">Paye</th>
             <th class="col-money">Reste</th>
             <th class="col-actions">Actions</th>
           </tr>
@@ -133,9 +133,9 @@
               <td class="cell-text col-partner"><span class="partner-text">{{ row.partner_name }}</span></td>
               <td class="cell-text col-designation"><span class="designation-text">{{ row.designation }}</span></td>
               <td class="cell-num col-qty">{% if row.quantity is not none %}{{ row.quantity|qty }} {{ row.unit }}{% else %}-{% endif %}</td>
-              <td class="cell-num col-money hide-mobile">{% if row.unit_price is not none %}{{ row.unit_price|money }}{% else %}-{% endif %}</td>
+              <td class="cell-num col-money">{% if row.unit_price is not none %}{{ row.unit_price|money }}{% else %}-{% endif %}</td>
               <td class="cell-num col-money">{{ row.total|money }}</td>
-              <td class="cell-num col-money hide-mobile">{% if row.paid is not none %}{{ row.paid|money }}{% else %}-{% endif %}</td>
+              <td class="cell-num col-money">{% if row.paid is not none %}{{ row.paid|money }}{% else %}-{% endif %}</td>
               <td class="cell-num col-money">{% if row.due is not none %}{{ row.due|money }}{% else %}-{% endif %}</td>
               <td class="col-actions text-nowrap">
                 <a href="{{ print_url }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Imprimer" onclick="openInvoice(event,this.closest('a').href)"><i class="bi bi-printer"></i></a>

@@ -149,7 +149,7 @@
   function fmtMoney(value){ return value.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' DA'; }
 
   if (saleDateInput){
-    saleDateInput.max = new Date().toISOString().split('T')[0];
+    saleDateInput.max = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
   }
 
   function renumberLines(){

@@ -45,7 +45,7 @@ export async function queueOperation(type, payload) {
       type,
       payload,
       status: 'pending',
-      created_at: new Date().toISOString(),
+      created_at: (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString(),
       retry_count: 0,
       error: null,
     };
@@ -101,7 +101,7 @@ export async function cacheRefData(key, data) {
   return new Promise((resolve, reject) => {
     const tx    = db.transaction('ref_cache', 'readwrite');
     const store = tx.objectStore('ref_cache');
-    const req   = store.put({ key, data, cached_at: new Date().toISOString() });
+    const req   = store.put({ key, data, cached_at: (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString() });
     req.onsuccess = () => resolve();
     req.onerror   = () => reject(req.error);
   });

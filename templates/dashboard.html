@@ -326,7 +326,7 @@
     const input = document.getElementById('kpiDateInput');
     if(!input.value){
       const d = new Date();
-      input.value = d.toISOString().slice(0,10);
+      input.value = (new Date(d.getTime() - d.getTimezoneOffset() * 60000)).toISOString().slice(0,10);
     }
     document.getElementById('kpiResult').classList.remove('show');
     document.querySelectorAll('.kpi-quick-btn').forEach(b => b.classList.remove('active'));
@@ -338,7 +338,7 @@
   function setKpiDateOffset(days, btn){
     const d = new Date();
     d.setDate(d.getDate() - days);
-    document.getElementById('kpiDateInput').value = d.toISOString().slice(0,10);
+    document.getElementById('kpiDateInput').value = (new Date(d.getTime() - d.getTimezoneOffset() * 60000)).toISOString().slice(0,10);
     document.querySelectorAll('.kpi-quick-btn').forEach(b => b.classList.remove('active'));
     if(btn) btn.classList.add('active');
   }

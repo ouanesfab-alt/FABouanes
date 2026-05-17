@@ -576,9 +576,9 @@
   <script>
     // Évite d'avoir une date de formulaire obsolète (ex: page ouverte avant minuit, soumise après minuit)
     (function autoUpdateDateInputs() {
-      let lastToday = new Date().toISOString().split('T')[0];
+      let lastToday = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
       setInterval(() => {
-        const currentToday = new Date().toISOString().split('T')[0];
+        const currentToday = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
         if (currentToday !== lastToday) {
           document.querySelectorAll('input[type="date"]').forEach(input => {
             if (input.value === lastToday) {
