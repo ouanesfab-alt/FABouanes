@@ -606,10 +606,9 @@
             ws = new WebSocket(wsUrl);
             ws.onmessage = function(event) {
                 if (event.data === 'refresh_operations') {
+                    showToast("Nouvelle opération enregistrée à distance.", "info", true);
                     if (window.location.pathname.startsWith('/operations') && typeof window.onOperationsRefresh === 'function') {
                         window.onOperationsRefresh();
-                    } else {
-                        showToast("Nouvelle opération enregistrée à distance.", "info", true);
                     }
                 }
             };
