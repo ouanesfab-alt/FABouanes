@@ -229,6 +229,35 @@ def _dt_filter(value: Any, length: int = 16) -> str:
     return str(value)[:length]
 
 
+def _custom_tojson_filter(value: Any, *args: Any, **kwargs: Any) -> Any:
+    import json
+    import decimal
+    try:
+        from markupsafe import Markup
+    except ImportError:
+        from jinja2 import Markup
+
+    class SafeEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, decimal.Decimal):
+                return float(obj)
+            if hasattr(obj, "isoformat"):
+                return obj.isoformat()
+            try:
+                return super().default(obj)
+            except TypeError:
+                return str(obj)
+
+    rendered = json.dumps(value, cls=SafeEncoder, ensure_ascii=False)
+    safe_rendered = (
+        rendered.replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+        .replace("'", "\\u0027")
+    )
+    return Markup(safe_rendered)
+
+
 @pass_context
 def _url_for(context, name: str, **params: Any) -> str:
     request = context["request"]
@@ -246,3 +275,4 @@ templates.env.globals["get_flashed_messages"] = _get_flashed_messages
 templates.env.filters["money"] = _money_filter
 templates.env.filters["qty"] = _qty_filter
 templates.env.filters["dt"] = _dt_filter
+templates.env.filters["tojson"] = _custom_tojson_filter
