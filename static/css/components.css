@@ -140,3 +140,88 @@
 @media (max-width: 575px) {
   .search-overlay { padding: 16px; align-items: flex-start; }
 }
+
+/* 💎 PREMIUM DESIGN SYSTEM - GLASS & MICRO-ANIMATIONS 💎 */
+
+body, button, input, select, textarea {
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, h4, h5, h6, .brand-title, .title-premium {
+  font-family: var(--font-title);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* 🧪 Glassmorphic cards */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  transition: var(--transition-smooth);
+}
+
+.glass-card:hover {
+  border-color: rgba(99, 102, 241, 0.25);
+  box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.08);
+  transform: translateY(-2px);
+}
+
+/* 🔘 Premium button animations & retro-glows */
+.btn-premium {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 20px;
+  font-weight: 600;
+  font-family: var(--font-title);
+  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.25);
+  transition: var(--transition-smooth);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-premium:hover {
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-premium:active {
+  transform: scale(0.98);
+}
+
+/* 💀 SKELETON LOADERS & SHIMMER EFFECTS */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer-effect {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--line) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite linear;
+}
+
+.skeleton-row {
+  height: 20px;
+  border-radius: var(--radius-xs);
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.skeleton-card {
+  padding: 20px;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+}
+
+.skeleton-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+}
+

@@ -15,13 +15,15 @@
   font-display: swap;
 }
 
-:root{
-  --bg:#f0f2f5;
-  --text:#111827;
-  --card:#ffffff;
-  --surface:#f8fafc;
-  --accent:#2563eb;
-  --line:#e2e8f0;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;850&display=swap');
+
+:root {
+  --bg: #f8fafc;
+  --text: #0f172a;
+  --card: rgba(255, 255, 255, 0.7);
+  --surface: rgba(241, 245, 249, 0.8);
+  --accent: #4f46e5;
+  --line: rgba(226, 232, 240, 0.6);
   
   /* Extended Tokens */
   --color-success: #10b981;
@@ -35,26 +37,38 @@
   --space-lg: 1.5rem;
   --space-xl: 2rem;
 
-  --radius-xs: 4px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
   --radius-full: 9999px;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.06);
+
+  /* Glassmorphism Specification */
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+  --backdrop-blur: blur(12px);
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --font-title: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  --font-body: 'Inter', 'Plus Jakarta Sans', sans-serif;
 }
 
+[data-theme="dark"] {
+  --bg: #070a13;
+  --text: #f1f5f9;
+  --card: rgba(13, 20, 38, 0.6);
+  --surface: rgba(30, 41, 59, 0.4);
+  --accent: #818cf8;
+  --line: rgba(255, 255, 255, 0.07);
 
-[data-theme="dark"]{
-  --bg:#0d1117;
-  --text:#e6edf3;
-  --card:#161b22;
-  --surface:#0f172a;
-  --accent:#60a5fa;
-  --line:#30363d;
+  /* Dark Glassmorphism */
+  --glass-bg: rgba(13, 20, 38, 0.5);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }
-
 
 

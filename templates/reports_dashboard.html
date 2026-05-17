@@ -6,13 +6,28 @@
   .reports-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
   .reports-filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
   .reports-filter-bar input[type="date"]{max-width:170px;}
-
   /* ── KPI Summary Cards ── */
   .rpt-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;}
-  .rpt-kpi{padding:20px;border-radius:var(--radius);border:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;gap:4px;transition:transform .2s,box-shadow .2s;}
-  .rpt-kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);}
+  .rpt-kpi{
+    padding:20px;
+    border-radius:var(--radius-lg);
+    border:1px solid var(--glass-border);
+    background:var(--glass-bg);
+    backdrop-filter:var(--backdrop-blur);
+    -webkit-backdrop-filter:var(--backdrop-blur);
+    box-shadow:var(--glass-shadow);
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    transition:var(--transition-smooth);
+  }
+  .rpt-kpi:hover{
+    border-color:rgba(99, 102, 241, 0.25);
+    box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.08);
+    transform:translateY(-2px);
+  }
   .rpt-kpi-label{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}
-  .rpt-kpi-value{font-size:1.5rem;font-weight:900;line-height:1.2;}
+  .rpt-kpi-value{font-size:1.5rem;font-weight:900;line-height:1.2;font-family:var(--font-title);}
   .rpt-kpi-value.green{color:#16a34a;}
   .rpt-kpi-value.red{color:#dc2626;}
   .rpt-kpi-value.blue{color:#2563eb;}
@@ -27,13 +42,41 @@
 
   /* ── Chart containers ── */
   .rpt-chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
-  .rpt-chart-card{padding:22px;border-radius:var(--radius);border:1px solid var(--line);background:var(--card);}
+  .rpt-chart-card{
+    padding:22px;
+    border-radius:var(--radius-lg);
+    border:1px solid var(--glass-border);
+    background:var(--glass-bg);
+    backdrop-filter:var(--backdrop-blur);
+    -webkit-backdrop-filter:var(--backdrop-blur);
+    box-shadow:var(--glass-shadow);
+    transition:var(--transition-smooth);
+  }
+  .rpt-chart-card:hover{
+    border-color:rgba(99, 102, 241, 0.25);
+    box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.08);
+    transform:translateY(-2px);
+  }
   .rpt-chart-title{font-size:.92rem;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
   .rpt-chart-wrap{position:relative;height:280px;}
 
   /* ── Top tables ── */
   .rpt-top-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
-  .rpt-top-card{padding:20px;border-radius:var(--radius);border:1px solid var(--line);background:var(--card);}
+  .rpt-top-card{
+    padding:20px;
+    border-radius:var(--radius-lg);
+    border:1px solid var(--glass-border);
+    background:var(--glass-bg);
+    backdrop-filter:var(--backdrop-blur);
+    -webkit-backdrop-filter:var(--backdrop-blur);
+    box-shadow:var(--glass-shadow);
+    transition:var(--transition-smooth);
+  }
+  .rpt-top-card:hover{
+    border-color:rgba(99, 102, 241, 0.25);
+    box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.08);
+    transform:translateY(-2px);
+  }
   .rpt-top-title{font-size:.92rem;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
   .rpt-rank{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:.72rem;font-weight:900;background:rgba(37,99,235,.08);color:#2563eb;border:1px solid rgba(37,99,235,.15);}
   .rpt-rank.gold{background:rgba(234,179,8,.12);color:#a16207;border-color:rgba(234,179,8,.2);}
@@ -69,11 +112,10 @@
     <label class="fw-bold small">Période :</label>
     <input type="date" name="date_from" value="{{ date_from }}" class="form-control" title="Du">
     <input type="date" name="date_to" value="{{ date_to }}" class="form-control" title="Au">
-    <button class="btn btn-dark btn-sm"><i class="bi bi-funnel me-1"></i>Filtrer</button>
+    <button class="btn btn-premium btn-sm"><i class="bi bi-funnel me-1"></i>Filtrer</button>
     <a href="{{ url_for('reports_dashboard') }}" class="btn btn-outline-secondary btn-sm">Tout afficher</a>
   </form>
 
-  <!-- ── KPI Cards ── -->
   <div class="rpt-kpis">
     <div class="rpt-kpi">
       <span class="rpt-kpi-label"><i class="bi bi-cart3 me-1"></i>Chiffre d'affaires</span>
