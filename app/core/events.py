@@ -116,9 +116,21 @@ def _auto_backup(event: DomainEvent) -> None:
     backup_database(f"{event.action}_{event.entity_type}")
 
 
+def _auto_websocket(event: DomainEvent) -> None:
+    """Diffuse un message WebSocket lors d'une modification d'opération."""
+    # Seuls certains types d'entités doivent déclencher un rafraîchissement
+    if event.entity_type in ("sale", "purchase", "payment", "sale_document", "purchase_document"):
+        from app.core.websockets import manager
+        manager.broadcast_sync("refresh_operations")
+
+
 # ── Enregistrement des listeners par défaut au chargement du module ──
 on("*", _auto_audit)
 on("*", _auto_activity)
 on("create.*", _auto_backup)
 on("update.*", _auto_backup)
 on("delete.*", _auto_backup)
+
+on("create.*", _auto_websocket)
+on("update.*", _auto_websocket)
+on("delete.*", _auto_websocket)

@@ -27,6 +27,9 @@ class ReportsService:
             total_profit=Decimal(str(summary_raw.get("total_profit", 0.0))),
             total_purchases=Decimal(str(summary_raw.get("total_purchases", 0.0))),
             total_payments=Decimal(str(summary_raw.get("total_payments", 0.0))),
+            nb_sales=int(summary_raw.get("nb_sales", 0)),
+            nb_purchases=int(summary_raw.get("nb_purchases", 0)),
+            nb_payments=int(summary_raw.get("nb_payments", 0)),
         )
         
         expenses_total = Decimal(str(self.repository.get_expenses_total(date_from, date_to)))
@@ -180,6 +183,8 @@ class ReportsService:
         chart_months = all_months[-12:] if len(all_months) > 12 else all_months
         chart_sales = [float(sales_map.get(m, {}).get("total", 0)) for m in chart_months]
         chart_purchases = [float(purchases_map.get(m, {}).get("total", 0)) for m in chart_months]
+        chart_expenses = [float(expenses_map.get(m, {}).get("total", 0)) for m in chart_months]
+        chart_profit = [s - p - e for s, p, e in zip(chart_sales, chart_purchases, chart_expenses)]
 
         month_names = {
             "01": "Jan", "02": "Fév", "03": "Mar", "04": "Avr", "05": "Mai", "06": "Jui",
@@ -192,6 +197,21 @@ class ReportsService:
                 chart_labels.append(f"{month_names.get(parts[1], parts[1])} {parts[0][2:]}")
             else:
                 chart_labels.append(m)
+
+        # Graphique quotidien (30 jours)
+        daily_sales_raw = self.repository.get_daily_sales(30)
+        daily_labels = []
+        daily_totals = []
+        daily_profits = []
+        for r in daily_sales_raw:
+            d_parts = r["day"].split("-")
+            if len(d_parts) >= 3:
+                lbl = f"{d_parts[2]} {month_names.get(d_parts[1], d_parts[1])}"
+            else:
+                lbl = r["day"]
+            daily_labels.append(lbl)
+            daily_totals.append(float(r["total"] or 0))
+            daily_profits.append(float(r["profit"] or 0))
 
         # Top produits et clients
         top_products_raw = self.repository.get_top_products_by_revenue(10, date_from, date_to)
@@ -224,9 +244,14 @@ class ReportsService:
             expenses_by_cat_totals=expenses_by_cat_totals,
             expenses_total=expenses_total,
             net_profit=net_profit,
-            monthly_labels=chart_labels,
-            monthly_sales=chart_sales,
-            monthly_purchases=chart_purchases,
+            chart_labels=chart_labels,
+            chart_sales=chart_sales,
+            chart_purchases=chart_purchases,
+            chart_expenses=chart_expenses,
+            chart_profit=chart_profit,
+            daily_labels=daily_labels,
+            daily_totals=daily_totals,
+            daily_profits=daily_profits,
             date_from=date_from,
             date_to=date_to,
         )

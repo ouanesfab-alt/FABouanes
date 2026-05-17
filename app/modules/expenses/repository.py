@@ -102,14 +102,13 @@ def expenses_by_category(date_from: str | None = None, date_to: str | None = Non
     sql += " GROUP BY category ORDER BY total DESC"
     return [dict(row) for row in query_db(sql, tuple(params))]
 
-
 def expenses_by_month(limit: int = 12) -> list[dict]:
     rows = query_db(
-        """SELECT substr(date, 1, 7) AS month,
+        """SELECT substr(date::text, 1, 7) AS month,
                   COALESCE(SUM(amount), 0) AS total,
                   COUNT(*) AS count
            FROM expenses
-           GROUP BY substr(date, 1, 7)
+           GROUP BY substr(date::text, 1, 7)
            ORDER BY month DESC
            LIMIT ?""",
         (limit,),

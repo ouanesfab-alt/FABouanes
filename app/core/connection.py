@@ -197,11 +197,11 @@ class CompatConnection:
 
 # --- DatabaseManager class ---
 
+
 class DatabaseManager:
     def __init__(self):
         self._engines: dict[str, Engine] = {}
-        self._engine_lock = threading.Lock()
-        
+        self._engine_lock = threading.Lock()        
         self._slow_sql_threshold_ms = float(os.environ.get("FAB_SLOW_SQL_MS", "100") or "100")
         self._perf_queue_maxlen = int(os.environ.get("FAB_PERF_QUEUE_MAXLEN", "1000") or "1000")
         self._perf_queue: deque[tuple[str, str, float, str, str]] = deque(maxlen=max(100, self._perf_queue_maxlen))

@@ -72,7 +72,7 @@
                   data-delete-url="{{ url_for('delete_purchase', purchase_id=item.id) }}">
               <td>{{ item.event_date }}</td>
               <td>{{ item.designation }}</td>
-              <td>{{ item.quantity }} {{ item.unit }}</td>
+              <td>{{ item.quantity|qty }} {{ item.unit }}</td>
                 <td class="col-right hide-mobile">{{ item.unit_price|money }}</td>
                 <td class="col-right"><strong>{{ item.total|money }}</strong></td>
             </tr>

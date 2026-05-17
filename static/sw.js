@@ -1,8 +1,12 @@
-const VERSION = "fabouanes-v35-webp-perf";
+const VERSION = "fabouanes-v36-offline";
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const OFFLINE_URL = "/static/offline.html";
 const MAX_RUNTIME_ENTRIES = 40;
+
+// Pages online-only → fallback offline.html si hors-ligne
+const ONLINE_ONLY_PREFIXES = ["/reports", "/production", "/admin", "/purchases"];
+
 const PRECACHE = [
   OFFLINE_URL,
   "/static/manifest.json",
@@ -29,6 +33,8 @@ const PRECACHE = [
   "/static/js/layout.js",
   "/static/js/tables.js",
   "/static/js/notifications.js",
+  "/static/js/offline-db.js",
+  "/static/js/offline-sync.js",
   "/static/css/bootstrap.min.css",
   "/static/css/bootstrap-icons.css",
   "/static/js/bootstrap.bundle.min.js",
@@ -93,6 +99,10 @@ async function trimCache(cacheName, maxEntries) {
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
+
+  // Laisser passer les requêtes API (POST offline sync inclus)
+  if (url.pathname.startsWith("/api/")) return;
+
   const isStaticAsset = url.origin === self.location.origin && (
     url.pathname.startsWith("/static/") ||
     url.pathname.endsWith(".css") ||
@@ -101,8 +111,17 @@ self.addEventListener("fetch", event => {
     url.pathname.endsWith(".webp") ||
     url.pathname.endsWith(".jpg") ||
     url.pathname.endsWith(".svg")
-
   );
+
+  // Pages online-only → offline.html si hors-ligne
+  const isOnlineOnly = ONLINE_ONLY_PREFIXES.some(p => url.pathname.startsWith(p));
+  if (isOnlineOnly) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(OFFLINE_URL))
+    );
+    return;
+  }
+
   const isApiGet = url.origin === self.location.origin && url.pathname.startsWith("/api/");
   const isDocument = event.request.mode === "navigate" || event.request.headers.get("accept")?.includes("text/html");
 

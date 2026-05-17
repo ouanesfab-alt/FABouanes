@@ -148,8 +148,11 @@ def _retention_limit_for_type(backup_type: str) -> int:
 
 
 def _apply_retention_to_directory(directory: Path, backup_type: str) -> None:
-    suffix = ".sql"
-    files = sorted(directory.glob(f"*{suffix}"), key=lambda path: path.stat().st_mtime, reverse=True)
+    # Gestion des deux extensions : .sql.gz (nouveau) et .sql (legacy)
+    all_files = []
+    for pattern in ("*.sql.gz", "*.sql"):
+        all_files.extend(directory.glob(pattern))
+    files = sorted(set(all_files), key=lambda p: p.stat().st_mtime, reverse=True)
     limit = _retention_limit_for_type(backup_type)
     for old_file in files[limit:]:
         try:
@@ -164,6 +167,12 @@ def _apply_local_retention(backup_type: str) -> None:
 
 
 def _mirror_backup_to_sync_folder(local_path: Path) -> tuple[str, str]:
+    """
+    Copie la sauvegarde dans le dossier Google Drive local (synchronisé).
+    Note : ceci est une copie vers un dossier local synchronisé par le client
+    Google Drive — ce n'est pas un upload direct vers l'API Google Drive.
+    La disponibilité cloud dépend du client Drive étant installé et connecté.
+    """
     sync_folder_raw = get_backup_settings()["gdrive_backup_dir"]
     if not sync_folder_raw:
         return "", "local-only"
@@ -171,7 +180,18 @@ def _mirror_backup_to_sync_folder(local_path: Path) -> tuple[str, str]:
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / local_path.name
     if str(target.resolve()) != str(local_path.resolve()):
-        target.write_bytes(local_path.read_bytes())
+        # Copie atomique : écriture dans un fichier temporaire puis renommage
+        import tempfile, shutil
+        with tempfile.NamedTemporaryFile(
+            dir=target_dir, delete=False, suffix=".tmp"
+        ) as tmp:
+            tmp_path = Path(tmp.name)
+        try:
+            shutil.copy2(local_path, tmp_path)
+            tmp_path.replace(target)
+        except Exception:
+            tmp_path.unlink(missing_ok=True)
+            raise
     return local_path.name, "google-drive-folder"
 
 

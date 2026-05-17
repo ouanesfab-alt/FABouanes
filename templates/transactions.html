@@ -132,7 +132,7 @@
               </td>
               <td class="cell-text col-partner"><span class="partner-text">{{ row.partner_name }}</span></td>
               <td class="cell-text col-designation"><span class="designation-text">{{ row.designation }}</span></td>
-              <td class="cell-num col-qty hide-mobile">{% if row.quantity is not none %}{{ row.quantity }} {{ row.unit }}{% else %}-{% endif %}</td>
+              <td class="cell-num col-qty hide-mobile">{% if row.quantity is not none %}{{ row.quantity|qty }} {{ row.unit }}{% else %}-{% endif %}</td>
               <td class="cell-num col-money hide-mobile">{% if row.unit_price is not none %}{{ row.unit_price|money }}{% else %}-{% endif %}</td>
               <td class="cell-num col-money">{{ row.total|money }}</td>
               <td class="cell-num col-money hide-mobile">{% if row.paid is not none %}{{ row.paid|money }}{% else %}-{% endif %}</td>
@@ -150,4 +150,80 @@
     {% include '_pagination.html' %}
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  /* Animation style WhatsApp pour les nouvelles lignes */
+  @keyframes slideDownFadeIn {
+    0% {
+      opacity: 0;
+      transform: translateY(-20px) scale(0.98);
+      background-color: rgba(37, 211, 102, 0.2);
+    }
+    50% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      background-color: rgba(37, 211, 102, 0.1);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+  .whatsapp-msg-in {
+    animation: slideDownFadeIn 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+</style>
+<script>
+  window.onOperationsRefresh = async function() {
+    try {
+      const response = await fetch(window.location.href);
+      if (!response.ok) return;
+      const html = await response.text();
+      
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      const currentTbody = document.querySelector('.transactions-table tbody');
+      const newTbody = doc.querySelector('.transactions-table tbody');
+      
+      if (currentTbody && newTbody) {
+        // Collect current row IDs/sequences
+        const currentIds = Array.from(currentTbody.querySelectorAll('tr')).map(tr => tr.getAttribute('data-sort-sequence')).filter(Boolean);
+        const newRows = Array.from(newTbody.querySelectorAll('tr'));
+        
+        let inserted = 0;
+        
+        // Loop backwards so we prepend in correct order
+        for (let i = newRows.length - 1; i >= 0; i--) {
+          const row = newRows[i];
+          const id = row.getAttribute('data-sort-sequence');
+          
+          if (id && !currentIds.includes(id)) {
+            // This is a new row! Insert it at the top like a WhatsApp message
+            row.classList.add('whatsapp-msg-in');
+            currentTbody.prepend(row);
+            inserted++;
+          } else if (id && currentIds.includes(id)) {
+            // Row exists, maybe updated. Replace it silently.
+            const existingRow = currentTbody.querySelector(`tr[data-sort-sequence="${id}"]`);
+            if (existingRow && existingRow.innerHTML !== row.innerHTML) {
+              existingRow.innerHTML = row.innerHTML;
+              existingRow.className = row.className;
+            }
+          }
+        }
+        
+        // Update pagination silently
+        const currentPagination = document.querySelector('.pagination-container');
+        const newPagination = doc.querySelector('.pagination-container');
+        if (currentPagination && newPagination) {
+          currentPagination.innerHTML = newPagination.innerHTML;
+        }
+      }
+    } catch (e) {
+      console.error("Auto-refresh failed", e);
+    }
+  };
+</script>
 {% endblock %}

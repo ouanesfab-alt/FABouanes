@@ -12,15 +12,15 @@ class ReportsRepository:
             SELECT month, SUM(total_sales) AS total, SUM(total_profit) AS profit,
                    SUM(nb_sales) AS count
             FROM (
-                SELECT substr(sale_date, 1, 7) AS month,
+                SELECT substr(sale_date::text, 1, 7) AS month,
                        SUM(total) AS total_sales, SUM(profit_amount) AS total_profit,
                        COUNT(*) AS nb_sales
-                FROM sales GROUP BY substr(sale_date, 1, 7)
+                FROM sales GROUP BY substr(sale_date::text, 1, 7)
                 UNION ALL
-                SELECT substr(sale_date, 1, 7) AS month,
+                SELECT substr(sale_date::text, 1, 7) AS month,
                        SUM(total) AS total_sales, SUM(profit_amount) AS total_profit,
                        COUNT(*) AS nb_sales
-                FROM raw_sales GROUP BY substr(sale_date, 1, 7)
+                FROM raw_sales GROUP BY substr(sale_date::text, 1, 7)
             ) x
             GROUP BY month ORDER BY month DESC LIMIT ?
             """,
@@ -31,10 +31,10 @@ class ReportsRepository:
     def get_purchases_by_month(self, months: int = 12) -> list[dict[str, Any]]:
         rows = query_db(
             """
-            SELECT substr(purchase_date, 1, 7) AS month,
+            SELECT substr(purchase_date::text, 1, 7) AS month,
                    SUM(total) AS total, COUNT(*) AS count
             FROM purchases
-            GROUP BY substr(purchase_date, 1, 7)
+            GROUP BY substr(purchase_date::text, 1, 7)
             ORDER BY month DESC LIMIT ?
             """,
             (months,),
@@ -174,10 +174,10 @@ class ReportsRepository:
     def get_expenses_by_month(self, months: int = 12) -> list[dict[str, Any]]:
         try:
             rows = query_db(
-                """SELECT substr(date, 1, 7) AS month,
+                """SELECT substr(date::text, 1, 7) AS month,
                           COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count
                    FROM expenses
-                   GROUP BY substr(date, 1, 7)
+                   GROUP BY substr(date::text, 1, 7)
                    ORDER BY month DESC LIMIT ?""",
                 (months,),
             )

@@ -144,7 +144,7 @@
           {% for line in doc.lines or [{'item_name': doc.item_name, 'quantity': doc.quantity, 'unit': doc.unit, 'unit_price': doc.unit_price, 'total': doc.total}] %}
           <tr>
             <td><strong>{{ line.item_name }}</strong></td>
-            <td class="col-right">{% if line.quantity is not none %}{{ line.quantity }} {{ line.unit }}{% else %}-{% endif %}</td>
+            <td class="col-right">{% if line.quantity is not none %}{{ line.quantity|qty }} {{ line.unit }}{% else %}-{% endif %}</td>
             <td class="col-right">{% if line.unit_price is not none %}{{ line.unit_price|money }}{% else %}-{% endif %}</td>
             <td class="col-right"><strong>{{ line.total|money }}</strong></td>
           </tr>

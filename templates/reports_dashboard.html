@@ -270,7 +270,7 @@
                 <td class="fw-bold">{{ d.name }}</td>
                 <td class="text-end fw-semibold text-primary">{{ d.debt|money }}</td>
                 <td class="text-end text-success">{{ d.under_30|money if d.under_30 > 0 else '—' }}</td>
-                <td class="text-end text-warning">{{ d["30_to_90"]|money if d["30_to_90"] > 0 else '—' }}</td>
+                <td class="text-end text-warning">{{ d.days_30_to_90|money if d.days_30_to_90 > 0 else '—' }}</td>
                 <td class="text-end text-danger">{{ d.over_90|money if d.over_90 > 0 else '—' }}</td>
                 <td class="text-center">
                   <div class="d-flex align-items-center justify-content-center gap-2">
@@ -474,7 +474,7 @@ document.addEventListener('DOMContentLoaded', function() {
         datasets: [{
           data: [
             {{ debt_totals.under_30|float if debt_totals else 0.0 }},
-            {{ debt_totals["30_to_90"]|float if debt_totals else 0.0 }},
+            {{ debt_totals.days_30_to_90|float if debt_totals else 0.0 }},
             {{ debt_totals.over_90|float if debt_totals else 0.0 }}
           ],
           backgroundColor: [

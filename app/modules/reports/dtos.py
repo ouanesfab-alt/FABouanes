@@ -9,6 +9,9 @@ class ReportsSummaryDTO(BaseModel):
     total_profit: Decimal
     total_purchases: Decimal
     total_payments: Decimal
+    nb_sales: int
+    nb_purchases: int
+    nb_payments: int
 
 class TopProductDTO(BaseModel):
     name: str
@@ -51,8 +54,13 @@ class ReportsContextDTO(BaseModel):
     expenses_by_cat_totals: list[float]
     expenses_total: Decimal
     net_profit: Decimal
-    monthly_labels: list[str]
-    monthly_sales: list[float]
-    monthly_purchases: list[float]
+    chart_labels: list[str]
+    chart_sales: list[float]
+    chart_purchases: list[float]
+    chart_expenses: list[float]
+    chart_profit: list[float]
+    daily_labels: list[str]
+    daily_totals: list[float]
+    daily_profits: list[float]
     date_from: str | None
     date_to: str | None
