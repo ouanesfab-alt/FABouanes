@@ -573,6 +573,24 @@
       }
     })();
   </script>
+  <script>
+    // Évite d'avoir une date de formulaire obsolète (ex: page ouverte avant minuit, soumise après minuit)
+    (function autoUpdateDateInputs() {
+      let lastToday = new Date().toISOString().split('T')[0];
+      setInterval(() => {
+        const currentToday = new Date().toISOString().split('T')[0];
+        if (currentToday !== lastToday) {
+          document.querySelectorAll('input[type="date"]').forEach(input => {
+            if (input.value === lastToday) {
+              input.value = currentToday;
+              if (input.max === lastToday) input.max = currentToday;
+            }
+          });
+          lastToday = currentToday;
+        }
+      }, 60000); // Check every minute
+    })();
+  </script>
   <!-- Elements masqués pour compatibilité avec les tests et scripts génériques -->
   <div style="display: none;" aria-hidden="true">
     <button class="js-theme" data-theme-value="light">Clair</button>

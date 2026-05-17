@@ -99,7 +99,7 @@
             <th class="col-type">Type</th>
             <th class="col-partner">Client / fournisseur</th>
             <th class="col-designation">Designation</th>
-            <th class="col-qty hide-mobile">Qte</th>
+            <th class="col-qty">Qte</th>
             <th class="col-money hide-mobile">PU</th>
             <th class="col-money">Total</th>
             <th class="col-money hide-mobile">Paye</th>
@@ -132,7 +132,7 @@
               </td>
               <td class="cell-text col-partner"><span class="partner-text">{{ row.partner_name }}</span></td>
               <td class="cell-text col-designation"><span class="designation-text">{{ row.designation }}</span></td>
-              <td class="cell-num col-qty hide-mobile">{% if row.quantity is not none %}{{ row.quantity|qty }} {{ row.unit }}{% else %}-{% endif %}</td>
+              <td class="cell-num col-qty">{% if row.quantity is not none %}{{ row.quantity|qty }} {{ row.unit }}{% else %}-{% endif %}</td>
               <td class="cell-num col-money hide-mobile">{% if row.unit_price is not none %}{{ row.unit_price|money }}{% else %}-{% endif %}</td>
               <td class="cell-num col-money">{{ row.total|money }}</td>
               <td class="cell-num col-money hide-mobile">{% if row.paid is not none %}{{ row.paid|money }}{% else %}-{% endif %}</td>

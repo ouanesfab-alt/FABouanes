@@ -58,7 +58,7 @@ def transactions_context(
                    CAST(NULL AS numeric) AS quantity, CAST(NULL AS varchar) AS unit, CAST(NULL AS numeric) AS unit_price, p.amount AS total, p.amount AS paid, CAST(NULL AS numeric) AS due, CAST(NULL AS integer) AS document_id, p.created_at AS tx_created_at
             FROM payments p JOIN clients c ON c.id = p.client_id
         ) t
-        ORDER BY tx_date DESC, id DESC
+        ORDER BY tx_date DESC, tx_created_at DESC, id DESC
         """
     )
     name_filter = (filter_name or "").strip().lower()
