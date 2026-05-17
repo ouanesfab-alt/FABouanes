@@ -80,13 +80,14 @@ def _build_client_detail_context(client_id: int):
         (client_id, client_id, client_id),
     )
     timeline = []
+    created_at_str = client["created_at"].isoformat() if hasattr(client["created_at"], "isoformat") else str(client["created_at"] or "")
     if float(client["opening_credit"]) > 0:
         timeline.append(
             {
                 "row_id": None,
                 "document_id": None,
                 "sort_sequence": 0,
-                "event_date": client["created_at"][:10],
+                "event_date": created_at_str[:10],
                 "designation": "Credit initial (reprise Excel)",
                 "purchase_amount": float(client["opening_credit"]),
                 "payment_amount": 0.0,
@@ -95,6 +96,14 @@ def _build_client_detail_context(client_id: int):
         )
     for row in events:
         item = dict(row)
+        dt_val = item.get("event_date")
+        if hasattr(dt_val, "strftime"):
+            item["event_date"] = dt_val.strftime("%Y-%m-%d")
+        elif hasattr(dt_val, "isoformat"):
+            item["event_date"] = dt_val.isoformat()[:10]
+        else:
+            item["event_date"] = str(dt_val or "")[:10]
+
         if item["event_type"] in ("sale_finished", "sale_raw"):
             suffix = " (matière première)" if item["event_type"] == "sale_raw" else ""
             item["designation"] = f"{item['item_name']}{suffix} - {_format_quantity(item['quantity'])} {item['unit'] or ''}".strip()
