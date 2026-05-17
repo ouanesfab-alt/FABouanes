@@ -80,10 +80,6 @@
           </button>
           <ul class="dropdown-menu">
             <li><a
-                class="dropdown-item {{ 'active' if request.endpoint == 'ai_chat' else '' }}"
-                href="{{ url_for('ai_chat') }}"><i class="bi bi-stars me-2" style="color:#818cf8"></i><strong>Assistant IA</strong></a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a
                 class="dropdown-item {{ 'active' if request.endpoint in ['expenses','new_expense','edit_expense'] else '' }}"
                 href="{{ url_for('expenses') }}"><i class="bi bi-wallet2 me-2"></i>Dépenses</a></li>
             <li><a
@@ -102,6 +98,8 @@
                 href="{{ url_for('bons_space') }}"><i class="bi bi-receipt me-2"></i>Espace bons</a></li>
             <li><a class="dropdown-item {{ 'active' if request.endpoint == 'mobile_connect' else '' }}"
                 href="{{ url_for('mobile_connect') }}"><i class="bi bi-qr-code me-2"></i>Connexion mobile</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer"><i class="bi bi-stars me-2" style="color:#886cf5"></i>Assistant IA <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.7rem;opacity:.5"></i></a></li>
           </ul>
         </div>
       </div>
@@ -196,10 +194,6 @@
           <i class="bi bi-chevron-down drawer-caret"></i>
         </button>
         <div class="drawer-submenu">
-          <a href="{{ url_for('ai_chat') }}"
-            class="drawer-sublink {{ 'active' if request.endpoint == 'ai_chat' else '' }}">
-            <i class="bi bi-cpu"></i> Assistant IA
-          </a>
           <a href="{{ url_for('expenses') }}"
             class="drawer-sublink {{ 'active' if request.endpoint in ['expenses','new_expense','edit_expense'] else '' }}">
             <i class="bi bi-wallet2"></i> Dépenses
@@ -224,6 +218,9 @@
           <a href="{{ url_for('mobile_connect') }}"
             class="drawer-sublink {{ 'active' if request.endpoint == 'mobile_connect' else '' }}">
             <i class="bi bi-qr-code"></i> Connexion mobile
+          </a>
+          <a href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer" class="drawer-sublink">
+            <i class="bi bi-stars" style="color:#886cf5"></i> Assistant IA <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.65rem;opacity:.5"></i>
           </a>
         </div>
       </div>
