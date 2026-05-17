@@ -11,7 +11,6 @@ from app.api.v1.payments import router as payments_router
 from app.api.v1.production import router as production_router
 from app.api.v1.purchases import router as purchases_router
 from app.api.v1.sales import router as sales_router
-from app.api.v1.ai_chat import router as ai_router
 from app.api.ws import router as ws_router
 
 
@@ -28,4 +27,3 @@ router.include_router(production_router)
 router.include_router(admin_router)
 router.include_router(offline_router)
 router.include_router(ws_router)
-router.include_router(ai_router)
