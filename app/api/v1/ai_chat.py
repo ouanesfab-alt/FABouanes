@@ -8,6 +8,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from app.api.deps import require_api_user
+from app.web.deps import get_current_user
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
 
@@ -98,7 +99,13 @@ async def list_providers(request: Request):
 
 @router.post("/chat")
 async def ai_chat(request: Request):
-    require_api_user(request)
+    # Accepte soit un Bearer token (API), soit un cookie de session (navigateur)
+    user = get_current_user(request)
+    if not user:
+        try:
+            require_api_user(request)
+        except Exception:
+            return JSONResponse({"error": "Non authentifié."}, status_code=401)
 
     try:
         body = await request.json()
@@ -159,7 +166,8 @@ async def ai_chat(request: Request):
 @router.get("/keys")
 async def get_keys_status(request: Request):
     """Retourne quelles clés API sont configurées (sans révéler les valeurs)."""
-    require_api_user(request)
+    if not get_current_user(request):
+        return JSONResponse({"error": "Non authentifié."}, status_code=401)
     return JSONResponse({
         "gemini": bool(os.getenv("GEMINI_API_KEY", "").strip()),
         "openai": bool(os.getenv("OPENAI_API_KEY", "").strip()),
@@ -169,7 +177,8 @@ async def get_keys_status(request: Request):
 @router.post("/keys")
 async def save_keys(request: Request):
     """Enregistre les clés API dans le fichier .env du projet."""
-    require_api_user(request)
+    if not get_current_user(request):
+        return JSONResponse({"error": "Non authentifié."}, status_code=401)
 
     try:
         body = await request.json()
