@@ -99,7 +99,7 @@ async def list_payments(
     offset = (page - 1) * page_size
     
     if settings.uses_postgres:
-        wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY p.payment_date DESC, p.id DESC LIMIT ? OFFSET ?"
+        wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY payment_date DESC, id DESC LIMIT ? OFFSET ?"
         rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
         total = int(rows[0]["_total_count"]) if rows else 0
         return [dict(r) for r in rows], total

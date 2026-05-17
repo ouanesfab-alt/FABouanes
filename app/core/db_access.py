@@ -130,11 +130,31 @@ def query_db(query: str, params: tuple = (), one: bool = False):
 def execute_db(query: str, params: tuple = ()) -> int:
     db = get_db()
     started = monotonic()
+    
+    is_postgres = getattr(db, "dialect", "sqlite") == "postgres"
+    is_insert = bool(re.match(r"\s*INSERT\s+INTO\s+", str(query or ""), flags=re.I))
+    
+    adapted_query = query
+    has_returning = False
+    if is_postgres and is_insert:
+        if " returning " not in query.lower():
+            match = re.match(r"\s*INSERT\s+INTO\s+([a-zA-Z_][a-zA-Z0-9_]*)\b", str(query or ""), flags=re.I)
+            if match:
+                table = match.group(1).lower()
+                if table not in {"app_settings", "schema_migrations"}:
+                    adapted_query = query.rstrip().rstrip(";") + " RETURNING id"
+                    has_returning = True
+
     try:
-        cur = db.execute(query, params)
+        cur = db.execute(adapted_query, params)
+        if has_returning:
+            row = cur.fetchone()
+            last_id = row[0] if row else None
+        else:
+            last_id = cur.lastrowid
+            
         if _tx_depth() == 0:
             db.commit()
-        last_id = cur.lastrowid
         cur.close()
     except Exception:
         if _tx_depth() == 0:
@@ -144,7 +164,7 @@ def execute_db(query: str, params: tuple = ()) -> int:
                 logger.debug("Ignored error: %s", e2, exc_info=False)
         raise
 
-    if not last_id and getattr(db, "dialect", "sqlite") == "postgres":
+    if not last_id and is_postgres:
         last_id = _postgres_last_insert_id(db, query)
     _record_sql_timing(query, params, (monotonic() - started) * 1000.0)
     _invalidate_after_write(query)

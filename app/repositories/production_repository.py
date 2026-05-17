@@ -100,7 +100,7 @@ async def list_production_batches(
     offset = (page - 1) * page_size
     
     if settings.uses_postgres:
-        wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY pb.production_date DESC, pb.id DESC LIMIT ? OFFSET ?"
+        wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY production_date DESC, id DESC LIMIT ? OFFSET ?"
         rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
         total = int(rows[0]["_total_count"]) if rows else 0
         return [dict(r) for r in rows], total
@@ -126,7 +126,7 @@ async def list_recipes(
     offset = (page - 1) * page_size
     
     if settings.uses_postgres:
-        wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY sr.id DESC LIMIT ? OFFSET ?"
+        wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY id DESC LIMIT ? OFFSET ?"
         rows = await query_db_async(wrapped, (page_size, offset))
         total = int(rows[0]["_total_count"]) if rows else 0
         return [dict(r) for r in rows], total
