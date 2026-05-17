@@ -142,7 +142,15 @@
               </td>
             </tr>
           {% else %}
-          <tr><td colspan="10" class="text-muted text-center py-4">Aucune operation.</td></tr>
+          <tr>
+            <td colspan="10" class="text-center py-5">
+              <div class="d-flex flex-column align-items-center justify-content-center text-muted">
+                <i class="bi bi-inbox fs-1 mb-2" style="opacity: 0.5;"></i>
+                <h5 class="fw-bold mb-1">Aucune opération trouvée</h5>
+                <p class="small mb-3">Vos transactions apparaîtront ici.</p>
+              </div>
+            </td>
+          </tr>
           {% endfor %}
         </tbody>
       </table>
