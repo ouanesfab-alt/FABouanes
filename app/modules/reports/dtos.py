@@ -27,7 +27,7 @@ class ClientDebtDTO(BaseModel):
     name: str
     debt: Decimal
     under_30: Decimal
-    30_to_90: Decimal
+    days_30_to_90: Decimal
     over_90: Decimal
     avg_delay: int | None
     limit: Decimal
@@ -37,7 +37,7 @@ class ClientDebtDTO(BaseModel):
 
 class DebtTotalsDTO(BaseModel):
     under_30: Decimal
-    30_to_90: Decimal
+    days_30_to_90: Decimal
     over_90: Decimal
     outstanding: Decimal
 

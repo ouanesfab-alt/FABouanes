@@ -68,7 +68,7 @@ class ReportsService:
             
             if current_debt > Decimal("0.01"):
                 # Brackets
-                brackets = {"under_30": Decimal("0.0"), "30_to_90": Decimal("0.0"), "over_90": Decimal("0.0")}
+                brackets = {"under_30": Decimal("0.0"), "days_30_to_90": Decimal("0.0"), "over_90": Decimal("0.0")}
                 rem = current_debt
                 today = date.today()
                 c_sales_desc = sorted(c_sales, key=lambda x: x["date"], reverse=True)
@@ -81,7 +81,7 @@ class ReportsService:
                     if days < 30:
                         brackets["under_30"] += unpaid
                     elif days <= 90:
-                        brackets["30_to_90"] += unpaid
+                        brackets["days_30_to_90"] += unpaid
                     else:
                         brackets["over_90"] += unpaid
                     rem -= unpaid
@@ -142,7 +142,7 @@ class ReportsService:
                     name=client["name"],
                     debt=current_debt,
                     under_30=brackets["under_30"],
-                    30_to_90=brackets["30_to_90"],
+                    days_30_to_90=brackets["days_30_to_90"],
                     over_90=brackets["over_90"],
                     avg_delay=avg_delay,
                     limit=limit,
@@ -152,18 +152,17 @@ class ReportsService:
                 ))
                 
                 total_under_30 += brackets["under_30"]
-                total_30_to_90 += brackets["30_to_90"]
+                total_30_to_90 += brackets["days_30_to_90"]
                 total_over_90 += brackets["over_90"]
                 total_outstanding += current_debt
 
         client_debts = sorted(client_debts, key=lambda x: x.debt, reverse=True)
         debt_totals = DebtTotalsDTO(
             under_30=total_under_30,
-            30_to_90=total_30_to_90,
+            days_30_to_90=total_30_to_90,
             over_90=total_over_90,
             outstanding=total_outstanding,
         )
-
         # Tendances mensuelles
         monthly_sales = self.repository.get_sales_by_month(12)
         monthly_purchases = self.repository.get_purchases_by_month(12)
