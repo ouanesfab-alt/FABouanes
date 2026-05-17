@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.core.db_access import execute_db, query_db
+from app.core.db_access import execute_db, query_db, db_task
 from app.utils.pagination import pagination_context, parse_pagination
 def client_stats_query(where_sql: str = "") -> str:
     where_clause = f"WHERE {where_sql}" if where_sql else ""
@@ -49,10 +49,12 @@ def client_stats_query(where_sql: str = "") -> str:
     """
 
 
+@db_task
 def list_clients_with_stats():
     return query_db(f"{client_stats_query()} ORDER BY c.name")
 
 
+@db_task
 def list_clients_page_context(args=None):
     args = args or {}
     page, page_size, offset = parse_pagination(args)
@@ -127,10 +129,12 @@ def list_clients_page_context(args=None):
     }
 
 
+@db_task
 def get_client_with_stats(client_id: int):
     return query_db(client_stats_query("c.id = ?"), (client_id,), one=True)
 
 
+@db_task
 def insert_client(name: str, phone: str, address: str, notes: str, opening_credit: float):
     return execute_db(
         'INSERT INTO clients (name, phone, address, notes, opening_credit) VALUES (?, ?, ?, ?, ?)',
@@ -138,10 +142,12 @@ def insert_client(name: str, phone: str, address: str, notes: str, opening_credi
     )
 
 
+@db_task
 def get_client(client_id: int):
     return query_db('SELECT * FROM clients WHERE id = ?', (client_id,), one=True)
 
 
+@db_task
 def update_client(client_id: int, name: str, phone: str, address: str, notes: str, opening_credit: float):
     execute_db(
         'UPDATE clients SET name=?, phone=?, address=?, notes=?, opening_credit=? WHERE id=?',
@@ -149,6 +155,7 @@ def update_client(client_id: int, name: str, phone: str, address: str, notes: st
     )
 
 
+@db_task
 def find_client_by_name(name: str):
     return query_db('SELECT id FROM clients WHERE lower(trim(name)) = lower(trim(?))', (name,), one=True)
 async def list_clients(
