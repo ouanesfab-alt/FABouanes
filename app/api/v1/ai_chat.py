@@ -154,3 +154,69 @@ async def ai_chat(request: Request):
         return JSONResponse({"error": str(exc)}, status_code=502)
     except Exception as exc:
         return JSONResponse({"error": f"Erreur serveur : {str(exc)}"}, status_code=500)
+
+
+@router.get("/keys")
+async def get_keys_status(request: Request):
+    """Retourne quelles clés API sont configurées (sans révéler les valeurs)."""
+    require_api_user(request)
+    return JSONResponse({
+        "gemini": bool(os.getenv("GEMINI_API_KEY", "").strip()),
+        "openai": bool(os.getenv("OPENAI_API_KEY", "").strip()),
+    })
+
+
+@router.post("/keys")
+async def save_keys(request: Request):
+    """Enregistre les clés API dans le fichier .env du projet."""
+    require_api_user(request)
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Corps JSON invalide."}, status_code=400)
+
+    gemini_key = (body.get("gemini_api_key") or "").strip()
+    openai_key = (body.get("openai_api_key") or "").strip()
+
+    if not gemini_key and not openai_key:
+        return JSONResponse({"error": "Aucune clé fournie."}, status_code=400)
+
+    # Lire le .env existant ou créer un nouveau
+    from app.core.config import BASE_DIR
+    env_path = BASE_DIR / ".env"
+
+    existing_lines = []
+    if env_path.exists():
+        existing_lines = env_path.read_text(encoding="utf-8").splitlines()
+
+    # Mettre à jour ou ajouter les clés
+    new_lines = []
+    gemini_set = False
+    openai_set = False
+
+    for line in existing_lines:
+        stripped = line.strip()
+        if gemini_key and stripped.startswith("GEMINI_API_KEY="):
+            new_lines.append(f"GEMINI_API_KEY={gemini_key}")
+            gemini_set = True
+        elif openai_key and stripped.startswith("OPENAI_API_KEY="):
+            new_lines.append(f"OPENAI_API_KEY={openai_key}")
+            openai_set = True
+        else:
+            new_lines.append(line)
+
+    if gemini_key and not gemini_set:
+        new_lines.append(f"GEMINI_API_KEY={gemini_key}")
+    if openai_key and not openai_set:
+        new_lines.append(f"OPENAI_API_KEY={openai_key}")
+
+    env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+
+    # Appliquer immédiatement dans le process en cours
+    if gemini_key:
+        os.environ["GEMINI_API_KEY"] = gemini_key
+    if openai_key:
+        os.environ["OPENAI_API_KEY"] = openai_key
+
+    return JSONResponse({"ok": True})

@@ -196,6 +196,10 @@
           <i class="bi bi-chevron-down drawer-caret"></i>
         </button>
         <div class="drawer-submenu">
+          <a href="{{ url_for('ai_chat') }}"
+            class="drawer-sublink {{ 'active' if request.endpoint == 'ai_chat' else '' }}">
+            <i class="bi bi-cpu"></i> Assistant IA
+          </a>
           <a href="{{ url_for('expenses') }}"
             class="drawer-sublink {{ 'active' if request.endpoint in ['expenses','new_expense','edit_expense'] else '' }}">
             <i class="bi bi-wallet2"></i> Dépenses
