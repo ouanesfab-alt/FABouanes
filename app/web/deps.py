@@ -217,6 +217,18 @@ def template_context(request: Request, **context: Any) -> dict[str, Any]:
     }
 
 
+def _dt_filter(value: Any, length: int = 16) -> str:
+    if value is None:
+        return ""
+    if hasattr(value, "strftime"):
+        if length <= 10:
+            return value.strftime("%Y-%m-%d")
+        return value.strftime("%Y-%m-%d %H:%M")
+    elif hasattr(value, "isoformat"):
+        return value.isoformat()[:length]
+    return str(value)[:length]
+
+
 @pass_context
 def _url_for(context, name: str, **params: Any) -> str:
     request = context["request"]
@@ -233,3 +245,4 @@ templates.env.globals["url_for"] = _url_for
 templates.env.globals["get_flashed_messages"] = _get_flashed_messages
 templates.env.filters["money"] = _money_filter
 templates.env.filters["qty"] = _qty_filter
+templates.env.filters["dt"] = _dt_filter

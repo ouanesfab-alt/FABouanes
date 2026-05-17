@@ -183,7 +183,7 @@
               <input form="{{ user_form_id }}" type="hidden" name="action" value="update_user">
               <input form="{{ user_form_id }}" type="hidden" name="user_id" value="{{ u.id }}">
               <div class="fw-semibold">{{ u.username }}</div>
-              <div class="small text-muted">Cree le {{ (u.created_at or '')[:16] }}</div>
+              <div class="small text-muted">Cree le {{ u.created_at|dt(16) }}</div>
             </td>
             <td>
               <select form="{{ user_form_id }}" name="role" class="form-select form-select-sm">
@@ -265,7 +265,7 @@
         <tbody>
           {% for log in audit_logs %}
           <tr>
-            <td>{{ (log.created_at or '')[:16] }}</td>
+            <td>{{ log.created_at|dt(16) }}</td>
             <td>
               <div class="fw-semibold">{{ log.actor_username }}</div>
               <div class="small text-muted">{{ log.actor_role }}</div>
@@ -319,7 +319,7 @@
             <td class="hide-mobile">{{ job.backup_type }}</td>
             <td>{{ job.status }}</td>
             <td class="hide-mobile">{{ job.cloud_file_name or '-' }}</td>
-            <td>{{ (job.created_at or '')[:16] }}</td>
+            <td>{{ job.created_at|dt(16) }}</td>
             <td class="small text-break hide-mobile">{{ job.error_message or '-' }}</td>
           </tr>
           {% else %}
@@ -467,7 +467,7 @@
         <tbody>
           {% for movement in stock_movements %}
           <tr>
-            <td>{{ (movement.created_at or '')[:16] }}</td>
+            <td>{{ movement.created_at|dt(16) }}</td>
             <td>{{ movement.item_kind }} #{{ movement.item_id }}</td>
             <td>{{ movement.direction }} {{ movement.quantity|qty }} {{ movement.unit }}</td>
             <td class="hide-mobile">{{ movement.stock_before|qty }} -> {{ movement.stock_after|qty }}</td>
@@ -496,7 +496,7 @@
         <tbody>
           {% for log in performance_logs %}
           <tr>
-            <td>{{ (log.created_at or '')[:16] }}</td>
+            <td>{{ log.created_at|dt(16) }}</td>
             <td>{{ log.kind }}</td>
             <td>{{ "%.0f"|format(log.elapsed_ms) }} ms</td>
             <td class="text-break">{{ log.name }}</td>
@@ -522,7 +522,7 @@
         <tbody>
           {% for log in system_logs %}
           <tr>
-            <td>{{ (log.created_at or '')[:16] }}</td>
+            <td>{{ log.created_at|dt(16) }}</td>
             <td>{{ log.level }}</td>
             <td>{{ log.message }}</td>
           </tr>
