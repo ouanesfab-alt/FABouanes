@@ -385,8 +385,36 @@ def _purge_old_logs() -> None:
 
 
 def _weekly_vacuum() -> None:
-    # PostgreSQL auto-vacuums
-    pass
+    """Run VACUUM ANALYZE weekly to reclaim space and update statistics."""
+    now = datetime.now()
+    if now.weekday() != 6:  # Only run on Sunday
+        return
+    today = now.strftime("%Y-%m-%d")
+    if get_setting("last_vacuum_date", "") == today:
+        return
+    if now.hour < 3: # Run after 3 AM
+        return
+    
+    try:
+        from app.core.config import DATABASE_URL
+        from sqlalchemy import create_engine, text
+        
+        # VACUUM cannot run inside a transaction block, we need autocommit
+        url = DATABASE_URL
+        if url.startswith("postgresql://"):
+            url = "postgresql+pg8000://" + url[len("postgresql://"):]
+        elif url.startswith("postgres://"):
+            url = "postgresql+pg8000://" + url[len("postgres://"):]
+            
+        engine = create_engine(url, isolation_level="AUTOCOMMIT")
+        with engine.connect() as conn:
+            conn.execute(text("VACUUM ANALYZE"))
+        engine.dispose()
+        
+        set_setting("last_vacuum_date", today)
+        logger.info("Weekly VACUUM ANALYZE completed successfully.")
+    except Exception as e:
+        logger.warning("Weekly VACUUM ANALYZE failed: %s", e)
 
 
 def _safe_run(task_name: str, func, *args, **kwargs) -> bool:
@@ -417,6 +445,15 @@ def _background_loop(app) -> None:
         success &= _safe_run("trigger_nightly_snapshot_if_due", trigger_nightly_snapshot_if_due)
         success &= _safe_run("purge_old_logs", _purge_old_logs)
         success &= _safe_run("weekly_vacuum", _weekly_vacuum)
+        
+        # Log pool stats every ~15 minutes (20 loops of 45s)
+        loop_counter = BACKGROUND_STATE.get("loop_counter", 0) + 1
+        BACKGROUND_STATE["loop_counter"] = loop_counter
+        if loop_counter % 20 == 0:
+            from app.core.db_access import postgres_pool_status
+            stats = postgres_pool_status(DATABASE_URL)
+            logger.debug("PG Pool status: %s", stats)
+
         with BACKGROUND_LOCK:
             BACKGROUND_STATE["last_run_ts"] = time.time()
         
