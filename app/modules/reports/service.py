@@ -1,286 +1,239 @@
-"""Logique métier du module Rapports — préparation des données pour les graphiques."""
+"""Service de traitement décisionnel et métier pour le module Rapports."""
 from __future__ import annotations
 
-from app.modules.reports.repository import (
-    daily_sales,
-    expenses_by_month_safe,
-    expenses_total_safe,
-    period_summary,
-    purchases_by_month,
-    sales_by_month,
-    top_clients_by_revenue,
-    top_products_by_revenue,
+import re
+from datetime import date
+from decimal import Decimal
+from app.modules.reports.repository import ReportsRepository
+from app.modules.reports.dtos import (
+    ReportsContextDTO,
+    ReportsSummaryDTO,
+    TopProductDTO,
+    TopClientDTO,
+    ClientDebtDTO,
+    DebtTotalsDTO,
 )
 
+class ReportsService:
+    def __init__(self, repository: ReportsRepository | None = None) -> None:
+        self.repository = repository or ReportsRepository()
 
-def build_reports_context(date_from: str | None = None, date_to: str | None = None) -> dict:
-    """Construit toutes les données nécessaires pour la page de rapports, y compris les analyses BI."""
-    from datetime import date, timedelta
-    import re
-    from app.core.db_access import query_db
-    
-    summary = period_summary(date_from, date_to)
-    expenses_total = expenses_total_safe(date_from, date_to)
-
-    # ── CALCUL DES COMPOSANTS DE RENTABILITÉ NETTE (COGS, MARGE NETTE) ──
-    # COGS (Coût des marchandises vendues) pour la période
-    where_s = "WHERE 1=1"
-    where_rs = "WHERE 1=1"
-    params_cogs = []
-    if date_from:
-        where_s += " AND sale_date >= ?"
-        where_rs += " AND sale_date >= ?"
-        params_cogs.extend([date_from, date_from])
-    if date_to:
-        where_s += " AND sale_date <= ?"
-        where_rs += " AND sale_date <= ?"
-        params_cogs.extend([date_to, date_to])
+    def build_reports_context(self, date_from: str | None = None, date_to: str | None = None) -> ReportsContextDTO:
+        """Construit toutes les données nécessaires pour la page de rapports via DTOs typés."""
         
-    cogs_row = query_db(
-        f"""
-        SELECT
-            COALESCE((SELECT SUM(quantity * cost_price_snapshot) FROM sales {where_s}), 0)
-            + COALESCE((
-                SELECT SUM(
-                    (CASE
-                        WHEN lower(unit) = 'sac' THEN quantity * 50
-                        WHEN lower(unit) IN ('qt', 'quintal') THEN quantity * 100
-                        ELSE quantity
-                    END) * cost_price_snapshot
-                )
-                FROM raw_sales {where_rs}
-             ), 0) AS cost_of_goods
-        """,
-        tuple(params_cogs + params_cogs),
-        one=True,
-    )
-    cogs = float(cogs_row["cost_of_goods"]) if cogs_row else 0.0
-    
-    # Marge Brute BI
-    revenue = summary["total_sales"]
-    gross_margin = revenue - cogs
-    net_profit = gross_margin - expenses_total
-    
-    net_margin_pct = round((net_profit / revenue) * 100, 1) if revenue > 0 else 0.0
-    gross_margin_pct = round((gross_margin / revenue) * 100, 1) if revenue > 0 else 0.0
-
-    # Dépenses par catégorie
-    expenses_by_cat_rows = query_db(
-        """
-        SELECT category, SUM(amount) AS total, COUNT(*) AS count
-        FROM expenses
-        GROUP BY category
-        ORDER BY total DESC
-        """
-    )
-    expenses_by_cat = [dict(e) for e in expenses_by_cat_rows]
-    expenses_by_cat_labels = [str(e["category"]) for e in expenses_by_cat]
-    expenses_by_cat_totals = [float(e["total"]) for e in expenses_by_cat]
-
-    # ── RAPPORT ANGLAIS/FRANÇAIS SUR L'ÂGE DES DETTES & RETARD DE PAIEMENT CLIENTS ──
-    clients = query_db("SELECT id, name, notes, opening_credit FROM clients")
-    sales = query_db(
-        """
-        SELECT client_id, sale_date AS date, total
-        FROM sales
-        WHERE client_id IS NOT NULL AND sale_type = 'credit'
-        UNION ALL
-        SELECT client_id, sale_date AS date, total
-        FROM raw_sales
-        WHERE client_id IS NOT NULL AND sale_type = 'credit'
-        ORDER BY date DESC
-        """
-    )
-    payments = query_db(
-        """
-        SELECT client_id, payment_date AS date, amount, payment_type
-        FROM payments
-        WHERE client_id IS NOT NULL
-        ORDER BY date ASC
-        """
-    )
-
-    client_debts = []
-    total_under_30 = 0.0
-    total_30_to_90 = 0.0
-    total_over_90 = 0.0
-    total_outstanding = 0.0
-    
-    for client in clients:
-        c_sales = [s for s in sales if s["client_id"] == client["id"]]
-        c_payments = [p for p in payments if p["client_id"] == client["id"]]
+        summary_raw = self.repository.get_period_summary(date_from, date_to)
+        summary = ReportsSummaryDTO(
+            total_sales=Decimal(str(summary_raw.get("total_sales", 0.0))),
+            total_profit=Decimal(str(summary_raw.get("total_profit", 0.0))),
+            total_purchases=Decimal(str(summary_raw.get("total_purchases", 0.0))),
+            total_payments=Decimal(str(summary_raw.get("total_payments", 0.0))),
+        )
         
-        total_credit = float(client["opening_credit"]) + sum(float(s["total"]) for s in c_sales)
-        total_paid_versements = sum(float(p["amount"]) for p in c_payments if p["payment_type"] == "versement")
-        total_paid_avances = sum(float(p["amount"]) for p in c_payments if p["payment_type"] == "avance")
+        expenses_total = Decimal(str(self.repository.get_expenses_total(date_from, date_to)))
+        cogs = Decimal(str(self.repository.get_cost_of_goods(date_from, date_to)))
         
-        current_debt = total_credit - total_paid_versements + total_paid_avances
+        revenue = summary.total_sales
+        gross_margin = revenue - cogs
+        net_profit = gross_margin - expenses_total
         
-        if current_debt > 0.01:
-            # Brackets
-            brackets = {"under_30": 0.0, "30_to_90": 0.0, "over_90": 0.0}
-            rem = current_debt
-            today = date.today()
-            c_sales_desc = sorted(c_sales, key=lambda x: x["date"], reverse=True)
-            for s in c_sales_desc:
-                if rem <= 0:
-                    break
-                unpaid = min(rem, float(s["total"]))
-                sale_day = date.fromisoformat(s["date"])
-                days = (today - sale_day).days
-                if days < 30:
-                    brackets["under_30"] += unpaid
-                elif days <= 90:
-                    brackets["30_to_90"] += unpaid
-                else:
-                    brackets["over_90"] += unpaid
-                rem -= unpaid
-            if rem > 0:
-                brackets["over_90"] += rem
-                
-            # Repayment delay FIFO
-            sales_fifo = []
-            if float(client["opening_credit"]) > 0:
-                sales_fifo.append({"date": "2020-01-01", "total": float(client["opening_credit"])})
-            for s in sorted(c_sales, key=lambda x: x["date"]):
-                sales_fifo.append({"date": s["date"], "total": float(s["total"])})
-                
-            c_versements = sorted([p for p in c_payments if p["payment_type"] == "versement"], key=lambda x: x["date"])
-            delays = []
-            sale_idx = 0
-            num_sales = len(sales_fifo)
-            for p in c_versements:
-                p_amount = float(p["amount"])
-                p_date = date.fromisoformat(p["date"])
-                while p_amount > 0 and sale_idx < num_sales:
-                    sale = sales_fifo[sale_idx]
-                    s_total = sale["total"]
-                    s_date = date.fromisoformat(sale["date"]) if sale["date"] != "2020-01-01" else None
+        # Marge en pourcentage
+        net_margin_pct = round(float(net_profit / revenue) * 100.0, 1) if revenue > 0 else 0.0
+        gross_margin_pct = round(float(gross_margin / revenue) * 100.0, 1) if revenue > 0 else 0.0
+
+        # Dépenses par catégorie
+        expenses_by_cat_raw = self.repository.get_expenses_by_category()
+        expenses_by_cat_labels = [str(e["category"]) for e in expenses_by_cat_raw]
+        expenses_by_cat_totals = [float(e["total"]) for e in expenses_by_cat_raw]
+
+        # ── RETARD DE PAIEMENT CLIENTS & ÂGE DES DETTES ──
+        clients = self.repository.get_clients()
+        sales = self.repository.get_credit_sales()
+        payments = self.repository.get_payments()
+
+        client_debts: list[ClientDebtDTO] = []
+        total_under_30 = Decimal("0.0")
+        total_30_to_90 = Decimal("0.0")
+        total_over_90 = Decimal("0.0")
+        total_outstanding = Decimal("0.0")
+        
+        for client in clients:
+            c_sales = [s for s in sales if s["client_id"] == client["id"]]
+            c_payments = [p for p in payments if p["client_id"] == client["id"]]
+            
+            total_credit = Decimal(str(client["opening_credit"])) + sum(Decimal(str(s["total"])) for s in c_sales)
+            total_paid_versements = sum(Decimal(str(p["amount"])) for p in c_payments if p["payment_type"] == "versement")
+            total_paid_avances = sum(Decimal(str(p["amount"])) for p in c_payments if p["payment_type"] == "avance")
+            
+            current_debt = total_credit - total_paid_versements + total_paid_avances
+            
+            if current_debt > Decimal("0.01"):
+                # Brackets
+                brackets = {"under_30": Decimal("0.0"), "30_to_90": Decimal("0.0"), "over_90": Decimal("0.0")}
+                rem = current_debt
+                today = date.today()
+                c_sales_desc = sorted(c_sales, key=lambda x: x["date"], reverse=True)
+                for s in c_sales_desc:
+                    if rem <= 0:
+                        break
+                    unpaid = min(rem, Decimal(str(s["total"])))
+                    sale_day = date.fromisoformat(s["date"])
+                    days = (today - sale_day).days
+                    if days < 30:
+                        brackets["under_30"] += unpaid
+                    elif days <= 90:
+                        brackets["30_to_90"] += unpaid
+                    else:
+                        brackets["over_90"] += unpaid
+                    rem -= unpaid
+                if rem > 0:
+                    brackets["over_90"] += rem
                     
-                    if s_total <= 0:
-                        sale_idx += 1
-                        continue
+                # Repayment delay FIFO
+                sales_fifo = []
+                if Decimal(str(client["opening_credit"])) > 0:
+                    sales_fifo.append({"date": "2020-01-01", "total": Decimal(str(client["opening_credit"]))})
+                for s in sorted(c_sales, key=lambda x: x["date"]):
+                    sales_fifo.append({"date": s["date"], "total": Decimal(str(s["total"]))})
+                    
+                c_versements = sorted([p for p in c_payments if p["payment_type"] == "versement"], key=lambda x: x["date"])
+                delays = []
+                sale_idx = 0
+                num_sales = len(sales_fifo)
+                for p in c_versements:
+                    p_amount = Decimal(str(p["amount"]))
+                    p_date = date.fromisoformat(p["date"])
+                    while p_amount > 0 and sale_idx < num_sales:
+                        sale = sales_fifo[sale_idx]
+                        s_total = sale["total"]
+                        s_date = date.fromisoformat(sale["date"]) if sale["date"] != "2020-01-01" else None
                         
-                    payment_applied = min(p_amount, s_total)
-                    p_amount -= payment_applied
-                    sale["total"] -= payment_applied
-                    
-                    if s_date:
-                       delay_days = (p_date - s_date).days
-                       if delay_days >= 0:
-                           delays.append(delay_days)
-                           
-                    if sale["total"] <= 0:
-                        sale_idx += 1
-            avg_delay = round(sum(delays) / len(delays), 1) if delays else None
-            
-            # Limit check
-            limit = 200000.0
-            notes_str = str(client["notes"] or "")
-            match = re.search(r"(?i)limite\s*:\s*([\d\s]+)", notes_str)
-            if match:
-                try:
-                    limit = float(re.sub(r"[^\d]", "", match.group(1)))
-                except Exception:
-                    pass
-            limit_utilized_pct = round((current_debt / limit) * 100, 1) if limit > 0 else 0.0
-            limit_utilized_pct_clamped = min(limit_utilized_pct, 100.0)
-            limit_exceeded = current_debt > limit
-            
-            client_debts.append({
-                "id": client["id"],
-                "name": client["name"],
-                "debt": current_debt,
-                "under_30": brackets["under_30"],
-                "30_to_90": brackets["30_to_90"],
-                "over_90": brackets["over_90"],
-                "avg_delay": avg_delay,
-                "limit": limit,
-                "limit_utilized_pct": limit_utilized_pct,
-                "limit_utilized_pct_clamped": limit_utilized_pct_clamped,
-                "limit_exceeded": limit_exceeded,
-            })
-            
-            total_under_30 += brackets["under_30"]
-            total_30_to_90 += brackets["30_to_90"]
-            total_over_90 += brackets["over_90"]
-            total_outstanding += current_debt
+                        if s_total <= 0:
+                            sale_idx += 1
+                            continue
+                            
+                        payment_applied = min(p_amount, s_total)
+                        p_amount -= payment_applied
+                        sale["total"] -= payment_applied
+                        
+                        if s_date:
+                           delay_days = (p_date - s_date).days
+                           if delay_days >= 0:
+                               delays.append(delay_days)
+                               
+                        if sale["total"] <= 0:
+                            sale_idx += 1
+                avg_delay = int(round(sum(delays) / len(delays))) if delays else None
+                
+                # Limit check
+                limit = Decimal("200000.0")
+                notes_str = str(client["notes"] or "")
+                match = re.search(r"(?i)limite\s*:\s*([\d\s]+)", notes_str)
+                if match:
+                    try:
+                        limit = Decimal(re.sub(r"[^\d]", "", match.group(1)))
+                    except Exception:
+                        pass
+                limit_utilized_pct = round(float(current_debt / limit) * 100.0, 1) if limit > 0 else 0.0
+                limit_utilized_pct_clamped = min(limit_utilized_pct, 100.0)
+                limit_exceeded = current_debt > limit
+                
+                client_debts.append(ClientDebtDTO(
+                    id=client["id"],
+                    name=client["name"],
+                    debt=current_debt,
+                    under_30=brackets["under_30"],
+                    30_to_90=brackets["30_to_90"],
+                    over_90=brackets["over_90"],
+                    avg_delay=avg_delay,
+                    limit=limit,
+                    limit_utilized_pct=limit_utilized_pct,
+                    limit_utilized_pct_clamped=limit_utilized_pct_clamped,
+                    limit_exceeded=limit_exceeded,
+                ))
+                
+                total_under_30 += brackets["under_30"]
+                total_30_to_90 += brackets["30_to_90"]
+                total_over_90 += brackets["over_90"]
+                total_outstanding += current_debt
 
-    client_debts = sorted(client_debts, key=lambda x: x["debt"], reverse=True)
-    debt_totals = {
-        "under_30": total_under_30,
-        "30_to_90": total_30_to_90,
-        "over_90": total_over_90,
-        "outstanding": total_outstanding,
-    }
+        client_debts = sorted(client_debts, key=lambda x: x.debt, reverse=True)
+        debt_totals = DebtTotalsDTO(
+            under_30=total_under_30,
+            30_to_90=total_30_to_90,
+            over_90=total_over_90,
+            outstanding=total_outstanding,
+        )
 
-    # Tendances mensuelles (12 derniers mois)
-    monthly_sales = sales_by_month(12)
-    monthly_purchases = purchases_by_month(12)
-    monthly_expenses = expenses_by_month_safe(12)
+        # Tendances mensuelles
+        monthly_sales = self.repository.get_sales_by_month(12)
+        monthly_purchases = self.repository.get_purchases_by_month(12)
+        monthly_expenses = self.repository.get_expenses_by_month(12)
 
-    # Fusionner les mois pour les graphiques
-    all_months = sorted(set(
-        [r["month"] for r in monthly_sales]
-        + [r["month"] for r in monthly_purchases]
-        + [r["month"] for r in monthly_expenses]
-    ))
-    sales_map = {r["month"]: r for r in monthly_sales}
-    purchases_map = {r["month"]: r for r in monthly_purchases}
-    expenses_map = {r["month"]: r for r in monthly_expenses}
+        all_months = sorted(set(
+            [r["month"] for r in monthly_sales]
+            + [r["month"] for r in monthly_purchases]
+            + [r["month"] for r in monthly_expenses]
+        ))
+        sales_map = {r["month"]: r for r in monthly_sales}
+        purchases_map = {r["month"]: r for r in monthly_purchases}
+        expenses_map = {r["month"]: r for r in monthly_expenses}
 
-    chart_months = all_months[-12:] if len(all_months) > 12 else all_months
-    chart_sales = [float(sales_map.get(m, {}).get("total", 0)) for m in chart_months]
-    chart_profit = [float(sales_map.get(m, {}).get("profit", 0)) for m in chart_months]
-    chart_purchases = [float(purchases_map.get(m, {}).get("total", 0)) for m in chart_months]
-    chart_expenses = [float(expenses_map.get(m, {}).get("total", 0)) for m in chart_months]
+        chart_months = all_months[-12:] if len(all_months) > 12 else all_months
+        chart_sales = [float(sales_map.get(m, {}).get("total", 0)) for m in chart_months]
+        chart_purchases = [float(purchases_map.get(m, {}).get("total", 0)) for m in chart_months]
 
-    # Labels lisibles (2025-01 → Jan 25)
-    month_names = {
-        "01": "Jan", "02": "Fév", "03": "Mar", "04": "Avr", "05": "Mai", "06": "Jui",
-        "07": "Jul", "08": "Aoû", "09": "Sep", "10": "Oct", "11": "Nov", "12": "Déc",
-    }
-    chart_labels = []
-    for m in chart_months:
-        parts = m.split("-")
-        if len(parts) == 2:
-            chart_labels.append(f"{month_names.get(parts[1], parts[1])} {parts[0][2:]}")
-        else:
-            chart_labels.append(m)
+        month_names = {
+            "01": "Jan", "02": "Fév", "03": "Mar", "04": "Avr", "05": "Mai", "06": "Jui",
+            "07": "Jul", "08": "Aoû", "09": "Sep", "10": "Oct", "11": "Nov", "12": "Déc",
+        }
+        chart_labels = []
+        for m in chart_months:
+            parts = m.split("-")
+            if len(parts) == 2:
+                chart_labels.append(f"{month_names.get(parts[1], parts[1])} {parts[0][2:]}")
+            else:
+                chart_labels.append(m)
 
-    # Ventes quotidiennes (30 derniers jours)
-    daily = daily_sales(30)
-    daily_labels = [d["day"] for d in daily]
-    daily_totals = [float(d["total"]) for d in daily]
-    daily_profits = [float(d["profit"]) for d in daily]
+        # Top produits et clients
+        top_products_raw = self.repository.get_top_products_by_revenue(10, date_from, date_to)
+        top_products = [
+            TopProductDTO(
+                name=p["name"],
+                qty=float(p["qty"]),
+                revenue=Decimal(str(p["revenue"])),
+                profit=Decimal(str(p["profit"])),
+            ) for p in top_products_raw
+        ]
 
-    # Top produits et clients
-    top_products = top_products_by_revenue(10, date_from, date_to)
-    top_clients = top_clients_by_revenue(10, date_from, date_to)
+        top_clients_raw = self.repository.get_top_clients_by_revenue(10, date_from, date_to)
+        top_clients = [
+            TopClientDTO(
+                name=c["name"],
+                count=int(c["count"]),
+                revenue=Decimal(str(c["revenue"])),
+                profit=Decimal(str(c["profit"])),
+            ) for c in top_clients_raw
+        ]
 
-    return {
-        "summary": summary,
-        "expenses_total": expenses_total,
-        "cogs": cogs,
-        "gross_margin": gross_margin,
-        "net_profit": net_profit,
-        "net_margin_pct": net_margin_pct,
-        "gross_margin_pct": gross_margin_pct,
-        "expenses_by_cat": expenses_by_cat,
-        "expenses_by_cat_labels": expenses_by_cat_labels,
-        "expenses_by_cat_totals": expenses_by_cat_totals,
-        "client_debts": client_debts,
-        "debt_totals": debt_totals,
-        "chart_labels": chart_labels,
-        "chart_sales": chart_sales,
-        "chart_profit": chart_profit,
-        "chart_purchases": chart_purchases,
-        "chart_expenses": chart_expenses,
-        "daily_labels": daily_labels,
-        "daily_totals": daily_totals,
-        "daily_profits": daily_profits,
-        "top_products": top_products,
-        "top_clients": top_clients,
-        "date_from": date_from or "",
-        "date_to": date_to or "",
-    }
+        return ReportsContextDTO(
+            summary=summary,
+            top_products=top_products,
+            top_clients=top_clients,
+            client_debts=client_debts,
+            debt_totals=debt_totals,
+            expenses_by_cat_labels=expenses_by_cat_labels,
+            expenses_by_cat_totals=expenses_by_cat_totals,
+            expenses_total=expenses_total,
+            net_profit=net_profit,
+            monthly_labels=chart_labels,
+            monthly_sales=chart_sales,
+            monthly_purchases=chart_purchases,
+            date_from=date_from,
+            date_to=date_to,
+        )
+
+# Rétro-compatibilité pour d'autres modules si nécessaire
+def build_reports_context(date_from: str | None = None, date_to: str | None = None) -> dict:
+    service = ReportsService()
+    dto = service.build_reports_context(date_from, date_to)
+    return dto.dict()

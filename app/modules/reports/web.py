@@ -4,18 +4,24 @@ from __future__ import annotations
 import csv
 import io
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import RedirectResponse, StreamingResponse
 
-from app.modules.reports.service import build_reports_context
+from app.modules.reports.service import ReportsService
 from app.web.deps import require_permission, template_context, templates
 from app.core.perf_cache import cached_result
 
 router = APIRouter()
 
+def get_reports_service() -> ReportsService:
+    return ReportsService()
+
 
 @router.get("/reports", name="reports_dashboard")
-async def reports_page(request: Request):
+async def reports_page(
+    request: Request,
+    reports_service: ReportsService = Depends(get_reports_service)
+):
     denied = require_permission(request, "reports.read")
     if denied:
         return denied
@@ -24,7 +30,7 @@ async def reports_page(request: Request):
     
     ctx = cached_result(
         ("dashboard", "reports", date_from or "", date_to or ""),
-        lambda: build_reports_context(date_from or None, date_to or None),
+        lambda: reports_service.build_reports_context(date_from or None, date_to or None).dict(),
         ttl_seconds=300.0,
     )
     
@@ -34,7 +40,10 @@ async def reports_page(request: Request):
 
 
 @router.get("/reports/export-csv", name="reports_export_csv")
-async def export_csv(request: Request):
+async def export_csv(
+    request: Request,
+    reports_service: ReportsService = Depends(get_reports_service)
+):
     denied = require_permission(request, "reports.read")
     if denied:
         return denied
@@ -43,7 +52,7 @@ async def export_csv(request: Request):
     
     ctx = cached_result(
         ("dashboard", "reports", date_from or "", date_to or ""),
-        lambda: build_reports_context(date_from or None, date_to or None),
+        lambda: reports_service.build_reports_context(date_from or None, date_to or None).dict(),
         ttl_seconds=300.0,
     )
 
