@@ -271,7 +271,7 @@
 
   <!-- -- Main Content -- -->
   <div class="app-content">
-    <div class="toast-container position-fixed bottom-0 end-0 p-4 toast-container-app" id="toastContainer">
+    <div class="toast-container position-fixed top-0 end-0 p-4 toast-container-app" id="toastContainer" style="margin-top: 60px; z-index: 9999;">
       {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
       {% for category, message in messages %}
