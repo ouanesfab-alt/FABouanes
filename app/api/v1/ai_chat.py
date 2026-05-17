@@ -56,8 +56,12 @@ async def _call_gemini(provider: dict, api_key: str, contents: list) -> str:
     }
     async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.post(f"{provider['url']}?key={api_key}", json=payload)
+    if resp.status_code == 429:
+        raise ValueError("Quota dépassé — attendez 1 minute puis réessayez, ou changez de modèle.")
+    if resp.status_code == 401:
+        raise ValueError("Clé API Gemini invalide. Vérifiez-la dans Paramètres → Clés API.")
     if resp.status_code != 200:
-        raise ValueError(f"Erreur Gemini ({resp.status_code}): {resp.text[:300]}")
+        raise ValueError(f"Erreur Gemini ({resp.status_code}): {resp.text[:200]}")
     data = resp.json()
     return data["candidates"][0]["content"]["parts"][0]["text"]
 
@@ -75,8 +79,12 @@ async def _call_openai(provider: dict, api_key: str, messages: list) -> str:
             json=payload,
             headers={"Authorization": f"Bearer {api_key}"},
         )
+    if resp.status_code == 429:
+        raise ValueError("Quota OpenAI dépassé — attendez puis réessayez, ou vérifiez votre forfait.")
+    if resp.status_code == 401:
+        raise ValueError("Clé API OpenAI invalide. Vérifiez-la dans Paramètres → Clés API.")
     if resp.status_code != 200:
-        raise ValueError(f"Erreur OpenAI ({resp.status_code}): {resp.text[:300]}")
+        raise ValueError(f"Erreur OpenAI ({resp.status_code}): {resp.text[:200]}")
     data = resp.json()
     return data["choices"][0]["message"]["content"]
 
