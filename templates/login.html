@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .login-page{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px;background: radial-gradient(circle at 15% 50%, rgba(37,99,235,0.08), transparent 50%), radial-gradient(circle at 85% 30%, rgba(34,197,94,0.06), transparent 50%), linear-gradient(135deg, #eef4ff 0%, #f8fafc 48%, #effaf4 100%);}
+  [data-theme="dark"] .login-page{background: radial-gradient(circle at 15% 50%, rgba(96,165,250,0.12), transparent 50%), radial-gradient(circle at 85% 30%, rgba(74,222,128,0.08), transparent 50%), linear-gradient(135deg, #0f172a 0%, #111827 54%, #0b1220 100%);}
+  .login-card{width:min(100%,430px);background:rgba(255,255,255,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.6);border-radius:16px;padding:35px 30px;box-shadow:0 24px 70px rgba(15,23,42,.12), inset 0 1px 0 rgba(255,255,255,1);animation:fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1);}
+  [data-theme="dark"] .login-card{background:rgba(15,23,42,0.75);border-color:rgba(255,255,255,0.08);box-shadow:0 24px 70px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,0.05);}
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(24px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .login-brand{display:grid;justify-items:center;gap:14px;margin-bottom:26px;text-align:center;}
+  .login-logo-frame{width:min(100%,230px);aspect-ratio:1408/768;display:grid;place-items:center;padding:10px;border-radius:12px;background:#fff;border:1px solid rgba(148,163,184,.15);box-shadow:0 18px 40px rgba(15,23,42,.08);transition:transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);}
+  .login-logo-frame:hover{transform:translateY(-4px) scale(1.02);box-shadow:0 24px 50px rgba(37,99,235,.12);}
+  .login-logo{display:block;width:100%;height:100%;object-fit:contain;}
+  .login-title{margin:0;font-size:1.4rem;line-height:1.2;font-weight:900;color:var(--text);letter-spacing:-0.02em;}
+  .login-subtitle{margin:4px 0 0;color:var(--muted);font-size:.92rem;font-weight:700;}
+  [data-theme="dark"] .login-logo-frame{background:linear-gradient(180deg,#ffffff,#f1f5f9);border-color:rgba(255,255,255,.1);box-shadow:0 20px 40px rgba(0,0,0,.3);}
+  .login-alert{margin-bottom:18px;border-radius:10px;font-size:.9rem;font-weight:700;}
+  .login-field{margin-bottom:18px;}
+  .login-label{display:block;margin-bottom:8px;color:var(--text);font-size:.88rem;font-weight:800;letter-spacing:0.01em;}
+  .login-input-wrap{position:relative;}
+  .login-input-wrap>i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:1.05rem;pointer-events:none;transition:color 0.2s ease;}
+  .login-input{width:100%;height:52px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,0.6);color:var(--text);font-size:1rem;font-weight:600;padding:0 44px;transition:all .2s cubic-bezier(0.16, 1, 0.3, 1);}
+  [data-theme="dark"] .login-input{background:rgba(13,17,23,0.6);border-color:#30363d;}
+  .login-input:focus{outline:none;border-color:#2563eb;background:#fff;box-shadow:0 0 0 4px rgba(37,99,235,.15);}
+  [data-theme="dark"] .login-input:focus{background:#0d1117;box-shadow:0 0 0 4px rgba(96,165,250,.15);}
+  .login-input:focus ~ i, .login-input:focus-within ~ i {color:#2563eb;}
+  [data-theme="dark"] .login-input:focus ~ i {color:#60a5fa;}
+  .toggle-pass{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;border-radius:8px;background:transparent;color:var(--muted);display:grid;place-items:center;transition:all .2s ease;}
+  .toggle-pass:hover{background:rgba(37,99,235,.1);color:#2563eb;transform:translateY(-50%) scale(1.05);}
+  .login-options{display:flex;align-items:center;justify-content:space-between;margin:8px 0 24px;}
+  .remember-check{display:inline-flex;align-items:center;gap:10px;color:var(--muted);font-size:.9rem;font-weight:700;cursor:pointer;}
+  .remember-check input{width:18px;height:18px;accent-color:#2563eb;cursor:pointer;transition:transform 0.2s;}
+  .remember-check:hover input{transform:scale(1.1);}
+  .btn-login{width:100%;height:52px;border:0;border-radius:10px;background:linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);color:#fff;font-size:1rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 12px 28px rgba(37,99,235,.28), inset 0 1px 0 rgba(255,255,255,.2);transition:all .25s cubic-bezier(0.16, 1, 0.3, 1);}
+  .btn-login:hover{background:linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);transform:translateY(-2px);box-shadow:0 18px 36px rgba(37,99,235,.35), inset 0 1px 0 rgba(255,255,255,.2);}
+  .btn-login:active{transform:translateY(0);box-shadow:0 8px 16px rgba(37,99,235,.2);}
+  .btn-login>i{font-size:1.15rem;transition:transform 0.3s ease;}
+  .btn-login:hover>i{transform:translateX(4px);}
+  @media(max-width:575px){.login-page{padding:16px}.login-card{padding:28px 24px}.login-logo-frame{width:min(100%,200px)}}
+</style>
+
+<div class="login-page">
+  <main class="login-card" aria-label="Connexion">
+    <div class="login-brand">
+      <div class="login-logo-frame">
+        <img src="{{ url_for('static', filename='dashboard.webp') }}" alt="FABOuanes" class="login-logo" loading="eager" decoding="async">
+      </div>
+      <div>
+        <h1 class="login-title">Connexion</h1>
+        <p class="login-subtitle">Acces a FABOuanes</p>
+      </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} login-alert">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('login') }}" autocomplete="on">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+      <div class="login-field">
+        <label class="login-label" for="usernameInput">Utilisateur</label>
+        <div class="login-input-wrap">
+          <i class="bi bi-person"></i>
+          <input id="usernameInput" name="username" type="text" class="login-input" autocomplete="username" placeholder="Identifiant" required>
+        </div>
+      </div>
+
+      <div class="login-field">
+        <label class="login-label" for="passwordInput">Mot de passe</label>
+        <div class="login-input-wrap">
+          <i class="bi bi-key"></i>
+          <input id="passwordInput" name="password" type="password" class="login-input" autocomplete="current-password" placeholder="********" required>
+          <button type="button" class="toggle-pass" id="togglePassword" aria-label="Afficher le mot de passe">
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="login-options">
+        <label class="remember-check">
+          <input type="checkbox" name="remember"> Se souvenir de moi
+        </label>
+      </div>
+
+      <button type="submit" class="btn-login">
+        <i class="bi bi-box-arrow-in-right"></i>
+        Se connecter
+      </button>
+    </form>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+if (!localStorage.getItem('fab_theme')) {
+  localStorage.setItem('fab_theme', 'light');
+  document.documentElement.setAttribute('data-theme', 'light');
+}
+const togglePassword = document.getElementById('togglePassword');
+const passwordInput = document.getElementById('passwordInput');
+if (togglePassword && passwordInput) {
+  togglePassword.addEventListener('click', function () {
+    const isPassword = passwordInput.getAttribute('type') === 'password';
+    passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+    this.innerHTML = isPassword ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+  });
+}
+</script>
+{% endblock %}

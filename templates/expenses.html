@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .expenses-page{display:flex;flex-direction:column;gap:18px;}
+  .expenses-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .expenses-summary{color:var(--muted);font-size:.92rem;}
+  .expenses-table-card{padding:18px;}
+  .expense-cat-badge{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:6px;font-size:.78rem;font-weight:700;line-height:1;border:1px solid rgba(107,114,128,.15);background:rgba(107,114,128,.06);color:var(--text);}
+  .expense-cat-badge.transport{border-color:rgba(217,119,6,.15);background:rgba(217,119,6,.07);color:#b45309;}
+  .expense-cat-badge.fournitures{border-color:rgba(22,163,74,.15);background:rgba(22,163,74,.07);color:#15803d;}
+  .expense-cat-badge.loyer{border-color:rgba(168,85,247,.15);background:rgba(168,85,247,.07);color:#7c3aed;}
+  .expense-cat-badge.salaires{border-color:rgba(220,38,38,.15);background:rgba(220,38,38,.07);color:#dc2626;}
+  .expense-cat-badge.maintenance{border-color:rgba(6,182,212,.15);background:rgba(6,182,212,.07);color:#0891b2;}
+  .expense-cat-badge.telecom{border-color:rgba(37,99,235,.15);background:rgba(37,99,235,.07);color:#1d4ed8;}
+  .expense-cat-badge.energie{border-color:rgba(234,179,8,.15);background:rgba(234,179,8,.07);color:#a16207;}
+  .expense-cat-badge.impots{border-color:rgba(239,68,68,.15);background:rgba(239,68,68,.07);color:#dc2626;}
+  [data-theme="dark"] .expense-cat-badge{border-color:rgba(156,163,175,.2);background:rgba(156,163,175,.1);color:var(--text);}
+  [data-theme="dark"] .expense-cat-badge.transport{border-color:rgba(251,191,36,.2);background:rgba(251,191,36,.08);color:#fcd34d;}
+  [data-theme="dark"] .expense-cat-badge.fournitures{border-color:rgba(74,222,128,.2);background:rgba(74,222,128,.08);color:#86efac;}
+  [data-theme="dark"] .expense-cat-badge.loyer{border-color:rgba(192,132,252,.2);background:rgba(192,132,252,.08);color:#c4b5fd;}
+  [data-theme="dark"] .expense-cat-badge.salaires{border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.08);color:#fca5a5;}
+  [data-theme="dark"] .expense-cat-badge.maintenance{border-color:rgba(34,211,238,.2);background:rgba(34,211,238,.08);color:#67e8f9;}
+  [data-theme="dark"] .expense-cat-badge.telecom{border-color:rgba(96,165,250,.2);background:rgba(96,165,250,.08);color:#93c5fd;}
+  [data-theme="dark"] .expense-cat-badge.energie{border-color:rgba(250,204,21,.2);background:rgba(250,204,21,.08);color:#fde047;}
+  [data-theme="dark"] .expense-cat-badge.impots{border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.08);color:#fca5a5;}
+  .expense-method{font-size:.78rem;color:var(--muted);font-weight:600;}
+  .expense-total-bar{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-radius:var(--radius);background:linear-gradient(135deg,rgba(220,38,38,.04),rgba(220,38,38,.08));border:1px solid rgba(220,38,38,.12);backdrop-filter:blur(8px);}
+  .expense-total-label{font-size:.88rem;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:8px;}
+  .expense-total-value{font-size:1.5rem;font-weight:900;color:#dc2626;}
+  [data-theme="dark"] .expense-total-bar{background:linear-gradient(135deg,rgba(248,113,113,.06),rgba(220,38,38,.1));border-color:rgba(248,113,113,.15);}
+  [data-theme="dark"] .expense-total-value{color:#f87171;}
+  .expense-breakdown{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+  .expense-breakdown-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:8px;background:var(--card);border:1px solid var(--line);font-size:.85rem;}
+  .expense-breakdown-cat{font-weight:700;}
+  .expense-breakdown-val{font-weight:900;color:#dc2626;}
+  [data-theme="dark"] .expense-breakdown-val{color:#f87171;}
+  @media(max-width:767px){
+    .expenses-table-card{padding:14px;}
+    .expenses-actions{flex-direction:column;}
+    .expenses-actions > *{width:100%;flex:1 1 auto;}
+    .expense-breakdown{grid-template-columns:1fr;}
+  }
+</style>
+
+<div class="expenses-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1"><i class="bi bi-wallet2 me-2"></i>Dépenses & Charges</h2>
+      <p class="expenses-summary mb-0">{{ expenses|length }} dépense(s) enregistrée(s).</p>
+    </div>
+    <div class="expenses-actions">
+      <a href="{{ url_for('new_expense') }}" class="btn btn-page-action"><i class="bi bi-plus-lg me-2"></i>Nouvelle dépense</a>
+    </div>
+  </div>
+
+  {% if expenses %}
+  <div class="expense-total-bar">
+    <span class="expense-total-label"><i class="bi bi-graph-down-arrow"></i> Total affiché</span>
+    <span class="expense-total-value">{{ total|money }}</span>
+  </div>
+  {% endif %}
+
+  {% if by_category %}
+  <div class="expense-breakdown">
+    {% for cat in by_category %}
+    <div class="expense-breakdown-item">
+      <span class="expense-breakdown-cat">{{ cat.category|capitalize }}</span>
+      <span class="expense-breakdown-val">{{ cat.total|money }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="card expenses-table-card">
+    <form method="get" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <input type="text" name="q" value="{{ filters.q }}" class="form-control" placeholder="Rechercher...">
+      </div>
+      <div class="col-md-2">
+        <select name="category" class="form-select">
+          <option value="">Toutes catégories</option>
+          {% for val, label in categories %}
+          <option value="{{ val }}" {{ 'selected' if filters.category == val else '' }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="date_from" value="{{ filters.date_from }}" class="form-control" title="Date début">
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="date_to" value="{{ filters.date_to }}" class="form-control" title="Date fin">
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button class="btn btn-dark w-100">Filtrer</button>
+        <a href="{{ url_for('expenses') }}" class="btn btn-outline-secondary" aria-label="Réinitialiser"><i class="bi bi-x-lg"></i></a>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table js-datagrid align-middle table-row-hover">
+        <thead>
+          <tr>
+            <th style="width:10%">Date</th>
+            <th style="width:15%">Catégorie</th>
+            <th>Description</th>
+            <th class="text-end" style="width:14%">Montant</th>
+            <th class="hide-mobile" style="width:10%">Méthode</th>
+            <th style="width:8%">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in expenses %}
+          <tr class="context-target"
+              data-edit-url="{{ url_for('edit_expense', expense_id=e.id) }}"
+              data-delete-url="{{ url_for('delete_expense', expense_id=e.id) }}"
+              data-delete-label="cette dépense"
+              data-label="{{ e.description or e.category }}">
+            <td class="text-muted small">{{ e.date }}</td>
+            <td><span class="expense-cat-badge {{ e.category }}">{{ e.category|capitalize }}</span></td>
+            <td>{{ e.description or '—' }}</td>
+            <td class="text-end fw-bold" style="color:#dc2626;">{{ e.amount|money }}</td>
+            <td class="hide-mobile"><span class="expense-method">{{ e.payment_method|capitalize }}</span></td>
+            <td class="text-nowrap">
+              <a href="{{ url_for('edit_expense', expense_id=e.id) }}" class="btn btn-sm btn-outline-secondary" title="Modifier"><i class="bi bi-pencil"></i></a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-muted text-center py-4">Aucune dépense enregistrée.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

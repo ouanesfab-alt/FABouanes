@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .dashboard-shell{display:flex;flex-direction:column;gap:20px; animation: staggerFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;}
+  @keyframes staggerFade { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+  .dash-hero{position:relative;overflow:hidden;border-radius:16px;padding:20px;background:linear-gradient(135deg,#f8fbff 0%,#eef4ff 50%,#eefcf3 100%);border:1px solid rgba(148,163,184,.15);box-shadow:var(--shadow-lg);display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,280px);gap:20px;align-items:center;justify-content:space-between;}
+  .dash-hero > *{min-width:0;}
+  .dash-hero::before{content:'';position:absolute;right:-70px;top:-70px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.08),transparent 70%);}
+  .dash-hero::after{content:'';position:absolute;left:-60px;bottom:-90px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(34,197,94,.08),transparent 70%);}
+  .dash-logo-card{position:relative;z-index:1;min-height:200px;border-radius:12px;padding:16px;background:rgba(255,255,255,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.8);display:grid;place-items:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),var(--shadow);}
+  .dash-logo-frame{position:relative;width:min(100%,760px);aspect-ratio:1408/768;display:grid;place-items:center;border-radius:10px;background:#fff;box-shadow:var(--shadow-lg);overflow:hidden;}
+  .dash-logo{display:block;width:100%;height:100%;object-fit:contain;filter:none;transition:transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);}
+  .dash-logo-frame:hover .dash-logo{transform:scale(1.02);}
+  .dash-connect-card{position:relative;z-index:1;display:grid;gap:14px;justify-items:center;padding:20px;border-radius:12px;background:rgba(255,255,255,.85);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.6);box-shadow:var(--shadow);text-align:center;}
+  .dash-connect-card.is-disabled{justify-items:stretch;text-align:left;}
+  .dash-connect-label{margin:0;font-size:1.05rem;font-weight:800;color:var(--text);letter-spacing:0.01em;}
+  .dash-connect-url{font-size:.88rem;color:var(--muted);word-break:break-word;line-height:1.45;}
+  .dash-connect-status{font-size:.95rem;font-weight:700;color:var(--muted);}
+  .dash-qr-frame{display:grid;place-items:center;width:min(100%,220px);padding:14px;border-radius:12px;background:#fff;border:1px solid rgba(148,163,184,.15);box-shadow:var(--shadow);}
+  .dash-qr{display:block;width:100%;height:auto;object-fit:contain;}
+  .dashboard-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;}
+  .dashboard-kpis > *{min-width:0;}
+  .kpi-card{position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.6)!important;border-radius:16px!important;padding:22px;min-height:165px;background:linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%)!important;backdrop-filter:blur(8px);box-shadow:var(--shadow)!important;cursor:pointer;transition:all .3s cubic-bezier(0.16, 1, 0.3, 1);display:flex;flex-direction:column;align-items:flex-start;}
+  .kpi-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)!important;border-color:rgba(37,99,235,0.2)!important;}
+  .kpi-card::before{content:'';position:absolute;right:-50px;top:-50px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.08),transparent 70%);transition:transform 0.4s ease;}
+  .kpi-card:hover::before{transform:scale(1.1);}
+  .kpi-card.green::before{background:radial-gradient(circle,rgba(22,163,74,.08),transparent 70%);}
+  .kpi-card.red::before{background:radial-gradient(circle,rgba(220,38,38,.08),transparent 70%);}
+  .kpi-card > *{position:relative;z-index:1;}
+  .kpi-label{font-size:.86rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.02em;}
+  .kpi-value{margin-top:12px;font-size:2.4rem;line-height:1;font-weight:900;letter-spacing:-0.02em;color:var(--text);}
+  .kpi-delta{margin-top:12px;font-size:.85rem;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:8px;max-width:100%;white-space:normal;}
+  .kpi-delta.up{background:rgba(22,163,74,.1);color:#15803d;}
+  .kpi-delta.down{background:rgba(220,38,38,.1);color:#b91c1c;}
+  .kpi-date-badge{position:relative;left:auto;bottom:auto;margin-top:auto;display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;background:rgba(239,246,255,0.8);color:#1d4ed8;font-size:.85rem;font-weight:800;max-width:100%;white-space:normal;transition:background 0.2s ease;}
+  .kpi-card:hover .kpi-date-badge{background:#dbeafe;}
+  .dashboard-switch-stack{display:flex;flex-direction:column;gap:18px;}
+  .dashboard-panel-title{margin:0 0 6px;font-size:1.1rem;font-weight:800;letter-spacing:-0.01em;}
+  .dashboard-panel-subtitle{margin:0 0 16px;color:var(--muted);font-size:.92rem;line-height:1.5;}
+  
+  [data-theme="dark"] .dash-hero{background:linear-gradient(135deg,#0f172a 0%,#111827 52%,#0b1220 100%);border-color:#1e293b;box-shadow:0 22px 50px rgba(0,0,0,.4);}
+  [data-theme="dark"] .dash-hero::before{background:radial-gradient(circle,rgba(96,165,250,.15),transparent 70%);}
+  [data-theme="dark"] .dash-hero::after{background:radial-gradient(circle,rgba(74,222,128,.10),transparent 70%);}
+  [data-theme="dark"] .dash-logo-card{background:rgba(15,23,42,.6);border-color:rgba(255,255,255,.05);box-shadow:inset 0 1px 0 rgba(255,255,255,.02),0 16px 30px rgba(0,0,0,.3);}
+  [data-theme="dark"] .dash-logo-frame{background:linear-gradient(180deg,#ffffff,#f1f5f9);box-shadow:0 24px 46px rgba(0,0,0,.4);}
+  [data-theme="dark"] .dash-connect-card{background:rgba(15,23,42,.7);border-color:rgba(255,255,255,.05);box-shadow:var(--shadow-lg);}
+  [data-theme="dark"] .kpi-card{background:linear-gradient(135deg, rgba(30,41,59,0.8) 0%, rgba(15,23,42,0.9) 100%)!important;border-color:rgba(255,255,255,0.05)!important;box-shadow:0 18px 42px rgba(0,0,0,.3)!important;}
+  [data-theme="dark"] .kpi-card:hover{box-shadow:0 24px 52px rgba(0,0,0,.4)!important;border-color:rgba(96,165,250,0.2)!important;}
+  [data-theme="dark"] .kpi-label{color:#94a3b8;}
+  [data-theme="dark"] .kpi-value{color:#f8fafc;}
+  [data-theme="dark"] .kpi-date-badge{background:rgba(30,58,138,0.5);color:#93c5fd;}
+  [data-theme="dark"] .kpi-card:hover .kpi-date-badge{background:rgba(30,58,138,0.8);}
+  
+  @media(max-width:1199px){.dash-hero{grid-template-columns:1fr}.dashboard-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}
+  @media(max-width:991px){.dash-hero{padding:18px;gap:18px}.dashboard-kpis{grid-template-columns:1fr}.dash-logo-card{min-height:170px}.dash-logo-frame{width:min(100%,640px)}}
+  @media(max-width:767px){.dash-hero{padding:16px;border-radius:12px}.dash-logo-card{min-height:138px;border-radius:10px;padding:12px}.dashboard-kpis{grid-template-columns:1fr}.kpi-card { min-height: 110px; padding: 16px; }.kpi-value { font-size: 1.75rem; }.dash-logo-frame{width:100%;border-radius:8px}.dash-connect-card{padding:18px}.dash-qr-frame{width:min(100%,190px)}}
+
+  @media(max-width:375px) {
+    .kpi-card { min-height: 95px; padding: 12px; }
+    .kpi-value { font-size: 1.5rem; }
+    .kpi-label { font-size: .78rem; }
+  }
+
+  body.kpi-modal-open{overflow:hidden;}
+  .kpi-sheet-overlay{display:none;position:fixed!important;inset:0!important;width:100vw;min-height:100vh;height:100dvh;background:rgba(2,6,23,.58);z-index:6000;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);overscroll-behavior:contain;}
+  .kpi-sheet-overlay.open{display:flex;}
+  .kpi-sheet{background:var(--card);width:min(100%,560px);max-height:min(86vh,760px);overflow:auto;border-radius:10px;border:1px solid var(--line);box-shadow:0 28px 80px rgba(15,23,42,.24);padding:0;animation:kpiModalIn .22s cubic-bezier(.2,.8,.2,1);}
+  @keyframes kpiModalIn{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+  .kpi-sheet-handle{display:none;}
+  .kpi-sheet-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid var(--line);}
+  .kpi-sheet-title{font-weight:800;font-size:1.02rem;padding:0;margin:0;}
+  .kpi-sheet-close{border:none;background:transparent;color:var(--muted);width:38px;height:38px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;transition:background .15s ease,color .15s ease;}
+  .kpi-sheet-close:hover{background:var(--bg);color:var(--text);}
+  .kpi-sheet-body{padding:18px 20px 20px;}
+  .kpi-result{margin-top:12px;padding:14px;background:var(--bg);border-radius:8px;border:1px solid var(--line);display:none;}
+  .kpi-result.show{display:block;}
+  .kpi-result-label{font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;}
+  .kpi-result-value{font-size:1.6rem;font-weight:800;margin-top:4px;}
+  .kpi-result-date{font-size:.75rem;color:var(--muted);margin-top:2px;}
+  .kpi-quick-btns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+  .kpi-quick-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s;}
+  .kpi-quick-btn:hover,.kpi-quick-btn.active{background:#2563eb;border-color:#2563eb;color:#fff;}
+  @media(max-width:575px){
+    .kpi-sheet-overlay{align-items:flex-end;justify-content:stretch;padding:0;}
+    .kpi-sheet{width:100%;max-height:90vh;border-radius:10px 10px 0 0;animation:sheetUp .22s cubic-bezier(.4,0,.2,1);}
+    @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    .kpi-sheet-handle{display:block;width:40px;height:4px;background:var(--line);border-radius:999px;margin:12px auto 0;}
+    .kpi-sheet-head{padding:10px 16px 8px;border-bottom:none;}
+    .kpi-sheet-body{padding:8px 16px 18px;}
+  }
+</style>
+
+<div class="dashboard-shell">
+  <section class="dash-hero">
+    <div class="dash-logo-card">
+      <div class="dash-logo-frame">
+        <img src="{{ url_for('static', filename='dashboard.webp') }}" alt="Logo FABOuanes - Tableau de bord" class="dash-logo" loading="lazy" decoding="async">
+      </div>
+    </div>
+    <div class="dash-connect-card {{ '' if mobile_connect_available else 'is-disabled' }}">
+      <p class="dash-connect-label">{{ mobile_connect_status }}</p>
+      {% if mobile_connect_available %}
+      <div class="dash-qr-frame">
+        <img src="{{ mobile_connect_qr_uri }}" alt="QR connexion mobile" class="dash-qr" loading="lazy" decoding="async">
+      </div>
+      <div class="dash-connect-url">{{ mobile_connect_url }}</div>
+      {% else %}
+      <div class="dash-connect-status">{% if mobile_connect_url %}{{ mobile_connect_url }}{% else %}Serveur reseau indisponible sur cette session.{% endif %}</div>
+      {% endif %}
+    </div>
+  </section>
+
+  <div class="dashboard-kpis">
+    <div class="card kpi-card" role="button" tabindex="0" onclick="openKpiSheet('sales','Ventes')" onkeydown="if(event.key==='Enter'||event.key===' ') openKpiSheet('sales','Ventes')">
+      <div class="kpi-icon"><i class="bi bi-graph-up-arrow"></i></div>
+      <div class="kpi-label">Ventes du jour</div>
+      <div class="kpi-value">{{ (sales_today|money).replace(' DA','') }}</div>
+      {% if sales_delta_pct is not none %}<div class="kpi-delta {{ 'up' if sales_delta_pct >= 0 else 'down' }}">{{ '↑' if sales_delta_pct >= 0 else '↓' }} {{ '+' if sales_delta_pct > 0 else '' }}{{ sales_delta_pct }}% vs J-7</div>{% endif %}
+      <div class="kpi-date-badge"><i class="bi bi-calendar3"></i> Voir autre date</div>
+    </div>
+    <div class="card kpi-card green" role="button" tabindex="0" onclick="openKpiSheet('cash','Encaisse')" onkeydown="if(event.key==='Enter'||event.key===' ') openKpiSheet('cash','Encaisse')">
+      <div class="kpi-icon text-success" style="background: rgba(22,163,74,.12);"><i class="bi bi-cash-stack"></i></div>
+      <div class="kpi-label">Encaisse du jour</div>
+      <div class="kpi-value">{{ (cash_today|money).replace(' DA','') }}</div>
+      <div class="kpi-date-badge"><i class="bi bi-calendar3"></i> Voir autre date</div>
+    </div>
+    <div class="card kpi-card green" role="button" tabindex="0" onclick="openKpiSheet('profit','Profit')" onkeydown="if(event.key==='Enter'||event.key===' ') openKpiSheet('profit','Profit')">
+      <div class="kpi-icon text-success" style="background: rgba(22,163,74,.12);"><i class="bi bi-piggy-bank"></i></div>
+      <div class="kpi-label">Profit du jour</div>
+      <div class="kpi-value text-success">{{ (profit_today|money).replace(' DA','') }}</div>
+      <div class="kpi-date-badge"><i class="bi bi-calendar3"></i> Voir autre date</div>
+    </div>
+    <div class="card kpi-card red" role="button" tabindex="0" onclick="openKpiSheet('receivables','Créances')" onkeydown="if(event.key==='Enter'||event.key===' ') openKpiSheet('receivables','Créances')">
+      <div class="kpi-icon text-danger" style="background: rgba(220,38,38,.12);"><i class="bi bi-exclamation-triangle"></i></div>
+      <div class="kpi-label">Créances clients</div>
+      <div class="kpi-value text-danger">{{ (total_receivables|money).replace(' DA','') }}</div>
+      <div class="kpi-date-badge"><i class="bi bi-calendar3"></i> Voir à une date</div>
+    </div>
+  </div>
+
+  <div class="dashboard-switch-stack">
+    <div class="fab-switcher" id="dashboardSwitchButtons" data-fab-switch-root data-fab-switch-placeholder="dashboardSwitchPlaceholder">
+      <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardOperations" aria-controls="dashboardOperations" aria-pressed="false"><i class="bi bi-graph-up"></i> Operations</button>
+      <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardTopDebtors" aria-controls="dashboardTopDebtors" aria-pressed="false"><i class="bi bi-people"></i> Top débiteurs</button>
+      <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardLowStock" aria-controls="dashboardLowStock" aria-pressed="false"><i class="bi bi-exclamation-triangle"></i> Stocks faibles</button>
+      <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardRecentSales" aria-controls="dashboardRecentSales" aria-pressed="false"><i class="bi bi-receipt"></i> Ventes recentes</button>
+      <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardDailySummary" aria-controls="dashboardDailySummary" aria-pressed="false"><i class="bi bi-calendar3"></i> Résumé journalier</button>
+      <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardRawMaterials" aria-controls="dashboardRawMaterials" aria-pressed="false"><i class="bi bi-flower1"></i> Matières premières</button>
+      <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardFinishedProducts" aria-controls="dashboardFinishedProducts" aria-pressed="false"><i class="bi bi-box-seam"></i> Produits finaux</button>
+    </div>
+
+    <div id="dashboardSwitchPlaceholder" class="card fab-switch-placeholder">
+      <strong>Choisissez un bloc</strong>
+    </div>
+
+    <section id="dashboardOperations" class="card p-3 fab-switch-panel" hidden>
+      <h5 class="dashboard-panel-title">Operations</h5>
+      <p class="dashboard-panel-subtitle">Vue rapide des montants globaux de l'activite.</p>
+      <table class="table table-sm no-grid mb-0">
+        <tr><td class="text-muted">Revenus totaux</td><td class="fw-bold text-end">{{ profit_stats.revenue|money }}</td></tr>
+        <tr><td class="text-muted">Cout des ventes</td><td class="fw-bold text-end">{{ profit_stats.cost_of_goods|money }}</td></tr>
+        <tr><td class="text-muted">Benefice brut</td><td class="fw-bold text-success text-end">{{ profit_stats.gross_profit|money }}</td></tr>
+        <tr><td class="text-muted">Creances ouvertes</td><td class="fw-bold text-danger text-end">{{ total_receivables|money }}</td></tr>
+      </table>
+    </section>
+
+    <section id="dashboardTopDebtors" class="card p-3 fab-switch-panel" hidden>
+      <h5 class="dashboard-panel-title">Top débiteurs</h5>
+      <p class="dashboard-panel-subtitle">Clients avec les soldes ouverts les plus eleves.</p>
+      {% if debt_by_client %}
+      <table class="table table-sm no-grid mb-0">
+        {% for d in debt_by_client[:6] %}
+        <tr><td><a href="{{ url_for('client_detail', client_id=d.id) }}" class="text-decoration-none">{{ d.name }}</a></td><td class="text-danger fw-semibold text-end">{{ d.balance|money }}</td></tr>
+        {% endfor %}
+      </table>
+      {% else %}
+      <div class="empty-state">
+        <i class="bi bi-check-circle empty-state-icon text-success" style="opacity: 0.5;"></i>
+        <div class="empty-state-title">Aucune dette ouverte</div>
+        <div class="empty-state-sub">Tous les clients sont à jour dans leurs paiements.</div>
+      </div>
+      {% endif %}
+    </section>
+
+    <section id="dashboardLowStock" class="card p-3 fab-switch-panel" hidden>
+      <h5 class="dashboard-panel-title">Stocks faibles</h5>
+      <p class="dashboard-panel-subtitle">Matière première en dessous du seuil d'alerte.</p>
+      {% if low_stock %}
+      <table class="table table-sm no-grid mb-0">
+        {% for item in low_stock[:6] %}
+        <tr><td>{{ item.name }}</td><td class="text-danger small text-end">{{ item.stock_qty }} {{ item.unit }}</td></tr>
+        {% endfor %}
+      </table>
+      {% else %}
+      <div class="empty-state">
+        <i class="bi bi-box-seam empty-state-icon text-success" style="opacity: 0.5;"></i>
+        <div class="empty-state-title">Stocks adéquats</div>
+        <div class="empty-state-sub">Aucune matière première en dessous du seuil critique.</div>
+      </div>
+      {% endif %}
+    </section>
+
+    <section id="dashboardRecentSales" class="card p-3 fab-switch-panel" hidden>
+      <h5 class="dashboard-panel-title">Ventes recentes</h5>
+      <p class="dashboard-panel-subtitle">Dernieres ventes produits finaux et matières premières confondues.</p>
+      {% if recent_sales %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle table-row-hover">
+          <thead><tr><th>Date</th><th class="hide-mobile">Client</th><th>Article</th><th>Total</th><th>Reste</th><th class="hide-mobile">Benefice</th></tr></thead>
+          <tbody>
+            {% for item in recent_sales %}
+            <tr><td class="text-muted small">{{ item.sale_date }}</td><td class="hide-mobile">{{ item.client_name }}</td><td class="small">{{ item.item_name }}</td><td>{{ item.total|money }}</td><td class="{{ 'text-danger' if item.balance_due > 0 else 'text-muted' }}">{{ item.balance_due|money }}</td><td class="text-success small hide-mobile">{{ item.profit_amount|money }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <i class="bi bi-inbox empty-state-icon"></i>
+        <div class="empty-state-title">Aucune vente pour le moment</div>
+        <div class="empty-state-sub">Créez votre première vente pour commencer à suivre votre activité.</div>
+        <a href="{{ url_for('new_sale') }}" class="btn btn-dark btn-sm mt-3">
+          <i class="bi bi-plus-lg me-1"></i> Nouvelle vente
+        </a>
+      </div>
+      {% endif %}
+    </section>
+
+    <section id="dashboardDailySummary" class="card p-3 fab-switch-panel" hidden>
+      <h5 class="dashboard-panel-title">Résumé journalier</h5>
+      <p class="dashboard-panel-subtitle">Synthese quotidienne des ventes, paiements et benefices.</p>
+      {% if sales_summary %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Date</th><th>Ventes</th><th>Total</th><th class="hide-mobile">Paye</th><th>Reste</th><th class="hide-mobile">Benefice</th></tr></thead>
+          <tbody>
+            {% for r in sales_summary %}
+            <tr><td class="text-muted small">{{ r.sale_date }}</td><td class="fw-bold">{{ r.nb_sales }}</td><td>{{ r.total_sales|money }}</td><td class="hide-mobile">{{ r.total_paid|money }}</td><td class="{{ 'text-danger' if r.total_due > 0 else 'text-muted' }}">{{ r.total_due|money }}</td><td class="text-success hide-mobile">{{ r.total_profit|money }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <i class="bi bi-calendar-x empty-state-icon"></i>
+        <div class="empty-state-title">Aucune donnée</div>
+        <div class="empty-state-sub">Il n'y a pas encore de données de ventes à résumer.</div>
+      </div>
+      {% endif %}
+    </section>
+
+    <section id="dashboardRawMaterials" class="card p-3 fab-switch-panel" hidden>
+      <h5 class="dashboard-panel-title">Matières premières</h5>
+      <p class="dashboard-panel-subtitle">Etat du stock, autonomie estimee et cout moyen.</p>
+      {% if stock_materials %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Nom</th><th>Stock</th><th>Jours</th><th>Cout</th></tr></thead>
+          <tbody>
+            {% for s in stock_materials %}
+            <tr><td>{{ s.name }}</td><td class="{{ 'text-danger fw-bold' if s.stock_qty <= s.alert_threshold else '' }}">{{ s.stock_qty }} {{ s.unit }}</td><td>{% if s.days_left is not none %}<span class="badge {{ 'bg-danger' if s.days_left < 7 else ('bg-warning text-dark' if s.days_left < 15 else 'bg-success') }} small">{{ s.days_left }}j</span>{% else %}<span class="text-muted small">-</span>{% endif %}</td><td class="small text-muted">{{ s.avg_cost|money }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <i class="bi bi-box empty-state-icon"></i>
+        <div class="empty-state-title">Catalogue vide</div>
+        <div class="empty-state-sub">Vous n'avez pas encore de matières premières.</div>
+      </div>
+      {% endif %}
+    </section>
+
+    <section id="dashboardFinishedProducts" class="card p-3 fab-switch-panel" hidden>
+      <h5 class="dashboard-panel-title">Produits finaux</h5>
+      <p class="dashboard-panel-subtitle">Niveaux de stock, prix de revient et prix de vente.</p>
+      {% if stock_products %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle no-grid">
+          <thead><tr><th>Nom</th><th>Stock</th><th>Revient</th><th>Vente</th></tr></thead>
+          <tbody>
+            {% for s in stock_products %}
+            <tr><td>{{ s.name }}</td><td class="{{ 'text-danger fw-bold' if s.stock_qty <= 0 else '' }}">{{ s.stock_qty }} {{ s.default_unit }}</td><td class="small text-muted">{{ s.avg_cost|money }}</td><td class="small">{{ s.sale_price|money }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <i class="bi bi-box2 empty-state-icon"></i>
+        <div class="empty-state-title">Aucun produit final</div>
+        <div class="empty-state-sub">Vous n'avez pas encore configuré de produits finaux.</div>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+
+<div class="kpi-sheet-overlay" id="kpiSheetOverlay" onclick="if(event.target===this) closeKpiSheet()">
+  <div class="kpi-sheet">
+    <div class="kpi-sheet-handle"></div>
+    <div class="kpi-sheet-head"><h3 class="kpi-sheet-title" id="kpiSheetTitle">Valeur à une date</h3><button type="button" class="kpi-sheet-close" onclick="closeKpiSheet()"><i class="bi bi-x-lg"></i></button></div>
+    <div class="kpi-sheet-body">
+      <div class="kpi-quick-btns"><button type="button" class="kpi-quick-btn" onclick="setKpiDateOffset(0,this)">Aujourd'hui</button><button type="button" class="kpi-quick-btn" onclick="setKpiDateOffset(1,this)">Hier</button><button type="button" class="kpi-quick-btn" onclick="setKpiDateOffset(7,this)">J-7</button><button type="button" class="kpi-quick-btn" onclick="setKpiDateOffset(30,this)">J-30</button></div>
+      <label class="form-label">Date</label><input type="date" class="form-control" id="kpiDateInput"><button class="btn btn-dark w-100 mt-3" onclick="fetchKpiAtDate()">Afficher</button>
+      <div class="kpi-result" id="kpiResult"><div class="kpi-result-label" id="kpiResultLabel">Valeur</div><div class="kpi-result-value" id="kpiResultValue">0</div><div class="kpi-result-date" id="kpiResultDate"></div></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  let currentKpiKey = null;
+  let currentKpiLabel = null;
+  function openKpiSheet(key, label){
+    currentKpiKey = key;
+    currentKpiLabel = label;
+    document.getElementById('kpiSheetTitle').textContent = label + ' à une date';
+    const overlay = document.getElementById('kpiSheetOverlay');
+    if(overlay.parentElement !== document.body){
+      document.body.appendChild(overlay);
+    }
+    overlay.classList.add('open');
+    document.body.classList.add('kpi-modal-open');
+    const input = document.getElementById('kpiDateInput');
+    if(!input.value){
+      const d = new Date();
+      input.value = d.toISOString().slice(0,10);
+    }
+    document.getElementById('kpiResult').classList.remove('show');
+    document.querySelectorAll('.kpi-quick-btn').forEach(b => b.classList.remove('active'));
+  }
+  function closeKpiSheet(){
+    document.getElementById('kpiSheetOverlay').classList.remove('open');
+    document.body.classList.remove('kpi-modal-open');
+  }
+  function setKpiDateOffset(days, btn){
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    document.getElementById('kpiDateInput').value = d.toISOString().slice(0,10);
+    document.querySelectorAll('.kpi-quick-btn').forEach(b => b.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+  }
+  async function fetchKpiAtDate(){
+    if(!currentKpiKey) return;
+    const date = document.getElementById('kpiDateInput').value;
+    if(!date) return;
+    const res = await fetch(`/api/kpi-at-date?metric=${encodeURIComponent(currentKpiKey)}&date=${encodeURIComponent(date)}`);
+    const data = await res.json();
+    const result = document.getElementById('kpiResult');
+    document.getElementById('kpiResultLabel').textContent = currentKpiLabel;
+    document.getElementById('kpiResultValue').textContent = (data.display || '0').replace(' DA','');
+    document.getElementById('kpiResultDate').textContent = 'Date : ' + date;
+    result.classList.add('show');
+  }
+  document.addEventListener('keydown', function(event){
+    if(event.key === 'Escape'){
+      const overlay = document.getElementById('kpiSheetOverlay');
+      if(overlay && overlay.classList.contains('open')) closeKpiSheet();
+    }
+  });
+</script>
+{% endblock %}

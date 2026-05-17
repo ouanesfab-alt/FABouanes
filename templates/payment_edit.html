@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .payment-edit-page{display:flex;flex-direction:column;gap:16px;}
+  .payment-edit-summary{color:var(--muted);font-size:.92rem;}
+  .payment-edit-shell{max-width:920px;margin:0 auto;width:100%;}
+  .payment-edit-card{padding:20px;}
+  .payment-edit-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;}
+  .payment-edit-grid .span-12{grid-column:span 12;}
+  .payment-edit-grid .span-6{grid-column:span 6;}
+  .payment-edit-note{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);
+    color:var(--muted);font-size:.9rem;line-height:1.55;}
+  .payment-edit-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .payment-edit-actions > *{flex:1 1 220px;}
+  @media(max-width:767px){
+    .payment-edit-card{padding:16px;}
+    .payment-edit-grid .span-6{grid-column:span 12;}
+    .payment-edit-actions{flex-direction:column;}
+    .payment-edit-actions > *{width:100%;flex:1 1 auto;}
+  }
+</style>
+
+<div class="payment-edit-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Modifier une transaction client</h2>
+      <p class="payment-edit-summary mb-0">Mets à jour le type, le client, le montant et l'affectation du paiement.</p>
+    </div>
+  </div>
+
+  <div class="payment-edit-shell">
+    <div class="card payment-edit-card">
+      <form method="post" class="payment-edit-grid">
+        <div class="span-6">
+          <label class="form-label">Type</label>
+          <select name="payment_type" class="form-select">
+            <option value="versement" {% if payment.payment_type != "avance" %}selected{% endif %}>Versement</option>
+            <option value="avance" {% if payment.payment_type == "avance" %}selected{% endif %}>Avance</option>
+          </select>
+        </div>
+        <div class="span-6">
+          <label class="form-label">Client</label>
+          <select name="client_id" class="form-select" required>
+            {% for c in clients %}<option value="{{ c.id }}" {% if payment.client_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="span-6">
+          <label class="form-label">Creance liee</label>
+          <select name="sale_link" class="form-select">
+            <option value="">Affectation automatique FIFO</option>
+            {% for s in open_sales %}<option value="{{ s.item_kind }}:{{ s.id }}" {% if current_link == (s.item_kind ~ ":" ~ s.id) %}selected{% endif %}>{{ s.client_name }} · {{ s.item_name }} · reste {{ s.balance_due|money }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="span-6">
+          <label class="form-label">Montant</label>
+          <input name="amount" type="text" inputmode="decimal" class="form-control" value="{{ payment.amount }}" required>
+        </div>
+        <div class="span-6">
+          <label class="form-label">Date</label>
+          <input name="payment_date" type="date" class="form-control" value="{{ payment.payment_date }}">
+        </div>
+        <div class="span-12">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-control" rows="3">{{ payment.notes or "" }}</textarea>
+        </div>
+        <div class="span-12">
+          <div class="payment-edit-note">
+            Si aucune créance précise n'est choisie, l'affectation suit l'ordre automatique des dettes ouvertes du client.
+          </div>
+        </div>
+        <div class="span-12 payment-edit-actions">
+          <button class="btn btn-dark">Enregistrer les modifications</button>
+          <a href="{{ url_for('operations', type='payment') }}" class="btn btn-outline-secondary">Retour</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

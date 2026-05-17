@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .product-edit-page{display:flex;flex-direction:column;gap:16px;}
+  .product-edit-summary{color:var(--muted);font-size:.92rem;}
+  .product-edit-shell{max-width:880px;margin:0 auto;width:100%;}
+  .product-edit-card{padding:20px;}
+  .product-edit-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;}
+  .product-edit-grid .span-12{grid-column:span 12;}
+  .product-edit-grid .span-6{grid-column:span 6;}
+  .product-edit-grid .span-4{grid-column:span 4;}
+  .product-edit-note{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);
+    color:var(--muted);font-size:.9rem;line-height:1.55;}
+  .product-edit-hidden[hidden]{display:none !important;}
+  .product-edit-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .product-edit-actions > *{flex:1 1 220px;}
+  @media(max-width:767px){
+    .product-edit-card{padding:16px;}
+    .product-edit-grid .span-6,.product-edit-grid .span-4{grid-column:span 12;}
+    .product-edit-actions{flex-direction:column;}
+    .product-edit-actions > *{width:100%;flex:1 1 auto;}
+  }
+</style>
+
+<div class="product-edit-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Modifier le produit final</h2>
+      <p class="product-edit-summary mb-0">Mets a jour le stock, les prix et les references de {{ product.name }}.</p>
+    </div>
+  </div>
+
+  <div class="product-edit-shell">
+    <div class="card product-edit-card">
+      <form method="post" class="product-edit-grid">
+        <div class="span-6">
+          <label class="form-label">Categorie</label>
+          <select name="category_name" id="productCategoryName" class="form-select" data-other-value="{{ other_category_value }}">
+            {% for preset in name_presets %}<option value="{{ preset }}" {% if selected_category == preset %}selected{% endif %}>{{ preset }}</option>{% endfor %}
+            <option value="{{ other_category_value }}" {% if selected_category == other_category_value %}selected{% endif %}>AUTRE</option>
+          </select>
+        </div>
+        <div class="span-6 product-edit-hidden" id="productCustomNameWrap" {% if selected_category != other_category_value %}hidden{% endif %}>
+          <label class="form-label">Preciser / Nom du produit</label>
+          <input name="custom_name" id="productCustomName" class="form-control" value="{{ custom_name_value }}" {% if selected_category == other_category_value %}required{% endif %}>
+        </div>
+        <div class="span-4">
+          <label class="form-label">Unite</label>
+          <select name="default_unit" class="form-select">
+            {% for u in units %}<option value="{{ u }}" {% if product.default_unit==u %}selected{% endif %}>{{ u }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="span-4">
+          <label class="form-label">Stock</label>
+          <input name="stock_qty" type="text" inputmode="decimal" class="form-control" value="{{ product.stock_qty }}">
+        </div>
+        <div class="span-4">
+          <label class="form-label">Prix de vente par kg</label>
+          <input id="salePriceKg" name="sale_price" type="text" inputmode="decimal" class="form-control" value="{{ product.sale_price }}">
+        </div>
+        <div class="span-12">
+          <label class="form-label">Prix de production / cout moyen par kg</label>
+          <input id="avgCostKg" name="avg_cost" type="text" inputmode="decimal" class="form-control" value="{{ product.avg_cost }}">
+        </div>
+        <div class="span-12">
+          <div class="product-edit-note">
+            Cette fiche reste la source de reference pour les prix et le calcul du benefice.
+            Apercu : 1 kg = <strong><span id="kgPrev">0</span> DA</strong>,
+            1 sac = <strong><span id="sacPrev">0</span> DA</strong>,
+            1 Qt = <strong><span id="qtPrev">0</span> DA</strong>.
+          </div>
+        </div>
+        <div class="span-12 product-edit-actions">
+          <button class="btn btn-dark">Enregistrer</button>
+          <a href="{{ url_for('catalog') }}" class="btn btn-outline-secondary">Retour</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}<script>
+const priceKg=document.getElementById('salePriceKg');
+function syncPricePreview(){const v=parseFloat(priceKg?.value||0); document.getElementById('kgPrev').textContent=v.toFixed(2); document.getElementById('sacPrev').textContent=(v*50).toFixed(2); document.getElementById('qtPrev').textContent=(v*100).toFixed(2);}
+priceKg?.addEventListener('input', syncPricePreview); syncPricePreview();
+const productCategorySelect=document.getElementById('productCategoryName');
+const productCustomNameWrap=document.getElementById('productCustomNameWrap');
+const productCustomNameInput=document.getElementById('productCustomName');
+function toggleProductCustomName(){
+  const isOther=(productCategorySelect?.value||'')===(productCategorySelect?.dataset.otherValue||'__other__');
+  if(productCustomNameWrap) productCustomNameWrap.hidden=!isOther;
+  if(productCustomNameInput) productCustomNameInput.required=isOther;
+}
+productCategorySelect?.addEventListener('change', toggleProductCustomName);
+toggleProductCustomName();
+</script>{% endblock %}

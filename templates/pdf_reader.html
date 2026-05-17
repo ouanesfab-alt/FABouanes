@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .bons-page{display:flex;flex-direction:column;gap:12px;height:calc(100vh - 104px);min-height:620px;overflow:hidden;}
+  .bons-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) 180px auto;gap:8px;align-items:center;}
+  .bons-layout{display:flex;flex-direction:row;min-height:0;flex:1;}
+  .bons-list{background:var(--card);border:1px solid var(--line);border-radius:8px;min-height:0;height:100%;display:flex;flex-direction:column;overflow:hidden;width:40%;min-width:320px;max-width:80%;}
+  .bons-list-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);}
+  .bons-list-count{color:var(--muted);font-size:.75rem;font-weight:700;}
+  .bons-list-body{overflow:auto;padding:0;min-height:0;flex:1;background:var(--card);}
+  .bons-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.8rem;}
+  .bons-table th{position:sticky;top:0;z-index:1;background:var(--surface);color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;padding:8px 9px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  .bons-table th[data-bon-sort]{cursor:pointer;user-select:none;}
+  .bons-table th[data-bon-sort]::after{content:'';display:inline-block;width:.42rem;height:.42rem;margin-left:.4rem;border-right:2px solid currentColor;border-bottom:2px solid currentColor;opacity:.3;transform:rotate(45deg) translateY(-2px);vertical-align:middle;}
+  .bons-table th[data-sort-dir="asc"]::after{opacity:.9;transform:rotate(225deg) translateY(-1px);}
+  .bons-table th[data-sort-dir="desc"]::after{opacity:.9;transform:rotate(45deg) translateY(-2px);}
+  .bons-table td{padding:8px 9px;border-bottom:1px solid var(--line);vertical-align:middle;height:50px;}
+  .bons-table .col-type{width:44px;text-align:center;}
+  .bons-table .col-number{width:100px;}
+  .bons-table .col-date{width:92px;}
+  .bons-table .col-amount{width:96px;text-align:right;}
+  .bon-row{cursor:pointer;}
+  .bon-row:hover td{background:var(--bg);}
+  .bon-row.active td{background:rgba(37,99,235,.08);}
+  .bon-kind-icon{width:28px;height:28px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;background:#eef2f7;color:#111827;}
+  .bon-doc-link{display:block;color:var(--text);font-weight:800;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bon-doc-link:hover{color:var(--accent);}
+  .bon-muted,.bon-number-cell{display:block;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bon-number-cell{font-size:.74rem;font-weight:800;}
+  .bon-amount-cell{font-weight:900;white-space:nowrap;}
+  .bons-preview{background:var(--card);border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;min-width:320px;flex:1;height:100%;overflow:hidden;}
+  .bons-preview-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);}
+  .bons-preview-title{min-width:0;}
+  .bons-preview-title strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.92rem;}
+  .bons-preview-title span{display:block;color:var(--muted);font-size:.76rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bons-preview-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end;}
+  .bons-frame-wrap{flex:1;min-height:0;background:#525659;padding:10px;overflow:auto;display:flex;justify-content:center;align-items:flex-start;}
+  .bons-frame{width:min(100%,940px);height:100%;min-height:0;border:0;background:#fff;box-shadow:0 10px 32px rgba(0,0,0,.24);}
+  .bons-empty{display:flex;align-items:center;justify-content:center;flex:1;color:var(--muted);padding:32px;text-align:center;}
+  .bons-empty strong{display:block;color:var(--text);margin-bottom:6px;}
+  .bons-empty.is-error i{color:#dc2626;opacity:.55;}
+  .bons-upload{border-top:1px solid var(--line);padding:10px 12px;background:rgba(15,23,42,.02);}
+  .bons-upload form{display:flex;gap:8px;align-items:center;justify-content:space-between;}
+  .bons-upload-label{display:flex;align-items:center;gap:8px;font-weight:800;font-size:.82rem;cursor:pointer;min-width:0;}
+  .bons-upload-label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bons-upload input[type=file]{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;}
+  @media(max-width:991px){
+    .bons-page{height:auto;min-height:0;overflow:visible;}
+    .bons-toolbar{grid-template-columns:1fr;}
+    .bons-layout{flex-direction:column;gap:12px;}
+    .bons-list{max-height:380px;}
+    .bons-table .col-date,.bons-table .col-amount{display:none;}
+    .bons-frame-wrap{height:72vh;min-height:520px;}
+    .bons-frame{height:100%;}
+  }
+  .bons-resizer{width:18px;margin:0 -4px;cursor:col-resize;display:flex;align-items:center;justify-content:center;position:relative;z-index:10;user-select:none;touch-action:none;}
+  .bons-resizer-handle{display:flex;align-items:center;justify-content:center;width:24px;height:48px;background:var(--card);border:1px solid var(--line);border-radius:12px;color:var(--muted);box-shadow:0 2px 6px rgba(0,0,0,0.06);transition:all 0.2s ease;}
+  .bons-resizer:hover .bons-resizer-handle, .bons-resizer.is-resizing .bons-resizer-handle{background:var(--accent, #2563eb);border-color:var(--accent, #2563eb);color:#fff;box-shadow:0 4px 12px rgba(37,99,235,0.25);transform:scale(1.05);}
+  [data-theme="dark"] .bons-resizer-handle{box-shadow:0 2px 6px rgba(0,0,0,0.3);}
+  @media(max-width:991px){
+    .bons-resizer{display:none;}
+  }
+</style>
+
+<div class="bons-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Espace bons</h2>
+      <div class="text-muted small">Achat, vente, versement, avance, production, historique client et PDF importes.</div>
+    </div>
+    <span class="text-muted small">{{ documents|length }} document(s)</span>
+  </div>
+
+  <form class="bons-toolbar" method="get" action="{{ url_for('bons_space') }}">
+    <div class="input-group input-group-sm">
+      <span class="input-group-text"><i class="bi bi-search"></i></span>
+      <input class="form-control" name="q" value="{{ filters.q }}" placeholder="Rechercher client, numero, date...">
+    </div>
+    <select class="form-select form-select-sm" name="kind">
+      <option value="" {{ 'selected' if not filters.kind else '' }}>Tous les bons</option>
+      <option value="purchase" {{ 'selected' if filters.kind == 'purchase' else '' }}>Achats</option>
+      <option value="sale" {{ 'selected' if filters.kind == 'sale' else '' }}>Ventes</option>
+      <option value="payment" {{ 'selected' if filters.kind == 'payment' else '' }}>Versements</option>
+      <option value="advance" {{ 'selected' if filters.kind == 'advance' else '' }}>Avances</option>
+      <option value="production" {{ 'selected' if filters.kind == 'production' else '' }}>Production</option>
+      <option value="client_history" {{ 'selected' if filters.kind == 'client_history' else '' }}>Historiques client</option>
+      <option value="external" {{ 'selected' if filters.kind == 'external' else '' }}>PDF importes</option>
+    </select>
+    <button class="btn btn-sm btn-dark" type="submit"><i class="bi bi-funnel me-1"></i>Filtrer</button>
+  </form>
+
+  <div class="bons-layout" id="bonsLayout">
+    <aside class="bons-list" id="bonsList">
+      <div class="bons-list-head">
+        <strong>Documents</strong>
+        <span class="bons-list-count">{{ documents|length }} affiches</span>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('bons_space') }}" title="Reinitialiser"><i class="bi bi-arrow-counterclockwise"></i></a>
+      </div>
+      <div class="bons-list-body">
+        <table class="bons-table">
+          <thead>
+            <tr>
+              <th class="col-type" data-bon-sort="type" tabindex="0" aria-sort="none">Type</th>
+              <th data-bon-sort="document" tabindex="0" aria-sort="none">Document</th>
+              <th class="col-number" data-bon-sort="number" tabindex="0" aria-sort="none">N&deg;</th>
+              <th class="col-date" data-bon-sort="date" tabindex="0" aria-sort="none">Date</th>
+              <th class="col-amount" data-bon-sort="amount" tabindex="0" aria-sort="none">Montant</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for doc in documents %}
+            {% set row_url = url_for('bons_space', q=filters.q, kind=filters.kind, doc=doc.key) %}
+            <tr class="bon-row {{ 'active' if selected_doc and selected_doc.key == doc.key else '' }}" data-href="{{ row_url }}" tabindex="0" data-sort-sequence="{{ loop.index0 }}">
+              <td class="col-type" data-sort-value="{{ doc.category }}">
+                <span class="bon-kind-icon" title="{{ doc.category }}">
+                  {% if doc.kind == 'purchase' %}<i class="bi bi-cart-check"></i>
+                  {% elif doc.kind == 'sale' %}<i class="bi bi-receipt-cutoff"></i>
+                  {% elif doc.kind == 'payment' %}<i class="bi bi-cash-coin"></i>
+                  {% elif doc.kind == 'advance' %}<i class="bi bi-wallet2"></i>
+                  {% elif doc.kind == 'production' %}<i class="bi bi-gear"></i>
+                  {% elif doc.kind == 'client_history' %}<i class="bi bi-person-lines-fill"></i>
+                  {% else %}<i class="bi bi-file-earmark-pdf"></i>{% endif %}
+                </span>
+              </td>
+              <td data-sort-value="{{ doc.title }} {{ doc.partner_name or doc.detail or '' }}">
+                <a class="bon-doc-link" href="{{ row_url }}">{{ doc.title }}</a>
+                <span class="bon-muted">{{ doc.partner_name or doc.detail or '-' }}</span>
+              </td>
+              <td class="col-number" data-sort-value="{{ doc.number }}"><span class="bon-number-cell">{{ doc.number }}</span></td>
+              <td class="col-date" data-sort-value="{{ doc.doc_date or '' }}"><span class="bon-muted">{{ doc.doc_date or '-' }}</span></td>
+              <td class="col-amount" data-sort-value="{{ doc.amount if doc.amount is not none else '' }}">{% if doc.amount is not none %}<span class="bon-amount-cell">{{ doc.amount|money }}</span>{% else %}<span class="bon-muted">-</span>{% endif %}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="text-center py-4 text-muted small">
+                <i class="bi bi-folder2-open d-block mb-2" style="font-size:1.7rem;opacity:.45;"></i>
+                Aucun bon trouve.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="bons-upload">
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('bons_space') }}" id="uploadForm" data-no-spinner="">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <label for="pdfInput" class="bons-upload-label">
+            <i class="bi bi-cloud-upload"></i>
+            <span>Ajouter un PDF externe</span>
+            <input type="file" id="pdfInput" name="pdf_file" accept=".pdf,application/pdf">
+          </label>
+          <button class="btn btn-sm btn-outline-secondary" type="button" id="uploadButton"><i class="bi bi-plus-lg"></i></button>
+        </form>
+      </div>
+    </aside>
+
+    <div class="bons-resizer" id="bonsResizer">
+      <div class="bons-resizer-handle"><i class="bi bi-grip-vertical"></i></div>
+    </div>
+
+    <section class="bons-preview">
+      {% if missing_doc_key %}
+      <div class="bons-empty is-error">
+        <div>
+          <i class="bi bi-exclamation-triangle d-block mb-2" style="font-size:3rem;"></i>
+          <strong>Bon introuvable</strong>
+          <div class="mb-3">Le document demande n'existe plus, a ete supprime ou ne correspond pas au filtre actuel.</div>
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('bons_space', q=filters.q, kind=filters.kind) }}">
+            <i class="bi bi-arrow-left me-1"></i>Revenir a la liste
+          </a>
+        </div>
+      </div>
+      {% elif selected_doc %}
+      {% set preview_url = selected_doc.view_url ~ ('&' if '?' in selected_doc.view_url else '?') ~ 'embed=1' %}
+      <div class="bons-preview-head">
+        <div class="bons-preview-title">
+          <strong>{{ selected_doc.title }} - {{ selected_doc.number }}</strong>
+          <span>{{ selected_doc.partner_name or selected_doc.detail }}{% if selected_doc.doc_date %} - {{ selected_doc.doc_date }}{% endif %}</span>
+        </div>
+        <div class="bons-preview-actions">
+          {% if selected_doc.source_url %}
+          <a class="btn btn-sm btn-outline-secondary" href="{{ selected_doc.source_url }}"><i class="bi bi-box-arrow-up-right me-1"></i>Source</a>
+          {% endif %}
+          {% if selected_doc.pdf_url %}
+          <a class="btn btn-sm btn-outline-dark" href="{{ selected_doc.pdf_url }}" target="_blank"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+          {% endif %}
+          <a class="btn btn-sm btn-dark" href="{{ preview_url }}" target="_blank"><i class="bi bi-arrows-fullscreen me-1"></i>Ouvrir</a>
+          {% if selected_doc.delete_filename %}
+          <form method="post" action="{{ url_for('bons_space') }}" class="m-0" onsubmit="return confirm('Supprimer ce PDF ?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="filename" value="{{ selected_doc.delete_filename }}">
+            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3"></i></button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      <div class="bons-frame-wrap">
+        <iframe class="bons-frame" src="{{ preview_url }}" title="{{ selected_doc.title }} {{ selected_doc.number }}"></iframe>
+      </div>
+      {% else %}
+      <div class="bons-empty">
+        <div>
+          <i class="bi bi-receipt d-block mb-2" style="font-size:3rem;opacity:.25;"></i>
+          <strong>Aucun document a afficher</strong>
+        </div>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const input = document.getElementById('pdfInput');
+  const button = document.getElementById('uploadButton');
+  const form = document.getElementById('uploadForm');
+  button?.addEventListener('click', function(){ input?.click(); });
+  input?.addEventListener('change', function(){
+    if (this.files && this.files.length > 0) form?.submit();
+  });
+  document.querySelectorAll('.bon-row[data-href]').forEach(function(row){
+    row.addEventListener('click', function(event){
+      if (event.target.closest('a,button,input,label,select,textarea')) return;
+      window.location.href = row.dataset.href;
+    });
+    row.addEventListener('keydown', function(event){
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      window.location.href = row.dataset.href;
+    });
+  });
+
+  const table = document.querySelector('.bons-table');
+  const tbody = table?.tBodies[0];
+  const headers = table ? Array.from(table.querySelectorAll('th[data-bon-sort]')) : [];
+  function clean(value){ return String(value || '').trim().replace(/\s+/g, ' '); }
+  function normalize(value){ return clean(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+  function parseNumber(value){
+    const token = clean(value).replace(/\u00a0/g, ' ').match(/[-+]?\d[\d\s.,]*/);
+    if (!token) return null;
+    const raw = token[0].replace(/\s+/g, '').replace(',', '.');
+    const number = Number(raw);
+    return Number.isNaN(number) ? null : number;
+  }
+  function parseDate(value){
+    const text = clean(value);
+    if (!text) return null;
+    const parsed = Date.parse(text);
+    return Number.isNaN(parsed) ? normalize(text) : parsed;
+  }
+  function cellValue(row, index, kind){
+    const raw = row.cells[index]?.dataset.sortValue || row.cells[index]?.textContent || '';
+    if (kind === 'amount') return parseNumber(raw);
+    if (kind === 'date') return parseDate(raw);
+    return normalize(raw);
+  }
+  function compare(left, right, direction){
+    const leftMissing = left === null || left === undefined || left === '';
+    const rightMissing = right === null || right === undefined || right === '';
+    if (leftMissing && rightMissing) return 0;
+    if (leftMissing) return 1;
+    if (rightMissing) return -1;
+    const result = typeof left === 'number' && typeof right === 'number'
+      ? (left > right ? 1 : left < right ? -1 : 0)
+      : String(left).localeCompare(String(right), 'fr', {numeric:true, sensitivity:'base'});
+    return direction === 'asc' ? result : -result;
+  }
+  headers.forEach(function(header, index){
+    function sortRows(){
+      if (!tbody) return;
+      const kind = header.dataset.bonSort;
+      const direction = header.dataset.sortDir === 'asc' ? 'desc' : 'asc';
+      headers.forEach(function(item){
+        delete item.dataset.sortDir;
+        item.setAttribute('aria-sort', 'none');
+      });
+      header.dataset.sortDir = direction;
+      header.setAttribute('aria-sort', direction === 'asc' ? 'ascending' : 'descending');
+      Array.from(tbody.querySelectorAll('tr.bon-row')).sort(function(a, b){
+        const result = compare(cellValue(a, index, kind), cellValue(b, index, kind), direction);
+        if (result) return result;
+        return Number(a.dataset.sortSequence || 0) - Number(b.dataset.sortSequence || 0);
+      }).forEach(function(row){ tbody.appendChild(row); });
+    }
+    header.addEventListener('click', sortRows);
+    header.addEventListener('keydown', function(event){
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      sortRows();
+    });
+  });
+
+  // Resizable panels
+  const resizer = document.getElementById('bonsResizer');
+  const leftPanel = document.getElementById('bonsList');
+  let isResizing = false;
+
+  resizer?.addEventListener('mousedown', function(e) {
+    isResizing = true;
+    resizer.classList.add('is-resizing');
+    document.body.style.cursor = 'col-resize';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!isResizing) return;
+    const container = leftPanel.parentElement;
+    const containerRect = container.getBoundingClientRect();
+    let newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+    if (newWidth < 20) newWidth = 20;
+    if (newWidth > 80) newWidth = 80;
+    leftPanel.style.width = newWidth + '%';
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (isResizing) {
+      isResizing = false;
+      resizer.classList.remove('is-resizing');
+      document.body.style.cursor = '';
+      localStorage.setItem('bonsLeftPanelWidth', leftPanel.style.width);
+    }
+  });
+
+  const savedWidth = localStorage.getItem('bonsLeftPanelWidth');
+  if (savedWidth && leftPanel) {
+    leftPanel.style.width = savedWidth;
+  }
+})();
+</script>
+{% endblock %}

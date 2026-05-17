@@ -1,0 +1,15 @@
+.git
+.venv
+__pycache__
+.pytest_cache
+tests/_runtime*
+dist
+build
+installer_output
+*.db
+*.sqlite
+*.sqlite3
+frontend
+backend
+test_reports
+memory

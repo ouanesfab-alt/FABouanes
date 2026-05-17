@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-0">Import clients Excel</h4>
+    <div class="text-muted small">Previsualisation, detection des doublons et rollback si le fichier est invalide.</div>
+  </div>
+  <a href="{{ url_for('contacts', type='client') }}" class="btn btn-outline-secondary btn-sm">Retour contacts</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card p-3">
+      <h6 class="fw-bold mb-3"><i class="bi bi-upload me-1"></i>Selectionner les fichiers</h6>
+      <form method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+          <input type="file" name="excel_files" class="form-control" accept=".xlsx,.xlsm" multiple required>
+          <div class="form-text">Un fichier = un client. Aucun enregistrement n'est cree pendant la previsualisation.</div>
+        </div>
+        <div class="d-grid gap-2">
+          <button type="submit" name="action" value="preview" class="btn btn-outline-dark">
+            <i class="bi bi-eye me-1"></i>Previsualiser
+          </button>
+          <button type="submit" name="action" value="import" class="btn btn-dark">
+            <i class="bi bi-database-up me-1"></i>Importer
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card p-3 mt-3">
+      <h6 class="fw-bold mb-3"><i class="bi bi-shield-check me-1"></i>Controle avant import</h6>
+      <div class="small text-muted">
+        Les fichiers sont analyses avant toute ecriture. Si une ligne est invalide ou si deux fichiers portent le meme client, l'import est annule et rien n'est enregistre.
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    {% if preview %}
+      <div class="card p-3">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+          <h6 class="fw-bold mb-0"><i class="bi bi-table me-1"></i>Previsualisation</h6>
+          <span class="badge text-bg-light">{{ preview.rows|length }} fichier(s)</span>
+        </div>
+
+        {% if preview.errors %}
+          <div class="alert alert-danger py-2">
+            <div class="fw-semibold mb-1">Erreurs detectees</div>
+            {% for err in preview.errors %}
+              <div class="small">{{ err }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% if preview.duplicates %}
+          <div class="alert alert-warning py-2">
+            <div class="fw-semibold mb-1">Doublons dans le lot</div>
+            {% for name in preview.duplicates %}
+              <div class="small">{{ name }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% if preview.rows %}
+          {% if preview.token %}
+            <form method="post" class="mb-3">
+              <input type="hidden" name="action" value="confirm_preview">
+              <input type="hidden" name="preview_token" value="{{ preview.token }}">
+              <button type="submit" class="btn btn-dark w-100">
+                <i class="bi bi-check2-circle me-1"></i>Confirmer cet import
+              </button>
+            </form>
+          {% endif %}
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Fichier</th>
+                  <th>Client</th>
+                  <th>Solde</th>
+                  <th>Lignes</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in preview.rows %}
+                  <tr>
+                    <td class="text-muted small">{{ row.filename }}</td>
+                    <td>
+                      <div class="fw-semibold">{{ row.name }}</div>
+                      <div class="text-muted small">{{ row.phone or row.address or "-" }}</div>
+                    </td>
+                    <td>{{ "%.2f"|format(row.opening_credit) }}</td>
+                    <td>{{ row.history_count }}</td>
+                    <td>
+                      <span class="badge {{ 'text-bg-primary' if row.status == 'create' else 'text-bg-info' }}">
+                        {{ "Creer" if row.status == "create" else "Mettre a jour" }}
+                      </span>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-muted small">Aucun client valide detecte.</div>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="card p-3 h-100">
+        <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-1"></i>Ce qui est importe</h6>
+        <div class="d-flex flex-column gap-2 mb-3">
+          <div class="d-flex align-items-center gap-2 border rounded p-2">
+            <i class="bi bi-person fs-4 text-primary"></i>
+            <div>
+              <div class="fw-semibold small">Fiche client</div>
+              <div class="text-muted" style="font-size:.81rem">Nom, telephone et adresse detectes depuis le fichier</div>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2 border rounded p-2">
+            <i class="bi bi-clock-history fs-4 text-secondary"></i>
+            <div>
+              <div class="fw-semibold small">Historique analyse</div>
+              <div class="text-muted" style="font-size:.81rem">Nombre de lignes et dernier solde avant import</div>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2 border rounded p-2" style="background:rgba(59,130,246,.05);border-color:rgba(59,130,246,.25)!important">
+            <i class="bi bi-cash-coin fs-4 text-primary"></i>
+            <div>
+              <div class="fw-semibold small text-primary">Dernier reste a payer</div>
+              <div class="text-muted" style="font-size:.81rem">Enregistre comme credit d'ouverture pour continuer la gestion</div>
+            </div>
+          </div>
+        </div>
+        <div class="alert alert-light border-0 py-2 mb-0" style="font-size:.82rem">
+          <i class="bi bi-lightbulb me-1 text-warning"></i>
+          L'historique detaille n'est pas importe. Seul le solde final est repris.
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

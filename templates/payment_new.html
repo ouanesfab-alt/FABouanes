@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .payment-form-page{display:flex;flex-direction:column;gap:16px;}
+  .payment-form-summary{color:var(--muted);font-size:.92rem;}
+  .payment-form-shell{max-width:920px;margin:0 auto;width:100%;}
+  .payment-form-card{padding:20px;}
+  .payment-form-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;}
+  .payment-form-grid .span-12{grid-column:span 12;}
+  .payment-form-grid .span-6{grid-column:span 6;}
+  .payment-form-grid .span-4{grid-column:span 4;}
+  .payment-form-inline{display:flex;align-items:flex-end;}
+  .payment-form-note{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);
+    color:var(--muted);font-size:.9rem;line-height:1.55;}
+  .payment-form-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .payment-form-actions > *{flex:1 1 220px;}
+  @media(max-width:767px){
+    .payment-form-card{padding:16px;}
+    .payment-form-grid .span-6,.payment-form-grid .span-4{grid-column:span 12;}
+    .payment-form-inline{align-items:flex-start;}
+    .payment-form-actions{flex-direction:column;}
+    .payment-form-actions > *{width:100%;flex:1 1 auto;}
+  }
+</style>
+
+<div class="payment-form-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">{{ heading }}</h2>
+      <p class="payment-form-summary mb-0">Renseigne le client, le montant et la date pour enregistrer la transaction.</p>
+    </div>
+  </div>
+
+  <div class="payment-form-shell">
+    <div class="card payment-form-card">
+      <form method="post" class="payment-form-grid">
+        <input type="hidden" name="payment_type" value="{{ payment_type }}">
+        <div class="span-6">
+          <label class="form-label">Client</label>
+          <select name="client_id" class="form-select" required>
+            {% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="span-4">
+          <label class="form-label">Montant</label>
+          <input name="amount" type="text" inputmode="decimal" min="0.01" class="form-control" required>
+        </div>
+        <div class="span-4">
+          <label class="form-label">Date</label>
+          <input name="payment_date" type="date" class="form-control">
+        </div>
+        {% if show_sale_link %}
+        <div class="span-12">
+          <label class="form-label">Creance liee</label>
+          <select name="sale_link" class="form-select">
+            <option value="">Affectation automatique</option>
+            {% for s in open_sales %}<option value="{{ s.item_kind }}:{{ s.id }}">{{ s.client_name }} · {{ s.item_name }} · reste {{ s.balance_due|money }}</option>{% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        <div class="span-6 payment-form-inline">
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="paymentPrint" name="print_after" value="1" checked>
+            <label class="form-check-label" for="paymentPrint">Ouvrir le reçu après enregistrement</label>
+          </div>
+        </div>
+        <div class="span-12">
+          <label class="form-label">Notes</label>
+          <input name="notes" class="form-control" placeholder="Optionnel">
+        </div>
+        <div class="span-12">
+          <div class="payment-form-note">
+            {% if payment_type == 'avance' %}
+            Une avance augmente temporairement le solde disponible du client.
+            {% else %}
+            Le versement peut être affecté automatiquement à la dette du client ou lié à une créance précise.
+            {% endif %}
+          </div>
+        </div>
+        <div class="span-12 payment-form-actions">
+          <button class="btn btn-dark">{{ button_label }}</button>
+          <a href="{{ url_for('operations', type='payment') }}" class="btn btn-outline-secondary">Retour</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

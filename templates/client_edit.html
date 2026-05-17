@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="entity-form-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1">Modifier le client</h2>
+      <p class="entity-form-summary mb-0">Mets a jour les coordonnees, le credit initial et les notes de {{ client.name }}.</p>
+    </div>
+  </div>
+
+  <div class="entity-form-shell is-narrow">
+    <div class="card entity-form-card client-edit-card">
+      <form method="post" class="entity-form-grid">
+        <div class="span-6">
+          <label class="form-label">Nom</label>
+          <input name="name" value="{{ client.name }}" class="form-control" required>
+        </div>
+        <div class="span-6">
+          <label class="form-label">Telephone</label>
+          <input name="phone" value="{{ client.phone }}" class="form-control">
+        </div>
+        <div class="span-12">
+          <label class="form-label">Adresse</label>
+          <input name="address" value="{{ client.address }}" class="form-control">
+        </div>
+        <div class="span-6">
+          <label class="form-label">Credit initial</label>
+          <input name="opening_credit" value="{{ client.opening_credit }}" type="number" step="0.01" class="form-control">
+        </div>
+        <div class="span-12">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-control" rows="3">{{ client.notes }}</textarea>
+        </div>
+        <div class="span-12">
+          <div class="entity-form-note client-edit-note">
+            La modification du credit initial ajuste seulement la base de calcul historique du client.
+          </div>
+        </div>
+        <div class="span-12 entity-form-actions">
+          <a href="{{ url_for('client_detail', client_id=client.id) }}" class="btn btn-outline-secondary">Annuler</a>
+          <button class="btn btn-dark">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

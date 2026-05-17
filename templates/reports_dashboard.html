@@ -1,0 +1,286 @@
+{% extends 'base.html' %}
+{% block content %}
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+<style>
+  .reports-page{display:flex;flex-direction:column;gap:20px;}
+  .reports-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .reports-filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .reports-filter-bar input[type="date"]{max-width:170px;}
+
+  /* ── KPI Summary Cards ── */
+  .rpt-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;}
+  .rpt-kpi{padding:20px;border-radius:var(--radius);border:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;gap:4px;transition:transform .2s,box-shadow .2s;}
+  .rpt-kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);}
+  .rpt-kpi-label{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}
+  .rpt-kpi-value{font-size:1.5rem;font-weight:900;line-height:1.2;}
+  .rpt-kpi-value.green{color:#16a34a;}
+  .rpt-kpi-value.red{color:#dc2626;}
+  .rpt-kpi-value.blue{color:#2563eb;}
+  .rpt-kpi-value.orange{color:#d97706;}
+  .rpt-kpi-value.purple{color:#7c3aed;}
+  [data-theme="dark"] .rpt-kpi-value.green{color:#4ade80;}
+  [data-theme="dark"] .rpt-kpi-value.red{color:#f87171;}
+  [data-theme="dark"] .rpt-kpi-value.blue{color:#60a5fa;}
+  [data-theme="dark"] .rpt-kpi-value.orange{color:#fbbf24;}
+  [data-theme="dark"] .rpt-kpi-value.purple{color:#a78bfa;}
+  .rpt-kpi-sub{font-size:.78rem;color:var(--muted);}
+
+  /* ── Chart containers ── */
+  .rpt-chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .rpt-chart-card{padding:22px;border-radius:var(--radius);border:1px solid var(--line);background:var(--card);}
+  .rpt-chart-title{font-size:.92rem;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+  .rpt-chart-wrap{position:relative;height:280px;}
+
+  /* ── Top tables ── */
+  .rpt-top-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .rpt-top-card{padding:20px;border-radius:var(--radius);border:1px solid var(--line);background:var(--card);}
+  .rpt-top-title{font-size:.92rem;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+  .rpt-rank{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:.72rem;font-weight:900;background:rgba(37,99,235,.08);color:#2563eb;border:1px solid rgba(37,99,235,.15);}
+  .rpt-rank.gold{background:rgba(234,179,8,.12);color:#a16207;border-color:rgba(234,179,8,.2);}
+  .rpt-rank.silver{background:rgba(107,114,128,.1);color:#6b7280;border-color:rgba(107,114,128,.15);}
+  .rpt-rank.bronze{background:rgba(217,119,6,.1);color:#b45309;border-color:rgba(217,119,6,.15);}
+  [data-theme="dark"] .rpt-rank{background:rgba(96,165,250,.12);color:#93c5fd;border-color:rgba(96,165,250,.2);}
+  [data-theme="dark"] .rpt-rank.gold{background:rgba(250,204,21,.12);color:#fde047;border-color:rgba(250,204,21,.2);}
+
+  @media(max-width:991px){
+    .rpt-chart-grid,.rpt-top-grid{grid-template-columns:1fr;}
+  }
+  @media(max-width:767px){
+    .rpt-kpis{grid-template-columns:1fr 1fr;}
+    .rpt-kpi-value{font-size:1.2rem;}
+    .reports-filter-bar{flex-direction:column;align-items:stretch;}
+    .reports-filter-bar input[type="date"]{max-width:none;}
+  }
+</style>
+
+<div class="reports-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1"><i class="bi bi-bar-chart-line me-2"></i>Rapports & Statistiques</h2>
+      <p class="text-muted mb-0">Vue d'ensemble de l'activité commerciale.</p>
+    </div>
+    <div class="reports-actions">
+      <a href="{{ url_for('reports_export_csv', date_from=date_from, date_to=date_to) }}" class="btn btn-page-action-secondary"><i class="bi bi-download me-2"></i>Exporter CSV</a>
+    </div>
+  </div>
+
+  <!-- ── Filtres ── -->
+  <form method="get" class="reports-filter-bar">
+    <label class="fw-bold small">Période :</label>
+    <input type="date" name="date_from" value="{{ date_from }}" class="form-control" title="Du">
+    <input type="date" name="date_to" value="{{ date_to }}" class="form-control" title="Au">
+    <button class="btn btn-dark btn-sm"><i class="bi bi-funnel me-1"></i>Filtrer</button>
+    <a href="{{ url_for('reports_dashboard') }}" class="btn btn-outline-secondary btn-sm">Tout afficher</a>
+  </form>
+
+  <!-- ── KPI Cards ── -->
+  <div class="rpt-kpis">
+    <div class="rpt-kpi">
+      <span class="rpt-kpi-label"><i class="bi bi-cart3 me-1"></i>Chiffre d'affaires</span>
+      <span class="rpt-kpi-value blue">{{ summary.total_sales|money }}</span>
+      <span class="rpt-kpi-sub">{{ summary.nb_sales|int }} ventes</span>
+    </div>
+    <div class="rpt-kpi">
+      <span class="rpt-kpi-label"><i class="bi bi-graph-up-arrow me-1"></i>Profit brut</span>
+      <span class="rpt-kpi-value green">{{ summary.total_profit|money }}</span>
+      <span class="rpt-kpi-sub">Marge : {% if summary.total_sales > 0 %}{{ ((summary.total_profit / summary.total_sales) * 100)|round(1) }}%{% else %}—{% endif %}</span>
+    </div>
+    <div class="rpt-kpi">
+      <span class="rpt-kpi-label"><i class="bi bi-wallet2 me-1"></i>Dépenses</span>
+      <span class="rpt-kpi-value red">{{ expenses_total|money }}</span>
+    </div>
+    <div class="rpt-kpi">
+      <span class="rpt-kpi-label"><i class="bi bi-trophy me-1"></i>Bénéfice net</span>
+      <span class="rpt-kpi-value {{ 'green' if net_profit >= 0 else 'red' }}">{{ net_profit|money }}</span>
+      <span class="rpt-kpi-sub">Profit brut − Dépenses</span>
+    </div>
+    <div class="rpt-kpi">
+      <span class="rpt-kpi-label"><i class="bi bi-box-seam me-1"></i>Total achats</span>
+      <span class="rpt-kpi-value orange">{{ summary.total_purchases|money }}</span>
+      <span class="rpt-kpi-sub">{{ summary.nb_purchases|int }} achats</span>
+    </div>
+    <div class="rpt-kpi">
+      <span class="rpt-kpi-label"><i class="bi bi-cash-stack me-1"></i>Versements reçus</span>
+      <span class="rpt-kpi-value purple">{{ summary.total_payments|money }}</span>
+      <span class="rpt-kpi-sub">{{ summary.nb_payments|int }} paiements</span>
+    </div>
+  </div>
+
+  <!-- ── Graphiques ── -->
+  <div class="rpt-chart-grid">
+    <div class="rpt-chart-card">
+      <div class="rpt-chart-title"><i class="bi bi-graph-up text-primary"></i> Évolution mensuelle</div>
+      <div class="rpt-chart-wrap"><canvas id="chartMonthly"></canvas></div>
+    </div>
+    <div class="rpt-chart-card">
+      <div class="rpt-chart-title"><i class="bi bi-calendar3 text-success"></i> Ventes quotidiennes (30j)</div>
+      <div class="rpt-chart-wrap"><canvas id="chartDaily"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── Top Produits & Clients ── -->
+  <div class="rpt-top-grid">
+    <div class="rpt-top-card">
+      <div class="rpt-top-title"><i class="bi bi-star text-warning"></i> Top Produits par CA</div>
+      {% if top_products %}
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>#</th><th>Produit</th><th class="text-end">CA</th><th class="text-end hide-mobile">Profit</th></tr></thead>
+        <tbody>
+          {% for p in top_products %}
+          <tr>
+            <td><span class="rpt-rank {{ 'gold' if loop.index == 1 else ('silver' if loop.index == 2 else ('bronze' if loop.index == 3 else '')) }}">{{ loop.index }}</span></td>
+            <td class="fw-bold">{{ p.name }}</td>
+            <td class="text-end">{{ p.revenue|money }}</td>
+            <td class="text-end hide-mobile text-success">{{ p.profit|money }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-muted text-center py-3">Aucune vente enregistrée.</p>
+      {% endif %}
+    </div>
+    <div class="rpt-top-card">
+      <div class="rpt-top-title"><i class="bi bi-people text-primary"></i> Top Clients par CA</div>
+      {% if top_clients %}
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>#</th><th>Client</th><th class="text-end">CA</th><th class="text-end hide-mobile">Profit</th></tr></thead>
+        <tbody>
+          {% for c in top_clients %}
+          <tr>
+            <td><span class="rpt-rank {{ 'gold' if loop.index == 1 else ('silver' if loop.index == 2 else ('bronze' if loop.index == 3 else '')) }}">{{ loop.index }}</span></td>
+            <td class="fw-bold">{{ c.name }}</td>
+            <td class="text-end">{{ c.revenue|money }}</td>
+            <td class="text-end hide-mobile text-success">{{ c.profit|money }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-muted text-center py-3">Aucune vente client enregistrée.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+                 document.documentElement.getAttribute('data-theme') === 'slate';
+  const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)';
+  const textColor = isDark ? 'rgba(255,255,255,.6)' : 'rgba(0,0,0,.5)';
+
+  Chart.defaults.color = textColor;
+  Chart.defaults.borderColor = gridColor;
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+
+  // ── Graphique mensuel ──
+  const ctxMonthly = document.getElementById('chartMonthly');
+  if (ctxMonthly) {
+    new Chart(ctxMonthly, {
+      type: 'bar',
+      data: {
+        labels: {{ chart_labels|tojson }},
+        datasets: [
+          {
+            label: 'Ventes',
+            data: {{ chart_sales|tojson }},
+            backgroundColor: isDark ? 'rgba(96,165,250,.35)' : 'rgba(37,99,235,.2)',
+            borderColor: isDark ? '#60a5fa' : '#2563eb',
+            borderWidth: 2, borderRadius: 6, order: 2,
+          },
+          {
+            label: 'Profit',
+            data: {{ chart_profit|tojson }},
+            type: 'line', fill: false,
+            borderColor: isDark ? '#4ade80' : '#16a34a',
+            backgroundColor: isDark ? '#4ade80' : '#16a34a',
+            borderWidth: 2.5, pointRadius: 3, tension: 0.3, order: 1,
+          },
+          {
+            label: 'Achats',
+            data: {{ chart_purchases|tojson }},
+            backgroundColor: isDark ? 'rgba(251,191,36,.25)' : 'rgba(217,119,6,.15)',
+            borderColor: isDark ? '#fbbf24' : '#d97706',
+            borderWidth: 2, borderRadius: 6, order: 3,
+          },
+          {
+            label: 'Dépenses',
+            data: {{ chart_expenses|tojson }},
+            type: 'line', fill: false,
+            borderColor: isDark ? '#f87171' : '#dc2626',
+            backgroundColor: isDark ? '#f87171' : '#dc2626',
+            borderWidth: 2, borderDash: [5, 3], pointRadius: 3, tension: 0.3, order: 0,
+          },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11, weight: '600' } } },
+          tooltip: {
+            backgroundColor: isDark ? '#1e293b' : '#fff',
+            titleColor: isDark ? '#f1f5f9' : '#111',
+            bodyColor: isDark ? '#cbd5e1' : '#555',
+            borderColor: isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)',
+            borderWidth: 1, padding: 12, cornerRadius: 8,
+            callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + Number(ctx.parsed.y).toLocaleString('fr-FR') + ' DA'; } }
+          },
+        },
+        scales: {
+          y: { beginAtZero: true, grid: { color: gridColor }, ticks: { callback: v => (v/1000).toFixed(0) + 'K' } },
+          x: { grid: { display: false } },
+        },
+      },
+    });
+  }
+
+  // ── Graphique quotidien ──
+  const ctxDaily = document.getElementById('chartDaily');
+  if (ctxDaily) {
+    new Chart(ctxDaily, {
+      type: 'line',
+      data: {
+        labels: {{ daily_labels|tojson }},
+        datasets: [
+          {
+            label: 'CA / jour',
+            data: {{ daily_totals|tojson }},
+            borderColor: isDark ? '#60a5fa' : '#2563eb',
+            backgroundColor: isDark ? 'rgba(96,165,250,.1)' : 'rgba(37,99,235,.06)',
+            fill: true, borderWidth: 2.5, pointRadius: 2, tension: 0.35,
+          },
+          {
+            label: 'Profit / jour',
+            data: {{ daily_profits|tojson }},
+            borderColor: isDark ? '#4ade80' : '#16a34a',
+            backgroundColor: 'transparent',
+            fill: false, borderWidth: 2, pointRadius: 2, tension: 0.35, borderDash: [4, 2],
+          },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11, weight: '600' } } },
+          tooltip: {
+            backgroundColor: isDark ? '#1e293b' : '#fff',
+            titleColor: isDark ? '#f1f5f9' : '#111',
+            bodyColor: isDark ? '#cbd5e1' : '#555',
+            borderColor: isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)',
+            borderWidth: 1, padding: 12, cornerRadius: 8,
+            callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + Number(ctx.parsed.y).toLocaleString('fr-FR') + ' DA'; } }
+          },
+        },
+        scales: {
+          y: { beginAtZero: true, grid: { color: gridColor }, ticks: { callback: v => (v/1000).toFixed(0) + 'K' } },
+          x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 10 } } },
+        },
+      },
+    });
+  }
+});
+</script>
+{% endblock %}

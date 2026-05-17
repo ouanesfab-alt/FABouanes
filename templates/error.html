@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card glass shadow-lg border-0 text-center overflow-hidden">
+                <div class="card-header bg-danger text-white py-4">
+                    <i class="bi bi-exclamation-triangle-fill display-1 mb-2"></i>
+                    <h1 class="h2 mb-0">
+                        {% if status_code == 404 %}Page introuvable
+                        {% elif status_code == 403 %}Accès refusé
+                        {% elif status_code == 401 %}Session expirée
+                        {% elif status_code == 422 %}Données invalides
+                        {% else %}Une erreur est survenue{% endif %}
+                    </h1>
+                </div>
+                <div class="card-body p-5">
+                    <div class="mb-4">
+                        <span class="badge bg-light text-dark fs-6 px-3 py-2 border">Erreur {{ status_code or '500' }}</span>
+                    </div>
+                    
+                    <p class="lead text-muted mb-4">
+                        {% if status_code == 404 %}
+                            La page que vous recherchez semble avoir disparu ou l'adresse est incorrecte.
+                        {% elif status_code == 403 %}
+                            Vous n'avez pas les permissions nécessaires pour accéder à cette ressource.
+                        {% elif status_code == 401 %}
+                            Veuillez vous reconnecter pour continuer à utiliser l'application.
+                        {% elif status_code == 422 %}
+                            Les données envoyées sont incomplètes ou mal formatées.
+                        {% else %}
+                            Une erreur inattendue s'est produite. L'incident a été enregistré pour analyse technique.
+                        {% endif %}
+                    </p>
+
+                    {% if error_message %}
+                    <div class="alert alert-light border text-start mb-4">
+                        <small class="text-uppercase fw-bold text-muted d-block mb-1">Détails techniques :</small>
+                        <code>{{ error_message }}</code>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg px-4 gap-3">
+                            <i class="bi bi-house-fill me-2"></i>Accueil
+                        </a>
+                        <button onclick="window.history.back()" class="btn btn-outline-secondary btn-lg px-4">
+                            <i class="bi bi-arrow-left me-2"></i>Retour
+                        </button>
+                    </div>
+                </div>
+                <div class="card-footer bg-light py-3 border-0">
+                    <small class="text-muted">Si le problème persiste, veuillez contacter l'administrateur.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.glass {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 1.5rem !important;
+}
+.display-1 {
+    font-size: 5rem;
+    opacity: 0.9;
+}
+</style>
+{% endblock %}

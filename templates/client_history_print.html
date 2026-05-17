@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% block content %}
+{% set company = company %}
+<style>
+  html,body{overflow-x:auto!important;}
+  body.print-route .app-content{min-width:190mm;}
+  .print-doc-shell{width:190mm;min-width:190mm;max-width:none;margin:0 auto;display:flex;flex-direction:column;gap:5mm;}
+  .print-doc-paper{background:#fff;color:#111;border:1px solid #cfd3d8;border-radius:6px;box-shadow:0 10px 26px rgba(15,23,42,.08);padding:8mm;min-height:277mm;font-family:"Plus Jakarta Sans",var(--font-main),Arial,Helvetica,sans-serif;}
+  .print-doc-top{display:grid;grid-template-columns:minmax(0,1fr) 76mm;gap:11mm;align-items:start;margin-bottom:9mm;}
+  .print-doc-company{display:block;min-width:0;}
+  .print-doc-party{min-width:0;}
+  .print-doc-logo{display:block;width:min(128mm,100%);height:auto;max-height:45mm;object-fit:contain;object-position:left top;}
+  .print-doc-brand{font-size:30pt;line-height:.95;font-weight:900;letter-spacing:0;color:#000;margin:2mm 0 0;}
+  .print-doc-tagline{font-size:15pt;line-height:1.2;margin:1mm 0 6mm;color:#222;}
+  .print-doc-contact{display:grid;grid-template-columns:7mm minmax(0,1fr);gap:2.6mm 3mm;font-size:10.5pt;line-height:1.25;color:#1b1b1b;}
+  .print-doc-contact i{font-size:11pt;color:#000;text-align:center;}
+  .print-doc-invoice-box{border:1.2px solid #333;border-radius:5px;padding:5mm 6mm 6mm;}
+  .print-doc-invoice-title{display:block;width:100%;font-size:26pt;line-height:1.05;font-weight:900;text-align:center;margin:0 auto 6mm;color:#000;letter-spacing:0;white-space:nowrap;}
+  .print-doc-refrow{display:grid;grid-template-columns:35mm 1fr;gap:4mm;align-items:center;margin:3.2mm 0;font-size:10.7pt;}
+  .print-doc-refrow span{font-weight:800;color:#000;}
+  .print-doc-refrow strong{font-weight:500;text-align:right;color:#222;overflow-wrap:anywhere;}
+  .print-doc-refrow .line-value{display:block;border-bottom:1.2px solid #111;min-height:5mm;}
+  .print-doc-client-box{position:relative;border:1.2px solid #333;border-radius:5px;min-height:31mm;padding:10mm 6mm 5mm;margin-bottom:7mm;}
+  .print-doc-client-tab{position:absolute;top:-7mm;left:0;background:#000;color:#fff;border-radius:5px 5px 0 0;min-width:28mm;text-align:center;font-size:10.5pt;font-weight:800;padding:2mm 6mm;}
+  .print-doc-client-meta-row{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,.85fr);gap:8mm;align-items:start;color:#222;}
+  .print-doc-client-meta-cell{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2mm;align-items:baseline;min-width:0;}
+  .print-doc-client-meta-cell span{font-weight:900;color:#000;white-space:nowrap;}
+  .print-doc-client-meta-cell strong{font-weight:600;color:#222;overflow-wrap:anywhere;}
+  .print-doc-client-meta-cell.is-partner{display:block;font-size:18pt;line-height:1.1;}
+  .print-doc-client-meta-cell.is-partner strong{display:block;font-weight:900;}
+  .print-doc-client-meta-cell.is-prepared{font-size:9.4pt;color:#555;align-self:center;}
+  .print-doc-client-meta-cell.is-prepared span{color:#111;}
+  .print-doc-client-meta-cell.is-prepared strong{font-weight:500;color:#333;}
+  .print-doc-client-row{display:grid;grid-template-columns:7mm minmax(0,1fr);gap:3mm;align-items:center;margin:5mm 0 0;font-size:11pt;color:#222;}
+  .print-doc-client-row i{font-size:12pt;color:#000;text-align:center;}
+  .print-doc-client-row strong{font-weight:500;overflow-wrap:anywhere;}
+  .print-doc-table-wrap{margin-top:4mm;}
+  .print-doc-table{width:100%;border-collapse:collapse;table-layout:fixed;}
+  .print-doc-table thead{display:table-header-group;}
+  .print-doc-table tbody tr{break-inside:avoid-page;page-break-inside:avoid;}
+  .print-doc-table th,.print-doc-table td{border:1px solid #777;padding:3mm 2.7mm;vertical-align:top;color:#111;}
+  .print-doc-table th{background:#f5f5f5;text-align:center;font-weight:800;font-size:10pt;}
+  .print-doc-table td{font-size:9.4pt;line-height:1.25;overflow-wrap:anywhere;}
+  .print-doc-table .col-right{text-align:right;white-space:nowrap;}
+  .print-doc-bottom{display:grid;grid-template-columns:minmax(0,1fr) 82mm;gap:19mm;align-items:start;margin-top:7mm;}
+  .print-doc-observations{border:1.2px solid #333;border-radius:5px;min-height:31mm;padding:4mm;}
+  .print-doc-observations h2{font-size:10.5pt;margin:0 0 2mm;font-weight:900;}
+  .print-doc-observations .rule{height:1px;background:#b8b8b8;margin:0 0 4mm;}
+  .print-doc-observations p{font-size:9.8pt;margin:0;line-height:1.35;color:#222;}
+  .print-doc-summary{border-collapse:collapse;width:100%;font-size:10.2pt;}
+  .print-doc-summary td{border:1px solid #777;padding:3mm 4mm;height:8mm;}
+  .print-doc-summary td:last-child{text-align:right;}
+  .print-doc-summary .total td{font-size:14pt;font-weight:900;}
+  .print-doc-signatures{display:grid;grid-template-columns:1fr 1fr;gap:18mm;border-top:1px dashed #999;margin-top:8mm;padding-top:7mm;text-align:center;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-signature-title{font-size:10pt;font-weight:800;margin-bottom:11mm;}
+  .print-doc-signature-line{width:62mm;max-width:100%;height:1px;background:#111;margin:0 auto;}
+  .print-doc-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+  @page{size:A4 portrait;margin:10mm;}
+  @media print{
+    html,body{margin:0!important;padding:0!important;}
+    .no-print,.app-navbar,.page-hero,.table-toolbar,.context-menu,.btn,.dropdown,.alert{display:none!important;}
+    body{padding-top:0!important;background:#fff!important;}
+    .app-content{padding:0!important;}
+    .print-doc-shell{width:190mm!important;max-width:none!important;gap:0!important;}
+    .print-doc-paper{box-shadow:none!important;border:0!important;border-radius:0!important;min-height:auto!important;padding:0!important;}
+  }
+</style>
+
+<div class="print-doc-shell">
+  <article class="print-doc-paper print-card">
+    <header class="print-doc-top">
+      <section class="print-doc-company print-doc-party">
+        <img src="{{ url_for('static', filename='fab_invoice_logo_clean.webp') }}" alt="FABOuanes" class="print-doc-logo">
+        <div>
+          <div class="print-doc-contact">
+            <i class="bi bi-geo-alt-fill"></i><span>{{ company.address }}</span>
+            <i class="bi bi-telephone-fill"></i><span>{{ company.phones }}</span>
+            <i class="bi bi-envelope"></i><span>{{ company.email }}</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="print-doc-invoice-box print-doc-reference">
+        <h2 class="print-doc-invoice-title">HISTORIQUE</h2>
+        <div class="print-doc-refrow"><span>N&deg; facture :</span><strong>HIS-{{ client.id }}</strong></div>
+        <div class="print-doc-refrow"><span>Date / Heure :</span><strong>{{ printed_date }} {{ printed_time }}</strong></div>
+      </section>
+    </header>
+
+    <section class="print-doc-client-box print-doc-partner-block">
+      <div class="print-doc-client-tab">Client</div>
+      <div class="print-doc-client-meta-row">
+        <div class="print-doc-client-meta-cell is-partner print-doc-partner-name"><strong>{{ client.name }}</strong></div>
+        <div class="print-doc-client-meta-cell is-prepared"><span>Pr&eacute;par&eacute; par :</span><strong>{{ printed_by }}</strong></div>
+      </div>
+      {% if client.address %}
+      <div class="print-doc-client-row"><i class="bi bi-geo-alt-fill"></i><span>{{ client.address }}</span></div>
+      {% endif %}
+    </section>
+
+    <section class="print-doc-table-wrap">
+      <table class="print-doc-table">
+        <colgroup>
+          <col style="width:16%">
+          <col style="width:36%">
+          <col style="width:16%">
+          <col style="width:16%">
+          <col style="width:16%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Designation</th>
+            <th>Debit</th>
+            <th>Versement</th>
+            <th>Solde</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in timeline %}
+          <tr>
+            <td>{{ item.event_date }}</td>
+            <td><strong>{{ item.designation }}</strong></td>
+            <td class="col-right">{{ item.purchase_amount|money }}</td>
+            <td class="col-right">{{ item.payment_amount|money }}</td>
+            <td class="col-right"><strong>{{ item.running_balance|money }}</strong></td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-muted">Aucun historique.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="print-doc-bottom">
+      <div class="print-doc-observations">
+        <h2>Observations</h2>
+        <div class="rule"></div>
+        <p>Historique client imprime depuis FABOuanes.</p>
+      </div>
+
+      <table class="print-doc-summary">
+        <tbody>
+          <tr><td>Credit initial</td><td>{{ stats.opening_credit|money }}</td></tr>
+          <tr><td>Achats / credits</td><td>{{ stats.credit_sales_total|money }}</td></tr>
+          <tr><td>Versements</td><td>{{ stats.total_paid|money }}</td></tr>
+          <tr class="total"><td>Solde actuel</td><td>{{ client_balance|money }}</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="print-doc-signatures">
+      <div>
+        <div class="print-doc-signature-title">Signature du client</div>
+        <div class="print-doc-signature-line"></div>
+      </div>
+      <div>
+        <div class="print-doc-signature-title">Cachet / Signature</div>
+        <div class="print-doc-signature-line"></div>
+      </div>
+    </section>
+  </article>
+
+  {% if request.query_params.get('embed') != '1' %}
+  <div class="print-doc-actions no-print">
+    <a href="{{ url_for('client_detail', client_id=client.id) }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Retour</a>
+    <button class="btn btn-dark" type="button" onclick="window.print()"><i class="bi bi-printer me-2"></i>Imprimer la page</button>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
