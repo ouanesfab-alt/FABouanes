@@ -13,6 +13,7 @@ from app.web.purchase_pages import router as purchase_router
 from app.web.report_pages import router as report_router
 from app.web.sales_pages import router as sales_router
 from app.web.search_pages import router as search_router
+from app.web.ai_pages import router as ai_page_router
 
 
 router = APIRouter()
@@ -29,3 +30,4 @@ router.include_router(production_router)
 router.include_router(admin_router)
 router.include_router(report_router)
 router.include_router(search_router)
+router.include_router(ai_page_router)

@@ -80,6 +80,10 @@
           </button>
           <ul class="dropdown-menu">
             <li><a
+                class="dropdown-item {{ 'active' if request.endpoint == 'ai_chat' else '' }}"
+                href="{{ url_for('ai_chat') }}"><i class="bi bi-stars me-2" style="color:#818cf8"></i><strong>Assistant IA</strong></a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a
                 class="dropdown-item {{ 'active' if request.endpoint in ['expenses','new_expense','edit_expense'] else '' }}"
                 href="{{ url_for('expenses') }}"><i class="bi bi-wallet2 me-2"></i>Dépenses</a></li>
             <li><a
