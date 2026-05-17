@@ -606,15 +606,10 @@
             ws = new WebSocket(wsUrl);
             ws.onmessage = function(event) {
                 if (event.data === 'refresh_operations') {
-                    // Si on est sur la page des opérations, on affiche un bouton de rafraîchissement (ou on recharge)
-                    if (window.location.pathname.startsWith('/operations')) {
-                        // Liquid Glass style auto-refresh or notification
-                        if (typeof window.onOperationsRefresh === 'function') {
-                            window.onOperationsRefresh();
-                        } else {
-                            // Afficher un toast discret "Nouvelle opération" qui permet de recharger
-                            showToast("Une nouvelle opération a été enregistrée.", "info", true);
-                        }
+                    if (window.location.pathname.startsWith('/operations') && typeof window.onOperationsRefresh === 'function') {
+                        window.onOperationsRefresh();
+                    } else {
+                        showToast("Nouvelle opération enregistrée à distance.", "info", true);
                     }
                 }
             };
