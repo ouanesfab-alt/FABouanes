@@ -8,6 +8,7 @@ from pathlib import Path
 from app.core.config import APP_DATA_DIR, DATABASE_URL
 from app.core.activity import write_text_log
 from app.core.db_access import execute_db, get_setting
+from app.core.request_state import get_state_value
 BACKUP_DIR = APP_DATA_DIR / "backups"
 LOCAL_BACKUP_DIR = BACKUP_DIR / "local"
 LOG_DIR = APP_DATA_DIR / "logs"
