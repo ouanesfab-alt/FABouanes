@@ -330,7 +330,6 @@ class DatabaseManager:
             return
         normalized = " ".join(str(query or "").split())
         self._record_performance_event("sql", normalized, elapsed_ms, f"params={len(params or ())}")
-
     def _invalidate_after_write(self, query: str) -> None:
         q = f" {str(query or '').lower()} "
         if not any(token in q for token in (" insert ", " update ", " delete ", " replace ")):
@@ -344,6 +343,8 @@ class DatabaseManager:
             domains.update({"purchases", "transactions", "contacts", "dashboard"})
         if " production_batches" in q or " production_batch_items" in q:
             domains.update({"productions", "dashboard", "sales", "catalog"})
+        if " expenses" in q:
+            domains.update({"dashboard"})
         if any(table in q for table in (" users", " backup_jobs", " audit_logs", " activity_logs", " system_logs", " error_logs")):
             domains.add("admin")
         if domains:

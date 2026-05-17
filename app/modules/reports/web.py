@@ -9,6 +9,7 @@ from fastapi.responses import RedirectResponse, StreamingResponse
 
 from app.modules.reports.service import build_reports_context
 from app.web.deps import require_permission, template_context, templates
+from app.core.perf_cache import cached_result
 
 router = APIRouter()
 
@@ -20,7 +21,13 @@ async def reports_page(request: Request):
         return denied
     date_from = request.query_params.get("date_from", "")
     date_to = request.query_params.get("date_to", "")
-    ctx = build_reports_context(date_from or None, date_to or None)
+    
+    ctx = cached_result(
+        ("dashboard", "reports", date_from or "", date_to or ""),
+        lambda: build_reports_context(date_from or None, date_to or None),
+        ttl_seconds=300.0,
+    )
+    
     return templates.TemplateResponse("reports_dashboard.html", template_context(
         request, title="Rapports & Statistiques", **ctx,
     ))
@@ -33,7 +40,12 @@ async def export_csv(request: Request):
         return denied
     date_from = request.query_params.get("date_from", "")
     date_to = request.query_params.get("date_to", "")
-    ctx = build_reports_context(date_from or None, date_to or None)
+    
+    ctx = cached_result(
+        ("dashboard", "reports", date_from or "", date_to or ""),
+        lambda: build_reports_context(date_from or None, date_to or None),
+        ttl_seconds=300.0,
+    )
 
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
