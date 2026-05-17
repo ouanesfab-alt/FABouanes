@@ -6,15 +6,15 @@ CREATE TABLE IF NOT EXISTS users (
     role TEXT NOT NULL DEFAULT 'operator' CHECK(role IN ('admin','manager','operator')),
     must_change_password INTEGER NOT NULL DEFAULT 0,
     is_active INTEGER NOT NULL DEFAULT 1,
-    last_login_at TEXT,
-    last_password_change_at TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    last_login_at TIMESTAMPTZ,
+    last_password_change_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS app_settings (
     key TEXT PRIMARY KEY,
     value TEXT,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS activity_logs (
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     entity_type TEXT,
     entity_id BIGINT,
     details TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS error_logs (
@@ -34,14 +34,14 @@ CREATE TABLE IF NOT EXISTS error_logs (
     error_type TEXT,
     message TEXT,
     traceback TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS system_logs (
     id BIGSERIAL PRIMARY KEY,
     level TEXT NOT NULL,
     message TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS performance_logs (
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS performance_logs (
     elapsed_ms DOUBLE PRECISION NOT NULL DEFAULT 0,
     route TEXT,
     details TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     before_json TEXT,
     after_json TEXT,
     meta_json TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS backup_jobs (
@@ -84,9 +84,9 @@ CREATE TABLE IF NOT EXISTS backup_jobs (
     cloud_file_id TEXT,
     cloud_file_name TEXT,
     error_message TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text,
-    started_at TEXT,
-    finished_at TEXT
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS backup_runs (
@@ -96,8 +96,8 @@ CREATE TABLE IF NOT EXISTS backup_runs (
     cloud_file_id TEXT,
     cloud_file_name TEXT,
     details_json TEXT,
-    started_at TEXT,
-    finished_at TEXT
+    started_at TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS api_refresh_tokens (
@@ -107,10 +107,10 @@ CREATE TABLE IF NOT EXISTS api_refresh_tokens (
     token_hint TEXT,
     created_ip TEXT,
     user_agent TEXT,
-    expires_at TEXT NOT NULL,
-    revoked_at TEXT,
-    last_used_at TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    last_used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_activity_logs_action ON activity_logs(action);

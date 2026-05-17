@@ -83,15 +83,22 @@ def _extract_purchase_lines(form) -> list[dict[str, object]]:
 
 
 def _insert_purchase_document(document_id, supplier_id, purchase_date: str, notes: str) -> int:
+    from app.core.document_numbering import next_doc_number
+    try:
+        year = int(purchase_date.split("-")[0])
+    except Exception:
+        year = date.today().year
+    doc_number = next_doc_number("BA", year)
+
     if document_id:
         execute_db(
-            "INSERT INTO purchase_documents (id, supplier_id, total, purchase_date, notes) VALUES (?, ?, 0, ?, ?)",
-            (int(document_id), supplier_id, purchase_date, notes),
+            "INSERT INTO purchase_documents (id, doc_number, supplier_id, total, purchase_date, notes) VALUES (?, ?, ?, 0, ?, ?)",
+            (int(document_id), doc_number, supplier_id, purchase_date, notes),
         )
         return int(document_id)
     return execute_db(
-        "INSERT INTO purchase_documents (supplier_id, total, purchase_date, notes) VALUES (?, 0, ?, ?)",
-        (supplier_id, purchase_date, notes),
+        "INSERT INTO purchase_documents (doc_number, supplier_id, total, purchase_date, notes) VALUES (?, ?, 0, ?, ?)",
+        (doc_number, supplier_id, purchase_date, notes),
     )
 
 

@@ -24,8 +24,8 @@ CREATE TABLE IF NOT EXISTS saved_recipes (
     name TEXT NOT NULL,
     notes TEXT,
     created_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS saved_recipe_items (

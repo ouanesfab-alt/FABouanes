@@ -2,22 +2,26 @@ SCHEMA_OPERATIONS = """
 CREATE TABLE IF NOT EXISTS purchase_documents (
     id BIGSERIAL PRIMARY KEY,
     supplier_id BIGINT REFERENCES suppliers(id) ON DELETE SET NULL,
-    total DOUBLE PRECISION NOT NULL DEFAULT 0,
+    doc_number TEXT UNIQUE NOT NULL,
+    total NUMERIC(14,2) NOT NULL DEFAULT 0,
     purchase_date TEXT NOT NULL,
     notes TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS sale_documents (
     id BIGSERIAL PRIMARY KEY,
     client_id BIGINT REFERENCES clients(id) ON DELETE SET NULL,
+    doc_number TEXT UNIQUE NOT NULL,
     sale_type TEXT NOT NULL CHECK(sale_type IN ('cash','credit')),
-    total DOUBLE PRECISION NOT NULL DEFAULT 0,
-    amount_paid DOUBLE PRECISION NOT NULL DEFAULT 0,
-    balance_due DOUBLE PRECISION NOT NULL DEFAULT 0,
+    total NUMERIC(14,2) NOT NULL DEFAULT 0,
+    amount_paid NUMERIC(14,2) NOT NULL DEFAULT 0,
+    balance_due NUMERIC(14,2) NOT NULL DEFAULT 0,
     sale_date TEXT NOT NULL,
     notes TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS purchases (
@@ -25,13 +29,14 @@ CREATE TABLE IF NOT EXISTS purchases (
     supplier_id BIGINT REFERENCES suppliers(id) ON DELETE SET NULL,
     document_id BIGINT,
     raw_material_id BIGINT NOT NULL REFERENCES raw_materials(id) ON DELETE CASCADE,
-    quantity DOUBLE PRECISION NOT NULL,
+    quantity NUMERIC(14,2) NOT NULL,
     unit TEXT NOT NULL DEFAULT 'kg',
-    unit_price DOUBLE PRECISION NOT NULL,
-    total DOUBLE PRECISION NOT NULL,
+    unit_price NUMERIC(14,2) NOT NULL,
+    total NUMERIC(14,2) NOT NULL,
     purchase_date TEXT NOT NULL,
     notes TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS sales (
@@ -39,18 +44,19 @@ CREATE TABLE IF NOT EXISTS sales (
     client_id BIGINT REFERENCES clients(id) ON DELETE SET NULL,
     document_id BIGINT,
     finished_product_id BIGINT NOT NULL REFERENCES finished_products(id) ON DELETE CASCADE,
-    quantity DOUBLE PRECISION NOT NULL,
+    quantity NUMERIC(14,2) NOT NULL,
     unit TEXT NOT NULL,
-    unit_price DOUBLE PRECISION NOT NULL,
-    total DOUBLE PRECISION NOT NULL,
+    unit_price NUMERIC(14,2) NOT NULL,
+    total NUMERIC(14,2) NOT NULL,
     sale_type TEXT NOT NULL CHECK(sale_type IN ('cash','credit')),
-    amount_paid DOUBLE PRECISION NOT NULL DEFAULT 0,
-    balance_due DOUBLE PRECISION NOT NULL DEFAULT 0,
-    cost_price_snapshot DOUBLE PRECISION NOT NULL DEFAULT 0,
-    profit_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    amount_paid NUMERIC(14,2) NOT NULL DEFAULT 0,
+    balance_due NUMERIC(14,2) NOT NULL DEFAULT 0,
+    cost_price_snapshot NUMERIC(14,2) NOT NULL DEFAULT 0,
+    profit_amount NUMERIC(14,2) NOT NULL DEFAULT 0,
     sale_date TEXT NOT NULL,
     notes TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS raw_sales (
@@ -58,18 +64,19 @@ CREATE TABLE IF NOT EXISTS raw_sales (
     client_id BIGINT REFERENCES clients(id) ON DELETE SET NULL,
     document_id BIGINT,
     raw_material_id BIGINT NOT NULL REFERENCES raw_materials(id) ON DELETE CASCADE,
-    quantity DOUBLE PRECISION NOT NULL,
+    quantity NUMERIC(14,2) NOT NULL,
     unit TEXT NOT NULL,
-    unit_price DOUBLE PRECISION NOT NULL,
-    total DOUBLE PRECISION NOT NULL,
+    unit_price NUMERIC(14,2) NOT NULL,
+    total NUMERIC(14,2) NOT NULL,
     sale_type TEXT NOT NULL CHECK(sale_type IN ('cash','credit')),
-    amount_paid DOUBLE PRECISION NOT NULL DEFAULT 0,
-    balance_due DOUBLE PRECISION NOT NULL DEFAULT 0,
-    cost_price_snapshot DOUBLE PRECISION NOT NULL DEFAULT 0,
-    profit_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    amount_paid NUMERIC(14,2) NOT NULL DEFAULT 0,
+    balance_due NUMERIC(14,2) NOT NULL DEFAULT 0,
+    cost_price_snapshot NUMERIC(14,2) NOT NULL DEFAULT 0,
+    profit_amount NUMERIC(14,2) NOT NULL DEFAULT 0,
     sale_date TEXT NOT NULL,
     notes TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS payments (
@@ -80,10 +87,11 @@ CREATE TABLE IF NOT EXISTS payments (
     sale_kind TEXT,
     payment_type TEXT NOT NULL DEFAULT 'versement',
     allocation_meta TEXT,
-    amount DOUBLE PRECISION NOT NULL,
+    amount NUMERIC(14,2) NOT NULL,
     payment_date TEXT NOT NULL,
     notes TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_sales_client_id ON sales(client_id);

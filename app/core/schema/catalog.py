@@ -3,20 +3,22 @@ CREATE TABLE IF NOT EXISTS raw_materials (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     unit TEXT NOT NULL DEFAULT 'kg',
-    stock_qty DOUBLE PRECISION NOT NULL DEFAULT 0,
-    avg_cost DOUBLE PRECISION NOT NULL DEFAULT 0,
-    sale_price DOUBLE PRECISION NOT NULL DEFAULT 0,
-    alert_threshold DOUBLE PRECISION NOT NULL DEFAULT 0,
-    threshold_qty DOUBLE PRECISION NOT NULL DEFAULT 0
+    stock_qty NUMERIC(14,2) NOT NULL DEFAULT 0,
+    avg_cost NUMERIC(14,2) NOT NULL DEFAULT 0,
+    sale_price NUMERIC(14,2) NOT NULL DEFAULT 0,
+    alert_threshold NUMERIC(14,2) NOT NULL DEFAULT 0,
+    threshold_qty NUMERIC(14,2) NOT NULL DEFAULT 0,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS finished_products (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     default_unit TEXT NOT NULL DEFAULT 'kg',
-    stock_qty DOUBLE PRECISION NOT NULL DEFAULT 0,
-    sale_price DOUBLE PRECISION NOT NULL DEFAULT 0,
-    avg_cost DOUBLE PRECISION NOT NULL DEFAULT 0
+    stock_qty NUMERIC(14,2) NOT NULL DEFAULT 0,
+    sale_price NUMERIC(14,2) NOT NULL DEFAULT 0,
+    avg_cost NUMERIC(14,2) NOT NULL DEFAULT 0,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS stock_movements (
@@ -32,7 +34,7 @@ CREATE TABLE IF NOT EXISTS stock_movements (
     reference_type TEXT,
     reference_id BIGINT,
     created_by_username TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_raw_materials_name ON raw_materials(name);

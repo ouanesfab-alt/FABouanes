@@ -60,8 +60,8 @@ def list_clients_page_context(args=None):
     where_sql = ""
     params: list[object] = []
     if search:
-        where_sql = "(LOWER(c.name) LIKE LOWER(?) OR LOWER(COALESCE(c.phone, '')) LIKE LOWER(?) OR LOWER(COALESCE(c.address, '')) LIKE LOWER(?))"
-        params.extend([f"%{search}%"] * 3)
+        where_sql = "c.search_vector @@ plainto_tsquery('french', ?)"
+        params.append(search)
 
     where_clause = f"WHERE {where_sql}" if where_sql else ""
     total_row = query_db(f"SELECT COUNT(*) AS c FROM clients c {where_clause}", tuple(params), one=True)
@@ -163,9 +163,8 @@ async def list_clients(
     params: list[object] = []
     
     if search:
-        where.append("(LOWER(c.name) LIKE LOWER(?) OR LOWER(COALESCE(c.phone, '')) LIKE LOWER(?) OR LOWER(COALESCE(c.address, '')) LIKE LOWER(?))")
-        like = f"%{search}%"
-        params.extend([like, like, like])
+        where.append("c.search_vector @@ plainto_tsquery('french', ?)")
+        params.append(search)
         
     base_query = f"""
         SELECT c.*,

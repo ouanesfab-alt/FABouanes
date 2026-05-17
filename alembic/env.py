@@ -5,6 +5,8 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from app.core.config import settings
+
 config = context.config
 
 if config.config_file_name is not None:
@@ -14,7 +16,8 @@ target_metadata = None
 
 
 def run_migrations_offline() -> None:
-    url = config.get_main_option("sqlalchemy.url")
+    from app.core.db import sqlalchemy_database_url
+    url = sqlalchemy_database_url(settings.database_url)
     context.configure(url=url, target_metadata=target_metadata, literal_binds=True, compare_type=True)
 
     with context.begin_transaction():
@@ -22,8 +25,11 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    from app.core.db import sqlalchemy_database_url
+    section = config.get_section(config.config_ini_section, {})
+    section["sqlalchemy.url"] = sqlalchemy_database_url(settings.database_url)
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        section,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
         future=True,

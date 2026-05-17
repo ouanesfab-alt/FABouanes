@@ -88,21 +88,28 @@ def _extract_sale_lines(form) -> list[dict[str, object]]:
 
 
 def _insert_sale_document(document_id, client_id, sale_type: str, sale_date: str, notes: str) -> int:
+    from app.core.document_numbering import next_doc_number
+    try:
+        year = int(sale_date.split("-")[0])
+    except Exception:
+        year = date.today().year
+    doc_number = next_doc_number("BV", year)
+
     if document_id:
         execute_db(
             """
-            INSERT INTO sale_documents (id, client_id, sale_type, total, amount_paid, balance_due, sale_date, notes)
-            VALUES (?, ?, ?, 0, 0, 0, ?, ?)
+            INSERT INTO sale_documents (id, doc_number, client_id, sale_type, total, amount_paid, balance_due, sale_date, notes)
+            VALUES (?, ?, ?, ?, 0, 0, 0, ?, ?)
             """,
-            (int(document_id), client_id, sale_type, sale_date, notes),
+            (int(document_id), doc_number, client_id, sale_type, sale_date, notes),
         )
         return int(document_id)
     return execute_db(
         """
-        INSERT INTO sale_documents (client_id, sale_type, total, amount_paid, balance_due, sale_date, notes)
-        VALUES (?, ?, 0, 0, 0, ?, ?)
+        INSERT INTO sale_documents (doc_number, client_id, sale_type, total, amount_paid, balance_due, sale_date, notes)
+        VALUES (?, ?, ?, 0, 0, 0, ?, ?)
         """,
-        (client_id, sale_type, sale_date, notes),
+        (doc_number, client_id, sale_type, sale_date, notes),
     )
 
 
