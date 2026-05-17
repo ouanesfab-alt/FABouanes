@@ -14,14 +14,36 @@ from app.repositories.user_repository import (
     touch_login,
     update_password,
 )
-from app.core.security import client_ip, consume_rate_limit, validate_password_strength
+from app.core.security import (
+    client_ip,
+    consume_rate_limit,
+    validate_password_strength,
+    is_locked_out,
+    record_login_failure,
+    clear_login_failures,
+)
 
 VALID_ROLES = {ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR}
 
 
 def attempt_login(username: str, password: str):
     normalized = (username or "").strip()
-    login_key = f"login:{client_ip()}:{normalized.lower()}"
+    ip = client_ip()
+    
+    # 1. Check IP lockout first
+    if is_locked_out(ip):
+        audit_event(
+            action="login",
+            entity_type="user",
+            entity_id=normalized or None,
+            status="failure",
+            actor={"username": normalized or "anonymous", "role": "anonymous"},
+            meta={"reason": "locked_out", "ip": ip},
+        )
+        return {"ok": False, "status": 429, "message": "Trop d'echecs de connexion. Votre IP est temporairement bloquee."}
+
+    # 2. Check standard rate limit
+    login_key = f"login:{ip}:{normalized.lower()}"
     if not consume_rate_limit(login_key, 8, 300):
         audit_event(
             action="login",
@@ -32,13 +54,18 @@ def attempt_login(username: str, password: str):
             meta={"reason": "rate_limited"},
         )
         return {"ok": False, "status": 429, "message": "Trop de tentatives de connexion. Reessaie dans 5 minutes."}
+        
     user = get_user_by_username(normalized)
     if user and int(user.get("is_active", 1) or 0) and check_password_hash(user["password_hash"], password or ""):
+        clear_login_failures(ip)  # Clear failures on success
         touch_login(int(user["id"]))
         user = get_user_by_username(normalized)
         log_activity("login", "user", user["id"], f"Connexion de {normalized}")
         audit_event("login", "user", user["id"], after={"username": normalized, "role": user["role"]})
         return {"ok": True, "user": user}
+        
+    # Failed attempt
+    record_login_failure(ip)
     reason = "inactive" if user and not int(user.get("is_active", 1) or 0) else "invalid_credentials"
     audit_event(
         action="login",

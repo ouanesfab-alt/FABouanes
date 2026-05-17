@@ -93,6 +93,40 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             return security_headers(response)
 
+        # Inject transparent global XSS sanitization on request.json and request.form
+        original_json = request.json
+        original_form = request.form
+        
+        async def sanitized_json():
+            data = await original_json()
+            from app.core.sanitizer import sanitize_input
+            if isinstance(data, dict):
+                cleaned = {}
+                for k, v in data.items():
+                    if "password" in k.lower():
+                        cleaned[k] = v
+                    else:
+                        cleaned[k] = sanitize_input(v)
+                return cleaned
+            return sanitize_input(data)
+
+        async def sanitized_form():
+            form_data = await original_form()
+            from app.core.sanitizer import sanitize_string
+            from starlette.datastructures import FormData, UploadFile
+            cleaned_items = []
+            for k, v in form_data.multi_items():
+                if isinstance(v, UploadFile):
+                    cleaned_items.append((k, v))
+                elif "password" in k.lower():
+                    cleaned_items.append((k, v))
+                else:
+                    cleaned_items.append((k, sanitize_string(v)))
+            return FormData(cleaned_items)
+
+        request.json = sanitized_json
+        request.form = sanitized_form
+
         db = create_request_connection()
         token = push_request_state(
             request=request,

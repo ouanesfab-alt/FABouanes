@@ -46,10 +46,17 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
 
 
 def security_headers(response):
+    from app.core.config import settings
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-XSS-Protection", "1; mode=block")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+    
+    # Enable HSTS only in non-desktop production environments
+    if settings.env == "production" and not settings.desktop_mode:
+        response.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+
     csp = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline'; "
