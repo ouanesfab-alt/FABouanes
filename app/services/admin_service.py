@@ -27,7 +27,6 @@ from app.services.backup_service import (
 )
 from app.services.activity_service import activity_filter_values, list_activity_actions, list_activity_entity_types, list_admin_activity
 from app.services.system_service import get_system_status
-from app.services.maintenance_service import run_sqlite_maintenance
 
 
 def create_user_account(username: str, password: str, role: str):
@@ -122,8 +121,8 @@ def restore_backup_by_value(backup_value: str):
 
 
 def run_database_maintenance():
-    result = run_sqlite_maintenance()
-    return {"ok": bool(result.get("ok")), "message": str(result.get("message") or "Maintenance terminee.")}
+    # PostgreSQL auto-vacuums, no manual maintenance required
+    return {"ok": True, "message": "Maintenance terminée (automatisée par PostgreSQL)."}
 
 
 def _build_restore_list():

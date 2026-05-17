@@ -53,7 +53,7 @@ async def admin_panel_submit(request: Request):
         result = create_manual_backup()
     elif action == "restore_backup":
         result = restore_backup_by_value(form.get("backup_name", ""))
-    elif action == "sqlite_maintenance":
+    elif action == "database_maintenance":
         result = run_database_maintenance()
     else:
         result = {"ok": False, "message": "Action inconnue."}

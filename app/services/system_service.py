@@ -8,8 +8,7 @@ from app.core.config import APP_DATA_DIR, DATABASE_URL
 from app.core.db import connect_database, postgres_pool_status
 from app.core.activity import write_text_log
 from app.core.db_access import execute_db, explain_query_plan, get_db, query_db
-from app.core.storage import DB_PATH, LOCAL_BACKUP_DIR, LOG_DIR, get_pending_backup_marker, list_restore_backups
-from app.services.maintenance_service import database_size_info
+from app.core.storage import LOCAL_BACKUP_DIR, LOG_DIR, get_pending_backup_marker, list_restore_backups
 from app.version import VERSION_LABEL
 
 
@@ -32,15 +31,11 @@ def get_system_status() -> dict:
     index_count = 0
     plan_lines: list[str] = []
     try:
-        dialect = getattr(get_db(), "dialect", "sqlite")
-        if dialect == "postgres":
-            index_row = query_db(
-                "SELECT COUNT(*) AS c FROM pg_indexes WHERE schemaname = current_schema() AND indexname LIKE 'idx_%'",
-                (),
-                one=True,
-            )
-        else:
-            index_row = query_db("SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'", (), one=True)
+        index_row = query_db(
+            "SELECT COUNT(*) AS c FROM pg_indexes WHERE schemaname = current_schema() AND indexname LIKE 'idx_%'",
+            (),
+            one=True,
+        )
         index_count = int(index_row["c"] if index_row else 0)
         for row in explain_query_plan("SELECT id, name FROM clients ORDER BY name LIMIT 50"):
             row_dict = dict(row) if hasattr(row, "keys") else {}
@@ -53,9 +48,7 @@ def get_system_status() -> dict:
     data_dir = Path(APP_DATA_DIR)
     backup_dir = Path(LOCAL_BACKUP_DIR)
     log_dir = Path(LOG_DIR)
-    db_path = Path(DB_PATH)
-    size_info = database_size_info()
-    latest_backup_file = next(iter(sorted(backup_dir.glob("*.db"), reverse=True)), None) if backup_dir.exists() else None
+    latest_backup_file = next(iter(sorted(backup_dir.glob("*.sql"), reverse=True)), None) if backup_dir.exists() else None
     from app.services.backup_service import BACKGROUND_STATE
     write_status = _probe_db_write()
     backup_write_status = _probe_dir_write(backup_dir)
@@ -71,13 +64,12 @@ def get_system_status() -> dict:
             "ok": db_ok,
             "status": _ok_status(db_ok),
             "message": db_message,
-            "engine": "PostgreSQL" if DATABASE_URL.lower().startswith("postgres") else "SQLite",
-            "path": DATABASE_URL if DATABASE_URL else str(db_path),
-            "exists": db_path.exists() if not DATABASE_URL else True,
-            "size_bytes": size_info.get("db_bytes", 0),
+            "engine": "PostgreSQL",
+            "path": DATABASE_URL,
+            "exists": True,
+            "size_bytes": 0,
             "write_status": write_status,
             "pool": postgres_pool_status(DATABASE_URL),
-
         },
         "backups": {
             "ok": bool(backups) or bool(latest_job) or not pending_marker,
@@ -103,7 +95,6 @@ def get_system_status() -> dict:
             "index_count": index_count,
             "sample_query_plan": " | ".join(plan_lines),
         },
-        "sqlite": size_info,
     }
 
 
@@ -147,10 +138,10 @@ def export_diagnostic_report() -> str:
 
 
 def log_server_start() -> None:
-    conn = connect_database(DATABASE_URL, DB_PATH)
+    conn = connect_database(DATABASE_URL)
     try:
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS system_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, level TEXT NOT NULL, message TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+            "CREATE TABLE IF NOT EXISTS system_logs (id SERIAL PRIMARY KEY, level TEXT NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
         )
         conn.execute(
             "INSERT INTO system_logs (level, message, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
@@ -164,7 +155,7 @@ def log_server_start() -> None:
 
 def log_server_stop() -> None:
     try:
-        conn = connect_database(DATABASE_URL, DB_PATH)
+        conn = connect_database(DATABASE_URL)
         try:
             conn.execute(
                 "INSERT INTO system_logs (level, message, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",

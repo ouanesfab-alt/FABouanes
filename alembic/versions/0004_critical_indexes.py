@@ -11,7 +11,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Use CREATE INDEX IF NOT EXISTS for cross-dialect compatibility (PG and SQLite support it)
+    # Use CREATE INDEX IF NOT EXISTS (PG supports it)
     op.execute("CREATE INDEX IF NOT EXISTS ix_sales_sale_date ON sales(sale_date)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_sales_client_date ON sales(client_id, sale_date)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_raw_sales_sale_date ON raw_sales(sale_date)")

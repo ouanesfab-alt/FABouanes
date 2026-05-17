@@ -31,7 +31,6 @@ def _default_data_dir() -> Path:
 
 APP_DATA_DIR = _default_data_dir()
 APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
-BUNDLED_DB_PATH = BASE_DIR / "database.db"
 
 load_dotenv(BASE_DIR / ".env")
 load_dotenv(APP_DATA_DIR / ".env", override=False)
@@ -63,61 +62,21 @@ class Settings:
 
         testing = os.getenv("PYTEST_CURRENT_TEST") or os.getenv("FAB_TESTING", "") == "1"
         if not self.secret_key:
-            # SECRET_KEY obligatoire uniquement pour PostgreSQL en production
-            if self.uses_postgres and not testing:
+            if not testing:
                 raise RuntimeError(
-                    "SECRET_KEY est obligatoire avec PostgreSQL. "
+                    "SECRET_KEY est obligatoire en production. "
                     "Generez-en un avec: python -c \"import secrets; print(secrets.token_hex(32))\""
                 )
-            
-            # Auto-generate for SQLite / development / testing
             self.secret_key = _secrets.token_hex(32)
-            
-            if not testing:
-                key_file = self.app_data_dir / "secret.key"
-                # Charger depuis secret.key si déjà existant
-                if key_file.exists():
-                    try:
-                        self.secret_key = key_file.read_text(encoding="utf-8").strip()
-                    except Exception:
-                        pass
-                else:
-                    try:
-                        key_file.write_text(self.secret_key, encoding="utf-8")
-                        key_file.chmod(0o600)
-                    except Exception:
-                        warnings.warn(
-                            "Impossible de persister SECRET_KEY dans secret.key. "
-                            "Les sessions seront perdues au redéarrage.",
-                            RuntimeWarning,
-                            stacklevel=2,
-                        )
 
     @property
     def database_url(self) -> str:
-        """Return the configured database URL.
-
-        Resolution order:
-        1. DATABASE_URL env var (PostgreSQL or SQLite)
-        2. SQLite locale par defaut (zero-config)
-
-        PostgreSQL est utilise uniquement quand DATABASE_URL pointe vers postgres://.
-        """
         configured = os.getenv("DATABASE_URL", "").strip()
-        if configured:
-            return configured
-        # Aucune config → SQLite locale automatique (zero-config)
-        return self.sqlite_database_url
-
-    @property
-    def uses_postgres(self) -> bool:
-        """True if a PostgreSQL DATABASE_URL is configured."""
-        return self.database_url.lower().startswith(("postgres://", "postgresql://"))
-
-    @property
-    def sqlite_database_url(self) -> str:
-        db_path = self.app_data_dir / "database.db"
-        return f"sqlite:///{db_path}"
+        if not configured:
+            raise RuntimeError("DATABASE_URL doit etre specifie. PostgreSQL est obligatoire.")
+        if not configured.lower().startswith(("postgres://", "postgresql://")):
+            raise RuntimeError("Seul PostgreSQL est supporte. DATABASE_URL doit commencer par postgres:// ou postgresql://.")
+        return configured
 
     @property
     def debug(self) -> bool:
@@ -149,7 +108,6 @@ def validate_single_worker_runtime() -> None:
 settings = Settings()
 
 DATABASE_URL = settings.database_url
-SQLITE_DATABASE_URL = settings.sqlite_database_url
 SESSION_COOKIE_SECURE = settings.session_cookie_secure
 DEFAULT_ADMIN_USERNAME = settings.default_admin_username
 DEFAULT_ADMIN_PASSWORD = settings.default_admin_password

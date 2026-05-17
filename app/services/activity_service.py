@@ -130,11 +130,7 @@ def list_admin_activity(filters: Mapping[str, str] | None = None, *, limit: int 
         where.append("LOWER(action) = LOWER(?)")
         params.append(normalized["activity_action"])
     if normalized["activity_date"]:
-        from app.core.config import settings
-        if settings.uses_postgres:
-            where.append("CAST(created_at AS DATE) = CAST(? AS DATE)")
-        else:
-            where.append("substr(created_at, 1, 10) = ?")
+        where.append("CAST(created_at AS DATE) = CAST(? AS DATE)")
         params.append(normalized["activity_date"])
     if normalized["activity_type"]:
         where.append("LOWER(COALESCE(entity_type, '')) = LOWER(?)")

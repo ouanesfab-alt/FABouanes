@@ -8,7 +8,7 @@ from app.core.config import settings
 limiter = Limiter(
     key_func=get_remote_address, 
     default_limits=["200/minute"],
-    enabled=not settings.desktop_mode  # Disable in desktop mode as requested
+    enabled=not settings.desktop_mode and settings.env != "test"  # Disable in desktop mode and test environments
 )
 
 async def rate_limit_exceeded_handler(request, exc):

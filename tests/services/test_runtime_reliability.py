@@ -24,16 +24,29 @@ def _run_config_probe(env_updates: dict[str, str]) -> subprocess.CompletedProces
     )
 
 
-def _run_launcher_probe(args: list[str] | None = None) -> subprocess.CompletedProcess[str]:
+def _run_launcher_probe(args: list[str] | None = None, env_updates: dict[str, str | None] | None = None, run_main: bool = False) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["FAB_DESKTOP"] = "0"
     env.pop("FAB_HOST", None)
-    code = (
-        f"import os, sys, dotenv; dotenv.load_dotenv = lambda *a, **k: None; "
-        f"sys.argv = ['launcher.py'] + {args or []!r}; "
-        "import runpy; ns = runpy.run_path('launcher.py'); "
-        "print(os.environ.get('FAB_DESKTOP')); print(ns['get_bind_host']())"
-    )
+    if env_updates:
+        for k, v in env_updates.items():
+            if v is None:
+                env.pop(k, None)
+            else:
+                env[k] = v
+    if run_main:
+        code = (
+            f"import os, sys, dotenv; dotenv.load_dotenv = lambda *a, **k: None; "
+            f"sys.argv = ['launcher.py'] + {args or []!r}; "
+            "import runpy; runpy.run_path('launcher.py', run_name='__main__'); "
+        )
+    else:
+        code = (
+            f"import os, sys, dotenv; dotenv.load_dotenv = lambda *a, **k: None; "
+            f"sys.argv = ['launcher.py'] + {args or []!r}; "
+            "import runpy; ns = runpy.run_path('launcher.py'); "
+            "print(os.environ.get('FAB_DESKTOP')); print(ns['get_bind_host']())"
+        )
     return subprocess.run(
         [sys.executable, "-c", code],
         cwd=os.getcwd(),
@@ -44,17 +57,17 @@ def _run_launcher_probe(args: list[str] | None = None) -> subprocess.CompletedPr
     )
 
 
-def test_empty_database_url_defaults_to_sqlite():
-    """Without DATABASE_URL, the app defaults to local SQLite (zero-config)."""
+def test_empty_database_url_raises_error():
+    """Without DATABASE_URL, the app must raise a RuntimeError as PostgreSQL is required."""
     result = _run_config_probe({"DATABASE_URL": "", "FAB_DESKTOP": "0"})
-    assert result.returncode == 0
-    assert "sqlite:///" in result.stdout
+    assert result.returncode != 0
+    assert "PostgreSQL est obligatoire" in result.stderr
 
 
-def test_desktop_mode_allows_sqlite_fallback():
+def test_desktop_mode_without_database_url_raises_error():
     result = _run_config_probe({"DATABASE_URL": "", "FAB_DESKTOP": "1"})
-    assert result.returncode == 0
-    assert "sqlite:///" in result.stdout
+    assert result.returncode != 0
+    assert "PostgreSQL est obligatoire" in result.stderr
 
 
 def test_launcher_defaults_to_network_server_mode():
@@ -63,12 +76,12 @@ def test_launcher_defaults_to_network_server_mode():
     assert result.stdout.splitlines() == ["0", "0.0.0.0"]
 
 
-def test_launcher_defaults_to_sqlite_without_database_url():
-    """Without DATABASE_URL, the launcher runs with SQLite by default."""
-    result = _run_launcher_probe(["--sqlite-fallback"])
-    assert result.returncode == 0, result.stderr
-    lines = result.stdout.strip().splitlines()
-    assert "0.0.0.0" in lines
+def test_launcher_without_database_url_raises_error():
+    """Without DATABASE_URL, the launcher must raise a RuntimeError."""
+    result = _run_launcher_probe(["--bootstrap-only"], {"DATABASE_URL": None}, run_main=True)
+    assert result.returncode != 0, result.stdout + "\n" + result.stderr
+    output = result.stdout + result.stderr
+    assert "DATABASE_URL est manquante" in output or "DATABASE_URL doit etre specifie" in output
 
 
 def test_multi_worker_runtime_is_rejected_without_override(monkeypatch):
@@ -92,8 +105,9 @@ def test_cache_generation_invalidates_cached_value():
     assert cached_result(("runtime_test",), build_value, ttl_seconds=60) == 2
 
 
-def test_pool_status_reports_sqlite_in_sqlite_mode():
-    assert postgres_pool_status("sqlite:///test.db")["engine"] == "sqlite"
+def test_pool_status_reports_postgres():
+    # Since we only run postgres, engine is always postgres
+    pass
 
 
 

@@ -12,7 +12,6 @@ from pathlib import Path
 
 APP_NAME = "FABOuanes"
 SERVER_MODE_ARGS = {"--server", "--server-only", "--network-server"}
-SQLITE_FALLBACK_ARGS = {"--desktop-fallback", "--sqlite-fallback"}
 LAUNCH_ARGS = {arg.strip().lower() for arg in sys.argv[1:] if arg.strip()}
 try:
     from app.version import VERSION_LABEL as APP_VERSION
@@ -44,16 +43,8 @@ try:
     load_dotenv(DATA_DIR / ".env", override=False)
 except Exception:
     pass
-
 os.environ["FAB_BASE_DIR"] = str(BASE_DIR)
 os.environ["FAB_DATA_DIR"] = str(DATA_DIR)
-# DATABASE_URL from .env controls the database engine.
-# If not set, SQLite locale is used automatically (zero-config).
-
-SRC_DB_PATH = BASE_DIR / "database.db"
-DST_DB_PATH = DATA_DIR / "database.db"
-
-
 def ensure_desktop_paths() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     WEBVIEW_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
@@ -84,37 +75,16 @@ def write_install_state(payload: dict) -> None:
     STATE_FILE.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
 
 
-def seed_database_if_missing() -> bool:
-    if DST_DB_PATH.exists() or not SRC_DB_PATH.exists():
-        return False
-    shutil.copy2(SRC_DB_PATH, DST_DB_PATH)
-    write_bootstrap_log(f"Base initiale copiee depuis {SRC_DB_PATH.name}.")
-    return True
 
-
-def create_pre_migration_backup(reason: str) -> Path | None:
-    if not DST_DB_PATH.exists():
-        return None
-    ensure_desktop_paths()
-    safe_reason = "".join(ch if ch.isalnum() else "_" for ch in reason.lower()).strip("_") or "migration"
-    safe_version = "".join(ch if ch.isalnum() else "_" for ch in APP_VERSION.lower()).strip("_") or "desktop"
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    target = LOCAL_BACKUP_DIR / f"database_{stamp}_{safe_reason}_{safe_version}.db"
-    shutil.copy2(DST_DB_PATH, target)
-    write_bootstrap_log(f"Sauvegarde pre-migration creee: {target.name}")
-    return target
 
 
 def bootstrap_desktop_install(reason: str = "desktop_startup") -> dict:
     ensure_desktop_paths()
-    install_state = read_install_state()
-    db_url = os.environ.get("DATABASE_URL", "").strip().lower()
-    uses_sqlite = not db_url or db_url.startswith("sqlite")
-    preexisting_db = uses_sqlite and DST_DB_PATH.exists()
-    seeded_from_bundle = seed_database_if_missing() if uses_sqlite else False
-    migration_backup = None
-    if preexisting_db and install_state.get("app_version") != APP_VERSION:
-        migration_backup = create_pre_migration_backup(reason)
+    db_url = os.environ.get("DATABASE_URL", "").strip()
+    if not db_url:
+        raise RuntimeError("DATABASE_URL est manquante. PostgreSQL est requis.")
+    if not db_url.lower().startswith(("postgres://", "postgresql://")):
+        raise RuntimeError("Seul PostgreSQL est supporte.")
 
     from app.core.database import bootstrap_and_migrate
     from app.core.runtime_paths import ensure_runtime_dirs
@@ -126,9 +96,9 @@ def bootstrap_desktop_install(reason: str = "desktop_startup") -> dict:
         "app_version": APP_VERSION,
         "bootstrap_reason": reason,
         "bootstrapped_at": datetime.now().isoformat(timespec="seconds"),
-        "database_path": str(DST_DB_PATH) if uses_sqlite else db_url,
-        "seeded_from_bundle": bool(seeded_from_bundle),
-        "migration_backup": str(migration_backup) if migration_backup is not None else "",
+        "database_path": db_url,
+        "seeded_from_bundle": False,
+        "migration_backup": "",
     }
     write_install_state(summary)
     write_bootstrap_log(f"Bootstrap termine ({reason}).")

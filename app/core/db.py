@@ -4,15 +4,12 @@ Responsibility: Entry point for database connections, engine management, and hig
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from threading import Lock
-from urllib.parse import unquote, urlparse
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
 from app.core.db_compat import CompatConnection, adapt_query, split_sql_script
-from app.core.db_sqlite import get_sqlite_pool
 
 _ENGINES: dict[str, Engine] = {}
 _ENGINE_LOCK = Lock()
@@ -40,8 +37,6 @@ def sqlalchemy_database_url(database_url: str) -> str:
 
 def create_database_engine(database_url: str) -> Engine:
     engine_url = sqlalchemy_database_url(database_url)
-    if not database_url.lower().startswith("postgres"):
-        return create_engine(engine_url, future=True)
     return create_engine(
         engine_url,
         future=True,
@@ -63,33 +58,45 @@ def get_database_engine(database_url: str) -> Engine:
         return engine
 
 
-def connect_database(database_url: str, sqlite_path: str | Path | None = None) -> CompatConnection:
+def connect_database(database_url: str) -> CompatConnection:
     raw_url = str(database_url or "").strip()
-    if raw_url.lower().startswith("postgres"):
+    try:
         engine = get_database_engine(raw_url)
-        return CompatConnection(
-            engine.raw_connection(),
-            "postgres",
-            reconnect=lambda: engine.raw_connection(),
-        )
-    
-    if not raw_url.lower().startswith("sqlite"):
-        raise RuntimeError(f"DATABASE_URL non supportee: {raw_url}")
-    
-    resolved_sqlite_path = _sqlite_path_from_url(raw_url, sqlite_path)
-    Path(resolved_sqlite_path).parent.mkdir(parents=True, exist_ok=True)
-    pool = get_sqlite_pool(str(resolved_sqlite_path))
-    conn = pool.get()
+        conn = engine.raw_connection()
+    except Exception as e:
+        err_msg = str(e).lower()
+        # 3d000 is the SQLSTATE for database_does_not_exist
+        if "does not exist" in err_msg or "3d000" in err_msg:
+            from urllib.parse import urlparse
+            from sqlalchemy import text
+            parsed = urlparse(raw_url)
+            database = parsed.path.lstrip("/")
+            # Use 'postgres' default database to run CREATE DATABASE
+            port_part = f":{parsed.port}" if parsed.port else ""
+            pass_part = f":{parsed.password}" if parsed.password else ""
+            user_part = f"{parsed.username}{pass_part}@" if parsed.username else ""
+            postgres_url = f"{parsed.scheme}://{user_part}{parsed.hostname}{port_part}/postgres"
+            
+            # Create transient autocommit engine to execute CREATE DATABASE
+            pg_engine = create_engine(sqlalchemy_database_url(postgres_url), isolation_level="AUTOCOMMIT", future=True)
+            with pg_engine.connect() as pg_conn:
+                pg_conn.execute(text(f'CREATE DATABASE "{database}"'))
+            pg_engine.dispose()
+            
+            # Retry connection to the newly created database
+            engine = get_database_engine(raw_url)
+            conn = engine.raw_connection()
+        else:
+            raise e
+
     return CompatConnection(
         conn,
-        "sqlite",
-        on_close=lambda c: pool.put(c),
+        "postgres",
+        reconnect=lambda: engine.raw_connection(),
     )
 
 
 def postgres_pool_status(database_url: str) -> dict[str, int | str]:
-    if not str(database_url or "").lower().startswith("postgres"):
-        return {"engine": "sqlite"}
     pool = get_database_engine(database_url).pool
     status: dict[str, int | str] = {"engine": "postgres"}
     for key, method_name in (
@@ -107,30 +114,7 @@ def postgres_pool_status(database_url: str) -> dict[str, int | str]:
     return status
 
 
-def _sqlite_path_from_url(database_url: str, sqlite_path: str | Path | None) -> str | Path:
-    raw = str(database_url or "").strip()
-    if raw.lower().startswith("sqlite:///"):
-        parsed = urlparse(raw)
-        if parsed.netloc:
-            return Path(f"//{parsed.netloc}{unquote(parsed.path)}")
-        path = unquote(parsed.path)
-        if os.name == "nt" and len(path) >= 3 and path[0] == "/" and path[2] == ":":
-            path = path[1:]
-        return Path(path)
-    if sqlite_path is not None:
-        return sqlite_path
-    data_dir = os.environ.get("FAB_DATA_DIR", "").strip()
-    if data_dir:
-        return Path(data_dir) / "database.db"
-    return Path.cwd() / "database.db"
-
-
 def list_columns(conn: CompatConnection, table: str) -> set[str]:
-    if conn.dialect == "sqlite":
-        cur = conn.execute(f"PRAGMA table_info({table})")
-        rows = cur.fetchall()
-        cur.close()
-        return {row[1] for row in rows}
     cur = conn.execute(
         "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = %s",
         (table,),

@@ -7,7 +7,7 @@ from pathlib import Path
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.core.config import APP_DATA_DIR, BASE_DIR, DATABASE_URL, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME
-from app.core.storage import DB_PATH, ensure_runtime_dirs
+from app.core.storage import ensure_runtime_dirs
 from app.core.db import connect_database, list_columns
 
 MIGRATIONS_DIR = BASE_DIR / "migrations"
@@ -42,13 +42,10 @@ def initial_admin_password() -> str:
 
 
 def _has_table(conn, table: str) -> bool:
-    if getattr(conn, "dialect", "sqlite") == "postgres":
-        row = conn.execute(
-            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ?",
-            (table,),
-        ).fetchone()
-        return row is not None
-    row = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone()
+    row = conn.execute(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ?",
+        (table,),
+    ).fetchone()
     return row is not None
 
 
@@ -101,110 +98,7 @@ def _rebuild_fts_if_needed(conn, table_name: str, expected_count_sql: str, inser
     conn.execute(insert_sql)
 
 
-def _ensure_sqlite_runtime_objects(conn) -> None:
-    if getattr(conn, "dialect", "sqlite") != "sqlite":
-        return
-    try:
-        fts_version = "2"
-        rebuild_fts = _setting(conn, "sqlite_fts_runtime_version") != fts_version
-        conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS clients_fts USING fts5(name, phone, address)")
-        conn.execute("CREATE TRIGGER IF NOT EXISTS clients_fts_insert AFTER INSERT ON clients BEGIN INSERT INTO clients_fts(rowid, name, phone, address) VALUES (new.id, new.name, COALESCE(new.phone,''), COALESCE(new.address,'')); END")
-        conn.execute("CREATE TRIGGER IF NOT EXISTS clients_fts_delete AFTER DELETE ON clients BEGIN DELETE FROM clients_fts WHERE rowid = old.id; END")
-        conn.execute("CREATE TRIGGER IF NOT EXISTS clients_fts_update AFTER UPDATE ON clients BEGIN DELETE FROM clients_fts WHERE rowid = old.id; INSERT INTO clients_fts(rowid, name, phone, address) VALUES (new.id, new.name, COALESCE(new.phone,''), COALESCE(new.address,'')); END")
-        _rebuild_fts_if_needed(
-            conn,
-            "clients_fts",
-            "SELECT COUNT(*) FROM clients",
-            "INSERT INTO clients_fts(rowid, name, phone, address) SELECT id, name, COALESCE(phone,''), COALESCE(address,'') FROM clients",
-            force=rebuild_fts,
-        )
-        conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS sales_fts USING fts5(row_key UNINDEXED, client_name, item_name, item_kind, sale_date UNINDEXED)")
-        conn.executescript(
-            """
-            CREATE TRIGGER IF NOT EXISTS sales_fts_insert AFTER INSERT ON sales BEGIN
-                INSERT INTO sales_fts(row_key, client_name, item_name, item_kind, sale_date)
-                SELECT 'finished:' || new.id, COALESCE((SELECT name FROM clients WHERE id = new.client_id), 'Comptoir'),
-                       (SELECT name FROM finished_products WHERE id = new.finished_product_id), 'produit final', new.sale_date;
-            END;
-            CREATE TRIGGER IF NOT EXISTS sales_fts_delete AFTER DELETE ON sales BEGIN
-                DELETE FROM sales_fts WHERE row_key = 'finished:' || old.id;
-            END;
-            CREATE TRIGGER IF NOT EXISTS sales_fts_update AFTER UPDATE ON sales BEGIN
-                DELETE FROM sales_fts WHERE row_key = 'finished:' || old.id;
-                INSERT INTO sales_fts(row_key, client_name, item_name, item_kind, sale_date)
-                SELECT 'finished:' || new.id, COALESCE((SELECT name FROM clients WHERE id = new.client_id), 'Comptoir'),
-                       (SELECT name FROM finished_products WHERE id = new.finished_product_id), 'produit final', new.sale_date;
-            END;
-            CREATE TRIGGER IF NOT EXISTS raw_sales_fts_insert AFTER INSERT ON raw_sales BEGIN
-                INSERT INTO sales_fts(row_key, client_name, item_name, item_kind, sale_date)
-                SELECT 'raw:' || new.id, COALESCE((SELECT name FROM clients WHERE id = new.client_id), 'Comptoir'),
-                       COALESCE(NULLIF(new.custom_item_name, ''), (SELECT name FROM raw_materials WHERE id = new.raw_material_id)),
-                       'matiere premiere', new.sale_date;
-            END;
-            CREATE TRIGGER IF NOT EXISTS raw_sales_fts_delete AFTER DELETE ON raw_sales BEGIN
-                DELETE FROM sales_fts WHERE row_key = 'raw:' || old.id;
-            END;
-            CREATE TRIGGER IF NOT EXISTS raw_sales_fts_update AFTER UPDATE ON raw_sales BEGIN
-                DELETE FROM sales_fts WHERE row_key = 'raw:' || old.id;
-                INSERT INTO sales_fts(row_key, client_name, item_name, item_kind, sale_date)
-                SELECT 'raw:' || new.id, COALESCE((SELECT name FROM clients WHERE id = new.client_id), 'Comptoir'),
-                       COALESCE(NULLIF(new.custom_item_name, ''), (SELECT name FROM raw_materials WHERE id = new.raw_material_id)),
-                       'matiere premiere', new.sale_date;
-            END;
-            """
-        )
-        _rebuild_fts_if_needed(
-            conn,
-            "sales_fts",
-            "SELECT (SELECT COUNT(*) FROM sales) + (SELECT COUNT(*) FROM raw_sales)",
-            """
-            INSERT INTO sales_fts(row_key, client_name, item_name, item_kind, sale_date)
-            SELECT 'finished:' || s.id, COALESCE(c.name, 'Comptoir'), f.name, 'produit final', s.sale_date
-            FROM sales s
-            LEFT JOIN clients c ON c.id = s.client_id
-            JOIN finished_products f ON f.id = s.finished_product_id
-            UNION ALL
-            SELECT 'raw:' || rs.id, COALESCE(c.name, 'Comptoir'), COALESCE(NULLIF(rs.custom_item_name, ''), r.name), 'matiere premiere', rs.sale_date
-            FROM raw_sales rs
-            LEFT JOIN clients c ON c.id = rs.client_id
-            JOIN raw_materials r ON r.id = rs.raw_material_id
-            """,
-            force=rebuild_fts,
-        )
-        _set_setting(conn, "sqlite_fts_runtime_version", fts_version)
-        conn.executescript(
-            """
-            CREATE TRIGGER IF NOT EXISTS purchases_validate_bi BEFORE INSERT ON purchases
-            WHEN NEW.quantity <= 0 OR NEW.unit_price < 0 OR NEW.total < 0
-            BEGIN SELECT RAISE(ABORT, 'achat invalide'); END;
-            CREATE TRIGGER IF NOT EXISTS purchases_validate_bu BEFORE UPDATE ON purchases
-            WHEN NEW.quantity <= 0 OR NEW.unit_price < 0 OR NEW.total < 0
-            BEGIN SELECT RAISE(ABORT, 'achat invalide'); END;
-            CREATE TRIGGER IF NOT EXISTS sales_validate_bi BEFORE INSERT ON sales
-            WHEN NEW.quantity <= 0 OR NEW.unit_price < 0 OR NEW.total < 0 OR NEW.amount_paid < 0 OR NEW.balance_due < 0 OR NEW.sale_type NOT IN ('cash','credit')
-            BEGIN SELECT RAISE(ABORT, 'vente invalide'); END;
-            CREATE TRIGGER IF NOT EXISTS sales_validate_bu BEFORE UPDATE ON sales
-            WHEN NEW.quantity <= 0 OR NEW.unit_price < 0 OR NEW.total < 0 OR NEW.amount_paid < 0 OR NEW.balance_due < 0 OR NEW.sale_type NOT IN ('cash','credit')
-            BEGIN SELECT RAISE(ABORT, 'vente invalide'); END;
-            CREATE TRIGGER IF NOT EXISTS raw_sales_validate_bi BEFORE INSERT ON raw_sales
-            WHEN NEW.quantity <= 0 OR NEW.unit_price < 0 OR NEW.total < 0 OR NEW.amount_paid < 0 OR NEW.balance_due < 0 OR NEW.sale_type NOT IN ('cash','credit')
-            BEGIN SELECT RAISE(ABORT, 'vente matiere invalide'); END;
-            CREATE TRIGGER IF NOT EXISTS raw_sales_validate_bu BEFORE UPDATE ON raw_sales
-            WHEN NEW.quantity <= 0 OR NEW.unit_price < 0 OR NEW.total < 0 OR NEW.amount_paid < 0 OR NEW.balance_due < 0 OR NEW.sale_type NOT IN ('cash','credit')
-            BEGIN SELECT RAISE(ABORT, 'vente matiere invalide'); END;
-            CREATE TRIGGER IF NOT EXISTS payments_validate_bi BEFORE INSERT ON payments
-            WHEN NEW.amount <= 0 OR NEW.payment_type NOT IN ('versement','avance')
-            BEGIN SELECT RAISE(ABORT, 'paiement invalide'); END;
-            CREATE TRIGGER IF NOT EXISTS payments_validate_bu BEFORE UPDATE ON payments
-            WHEN NEW.amount <= 0 OR NEW.payment_type NOT IN ('versement','avance')
-            BEGIN SELECT RAISE(ABORT, 'paiement invalide'); END;
-            CREATE TRIGGER IF NOT EXISTS stock_movements_validate_bi BEFORE INSERT ON stock_movements
-            WHEN NEW.quantity < 0 OR NEW.direction NOT IN ('in','out','adjust')
-            BEGIN SELECT RAISE(ABORT, 'mouvement stock invalide'); END;
-            """
-        )
-    except Exception:
-        pass
+
 
 
 def _seed_default_settings(conn) -> None:
@@ -265,14 +159,13 @@ def _seed_other_operation(conn) -> None:
 
 
 def migrate_db(conn) -> None:
-    _ensure_sqlite_runtime_objects(conn)
     conn.commit()
 
 
 
 def init_db() -> None:
     ensure_runtime_dirs()
-    conn = connect_database(DATABASE_URL, DB_PATH)
+    conn = connect_database(DATABASE_URL)
     try:
         migrate_db(conn)
         _seed_default_admin(conn)

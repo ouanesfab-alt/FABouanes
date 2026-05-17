@@ -64,8 +64,6 @@
         <tr><th>Dernier job</th><td>{{ system_status.backups.latest_job_status }} {{ system_status.backups.latest_job_reason }}</td></tr>
         <tr><th>Backup differe</th><td>{{ system_status.backups.pending_reason or '-' }} {{ system_status.backups.pending_since }}</td></tr>
         <tr><th>Message base</th><td>{{ system_status.database.message }}</td></tr>
-        <tr><th>Taille DB</th><td>{{ (system_status.sqlite.db_bytes / 1024 / 1024)|round(2) }} MB</td></tr>
-        <tr><th>Taille WAL</th><td>{{ (system_status.sqlite.wal_bytes / 1024 / 1024)|round(2) }} MB</td></tr>
         <tr><th>Indexes performance</th><td>{{ system_status.performance.index_count }}</td></tr>
         <tr><th>Plan requete clients</th><td class="text-break">{{ system_status.performance.sample_query_plan or '-' }}</td></tr>
       </tbody>

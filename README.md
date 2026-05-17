@@ -4,7 +4,7 @@ FABOuanes est maintenant expose par une entree **FastAPI** tout en preservant:
 
 - les templates et le rendu UI existants,
 - les workflows metier,
-- la base SQLite/PostgreSQL existante,
+- la base PostgreSQL existante,
 - la compatibilite mobile `/api/v1`,
 - le packaging desktop Windows.
 
@@ -101,18 +101,7 @@ DATABASE_URL=postgresql://postgres:MOT_DE_PASSE_DU_POSTE@127.0.0.1:5432/fabouane
 
 Sur ce poste, l'exemple local est `postgres:0000`, mais sur une autre machine il faut mettre le mot de passe PostgreSQL de cette machine. L'application cree/migre les tables au premier demarrage.
 
-En mode serveur (`FAB_DESKTOP=0`), une `DATABASE_URL` manquante arrete le demarrage avec une erreur explicite. SQLite reste reserve au fallback desktop:
-
-```env
-FAB_DESKTOP=1
-DATABASE_URL=
-```
-
-ou avec une URL SQLite complete:
-
-```env
-DATABASE_URL=sqlite:///C:/Users/you/AppData/Local/FABOuanes/database.db
-```
+En mode serveur (`FAB_DESKTOP=0`), une `DATABASE_URL` manquante arrete le demarrage avec une erreur explicite.
 
 ## Lancer le serveur FastAPI
 
@@ -163,11 +152,7 @@ Le client desktop reste disponible avec `python launcher.py`; il ouvre la WebVie
 
 Garder la fenetre FABOuanes ouverte sur la machine serveur pour laisser les autres machines connectees. Si une machine cliente ne se connecte pas, autoriser Python/FABOuanes dans le pare-feu Windows sur le reseau prive.
 
-SQLite est seulement un fallback explicite:
 
-```powershell
-python launcher.py --sqlite-fallback
-```
 
 ## Espace bons
 
@@ -188,8 +173,7 @@ La nouvelle base de tests utilise `pytest`.
 python -m pytest
 ```
 
-En CI, les tests utilisent PostgreSQL par defaut (`FAB_TEST_DB=postgres`) si `CI` est defini.
-En local hors CI, les tests rapides utilisent SQLite dans `tests/_runtime_fastapi`.
+En local hors CI, les tests utilisent la base PostgreSQL configuree (via le cluster temporaire instancie automatiquement pour les tests).
 
 Les tests FastAPI sont organises par domaine:
 
@@ -213,7 +197,6 @@ La migration preserve le schema existant.
 Au demarrage:
 
 1. les dossiers runtime sont assures,
-2. la base locale est copiee seulement pour le fallback SQLite desktop,
 3. le schema applicatif est bootstrappe,
 4. Alembic fait `stamp base` uniquement si `alembic_version` n'existe pas, puis `upgrade head`.
 

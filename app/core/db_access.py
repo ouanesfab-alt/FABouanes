@@ -10,12 +10,11 @@ from collections import deque
 from time import monotonic
 from contextlib import contextmanager
 
-from app.core.config import settings, APP_DATA_DIR
+from app.core.config import settings
 from app.core.db import connect_database
 from app.core.perf_cache import invalidate_cache_domains
 from app.core.request_state import ensure_request_state, get_request_state
 
-DB_PATH = APP_DATA_DIR / "database.db"
 logger = logging.getLogger("fabouanes")
 
 async def query_db_async(query: str, params: tuple = (), one: bool = False):
@@ -39,7 +38,7 @@ def get_db():
         return state.db
     state = ensure_request_state()
     if getattr(state, "db", None) is None:
-        state.db = connect_database(_database_url(), DB_PATH)
+        state.db = connect_database(_database_url())
     return state.db
 
 
@@ -131,12 +130,11 @@ def execute_db(query: str, params: tuple = ()) -> int:
     db = get_db()
     started = monotonic()
     
-    is_postgres = getattr(db, "dialect", "sqlite") == "postgres"
     is_insert = bool(re.match(r"\s*INSERT\s+INTO\s+", str(query or ""), flags=re.I))
     
     adapted_query = query
     has_returning = False
-    if is_postgres and is_insert:
+    if is_insert:
         if " returning " not in query.lower():
             match = re.match(r"\s*INSERT\s+INTO\s+([a-zA-Z_][a-zA-Z0-9_]*)\b", str(query or ""), flags=re.I)
             if match:
@@ -164,7 +162,7 @@ def execute_db(query: str, params: tuple = ()) -> int:
                 logger.debug("Ignored error: %s", e2, exc_info=False)
         raise
 
-    if not last_id and is_postgres:
+    if not last_id:
         last_id = _postgres_last_insert_id(db, query)
     _record_sql_timing(query, params, (monotonic() - started) * 1000.0)
     _invalidate_after_write(query)
@@ -190,7 +188,7 @@ def _postgres_last_insert_id(db, query: str) -> int:
 
 def explain_query_plan(query: str, params: tuple = ()) -> list[dict]:
     db = get_db()
-    prefix = "EXPLAIN QUERY PLAN " if getattr(db, "dialect", "sqlite") == "sqlite" else "EXPLAIN "
+    prefix = "EXPLAIN "
     cur = db.execute(prefix + query, params)
     try:
         rows = cur.fetchall()
@@ -262,7 +260,7 @@ def _write_performance_batch(batch: list[tuple[str, str, float, str, str]]) -> N
         return
     with _PERF_CONN_LOCK:
         if _PERF_CONN is None:
-            _PERF_CONN = connect_database(_database_url(), DB_PATH)
+            _PERF_CONN = connect_database(_database_url())
         try:
             for kind, name, elapsed_ms, route, details in batch:
                 cur = _PERF_CONN.execute(

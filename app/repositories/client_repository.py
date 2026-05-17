@@ -2,9 +2,6 @@ from __future__ import annotations
 
 from app.core.db_access import execute_db, query_db
 from app.utils.pagination import pagination_context, parse_pagination
-from app.core.search import fts_query, sqlite_fts_enabled
-
-
 def client_stats_query(where_sql: str = "") -> str:
     where_clause = f"WHERE {where_sql}" if where_sql else ""
     return f"""
@@ -63,13 +60,8 @@ def list_clients_page_context(args=None):
     where_sql = ""
     params: list[object] = []
     if search:
-        fts = fts_query(search)
-        if fts and sqlite_fts_enabled("clients_fts"):
-            where_sql = "c.id IN (SELECT rowid FROM clients_fts WHERE clients_fts MATCH ?)"
-            params.append(fts)
-        else:
-            where_sql = "(LOWER(c.name) LIKE LOWER(?) OR LOWER(COALESCE(c.phone, '')) LIKE LOWER(?) OR LOWER(COALESCE(c.address, '')) LIKE LOWER(?))"
-            params.extend([f"%{search}%"] * 3)
+        where_sql = "(LOWER(c.name) LIKE LOWER(?) OR LOWER(COALESCE(c.phone, '')) LIKE LOWER(?) OR LOWER(COALESCE(c.address, '')) LIKE LOWER(?))"
+        params.extend([f"%{search}%"] * 3)
 
     where_clause = f"WHERE {where_sql}" if where_sql else ""
     total_row = query_db(f"SELECT COUNT(*) AS c FROM clients c {where_clause}", tuple(params), one=True)
@@ -186,18 +178,10 @@ async def list_clients(
     if where:
         base_query += " WHERE " + " AND ".join(where)
     
-    from app.core.config import settings
     offset = (page - 1) * page_size
     
-    if settings.uses_postgres:
-        wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY name LIMIT ? OFFSET ?"
-        rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
-        total = int(rows[0]["_total_count"]) if rows else 0
-        return [dict(r) for r in rows], total
-        
-    count_row = await query_db_async(f"SELECT COUNT(*) AS c FROM ({base_query}) _q", tuple(params), one=True)
-    total = int(count_row["c"] if count_row else 0)
-    
-    rows = await query_db_async(f"{base_query} ORDER BY c.name LIMIT ? OFFSET ?", tuple(params) + (page_size, offset))
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY name LIMIT ? OFFSET ?"
+    rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
+    total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total
 

@@ -64,14 +64,12 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Lancer FABOuanes"; Flags: nowai
 [Code]
 
 const
-  DB_SQLITE           = 0;
-  DB_POSTGRES_LOCAL   = 1;
-  DB_POSTGRES_SERVER  = 2;
+  DB_POSTGRES_LOCAL   = 0;
+  DB_POSTGRES_SERVER  = 1;
 
 var
   // --- Page choix de base de donnees ---
   PageDbChoice: TWizardPage;
-  RadioSqlite: TNewRadioButton;
   RadioPgLocal: TNewRadioButton;
   RadioPgServer: TNewRadioButton;
   LabelDbTitle: TNewStaticText;
@@ -92,12 +90,10 @@ var
 
 function GetDbChoice(): Integer;
 begin
-  if RadioPgLocal.Checked then
-    Result := DB_POSTGRES_LOCAL
-  else if RadioPgServer.Checked then
+  if RadioPgServer.Checked then
     Result := DB_POSTGRES_SERVER
   else
-    Result := DB_SQLITE;
+    Result := DB_POSTGRES_LOCAL;
 end;
 
 
@@ -124,29 +120,7 @@ begin
   LabelDbTitle.AutoSize := True;
   TopPos := TopPos + 32;
 
-  // --- Option 1: SQLite ---
-  RadioSqlite := TNewRadioButton.Create(PageDbChoice);
-  RadioSqlite.Parent := PageDbChoice.Surface;
-  RadioSqlite.Caption := 'SQLite — Base locale simple (aucune installation requise)';
-  RadioSqlite.Font.Style := [fsBold];
-  RadioSqlite.Left := 8;
-  RadioSqlite.Top := TopPos;
-  RadioSqlite.Width := PageDbChoice.SurfaceWidth - 16;
-  RadioSqlite.Checked := False;
-  TopPos := TopPos + 22;
-
-  LabelDbDesc := TNewStaticText.Create(PageDbChoice);
-  LabelDbDesc.Parent := PageDbChoice.Surface;
-  LabelDbDesc.Caption :=
-    '     Un fichier unique sur votre disque. Pas besoin d''installer quoi que ce soit.' + #13#10 +
-    '     Adapte pour tester ou pour un usage leger.';
-  LabelDbDesc.Left := 8;
-  LabelDbDesc.Top := TopPos;
-  LabelDbDesc.AutoSize := True;
-  LabelDbDesc.Font.Color := clGray;
-  TopPos := TopPos + 42;
-
-  // --- Option 2: PostgreSQL local (this machine only) ---
+  // --- Option 1: PostgreSQL local (this machine only) ---
   RadioPgLocal := TNewRadioButton.Create(PageDbChoice);
   RadioPgLocal.Parent := PageDbChoice.Surface;
   RadioPgLocal.Caption := 'PostgreSQL — Utilisation sur ce poste uniquement (recommande)';
@@ -168,7 +142,7 @@ begin
   LabelDbDesc.Font.Color := clGray;
   TopPos := TopPos + 42;
 
-  // --- Option 3: PostgreSQL serveur (this machine = server for others) ---
+  // --- Option 2: PostgreSQL serveur (this machine = server for others) ---
   RadioPgServer := TNewRadioButton.Create(PageDbChoice);
   RadioPgServer.Parent := PageDbChoice.Surface;
   RadioPgServer.Caption := 'PostgreSQL Serveur — Ce poste sert les autres machines du reseau';
@@ -294,12 +268,10 @@ begin
 end;
 
 
-// ---- Skip PgConfig page if SQLite is selected ----
+// ---- Skip PgConfig page ----
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := False;
-  if PageID = PagePgConfig.ID then
-    Result := (GetDbChoice() = DB_SQLITE);
 end;
 
 
@@ -350,12 +322,9 @@ end;
 // ---- Build DATABASE_URL from user input ----
 function BuildDatabaseUrl(): String;
 begin
-  if GetDbChoice() = DB_SQLITE then
-    Result := ''
-  else
-    Result := 'postgresql://' + Trim(EditPgUser.Text) + ':' + Trim(EditPgPass.Text)
-              + '@127.0.0.1:' + Trim(EditPgPort.Text)
-              + '/' + Trim(EditPgDbName.Text);
+  Result := 'postgresql://' + Trim(EditPgUser.Text) + ':' + Trim(EditPgPass.Text)
+            + '@127.0.0.1:' + Trim(EditPgPort.Text)
+            + '/' + Trim(EditPgDbName.Text);
 end;
 
 
@@ -379,18 +348,8 @@ begin
     Lines.Add('SECRET_KEY=' + SecretKey);
     Lines.Add('SESSION_COOKIE_SECURE=0');
     Lines.Add('');
-
-    if DbUrl <> '' then
-    begin
-      Lines.Add('# PostgreSQL');
-      Lines.Add('DATABASE_URL=' + DbUrl);
-    end
-    else
-    begin
-      Lines.Add('# SQLite locale (aucune configuration requise)');
-      Lines.Add('# DATABASE_URL=');
-    end;
-
+    Lines.Add('# PostgreSQL');
+    Lines.Add('DATABASE_URL=' + DbUrl);
     Lines.Add('');
     if GetDbChoice() = DB_POSTGRES_SERVER then
     begin
@@ -416,6 +375,88 @@ begin
 
   // Also copy to the app install dir so the embedded EXE picks it up
   CopyFile(EnvPath, ExpandConstant('{app}') + '\.env', False);
+end;
+
+
+// ---- Check if PostgreSQL is installed ----
+function IsPostgresInstalled(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  if RegKeyExists(HKLM, 'SOFTWARE\PostgreSQL\Installations') or
+     RegKeyExists(HKLM32, 'SOFTWARE\PostgreSQL\Installations') or
+     RegKeyExists(HKCU, 'SOFTWARE\PostgreSQL\Installations') then
+  begin
+    Result := True;
+    Exit;
+  end;
+  
+  Result := Exec('sc.exe', 'querytype= service state= all postgresql-x64-16', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  if Result and (ResultCode = 0) then
+  begin
+    Result := True;
+    Exit;
+  end;
+  
+  Result := Exec('sc.exe', 'querytype= service state= all postgresql-x64-15', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  if Result and (ResultCode = 0) then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  Result := Exec('sc.exe', 'querytype= service state= all postgresql-x64-14', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  if Result and (ResultCode = 0) then
+  begin
+    Result := True;
+    Exit;
+  end;
+  
+  Result := False;
+end;
+
+
+// ---- Automatically download and install PostgreSQL silently ----
+function InstallPostgresAutomatically(Password: String): Boolean;
+var
+  ResultCode: Integer;
+  PsCommand: String;
+  PgPass: String;
+begin
+  PgPass := Trim(Password);
+  if PgPass = '' then
+    PgPass := '0000';
+
+  WizardForm.StatusLabel.Caption := 'Téléchargement de PostgreSQL 16 (environ 300 Mo)...';
+  WizardForm.ProgressGauge.Style := npbstMarquee;
+
+  PsCommand := '-NoProfile -ExecutionPolicy Bypass -Command "' +
+    'Write-Host ''[FABOuanes] Téléchargement de PostgreSQL 16...''; ' +
+    '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ' +
+    'try { ' +
+    '  Invoke-WebRequest -Uri ''https://get.enterprisedb.com/postgresql/postgresql-16.2-1-windows-x64.exe'' -OutFile ''$env:TEMP\postgresql_installer.exe''; ' +
+    '} catch { ' +
+    '  Write-Error ''Échec du téléchargement''; ' +
+    '  exit 1; ' +
+    '} ' +
+    'Write-Host ''[FABOuanes] Installation silencieuse de PostgreSQL...''; ' +
+    'Start-Process -FilePath ''$env:TEMP\postgresql_installer.exe'' -ArgumentList ''--mode unattended --unattendedmodeui none --superpassword ' + PgPass + ' --serverport 5432'' -Wait; ' +
+    'exit 0;' +
+    '"';
+
+  Result := Exec('powershell.exe', PsCommand, '', SW_SHOW, ewWaitUntilTerminated, ResultCode);
+  WizardForm.ProgressGauge.Style := npbstNormal;
+
+  if not Result or (ResultCode <> 0) then
+  begin
+    MsgBox('Le téléchargement ou l''installation automatique de PostgreSQL a échoué.' + #13#10 +
+           'Assurez-vous d''être connecté à Internet et réessayez.', mbError, MB_OK);
+    Result := False;
+  end
+  else
+  begin
+    Result := True;
+  end;
 end;
 
 
@@ -446,25 +487,17 @@ begin
 
   if ResultCode <> 0 then
   begin
-    if GetDbChoice() <> DB_SQLITE then
-      MsgBox(
-        'L''initialisation de la base de donnees a echoue.' + #13#10 +
-        '' + #13#10 +
-        'Verifiez que PostgreSQL est demarre et que les parametres' + #13#10 +
-        'de connexion sont corrects.' + #13#10 +
-        '' + #13#10 +
-        'Vous pouvez modifier le fichier .env dans :' + #13#10 +
-        ExpandConstant('{localappdata}') + '\{#MyAppName}',
-        mbCriticalError,
-        MB_OK
-      )
-    else
-      MsgBox(
-        'L''initialisation locale de FABOuanes a echoue.' + #13#10 +
-        'La base n''a pas pu etre preparee automatiquement.',
-        mbCriticalError,
-        MB_OK
-      );
+    MsgBox(
+      'L''initialisation de la base de donnees a echoue.' + #13#10 +
+      '' + #13#10 +
+      'Verifiez que PostgreSQL est demarre et que les parametres' + #13#10 +
+      'de connexion sont corrects.' + #13#10 +
+      '' + #13#10 +
+      'Vous pouvez modifier le fichier .env dans :' + #13#10 +
+      ExpandConstant('{localappdata}') + '\{#MyAppName}',
+      mbCriticalError,
+      MB_OK
+    );
     Exit;
   end;
 
@@ -479,12 +512,22 @@ var
 begin
   if CurStep = ssPostInstall then
   begin
+    // Check and install PostgreSQL if not present
+    if not IsPostgresInstalled() then
+    begin
+      MsgBox('PostgreSQL n''a pas été détecté sur cette machine.' + #13#10 +
+             'L''installateur va maintenant le télécharger et l''installer automatiquement.', mbInformation, MB_OK);
+      if not InstallPostgresAutomatically(EditPgPass.Text) then
+      begin
+        RaiseException('L''installation de PostgreSQL a échoué. PostgreSQL est requis pour cette application.');
+      end;
+    end;
+
     // Write the .env based on user choices
     WriteEnvFile();
 
     // Show what was configured
     case GetDbChoice() of
-      DB_SQLITE:          DbChoiceLabel := 'SQLite locale';
       DB_POSTGRES_LOCAL:  DbChoiceLabel := 'PostgreSQL (poste unique)';
       DB_POSTGRES_SERVER: DbChoiceLabel := 'PostgreSQL serveur reseau';
     end;

@@ -53,11 +53,7 @@ if exist ".env" (
     echo  Info: .env local detecte, il sera inclus dans ce build.
     set "PYINSTALLER_DATA_ARGS=%PYINSTALLER_DATA_ARGS% --add-data=.env;."
 )
-if exist "database.db" (
-    set "PYINSTALLER_DATA_ARGS=%PYINSTALLER_DATA_ARGS% --add-data=database.db;."
-) else (
-    echo  Info: database.db absent, une base neuve sera creee au premier lancement.
-)
+
 
 %PY_CMD% -m PyInstaller ^
     --noconfirm --clean ^
@@ -82,7 +78,6 @@ if exist "database.db" (
     --hidden-import "openpyxl" ^
     --hidden-import "dotenv" ^
     --hidden-import "jinja2" ^
-    --hidden-import "sqlite3" ^
     --hidden-import "pg8000" ^
     --hidden-import "qrcode" ^
     --hidden-import "PIL" ^

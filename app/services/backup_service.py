@@ -148,7 +148,7 @@ def _retention_limit_for_type(backup_type: str) -> int:
 
 
 def _apply_retention_to_directory(directory: Path, backup_type: str) -> None:
-    suffix = ".sql" if DATABASE_URL.lower().startswith("postgres") else ".db"
+    suffix = ".sql"
     files = sorted(directory.glob(f"*{suffix}"), key=lambda path: path.stat().st_mtime, reverse=True)
     limit = _retention_limit_for_type(backup_type)
     for old_file in files[limit:]:
@@ -306,13 +306,11 @@ def run_deferred_event_backup(*, force: bool = False, reason: str = "deferred_ev
 
 
 def _acquire_postgres_scheduler_lock():
-    if not DATABASE_URL.lower().startswith("postgres"):
-        return True
     with BACKGROUND_LOCK:
         if BACKGROUND_STATE.get("leader_conn") is not None:
             return True
     try:
-        leader_conn = connect_database(DATABASE_URL, APP_DATA_DIR / "database.db")
+        leader_conn = connect_database(DATABASE_URL)
         row = leader_conn.execute("SELECT pg_try_advisory_lock(?) AS locked", (SCHEDULER_LOCK_ID,)).fetchone()
         locked = bool(row["locked"] if hasattr(row, "keys") else row[0])
         if locked:
@@ -360,40 +358,15 @@ def _purge_old_logs() -> None:
     """Purge performance/error/system logs older than 7 days to prevent table bloat."""
     try:
         from app.core.db_access import execute_db
-        from app.core.config import settings
-        if settings.uses_postgres:
-            for table in ("performance_logs", "error_logs", "system_logs"):
-                execute_db(f"DELETE FROM {table} WHERE created_at < NOW() - INTERVAL '7 days'")
-        else:
-            for table in ("performance_logs", "error_logs", "system_logs"):
-                execute_db(f"DELETE FROM {table} WHERE created_at < date('now', '-7 days')")
+        for table in ("performance_logs", "error_logs", "system_logs"):
+            execute_db(f"DELETE FROM {table} WHERE created_at < NOW() - INTERVAL '7 days'")
     except Exception:
         logger.debug("Log purge skipped (table may not exist yet)")
 
 
 def _weekly_vacuum() -> None:
-    """Run VACUUM once a week (Sundays) to reclaim disk space from deleted rows."""
-    from datetime import datetime as _dt
-    if _dt.now().weekday() != 6:  # 6 = Sunday
-        return
-    if DATABASE_URL.lower().startswith("postgres"):
-        return  # PostgreSQL auto-vacuums
-    state_key = "last_vacuum_date"
-    today = _dt.now().strftime("%Y-%m-%d")
-    if get_setting(state_key, "") == today:
-        return
-    try:
-        from app.core.db import connect_database
-        conn = connect_database(DATABASE_URL)
-        try:
-            conn.execute("VACUUM").close()
-            conn.commit()
-        finally:
-            conn.close()
-        set_setting(state_key, today)
-        logger.info("Weekly VACUUM completed successfully.")
-    except Exception:
-        logger.exception("Weekly VACUUM failed")
+    # PostgreSQL auto-vacuums
+    pass
 
 
 def _safe_run(task_name: str, func, *args, **kwargs) -> bool:
@@ -462,7 +435,7 @@ def start_background_services(app=None) -> None:
         if multi_worker and not scheduler_owner:
             logger.warning("Backup scheduler disabled in multi-worker runtime; run one FAB_BACKUP_SCHEDULER=1 process.")
             return
-        if DATABASE_URL.lower().startswith("postgres") and not _acquire_postgres_scheduler_lock():
+        if not _acquire_postgres_scheduler_lock():
             logger.info("Backup scheduler skipped: PostgreSQL advisory lock is held by another process.")
             return
         BACKGROUND_STATE["started"] = True

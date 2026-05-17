@@ -41,51 +41,29 @@ def pagination_meta(request: Request) -> tuple[int, int, int]:
 
 
 def query_list(request: Request, query: str, params: tuple[Any, ...] = ()) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    from app.core.config import settings
     page, page_size, offset = pagination_meta(request)
     
-    if settings.uses_postgres:
-        wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({query}) _q LIMIT ? OFFSET ?"
-        rows = query_db(wrapped, tuple(params) + (page_size, offset))
-        total = int(rows[0]["_total_count"]) if rows else 0
-        return [dict(row) for row in rows], {
-            "page": page,
-            "page_size": page_size,
-            "returned": len(rows),
-            "total": total,
-        }
-    
-    count_row = query_db(f"SELECT COUNT(*) AS c FROM ({query}) list_query", params, one=True)
-    rows = query_db(f"{query} LIMIT ? OFFSET ?", tuple(params) + (page_size, offset))
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({query}) _q LIMIT ? OFFSET ?"
+    rows = query_db(wrapped, tuple(params) + (page_size, offset))
+    total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(row) for row in rows], {
         "page": page,
         "page_size": page_size,
         "returned": len(rows),
-        "total": int(count_row["c"] if count_row else 0),
+        "total": total,
     }
 
 async def query_list_async(request: Request, query: str, params: tuple[Any, ...] = ()) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    from app.core.config import settings
     page, page_size, offset = pagination_meta(request)
     
-    if settings.uses_postgres:
-        wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({query}) _q LIMIT ? OFFSET ?"
-        rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
-        total = int(rows[0]["_total_count"]) if rows else 0
-        return [dict(row) for row in rows], {
-            "page": page,
-            "page_size": page_size,
-            "returned": len(rows),
-            "total": total,
-        }
-        
-    count_row = await query_db_async(f"SELECT COUNT(*) AS c FROM ({query}) list_query", params, one=True)
-    rows = await query_db_async(f"{query} LIMIT ? OFFSET ?", tuple(params) + (page_size, offset))
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({query}) _q LIMIT ? OFFSET ?"
+    rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
+    total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(row) for row in rows], {
         "page": page,
         "page_size": page_size,
         "returned": len(rows),
-        "total": int(count_row["c"] if count_row else 0),
+        "total": total,
     }
 
 

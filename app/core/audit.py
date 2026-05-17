@@ -38,7 +38,6 @@ def _audit_worker() -> None:
     from app.core.config import settings
 
     logger = logging.getLogger("fabouanes.audit")
-    db_path = settings.app_data_dir / "database.db"
 
     while True:
         _AUDIT_EVENT.wait(timeout=2.0)
@@ -54,7 +53,7 @@ def _audit_worker() -> None:
                 break
 
             try:
-                conn = connect_database(settings.database_url, db_path)
+                conn = connect_database(settings.database_url)
                 try:
                     for row in batch:
                         cur = conn.execute(
@@ -193,18 +192,11 @@ def list_audit_logs(filters: Mapping[str, Any] | None = None, *, limit: int = 20
     filters = filters or {}
     where: list[str] = []
     params: list[Any] = []
-    from app.core.config import settings
     if filters.get("date_from"):
-        if settings.uses_postgres:
-            where.append("CAST(created_at AS DATE) >= CAST(? AS DATE)")
-        else:
-            where.append("substr(created_at, 1, 10) >= ?")
+        where.append("CAST(created_at AS DATE) >= CAST(? AS DATE)")
         params.append(str(filters["date_from"]))
     if filters.get("date_to"):
-        if settings.uses_postgres:
-            where.append("CAST(created_at AS DATE) <= CAST(? AS DATE)")
-        else:
-            where.append("substr(created_at, 1, 10) <= ?")
+        where.append("CAST(created_at AS DATE) <= CAST(? AS DATE)")
         params.append(str(filters["date_to"]))
     if filters.get("actor"):
         where.append("lower(actor_username) LIKE lower(?)")

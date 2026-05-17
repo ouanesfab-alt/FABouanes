@@ -419,15 +419,11 @@
     </div>
     <form method="post" class="d-flex gap-2 flex-wrap mb-3">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <input type="hidden" name="action" value="sqlite_maintenance">
+      <input type="hidden" name="action" value="database_maintenance">
       <button class="btn btn-outline-dark"
-        onclick="return confirm('Lancer ANALYZE, PRAGMA optimize et integrity_check ?')">
-        <i class="bi bi-speedometer2 me-1"></i>Maintenance SQLite
+        onclick="return confirm('Confirmer la maintenance de la base de données ?')">
+        <i class="bi bi-speedometer2 me-1"></i>Maintenance de la base
       </button>
-      <span class="small text-muted align-self-center">
-        DB {{ (system_status.sqlite.db_bytes / 1024 / 1024)|round(2) }} MB · WAL {{ (system_status.sqlite.wal_bytes /
-        1024 / 1024)|round(2) }} MB
-      </span>
     </form>
     <div class="row g-2 mb-3">
       <div class="col-md-4">

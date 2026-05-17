@@ -96,19 +96,11 @@ async def list_production_batches(
     if where:
         base_query += " WHERE " + " AND ".join(where)
     
-    from app.core.config import settings
     offset = (page - 1) * page_size
     
-    if settings.uses_postgres:
-        wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY production_date DESC, id DESC LIMIT ? OFFSET ?"
-        rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
-        total = int(rows[0]["_total_count"]) if rows else 0
-        return [dict(r) for r in rows], total
-        
-    count_row = await query_db_async(f"SELECT COUNT(*) AS c FROM ({base_query}) _q", tuple(params), one=True)
-    total = int(count_row["c"] if count_row else 0)
-    
-    rows = await query_db_async(f"{base_query} ORDER BY pb.production_date DESC, pb.id DESC LIMIT ? OFFSET ?", tuple(params) + (page_size, offset))
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY production_date DESC, id DESC LIMIT ? OFFSET ?"
+    rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
+    total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total
 
 
@@ -117,23 +109,17 @@ async def list_recipes(
     page_size: int = 50,
 ) -> tuple[list[dict], int]:
     from app.core.db_access import query_db_async
-    from app.core.config import settings
+    
     base_query = """
         SELECT sr.*, fp.name AS finished_product_name
         FROM saved_recipes sr
         JOIN finished_products fp ON fp.id = sr.finished_product_id
     """
+    
     offset = (page - 1) * page_size
     
-    if settings.uses_postgres:
-        wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY id DESC LIMIT ? OFFSET ?"
-        rows = await query_db_async(wrapped, (page_size, offset))
-        total = int(rows[0]["_total_count"]) if rows else 0
-        return [dict(r) for r in rows], total
-        
-    count_row = await query_db_async(f"SELECT COUNT(*) AS c FROM ({base_query}) _q", tuple(), one=True)
-    total = int(count_row["c"] if count_row else 0)
-    
-    rows = await query_db_async(f"{base_query} ORDER BY sr.id DESC LIMIT ? OFFSET ?", (page_size, offset))
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY id DESC LIMIT ? OFFSET ?"
+    rows = await query_db_async(wrapped, (page_size, offset))
+    total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total
 

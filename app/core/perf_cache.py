@@ -8,8 +8,6 @@ from time import monotonic
 from typing import Any, Callable, Hashable
 
 from app.core.config import APP_DATA_DIR, DATABASE_URL, settings
-
-DB_PATH = APP_DATA_DIR / "database.db"
 _CACHE: OrderedDict[tuple[Hashable, ...], dict[str, Any]] = OrderedDict()
 _CACHE_LOCK = RLock()
 _INVALIDATION_VERSION = 0
@@ -40,22 +38,8 @@ def cache_generation() -> int:
         return _INVALIDATION_VERSION
 
 
-def _sqlite_file_fingerprint() -> str:
-    db_path = Path(DB_PATH)
-    if not db_path.exists():
-        return "sqlite:missing"
-    parts = []
-    for path in (db_path, Path(f"{db_path}-wal"), Path(f"{db_path}-shm")):
-        if path.exists():
-            stat = path.stat()
-            parts.append(f"{path.name}:{stat.st_mtime_ns}:{stat.st_size}")
-    return "sqlite:" + "|".join(parts)
-
-
 def _database_fingerprint() -> str:
     version = cache_generation()
-    if settings.desktop_mode and DATABASE_URL.lower().startswith("sqlite"):
-        return f"v:{version}|{_sqlite_file_fingerprint()}"
     return f"v:{version}"
 
 
