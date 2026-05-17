@@ -228,12 +228,12 @@
                 <td class="fw-bold">{{ d.name }}</td>
                 <td class="text-end fw-semibold text-primary">{{ d.debt|money }}</td>
                 <td class="text-end text-success">{{ d.under_30|money if d.under_30 > 0 else '—' }}</td>
-                <td class="text-end text-warning">{{ d.30_to_90|money if d.30_to_90 > 0 else '—' }}</td>
+                <td class="text-end text-warning">{{ d["30_to_90"]|money if d["30_to_90"] > 0 else '—' }}</td>
                 <td class="text-end text-danger">{{ d.over_90|money if d.over_90 > 0 else '—' }}</td>
                 <td class="text-center">
                   <div class="d-flex align-items-center justify-content-center gap-2">
                     <div class="progress" style="width: 50px; height: 5px;" title="Utilisation de la limite : {{ d.limit_utilized_pct }}% (Seuil : {{ d.limit|money }})">
-                      <div class="progress-bar {{ 'bg-danger' if d.limit_exceeded else 'bg-primary' }}" role="progressbar" style="width: {{ (100 if d.limit_utilized_pct > 100 else d.limit_utilized_pct)|int }}%"></div>
+                      <div class="progress-bar {{ 'bg-danger' if d.limit_exceeded else 'bg-primary' }}" role="progressbar" style="width: {{ d.limit_utilized_pct_clamped|int }}%"></div>
                     </div>
                     <span class="small {{ 'text-danger fw-bold' if d.limit_exceeded else 'text-muted' }}">{{ d.limit_utilized_pct }}%</span>
                   </div>
@@ -389,8 +389,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // ── Graphique Charges par Catégorie ──
   const ctxExpCat = document.getElementById('chartExpensesCategory');
   if (ctxExpCat) {
-    const categories = {{ [e.category for e in expenses_by_cat]|tojson }};
-    const totals = {{ [float(e.total) for e in expenses_by_cat]|tojson }};
+    const categories = {{ expenses_by_cat_labels|tojson }};
+    const totals = {{ expenses_by_cat_totals|tojson }};
     new Chart(ctxExpCat, {
       type: 'bar',
       data: {
@@ -432,7 +432,7 @@ document.addEventListener('DOMContentLoaded', function() {
         datasets: [{
           data: [
             {{ debt_totals.under_30|float if debt_totals else 0.0 }},
-            {{ debt_totals.30_to_90|float if debt_totals else 0.0 }},
+            {{ debt_totals["30_to_90"]|float if debt_totals else 0.0 }},
             {{ debt_totals.over_90|float if debt_totals else 0.0 }}
           ],
           backgroundColor: [

@@ -183,7 +183,8 @@ def build_reports_context(date_from: str | None = None, date_to: str | None = No
                     limit = float(re.sub(r"[^\d]", "", match.group(1)))
                 except Exception:
                     pass
-            limit_utilized_pct = round((current_debt / limit) * 100, 1)
+            limit_utilized_pct = round((current_debt / limit) * 100, 1) if limit > 0 else 0.0
+            limit_utilized_pct_clamped = min(limit_utilized_pct, 100.0)
             limit_exceeded = current_debt > limit
             
             client_debts.append({
@@ -196,6 +197,7 @@ def build_reports_context(date_from: str | None = None, date_to: str | None = No
                 "avg_delay": avg_delay,
                 "limit": limit,
                 "limit_utilized_pct": limit_utilized_pct,
+                "limit_utilized_pct_clamped": limit_utilized_pct_clamped,
                 "limit_exceeded": limit_exceeded,
             })
             
