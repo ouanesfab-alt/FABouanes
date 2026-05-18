@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS purchase_documents (
     supplier_id BIGINT REFERENCES suppliers(id) ON DELETE SET NULL,
     doc_number TEXT UNIQUE NOT NULL,
     total NUMERIC(14,2) NOT NULL DEFAULT 0,
-    purchase_date TEXT NOT NULL,
+    purchase_date DATE NOT NULL,
     notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS sale_documents (
     total NUMERIC(14,2) NOT NULL DEFAULT 0,
     amount_paid NUMERIC(14,2) NOT NULL DEFAULT 0,
     balance_due NUMERIC(14,2) NOT NULL DEFAULT 0,
-    sale_date TEXT NOT NULL,
+    sale_date DATE NOT NULL,
     notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS purchases (
     unit TEXT NOT NULL DEFAULT 'kg',
     unit_price NUMERIC(14,2) NOT NULL,
     total NUMERIC(14,2) NOT NULL,
-    purchase_date TEXT NOT NULL,
+    purchase_date DATE NOT NULL,
     notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS sales (
     balance_due NUMERIC(14,2) NOT NULL DEFAULT 0,
     cost_price_snapshot NUMERIC(14,2) NOT NULL DEFAULT 0,
     profit_amount NUMERIC(14,2) NOT NULL DEFAULT 0,
-    sale_date TEXT NOT NULL,
+    sale_date DATE NOT NULL,
     notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS raw_sales (
     balance_due NUMERIC(14,2) NOT NULL DEFAULT 0,
     cost_price_snapshot NUMERIC(14,2) NOT NULL DEFAULT 0,
     profit_amount NUMERIC(14,2) NOT NULL DEFAULT 0,
-    sale_date TEXT NOT NULL,
+    sale_date DATE NOT NULL,
     notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS payments (
     payment_type TEXT NOT NULL DEFAULT 'versement',
     allocation_meta TEXT,
     amount NUMERIC(14,2) NOT NULL,
-    payment_date TEXT NOT NULL,
+    payment_date DATE NOT NULL,
     notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
