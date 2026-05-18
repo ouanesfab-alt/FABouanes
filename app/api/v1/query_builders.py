@@ -12,7 +12,7 @@ def pagination_meta(request: Request) -> tuple[int, int, int]:
 
 def query_list(request: Request, query: str, params: tuple[Any, ...] = ()) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     page, page_size, offset = pagination_meta(request)
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({query}) _q LIMIT %s OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({query}) _q LIMIT %s OFFSET %s"
     rows = query_db(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(row) for row in rows], {
@@ -24,7 +24,7 @@ def query_list(request: Request, query: str, params: tuple[Any, ...] = ()) -> tu
 
 async def query_list_async(request: Request, query: str, params: tuple[Any, ...] = ()) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     page, page_size, offset = pagination_meta(request)
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({query}) _q LIMIT %s OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({query}) _q LIMIT %s OFFSET %s"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(row) for row in rows], {
@@ -40,7 +40,7 @@ def like_value(request: Request) -> str:
 def append_text_search(request: Request, where: list[str], params: list[Any], *fields: str) -> None:
     if not request.query_params.get("q", "").strip():
         return
-    clause = " OR ".join(f"LOWER(COALESCE({field}, '')) LIKE LOWER(?)" for field in fields)
+    clause = " OR ".join(f"LOWER(COALESCE({field}, '')) LIKE LOWER(%s)" for field in fields)
     where.append(f"({clause})")
     like = like_value(request)
     params.extend([like] * len(fields))

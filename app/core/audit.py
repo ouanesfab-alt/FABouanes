@@ -193,19 +193,19 @@ def list_audit_logs(filters: Mapping[str, Any] | None = None, *, limit: int = 20
     where: list[str] = []
     params: list[Any] = []
     if filters.get("date_from"):
-        where.append("CAST(created_at AS DATE) >= CAST(? AS DATE)")
+        where.append("CAST(created_at AS DATE) >= CAST(%s AS DATE)")
         params.append(str(filters["date_from"]))
     if filters.get("date_to"):
-        where.append("CAST(created_at AS DATE) <= CAST(? AS DATE)")
+        where.append("CAST(created_at AS DATE) <= CAST(%s AS DATE)")
         params.append(str(filters["date_to"]))
     if filters.get("actor"):
-        where.append("lower(actor_username) LIKE lower(?)")
+        where.append("lower(actor_username) LIKE lower(%s)")
         params.append(f"%{filters['actor']}%")
     if filters.get("action"):
-        where.append("lower(action) LIKE lower(?)")
+        where.append("lower(action) LIKE lower(%s)")
         params.append(f"%{filters['action']}%")
     if filters.get("entity_type"):
-        where.append("lower(entity_type) LIKE lower(?)")
+        where.append("lower(entity_type) LIKE lower(%s)")
         params.append(f"%{filters['entity_type']}%")
     if filters.get("status"):
         where.append("status = %s")
