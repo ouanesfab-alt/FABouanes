@@ -19,6 +19,7 @@ from app.services.client_service import (
     update_client_from_form,
 )
 from app.services.print_service import COMPANY_INFO
+from app.schemas.client_validation import ClientValidationSchema
 from app.web.deps import csrf_protect, flash, get_current_user, require_permission, template_context, templates
 
 
@@ -60,7 +61,16 @@ async def clients_submit(request: Request):
         return denied
     await csrf_protect(request)
     form = await request.form()
-    create_client_from_form(form)
+    try:
+        data = {k: v for k, v in form.items()}
+        validated = ClientValidationSchema(**data)
+    except Exception as e:
+        from pydantic import ValidationError
+        errors = [err["msg"] for err in e.errors()] if isinstance(e, ValidationError) else [str(e)]
+        flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
+        return RedirectResponse(NEW_CLIENT_URL, status_code=303)
+        
+    create_client_from_form(validated.model_dump())
     flash(request, "Client ajoute avec succes.", "success")
     return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
 
@@ -89,7 +99,19 @@ async def new_client_submit(request: Request):
         return denied
     await csrf_protect(request)
     form = await request.form()
-    create_client_from_form(form)
+    try:
+        data = {k: v for k, v in form.items()}
+        validated = ClientValidationSchema(**data)
+    except Exception as e:
+        from pydantic import ValidationError
+        errors = [err["msg"] for err in e.errors()] if isinstance(e, ValidationError) else [str(e)]
+        flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
+        return templates.TemplateResponse(
+            "client_new.html",
+            template_context(request, client=form)
+        )
+        
+    create_client_from_form(validated.model_dump())
     flash(request, "Client ajoute avec succes.", "success")
     return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
 
@@ -240,7 +262,23 @@ async def edit_client_submit(request: Request, client_id: int):
         flash(request, "Client introuvable.", "danger")
         return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
     form = await request.form()
-    update_client_from_form(client_id, form)
+    try:
+        data = {k: v for k, v in form.items()}
+        validated = ClientValidationSchema(**data)
+    except Exception as e:
+        from pydantic import ValidationError
+        errors = [err["msg"] for err in e.errors()] if isinstance(e, ValidationError) else [str(e)]
+        flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
+        
+        # Merge id to form dict for template cancel link
+        form_dict = dict(form)
+        form_dict["id"] = client_id
+        return templates.TemplateResponse(
+            "client_edit.html",
+            template_context(request, client=form_dict)
+        )
+        
+    update_client_from_form(client_id, validated.model_dump())
     flash(request, "Client modifie avec succes.", "success")
     return RedirectResponse(f"/contacts/clients/{client_id}", status_code=303)
 
