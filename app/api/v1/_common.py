@@ -17,9 +17,6 @@ from app.api.v1.query_builders import (
     like_value,
     append_text_search,
     append_date_range,
-    client_balance_sql,
-    client_total_sales_sql,
-    client_total_payments_sql,
 )
 
 from app.api.v1.response_helpers import (

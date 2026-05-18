@@ -54,21 +54,3 @@ def append_date_range(request: Request, where: list[str], params: list[Any], fie
     if date_to:
         where.append(f"{field} <= %s")
         params.append(date_to)
-
-def client_balance_sql(alias: str = "c") -> str:
-    return f"""
-        {alias}.opening_credit
-        + COALESCE((SELECT SUM(total) FROM sales s WHERE s.client_id = {alias}.id AND s.sale_type = 'credit'), 0)
-        + COALESCE((SELECT SUM(total) FROM raw_sales rs WHERE rs.client_id = {alias}.id AND rs.sale_type = 'credit'), 0)
-        - COALESCE((SELECT SUM(amount) FROM payments p WHERE p.client_id = {alias}.id AND p.payment_type = 'versement'), 0)
-        + COALESCE((SELECT SUM(amount) FROM payments p WHERE p.client_id = {alias}.id AND p.payment_type = 'avance'), 0)
-    """
-
-def client_total_sales_sql(alias: str = "c") -> str:
-    return f"""
-        COALESCE((SELECT SUM(total) FROM sales s WHERE s.client_id = {alias}.id), 0)
-        + COALESCE((SELECT SUM(total) FROM raw_sales rs WHERE rs.client_id = {alias}.id), 0)
-    """
-
-def client_total_payments_sql(alias: str = "c") -> str:
-    return f"COALESCE((SELECT SUM(amount) FROM payments p WHERE p.client_id = {alias}.id AND p.payment_type = 'versement'), 0)"

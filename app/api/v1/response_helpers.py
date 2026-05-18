@@ -13,27 +13,13 @@ from app.services.client_service import get_client_detail_context
 from app.services.purchase_service import get_purchase_document_context
 from app.services.sale_service import get_sale_document_context
 
-from app.api.v1.query_builders import (
-    client_balance_sql,
-    client_total_sales_sql,
-    client_total_payments_sql,
-)
-
 def json_response(payload: dict[str, Any]) -> JSONResponse:
     status_code = int(payload.pop("_status_code", 200))
     return JSONResponse(payload, status_code=status_code)
 
 def client_payload(client_id: int):
     row = query_db(
-        f"""
-        SELECT c.*,
-               {client_balance_sql("c")} AS current_balance,
-               {client_balance_sql("c")} AS current_debt,
-               {client_total_sales_sql("c")} AS total_sales,
-               {client_total_payments_sql("c")} AS total_payments
-        FROM clients c
-        WHERE c.id = %s
-        """,
+        "SELECT * FROM clients_with_stats WHERE id = %s",
         (client_id,),
         one=True,
     )
