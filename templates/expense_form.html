@@ -9,13 +9,13 @@
 <div class="expense-form-page">
   <div class="page-hero mb-0">
     <div>
-      <h2 class="section-title mb-1"><i class="bi bi-wallet2 me-2"></i>{{ 'Modifier la dépense' if expense else 'Nouvelle dépense' }}</h2>
-      <p class="text-muted mb-0">{{ 'Modifiez les informations ci-dessous.' if expense else 'Enregistrez une nouvelle dépense ou charge.' }}</p>
+      <h2 class="section-title mb-1"><i class="bi bi-wallet2 me-2"></i>{{ 'Modifier la dépense' if expense and expense.id else 'Nouvelle dépense' }}</h2>
+      <p class="text-muted mb-0">{{ 'Modifiez les informations ci-dessous.' if expense and expense.id else 'Enregistrez une nouvelle dépense ou charge.' }}</p>
     </div>
   </div>
 
   <div class="card expense-form-card">
-    <form method="post" action="{{ url_for('edit_expense', expense_id=expense.id) if expense else url_for('new_expense') }}">
+    <form method="post" action="{{ url_for('edit_expense', expense_id=expense.id) if expense and expense.id else url_for('new_expense') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="row g-3">
         <div class="col-md-6">
@@ -48,7 +48,7 @@
         </div>
       </div>
       <div class="d-flex gap-2 mt-4">
-        <button type="submit" class="btn btn-dark"><i class="bi bi-check-lg me-2"></i>{{ 'Enregistrer' if expense else 'Ajouter' }}</button>
+        <button type="submit" class="btn btn-dark"><i class="bi bi-check-lg me-2"></i>{{ 'Enregistrer' if expense and expense.id else 'Ajouter' }}</button>
         <a href="{{ url_for('expenses') }}" class="btn btn-outline-secondary">Annuler</a>
       </div>
     </form>
