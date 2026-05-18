@@ -124,24 +124,24 @@ def list_admin_activity(filters: Mapping[str, str] | None = None, *, limit: int 
     where: list[str] = []
     params: list[object] = []
     if normalized["activity_user"]:
-        where.append("LOWER(username) LIKE LOWER(?)")
+        where.append("LOWER(username) LIKE LOWER(%s)")
         params.append(f"%{normalized['activity_user']}%")
     if normalized["activity_action"]:
-        where.append("LOWER(action) = LOWER(?)")
+        where.append("LOWER(action) = LOWER(%s)")
         params.append(normalized["activity_action"])
     if normalized["activity_date"]:
-        where.append("CAST(created_at AS DATE) = CAST(? AS DATE)")
+        where.append("CAST(created_at AS DATE) = CAST(%s AS DATE)")
         params.append(normalized["activity_date"])
     if normalized["activity_type"]:
-        where.append("LOWER(COALESCE(entity_type, '')) = LOWER(?)")
+        where.append("LOWER(COALESCE(entity_type, '')) = LOWER(%s)")
         params.append(normalized["activity_type"])
     if normalized["activity_q"]:
         where.append(
             "("
-            "LOWER(COALESCE(username, '')) LIKE LOWER(?) OR "
-            "LOWER(COALESCE(action, '')) LIKE LOWER(?) OR "
-            "LOWER(COALESCE(entity_type, '')) LIKE LOWER(?) OR "
-            "LOWER(COALESCE(details, '')) LIKE LOWER(?)"
+            "LOWER(COALESCE(username, '')) LIKE LOWER(%s) OR "
+            "LOWER(COALESCE(action, '')) LIKE LOWER(%s) OR "
+            "LOWER(COALESCE(entity_type, '')) LIKE LOWER(%s) OR "
+            "LOWER(COALESCE(details, '')) LIKE LOWER(%s)"
             ")"
         )
         like = f"%{normalized['activity_q']}%"

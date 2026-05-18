@@ -57,14 +57,14 @@ def save_recipe_definition(
     if not clean_name or not recipe_lines:
         return None
     existing = query_db(
-        "SELECT id FROM saved_recipes WHERE finished_product_id = %s AND lower(name) = lower(?)",
+        "SELECT id FROM saved_recipes WHERE finished_product_id = %s AND lower(name) = lower(%s)",
         (finished_id, clean_name),
         one=True,
     )
     if existing:
         recipe_id = int(existing["id"])
         execute_db(
-            "UPDATE saved_recipes SET notes = %s, updated_at = CURRENT_TIMESTAMP, created_by_user_id = COALESCE(created_by_user_id, ?) WHERE id = %s",
+            "UPDATE saved_recipes SET notes = %s, updated_at = CURRENT_TIMESTAMP, created_by_user_id = COALESCE(created_by_user_id, %s) WHERE id = %s",
             (notes, user_id, recipe_id),
         )
         execute_db("DELETE FROM saved_recipe_items WHERE recipe_id = %s", (recipe_id,))

@@ -16,7 +16,7 @@ async def list_recent_operations(
     params: list[object] = []
     
     if search:
-        where.append("LOWER(COALESCE(partner_name, '') || ' ' || COALESCE(item_name, '') || ' ' || COALESCE(notes, '') || ' ' || COALESCE(operation_label, '')) LIKE LOWER(?)")
+        where.append("LOWER(COALESCE(partner_name, '') || ' ' || COALESCE(item_name, '') || ' ' || COALESCE(notes, '') || ' ' || COALESCE(operation_label, '')) LIKE LOWER(%s)")
         params.append(f"%{search}%")
         
     if date_from:
@@ -73,7 +73,7 @@ async def list_recent_operations(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY event_date DESC, row_id DESC LIMIT %s OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY event_date DESC, row_id DESC LIMIT %s OFFSET %s"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total

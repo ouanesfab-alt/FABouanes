@@ -64,14 +64,14 @@ def apply_payment_to_entry(kind: str, row_id: int, amount: float) -> float:
         if not sale:
             return 0.0
         paid = min(amount, float(sale["balance_due"]))
-        execute_db("UPDATE sales SET balance_due = balance_due - ?, amount_paid = amount_paid + ? WHERE id = %s", (paid, paid, row_id))
+        execute_db("UPDATE sales SET balance_due = balance_due - %s, amount_paid = amount_paid + %s WHERE id = %s", (paid, paid, row_id))
         recalc_sale_document_totals(int(sale["document_id"])) if sale["document_id"] else None
         return paid
     sale = query_db("SELECT balance_due, document_id FROM raw_sales WHERE id = %s", (row_id,), one=True)
     if not sale:
         return 0.0
     paid = min(amount, float(sale["balance_due"]))
-    execute_db("UPDATE raw_sales SET balance_due = balance_due - ?, amount_paid = amount_paid + ? WHERE id = %s", (paid, paid, row_id))
+    execute_db("UPDATE raw_sales SET balance_due = balance_due - %s, amount_paid = amount_paid + %s WHERE id = %s", (paid, paid, row_id))
     recalc_sale_document_totals(int(sale["document_id"])) if sale["document_id"] else None
     return paid
 
@@ -92,22 +92,22 @@ def reverse_payment_allocations(payment_row) -> None:
                     continue
                 if kind == "finished":
                     doc_row = query_db("SELECT document_id FROM sales WHERE id = %s", (row_id,), one=True)
-                    execute_db("UPDATE sales SET amount_paid = amount_paid - ?, balance_due = balance_due + ? WHERE id = %s", (amount, amount, row_id))
+                    execute_db("UPDATE sales SET amount_paid = amount_paid - %s, balance_due = balance_due + %s WHERE id = %s", (amount, amount, row_id))
                     recalc_sale_document_totals(int(doc_row["document_id"])) if doc_row and doc_row["document_id"] else None
                 elif kind == "raw":
                     doc_row = query_db("SELECT document_id FROM raw_sales WHERE id = %s", (row_id,), one=True)
-                    execute_db("UPDATE raw_sales SET amount_paid = amount_paid - ?, balance_due = balance_due + ? WHERE id = %s", (amount, amount, row_id))
+                    execute_db("UPDATE raw_sales SET amount_paid = amount_paid - %s, balance_due = balance_due + %s WHERE id = %s", (amount, amount, row_id))
                     recalc_sale_document_totals(int(doc_row["document_id"])) if doc_row and doc_row["document_id"] else None
             return
         if payment_row["payment_type"] != "versement":
             return
         if payment_row["sale_kind"] == "finished" and payment_row["sale_id"]:
             doc_row = query_db("SELECT document_id FROM sales WHERE id = %s", (payment_row["sale_id"],), one=True)
-            execute_db("UPDATE sales SET amount_paid = amount_paid - ?, balance_due = balance_due + ? WHERE id = %s", (payment_row["amount"], payment_row["amount"], payment_row["sale_id"]))
+            execute_db("UPDATE sales SET amount_paid = amount_paid - %s, balance_due = balance_due + %s WHERE id = %s", (payment_row["amount"], payment_row["amount"], payment_row["sale_id"]))
             recalc_sale_document_totals(int(doc_row["document_id"])) if doc_row and doc_row["document_id"] else None
         elif payment_row["sale_kind"] == "raw" and payment_row["raw_sale_id"]:
             doc_row = query_db("SELECT document_id FROM raw_sales WHERE id = %s", (payment_row["raw_sale_id"],), one=True)
-            execute_db("UPDATE raw_sales SET amount_paid = amount_paid - ?, balance_due = balance_due + ? WHERE id = %s", (payment_row["amount"], payment_row["amount"], payment_row["raw_sale_id"]))
+            execute_db("UPDATE raw_sales SET amount_paid = amount_paid - %s, balance_due = balance_due + %s WHERE id = %s", (payment_row["amount"], payment_row["amount"], payment_row["raw_sale_id"]))
             recalc_sale_document_totals(int(doc_row["document_id"])) if doc_row and doc_row["document_id"] else None
 
 

@@ -59,7 +59,7 @@ async def list_sales(
     
     if search:
         like = f"%{search}%"
-        where.append("(LOWER(COALESCE(client_name, '')) LIKE LOWER(?) OR LOWER(COALESCE(item_name, '')) LIKE LOWER(?) OR LOWER(COALESCE(notes, '')) LIKE LOWER(?))")
+        where.append("(LOWER(COALESCE(client_name, '')) LIKE LOWER(%s) OR LOWER(COALESCE(item_name, '')) LIKE LOWER(%s) OR LOWER(COALESCE(notes, '')) LIKE LOWER(%s))")
         params.extend([like, like, like])
         
     if date_from:
@@ -103,7 +103,7 @@ async def list_sales(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY sale_date DESC, id DESC LIMIT %s OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY sale_date DESC, id DESC LIMIT %s OFFSET %s"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total

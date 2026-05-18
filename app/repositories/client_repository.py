@@ -62,7 +62,7 @@ def list_clients_page_context(args=None):
     where_sql = ""
     params: list[object] = []
     if search:
-        where_sql = "c.search_vector @@ plainto_tsquery('french', ?)"
+        where_sql = "c.search_vector @@ plainto_tsquery('french', %s)"
         params.append(search)
 
     where_clause = f"WHERE {where_sql}" if where_sql else ""
@@ -75,7 +75,7 @@ def list_clients_page_context(args=None):
             FROM clients c
             {where_clause}
             ORDER BY c.name
-            LIMIT %s OFFSET ?
+            LIMIT %s OFFSET %s
         ),
         finished_totals AS (
             SELECT client_id,
@@ -170,7 +170,7 @@ async def list_clients(
     params: list[object] = []
     
     if search:
-        where.append("c.search_vector @@ plainto_tsquery('french', ?)")
+        where.append("c.search_vector @@ plainto_tsquery('french', %s)")
         params.append(search)
         
     base_query = f"""
@@ -186,7 +186,7 @@ async def list_clients(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY name LIMIT %s OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY name LIMIT %s OFFSET %s"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total

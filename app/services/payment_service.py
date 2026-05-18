@@ -46,7 +46,7 @@ def get_edit_payment_context(payment_id: int):
     if current_link and current_link not in existing_keys:
         if payment["sale_kind"] == "finished" and payment["sale_id"]:
             sale = query_db(
-                "SELECT s.id, s.client_id, c.name AS client_name, f.name AS item_name, s.balance_due + ? AS balance_due, s.sale_date, s.total FROM sales s JOIN clients c ON c.id=s.client_id JOIN finished_products f ON f.id=s.finished_product_id WHERE s.id=%s",
+                "SELECT s.id, s.client_id, c.name AS client_name, f.name AS item_name, s.balance_due + %s AS balance_due, s.sale_date, s.total FROM sales s JOIN clients c ON c.id=s.client_id JOIN finished_products f ON f.id=s.finished_product_id WHERE s.id=%s",
                 (payment["amount"], payment["sale_id"]),
                 one=True,
             )
@@ -54,7 +54,7 @@ def get_edit_payment_context(payment_id: int):
                 open_sales.append(dict(item_kind="finished", id=sale["id"], client_id=sale["client_id"], client_name=sale["client_name"], item_name=sale["item_name"], balance_due=sale["balance_due"], sale_date=sale["sale_date"], total=sale["total"]))
         elif payment["sale_kind"] == "raw" and payment["raw_sale_id"]:
             sale = query_db(
-                "SELECT rs.id, rs.client_id, c.name AS client_name, COALESCE(NULLIF(rs.custom_item_name, ''), r.name) AS item_name, rs.balance_due + ? AS balance_due, rs.sale_date, rs.total FROM raw_sales rs JOIN clients c ON c.id=rs.client_id JOIN raw_materials r ON r.id=rs.raw_material_id WHERE rs.id=%s",
+                "SELECT rs.id, rs.client_id, c.name AS client_name, COALESCE(NULLIF(rs.custom_item_name, ''), r.name) AS item_name, rs.balance_due + %s AS balance_due, rs.sale_date, rs.total FROM raw_sales rs JOIN clients c ON c.id=rs.client_id JOIN raw_materials r ON r.id=rs.raw_material_id WHERE rs.id=%s",
                 (payment["amount"], payment["raw_sale_id"]),
                 one=True,
             )

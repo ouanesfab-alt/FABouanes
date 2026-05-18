@@ -34,7 +34,7 @@ def list_purchase_page_context(args=None):
     q = str((args or {}).get("q", "") or "").strip()
     purchase_date = str((args or {}).get("date", "") or "").strip()
     if q:
-        where.append("LOWER(COALESCE(supplier_name, '') || ' ' || COALESCE(material_name, '')) LIKE LOWER(?)")
+        where.append("LOWER(COALESCE(supplier_name, '') || ' ' || COALESCE(material_name, '')) LIKE LOWER(%s)")
         params.append(f"%{q}%")
     if purchase_date:
         where.append("purchase_date = %s")
@@ -70,7 +70,7 @@ def list_purchase_page_context(args=None):
             cursor_id = 0
         if cursor_id > 0:
             cursor_where = " AND " if where else " WHERE "
-            cursor_where += "(purchase_date < ? OR (purchase_date = %s AND id < ?))"
+            cursor_where += "(purchase_date < %s OR (purchase_date = %s AND id < %s))"
             cursor_params.extend([cursor[0], cursor[0], cursor_id])
     rows_plus = query_db(
         f"{query}{cursor_where} ORDER BY purchase_date DESC, id DESC LIMIT %s",
@@ -180,7 +180,7 @@ async def list_purchases(
     params: list[object] = []
     
     if search:
-        where.append("(LOWER(COALESCE(s.name, '')) LIKE LOWER(?) OR LOWER(COALESCE(r.name, '')) LIKE LOWER(?) OR LOWER(COALESCE(p.notes, '')) LIKE LOWER(?))")
+        where.append("(LOWER(COALESCE(s.name, '')) LIKE LOWER(%s) OR LOWER(COALESCE(r.name, '')) LIKE LOWER(%s) OR LOWER(COALESCE(p.notes, '')) LIKE LOWER(%s))")
         like = f"%{search}%"
         params.extend([like, like, like])
         
@@ -202,7 +202,7 @@ async def list_purchases(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY purchase_date DESC, id DESC LIMIT %s OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY purchase_date DESC, id DESC LIMIT %s OFFSET %s"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total

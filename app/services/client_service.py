@@ -306,7 +306,7 @@ def _import_parsed_client_rows(rows: list[dict]):
                     before = get_client(existing_id)
                     execute_db(
                         """UPDATE clients
-                           SET phone = CASE WHEN COALESCE(phone,'')='' THEN ? ELSE phone END,
+                           SET phone = CASE WHEN COALESCE(phone,'')='' THEN %s ELSE phone END,
                                opening_credit = %s
                            WHERE id = %s""",
                         (row["phone"], row["opening_credit"], existing_id),

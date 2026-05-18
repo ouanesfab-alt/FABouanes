@@ -13,7 +13,7 @@ def list_production_page_context(args=None):
     where: list[str] = []
     params: list[object] = []
     if q:
-        where.append("LOWER(fp.name || ' ' || COALESCE(pb.notes, '')) LIKE LOWER(?)")
+        where.append("LOWER(fp.name || ' ' || COALESCE(pb.notes, '')) LIKE LOWER(%s)")
         params.append(f"%{q}%")
     if production_date:
         where.append("pb.production_date = %s")
@@ -30,7 +30,7 @@ def list_production_page_context(args=None):
     batch_ids = [int(batch["id"]) for batch in batches]
     recipe_by_batch: dict[int, list[str]] = {batch_id: [] for batch_id in batch_ids}
     if batch_ids:
-        placeholders = ",".join(["?"] * len(batch_ids))
+        placeholders = ",".join(["%s"] * len(batch_ids))
         items = query_db(
             f"""
             SELECT pbi.batch_id, pbi.quantity, r.name, r.unit
@@ -77,7 +77,7 @@ async def list_production_batches(
     params: list[object] = []
     
     if search:
-        where.append("(LOWER(fp.name) LIKE LOWER(?) OR LOWER(COALESCE(pb.notes, '')) LIKE LOWER(?))")
+        where.append("(LOWER(fp.name) LIKE LOWER(%s) OR LOWER(COALESCE(pb.notes, '')) LIKE LOWER(%s))")
         like = f"%{search}%"
         params.extend([like, like])
         
@@ -98,7 +98,7 @@ async def list_production_batches(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY production_date DESC, id DESC LIMIT %s OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY production_date DESC, id DESC LIMIT %s OFFSET %s"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total
@@ -118,7 +118,7 @@ async def list_recipes(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY id DESC LIMIT %s OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY id DESC LIMIT %s OFFSET %s"
     rows = await query_db_async(wrapped, (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total

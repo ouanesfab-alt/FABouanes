@@ -14,7 +14,7 @@ def list_payment_page_context(args=None):
     where: list[str] = []
     params: list[object] = []
     if search:
-        where.append("(LOWER(c.name) LIKE LOWER(?) OR p.payment_date = %s)")
+        where.append("(LOWER(c.name) LIKE LOWER(%s) OR p.payment_date = %s)")
         params.extend([f"%{search}%", search])
     if payment_date:
         where.append("p.payment_date = %s")
@@ -67,7 +67,7 @@ async def list_payments(
     params: list[object] = []
     
     if search:
-        where.append("(LOWER(c.name) LIKE LOWER(?) OR LOWER(COALESCE(p.notes, '')) LIKE LOWER(?))")
+        where.append("(LOWER(c.name) LIKE LOWER(%s) OR LOWER(COALESCE(p.notes, '')) LIKE LOWER(%s))")
         like = f"%{search}%"
         params.extend([like, like])
         
@@ -97,7 +97,7 @@ async def list_payments(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY payment_date DESC, id DESC LIMIT %s OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY payment_date DESC, id DESC LIMIT %s OFFSET %s"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total
