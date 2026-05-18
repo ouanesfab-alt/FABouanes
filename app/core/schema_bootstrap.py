@@ -29,6 +29,18 @@ def bootstrap_schema() -> None:
         conn.executescript(SCHEMA_OPERATIONS)
         conn.executescript(SCHEMA_PRODUCTION)
         
+        # Then discover and execute module schemas
+        try:
+            from pathlib import Path
+            from app.core.registry import discover_modules, get_enabled_modules
+            discover_modules(settings.base_dir / "app" / "modules")
+            for module in get_enabled_modules():
+                for sql in module.schema_sql:
+                    conn.executescript(sql)
+        except Exception as e:
+            import logging
+            logging.getLogger("fabouanes").warning("Failed to bootstrap module schemas: %s", e)
+        
         # Auto-migrate existing database for operations time tracking
         from app.core.db import list_columns
         for table in ["purchases", "sales", "raw_sales", "payments"]:

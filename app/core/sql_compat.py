@@ -14,7 +14,7 @@ def split_sql_script(script: str) -> list[str]:
         
         if char == '$' and i + 1 < n and script[i+1] == '$':
             in_dollar = not in_dollar
-            current.append('')
+            current.append('$$')
             i += 2
             continue
             

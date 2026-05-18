@@ -17,7 +17,7 @@ def test_admin_panel_renders(logged_client):
 def test_admin_can_update_user_password(logged_client):
     page = logged_client.get("/admin")
     csrf_token = extract_csrf(page.text)
-    user = query_db("SELECT id FROM users WHERE username = ?", ("admin",), one=True)
+    user = query_db("SELECT id FROM users WHERE username = %s", ("admin",), one=True)
     assert user is not None
 
     response = logged_client.post(
@@ -34,7 +34,7 @@ def test_admin_can_update_user_password(logged_client):
     )
 
     assert response.status_code == 303
-    updated = query_db("SELECT password_hash, role, is_active FROM users WHERE id = ?", (user["id"],), one=True)
+    updated = query_db("SELECT password_hash, role, is_active FROM users WHERE id = %s", (user["id"],), one=True)
     assert updated is not None
     assert check_password_hash(updated["password_hash"], "9876")
     assert updated["role"] == "admin"

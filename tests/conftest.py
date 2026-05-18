@@ -159,7 +159,7 @@ def ensure_admin_user(client: TestClient):
     execute_db(
         """
         INSERT INTO users (username, password_hash, role, must_change_password, is_active, last_password_change_at)
-        VALUES (?, ?, ?, 0, 1, CURRENT_TIMESTAMP)
+        VALUES (%s, %s, %s, 0, 1, CURRENT_TIMESTAMP)
         ON CONFLICT(username) DO UPDATE SET
             password_hash = excluded.password_hash,
             role = excluded.role,
@@ -171,22 +171,22 @@ def ensure_admin_user(client: TestClient):
     )
     if query_db("SELECT id FROM clients ORDER BY id LIMIT 1", one=True) is None:
         execute_db(
-            "INSERT INTO clients (name, phone, address, notes, opening_credit) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO clients (name, phone, address, notes, opening_credit) VALUES (%s, %s, %s, %s, %s)",
             ("Client Test", "0550000000", "Adresse Test", "", 0),
         )
     if query_db("SELECT id FROM suppliers ORDER BY id LIMIT 1", one=True) is None:
         execute_db(
-            "INSERT INTO suppliers (name, phone, address, notes) VALUES (?, ?, ?, ?)",
+            "INSERT INTO suppliers (name, phone, address, notes) VALUES (%s, %s, %s, %s)",
             ("Fournisseur Test", "0660000000", "Adresse Fournisseur", ""),
         )
     if query_db("SELECT id FROM raw_materials ORDER BY id LIMIT 1", one=True) is None:
         execute_db(
-            "INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold) VALUES (%s, %s, %s, %s, %s, %s)",
             ("Matiere Test", "kg", 120, 50, 65, 10),
         )
     if query_db("SELECT id FROM finished_products ORDER BY id LIMIT 1", one=True) is None:
         execute_db(
-            "INSERT INTO finished_products (name, default_unit, stock_qty, sale_price, avg_cost) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO finished_products (name, default_unit, stock_qty, sale_price, avg_cost) VALUES (%s, %s, %s, %s, %s)",
             ("Produit Test", "kg", 80, 120, 90),
         )
     if query_db("SELECT id FROM purchases ORDER BY id LIMIT 1", one=True) is None:
@@ -195,7 +195,7 @@ def ensure_admin_user(client: TestClient):
         execute_db(
             """
             INSERT INTO purchases (supplier_id, raw_material_id, quantity, unit, unit_price, total, purchase_date, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (supplier_id, raw_material_id, 12, "kg", 75, 900, "2026-04-17", "Achat test"),
         )
