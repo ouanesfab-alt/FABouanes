@@ -9,19 +9,11 @@ from app.services.stock_service import recalc_sale_document_totals
 
 def client_balance(client_id: int) -> float:
     row = query_db(
-        """
-        SELECT c.opening_credit
-             + COALESCE((SELECT SUM(total) FROM sales WHERE client_id = c.id AND sale_type = 'credit'), 0)
-             + COALESCE((SELECT SUM(total) FROM raw_sales WHERE client_id = c.id AND sale_type = 'credit'), 0)
-             - COALESCE((SELECT SUM(amount) FROM payments WHERE client_id = c.id AND payment_type = 'versement'), 0)
-             + COALESCE((SELECT SUM(amount) FROM payments WHERE client_id = c.id AND payment_type = 'avance'), 0) AS balance
-        FROM clients c
-        WHERE c.id = %s
-        """,
+        "SELECT current_debt FROM clients_with_stats WHERE id = %s",
         (client_id,),
         one=True,
     )
-    return float(row["balance"]) if row else 0.0
+    return float(row["current_debt"]) if row else 0.0
 
 
 def get_open_credit_entries(client_id: int | None = None):
