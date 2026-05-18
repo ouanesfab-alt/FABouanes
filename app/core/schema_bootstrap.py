@@ -41,7 +41,7 @@ def bootstrap_schema() -> None:
             import logging
             logging.getLogger("fabouanes").warning("Failed to bootstrap module schemas: %s", e)
         
-        # Auto-migrate existing database for operations time tracking
+        # Auto-migrate existing database for operations time tracking and finished product purchases
         from app.core.db import list_columns
         for table in ["purchases", "sales", "raw_sales", "payments"]:
             try:
@@ -50,6 +50,16 @@ def bootstrap_schema() -> None:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP")
             except Exception:
                 pass
+
+        try:
+            cols = list_columns(conn, "purchases")
+            if cols and "finished_product_id" not in cols:
+                conn.execute("ALTER TABLE purchases ADD COLUMN finished_product_id BIGINT REFERENCES finished_products(id) ON DELETE CASCADE")
+            if cols:
+                # PostgreSQL command to drop not null constraint if present
+                conn.execute("ALTER TABLE purchases ALTER COLUMN raw_material_id DROP NOT NULL")
+        except Exception:
+            pass
 
         conn.commit()
     finally:

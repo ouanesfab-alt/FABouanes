@@ -165,24 +165,55 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
 
+def is_html_request(request: Request) -> bool:
+    path = request.url.path
+    if path.startswith("/api/"):
+        return False
+    accept = request.headers.get("accept", "")
+    if "application/json" in accept and "text/html" not in accept:
+        return False
+    return True
+
+
 @app.exception_handler(NotFoundError)
 async def not_found_handler(request: Request, exc: NotFoundError):
-    return JSONResponse(
-        {"success": False, "error": {"code": exc.code, "message": exc.message, "resource": exc.resource, "id": str(exc.id)}},
+    if not is_html_request(request):
+        return JSONResponse(
+            {"success": False, "error": {"code": exc.code, "message": exc.message, "resource": exc.resource, "id": str(exc.id)}},
+            status_code=404
+        )
+    from app.web.deps import template_context, templates
+    return templates.TemplateResponse(
+        "error.html",
+        template_context(request, status_code=404, error_message=exc.message),
         status_code=404
     )
 
 @app.exception_handler(ValidationError)
 async def validation_handler(request: Request, exc: ValidationError):
-    return JSONResponse(
-        {"success": False, "error": {"code": exc.code, "message": exc.message, "details": exc.details}},
+    if not is_html_request(request):
+        return JSONResponse(
+            {"success": False, "error": {"code": exc.code, "message": exc.message, "details": exc.details}},
+            status_code=422
+        )
+    from app.web.deps import template_context, templates
+    return templates.TemplateResponse(
+        "error.html",
+        template_context(request, status_code=422, error_message=exc.message),
         status_code=422
     )
 
 @app.exception_handler(ConflictError)
 async def conflict_handler(request: Request, exc: ConflictError):
-    return JSONResponse(
-        {"success": False, "error": {"code": exc.code, "message": exc.message, "details": exc.details}},
+    if not is_html_request(request):
+        return JSONResponse(
+            {"success": False, "error": {"code": exc.code, "message": exc.message, "details": exc.details}},
+            status_code=409
+        )
+    from app.web.deps import template_context, templates
+    return templates.TemplateResponse(
+        "error.html",
+        template_context(request, status_code=409, error_message=exc.message),
         status_code=409
     )
 
@@ -199,13 +230,47 @@ async def auth_required_handler(request: Request, exc: AuthenticationRequiredErr
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     if isinstance(exc, HTTPException):
-        return JSONResponse({"success": False, "error": {"code": "http_error", "message": exc.detail}}, status_code=exc.status_code)
+        if not is_html_request(request):
+            return JSONResponse({"success": False, "error": {"code": "http_error", "message": exc.detail}}, status_code=exc.status_code)
+        from app.web.deps import template_context, templates
+        return templates.TemplateResponse(
+            "error.html",
+            template_context(request, status_code=exc.status_code, error_message=exc.detail),
+            status_code=exc.status_code
+        )
+        
     if isinstance(exc, ValueError):
-        return JSONResponse({"success": False, "error": {"code": "invalid_value", "message": str(exc)}}, status_code=400)
+        if not is_html_request(request):
+            return JSONResponse({"success": False, "error": {"code": "invalid_value", "message": str(exc)}}, status_code=400)
+        from app.web.deps import template_context, templates
+        return templates.TemplateResponse(
+            "error.html",
+            template_context(request, status_code=400, error_message=str(exc)),
+            status_code=400
+        )
     
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
-    return JSONResponse(
-        {"success": False, "error": {"code": "internal_error", "message": "Une erreur interne est survenue."}},
+    
+    err_msg = str(exc)
+    if "foreign key" in err_msg.lower() or "violates foreign key constraint" in err_msg.lower():
+        friendly_msg = "Action impossible : cet élément est lié à d'autres opérations enregistrées dans le système et ne peut pas être modifié ou supprimé."
+    elif "unique constraint" in err_msg.lower() or "duplicate key" in err_msg.lower():
+        friendly_msg = "Action impossible : cette valeur existe déjà. Veuillez utiliser un nom ou un identifiant unique."
+    elif "numeric value out of range" in err_msg.lower():
+        friendly_msg = "Action impossible : un des montants ou quantités saisis dépasse les limites numériques autorisées."
+    else:
+        friendly_msg = f"Une erreur interne inattendue s'est produite ({type(exc).__name__})."
+
+    if not is_html_request(request):
+        return JSONResponse(
+            {"success": False, "error": {"code": "internal_error", "message": friendly_msg}},
+            status_code=500
+        )
+    
+    from app.web.deps import template_context, templates
+    return templates.TemplateResponse(
+        "error.html",
+        template_context(request, status_code=500, error_message=friendly_msg),
         status_code=500
     )
 

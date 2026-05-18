@@ -183,7 +183,14 @@
     let avgCost = parseFloat(option.dataset.price || 0);
     let stock = parseFloat(option.dataset.stock || 0);
     try{
-      const response = await fetch(`/api/item-info?kind=raw&id=${materialId}`);
+      let kind = 'raw';
+      let realId = materialId;
+      if (materialId.includes(':')) {
+        const parts = materialId.split(':');
+        kind = parts[0];
+        realId = parts[1];
+      }
+      const response = await fetch(`/api/item-info?kind=${kind}&id=${realId}`);
       const data = await response.json();
       if(data.ok){
         unit = data.item.unit || unit;

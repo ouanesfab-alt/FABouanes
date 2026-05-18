@@ -12,6 +12,7 @@
                         {% elif status_code == 403 %}Accès refusé
                         {% elif status_code == 401 %}Session expirée
                         {% elif status_code == 422 %}Données invalides
+                        {% elif status_code == 409 %}Conflit ou Action impossible
                         {% else %}Une erreur est survenue{% endif %}
                     </h1>
                 </div>
@@ -29,6 +30,8 @@
                             Veuillez vous reconnecter pour continuer à utiliser l'application.
                         {% elif status_code == 422 %}
                             Les données envoyées sont incomplètes ou mal formatées.
+                        {% elif status_code == 409 %}
+                            L'action demandée est en conflit avec l'état actuel de la base de données ou du stock.
                         {% else %}
                             Une erreur inattendue s'est produite. L'incident a été enregistré pour analyse technique.
                         {% endif %}

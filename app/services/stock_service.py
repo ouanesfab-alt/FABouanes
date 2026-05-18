@@ -186,7 +186,7 @@ def refresh_sale_profits_for_item(item_kind: str, item_id: int, avg_cost: float,
 
 def create_purchase_record(
     supplier_id,
-    raw_id: int,
+    item_kind_or_raw_id,
     qty: float,
     unit_price: float,
     purchase_date: str,
@@ -194,39 +194,72 @@ def create_purchase_record(
     unit: str = "kg",
     document_id: int | None = None,
     custom_item_name: str = "",
+    item_id: int | None = None,
 ) -> int:
     with db_transaction():
-        material = query_db("SELECT * FROM raw_materials WHERE id = %s", (raw_id,), one=True)
-        if not material:
-            raise NotFoundError("Matière première", raw_id)
+        # Handle backwards-compatibility
+        if isinstance(item_kind_or_raw_id, (int, float)) or (isinstance(item_kind_or_raw_id, str) and item_kind_or_raw_id.isdigit()):
+            item_kind = "raw"
+            real_item_id = int(item_kind_or_raw_id)
+        else:
+            item_kind = str(item_kind_or_raw_id).strip().lower()
+            real_item_id = int(item_id) if item_id is not None else 0
+
         if purchase_date and purchase_date > date.today().isoformat():
             raise ValidationError("La date d'achat ne peut pas être dans le futur.", field="purchase_date")
+        
         custom_item_name = str(custom_item_name or "").strip()
-        if is_other_operation_name(material["name"]):
-            unit = OTHER_OPERATION_UNIT
-            if not custom_item_name:
-                raise ValidationError("Précise le nom du produit pour la ligne AUTRE.", field="custom_item_name")
-
-        else:
-            custom_item_name = ""
         total = qty * unit_price
         qty_kg = qty_to_kg(qty, unit)
         unit_price_kg = unit_price_to_kg(unit_price, unit)
-        purchase_id = execute_db(
-            """
-            INSERT INTO purchases (supplier_id, document_id, raw_material_id, quantity, unit, unit_price, total, purchase_date, notes, custom_item_name)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """,
-            (supplier_id, document_id, raw_id, qty_kg, unit, unit_price_kg, total, purchase_date, notes, custom_item_name),
-        )
-        stock_before = float(material["stock_qty"])
-        stock_after = stock_before + qty_kg
-        current_value = stock_before * float(material["avg_cost"])
-        added_value = qty_kg * unit_price_kg
-        avg_cost = (current_value + added_value) / stock_after if stock_after > 0 else 0
-        sale_price = float(material["sale_price"]) or unit_price
-        execute_db("UPDATE raw_materials SET stock_qty = %s, avg_cost = %s, sale_price = %s WHERE id = %s", (stock_after, avg_cost, sale_price, raw_id))
-        record_stock_movement("raw", raw_id, "in", qty_kg, "kg", stock_before, stock_after, "create_purchase", "purchase", purchase_id)
+
+        if item_kind == "raw":
+            material = query_db("SELECT * FROM raw_materials WHERE id = %s", (real_item_id,), one=True)
+            if not material:
+                raise NotFoundError("Matière première", real_item_id)
+            if is_other_operation_name(material["name"]):
+                unit = OTHER_OPERATION_UNIT
+                if not custom_item_name:
+                    raise ValidationError("Précise le nom du produit pour la ligne AUTRE.", field="custom_item_name")
+            else:
+                custom_item_name = ""
+
+            purchase_id = execute_db(
+                """
+                INSERT INTO purchases (supplier_id, document_id, raw_material_id, finished_product_id, quantity, unit, unit_price, total, purchase_date, notes, custom_item_name)
+                VALUES (%s, %s, %s, NULL, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (supplier_id, document_id, real_item_id, qty_kg, unit, unit_price_kg, total, purchase_date, notes, custom_item_name),
+            )
+            stock_before = float(material["stock_qty"])
+            stock_after = stock_before + qty_kg
+            current_value = stock_before * float(material["avg_cost"])
+            added_value = qty_kg * unit_price_kg
+            avg_cost = (current_value + added_value) / stock_after if stock_after > 0 else 0
+            sale_price = float(material["sale_price"]) or unit_price
+            execute_db("UPDATE raw_materials SET stock_qty = %s, avg_cost = %s, sale_price = %s WHERE id = %s", (stock_after, avg_cost, sale_price, real_item_id))
+            record_stock_movement("raw", real_item_id, "in", qty_kg, "kg", stock_before, stock_after, "create_purchase", "purchase", purchase_id)
+        else:
+            product = query_db("SELECT * FROM finished_products WHERE id = %s", (real_item_id,), one=True)
+            if not product:
+                raise NotFoundError("Produit fini", real_item_id)
+            
+            purchase_id = execute_db(
+                """
+                INSERT INTO purchases (supplier_id, document_id, raw_material_id, finished_product_id, quantity, unit, unit_price, total, purchase_date, notes, custom_item_name)
+                VALUES (%s, %s, NULL, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (supplier_id, document_id, real_item_id, qty_kg, unit, unit_price_kg, total, purchase_date, notes, custom_item_name),
+            )
+            stock_before = float(product["stock_qty"])
+            stock_after = stock_before + qty_kg
+            current_value = stock_before * float(product["avg_cost"])
+            added_value = qty_kg * unit_price_kg
+            avg_cost = (current_value + added_value) / stock_after if stock_after > 0 else 0
+            sale_price = float(product["sale_price"]) or unit_price
+            execute_db("UPDATE finished_products SET stock_qty = %s, avg_cost = %s, sale_price = %s WHERE id = %s", (stock_after, avg_cost, sale_price, real_item_id))
+            record_stock_movement("finished", real_item_id, "in", qty_kg, "kg", stock_before, stock_after, "create_purchase", "purchase", purchase_id)
+
         recalc_purchase_document_totals(document_id)
         return purchase_id
 
@@ -336,15 +369,38 @@ def reverse_purchase(purchase_id: int) -> bool:
         row = query_db("SELECT * FROM purchases WHERE id = %s", (purchase_id,), one=True)
         if not row:
             return False
-        material = query_db("SELECT * FROM raw_materials WHERE id = %s", (row["raw_material_id"],), one=True)
-        if not material or float(material["stock_qty"]) < float(row["quantity"]):
-            return False
-        stock_before = float(material["stock_qty"])
-        stock_after = stock_before - float(row["quantity"])
-        execute_db("UPDATE raw_materials SET stock_qty = %s WHERE id = %s", (stock_after, row["raw_material_id"]))
-        execute_db("DELETE FROM purchases WHERE id = %s", (purchase_id,))
-        record_stock_movement("raw", int(row["raw_material_id"]), "out", float(row["quantity"]), "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id)
-        recalc_raw_material_avg_cost(int(row["raw_material_id"]))
+        
+        if row["finished_product_id"]:
+            product = query_db("SELECT * FROM finished_products WHERE id = %s", (row["finished_product_id"],), one=True)
+            if not product or float(product["stock_qty"]) < float(row["quantity"]):
+                return False
+            stock_before = float(product["stock_qty"])
+            stock_after = stock_before - float(row["quantity"])
+            
+            current_value = stock_before * float(product["avg_cost"])
+            removed_value = float(row["quantity"]) * float(row["unit_price"])
+            restored_value = current_value - removed_value
+            avg_cost_restored = restored_value / stock_after if stock_after > 0 else float(product["avg_cost"])
+            
+            execute_db("UPDATE finished_products SET stock_qty = %s, avg_cost = %s WHERE id = %s", (stock_after, avg_cost_restored, row["finished_product_id"]))
+            execute_db("DELETE FROM purchases WHERE id = %s", (purchase_id,))
+            record_stock_movement("finished", int(row["finished_product_id"]), "out", float(row["quantity"]), "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id)
+        else:
+            material = query_db("SELECT * FROM raw_materials WHERE id = %s", (row["raw_material_id"],), one=True)
+            if not material or float(material["stock_qty"]) < float(row["quantity"]):
+                return False
+            stock_before = float(material["stock_qty"])
+            stock_after = stock_before - float(row["quantity"])
+            
+            current_value = stock_before * float(material["avg_cost"])
+            removed_value = float(row["quantity"]) * float(row["unit_price"])
+            restored_value = current_value - removed_value
+            avg_cost_restored = restored_value / stock_after if stock_after > 0 else float(material["avg_cost"])
+            
+            execute_db("UPDATE raw_materials SET stock_qty = %s, avg_cost = %s WHERE id = %s", (stock_after, avg_cost_restored, row["raw_material_id"]))
+            execute_db("DELETE FROM purchases WHERE id = %s", (purchase_id,))
+            record_stock_movement("raw", int(row["raw_material_id"]), "out", float(row["quantity"]), "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id)
+
         recalc_purchase_document_totals(int(row["document_id"])) if row["document_id"] else None
         return True
 
@@ -418,10 +474,16 @@ def reverse_production(batch_id: int) -> bool:
             recalc_raw_material_avg_cost(int(item["raw_material_id"]))
         stock_before = float(product["stock_qty"])
         stock_after = stock_before - float(batch["output_quantity"])
-        execute_db("UPDATE finished_products SET stock_qty = %s WHERE id = %s", (stock_after, batch["finished_product_id"]))
+        
+        # Formule mathématique pure pour inverser le CMP (Weighted Average Cost)
+        current_value = stock_before * float(product["avg_cost"])
+        removed_value = float(batch["production_cost"])
+        restored_value = current_value - removed_value
+        avg_cost_restored = restored_value / stock_after if stock_after > 0 else float(product["avg_cost"])
+        
+        execute_db("UPDATE finished_products SET stock_qty = %s, avg_cost = %s WHERE id = %s", (stock_after, avg_cost_restored, batch["finished_product_id"]))
         record_stock_movement("finished", int(batch["finished_product_id"]), "out", float(batch["output_quantity"]), "kg", stock_before, stock_after, "reverse_production", "production", batch_id)
         execute_db("DELETE FROM production_batches WHERE id = %s", (batch_id,))
-        recalc_finished_product_avg_cost(int(batch["finished_product_id"]))
         return True
 
 

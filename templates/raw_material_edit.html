@@ -33,16 +33,20 @@
   <div class="raw-edit-shell">
     <div class="card raw-edit-card">
       <form method="post" class="raw-edit-grid">
-        <div class="span-6">
-          <label class="form-label">Categorie</label>
-          <select name="category_name" id="rawCategoryName" class="form-select" data-other-value="{{ other_category_value }}">
-            {% for preset in name_presets %}<option value="{{ preset }}" {% if selected_category == preset %}selected{% endif %}>{{ preset }}</option>{% endfor %}
-            <option value="{{ other_category_value }}" {% if selected_category == other_category_value %}selected{% endif %}>AUTRE</option>
-          </select>
-        </div>
-        <div class="span-6 raw-edit-hidden" id="rawCustomNameWrap" {% if selected_category != other_category_value %}hidden{% endif %}>
-          <label class="form-label">Preciser / Nom du produit</label>
-          <input name="custom_name" id="rawCustomName" class="form-control" value="{{ custom_name_value }}" {% if selected_category == other_category_value %}required{% endif %}>
+        <div class="span-12">
+          <label class="form-label">Nom de la matière première</label>
+          <input name="name" id="rawNameInput" class="form-control" placeholder="Entrez ou sélectionnez le nom" list="nameSuggestions" value="{{ custom_name_value }}" required autocomplete="off">
+          <datalist id="nameSuggestions">
+            {% for preset in name_presets %}<option value="{{ preset }}">{{ preset }}</option>{% endfor %}
+          </datalist>
+          <div class="mt-2" id="presetBadgesWrap">
+            <span class="text-muted small me-2">Suggestions rapides :</span>
+            <div class="d-inline-flex flex-wrap gap-1" id="presetBadges">
+              {% for preset in name_presets %}
+              <span class="preset-badge" onclick="document.getElementById('rawNameInput').value='{{ preset }}'">{{ preset }}</span>
+              {% endfor %}
+            </div>
+          </div>
         </div>
         <div class="span-4">
           <label class="form-label">Unite</label>
@@ -84,18 +88,28 @@
 </div>
 {% endblock %}
 
-{% block scripts %}<script>
+{% block scripts %}
+<script>
 const priceKg=document.getElementById('salePriceKg');
 function syncPricePreview(){const v=parseFloat(priceKg?.value||0); document.getElementById('kgPrev').textContent=v.toFixed(2); document.getElementById('sacPrev').textContent=(v*50).toFixed(2); document.getElementById('qtPrev').textContent=(v*100).toFixed(2);}
 priceKg?.addEventListener('input', syncPricePreview); syncPricePreview();
-const rawCategorySelect=document.getElementById('rawCategoryName');
-const rawCustomNameWrap=document.getElementById('rawCustomNameWrap');
-const rawCustomNameInput=document.getElementById('rawCustomName');
-function toggleRawCustomName(){
-  const isOther=(rawCategorySelect?.value||'')===(rawCategorySelect?.dataset.otherValue||'__other__');
-  if(rawCustomNameWrap) rawCustomNameWrap.hidden=!isOther;
-  if(rawCustomNameInput) rawCustomNameInput.required=isOther;
-}
-rawCategorySelect?.addEventListener('change', toggleRawCustomName);
-toggleRawCustomName();
-</script>{% endblock %}
+</script>
+<style>
+  .preset-badge {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.2s ease;
+    user-select: none;
+  }
+  .preset-badge:hover {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: var(--accent, #3b82f6);
+    color: var(--text);
+  }
+</style>
+{% endblock %}

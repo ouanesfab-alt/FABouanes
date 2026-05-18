@@ -450,7 +450,7 @@ def _background_loop(app) -> None:
         loop_counter = BACKGROUND_STATE.get("loop_counter", 0) + 1
         BACKGROUND_STATE["loop_counter"] = loop_counter
         if loop_counter % 20 == 0:
-            from app.core.db_access import postgres_pool_status
+            from app.core.db import postgres_pool_status
             stats = postgres_pool_status(DATABASE_URL)
             logger.debug("PG Pool status: %s", stats)
 

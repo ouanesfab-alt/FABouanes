@@ -11,6 +11,60 @@
   .catalog-form-grid .span-6{grid-column:span 6;}
   .catalog-form-grid .span-4{grid-column:span 4;}
   .catalog-form-grid .span-3{grid-column:span 3;}
+  .catalog-form-grid .span-2{grid-column:span 2;}
+  
+  /* Segmented control style */
+  .glass-segmented-control {
+    display: flex;
+    position: relative;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 4px;
+    width: 100%;
+    margin-bottom: 8px;
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+  }
+  .glass-segmented-control input[type="radio"] {
+    display: none;
+  }
+  .glass-segmented-control label {
+    flex: 1;
+    text-align: center;
+    padding: 10px 16px;
+    z-index: 2;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--muted);
+    transition: color 0.3s ease, transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0;
+  }
+  .glass-segmented-control label:hover {
+    color: var(--text);
+  }
+  .glass-segmented-control input[type="radio"]:checked + label {
+    color: #fff;
+  }
+  .glass-segmented-control .glass-slider {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: 4px;
+    width: calc(50% - 4px);
+    background: linear-gradient(135deg, var(--accent, #3b82f6), #1d4ed8);
+    border-radius: 8px;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
+    box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);
+  }
+  .glass-segmented-control input[id="kindFinished"]:checked ~ .glass-slider {
+    transform: translateX(100%);
+  }
+
   .catalog-form-note{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);
     color:var(--muted);font-size:.9rem;line-height:1.55;}
   .catalog-form-hidden[hidden]{display:none !important;}
@@ -27,7 +81,7 @@
 <div class="catalog-form-page">
   <div class="page-hero mb-0">
     <div>
-      <h2 class="section-title mb-1">{% if kind == 'raw' %}Nouvelle matière première{% else %}Nouveau produit final{% endif %}</h2>
+      <h2 class="section-title mb-1">Nouveau produit / matière</h2>
       <p class="catalog-form-summary mb-0">Renseigne les informations de base, puis enregistre l'article dans le catalogue.</p>
     </div>
   </div>
@@ -35,17 +89,34 @@
   <div class="catalog-form-shell">
     <div class="card catalog-form-card">
       <form method="post" class="catalog-form-grid">
-        <input type="hidden" name="kind" value="{{ kind }}">
-        <div class="span-6">
-          <label class="form-label">Categorie</label>
-          <select name="category_name" id="catalogCategoryName" class="form-select" data-other-value="{{ other_category_value }}">
-            {% for preset in name_presets %}<option value="{{ preset }}" {% if selected_category == preset %}selected{% endif %}>{{ preset }}</option>{% endfor %}
-            <option value="{{ other_category_value }}" {% if selected_category == other_category_value %}selected{% endif %}>AUTRE</option>
-          </select>
+        
+        <!-- Segmented control to choose kind -->
+        <div class="span-12">
+          <label class="form-label">Type d'article</label>
+          <div class="glass-segmented-control">
+            <input type="radio" name="kind" id="kindRaw" value="raw" {% if kind == 'raw' %}checked{% endif %}>
+            <label for="kindRaw">
+              <i class="bi bi-box-seam me-2"></i>Matière première
+            </label>
+            <input type="radio" name="kind" id="kindFinished" value="finished" {% if kind == 'finished' %}checked{% endif %}>
+            <label for="kindFinished">
+              <i class="bi bi-grid-1x2 me-2"></i>Produit fini
+            </label>
+            <div class="glass-slider"></div>
+          </div>
         </div>
-        <div class="span-6 catalog-form-hidden" id="catalogCustomNameWrap" {% if selected_category != other_category_value %}hidden{% endif %}>
-          <label class="form-label">Preciser / Nom du produit</label>
-          <input name="custom_name" id="catalogCustomName" class="form-control" value="{{ custom_name_value }}" {% if selected_category == other_category_value %}required{% endif %}>
+
+        <div class="span-12">
+          <label class="form-label">Nom du produit / matière première</label>
+          <input name="name" id="catalogNameInput" class="form-control" placeholder="Entrez ou sélectionnez le nom (ex: Poussin, Aliment, ...)" list="nameSuggestions" required autocomplete="off">
+          <datalist id="nameSuggestions">
+            <!-- Loaded dynamically in JS based on chosen kind -->
+          </datalist>
+          <!-- Beautiful row of clickable suggestions -->
+          <div class="mt-2" id="presetBadgesWrap">
+            <span class="text-muted small me-2">Suggestions rapides :</span>
+            <div class="d-inline-flex flex-wrap gap-1" id="presetBadges"></div>
+          </div>
         </div>
         <div class="span-3">
           <label class="form-label">Unite</label>
@@ -57,20 +128,18 @@
           <label class="form-label">Stock</label>
           <input name="stock_qty" type="text" inputmode="decimal" value="0" class="form-control">
         </div>
-        <div class="span-4">
+        <div class="span-3">
           <label class="form-label">Cout moyen par kg</label>
           <input id="avgCostKg" name="avg_cost" type="text" inputmode="decimal" value="0" class="form-control">
         </div>
-        <div class="span-4">
+        <div class="span-3">
           <label class="form-label">Prix de vente par kg</label>
           <input id="salePriceKg" name="sale_price" type="text" inputmode="decimal" value="0" class="form-control">
         </div>
-        {% if kind == 'raw' %}
-        <div class="span-4">
+        <div class="span-12" id="alertThresholdWrap">
           <label class="form-label">Seuil d'alerte</label>
           <input name="alert_threshold" type="text" inputmode="decimal" value="0" class="form-control">
         </div>
-        {% endif %}
         <div class="span-12">
           <div class="catalog-form-note">
             Les prix saisis ici servent de reference pour les operations et le calcul du benefice.
@@ -89,18 +158,89 @@
 </div>
 {% endblock %}
 
-{% block scripts %}<script>
-const priceKg=document.getElementById('salePriceKg');
-function syncPricePreview(){const v=parseFloat(priceKg?.value||0); document.getElementById('kgPrev').textContent=v.toFixed(2); document.getElementById('sacPrev').textContent=(v*50).toFixed(2); document.getElementById('qtPrev').textContent=(v*100).toFixed(2);}
-priceKg?.addEventListener('input', syncPricePreview); syncPricePreview();
-const categorySelect=document.getElementById('catalogCategoryName');
-const customNameWrap=document.getElementById('catalogCustomNameWrap');
-const customNameInput=document.getElementById('catalogCustomName');
-function toggleCatalogCustomName(){
-  const isOther=(categorySelect?.value||'')===(categorySelect?.dataset.otherValue||'__other__');
-  if(customNameWrap) customNameWrap.hidden=!isOther;
-  if(customNameInput) customNameInput.required=isOther;
-}
-categorySelect?.addEventListener('change', toggleCatalogCustomName);
-toggleCatalogCustomName();
-</script>{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  const rawPresets = {{ raw_presets|tojson }};
+  const finishedPresets = {{ finished_presets|tojson }};
+  
+  const kindRaw = document.getElementById('kindRaw');
+  const kindFinished = document.getElementById('kindFinished');
+  const alertThresholdWrap = document.getElementById('alertThresholdWrap');
+  const priceKg = document.getElementById('salePriceKg');
+
+  function syncPricePreview(){
+    const v = parseFloat(priceKg?.value || 0); 
+    document.getElementById('kgPrev').textContent = v.toFixed(2); 
+    document.getElementById('sacPrev').textContent = (v * 50).toFixed(2); 
+    document.getElementById('qtPrev').textContent = (v * 100).toFixed(2);
+  }
+
+  function renderSuggestions(){
+    const isRaw = kindRaw.checked;
+    const presets = isRaw ? rawPresets : finishedPresets;
+    
+    // 1. Populate datalist
+    const datalist = document.getElementById('nameSuggestions');
+    if (datalist) {
+      datalist.innerHTML = '';
+      presets.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p;
+        datalist.appendChild(opt);
+      });
+    }
+
+    // 2. Populate cliquable badges
+    const badgesDiv = document.getElementById('presetBadges');
+    if (badgesDiv) {
+      badgesDiv.innerHTML = '';
+      presets.forEach(p => {
+        const badge = document.createElement('span');
+        badge.className = 'preset-badge';
+        badge.textContent = p;
+        badge.addEventListener('click', () => {
+          const input = document.getElementById('catalogNameInput');
+          if (input) {
+            input.value = p;
+            input.dispatchEvent(new Event('input'));
+          }
+        });
+        badgesDiv.appendChild(badge);
+      });
+    }
+
+    // 3. Toggle alert threshold visibility (only for raw materials)
+    if(alertThresholdWrap) {
+      alertThresholdWrap.hidden = !isRaw;
+    }
+  }
+
+  kindRaw?.addEventListener('change', renderSuggestions);
+  kindFinished?.addEventListener('change', renderSuggestions);
+  priceKg?.addEventListener('input', syncPricePreview);
+
+  // Initialize
+  renderSuggestions();
+  syncPricePreview();
+})();
+</script>
+<style>
+  .preset-badge {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.2s ease;
+    user-select: none;
+  }
+  .preset-badge:hover {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: var(--accent, #3b82f6);
+    color: var(--text);
+  }
+</style>
+{% endblock %}

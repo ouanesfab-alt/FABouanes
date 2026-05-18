@@ -65,7 +65,7 @@ def reverse_production(batch_id: int) -> bool:
 
 def create_purchase_record(
     supplier_id,
-    raw_id: int,
+    item_kind_or_raw_id,
     qty: float,
     unit_price: float,
     purchase_date: str,
@@ -73,12 +73,13 @@ def create_purchase_record(
     unit: str = "kg",
     document_id: int | None = None,
     custom_item_name: str = "",
+    item_id: int | None = None,
 ) -> int:
     from app.services.stock_service import create_purchase_record as _create_purchase_record
 
     return _create_purchase_record(
         supplier_id,
-        raw_id,
+        item_kind_or_raw_id,
         qty,
         unit_price,
         purchase_date,
@@ -86,6 +87,7 @@ def create_purchase_record(
         unit,
         document_id,
         custom_item_name,
+        item_id=item_id,
     )
 
 

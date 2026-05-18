@@ -155,17 +155,79 @@ def quick_add_context(default_target: str = "client") -> dict:
     }
 
 
-def new_catalog_context(kind: str) -> dict:
-    return {"kind": "finished" if kind == "finished" else "raw", "units": unit_choices()}
+RAW_MATERIAL_PRESETS = [
+    "Maïs", 
+    "Orge", 
+    "Son", 
+    "Soya", 
+    "CMV", 
+    "Phosphate",
+    "Soja",
+    "Son de blé",
+    "Concentré",
+    "Sel",
+    "Carbonate",
+    "Sac vide (50kg)",
+    "Sac vide (25kg)"
+]
+FINISHED_PRODUCT_PRESETS = [
+    "Aliment Démarrage",
+    "Aliment Croissance",
+    "Aliment Finition",
+    "Aliment Pondeuse",
+    "Aliment Vache Laitière",
+    "Aliment Engraissement",
+    "Aliment Démarrage (Sac 50kg)",
+    "Aliment Croissance (Sac 50kg)",
+    "Aliment Finition (Sac 50kg)",
+    "Aliment Pondeuse (Sac 50kg)",
+    "Aliment Vache Laitière (Sac 50kg)",
+    "Aliment Engraissement (Sac 50kg)",
+    "Poussin d'un jour",
+    "Poussin Chair",
+    "Poussin Pondeuse",
+    "Oeufs (Plateau 30)"
+]
+
+def _resolve_name_from_form(form, kind: str = None) -> str:
+    name = str(form.get("name", "")).strip()
+    if not kind:
+        kind = str(form.get("kind", "raw")).strip()
+    presets = RAW_MATERIAL_PRESETS if kind == "raw" else FINISHED_PRODUCT_PRESETS
+    if not name:
+        return "autre"
+    # If the user typed a preset name, keep it as-is
+    if name in presets:
+        return name
+    # If the user typed something custom, check if it already has the prefix
+    lower_name = name.lower()
+    if lower_name.startswith("autre:"):
+        return name
+    elif lower_name.startswith("autre :"):
+        return f"autre: {name[7:].strip()}"
+    else:
+        return f"autre: {name}"
+
+
+def new_catalog_context(kind: str = "raw") -> dict:
+    return {
+        "kind": "finished" if kind == "finished" else "raw",
+        "units": unit_choices(),
+        "raw_presets": RAW_MATERIAL_PRESETS,
+        "finished_presets": FINISHED_PRODUCT_PRESETS,
+        "other_category_value": "__other__",
+        "custom_name_value": ""
+    }
 
 
 def create_catalog_item_from_form(form) -> tuple[str, int]:
     kind = str(form.get("kind", "raw")).strip()
+    name = _resolve_name_from_form(form, kind)
     if kind == "raw":
         item_id = execute_db(
             "INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold) VALUES (%s, %s, %s, %s, %s, %s)",
             (
-                str(form["name"]).strip(),
+                name,
                 str(form["unit"]).strip(),
                 to_float(form.get("stock_qty")),
                 to_float(form.get("avg_cost")),
@@ -174,12 +236,12 @@ def create_catalog_item_from_form(form) -> tuple[str, int]:
             ),
         )
         created = get_raw_material(item_id)
-        emit(DomainEvent("create", "raw_material", item_id, str(form["name"]).strip(), after=created))
+        emit(DomainEvent("create", "raw_material", item_id, name, after=created))
         return "raw", item_id
     item_id = execute_db(
         "INSERT INTO finished_products (name, default_unit, stock_qty, sale_price, avg_cost) VALUES (%s, %s, %s, %s, %s)",
         (
-            str(form["name"]).strip(),
+            name,
             str(form["unit"]).strip(),
             to_float(form.get("stock_qty")),
             to_float(form.get("sale_price")),
@@ -187,7 +249,7 @@ def create_catalog_item_from_form(form) -> tuple[str, int]:
         ),
     )
     created = get_product(item_id)
-    emit(DomainEvent("create", "finished_product", item_id, str(form["name"]).strip(), after=created))
+    emit(DomainEvent("create", "finished_product", item_id, name, after=created))
     return "finished", item_id
 
 
@@ -203,24 +265,59 @@ def raw_material_edit_context(material_id: int) -> dict | None:
     material = get_raw_material(material_id)
     if not material:
         return None
-    return {"material": material, "units": unit_choices()}
+    name = material["name"]
+    is_preset = name in RAW_MATERIAL_PRESETS
+    if is_preset:
+        custom_val = name
+    else:
+        lower_name = name.lower()
+        if lower_name.startswith("autre:"):
+            custom_val = name[6:].strip()
+        elif lower_name.startswith("autre :"):
+            custom_val = name[7:].strip()
+        else:
+            custom_val = name
+    return {
+        "material": material,
+        "units": unit_choices(),
+        "name_presets": RAW_MATERIAL_PRESETS,
+        "custom_name_value": custom_val
+    }
 
 
 def product_edit_context(product_id: int) -> dict | None:
     product = get_product(product_id)
     if not product:
         return None
-    return {"product": product, "units": unit_choices()}
+    name = product["name"]
+    is_preset = name in FINISHED_PRODUCT_PRESETS
+    if is_preset:
+        custom_val = name
+    else:
+        lower_name = name.lower()
+        if lower_name.startswith("autre:"):
+            custom_val = name[6:].strip()
+        elif lower_name.startswith("autre :"):
+            custom_val = name[7:].strip()
+        else:
+            custom_val = name
+    return {
+        "product": product,
+        "units": unit_choices(),
+        "name_presets": FINISHED_PRODUCT_PRESETS,
+        "custom_name_value": custom_val
+    }
 
 
 def update_raw_material_from_form(material_id: int, form) -> None:
     before = get_raw_material(material_id)
     avg_cost = to_float(form.get("avg_cost"))
     sale_price = to_float(form.get("sale_price"))
+    name = _resolve_name_from_form(form)
     execute_db(
         "UPDATE raw_materials SET name = %s, unit = %s, stock_qty = %s, avg_cost = %s, sale_price = %s, alert_threshold = %s WHERE id = %s",
         (
-            str(form["name"]).strip(),
+            name,
             str(form["unit"]).strip(),
             to_float(form.get("stock_qty")),
             avg_cost,
@@ -231,17 +328,18 @@ def update_raw_material_from_form(material_id: int, form) -> None:
     )
     refresh_sale_profits_for_item("raw", material_id, avg_cost, sale_price)
     updated = get_raw_material(material_id)
-    emit(DomainEvent("update", "raw_material", material_id, f"{form['name'].strip()} | achat={avg_cost} | vente={sale_price}", before=before, after=updated))
+    emit(DomainEvent("update", "raw_material", material_id, f"{name} | achat={avg_cost} | vente={sale_price}", before=before, after=updated))
 
 
 def update_product_from_form(product_id: int, form) -> None:
     before = get_product(product_id)
     avg_cost = to_float(form.get("avg_cost"))
     sale_price = to_float(form.get("sale_price"))
+    name = _resolve_name_from_form(form)
     execute_db(
         "UPDATE finished_products SET name = %s, default_unit = %s, stock_qty = %s, sale_price = %s, avg_cost = %s WHERE id = %s",
         (
-            str(form["name"]).strip(),
+            name,
             str(form["default_unit"]).strip(),
             to_float(form.get("stock_qty")),
             sale_price,
@@ -251,7 +349,7 @@ def update_product_from_form(product_id: int, form) -> None:
     )
     refresh_sale_profits_for_item("finished", product_id, avg_cost, sale_price)
     updated = get_product(product_id)
-    emit(DomainEvent("update", "finished_product", product_id, f"{form['name'].strip()} | revient={avg_cost} | vente={sale_price}", before=before, after=updated))
+    emit(DomainEvent("update", "finished_product", product_id, f"{name} | revient={avg_cost} | vente={sale_price}", before=before, after=updated))
 
 
 def delete_raw_material_by_id(material_id: int) -> bool:

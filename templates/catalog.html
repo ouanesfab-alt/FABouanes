@@ -43,8 +43,7 @@
       <p class="catalog-summary mb-0">{{ pagination.total }} produit(s) enregistré(s).</p>
     </div>
     <div class="catalog-actions">
-      <a href="{{ url_for('new_catalog_item', kind='raw') }}" class="btn btn-page-action"><i class="bi bi-box-seam me-2"></i>Ajouter une matière première</a>
-      <a href="{{ url_for('new_catalog_item', kind='finished') }}" class="btn btn-page-action-secondary"><i class="bi bi-grid-1x2 me-2"></i>Ajouter un produit final</a>
+      <a href="{{ url_for('new_catalog_item') }}" class="btn btn-page-action"><i class="bi bi-plus-lg me-2"></i>Ajouter un produit</a>
     </div>
   </div>
 

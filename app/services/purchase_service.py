@@ -43,14 +43,14 @@ def _extract_purchase_lines(form) -> list[dict[str, object]]:
     custom_names = _form_list(form, "custom_item_name[]")
     line_count = max(len(raw_ids), len(quantities), len(units), len(unit_prices), len(custom_names))
     lines: list[dict[str, object]] = []
-    other_cache: dict[int, bool] = {}
+    
     for idx in range(line_count):
-        raw_id = raw_ids[idx] if idx < len(raw_ids) else ""
+        raw_val = raw_ids[idx] if idx < len(raw_ids) else ""
         qty_raw = quantities[idx] if idx < len(quantities) else ""
         unit = units[idx] if idx < len(units) and units[idx] else "kg"
         unit_price_raw = unit_prices[idx] if idx < len(unit_prices) else ""
         custom_item_name = custom_names[idx] if idx < len(custom_names) else ""
-        if not any([raw_id, qty_raw, unit_price_raw]):
+        if not any([raw_val, qty_raw, unit_price_raw]):
             continue
         qty = to_float(qty_raw)
         unit_price = to_float(unit_price_raw)
@@ -58,18 +58,33 @@ def _extract_purchase_lines(form) -> list[dict[str, object]]:
             raise ValidationError("Chaque ligne d'achat doit avoir une quantite superieure a zero.", field="quantity")
         if unit_price <= 0:
             raise ValidationError("Chaque ligne d'achat doit avoir un prix unitaire superieur a zero.", field="unit_price")
-        raw_id_int = int(raw_id)
-        if raw_id_int not in other_cache:
-            material = query_db("SELECT name FROM raw_materials WHERE id = %s", (raw_id_int,), one=True)
+        
+        if ":" in raw_val:
+            kind, real_id_str = raw_val.split(":", 1)
+            real_id = int(real_id_str)
+        else:
+            kind = "raw"
+            real_id = int(raw_val) if raw_val.isdigit() else 0
+            
+        if kind == "raw":
+            material = query_db("SELECT name FROM raw_materials WHERE id = %s", (real_id,), one=True)
             if not material:
                 raise ValidationError("Matière première introuvable.", field="raw_material_id")
-            other_cache[raw_id_int] = str(material["name"] or "").strip().casefold() == "autre"
+            is_autre = str(material["name"] or "").strip().casefold() == "autre"
+        else:
+            product = query_db("SELECT name FROM finished_products WHERE id = %s", (real_id,), one=True)
+            if not product:
+                raise ValidationError("Produit fini introuvable.", field="raw_material_id")
+            is_autre = False
+            
         custom_item_name = custom_item_name.strip()
-        if other_cache[raw_id_int] and not custom_item_name:
+        if is_autre and not custom_item_name:
             raise ValidationError("Precise le nom du produit pour la ligne AUTRE.", field="custom_item_name")
+            
         lines.append(
             {
-                "raw_id": raw_id_int,
+                "kind": kind,
+                "real_id": real_id,
                 "quantity": qty,
                 "unit": unit,
                 "unit_price": unit_price,
@@ -116,11 +131,12 @@ def _save_purchase_document_header(document_id: int, supplier_id, purchase_date:
 def _serialize_purchase_lines(lines) -> list[dict[str, object]]:
     payload = []
     for line in lines:
+        item_id = f"finished:{line['finished_product_id']}" if line.get("finished_product_id") else f"raw:{line['raw_material_id']}"
         payload.append(
             {
                 "row_id": int(line["row_id"]),
                 "document_id": int(line["document_id"]) if line["document_id"] else None,
-                "raw_material_id": int(line["raw_material_id"]),
+                "raw_material_id": item_id,
                 "material_name": str(line["material_name"]),
                 "quantity": float(line["display_quantity"]),
                 "unit": str(line["display_unit"]),
@@ -152,6 +168,7 @@ def get_purchase_edit_context(purchase_id: int):
         if context:
             context["redirect_document_id"] = int(purchase["document_id"])
         return context
+    item_id = f"finished:{purchase['finished_product_id']}" if purchase["finished_product_id"] else f"raw:{purchase['raw_material_id']}"
     return {
         "purchase_document": {
             "id": None,
@@ -163,7 +180,7 @@ def get_purchase_edit_context(purchase_id: int):
             {
                 "row_id": int(purchase["id"]),
                 "document_id": None,
-                "raw_material_id": int(purchase["raw_material_id"]),
+                "raw_material_id": item_id,
                 "material_name": str(purchase["material_name"]),
                 "quantity": float(purchase["display_quantity"]),
                 "unit": str(purchase["display_unit"]),
@@ -186,16 +203,17 @@ def create_purchase_from_form(form):
         line = lines[0]
         purchase_id = create_purchase_record(
             supplier_id,
-            int(line["raw_id"]),
+            line["kind"],
             float(line["quantity"]),
             float(line["unit_price"]),
             purchase_date,
             notes,
             str(line["unit"]),
             custom_item_name=str(line["custom_item_name"]),
+            item_id=line["real_id"],
         )
         created = get_purchase(purchase_id)
-        log_activity("create_purchase", "purchase", purchase_id, f"matière #{line['raw_id']} qty={line['quantity']}")
+        log_activity("create_purchase", "purchase", purchase_id, f"{line['kind']} #{line['real_id']} qty={line['quantity']}")
         audit_event("create_purchase", "purchase", purchase_id, after=created)
         invalidate_sellable_items_cache()
         mark_backup_needed("create_purchase")
@@ -215,7 +233,7 @@ def create_purchase_from_form(form):
             created_ids.append(
                 create_purchase_record(
                     supplier_id,
-                    int(line["raw_id"]),
+                    line["kind"],
                     float(line["quantity"]),
                     float(line["unit_price"]),
                     purchase_date,
@@ -223,6 +241,7 @@ def create_purchase_from_form(form):
                     str(line["unit"]),
                     document_id=document_id,
                     custom_item_name=str(line["custom_item_name"]),
+                    item_id=line["real_id"],
                 )
             )
 
@@ -265,7 +284,7 @@ def edit_purchase_document_from_form(document_id: int, form):
             created_ids.append(
                 create_purchase_record(
                     supplier_id,
-                    int(line["raw_id"]),
+                    line["kind"],
                     float(line["quantity"]),
                     float(line["unit_price"]),
                     purchase_date,
@@ -273,6 +292,7 @@ def edit_purchase_document_from_form(document_id: int, form):
                     str(line["unit"]),
                     document_id=document_id,
                     custom_item_name=str(line["custom_item_name"]),
+                    item_id=line["real_id"],
                 )
             )
         _save_purchase_document_header(document_id, supplier_id, purchase_date, notes)
@@ -321,7 +341,7 @@ def edit_purchase_from_form(purchase_id: int, form):
                 created_ids.append(
                     create_purchase_record(
                         supplier_id,
-                        int(line["raw_id"]),
+                        line["kind"],
                         float(line["quantity"]),
                         float(line["unit_price"]),
                         purchase_date,
@@ -329,6 +349,7 @@ def edit_purchase_from_form(purchase_id: int, form):
                         str(line["unit"]),
                         document_id=document_id,
                         custom_item_name=str(line["custom_item_name"]),
+                        item_id=line["real_id"],
                     )
                 )
 
@@ -359,17 +380,18 @@ def edit_purchase_from_form(purchase_id: int, form):
             raise ValueError("Impossible de modifier cet achat car le stock ne permet pas de l'annuler.")
         new_purchase_id = create_purchase_record(
             supplier_id,
-            int(line["raw_id"]),
+            line["kind"],
             float(line["quantity"]),
             float(line["unit_price"]),
             purchase_date,
             notes,
             str(line["unit"]),
             custom_item_name=str(line["custom_item_name"]),
+            item_id=line["real_id"],
         )
 
     latest = get_purchase(new_purchase_id)
-    log_activity("update_purchase", "purchase", purchase_id, f"matière #{line['raw_id']} qty={line['quantity']}")
+    log_activity("update_purchase", "purchase", purchase_id, f"{line['kind']} #{line['real_id']} qty={line['quantity']}")
     audit_event("update_purchase", "purchase", purchase_id, before=before, after=latest, meta={"document_id": None})
     invalidate_sellable_items_cache()
     mark_backup_needed("update_purchase")

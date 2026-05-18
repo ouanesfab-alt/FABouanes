@@ -1,29 +1,201 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="entity-form-page">
-  <div class="page-hero mb-0">
-    <div>
-      <h2 class="section-title mb-1">Ajouter</h2>
+<style>
+  .qa-page {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .qa-title-section {
+    text-align: center;
+  }
+  .qa-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  .qa-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(12px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    user-select: none;
+  }
+  .qa-card:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-4px);
+  }
+  .qa-card.active {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: var(--accent, #3b82f6);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.2), inset 0 0 12px rgba(59, 130, 246, 0.1);
+    transform: translateY(-2px) scale(1.02);
+  }
+  .qa-card .qa-icon {
+    font-size: 2.4rem;
+    color: var(--muted);
+    transition: all 0.3s ease;
+  }
+  .qa-card:hover .qa-icon {
+    color: var(--text);
+  }
+  .qa-card.active .qa-icon {
+    color: var(--accent, #3b82f6);
+    text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+  }
+  .qa-card .qa-label {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--muted);
+    transition: color 0.3s ease;
+  }
+  .qa-card.active .qa-label {
+    color: var(--text);
+  }
+  .qa-sub-section {
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px;
+  }
+  .qa-sub-section.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .qa-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .qa-actions > * {
+    flex: 1;
+  }
+  @media(max-width:767px){
+    .qa-grid {
+      grid-template-columns: 1fr;
+    }
+    .qa-actions {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div class="qa-page">
+  <div class="qa-title-section">
+    <h2 class="section-title mb-1">Que souhaitez-vous ajouter ?</h2>
+    <p class="text-muted mb-0">Choisissez une catégorie pour commencer l'ajout rapide.</p>
+  </div>
+
+  <div class="qa-grid">
+    <div class="qa-card" data-category="contact">
+      <i class="bi bi-people-fill qa-icon"></i>
+      <span class="qa-label">Contact</span>
+    </div>
+    <div class="qa-card" data-category="product">
+      <i class="bi bi-box-seam-fill qa-icon"></i>
+      <span class="qa-label">Produit / Matière</span>
+    </div>
+    <div class="qa-card" data-category="operation">
+      <i class="bi bi-receipt-cutoff qa-icon"></i>
+      <span class="qa-label">Opération</span>
     </div>
   </div>
 
-  <div class="entity-form-shell is-narrow">
-    <div class="card entity-form-card">
-      <form class="entity-form-grid" onsubmit="event.preventDefault(); location.href=document.getElementById('targetSelect').value;">
-        <div class="span-12">
-          <label class="form-label">Type d'ajout</label>
-          <select id="targetSelect" class="form-select">
-            {% for key, label, link in options %}
-            <option value="{{ link }}" {% if key == default_target %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="span-12 entity-form-actions">
-          <button class="btn btn-dark" type="submit">Continuer</button>
-          <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Annuler</a>
-        </div>
-      </form>
+  <div class="qa-sub-section" id="subSection">
+    <label class="form-label" id="subLabel">Précisez le type d'ajout</label>
+    <select id="subSelect" class="form-select mb-3">
+      <!-- Loaded dynamically -->
+    </select>
+    
+    <div class="qa-actions">
+      <button class="btn btn-dark" id="btnSubmit"><i class="bi bi-arrow-right-circle me-2"></i>Continuer</button>
+      <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Annuler</a>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const subOptions = {
+    contact: [
+      { label: "Nouveau Client", link: "/contacts/clients/new" },
+      { label: "Nouveau Fournisseur", link: "/contacts/suppliers/new" }
+    ],
+    product: [
+      { label: "Nouvelle Matière première", link: "/catalog/new?kind=raw" },
+      { label: "Nouveau Produit fini", link: "/catalog/new?kind=finished" }
+    ],
+    operation: [
+      { label: "Enregistrer une Vente", link: "/operations/sales/new" },
+      { label: "Enregistrer un Achat (Bon d'achat)", link: "/operations/purchases/new" },
+      { label: "Lancer une Production", link: "/production/new" },
+      { label: "Enregistrer un Versement", link: "/operations/payments/new" },
+      { label: "Accorder une Avance", link: "/operations/payments/new?mode=avance" }
+    ]
+  };
+
+  const cards = document.querySelectorAll('.qa-card');
+  const subSection = document.getElementById('subSection');
+  const subSelect = document.getElementById('subSelect');
+  const subLabel = document.getElementById('subLabel');
+  const btnSubmit = document.getElementById('btnSubmit');
+
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      // Remove active class from all
+      cards.forEach(c => c.classList.remove('active'));
+      
+      // Mark clicked as active
+      card.classList.add('active');
+      
+      const cat = card.dataset.category;
+      const opts = subOptions[cat];
+      
+      // Update label
+      if (cat === 'contact') subLabel.textContent = "Quel type de contact souhaitez-vous ajouter ?";
+      else if (cat === 'product') subLabel.textContent = "Quel type de produit ou matière première ?";
+      else if (cat === 'operation') subLabel.textContent = "Quel type d'opération souhaitez-vous enregistrer ?";
+      
+      // Populate select
+      subSelect.innerHTML = '';
+      opts.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.link;
+        option.textContent = opt.label;
+        subSelect.appendChild(option);
+      });
+      
+      // Show sub section
+      subSection.classList.add('show');
+    });
+  });
+
+  btnSubmit.addEventListener('click', () => {
+    const link = subSelect.value;
+    if (link) {
+      location.href = link;
+    }
+  });
+})();
+</script>
 {% endblock %}
