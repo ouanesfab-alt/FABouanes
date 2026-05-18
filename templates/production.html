@@ -39,7 +39,12 @@
   .fab-sheet-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;backdrop-filter:blur(2px);align-items:flex-end;}
   .fab-sheet-overlay.open{display:flex;}
   .fab-sheet{background:var(--card);width:100%;border-radius:20px 20px 0 0;max-height:90vh;display:flex;flex-direction:column;animation:sheetUp .28s cubic-bezier(.4,0,.2,1);}
+  @media(min-width:768px){
+    .fab-sheet-overlay{align-items:center;justify-content:center;}
+    .fab-sheet{width:500px;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,0.25);animation:sheetPop .25s cubic-bezier(.34,1.56,.64,1);}
+  }
   @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  @keyframes sheetPop{from{transform:scale(0.9) translateY(20px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
   .fab-sheet-handle{width:40px;height:4px;background:var(--line);border-radius:2px;margin:12px auto 0;flex-shrink:0;}
   .fab-sheet-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px 10px;border-bottom:1px solid var(--line);flex-shrink:0;}
   .fab-sheet-header h5{margin:0;font-weight:800;}
@@ -157,11 +162,15 @@
 {% block scripts %}
 <script>
 function editProductionNotes(id, date, name, notes) {
+  const sheet = document.getElementById('editProdSheet');
+  if (sheet.parentElement !== document.body) {
+    document.body.appendChild(sheet);
+  }
   document.getElementById('editProdId').value    = id;
   document.getElementById('editProdDate').value  = date;
   document.getElementById('editProdNotes').value = notes;
   document.getElementById('editProdTitle').textContent = 'Modifier - ' + name;
-  document.getElementById('editProdSheet').classList.add('open');
+  sheet.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
 function editProductionNotesFromRow(row) {
@@ -169,7 +178,8 @@ function editProductionNotesFromRow(row) {
   editProductionNotes(row.dataset.prodId, row.dataset.prodDate, row.dataset.prodName, row.dataset.prodNotes || '');
 }
 function closeProdSheet() {
-  document.getElementById('editProdSheet').classList.remove('open');
+  const sheet = document.getElementById('editProdSheet');
+  sheet.classList.remove('open');
   document.body.style.overflow = '';
 }
 </script>
