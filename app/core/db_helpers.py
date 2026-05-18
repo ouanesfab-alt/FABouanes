@@ -412,3 +412,20 @@ def db_task(func):
     wrapper.async_ = async_wrapper
     wrapper.sync = func
     return wrapper
+
+
+def execute_sa(query) -> int:
+    from sqlalchemy.dialects import postgresql
+    compiled = query.compile(dialect=postgresql.dialect(paramstyle="format"), compile_kwargs={"literal_binds": False})
+    sql = str(compiled)
+    params = tuple(compiled.params[name] for name in compiled.positiontup)
+    return execute_db(sql, params)
+
+
+def query_sa(query, one: bool = False):
+    from sqlalchemy.dialects import postgresql
+    compiled = query.compile(dialect=postgresql.dialect(paramstyle="format"), compile_kwargs={"literal_binds": False})
+    sql = str(compiled)
+    params = tuple(compiled.params[name] for name in compiled.positiontup)
+    return query_db(sql, params, one=one)
+

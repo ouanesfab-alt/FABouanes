@@ -17,4 +17,7 @@ from app.core.connection import (
     pending_performance_event_count,
     drain_performance_events_once,
     db_task,
+    execute_sa,
+    query_sa,
 )
+

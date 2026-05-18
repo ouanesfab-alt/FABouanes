@@ -1,10 +1,13 @@
-"""Requêtes SQL du module Dépenses & Charges."""
+"""Requêtes SQL du module Dépenses & Charges, implémentées avec SQLAlchemy Core 2.0."""
 from __future__ import annotations
 
 from typing import Any
+from sqlalchemy import (
+    Table, MetaData, Column, BigInteger, Date, String, Double, DateTime,
+    select, insert, update, delete, and_, or_, func
+)
 
-from app.core.db_access import execute_db, query_db
-
+from app.core.db_access import execute_sa, query_sa
 
 # ── Catégories ──
 
@@ -28,89 +31,117 @@ PAYMENT_METHODS = [
     ("autre", "Autre"),
 ]
 
+# ── Table Metadata (SQLAlchemy 2.0) ──
+
+metadata = MetaData()
+expenses = Table(
+    "expenses",
+    metadata,
+    Column("id", BigInteger, primary_key=True),
+    Column("date", Date, nullable=False),
+    Column("category", String, nullable=False, default="general"),
+    Column("description", String),
+    Column("amount", Double, nullable=False, default=0.0),
+    Column("payment_method", String, default="cash"),
+    Column("created_at", DateTime(timezone=True), server_default=func.now()),
+    Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
+)
 
 # ── CRUD ──
 
 def get_all_expenses(filters: dict[str, Any] | None = None) -> list[dict]:
-    sql = "SELECT * FROM expenses WHERE 1=1"
-    params: list[Any] = []
+    stmt = select(expenses)
+    conditions = []
     if filters:
         if filters.get("category"):
-            sql += " AND category = %s"
-            params.append(filters["category"])
-        if filters.get("date_from"):
-            sql += " AND date >= %s"
-            params.append(filters["date_from"])
-        if filters.get("date_to"):
-            sql += " AND date <= %s"
-            params.append(filters["date_to"])
-        if filters.get("q"):
-            sql += " AND (description LIKE ? OR category LIKE ?)"
+            conditions.append(expenses.c.category == filters["category"])
+        if filters.get("date_from") and str(filters["date_from"]).strip():
+            conditions.append(expenses.c.date >= filters["date_from"])
+        if filters.get("date_to") and str(filters["date_to"]).strip():
+            conditions.append(expenses.c.date <= filters["date_to"])
+        if filters.get("q") and str(filters["q"]).strip():
             needle = f"%{filters['q']}%"
-            params.extend([needle, needle])
-    sql += " ORDER BY date DESC, id DESC"
-    return [dict(row) for row in query_db(sql, tuple(params))]
+            conditions.append(or_(
+                expenses.c.description.ilike(needle),
+                expenses.c.category.ilike(needle)
+            ))
+    if conditions:
+        stmt = stmt.where(and_(*conditions))
+    stmt = stmt.order_by(expenses.c.date.desc(), expenses.c.id.desc())
+    return [dict(row) for row in query_sa(stmt)]
 
 
 def get_expense_by_id(expense_id: int) -> dict | None:
-    row = query_db("SELECT * FROM expenses WHERE id = %s", (expense_id,), one=True)
+    stmt = select(expenses).where(expenses.c.id == expense_id)
+    row = query_sa(stmt, one=True)
     return dict(row) if row else None
 
 
 def create_expense(date: str, category: str, description: str, amount: float, method: str = "cash") -> int:
-    return execute_db(
-        "INSERT INTO expenses (date, category, description, amount, payment_method) VALUES (%s,%s,%s,%s,%s)",
-        (date, category, description, amount, method),
+    stmt = insert(expenses).values(
+        date=date,
+        category=category,
+        description=description,
+        amount=amount,
+        payment_method=method
     )
+    return execute_sa(stmt)
 
 
 def update_expense(expense_id: int, date: str, category: str, description: str, amount: float, method: str = "cash") -> None:
-    execute_db(
-        "UPDATE expenses SET date=%s, category=%s, description=%s, amount=%s, payment_method=%s, updated_at=CURRENT_TIMESTAMP WHERE id=%s",
-        (date, category, description, amount, method, expense_id),
+    stmt = update(expenses).where(expenses.c.id == expense_id).values(
+        date=date,
+        category=category,
+        description=description,
+        amount=amount,
+        payment_method=method,
+        updated_at=func.now()
     )
+    execute_sa(stmt)
 
 
 def delete_expense(expense_id: int) -> None:
-    execute_db("DELETE FROM expenses WHERE id = %s", (expense_id,))
+    stmt = delete(expenses).where(expenses.c.id == expense_id)
+    execute_sa(stmt)
 
 
 # ── Agrégations ──
 
 def expenses_total(date_from: str | None = None, date_to: str | None = None) -> float:
-    sql = "SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE 1=1"
-    params: list[Any] = []
-    if date_from:
-        sql += " AND date >= %s"
-        params.append(date_from)
-    if date_to:
-        sql += " AND date <= %s"
-        params.append(date_to)
-    row = query_db(sql, tuple(params), one=True)
+    stmt = select(func.coalesce(func.sum(expenses.c.amount), 0.0).label("total"))
+    conditions = []
+    if date_from and str(date_from).strip():
+        conditions.append(expenses.c.date >= date_from)
+    if date_to and str(date_to).strip():
+        conditions.append(expenses.c.date <= date_to)
+    if conditions:
+        stmt = stmt.where(and_(*conditions))
+    row = query_sa(stmt, one=True)
     return float(row["total"]) if row else 0.0
 
 
 def expenses_by_category(date_from: str | None = None, date_to: str | None = None) -> list[dict]:
-    sql = "SELECT category, COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count FROM expenses WHERE 1=1"
-    params: list[Any] = []
-    if date_from:
-        sql += " AND date >= %s"
-        params.append(date_from)
-    if date_to:
-        sql += " AND date <= %s"
-        params.append(date_to)
-    sql += " GROUP BY category ORDER BY total DESC"
-    return [dict(row) for row in query_db(sql, tuple(params))]
+    stmt = select(
+        expenses.c.category,
+        func.coalesce(func.sum(expenses.c.amount), 0.0).label("total"),
+        func.count().label("count")
+    )
+    conditions = []
+    if date_from and str(date_from).strip():
+        conditions.append(expenses.c.date >= date_from)
+    if date_to and str(date_to).strip():
+        conditions.append(expenses.c.date <= date_to)
+    if conditions:
+        stmt = stmt.where(and_(*conditions))
+    stmt = stmt.group_by(expenses.c.category).order_by(func.sum(expenses.c.amount).desc())
+    return [dict(row) for row in query_sa(stmt)]
+
 
 def expenses_by_month(limit: int = 12) -> list[dict]:
-    rows = query_db(
-        """SELECT substr(date::text, 1, 7) AS month,
-                  COALESCE(SUM(amount), 0) AS total,
-                  COUNT(*) AS count
-           FROM expenses
-           GROUP BY substr(date::text, 1, 7)
-           ORDER BY month DESC
-           LIMIT %s""",
-        (limit,),
-    )
-    return [dict(r) for r in rows]
+    month_expr = func.to_char(expenses.c.date, "YYYY-MM").label("month")
+    stmt = select(
+        month_expr,
+        func.coalesce(func.sum(expenses.c.amount), 0.0).label("total"),
+        func.count().label("count")
+    ).group_by(month_expr).order_by(month_expr.desc()).limit(limit)
+    return [dict(row) for row in query_sa(stmt)]

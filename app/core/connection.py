@@ -31,6 +31,8 @@ from app.core.db_helpers import (
     pending_performance_event_count,
     drain_performance_events_once,
     db_task,
+    execute_sa,
+    query_sa,
 )
 
 # Re-exporting all objects
@@ -57,4 +59,6 @@ __all__ = [
     "pending_performance_event_count",
     "drain_performance_events_once",
     "db_task",
+    "execute_sa",
+    "query_sa",
 ]

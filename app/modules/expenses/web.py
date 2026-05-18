@@ -1,24 +1,19 @@
-"""Routes web du module Dépenses & Charges."""
+"""Routes web du module Dépenses & Charges, avec validation Pydantic."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
+from pydantic import ValidationError
 
 from app.modules.expenses.service import (
     add_expense, get_categories, get_expense, get_payment_methods,
     list_expenses, modify_expense, remove_expense,
 )
-from app.modules.expenses.repository import expenses_total, expenses_by_category
+from app.modules.expenses.repository import expenses_by_category
+from app.modules.expenses.schemas_validation import ExpenseCreateSchema
 from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
 
 router = APIRouter()
-
-
-def _parse_amount(raw) -> float:
-    try:
-        return float(str(raw or "0").replace(",", ".").replace(" ", "").strip() or "0")
-    except (ValueError, TypeError):
-        return 0.0
 
 
 @router.get("/expenses", name="expenses")
@@ -60,12 +55,30 @@ async def new_expense_submit(request: Request):
         return denied
     await csrf_protect(request)
     form = await request.form()
+    
+    try:
+        data = ExpenseCreateSchema(
+            date=form.get("date"),
+            category=form.get("category"),
+            description=form.get("description"),
+            amount=form.get("amount"),
+            payment_method=form.get("payment_method"),
+        )
+    except ValidationError as e:
+        for err in e.errors():
+            msg = f"Erreur de validation : {err['loc'][0]} - {err['msg']}"
+            flash(request, msg, "danger")
+        return templates.TemplateResponse("expense_form.html", template_context(
+            request, expense=form, categories=get_categories(),
+            payment_methods=get_payment_methods(), title="Nouvelle dépense",
+        ))
+        
     add_expense(
-        date=str(form.get("date", "")).strip(),
-        category=str(form.get("category", "general")).strip(),
-        description=str(form.get("description", "")).strip(),
-        amount=_parse_amount(form.get("amount")),
-        method=str(form.get("payment_method", "cash")).strip(),
+        date=data.date.isoformat(),
+        category=data.category,
+        description=data.description,
+        amount=data.amount,
+        method=data.payment_method,
     )
     flash(request, "Dépense ajoutée avec succès.", "success")
     return RedirectResponse("/expenses", status_code=303)
@@ -92,14 +105,39 @@ async def edit_expense_submit(request: Request, expense_id: int):
     if denied:
         return denied
     await csrf_protect(request)
+    
+    expense = get_expense(expense_id)
+    if not expense:
+        flash(request, "Dépense introuvable.", "danger")
+        return RedirectResponse("/expenses", status_code=303)
+        
     form = await request.form()
+    try:
+        data = ExpenseCreateSchema(
+            date=form.get("date"),
+            category=form.get("category"),
+            description=form.get("description"),
+            amount=form.get("amount"),
+            payment_method=form.get("payment_method"),
+        )
+    except ValidationError as e:
+        for err in e.errors():
+            msg = f"Erreur de validation : {err['loc'][0]} - {err['msg']}"
+            flash(request, msg, "danger")
+        form_dict = dict(form)
+        form_dict["id"] = expense_id
+        return templates.TemplateResponse("expense_form.html", template_context(
+            request, expense=form_dict, categories=get_categories(),
+            payment_methods=get_payment_methods(), title="Modifier la dépense",
+        ))
+        
     modify_expense(
         expense_id=expense_id,
-        date=str(form.get("date", "")).strip(),
-        category=str(form.get("category", "general")).strip(),
-        description=str(form.get("description", "")).strip(),
-        amount=_parse_amount(form.get("amount")),
-        method=str(form.get("payment_method", "cash")).strip(),
+        date=data.date.isoformat(),
+        category=data.category,
+        description=data.description,
+        amount=data.amount,
+        method=data.payment_method,
     )
     flash(request, "Dépense modifiée.", "success")
     return RedirectResponse("/expenses", status_code=303)
