@@ -114,7 +114,7 @@ def _probe_db_write() -> dict:
         execute_db(
             """
             INSERT INTO app_settings (key, value, updated_at)
-            VALUES (?, ?, CURRENT_TIMESTAMP)
+            VALUES (%s, %s, CURRENT_TIMESTAMP)
             ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP
             """,
             ("diagnostic_last_write", datetime.now().isoformat(timespec="seconds")),
@@ -144,7 +144,7 @@ def log_server_start() -> None:
             "CREATE TABLE IF NOT EXISTS system_logs (id SERIAL PRIMARY KEY, level TEXT NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
         )
         conn.execute(
-            "INSERT INTO system_logs (level, message, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+            "INSERT INTO system_logs (level, message, created_at) VALUES (%s, %s, CURRENT_TIMESTAMP)",
             ("info", "Demarrage du serveur"),
         )
         conn.commit()
@@ -158,7 +158,7 @@ def log_server_stop() -> None:
         conn = connect_database(DATABASE_URL)
         try:
             conn.execute(
-                "INSERT INTO system_logs (level, message, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+                "INSERT INTO system_logs (level, message, created_at) VALUES (%s, %s, CURRENT_TIMESTAMP)",
                 ("warning", "Arret du serveur"),
             )
             conn.commit()

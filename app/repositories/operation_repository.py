@@ -20,14 +20,14 @@ async def list_recent_operations(
         params.append(f"%{search}%")
         
     if date_from:
-        where.append("event_date >= ?")
+        where.append("event_date >= %s")
         params.append(date_from)
     if date_to:
-        where.append("event_date <= ?")
+        where.append("event_date <= %s")
         params.append(date_to)
         
     if kind in {"sale", "payment", "purchase", "production"}:
-        where.append("operation_type = ?")
+        where.append("operation_type = %s")
         params.append(kind)
         
     base_query = """
@@ -73,7 +73,7 @@ async def list_recent_operations(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY event_date DESC, row_id DESC LIMIT ? OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY event_date DESC, row_id DESC LIMIT %s OFFSET ?"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total

@@ -110,14 +110,14 @@ async def global_search(request: Request):
                 FROM sales s
                 LEFT JOIN clients c ON c.id = s.client_id
                 JOIN finished_products f ON f.id = s.finished_product_id
-                WHERE s.sale_date {operator} ?
+                WHERE s.sale_date {operator} %s
                 UNION ALL
                 SELECT rs.id, rs.sale_date, COALESCE(c.name, 'Comptoir') AS client_name,
                        r.name AS item_name, rs.total, rs.sale_type
                 FROM raw_sales rs
                 LEFT JOIN clients c ON c.id = rs.client_id
                 JOIN raw_materials r ON r.id = rs.raw_material_id
-                WHERE rs.sale_date {operator} ?
+                WHERE rs.sale_date {operator} %s
                 ORDER BY sale_date DESC LIMIT 5""",
             (date_param, date_param),
         )
@@ -139,7 +139,7 @@ async def global_search(request: Request):
                 FROM purchases p
                 LEFT JOIN suppliers s ON s.id = p.supplier_id
                 LEFT JOIN raw_materials r ON r.id = p.raw_material_id
-                WHERE p.purchase_date {operator} ?
+                WHERE p.purchase_date {operator} %s
                 ORDER BY p.purchase_date DESC LIMIT 4""",
             (date_param,),
         )
@@ -159,7 +159,7 @@ async def global_search(request: Request):
                        p.amount, p.payment_type
                 FROM payments p
                 JOIN clients c ON c.id = p.client_id
-                WHERE p.payment_date {operator} ?
+                WHERE p.payment_date {operator} %s
                 ORDER BY p.payment_date DESC LIMIT 4""",
             (date_param,),
         )
@@ -178,7 +178,7 @@ async def global_search(request: Request):
     clients = query_db(
         """SELECT id, name, phone, address
            FROM clients
-           WHERE LOWER(name) LIKE ? OR LOWER(COALESCE(phone,'')) LIKE ?
+           WHERE LOWER(name) LIKE %s OR LOWER(COALESCE(phone,'')) LIKE %s
            ORDER BY name LIMIT 5""",
         (needle, needle),
     )
@@ -194,7 +194,7 @@ async def global_search(request: Request):
     # Matières premières
     raws = query_db(
         """SELECT id, name, unit FROM raw_materials
-           WHERE LOWER(name) LIKE ?
+           WHERE LOWER(name) LIKE %s
            ORDER BY name LIMIT 4""",
         (needle,),
     )
@@ -210,7 +210,7 @@ async def global_search(request: Request):
     # Produits finis
     products = query_db(
         """SELECT id, name, default_unit AS unit FROM finished_products
-           WHERE LOWER(name) LIKE ?
+           WHERE LOWER(name) LIKE %s
            ORDER BY name LIMIT 4""",
         (needle,),
     )
@@ -226,7 +226,7 @@ async def global_search(request: Request):
     # Fournisseurs
     suppliers = query_db(
         """SELECT id, name, phone FROM suppliers
-           WHERE LOWER(name) LIKE ? OR LOWER(COALESCE(phone,'')) LIKE ?
+           WHERE LOWER(name) LIKE %s OR LOWER(COALESCE(phone,'')) LIKE %s
            ORDER BY name LIMIT 3""",
         (needle, needle),
     )

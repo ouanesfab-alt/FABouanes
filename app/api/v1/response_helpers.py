@@ -32,7 +32,7 @@ def client_payload(client_id: int):
                {client_total_sales_sql("c")} AS total_sales,
                {client_total_payments_sql("c")} AS total_payments
         FROM clients c
-        WHERE c.id = ?
+        WHERE c.id = %s
         """,
         (client_id,),
         one=True,
@@ -40,7 +40,7 @@ def client_payload(client_id: int):
     return dict(row) if row else None
 
 def supplier_payload(supplier_id: int):
-    row = query_db("SELECT * FROM suppliers WHERE id = ?", (supplier_id,), one=True)
+    row = query_db("SELECT * FROM suppliers WHERE id = %s", (supplier_id,), one=True)
     return dict(row) if row else None
 
 def raw_material_payload(material_id: int):
@@ -50,7 +50,7 @@ def raw_material_payload(material_id: int):
                CASE WHEN stock_qty <= COALESCE(NULLIF(threshold_qty, 0), alert_threshold) THEN 1 ELSE 0 END AS is_low_stock,
                'raw' AS item_type
         FROM raw_materials
-        WHERE id = ?
+        WHERE id = %s
         """,
         (material_id,),
         one=True,
@@ -62,7 +62,7 @@ def finished_product_payload(product_id: int):
         """
         SELECT *, 'finished' AS item_type
         FROM finished_products
-        WHERE id = ?
+        WHERE id = %s
         """,
         (product_id,),
         one=True,
@@ -75,7 +75,7 @@ def production_payload(batch_id: int):
         SELECT pb.*, fp.name AS product_name, fp.default_unit AS product_unit
         FROM production_batches pb
         JOIN finished_products fp ON fp.id = pb.finished_product_id
-        WHERE pb.id = ?
+        WHERE pb.id = %s
         """,
         (batch_id,),
         one=True,
@@ -89,7 +89,7 @@ def purchase_payload(purchase_id: int):
         FROM purchases p
         LEFT JOIN suppliers s ON s.id = p.supplier_id
         JOIN raw_materials r ON r.id = p.raw_material_id
-        WHERE p.id = ?
+        WHERE p.id = %s
         """,
         (purchase_id,),
         one=True,
@@ -105,7 +105,7 @@ def sale_payload(kind: str, row_id: int):
             FROM sales s
             LEFT JOIN clients c ON c.id = s.client_id
             JOIN finished_products f ON f.id = s.finished_product_id
-            WHERE s.id = ?
+            WHERE s.id = %s
             """,
             (row_id,),
             one=True,
@@ -118,7 +118,7 @@ def sale_payload(kind: str, row_id: int):
             FROM raw_sales rs
             LEFT JOIN clients c ON c.id = rs.client_id
             JOIN raw_materials r ON r.id = rs.raw_material_id
-            WHERE rs.id = ?
+            WHERE rs.id = %s
             """,
             (row_id,),
             one=True,
@@ -162,7 +162,7 @@ def payment_payload(payment_id: int):
                END AS sale_ref
         FROM payments p
         JOIN clients c ON c.id = p.client_id
-        WHERE p.id = ?
+        WHERE p.id = %s
         """,
         (payment_id,),
         one=True,

@@ -69,7 +69,7 @@ def _build_contacts_context(filter_type: str, filter_name: str, raw_filter_name:
 def create_supplier_from_form(form) -> int:
     name = str(form["name"]).strip()
     supplier_id = execute_db(
-        "INSERT INTO suppliers (name, phone, address, notes) VALUES (?, ?, ?, ?)",
+        "INSERT INTO suppliers (name, phone, address, notes) VALUES (%s, %s, %s, %s)",
         (
             name,
             str(form.get("phone", "")).strip(),
@@ -85,13 +85,13 @@ def create_supplier_from_form(form) -> int:
 
 
 def get_supplier(supplier_id: int):
-    return query_db("SELECT * FROM suppliers WHERE id = ?", (supplier_id,), one=True)
+    return query_db("SELECT * FROM suppliers WHERE id = %s", (supplier_id,), one=True)
 
 
 def update_supplier_from_form(supplier_id: int, form) -> None:
     before = get_supplier(supplier_id)
     execute_db(
-        "UPDATE suppliers SET name = ?, phone = ?, address = ?, notes = ? WHERE id = ?",
+        "UPDATE suppliers SET name = %s, phone = %s, address = %s, notes = %s WHERE id = %s",
         (
             str(form["name"]).strip(),
             str(form.get("phone", "")).strip(),
@@ -108,7 +108,7 @@ def update_supplier_from_form(supplier_id: int, form) -> None:
 
 def delete_supplier_by_id(supplier_id: int) -> None:
     before = get_supplier(supplier_id)
-    execute_db("DELETE FROM suppliers WHERE id = ?", (supplier_id,))
+    execute_db("DELETE FROM suppliers WHERE id = %s", (supplier_id,))
     log_activity("delete_supplier", "supplier", supplier_id, "Suppression fournisseur")
     audit_event("delete_supplier", "supplier", supplier_id, before=before, after=None)
     backup_database("delete_supplier")
@@ -137,7 +137,7 @@ def _build_supplier_detail_context(supplier_id: int) -> dict | None:
                p.quantity, COALESCE(p.unit, r.unit, 'kg') AS unit, p.unit_price, p.total, p.notes
         FROM purchases p
         JOIN raw_materials r ON r.id = p.raw_material_id
-        WHERE p.supplier_id = ?
+        WHERE p.supplier_id = %s
         ORDER BY p.purchase_date DESC, p.id DESC
         """,
         (supplier_id,),

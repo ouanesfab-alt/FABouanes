@@ -4,19 +4,19 @@ from app.core.db_access import execute_db, query_db
 
 
 def get_raw_material(material_id: int):
-    return query_db("SELECT * FROM raw_materials WHERE id = ?", (material_id,), one=True)
+    return query_db("SELECT * FROM raw_materials WHERE id = %s", (material_id,), one=True)
 
 
 def get_finished_product(product_id: int):
-    return query_db("SELECT * FROM finished_products WHERE id = ?", (product_id,), one=True)
+    return query_db("SELECT * FROM finished_products WHERE id = %s", (product_id,), one=True)
 
 
 def update_raw_stock(material_id: int, stock_qty: float) -> None:
-    execute_db("UPDATE raw_materials SET stock_qty = ? WHERE id = ?", (stock_qty, material_id))
+    execute_db("UPDATE raw_materials SET stock_qty = %s WHERE id = %s", (stock_qty, material_id))
 
 
 def update_finished_stock(product_id: int, stock_qty: float) -> None:
-    execute_db("UPDATE finished_products SET stock_qty = ? WHERE id = ?", (stock_qty, product_id))
+    execute_db("UPDATE finished_products SET stock_qty = %s WHERE id = %s", (stock_qty, product_id))
 
 
 def insert_stock_movement(
@@ -37,7 +37,7 @@ def insert_stock_movement(
         INSERT INTO stock_movements (
             item_kind, item_id, direction, quantity, unit, stock_before, stock_after,
             reason, reference_type, reference_id, created_by_username, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
         """,
         (
             item_kind,
@@ -82,7 +82,7 @@ async def list_raw_materials(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY name LIMIT ? OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY name LIMIT %s OFFSET ?"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total
@@ -109,7 +109,7 @@ async def list_finished_products(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY name LIMIT ? OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY name LIMIT %s OFFSET ?"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total

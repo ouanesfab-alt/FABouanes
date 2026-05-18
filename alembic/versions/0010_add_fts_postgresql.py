@@ -1,6 +1,6 @@
 """Add FTS to PostgreSQL
 
-Revision ID: 0012_add_fts_postgresql
+Revision ID: 0010_add_fts_postgresql
 Revises: 0009_add_document_numbers
 Create Date: 2026-05-17 20:40:00.000000
 """
@@ -9,7 +9,7 @@ from __future__ import annotations
 from alembic import op
 import sqlalchemy as sa
 
-revision = '0012_add_fts_postgresql'
+revision = '0010_add_fts_postgresql'
 down_revision = '0009_add_document_numbers'
 branch_labels = None
 depends_on = None

@@ -1,7 +1,7 @@
 """Add BI reporting composite indexes
 
-Revision ID: 0013_add_bi_reporting_indexes
-Revises: 0012_add_fts_postgresql
+Revision ID: 0011_add_bi_reporting_indexes
+Revises: 0010_add_fts_postgresql
 Create Date: 2026-05-17 21:05:00.000000
 """
 from __future__ import annotations
@@ -9,8 +9,8 @@ from __future__ import annotations
 from alembic import op
 import sqlalchemy as sa
 
-revision = '0013_add_bi_reporting_indexes'
-down_revision = '0012_add_fts_postgresql'
+revision = '0011_add_bi_reporting_indexes'
+down_revision = '0010_add_fts_postgresql'
 branch_labels = None
 depends_on = None
 

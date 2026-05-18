@@ -57,7 +57,7 @@ async def api_production_batch_detail(request: Request, batch_id: int):
         if not delete_production_by_id(batch_id):
             api_error("conflict", "Suppression impossible.", 409)
         return json_response(api_success({"deleted": True}))
-    items = query_db("SELECT * FROM production_batch_items WHERE batch_id = ? ORDER BY id", (batch_id,))
+    items = query_db("SELECT * FROM production_batch_items WHERE batch_id = %s ORDER BY id", (batch_id,))
     payload = dict(batch)
     payload["items"] = [dict(item) for item in items]
     return json_response(api_success(payload))
@@ -76,10 +76,10 @@ async def api_recipes(request: Request):
 @router.get("/recipes/{recipe_id}")
 async def api_recipe_detail(request: Request, recipe_id: int):
     require_api_user(request, PERMISSION_PRODUCTION_READ)
-    row = query_db("SELECT * FROM saved_recipes WHERE id = ?", (recipe_id,), one=True)
+    row = query_db("SELECT * FROM saved_recipes WHERE id = %s", (recipe_id,), one=True)
     if not row:
         api_error("not_found", "Recette introuvable.", 404)
-    items = query_db("SELECT * FROM saved_recipe_items WHERE recipe_id = ? ORDER BY position, id", (recipe_id,))
+    items = query_db("SELECT * FROM saved_recipe_items WHERE recipe_id = %s ORDER BY position, id", (recipe_id,))
     payload = dict(row)
     payload["items"] = [dict(item) for item in items]
     return json_response(api_success(payload))

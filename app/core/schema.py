@@ -43,7 +43,7 @@ def initial_admin_password() -> str:
 
 def _has_table(conn, table: str) -> bool:
     row = conn.execute(
-        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ?",
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = %s",
         (table,),
     ).fetchone()
     return row is not None
@@ -74,7 +74,7 @@ def _setting(conn, key: str) -> str:
     if not _has_table(conn, "app_settings"):
         return ""
     try:
-        value = _scalar(conn, "SELECT value FROM app_settings WHERE key = ?", (key,))
+        value = _scalar(conn, "SELECT value FROM app_settings WHERE key = %s", (key,))
         return str(value or "")
     except Exception:
         return ""
@@ -84,7 +84,7 @@ def _set_setting(conn, key: str, value: str) -> None:
     if not _has_table(conn, "app_settings"):
         return
     conn.execute(
-        "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP",
+        "INSERT INTO app_settings (key, value, updated_at) VALUES (%s, %s, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP",
         (key, value),
     )
 
@@ -111,18 +111,18 @@ def _seed_default_settings(conn) -> None:
     )
     for key, value in defaults:
         conn.execute(
-            "INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING",
+            "INSERT INTO app_settings (key, value) VALUES (%s, %s) ON CONFLICT(key) DO NOTHING",
             (key, value),
         )
 
 
 def _seed_default_admin(conn) -> None:
-    admin = conn.execute("SELECT id, password_hash FROM users WHERE username = ?", (DEFAULT_ADMIN_USERNAME,)).fetchone()
+    admin = conn.execute("SELECT id, password_hash FROM users WHERE username = %s", (DEFAULT_ADMIN_USERNAME,)).fetchone()
     if not admin:
         conn.execute(
             """
             INSERT INTO users (username, password_hash, role, must_change_password, is_active, last_password_change_at)
-            VALUES (?, ?, 'admin', 1, 1, CURRENT_TIMESTAMP)
+            VALUES (%s, %s, 'admin', 1, 1, CURRENT_TIMESTAMP)
             """,
             (DEFAULT_ADMIN_USERNAME, generate_password_hash(initial_admin_password())),
         )
@@ -133,26 +133,26 @@ def _seed_default_admin(conn) -> None:
         insecure_hash = False
     if insecure_hash and os.environ.get("FAB_ALLOW_INSECURE_DEFAULT_ADMIN", "0").strip() != "1":
         conn.execute(
-            "UPDATE users SET password_hash = ?, must_change_password = 1, last_password_change_at = CURRENT_TIMESTAMP WHERE id = ?",
+            "UPDATE users SET password_hash = %s, must_change_password = 1, last_password_change_at = CURRENT_TIMESTAMP WHERE id = %s",
             (generate_password_hash(initial_admin_password()), int(admin["id"])),
         )
 
 
 def _seed_other_operation(conn) -> None:
     row = conn.execute(
-        "SELECT id FROM raw_materials WHERE lower(trim(name)) = lower(trim(?)) ORDER BY id LIMIT 1",
+        "SELECT id FROM raw_materials WHERE lower(trim(name)) = lower(trim(%s)) ORDER BY id LIMIT 1",
         (OTHER_OPERATION_NAME,),
     ).fetchone()
     if row:
         conn.execute(
-            "UPDATE raw_materials SET name = ?, unit = ? WHERE id = ?",
+            "UPDATE raw_materials SET name = %s, unit = %s WHERE id = %s",
             (OTHER_OPERATION_NAME, OTHER_OPERATION_UNIT, int(row["id"])),
         )
         return
     conn.execute(
         """
         INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold, threshold_qty)
-        VALUES (?, ?, 0, 0, 0, 0, 0)
+        VALUES (%s, %s, 0, 0, 0, 0, 0)
         """,
         (OTHER_OPERATION_NAME, OTHER_OPERATION_UNIT),
     )

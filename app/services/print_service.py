@@ -128,7 +128,7 @@ def _sale_document_subtitle(lines: list[dict[str, Any]]) -> str:
 
 def build_print_payload(doc_type: str, item_id: int):
     if doc_type == "purchase":
-        pointer = query_db("SELECT id, document_id FROM purchases WHERE id = ?", (item_id,), one=True)
+        pointer = query_db("SELECT id, document_id FROM purchases WHERE id = %s", (item_id,), one=True)
         if pointer and pointer["document_id"]:
             return build_print_payload("purchase_document", int(pointer["document_id"]))
         row = query_db(
@@ -148,7 +148,7 @@ def build_print_payload(doc_type: str, item_id: int):
             FROM purchases p
             JOIN raw_materials rm ON rm.id = p.raw_material_id
             LEFT JOIN suppliers s ON s.id = p.supplier_id
-            WHERE p.id = ?
+            WHERE p.id = %s
             """,
             (item_id,),
             one=True,
@@ -183,7 +183,7 @@ def build_print_payload(doc_type: str, item_id: int):
             SELECT pd.*, s.name AS partner_name, s.phone AS partner_phone, s.address AS partner_address
             FROM purchase_documents pd
             LEFT JOIN suppliers s ON s.id = pd.supplier_id
-            WHERE pd.id = ?
+            WHERE pd.id = %s
             """,
             (item_id,),
             one=True,
@@ -205,7 +205,7 @@ def build_print_payload(doc_type: str, item_id: int):
                    END AS display_unit_price
             FROM purchases p
             JOIN raw_materials rm ON rm.id = p.raw_material_id
-            WHERE p.document_id = ?
+            WHERE p.document_id = %s
             ORDER BY p.id ASC
             """,
             (item_id,),
@@ -235,7 +235,7 @@ def build_print_payload(doc_type: str, item_id: int):
         })
 
     if doc_type == "sale_finished":
-        pointer = query_db("SELECT id, document_id FROM sales WHERE id = ?", (item_id,), one=True)
+        pointer = query_db("SELECT id, document_id FROM sales WHERE id = %s", (item_id,), one=True)
         if pointer and pointer["document_id"]:
             return build_print_payload("sale_document", int(pointer["document_id"]))
         row = query_db(
@@ -245,7 +245,7 @@ def build_print_payload(doc_type: str, item_id: int):
             FROM sales s
             JOIN finished_products f ON f.id = s.finished_product_id
             LEFT JOIN clients c ON c.id = s.client_id
-            WHERE s.id = ?
+            WHERE s.id = %s
             """,
             (item_id,),
             one=True,
@@ -276,7 +276,7 @@ def build_print_payload(doc_type: str, item_id: int):
         })
 
     if doc_type == "sale_raw":
-        pointer = query_db("SELECT id, document_id FROM raw_sales WHERE id = ?", (item_id,), one=True)
+        pointer = query_db("SELECT id, document_id FROM raw_sales WHERE id = %s", (item_id,), one=True)
         if pointer and pointer["document_id"]:
             return build_print_payload("sale_document", int(pointer["document_id"]))
         row = query_db(
@@ -286,7 +286,7 @@ def build_print_payload(doc_type: str, item_id: int):
             FROM raw_sales rs
             JOIN raw_materials r ON r.id = rs.raw_material_id
             LEFT JOIN clients c ON c.id = rs.client_id
-            WHERE rs.id = ?
+            WHERE rs.id = %s
             """,
             (item_id,),
             one=True,
@@ -323,7 +323,7 @@ def build_print_payload(doc_type: str, item_id: int):
                    c.phone AS partner_phone, c.address AS partner_address
             FROM sale_documents sd
             LEFT JOIN clients c ON c.id = sd.client_id
-            WHERE sd.id = ?
+            WHERE sd.id = %s
             """,
             (item_id,),
             one=True,
@@ -336,12 +336,12 @@ def build_print_payload(doc_type: str, item_id: int):
                 SELECT 'finished' AS kind, s.id AS line_id, s.quantity, s.unit, s.unit_price, s.total, f.name AS item_name
                 FROM sales s
                 JOIN finished_products f ON f.id = s.finished_product_id
-                WHERE s.document_id = ?
+                WHERE s.document_id = %s
                 UNION ALL
                 SELECT 'raw' AS kind, rs.id AS line_id, rs.quantity, rs.unit, rs.unit_price, rs.total, COALESCE(NULLIF(rs.custom_item_name, ''), r.name) AS item_name
                 FROM raw_sales rs
                 JOIN raw_materials r ON r.id = rs.raw_material_id
-                WHERE rs.document_id = ?
+                WHERE rs.document_id = %s
             ) lines
             ORDER BY line_id ASC
             """,
@@ -380,7 +380,7 @@ def build_print_payload(doc_type: str, item_id: int):
             SELECT p.*, c.name AS partner_name, c.phone AS partner_phone, c.address AS partner_address
             FROM payments p
             JOIN clients c ON c.id = p.client_id
-            WHERE p.id = ?
+            WHERE p.id = %s
             """,
             (item_id,),
             one=True,
@@ -425,7 +425,7 @@ def build_print_payload(doc_type: str, item_id: int):
             SELECT pb.*, fp.name AS item_name
             FROM production_batches pb
             JOIN finished_products fp ON fp.id = pb.finished_product_id
-            WHERE pb.id = ?
+            WHERE pb.id = %s
             """,
             (item_id,),
             one=True,
@@ -437,7 +437,7 @@ def build_print_payload(doc_type: str, item_id: int):
             SELECT r.name AS material_name, pbi.quantity, r.unit, pbi.unit_cost_snapshot, pbi.line_cost
             FROM production_batch_items pbi
             JOIN raw_materials r ON r.id = pbi.raw_material_id
-            WHERE pbi.batch_id = ?
+            WHERE pbi.batch_id = %s
             ORDER BY pbi.id ASC
             """,
             (item_id,),

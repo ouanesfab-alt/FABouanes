@@ -63,7 +63,7 @@ def _audit_worker() -> None:
                                 action, entity_type, entity_id, status,
                                 ip_address, user_agent, request_id,
                                 before_json, after_json, meta_json, created_at
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
                             """,
                             row
                         )
@@ -208,7 +208,7 @@ def list_audit_logs(filters: Mapping[str, Any] | None = None, *, limit: int = 20
         where.append("lower(entity_type) LIKE lower(?)")
         params.append(f"%{filters['entity_type']}%")
     if filters.get("status"):
-        where.append("status = ?")
+        where.append("status = %s")
         params.append(str(filters["status"]))
     query = """
         SELECT *
@@ -216,7 +216,7 @@ def list_audit_logs(filters: Mapping[str, Any] | None = None, *, limit: int = 20
     """
     if where:
         query += " WHERE " + " AND ".join(where)
-    query += " ORDER BY id DESC LIMIT ?"
+    query += " ORDER BY id DESC LIMIT %s"
     params.append(int(limit))
     return [dict(row) for row in query_db(query, tuple(params))]
 

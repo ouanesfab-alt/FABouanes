@@ -36,13 +36,13 @@ def get_all_expenses(filters: dict[str, Any] | None = None) -> list[dict]:
     params: list[Any] = []
     if filters:
         if filters.get("category"):
-            sql += " AND category = ?"
+            sql += " AND category = %s"
             params.append(filters["category"])
         if filters.get("date_from"):
-            sql += " AND date >= ?"
+            sql += " AND date >= %s"
             params.append(filters["date_from"])
         if filters.get("date_to"):
-            sql += " AND date <= ?"
+            sql += " AND date <= %s"
             params.append(filters["date_to"])
         if filters.get("q"):
             sql += " AND (description LIKE ? OR category LIKE ?)"
@@ -53,26 +53,26 @@ def get_all_expenses(filters: dict[str, Any] | None = None) -> list[dict]:
 
 
 def get_expense_by_id(expense_id: int) -> dict | None:
-    row = query_db("SELECT * FROM expenses WHERE id = ?", (expense_id,), one=True)
+    row = query_db("SELECT * FROM expenses WHERE id = %s", (expense_id,), one=True)
     return dict(row) if row else None
 
 
 def create_expense(date: str, category: str, description: str, amount: float, method: str = "cash") -> int:
     return execute_db(
-        "INSERT INTO expenses (date, category, description, amount, payment_method) VALUES (?,?,?,?,?)",
+        "INSERT INTO expenses (date, category, description, amount, payment_method) VALUES (%s,%s,%s,%s,%s)",
         (date, category, description, amount, method),
     )
 
 
 def update_expense(expense_id: int, date: str, category: str, description: str, amount: float, method: str = "cash") -> None:
     execute_db(
-        "UPDATE expenses SET date=?, category=?, description=?, amount=?, payment_method=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        "UPDATE expenses SET date=%s, category=%s, description=%s, amount=%s, payment_method=%s, updated_at=CURRENT_TIMESTAMP WHERE id=%s",
         (date, category, description, amount, method, expense_id),
     )
 
 
 def delete_expense(expense_id: int) -> None:
-    execute_db("DELETE FROM expenses WHERE id = ?", (expense_id,))
+    execute_db("DELETE FROM expenses WHERE id = %s", (expense_id,))
 
 
 # ── Agrégations ──
@@ -81,10 +81,10 @@ def expenses_total(date_from: str | None = None, date_to: str | None = None) -> 
     sql = "SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE 1=1"
     params: list[Any] = []
     if date_from:
-        sql += " AND date >= ?"
+        sql += " AND date >= %s"
         params.append(date_from)
     if date_to:
-        sql += " AND date <= ?"
+        sql += " AND date <= %s"
         params.append(date_to)
     row = query_db(sql, tuple(params), one=True)
     return float(row["total"]) if row else 0.0
@@ -94,10 +94,10 @@ def expenses_by_category(date_from: str | None = None, date_to: str | None = Non
     sql = "SELECT category, COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count FROM expenses WHERE 1=1"
     params: list[Any] = []
     if date_from:
-        sql += " AND date >= ?"
+        sql += " AND date >= %s"
         params.append(date_from)
     if date_to:
-        sql += " AND date <= ?"
+        sql += " AND date <= %s"
         params.append(date_to)
     sql += " GROUP BY category ORDER BY total DESC"
     return [dict(row) for row in query_db(sql, tuple(params))]
@@ -110,7 +110,7 @@ def expenses_by_month(limit: int = 12) -> list[dict]:
            FROM expenses
            GROUP BY substr(date::text, 1, 7)
            ORDER BY month DESC
-           LIMIT ?""",
+           LIMIT %s""",
         (limit,),
     )
     return [dict(r) for r in rows]

@@ -3,11 +3,11 @@
 TABLES = [
     """
     CREATE TABLE IF NOT EXISTS expenses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id BIGSERIAL PRIMARY KEY,
         date TEXT NOT NULL,
         category TEXT NOT NULL DEFAULT 'general',
         description TEXT,
-        amount REAL NOT NULL DEFAULT 0,
+        amount DOUBLE PRECISION NOT NULL DEFAULT 0,
         payment_method TEXT DEFAULT 'cash'
             CHECK(payment_method IN ('cash', 'cheque', 'virement', 'autre')),
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,

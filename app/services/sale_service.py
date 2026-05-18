@@ -64,7 +64,7 @@ def _extract_sale_lines(form) -> list[dict[str, object]]:
         custom_item_name = custom_item_name.strip()
         if item_kind == "raw":
             if item_id not in other_cache:
-                material = query_db("SELECT name FROM raw_materials WHERE id = ?", (item_id,), one=True)
+                material = query_db("SELECT name FROM raw_materials WHERE id = %s", (item_id,), one=True)
                 if not material:
                     raise ValidationError("Matière première introuvable.", field="item_key")
                 other_cache[item_id] = str(material["name"] or "").strip().casefold() == "autre"
@@ -99,7 +99,7 @@ def _insert_sale_document(document_id, client_id, sale_type: str, sale_date: str
         execute_db(
             """
             INSERT INTO sale_documents (id, doc_number, client_id, sale_type, total, amount_paid, balance_due, sale_date, notes)
-            VALUES (?, ?, ?, ?, 0, 0, 0, ?, ?)
+            VALUES (%s, %s, %s, %s, 0, 0, 0, %s, %s)
             """,
             (int(document_id), doc_number, client_id, sale_type, sale_date, notes),
         )
@@ -107,19 +107,19 @@ def _insert_sale_document(document_id, client_id, sale_type: str, sale_date: str
     return execute_db(
         """
         INSERT INTO sale_documents (doc_number, client_id, sale_type, total, amount_paid, balance_due, sale_date, notes)
-        VALUES (?, ?, ?, 0, 0, 0, ?, ?)
+        VALUES (%s, %s, %s, 0, 0, 0, %s, %s)
         """,
         (doc_number, client_id, sale_type, sale_date, notes),
     )
 
 
 def _save_sale_document_header(document_id: int, client_id, sale_type: str, sale_date: str, notes: str) -> None:
-    existing = query_db("SELECT id FROM sale_documents WHERE id = ?", (document_id,), one=True)
+    existing = query_db("SELECT id FROM sale_documents WHERE id = %s", (document_id,), one=True)
     if not existing:
         _insert_sale_document(document_id, client_id, sale_type, sale_date, notes)
         return
     execute_db(
-        "UPDATE sale_documents SET client_id = ?, sale_type = ?, sale_date = ?, notes = ? WHERE id = ?",
+        "UPDATE sale_documents SET client_id = %s, sale_type = %s, sale_date = %s, notes = %s WHERE id = %s",
         (client_id, sale_type, sale_date, notes, document_id),
     )
 
@@ -180,7 +180,7 @@ def _client_payment_rows(client_id: int | None):
         """
         SELECT id, sale_id, raw_sale_id, allocation_meta
         FROM payments
-        WHERE client_id = ? AND payment_type = 'versement'
+        WHERE client_id = %s AND payment_type = 'versement'
         """,
         (int(client_id),),
     )
@@ -319,7 +319,7 @@ def create_sale_from_form(form):
                 )
             )
 
-    created = query_db("SELECT * FROM sale_documents WHERE id = ?", (document_id,), one=True)
+    created = query_db("SELECT * FROM sale_documents WHERE id = %s", (document_id,), one=True)
     log_activity("create_sale_document", "sale_document", document_id, f"{len(lines)} ligne(s)")
     audit_event("create_sale_document", "sale_document", document_id, after=created, meta={"line_count": len(lines)})
     invalidate_sellable_items_cache()
@@ -442,7 +442,7 @@ def edit_sale_from_form(kind: str, row_id: int, form):
                     )
                 )
 
-        created = query_db("SELECT * FROM sale_documents WHERE id = ?", (document_id,), one=True)
+        created = query_db("SELECT * FROM sale_documents WHERE id = %s", (document_id,), one=True)
         log_activity("update_sale_document", "sale_document", document_id, f"{len(lines)} ligne(s)")
         audit_event(
             "update_sale_document",

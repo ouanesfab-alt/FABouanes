@@ -83,7 +83,7 @@ def mark_backup_needed(reason: str = "event") -> None:
     execute_db(
         """
         INSERT INTO app_settings (key, value, updated_at)
-        VALUES (?, ?, CURRENT_TIMESTAMP)
+        VALUES (%s, %s, CURRENT_TIMESTAMP)
         ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP
         """,
         (BACKUP_NEEDED_SETTING, json.dumps(payload, ensure_ascii=True, sort_keys=True)),
@@ -112,7 +112,7 @@ def clear_backup_needed() -> None:
     execute_db(
         """
         INSERT INTO app_settings (key, value, updated_at)
-        VALUES (?, '', CURRENT_TIMESTAMP)
+        VALUES (%s, '', CURRENT_TIMESTAMP)
         ON CONFLICT(key) DO UPDATE SET value='', updated_at=CURRENT_TIMESTAMP
         """,
         (BACKUP_NEEDED_SETTING,),
@@ -396,7 +396,7 @@ def _query_backup_sha256(filename: str):
         from app.core.db_access import query_db
         # La colonne local_path contient le chemin complet
         rows = query_db(
-            "SELECT context_json FROM backup_jobs WHERE local_path LIKE ? ORDER BY id DESC LIMIT 1",
+            "SELECT context_json FROM backup_jobs WHERE local_path LIKE %s ORDER BY id DESC LIMIT 1",
             (f"%{filename}",),
         )
         return dict(rows[0]) if rows else None

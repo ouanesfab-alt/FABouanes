@@ -60,7 +60,7 @@ def _extract_purchase_lines(form) -> list[dict[str, object]]:
             raise ValidationError("Chaque ligne d'achat doit avoir un prix unitaire superieur a zero.", field="unit_price")
         raw_id_int = int(raw_id)
         if raw_id_int not in other_cache:
-            material = query_db("SELECT name FROM raw_materials WHERE id = ?", (raw_id_int,), one=True)
+            material = query_db("SELECT name FROM raw_materials WHERE id = %s", (raw_id_int,), one=True)
             if not material:
                 raise ValidationError("Matière première introuvable.", field="raw_material_id")
             other_cache[raw_id_int] = str(material["name"] or "").strip().casefold() == "autre"
@@ -92,23 +92,23 @@ def _insert_purchase_document(document_id, supplier_id, purchase_date: str, note
 
     if document_id:
         execute_db(
-            "INSERT INTO purchase_documents (id, doc_number, supplier_id, total, purchase_date, notes) VALUES (?, ?, ?, 0, ?, ?)",
+            "INSERT INTO purchase_documents (id, doc_number, supplier_id, total, purchase_date, notes) VALUES (%s, %s, %s, 0, %s, %s)",
             (int(document_id), doc_number, supplier_id, purchase_date, notes),
         )
         return int(document_id)
     return execute_db(
-        "INSERT INTO purchase_documents (doc_number, supplier_id, total, purchase_date, notes) VALUES (?, ?, 0, ?, ?)",
+        "INSERT INTO purchase_documents (doc_number, supplier_id, total, purchase_date, notes) VALUES (%s, %s, 0, %s, %s)",
         (doc_number, supplier_id, purchase_date, notes),
     )
 
 
 def _save_purchase_document_header(document_id: int, supplier_id, purchase_date: str, notes: str) -> None:
-    existing = query_db("SELECT id FROM purchase_documents WHERE id = ?", (document_id,), one=True)
+    existing = query_db("SELECT id FROM purchase_documents WHERE id = %s", (document_id,), one=True)
     if not existing:
         _insert_purchase_document(document_id, supplier_id, purchase_date, notes)
         return
     execute_db(
-        "UPDATE purchase_documents SET supplier_id = ?, purchase_date = ?, notes = ? WHERE id = ?",
+        "UPDATE purchase_documents SET supplier_id = %s, purchase_date = %s, notes = %s WHERE id = %s",
         (supplier_id, purchase_date, notes, document_id),
     )
 
@@ -226,7 +226,7 @@ def create_purchase_from_form(form):
                 )
             )
 
-    created = query_db("SELECT * FROM purchase_documents WHERE id = ?", (document_id,), one=True)
+    created = query_db("SELECT * FROM purchase_documents WHERE id = %s", (document_id,), one=True)
     log_activity("create_purchase_document", "purchase_document", document_id, f"{len(lines)} ligne(s)")
     audit_event("create_purchase_document", "purchase_document", document_id, after=created, meta={"line_count": len(lines)})
     invalidate_sellable_items_cache()
@@ -332,7 +332,7 @@ def edit_purchase_from_form(purchase_id: int, form):
                     )
                 )
 
-        created = query_db("SELECT * FROM purchase_documents WHERE id = ?", (document_id,), one=True)
+        created = query_db("SELECT * FROM purchase_documents WHERE id = %s", (document_id,), one=True)
         log_activity("update_purchase_document", "purchase_document", document_id, f"{len(lines)} ligne(s)")
         audit_event(
             "update_purchase_document",

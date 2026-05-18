@@ -38,7 +38,7 @@ def create_refresh_token(request: Request, user) -> str:
     execute_db(
         """
         INSERT INTO api_refresh_tokens (user_id, token_hash, token_hint, created_ip, user_agent, expires_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s)
         """,
         (
             int(user["id"]),
@@ -102,14 +102,14 @@ def require_api_user(request: Request, permission: str | None = None):
 
 def revoke_refresh_token(raw_token: str) -> None:
     execute_db(
-        "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE token_hash = ? AND revoked_at IS NULL",
+        "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE token_hash = %s AND revoked_at IS NULL",
         (refresh_token_hash(raw_token),),
     )
 
 
 def revoke_all_user_tokens(user_id: int) -> None:
     execute_db(
-        "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL",
+        "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = %s AND revoked_at IS NULL",
         (int(user_id),),
     )
 
@@ -119,7 +119,7 @@ def validate_refresh_token(raw_token: str):
         """
         SELECT *
         FROM api_refresh_tokens
-        WHERE token_hash = ?
+        WHERE token_hash = %s
           AND revoked_at IS NULL
           AND expires_at >= CURRENT_TIMESTAMP
         """,
@@ -132,5 +132,5 @@ def validate_refresh_token(raw_token: str):
     if not user or not int(user.get("is_active", 1) or 0):
         revoke_refresh_token(raw_token)
         return None
-    execute_db("UPDATE api_refresh_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?", (int(row["id"]),))
+    execute_db("UPDATE api_refresh_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = %s", (int(row["id"]),))
     return user

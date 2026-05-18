@@ -37,7 +37,7 @@ def list_purchase_page_context(args=None):
         where.append("LOWER(COALESCE(supplier_name, '') || ' ' || COALESCE(material_name, '')) LIKE LOWER(?)")
         params.append(f"%{q}%")
     if purchase_date:
-        where.append("purchase_date = ?")
+        where.append("purchase_date = %s")
         params.append(purchase_date)
     query = """
         SELECT * FROM (
@@ -70,10 +70,10 @@ def list_purchase_page_context(args=None):
             cursor_id = 0
         if cursor_id > 0:
             cursor_where = " AND " if where else " WHERE "
-            cursor_where += "(purchase_date < ? OR (purchase_date = ? AND id < ?))"
+            cursor_where += "(purchase_date < ? OR (purchase_date = %s AND id < ?))"
             cursor_params.extend([cursor[0], cursor[0], cursor_id])
     rows_plus = query_db(
-        f"{query}{cursor_where} ORDER BY purchase_date DESC, id DESC LIMIT ?",
+        f"{query}{cursor_where} ORDER BY purchase_date DESC, id DESC LIMIT %s",
         tuple(params + cursor_params + [page_size + 1]),
     )
     has_next = len(rows_plus) > page_size
@@ -124,7 +124,7 @@ def get_purchase(purchase_id: int):
         FROM purchases p
         LEFT JOIN suppliers s ON s.id = p.supplier_id
         JOIN raw_materials r ON r.id = p.raw_material_id
-        WHERE p.id = ?
+        WHERE p.id = %s
         """,
         (purchase_id,),
         one=True,
@@ -137,7 +137,7 @@ def get_purchase_document(document_id: int):
         SELECT pd.*, COALESCE(s.name, 'Sans fournisseur') AS supplier_name
         FROM purchase_documents pd
         LEFT JOIN suppliers s ON s.id = pd.supplier_id
-        WHERE pd.id = ?
+        WHERE pd.id = %s
         """,
         (document_id,),
         one=True,
@@ -163,7 +163,7 @@ def list_purchase_document_lines(document_id: int):
                p.total
         FROM purchases p
         JOIN raw_materials r ON r.id = p.raw_material_id
-        WHERE p.document_id = ?
+        WHERE p.document_id = %s
         ORDER BY p.id ASC
         """,
         (document_id,),
@@ -185,10 +185,10 @@ async def list_purchases(
         params.extend([like, like, like])
         
     if date_from:
-        where.append("p.purchase_date >= ?")
+        where.append("p.purchase_date >= %s")
         params.append(date_from)
     if date_to:
-        where.append("p.purchase_date <= ?")
+        where.append("p.purchase_date <= %s")
         params.append(date_to)
         
     base_query = """
@@ -202,7 +202,7 @@ async def list_purchases(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY purchase_date DESC, id DESC LIMIT ? OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY purchase_date DESC, id DESC LIMIT %s OFFSET ?"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total

@@ -75,7 +75,7 @@ def list_clients_page_context(args=None):
             FROM clients c
             {where_clause}
             ORDER BY c.name
-            LIMIT ? OFFSET ?
+            LIMIT %s OFFSET ?
         ),
         finished_totals AS (
             SELECT client_id,
@@ -131,33 +131,33 @@ def list_clients_page_context(args=None):
 
 @db_task
 def get_client_with_stats(client_id: int):
-    return query_db(client_stats_query("c.id = ?"), (client_id,), one=True)
+    return query_db(client_stats_query("c.id = %s"), (client_id,), one=True)
 
 
 @db_task
 def insert_client(name: str, phone: str, address: str, notes: str, opening_credit: float):
     return execute_db(
-        'INSERT INTO clients (name, phone, address, notes, opening_credit) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO clients (name, phone, address, notes, opening_credit) VALUES (%s, %s, %s, %s, %s)',
         (name, phone, address, notes, opening_credit),
     )
 
 
 @db_task
 def get_client(client_id: int):
-    return query_db('SELECT * FROM clients WHERE id = ?', (client_id,), one=True)
+    return query_db('SELECT * FROM clients WHERE id = %s', (client_id,), one=True)
 
 
 @db_task
 def update_client(client_id: int, name: str, phone: str, address: str, notes: str, opening_credit: float):
     execute_db(
-        'UPDATE clients SET name=?, phone=?, address=?, notes=?, opening_credit=? WHERE id=?',
+        'UPDATE clients SET name=%s, phone=%s, address=%s, notes=%s, opening_credit=%s WHERE id=%s',
         (name, phone, address, notes, opening_credit, client_id),
     )
 
 
 @db_task
 def find_client_by_name(name: str):
-    return query_db('SELECT id FROM clients WHERE lower(trim(name)) = lower(trim(?))', (name,), one=True)
+    return query_db('SELECT id FROM clients WHERE lower(trim(name)) = lower(trim(%s))', (name,), one=True)
 async def list_clients(
     search: str | None = None,
     page: int = 1,
@@ -186,7 +186,7 @@ async def list_clients(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY name LIMIT ? OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY name LIMIT %s OFFSET ?"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total

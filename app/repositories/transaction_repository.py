@@ -91,7 +91,7 @@ def list_transactions_context(args=None) -> dict:
         where.append("LOWER(COALESCE(partner_name, '') || ' ' || COALESCE(designation, '')) LIKE LOWER(?)")
         params.append(f"%{filter_name}%")
     if filter_date:
-        where.append("tx_date = ?")
+        where.append("tx_date = %s")
         params.append(filter_date)
     if filter_operation:
         where.append("LOWER(tx_type) = LOWER(?)")
@@ -163,13 +163,13 @@ def list_transactions_context(args=None) -> dict:
                 cursor_sequence = 0
             cursor_where += (
                 f"(tx_date {comparator} ? OR "
-                f"(tx_date = ? AND (sort_sequence {comparator} ? OR "
-                f"(sort_sequence = ? AND row_sort_key {comparator} ?))))"
+                f"(tx_date = %s AND (sort_sequence {comparator} ? OR "
+                f"(sort_sequence = %s AND row_sort_key {comparator} ?))))"
             )
             cursor_params.extend([cursor[0], cursor[0], cursor_sequence, cursor_sequence, cursor[2]])
         direction_sql = "ASC" if sort_direction == "asc" else "DESC"
         rows_plus = query_db(
-            f"{query}{cursor_where} ORDER BY tx_date {direction_sql}, sort_sequence {direction_sql}, row_sort_key {direction_sql} LIMIT ?",
+            f"{query}{cursor_where} ORDER BY tx_date {direction_sql}, sort_sequence {direction_sql}, row_sort_key {direction_sql} LIMIT %s",
             tuple(params + cursor_params + [page_size + 1]),
         )
         has_next = len(rows_plus) > page_size

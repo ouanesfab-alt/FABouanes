@@ -21,7 +21,7 @@ async def api_item_info(request: Request):
         return JSONResponse({"ok": False}, status_code=400)
     if kind == "raw":
         row = query_db(
-            "SELECT id, name, unit, stock_qty, sale_price, avg_cost FROM raw_materials WHERE id = ?",
+            "SELECT id, name, unit, stock_qty, sale_price, avg_cost FROM raw_materials WHERE id = %s",
             (item_id,),
             one=True,
         )
@@ -39,7 +39,7 @@ async def api_item_info(request: Request):
             }
         )
     row = query_db(
-        "SELECT id, name, default_unit AS unit, stock_qty, sale_price, avg_cost FROM finished_products WHERE id = ?",
+        "SELECT id, name, default_unit AS unit, stock_qty, sale_price, avg_cost FROM finished_products WHERE id = %s",
         (item_id,),
         one=True,
     )
@@ -67,7 +67,7 @@ async def api_recipe(request: Request, recipe_id: int):
         SELECT sr.id, sr.finished_product_id, sr.name, COALESCE(sr.notes, '') AS notes, fp.name AS finished_name
         FROM saved_recipes sr
         JOIN finished_products fp ON fp.id = sr.finished_product_id
-        WHERE sr.id = ?
+        WHERE sr.id = %s
         """,
         (recipe_id,),
         one=True,
@@ -79,7 +79,7 @@ async def api_recipe(request: Request, recipe_id: int):
         SELECT sri.raw_material_id, sri.quantity, sri.position, rm.name AS material_name, rm.stock_qty, rm.unit
         FROM saved_recipe_items sri
         JOIN raw_materials rm ON rm.id = sri.raw_material_id
-        WHERE sri.recipe_id = ?
+        WHERE sri.recipe_id = %s
         ORDER BY sri.position, sri.id
         """,
         (recipe_id,),

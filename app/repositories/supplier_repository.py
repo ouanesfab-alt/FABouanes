@@ -21,7 +21,7 @@ async def list_suppliers(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY name LIMIT ? OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY name LIMIT %s OFFSET ?"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total

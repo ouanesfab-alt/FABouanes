@@ -85,7 +85,7 @@ async def api_suppliers(request: Request):
     if request.method == "POST":
         payload = await request.json()
         supplier_id = await execute_db_async(
-            "INSERT INTO suppliers (name, phone, address, notes) VALUES (?, ?, ?, ?)",
+            "INSERT INTO suppliers (name, phone, address, notes) VALUES (%s, %s, %s, %s)",
             (
                 str(payload.get("name", "")).strip(),
                 str(payload.get("phone", "")).strip(),
@@ -123,7 +123,7 @@ async def api_supplier_detail(request: Request, supplier_id: int):
         payload = await request.json()
         before = dict(supplier)
         await execute_db_async(
-            "UPDATE suppliers SET name = ?, phone = ?, address = ?, notes = ? WHERE id = ?",
+            "UPDATE suppliers SET name = %s, phone = %s, address = %s, notes = %s WHERE id = %s",
             (
                 payload.get("name", supplier["name"]),
                 payload.get("phone", supplier["phone"]),
@@ -136,7 +136,7 @@ async def api_supplier_detail(request: Request, supplier_id: int):
         audit_event("update_supplier", "supplier", supplier_id, source="api", before=before, after=supplier)
     elif request.method == "DELETE":
         before = dict(supplier)
-        await execute_db_async("DELETE FROM suppliers WHERE id = ?", (supplier_id,))
+        await execute_db_async("DELETE FROM suppliers WHERE id = %s", (supplier_id,))
         audit_event("delete_supplier", "supplier", supplier_id, source="api", before=before, after=None)
         return json_response(api_success({"deleted": True}))
     return json_response(api_success(supplier))

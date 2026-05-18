@@ -149,7 +149,7 @@ def list_admin_activity(filters: Mapping[str, str] | None = None, *, limit: int 
     query = "SELECT * FROM activity_logs"
     if where:
         query += " WHERE " + " AND ".join(where)
-    query += " ORDER BY id DESC LIMIT ?"
+    query += " ORDER BY id DESC LIMIT %s"
     rows = query_db(query, tuple(params + [max(1, int(limit))]))
     return [_decorate_activity(row) for row in rows]
 

@@ -636,6 +636,10 @@
                     if (window.location.pathname.startsWith('/operations') && typeof window.onOperationsRefresh === 'function') {
                         window.onOperationsRefresh();
                     }
+                } else if (event.data === 'backup_completed') {
+                    showToast("✅ Sauvegarde réseau terminée avec succès.", "success", false);
+                } else if (event.data === 'low_stock_alert') {
+                    showToast("⚠️ Alerte Stock : Un article vient de passer sous le seuil critique !", "warning", false);
                 }
             };
             ws.onclose = function() {

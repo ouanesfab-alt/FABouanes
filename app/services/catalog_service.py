@@ -48,12 +48,12 @@ def _build_catalog_context() -> dict:
                            ELSE quantity
                        END AS qty
                 FROM raw_sales
-                WHERE sale_date >= ?
+                WHERE sale_date >= %s
                 UNION ALL
                 SELECT pbi.raw_material_id, pbi.quantity AS qty
                 FROM production_batch_items pbi
                 JOIN production_batches pb ON pb.id = pbi.batch_id
-                WHERE pb.production_date >= ?
+                WHERE pb.production_date >= %s
             ) source
             GROUP BY raw_material_id
         )
@@ -71,7 +71,7 @@ def _build_catalog_context() -> dict:
         WITH sold AS (
             SELECT finished_product_id, SUM(quantity) AS sold_30d
             FROM sales
-            WHERE sale_date >= ?
+            WHERE sale_date >= %s
             GROUP BY finished_product_id
         )
         SELECT fp.id, COALESCE(s.sold_30d, 0) AS sold_30d
@@ -163,7 +163,7 @@ def create_catalog_item_from_form(form) -> tuple[str, int]:
     kind = str(form.get("kind", "raw")).strip()
     if kind == "raw":
         item_id = execute_db(
-            "INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold) VALUES (%s, %s, %s, %s, %s, %s)",
             (
                 str(form["name"]).strip(),
                 str(form["unit"]).strip(),
@@ -177,7 +177,7 @@ def create_catalog_item_from_form(form) -> tuple[str, int]:
         emit(DomainEvent("create", "raw_material", item_id, str(form["name"]).strip(), after=created))
         return "raw", item_id
     item_id = execute_db(
-        "INSERT INTO finished_products (name, default_unit, stock_qty, sale_price, avg_cost) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO finished_products (name, default_unit, stock_qty, sale_price, avg_cost) VALUES (%s, %s, %s, %s, %s)",
         (
             str(form["name"]).strip(),
             str(form["unit"]).strip(),
@@ -192,11 +192,11 @@ def create_catalog_item_from_form(form) -> tuple[str, int]:
 
 
 def get_raw_material(material_id: int):
-    return query_db("SELECT * FROM raw_materials WHERE id = ?", (material_id,), one=True)
+    return query_db("SELECT * FROM raw_materials WHERE id = %s", (material_id,), one=True)
 
 
 def get_product(product_id: int):
-    return query_db("SELECT * FROM finished_products WHERE id = ?", (product_id,), one=True)
+    return query_db("SELECT * FROM finished_products WHERE id = %s", (product_id,), one=True)
 
 
 def raw_material_edit_context(material_id: int) -> dict | None:
@@ -218,7 +218,7 @@ def update_raw_material_from_form(material_id: int, form) -> None:
     avg_cost = to_float(form.get("avg_cost"))
     sale_price = to_float(form.get("sale_price"))
     execute_db(
-        "UPDATE raw_materials SET name = ?, unit = ?, stock_qty = ?, avg_cost = ?, sale_price = ?, alert_threshold = ? WHERE id = ?",
+        "UPDATE raw_materials SET name = %s, unit = %s, stock_qty = %s, avg_cost = %s, sale_price = %s, alert_threshold = %s WHERE id = %s",
         (
             str(form["name"]).strip(),
             str(form["unit"]).strip(),
@@ -239,7 +239,7 @@ def update_product_from_form(product_id: int, form) -> None:
     avg_cost = to_float(form.get("avg_cost"))
     sale_price = to_float(form.get("sale_price"))
     execute_db(
-        "UPDATE finished_products SET name = ?, default_unit = ?, stock_qty = ?, sale_price = ?, avg_cost = ? WHERE id = ?",
+        "UPDATE finished_products SET name = %s, default_unit = %s, stock_qty = %s, sale_price = %s, avg_cost = %s WHERE id = %s",
         (
             str(form["name"]).strip(),
             str(form["default_unit"]).strip(),
@@ -256,27 +256,27 @@ def update_product_from_form(product_id: int, form) -> None:
 
 def delete_raw_material_by_id(material_id: int) -> bool:
     linked = query_db(
-        "SELECT 1 FROM purchases WHERE raw_material_id = ? UNION SELECT 1 FROM raw_sales WHERE raw_material_id = ? UNION SELECT 1 FROM production_batch_items WHERE raw_material_id = ? LIMIT 1",
+        "SELECT 1 FROM purchases WHERE raw_material_id = %s UNION SELECT 1 FROM raw_sales WHERE raw_material_id = %s UNION SELECT 1 FROM production_batch_items WHERE raw_material_id = %s LIMIT 1",
         (material_id, material_id, material_id),
         one=True,
     )
     if linked:
         return False
     before = get_raw_material(material_id)
-    execute_db("DELETE FROM raw_materials WHERE id = ?", (material_id,))
+    execute_db("DELETE FROM raw_materials WHERE id = %s", (material_id,))
     emit(DomainEvent("delete", "raw_material", material_id, "Suppression matière", before=before))
     return True
 
 
 def delete_product_by_id(product_id: int) -> bool:
     linked = query_db(
-        "SELECT 1 FROM sales WHERE finished_product_id = ? UNION SELECT 1 FROM production_batches WHERE finished_product_id = ? LIMIT 1",
+        "SELECT 1 FROM sales WHERE finished_product_id = %s UNION SELECT 1 FROM production_batches WHERE finished_product_id = %s LIMIT 1",
         (product_id, product_id),
         one=True,
     )
     if linked:
         return False
     before = get_product(product_id)
-    execute_db("DELETE FROM finished_products WHERE id = ?", (product_id,))
+    execute_db("DELETE FROM finished_products WHERE id = %s", (product_id,))
     emit(DomainEvent("delete", "finished_product", product_id, "Suppression produit", before=before))
     return True

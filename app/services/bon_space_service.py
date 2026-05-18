@@ -70,7 +70,7 @@ def _append_purchase_documents(documents: list[dict], limit: int) -> None:
         FROM purchase_documents pd
         LEFT JOIN suppliers s ON s.id = pd.supplier_id
         ORDER BY pd.purchase_date DESC, pd.id DESC
-        LIMIT ?
+        LIMIT %s
         """,
         (limit,),
     )
@@ -101,7 +101,7 @@ def _append_purchase_documents(documents: list[dict], limit: int) -> None:
         LEFT JOIN suppliers s ON s.id = p.supplier_id
         WHERE p.document_id IS NULL
         ORDER BY p.purchase_date DESC, p.id DESC
-        LIMIT ?
+        LIMIT %s
         """,
         (limit,),
     )
@@ -131,7 +131,7 @@ def _append_sale_documents(documents: list[dict], limit: int) -> None:
         FROM sale_documents sd
         LEFT JOIN clients c ON c.id = sd.client_id
         ORDER BY sd.sale_date DESC, sd.id DESC
-        LIMIT ?
+        LIMIT %s
         """,
         (limit,),
     )
@@ -162,7 +162,7 @@ def _append_sale_documents(documents: list[dict], limit: int) -> None:
         LEFT JOIN clients c ON c.id = s.client_id
         WHERE s.document_id IS NULL
         ORDER BY s.sale_date DESC, s.id DESC
-        LIMIT ?
+        LIMIT %s
         """,
         (limit,),
     )
@@ -193,7 +193,7 @@ def _append_sale_documents(documents: list[dict], limit: int) -> None:
         LEFT JOIN clients c ON c.id = rs.client_id
         WHERE rs.document_id IS NULL
         ORDER BY rs.sale_date DESC, rs.id DESC
-        LIMIT ?
+        LIMIT %s
         """,
         (limit,),
     )
@@ -223,7 +223,7 @@ def _append_payment_documents(documents: list[dict], limit: int) -> None:
         FROM payments p
         JOIN clients c ON c.id = p.client_id
         ORDER BY p.payment_date DESC, p.id DESC
-        LIMIT ?
+        LIMIT %s
         """,
         (limit,),
     )
@@ -254,7 +254,7 @@ def _append_production_documents(documents: list[dict], limit: int) -> None:
         FROM production_batches pb
         JOIN finished_products fp ON fp.id = pb.finished_product_id
         ORDER BY pb.production_date DESC, pb.id DESC
-        LIMIT ?
+        LIMIT %s
         """,
         (limit,),
     )
@@ -288,7 +288,7 @@ def _append_client_history_documents(documents: list[dict], limit: int) -> None:
         LEFT JOIN imported_client_history ich ON ich.client_id = c.id
         GROUP BY c.id, c.name, c.phone, c.address, c.created_at
         ORDER BY c.name ASC
-        LIMIT ?
+        LIMIT %s
         """,
         (limit,),
     )

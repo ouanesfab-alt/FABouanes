@@ -1,6 +1,6 @@
 """Add performance indexes
 
-Revision ID: 42e8e51bd5b4
+Revision ID: 0002b_add_performance_indexes
 Revises: 0002_perf_indexes
 Create Date: 2026-05-09 19:23:38.422673
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '42e8e51bd5b4'
+revision = '0002b_add_performance_indexes'
 down_revision = '0002_perf_indexes'
 branch_labels = None
 depends_on = None

@@ -5,12 +5,12 @@ from app.core.permissions import normalize_role
 
 
 def get_user_by_username(username: str):
-    row = query_db("SELECT * FROM users WHERE username = ?", (username,), one=True)
+    row = query_db("SELECT * FROM users WHERE username = %s", (username,), one=True)
     return dict(row) if row else None
 
 
 def get_user_by_id(user_id: int):
-    row = query_db("SELECT * FROM users WHERE id = ?", (user_id,), one=True)
+    row = query_db("SELECT * FROM users WHERE id = %s", (user_id,), one=True)
     return dict(row) if row else None
 
 
@@ -34,7 +34,7 @@ def create_user(
             must_change_password,
             is_active,
             last_password_change_at
-        ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ) VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
         """,
         (username, password_hash, normalize_role(role), must_change_password, int(bool(is_active))),
     )
@@ -44,10 +44,10 @@ def update_password(user_id: int, password_hash: str, must_change_password: int 
     return execute_db(
         """
         UPDATE users
-        SET password_hash = ?,
-            must_change_password = ?,
+        SET password_hash = %s,
+            must_change_password = %s,
             last_password_change_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        WHERE id = %s
         """,
         (password_hash, must_change_password, user_id),
     )
@@ -55,13 +55,13 @@ def update_password(user_id: int, password_hash: str, must_change_password: int 
 
 def update_user_role_and_status(user_id: int, role: str, is_active: int) -> int:
     return execute_db(
-        "UPDATE users SET role = ?, is_active = ? WHERE id = ?",
+        "UPDATE users SET role = %s, is_active = %s WHERE id = %s",
         (normalize_role(role), int(bool(is_active)), user_id),
     )
 
 
 def touch_login(user_id: int) -> int:
-    return execute_db("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
+    return execute_db("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = %s", (user_id,))
 
 
 def list_users():

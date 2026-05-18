@@ -22,7 +22,7 @@ class ReportsRepository:
                        COUNT(*) AS nb_sales
                 FROM raw_sales GROUP BY substr(sale_date::text, 1, 7)
             ) x
-            GROUP BY month ORDER BY month DESC LIMIT ?
+            GROUP BY month ORDER BY month DESC LIMIT %s
             """,
             (months,),
         )
@@ -35,7 +35,7 @@ class ReportsRepository:
                    SUM(total) AS total, COUNT(*) AS count
             FROM purchases
             GROUP BY substr(purchase_date::text, 1, 7)
-            ORDER BY month DESC LIMIT ?
+            ORDER BY month DESC LIMIT %s
             """,
             (months,),
         )
@@ -48,12 +48,12 @@ class ReportsRepository:
         where_r = "WHERE 1=1"
         params: list = []
         if date_from:
-            where_f += " AND s.sale_date >= ?"
-            where_r += " AND rs.sale_date >= ?"
+            where_f += " AND s.sale_date >= %s"
+            where_r += " AND rs.sale_date >= %s"
             params.extend([date_from, date_from])
         if date_to:
-            where_f += " AND s.sale_date <= ?"
-            where_r += " AND rs.sale_date <= ?"
+            where_f += " AND s.sale_date <= %s"
+            where_r += " AND rs.sale_date <= %s"
             params.extend([date_to, date_to])
         params.append(limit)
         rows = query_db(
@@ -69,7 +69,7 @@ class ReportsRepository:
                 FROM raw_sales rs JOIN raw_materials r ON r.id = rs.raw_material_id
                 {where_r} GROUP BY 1
             ) x
-            GROUP BY 1 ORDER BY revenue DESC LIMIT ?
+            GROUP BY 1 ORDER BY revenue DESC LIMIT %s
             """,
             tuple(params),
         )
@@ -82,12 +82,12 @@ class ReportsRepository:
         where_r = "WHERE rs.client_id IS NOT NULL"
         params: list = []
         if date_from:
-            where_f += " AND s.sale_date >= ?"
-            where_r += " AND rs.sale_date >= ?"
+            where_f += " AND s.sale_date >= %s"
+            where_r += " AND rs.sale_date >= %s"
             params.extend([date_from, date_from])
         if date_to:
-            where_f += " AND s.sale_date <= ?"
-            where_r += " AND rs.sale_date <= ?"
+            where_f += " AND s.sale_date <= %s"
+            where_r += " AND rs.sale_date <= %s"
             params.extend([date_to, date_to])
         params.append(limit)
         rows = query_db(
@@ -102,7 +102,7 @@ class ReportsRepository:
                 FROM raw_sales rs JOIN clients c ON c.id = rs.client_id
                 {where_r} GROUP BY 1
             ) x
-            GROUP BY 1 ORDER BY revenue DESC LIMIT ?
+            GROUP BY 1 ORDER BY revenue DESC LIMIT %s
             """,
             tuple(params),
         )
@@ -116,16 +116,16 @@ class ReportsRepository:
         params_p: list = []
         params_pay: list = []
         if date_from:
-            where_s += " AND sale_date >= ?"
-            where_p += " AND purchase_date >= ?"
-            where_pay += " AND payment_date >= ?"
+            where_s += " AND sale_date >= %s"
+            where_p += " AND purchase_date >= %s"
+            where_pay += " AND payment_date >= %s"
             params_s.append(date_from)
             params_p.append(date_from)
             params_pay.append(date_from)
         if date_to:
-            where_s += " AND sale_date <= ?"
-            where_p += " AND purchase_date <= ?"
-            where_pay += " AND payment_date <= ?"
+            where_s += " AND sale_date <= %s"
+            where_p += " AND purchase_date <= %s"
+            where_pay += " AND payment_date <= %s"
             params_s.append(date_to)
             params_p.append(date_to)
             params_pay.append(date_to)
@@ -160,10 +160,10 @@ class ReportsRepository:
             SELECT day, SUM(total) AS total, SUM(profit) AS profit, SUM(nb) AS count
             FROM (
                 SELECT sale_date AS day, SUM(total) AS total, SUM(profit_amount) AS profit, COUNT(*) AS nb
-                FROM sales WHERE sale_date >= ? GROUP BY sale_date
+                FROM sales WHERE sale_date >= %s GROUP BY sale_date
                 UNION ALL
                 SELECT sale_date AS day, SUM(total) AS total, SUM(profit_amount) AS profit, COUNT(*) AS nb
-                FROM raw_sales WHERE sale_date >= ? GROUP BY sale_date
+                FROM raw_sales WHERE sale_date >= %s GROUP BY sale_date
             ) x
             GROUP BY day ORDER BY day ASC
             """,
@@ -178,7 +178,7 @@ class ReportsRepository:
                           COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count
                    FROM expenses
                    GROUP BY substr(date::text, 1, 7)
-                   ORDER BY month DESC LIMIT ?""",
+                   ORDER BY month DESC LIMIT %s""",
                 (months,),
             )
             return [dict(r) for r in rows]
@@ -190,10 +190,10 @@ class ReportsRepository:
             sql = "SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE 1=1"
             params: list = []
             if date_from:
-                sql += " AND date >= ?"
+                sql += " AND date >= %s"
                 params.append(date_from)
             if date_to:
-                sql += " AND date <= ?"
+                sql += " AND date <= %s"
                 params.append(date_to)
             row = query_db(sql, tuple(params), one=True)
             return float(row["total"]) if row else 0.0
@@ -205,12 +205,12 @@ class ReportsRepository:
         where_rs = "WHERE 1=1"
         params_cogs = []
         if date_from:
-            where_s += " AND sale_date >= ?"
-            where_rs += " AND sale_date >= ?"
+            where_s += " AND sale_date >= %s"
+            where_rs += " AND sale_date >= %s"
             params_cogs.extend([date_from, date_from])
         if date_to:
-            where_s += " AND sale_date <= ?"
-            where_rs += " AND sale_date <= ?"
+            where_s += " AND sale_date <= %s"
+            where_rs += " AND sale_date <= %s"
             params_cogs.extend([date_to, date_to])
             
         row = query_db(

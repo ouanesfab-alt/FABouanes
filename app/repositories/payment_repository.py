@@ -14,13 +14,13 @@ def list_payment_page_context(args=None):
     where: list[str] = []
     params: list[object] = []
     if search:
-        where.append("(LOWER(c.name) LIKE LOWER(?) OR p.payment_date = ?)")
+        where.append("(LOWER(c.name) LIKE LOWER(?) OR p.payment_date = %s)")
         params.extend([f"%{search}%", search])
     if payment_date:
-        where.append("p.payment_date = ?")
+        where.append("p.payment_date = %s")
         params.append(payment_date)
     if payment_kind in {"versement", "avance"}:
-        where.append("p.payment_type = ?")
+        where.append("p.payment_type = %s")
         params.append(payment_kind)
     query = """
         SELECT p.id, p.*, c.name AS client_name,
@@ -53,7 +53,7 @@ def payment_form_context():
 
 
 def get_payment(payment_id: int):
-    return query_db("SELECT * FROM payments WHERE id = ?", (payment_id,), one=True)
+    return query_db("SELECT * FROM payments WHERE id = %s", (payment_id,), one=True)
 async def list_payments(
     search: str | None = None,
     date_from: str | None = None,
@@ -72,14 +72,14 @@ async def list_payments(
         params.extend([like, like])
         
     if date_from:
-        where.append("p.payment_date >= ?")
+        where.append("p.payment_date >= %s")
         params.append(date_from)
     if date_to:
-        where.append("p.payment_date <= ?")
+        where.append("p.payment_date <= %s")
         params.append(date_to)
         
     if kind in {"versement", "avance"}:
-        where.append("p.payment_type = ?")
+        where.append("p.payment_type = %s")
         params.append(kind)
         
     base_query = """
@@ -97,7 +97,7 @@ async def list_payments(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY payment_date DESC, id DESC LIMIT ? OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY payment_date DESC, id DESC LIMIT %s OFFSET ?"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total

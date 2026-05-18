@@ -16,7 +16,7 @@ def client_balance(client_id: int) -> float:
              - COALESCE((SELECT SUM(amount) FROM payments WHERE client_id = c.id AND payment_type = 'versement'), 0)
              + COALESCE((SELECT SUM(amount) FROM payments WHERE client_id = c.id AND payment_type = 'avance'), 0) AS balance
         FROM clients c
-        WHERE c.id = ?
+        WHERE c.id = %s
         """,
         (client_id,),
         one=True,
@@ -29,8 +29,8 @@ def get_open_credit_entries(client_id: int | None = None):
     where_sales = "WHERE s.balance_due > 0"
     where_raw = "WHERE rs.balance_due > 0"
     if client_id is not None:
-        where_sales += " AND s.client_id = ?"
-        where_raw += " AND rs.client_id = ?"
+        where_sales += " AND s.client_id = %s"
+        where_raw += " AND rs.client_id = %s"
         params.append(client_id)
         params.append(client_id)
     return query_db(
@@ -60,18 +60,18 @@ def apply_payment_to_entry(kind: str, row_id: int, amount: float) -> float:
     if amount <= 0:
         return 0.0
     if kind == "finished":
-        sale = query_db("SELECT balance_due, document_id FROM sales WHERE id = ?", (row_id,), one=True)
+        sale = query_db("SELECT balance_due, document_id FROM sales WHERE id = %s", (row_id,), one=True)
         if not sale:
             return 0.0
         paid = min(amount, float(sale["balance_due"]))
-        execute_db("UPDATE sales SET balance_due = balance_due - ?, amount_paid = amount_paid + ? WHERE id = ?", (paid, paid, row_id))
+        execute_db("UPDATE sales SET balance_due = balance_due - ?, amount_paid = amount_paid + ? WHERE id = %s", (paid, paid, row_id))
         recalc_sale_document_totals(int(sale["document_id"])) if sale["document_id"] else None
         return paid
-    sale = query_db("SELECT balance_due, document_id FROM raw_sales WHERE id = ?", (row_id,), one=True)
+    sale = query_db("SELECT balance_due, document_id FROM raw_sales WHERE id = %s", (row_id,), one=True)
     if not sale:
         return 0.0
     paid = min(amount, float(sale["balance_due"]))
-    execute_db("UPDATE raw_sales SET balance_due = balance_due - ?, amount_paid = amount_paid + ? WHERE id = ?", (paid, paid, row_id))
+    execute_db("UPDATE raw_sales SET balance_due = balance_due - ?, amount_paid = amount_paid + ? WHERE id = %s", (paid, paid, row_id))
     recalc_sale_document_totals(int(sale["document_id"])) if sale["document_id"] else None
     return paid
 
@@ -91,23 +91,23 @@ def reverse_payment_allocations(payment_row) -> None:
                 if amount <= 0:
                     continue
                 if kind == "finished":
-                    doc_row = query_db("SELECT document_id FROM sales WHERE id = ?", (row_id,), one=True)
-                    execute_db("UPDATE sales SET amount_paid = amount_paid - ?, balance_due = balance_due + ? WHERE id = ?", (amount, amount, row_id))
+                    doc_row = query_db("SELECT document_id FROM sales WHERE id = %s", (row_id,), one=True)
+                    execute_db("UPDATE sales SET amount_paid = amount_paid - ?, balance_due = balance_due + ? WHERE id = %s", (amount, amount, row_id))
                     recalc_sale_document_totals(int(doc_row["document_id"])) if doc_row and doc_row["document_id"] else None
                 elif kind == "raw":
-                    doc_row = query_db("SELECT document_id FROM raw_sales WHERE id = ?", (row_id,), one=True)
-                    execute_db("UPDATE raw_sales SET amount_paid = amount_paid - ?, balance_due = balance_due + ? WHERE id = ?", (amount, amount, row_id))
+                    doc_row = query_db("SELECT document_id FROM raw_sales WHERE id = %s", (row_id,), one=True)
+                    execute_db("UPDATE raw_sales SET amount_paid = amount_paid - ?, balance_due = balance_due + ? WHERE id = %s", (amount, amount, row_id))
                     recalc_sale_document_totals(int(doc_row["document_id"])) if doc_row and doc_row["document_id"] else None
             return
         if payment_row["payment_type"] != "versement":
             return
         if payment_row["sale_kind"] == "finished" and payment_row["sale_id"]:
-            doc_row = query_db("SELECT document_id FROM sales WHERE id = ?", (payment_row["sale_id"],), one=True)
-            execute_db("UPDATE sales SET amount_paid = amount_paid - ?, balance_due = balance_due + ? WHERE id = ?", (payment_row["amount"], payment_row["amount"], payment_row["sale_id"]))
+            doc_row = query_db("SELECT document_id FROM sales WHERE id = %s", (payment_row["sale_id"],), one=True)
+            execute_db("UPDATE sales SET amount_paid = amount_paid - ?, balance_due = balance_due + ? WHERE id = %s", (payment_row["amount"], payment_row["amount"], payment_row["sale_id"]))
             recalc_sale_document_totals(int(doc_row["document_id"])) if doc_row and doc_row["document_id"] else None
         elif payment_row["sale_kind"] == "raw" and payment_row["raw_sale_id"]:
-            doc_row = query_db("SELECT document_id FROM raw_sales WHERE id = ?", (payment_row["raw_sale_id"],), one=True)
-            execute_db("UPDATE raw_sales SET amount_paid = amount_paid - ?, balance_due = balance_due + ? WHERE id = ?", (payment_row["amount"], payment_row["amount"], payment_row["raw_sale_id"]))
+            doc_row = query_db("SELECT document_id FROM raw_sales WHERE id = %s", (payment_row["raw_sale_id"],), one=True)
+            execute_db("UPDATE raw_sales SET amount_paid = amount_paid - ?, balance_due = balance_due + ? WHERE id = %s", (payment_row["amount"], payment_row["amount"], payment_row["raw_sale_id"]))
             recalc_sale_document_totals(int(doc_row["document_id"])) if doc_row and doc_row["document_id"] else None
 
 
@@ -115,14 +115,14 @@ def create_payment_record(client_id: int, amount: float, payment_date: str, note
     if amount <= 0:
         raise ValueError("Le montant doit etre superieur a zero.")
     with db_transaction():
-        client = query_db("SELECT id FROM clients WHERE id = ?", (client_id,), one=True)
+        client = query_db("SELECT id FROM clients WHERE id = %s", (client_id,), one=True)
         if not client:
             raise ValueError("Client introuvable.")
         if payment_type == "avance":
             return execute_db(
                 """
                 INSERT INTO payments (client_id, sale_id, raw_sale_id, sale_kind, payment_type, allocation_meta, amount, payment_date, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (client_id, None, None, None, "avance", None, amount, payment_date, notes or "Avance client"),
             )
@@ -136,7 +136,7 @@ def create_payment_record(client_id: int, amount: float, payment_date: str, note
             sale_kind, id_str = sale_link.split(":", 1)
             row_id = int(id_str)
             entry = query_db(
-                "SELECT client_id FROM sales WHERE id = ?" if sale_kind == "finished" else "SELECT client_id FROM raw_sales WHERE id = ?",
+                "SELECT client_id FROM sales WHERE id = %s" if sale_kind == "finished" else "SELECT client_id FROM raw_sales WHERE id = %s",
                 (row_id,),
                 one=True,
             )
@@ -166,7 +166,7 @@ def create_payment_record(client_id: int, amount: float, payment_date: str, note
         return execute_db(
             """
             INSERT INTO payments (client_id, sale_id, raw_sale_id, sale_kind, payment_type, allocation_meta, amount, payment_date, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (client_id, sale_id, raw_sale_id, sale_kind, "versement", json.dumps(allocations) if allocations else None, amount, payment_date, notes or "Versement client"),
         )

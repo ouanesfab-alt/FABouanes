@@ -1,15 +1,15 @@
 """Add indexes for operations sorting and VACUUM schedule
 
-Revision ID: 0014_operations_perf
-Revises: 0013_add_bi_reporting_indexes
+Revision ID: 0012_operations_perf
+Revises: 0011_add_bi_reporting_indexes
 Create Date: 2026-05-18 01:16:00.000000
 """
 from __future__ import annotations
 
 from alembic import op
 
-revision = '0014_operations_perf'
-down_revision = '0013_add_bi_reporting_indexes'
+revision = '0012_operations_perf'
+down_revision = '0011_add_bi_reporting_indexes'
 branch_labels = None
 depends_on = None
 

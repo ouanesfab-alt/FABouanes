@@ -426,7 +426,7 @@ class DatabaseManager:
         if table in {"app_settings", "schema_migrations"}:
             return 0
         try:
-            cur = db.execute("SELECT currval(pg_get_serial_sequence(?, 'id')) AS id", (table,))
+            cur = db.execute("SELECT currval(pg_get_serial_sequence(%s, 'id')) AS id", (table,))
             row = cur.fetchone()
             cur.close()
             return int(row["id"] if row else 0)
@@ -466,7 +466,7 @@ class DatabaseManager:
 
     def get_setting(self, key: str, default: str = '') -> str:
         try:
-            row = self.query_db('SELECT value FROM app_settings WHERE key = ?', (key,), one=True)
+            row = self.query_db('SELECT value FROM app_settings WHERE key = %s', (key,), one=True)
             return row['value'] if row and row['value'] is not None else default
         except Exception as e:
             logger.debug("Ignored error: %s", e, exc_info=False)
@@ -474,7 +474,7 @@ class DatabaseManager:
 
     def set_setting(self, key: str, value: str) -> None:
         self.execute_db(
-            'INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP',
+            'INSERT INTO app_settings (key, value, updated_at) VALUES (%s, %s, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP',
             (key, value)
         )
 
@@ -534,7 +534,7 @@ class DatabaseManager:
                     cur = self._perf_conn.execute(
                         """
                         INSERT INTO performance_logs (kind, name, elapsed_ms, route, details, created_at)
-                        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                        VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
                         """,
                         (kind, name, elapsed_ms, route, details),
                     )

@@ -103,17 +103,17 @@ def transactions_context(
 def update_production_notes(batch_id: int, production_date: str, notes: str) -> None:
     if not batch_id:
         raise ValueError("Identifiant manquant.")
-    before = query_db("SELECT * FROM production_batches WHERE id = ?", (batch_id,), one=True)
+    before = query_db("SELECT * FROM production_batches WHERE id = %s", (batch_id,), one=True)
     if not before:
         raise ValueError("Production introuvable.")
     updates = {}
     if production_date:
         updates["production_date"] = production_date
     updates["notes"] = notes
-    sets = ", ".join(f"{key}=?" for key in updates)
+    sets = ", ".join(f"{key}=%s" for key in updates)
     values = list(updates.values()) + [batch_id]
-    execute_db(f"UPDATE production_batches SET {sets} WHERE id = ?", tuple(values))
-    after = query_db("SELECT * FROM production_batches WHERE id = ?", (batch_id,), one=True)
+    execute_db(f"UPDATE production_batches SET {sets} WHERE id = %s", tuple(values))
+    after = query_db("SELECT * FROM production_batches WHERE id = %s", (batch_id,), one=True)
     log_activity("edit_production_notes", "production", batch_id, f"date={production_date}")
     audit_event("edit_production_notes", "production", batch_id, before=before, after=after)
     backup_database("edit_production_notes")

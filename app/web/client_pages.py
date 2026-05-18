@@ -253,14 +253,14 @@ async def delete_client(request: Request, client_id: int):
         return denied
     await csrf_protect(request)
     has_ops = query_db(
-        "SELECT 1 FROM sales WHERE client_id = ? UNION SELECT 1 FROM raw_sales WHERE client_id = ? UNION SELECT 1 FROM payments WHERE client_id = ? LIMIT 1",
+        "SELECT 1 FROM sales WHERE client_id = %s UNION SELECT 1 FROM raw_sales WHERE client_id = %s UNION SELECT 1 FROM payments WHERE client_id = %s LIMIT 1",
         (client_id, client_id, client_id),
         one=True,
     )
     if has_ops:
         flash(request, "Impossible de supprimer un client avec historique.", "danger")
         return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
-    execute_db("DELETE FROM clients WHERE id = ?", (client_id,))
+    execute_db("DELETE FROM clients WHERE id = %s", (client_id,))
     log_activity("delete_client", "client", client_id, "Suppression client")
     backup_database("delete_client")
     flash(request, "Client supprime.", "success")

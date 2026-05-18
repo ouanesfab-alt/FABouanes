@@ -57,25 +57,25 @@ def save_recipe_definition(
     if not clean_name or not recipe_lines:
         return None
     existing = query_db(
-        "SELECT id FROM saved_recipes WHERE finished_product_id = ? AND lower(name) = lower(?)",
+        "SELECT id FROM saved_recipes WHERE finished_product_id = %s AND lower(name) = lower(?)",
         (finished_id, clean_name),
         one=True,
     )
     if existing:
         recipe_id = int(existing["id"])
         execute_db(
-            "UPDATE saved_recipes SET notes = ?, updated_at = CURRENT_TIMESTAMP, created_by_user_id = COALESCE(created_by_user_id, ?) WHERE id = ?",
+            "UPDATE saved_recipes SET notes = %s, updated_at = CURRENT_TIMESTAMP, created_by_user_id = COALESCE(created_by_user_id, ?) WHERE id = %s",
             (notes, user_id, recipe_id),
         )
-        execute_db("DELETE FROM saved_recipe_items WHERE recipe_id = ?", (recipe_id,))
+        execute_db("DELETE FROM saved_recipe_items WHERE recipe_id = %s", (recipe_id,))
     else:
         recipe_id = execute_db(
-            "INSERT INTO saved_recipes (finished_product_id, name, notes, created_by_user_id) VALUES (?, ?, ?, ?)",
+            "INSERT INTO saved_recipes (finished_product_id, name, notes, created_by_user_id) VALUES (%s, %s, %s, %s)",
             (finished_id, clean_name, notes, user_id),
         )
     for position, line in enumerate(recipe_lines, start=1):
         execute_db(
-            "INSERT INTO saved_recipe_items (recipe_id, raw_material_id, quantity, position) VALUES (?, ?, ?, ?)",
+            "INSERT INTO saved_recipe_items (recipe_id, raw_material_id, quantity, position) VALUES (%s, %s, %s, %s)",
             (recipe_id, int(line["material"]["id"]), float(line["qty"]), position),
         )
     return recipe_id

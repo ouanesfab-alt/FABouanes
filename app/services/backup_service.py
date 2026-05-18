@@ -90,7 +90,7 @@ def enqueue_backup_upload(
             status,
             context_json,
             created_at
-        ) VALUES (?, ?, ?, ?, 'pending', ?, CURRENT_TIMESTAMP)
+        ) VALUES (%s, %s, %s, %s, 'pending', %s, CURRENT_TIMESTAMP)
         """,
         (
             reason,
@@ -126,7 +126,7 @@ def list_backup_jobs(limit: int = 40):
         FROM backup_jobs bj
         LEFT JOIN users u ON u.id = bj.requested_by_user_id
         ORDER BY bj.id DESC
-        LIMIT ?
+        LIMIT %s
         """,
         (int(limit),),
     )
@@ -136,7 +136,7 @@ def _record_backup_run(job_id: int, status: str, *, cloud_file_name: str = "", d
     execute_db(
         """
         INSERT INTO backup_runs (job_id, status, cloud_file_id, cloud_file_name, details_json, started_at, finished_at)
-        VALUES (?, ?, '', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        VALUES (%s, %s, '', %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """,
         (job_id, status, cloud_file_name, details),
     )
@@ -216,13 +216,13 @@ def run_pending_backup_jobs(limit: int = 3) -> int:
         FROM backup_jobs
         WHERE status = 'pending'
         ORDER BY id ASC
-        LIMIT ?
+        LIMIT %s
         """,
         (int(limit),),
     )
     for job in jobs:
         processed += 1
-        execute_db("UPDATE backup_jobs SET status = 'running', started_at = CURRENT_TIMESTAMP WHERE id = ?", (job["id"],))
+        execute_db("UPDATE backup_jobs SET status = 'running', started_at = CURRENT_TIMESTAMP WHERE id = %s", (job["id"],))
         sync_file_name = ""
         details = "local-only"
         try:
@@ -231,7 +231,7 @@ def run_pending_backup_jobs(limit: int = 3) -> int:
                 from app.core.storage import capture_local_backup_snapshot
  
                 local_path = capture_local_backup_snapshot(str(job["reason"] or "manual"))
-                execute_db("UPDATE backup_jobs SET local_path = ? WHERE id = ?", (str(local_path), job["id"]))
+                execute_db("UPDATE backup_jobs SET local_path = %s WHERE id = %s", (str(local_path), job["id"]))
             if not local_path.exists():
                 raise FileNotFoundError(f"Sauvegarde locale introuvable: {local_path}")
             checksum = _calculate_sha256(local_path)
@@ -250,10 +250,10 @@ def run_pending_backup_jobs(limit: int = 3) -> int:
                 SET status = 'success',
                     finished_at = CURRENT_TIMESTAMP,
                     cloud_file_id = '',
-                    cloud_file_name = ?,
-                    context_json = ?,
+                    cloud_file_name = %s,
+                    context_json = %s,
                     error_message = ''
-                WHERE id = ?
+                WHERE id = %s
                 """,
                 (sync_file_name, json.dumps(job_details), job["id"]),
             )
@@ -270,8 +270,8 @@ def run_pending_backup_jobs(limit: int = 3) -> int:
                 UPDATE backup_jobs
                 SET status = 'failed',
                     finished_at = CURRENT_TIMESTAMP,
-                    error_message = ?
-                WHERE id = ?
+                    error_message = %s
+                WHERE id = %s
                 """,
                 (str(exc), job["id"]),
             )
@@ -331,7 +331,7 @@ def _acquire_postgres_scheduler_lock():
             return True
     try:
         leader_conn = connect_database(DATABASE_URL)
-        row = leader_conn.execute("SELECT pg_try_advisory_lock(?) AS locked", (SCHEDULER_LOCK_ID,)).fetchone()
+        row = leader_conn.execute("SELECT pg_try_advisory_lock(%s) AS locked", (SCHEDULER_LOCK_ID,)).fetchone()
         locked = bool(row["locked"] if hasattr(row, "keys") else row[0])
         if locked:
             with BACKGROUND_LOCK:

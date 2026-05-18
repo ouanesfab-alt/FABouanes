@@ -16,7 +16,7 @@ def list_production_page_context(args=None):
         where.append("LOWER(fp.name || ' ' || COALESCE(pb.notes, '')) LIKE LOWER(?)")
         params.append(f"%{q}%")
     if production_date:
-        where.append("pb.production_date = ?")
+        where.append("pb.production_date = %s")
         params.append(production_date)
     query = '''
         SELECT pb.*, fp.name AS finished_name
@@ -82,10 +82,10 @@ async def list_production_batches(
         params.extend([like, like])
         
     if date_from:
-        where.append("pb.production_date >= ?")
+        where.append("pb.production_date >= %s")
         params.append(date_from)
     if date_to:
-        where.append("pb.production_date <= ?")
+        where.append("pb.production_date <= %s")
         params.append(date_to)
         
     base_query = """
@@ -98,7 +98,7 @@ async def list_production_batches(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY production_date DESC, id DESC LIMIT ? OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY production_date DESC, id DESC LIMIT %s OFFSET ?"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total
@@ -118,7 +118,7 @@ async def list_recipes(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY id DESC LIMIT ? OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY id DESC LIMIT %s OFFSET ?"
     rows = await query_db_async(wrapped, (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total

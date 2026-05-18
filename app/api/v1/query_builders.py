@@ -12,7 +12,7 @@ def pagination_meta(request: Request) -> tuple[int, int, int]:
 
 def query_list(request: Request, query: str, params: tuple[Any, ...] = ()) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     page, page_size, offset = pagination_meta(request)
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({query}) _q LIMIT ? OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({query}) _q LIMIT %s OFFSET ?"
     rows = query_db(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(row) for row in rows], {
@@ -24,7 +24,7 @@ def query_list(request: Request, query: str, params: tuple[Any, ...] = ()) -> tu
 
 async def query_list_async(request: Request, query: str, params: tuple[Any, ...] = ()) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     page, page_size, offset = pagination_meta(request)
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({query}) _q LIMIT ? OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({query}) _q LIMIT %s OFFSET ?"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(row) for row in rows], {
@@ -49,10 +49,10 @@ def append_date_range(request: Request, where: list[str], params: list[Any], fie
     date_from = str(request.query_params.get("date_from", "") or "").strip()
     date_to = str(request.query_params.get("date_to", "") or "").strip()
     if date_from:
-        where.append(f"{field} >= ?")
+        where.append(f"{field} >= %s")
         params.append(date_from)
     if date_to:
-        where.append(f"{field} <= ?")
+        where.append(f"{field} <= %s")
         params.append(date_to)
 
 def client_balance_sql(alias: str = "c") -> str:

@@ -77,7 +77,7 @@ def log_activity(
             INSERT INTO activity_logs (
                 user_id, username, action, entity_type, entity_id, details,
                 old_value, new_value, ip_address, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
             """,
             (
                 user_id,
@@ -93,7 +93,7 @@ def log_activity(
         )
     except Exception:
         execute_db(
-            "INSERT INTO activity_logs (username, action, entity_type, entity_id, details, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+            "INSERT INTO activity_logs (username, action, entity_type, entity_id, details, created_at) VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)",
             (username, action, entity_type, entity_id, details),
         )
     write_text_log("activity.log", f"{username} | {action} | {entity_type}#{entity_id or '-'} | {details}")
@@ -109,7 +109,7 @@ def log_error(exc: Exception, route: str = "") -> None:
     execute_db(
         """
         INSERT INTO error_logs (username, route, error_type, message, traceback, created_at)
-        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
         """,
         (username, current_route, type(exc).__name__, str(exc), tb),
     )

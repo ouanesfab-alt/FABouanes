@@ -53,7 +53,7 @@ async def api_sales(request: Request):
         payload = await request.json()
         client_id = payload.get("client_id")
         if client_id:
-            client_exists = await asyncio.to_thread(query_db, "SELECT id FROM clients WHERE id = ?", (client_id,), one=True)
+            client_exists = await asyncio.to_thread(query_db, "SELECT id FROM clients WHERE id = %s", (client_id,), one=True)
             if not client_exists:
                 api_error("not_found", f"Client introuvable (ID: {client_id})", 404)
         

@@ -40,16 +40,16 @@ def edit_production_notes_from_form(form) -> bool:
     batch_id = int(form.get("batch_id", 0) or 0)
     if not batch_id:
         raise ValueError("Identifiant de production manquant.")
-    before = query_db("SELECT * FROM production_batches WHERE id = ?", (batch_id,), one=True)
+    before = query_db("SELECT * FROM production_batches WHERE id = %s", (batch_id,), one=True)
     if not before:
         raise ValueError("Production introuvable.")
     production_date = (form.get("production_date") or before["production_date"] or date.today().isoformat()).strip()
     notes = (form.get("notes") or "").strip()
     execute_db(
-        "UPDATE production_batches SET production_date = ?, notes = ? WHERE id = ?",
+        "UPDATE production_batches SET production_date = %s, notes = %s WHERE id = %s",
         (production_date, notes, batch_id),
     )
-    after = query_db("SELECT * FROM production_batches WHERE id = ?", (batch_id,), one=True)
+    after = query_db("SELECT * FROM production_batches WHERE id = %s", (batch_id,), one=True)
     log_activity("edit_production_notes", "production", batch_id, f"date={production_date}")
     audit_event("edit_production_notes", "production", batch_id, before=before, after=after)
     mark_backup_needed("edit_production_notes")
@@ -69,7 +69,7 @@ def create_production_from_form(form):
         raise ValueError("La date de production ne peut pas etre dans le futur.")
     if output_qty <= 0:
         raise ValueError("La quantite produite doit etre superieure a zero.")
-    product = query_db("SELECT * FROM finished_products WHERE id = ?", (finished_id,), one=True)
+    product = query_db("SELECT * FROM finished_products WHERE id = %s", (finished_id,), one=True)
     if not product:
         raise ValueError("Produit final introuvable.")
     recipe_lines = []
@@ -81,7 +81,7 @@ def create_production_from_form(form):
         qty = to_float(qty_str)
         if qty <= 0:
             continue
-        material = query_db("SELECT * FROM raw_materials WHERE id = ?", (int(raw_id),), one=True)
+        material = query_db("SELECT * FROM raw_materials WHERE id = %s", (int(raw_id),), one=True)
         if not material:
             raise ValueError("Une matière première selectionnee est introuvable.")
         if qty > float(material["stock_qty"]):
@@ -96,12 +96,12 @@ def create_production_from_form(form):
     recipe_id = None
     with db_transaction():
         batch_id = execute_db(
-            "INSERT INTO production_batches (finished_product_id, output_quantity, production_cost, unit_cost, production_date, notes) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO production_batches (finished_product_id, output_quantity, production_cost, unit_cost, production_date, notes) VALUES (%s, %s, %s, %s, %s, %s)",
             (finished_id, output_qty, total_cost, (total_cost / output_qty) if output_qty else 0, production_date, notes),
         )
         for line in recipe_lines:
             execute_db(
-                "INSERT INTO production_batch_items (batch_id, raw_material_id, quantity, unit_cost_snapshot, line_cost) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO production_batch_items (batch_id, raw_material_id, quantity, unit_cost_snapshot, line_cost) VALUES (%s, %s, %s, %s, %s)",
                 (batch_id, int(line["material"]["id"]), line["qty"], line["unit_cost"], line["line_cost"]),
             )
             apply_raw_material_consumption(line["material"], line["qty"], "production", batch_id, "create_production")
@@ -115,7 +115,7 @@ def create_production_from_form(form):
                 _current_user_id(),
             )
 
-    batch = query_db("SELECT * FROM production_batches WHERE id = ?", (batch_id,), one=True)
+    batch = query_db("SELECT * FROM production_batches WHERE id = %s", (batch_id,), one=True)
     log_activity("create_production", "production", batch_id, f"produit #{finished_id} sortie={output_qty}kg cout={total_cost}")
     audit_event(
         "create_production",
@@ -125,7 +125,7 @@ def create_production_from_form(form):
         meta={"recipe_id": recipe_id, "lines": [{"raw_material_id": line["material"]["id"], "quantity": line["qty"]} for line in recipe_lines]},
     )
     if recipe_id:
-        recipe = query_db("SELECT * FROM saved_recipes WHERE id = ?", (recipe_id,), one=True)
+        recipe = query_db("SELECT * FROM saved_recipes WHERE id = %s", (recipe_id,), one=True)
         audit_event("save_recipe", "recipe", recipe_id, after=recipe)
     invalidate_sellable_items_cache()
     mark_backup_needed("create_production")
@@ -134,7 +134,7 @@ def create_production_from_form(form):
 
 
 def delete_production_by_id(batch_id: int) -> bool:
-    before = query_db("SELECT * FROM production_batches WHERE id = ?", (batch_id,), one=True)
+    before = query_db("SELECT * FROM production_batches WHERE id = %s", (batch_id,), one=True)
     ok = reverse_production(batch_id)
     if ok:
         log_activity("delete_production", "production", batch_id, "Suppression production")

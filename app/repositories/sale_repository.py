@@ -63,14 +63,14 @@ async def list_sales(
         params.extend([like, like, like])
         
     if date_from:
-        where.append("sale_date >= ?")
+        where.append("sale_date >= %s")
         params.append(date_from)
     if date_to:
-        where.append("sale_date <= ?")
+        where.append("sale_date <= %s")
         params.append(date_to)
         
     if kind in {"finished", "raw"}:
-        where.append("row_kind = ?")
+        where.append("row_kind = %s")
         params.append(kind)
         
     if status == "paid":
@@ -78,7 +78,7 @@ async def list_sales(
     elif status == "due":
         where.append("balance_due > 0")
     elif status in {"cash", "credit"}:
-        where.append("sale_type = ?")
+        where.append("sale_type = %s")
         params.append(status)
         
     base_query = """
@@ -103,7 +103,7 @@ async def list_sales(
     
     offset = (page - 1) * page_size
     
-    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY sale_date DESC, id DESC LIMIT ? OFFSET ?"
+    wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY sale_date DESC, id DESC LIMIT %s OFFSET ?"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total
@@ -117,7 +117,7 @@ def get_sale(kind: str, row_id: int):
             FROM sales s
             LEFT JOIN clients c ON c.id = s.client_id
             JOIN finished_products f ON f.id = s.finished_product_id
-            WHERE s.id = ?
+            WHERE s.id = %s
         """, (row_id,), one=True)
     return query_db("""
         SELECT rs.*, COALESCE(c.name, 'Comptoir') AS client_name, COALESCE(NULLIF(rs.custom_item_name, ''), r.name) AS item_name,
@@ -125,10 +125,10 @@ def get_sale(kind: str, row_id: int):
         FROM raw_sales rs
         LEFT JOIN clients c ON c.id = rs.client_id
         JOIN raw_materials r ON r.id = rs.raw_material_id
-        WHERE rs.id = ?
+        WHERE rs.id = %s
     """, (row_id,), one=True)
 def get_sale_document(document_id: int):
-    return query_db("SELECT * FROM sale_documents WHERE id = ?", (document_id,), one=True)
+    return query_db("SELECT * FROM sale_documents WHERE id = %s", (document_id,), one=True)
 
 
 def list_sale_document_lines(document_id: int):
@@ -140,14 +140,14 @@ def list_sale_document_lines(document_id: int):
                    'Produit fini' AS item_kind, '' AS custom_item_name
             FROM sales s
             JOIN finished_products f ON f.id = s.finished_product_id
-            WHERE s.document_id = ?
+            WHERE s.document_id = %s
             UNION ALL
             SELECT rs.id AS row_id, rs.document_id, rs.sale_date, rs.quantity, rs.unit, rs.unit_price, rs.total, rs.amount_paid, rs.balance_due,
                    r.name AS item_name, 'raw' AS row_kind, 'raw:' || rs.raw_material_id AS item_key,
                    'Matiere premiere' AS item_kind, rs.custom_item_name
             FROM raw_sales rs
             JOIN raw_materials r ON r.id = rs.raw_material_id
-            WHERE rs.document_id = ?
+            WHERE rs.document_id = %s
         ) x ORDER BY row_id
         """,
         (document_id, document_id),

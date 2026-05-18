@@ -51,14 +51,14 @@ def _build_client_detail_context(client_id: int):
                    s.total AS purchase_amount, 0.0 AS payment_amount, 'sale_finished' AS event_type
             FROM sales s
             JOIN finished_products f ON f.id = s.finished_product_id
-            WHERE s.client_id = ?
+            WHERE s.client_id = %s
             UNION ALL
             SELECT rs.id AS row_id, rs.document_id AS document_id, COALESCE(rs.document_id, rs.id) AS sort_sequence, rs.sale_date AS event_date,
                    NULL AS designation, COALESCE(NULLIF(rs.custom_item_name, ''), r.name) AS item_name, rs.quantity AS quantity, rs.unit AS unit,
                    rs.total AS purchase_amount, 0.0 AS payment_amount, 'sale_raw' AS event_type
             FROM raw_sales rs
             JOIN raw_materials r ON r.id = rs.raw_material_id
-            WHERE rs.client_id = ?
+            WHERE rs.client_id = %s
             UNION ALL
             SELECT p.id AS row_id, NULL AS document_id, p.id AS sort_sequence, p.payment_date AS event_date,
                    CASE
@@ -71,7 +71,7 @@ def _build_client_detail_context(client_id: int):
                    CASE WHEN p.payment_type='versement' THEN p.amount ELSE 0 END AS payment_amount,
                    CASE WHEN p.payment_type='avance' THEN 'advance' ELSE 'payment' END AS event_type
             FROM payments p
-            WHERE p.client_id = ?
+            WHERE p.client_id = %s
         ) events
         ORDER BY event_date,
                  CASE WHEN event_type IN ('sale_finished', 'sale_raw') THEN 0 ELSE 1 END,
@@ -307,8 +307,8 @@ def _import_parsed_client_rows(rows: list[dict]):
                     execute_db(
                         """UPDATE clients
                            SET phone = CASE WHEN COALESCE(phone,'')='' THEN ? ELSE phone END,
-                               opening_credit = ?
-                           WHERE id = ?""",
+                               opening_credit = %s
+                           WHERE id = %s""",
                         (row["phone"], row["opening_credit"], existing_id),
                     )
                     after = get_client(existing_id)
