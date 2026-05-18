@@ -12,21 +12,34 @@
     window.fabCsrfToken=token;
   }
 
-  document.addEventListener('submit',function(event){
-    const form=event.target;
-    if(!form || form.dataset.noSpinner) return;
-    if((form.method||'').toLowerCase()==='get') return;
-    const button=form.querySelector('button[type="submit"],button:not([type])');
-    if(!button || button.dataset.spinning) return;
-    button.dataset.spinning='1';
-    button.disabled=true;
-    const original=button.innerHTML;
-    button.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>En cours...';
-    setTimeout(function(){
-      button.disabled=false;
-      button.innerHTML=original;
-      delete button.dataset.spinning;
-    },8000);
+  document.addEventListener('submit', function(event) {
+    const form = event.target;
+    if (!form || form.dataset.noSpinner || form.hasAttribute('data-no-spinner') || form.target === '_blank') return;
+    if ((form.method || '').toLowerCase() === 'get') return;
+    
+    const button = form.querySelector('button[type="submit"], input[type="submit"], button:not([type])');
+    if (!button || button.classList.contains('is-loading')) return;
+    
+    button.classList.add('is-loading', 'disabled');
+    const originalHTML = button.innerHTML;
+    button.setAttribute('data-original-html', originalHTML);
+    
+    // Prepend a beautiful spinner to the existing content
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + originalHTML;
+    
+    // Disable click events after a tiny delay so the submit event finishes executing
+    setTimeout(() => {
+      button.disabled = true;
+    }, 0);
+    
+    // Safety fallback to restore the button after 8 seconds (e.g., if submission is blocked or slow)
+    setTimeout(() => {
+      if (button.classList.contains('is-loading')) {
+        button.classList.remove('is-loading', 'disabled');
+        button.disabled = false;
+        button.innerHTML = originalHTML;
+      }
+    }, 8000);
   });
 
   const today=(new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().slice(0,10);

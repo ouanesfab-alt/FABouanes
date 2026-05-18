@@ -368,19 +368,6 @@
         checkVal();
       });
 
-      document.querySelectorAll('form').forEach(form => {
-        form.addEventListener('submit', function (e) {
-          if (form.hasAttribute('data-no-spinner') || form.target === '_blank') return;
-          const btn = form.querySelector('button[type="submit"], input[type="submit"]');
-          if (btn) {
-            if (btn.classList.contains('is-loading')) { e.preventDefault(); return; }
-            btn.classList.add('is-loading', 'disabled');
-            const original = btn.innerHTML;
-            btn.setAttribute('data-original-text', original);
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + (btn.textContent.trim() || 'Chargement...');
-          }
-        });
-      });
 
       document.addEventListener('keydown', function (e) {
         if (e.ctrlKey && e.key.toLowerCase() === 's') {
