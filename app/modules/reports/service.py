@@ -14,6 +14,15 @@ from app.modules.reports.dtos import (
     DebtTotalsDTO,
 )
 
+def _to_date(val) -> date | None:
+    if not val:
+        return None
+    if isinstance(val, date):
+        return val
+    if isinstance(val, str):
+        return date.fromisoformat(val)
+    return val
+
 class ReportsService:
     def __init__(self, repository: ReportsRepository | None = None) -> None:
         self.repository = repository or ReportsRepository()
@@ -79,7 +88,7 @@ class ReportsService:
                     if rem <= 0:
                         break
                     unpaid = min(rem, Decimal(str(s["total"])))
-                    sale_day = date.fromisoformat(s["date"])
+                    sale_day = _to_date(s["date"])
                     days = (today - sale_day).days
                     if days < 30:
                         brackets["under_30"] += unpaid
@@ -94,7 +103,7 @@ class ReportsService:
                 # Repayment delay FIFO
                 sales_fifo = []
                 if Decimal(str(client["opening_credit"])) > 0:
-                    sales_fifo.append({"date": "2020-01-01", "total": Decimal(str(client["opening_credit"]))})
+                    sales_fifo.append({"date": date(2020, 1, 1), "total": Decimal(str(client["opening_credit"]))})
                 for s in sorted(c_sales, key=lambda x: x["date"]):
                     sales_fifo.append({"date": s["date"], "total": Decimal(str(s["total"]))})
                     
@@ -104,11 +113,11 @@ class ReportsService:
                 num_sales = len(sales_fifo)
                 for p in c_versements:
                     p_amount = Decimal(str(p["amount"]))
-                    p_date = date.fromisoformat(p["date"])
+                    p_date = _to_date(p["date"])
                     while p_amount > 0 and sale_idx < num_sales:
                         sale = sales_fifo[sale_idx]
                         s_total = sale["total"]
-                        s_date = date.fromisoformat(sale["date"]) if sale["date"] != "2020-01-01" else None
+                        s_date = _to_date(sale["date"]) if sale["date"] != date(2020, 1, 1) else None
                         
                         if s_total <= 0:
                             sale_idx += 1
@@ -204,11 +213,15 @@ class ReportsService:
         daily_totals = []
         daily_profits = []
         for r in daily_sales_raw:
-            d_parts = r["day"].split("-")
-            if len(d_parts) >= 3:
-                lbl = f"{d_parts[2]} {month_names.get(d_parts[1], d_parts[1])}"
+            day_val = r["day"]
+            if isinstance(day_val, date):
+                lbl = f"{day_val.day:02d} {month_names.get(f'{day_val.month:02d}', f'{day_val.month:02d}')}"
             else:
-                lbl = r["day"]
+                d_parts = str(day_val).split("-")
+                if len(d_parts) >= 3:
+                    lbl = f"{d_parts[2]} {month_names.get(d_parts[1], d_parts[1])}"
+                else:
+                    lbl = str(day_val)
             daily_labels.append(lbl)
             daily_totals.append(float(r["total"] or 0))
             daily_profits.append(float(r["profit"] or 0))
