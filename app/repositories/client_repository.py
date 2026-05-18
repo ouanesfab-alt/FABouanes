@@ -66,13 +66,12 @@ def update_client(client_id: int, name: str, phone: str, address: str, notes: st
 @db_task
 def find_client_by_name(name: str):
     return query_db('SELECT id FROM clients WHERE lower(trim(name)) = lower(trim(%s))', (name,), one=True)
-async def list_clients(
+@db_task
+def list_clients(
     search: str | None = None,
     page: int = 1,
     page_size: int = 50,
 ) -> tuple[list[dict], int]:
-    from app.core.db_access import query_db_async
-    
     where: list[str] = []
     params: list[object] = []
     
@@ -87,7 +86,7 @@ async def list_clients(
     offset = (page - 1) * page_size
     
     wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY name LIMIT %s OFFSET %s"
-    rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
+    rows = query_db(wrapped, tuple(params) + (page_size, offset))
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total
 

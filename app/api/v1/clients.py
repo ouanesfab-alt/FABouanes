@@ -49,7 +49,7 @@ async def api_clients(request: Request):
 
     page = int(request.query_params.get("page", 1))
     page_size = int(request.query_params.get("page_size", 50))
-    rows, total = await list_clients(
+    rows, total = await list_clients.async_(
         search=request.query_params.get("q"),
         page=page,
         page_size=page_size
