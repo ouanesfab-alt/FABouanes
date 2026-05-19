@@ -36,20 +36,12 @@
       <p class="contacts-summary mb-0">{{ pagination.total }} contact(s) visibles.</p>
     </div>
     <div class="contacts-actions">
-      <div class="dropdown">
-        <button class="btn btn-warning dropdown-toggle" data-bs-toggle="dropdown">
-          <i class="bi bi-plus-lg me-1"></i>Ajouter
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end">
-          <li><a class="dropdown-item" href="{{ url_for('new_client') }}"><i class="bi bi-person-plus me-2"></i>Client</a></li>
-          <li><a class="dropdown-item" href="{{ url_for('new_supplier') }}"><i class="bi bi-truck me-2"></i>Fournisseur</a></li>
-          <li><hr class="dropdown-divider"></li>
-          <li><a class="dropdown-item" href="{{ url_for('import_clients_excel') }}"><i class="bi bi-file-earmark-excel me-2"></i>Importer clients Excel</a></li>
-        </ul>
-      </div>
-      <a href="{{ url_for('contacts', type='all') }}" class="btn {{ 'btn-dark' if filter_type=='all' else 'btn-outline-secondary' }}">Tous</a>
-      <a href="{{ url_for('contacts', type='client') }}" class="btn {{ 'btn-dark' if filter_type=='client' else 'btn-outline-secondary' }}">Clients</a>
-      <a href="{{ url_for('contacts', type='supplier') }}" class="btn {{ 'btn-dark' if filter_type=='supplier' else 'btn-outline-secondary' }}">Fournis.</a>
+      <a href="{{ url_for('new_contact') }}" class="btn btn-warning">
+        <i class="bi bi-plus-lg me-1"></i>Ajouter un contact
+      </a>
+      <a href="{{ url_for('contacts', type='all') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='all' else 'btn-outline-secondary' }}">Tous</a>
+      <a href="{{ url_for('contacts', type='client') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='client' else 'btn-outline-secondary' }}">Clients</a>
+      <a href="{{ url_for('contacts', type='supplier') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='supplier' else 'btn-outline-secondary' }}">Fournis.</a>
       <a href="{{ url_for('import_clients_excel') }}" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-excel me-1"></i>Import Excel</a>
     </div>
   </div>
@@ -138,4 +130,116 @@
     {% include '_pagination.html' %}
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Single-page style filtering and navigation for contacts
+  async function loadContacts(url, pushHistory = true) {
+    const tableContainer = document.querySelector('.contacts-table-wrap');
+    if (tableContainer) {
+      tableContainer.style.opacity = '0.6';
+      tableContainer.style.transition = 'opacity 0.15s ease';
+    }
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error();
+      const html = await response.text();
+      
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      const currentCard = document.querySelector('.contacts-table-card');
+      const newCard = doc.querySelector('.contacts-table-card');
+      if (currentCard && newCard) {
+        currentCard.innerHTML = newCard.innerHTML;
+      }
+      
+      const currentSummary = document.querySelector('.contacts-summary');
+      const newSummary = doc.querySelector('.contacts-summary');
+      if (currentSummary && newSummary) {
+        currentSummary.innerHTML = newSummary.innerHTML;
+      }
+      
+      const currentUrlObj = new URL(url, window.location.origin);
+      const currentType = currentUrlObj.searchParams.get('type') || 'all';
+      
+      document.querySelectorAll('.js-filter-tab').forEach(tab => {
+        const tabUrl = new URL(tab.getAttribute('href'), window.location.origin);
+        const tabType = tabUrl.searchParams.get('type') || 'all';
+        if (tabType === currentType) {
+          tab.className = tab.className.replace('btn-outline-secondary', 'btn-dark');
+          if (!tab.classList.contains('btn-dark')) tab.classList.add('btn-dark');
+        } else {
+          tab.className = tab.className.replace('btn-dark', 'btn-outline-secondary');
+          if (!tab.classList.contains('btn-outline-secondary')) tab.classList.add('btn-outline-secondary');
+        }
+      });
+      
+      if (pushHistory) {
+        history.pushState(null, '', url);
+      }
+    } catch (e) {
+      if (pushHistory) {
+        window.location.href = url;
+      }
+    } finally {
+      if (tableContainer) {
+        tableContainer.style.opacity = '1';
+      }
+    }
+  }
+
+  // Handle browser Back/Forward navigation
+  window.addEventListener('popstate', function() {
+    if (window.location.pathname.startsWith('/contacts')) {
+      loadContacts(window.location.href, false);
+    }
+  });
+
+  // Intercept click on tabs, pagination, and reset filters
+  document.addEventListener('click', function(e) {
+    const tab = e.target.closest('.js-filter-tab');
+    if (tab && window.location.pathname.startsWith('/contacts')) {
+      e.preventDefault();
+      loadContacts(tab.getAttribute('href'));
+      return;
+    }
+
+    const pageLink = e.target.closest('.contacts-table-card [role="aria-label"] a, .contacts-table-card .btn-group a');
+    if (pageLink && !pageLink.classList.contains('disabled') && window.location.pathname.startsWith('/contacts')) {
+      const href = pageLink.getAttribute('href');
+      if (href && href !== '#') {
+        e.preventDefault();
+        loadContacts(href);
+        return;
+      }
+    }
+
+    const resetLink = e.target.closest('.contacts-table-card a[aria-label="Reinitialiser les filtres"]');
+    if (resetLink && window.location.pathname.startsWith('/contacts')) {
+      e.preventDefault();
+      loadContacts(resetLink.getAttribute('href'));
+    }
+  });
+
+  // Intercept form filter submission to load dynamically
+  document.addEventListener('submit', function(e) {
+    const form = e.target.closest('.contacts-filter-row');
+    if (form && window.location.pathname.startsWith('/contacts')) {
+      e.preventDefault();
+      const url = new URL(form.action || window.location.href, window.location.origin);
+      const formData = new FormData(form);
+      
+      url.search = '';
+      for (const [key, value] of formData.entries()) {
+        if (value) {
+          url.searchParams.set(key, value);
+        }
+      }
+      loadContacts(url.toString());
+    }
+  });
+</script>
 {% endblock %}

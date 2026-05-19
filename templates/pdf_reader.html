@@ -16,9 +16,7 @@
   .bons-table th[data-sort-dir="desc"]::after{opacity:.9;transform:rotate(45deg) translateY(-2px);}
   .bons-table td{padding:8px 9px;border-bottom:1px solid var(--line);vertical-align:middle;height:50px;}
   .bons-table .col-type{width:44px;text-align:center;}
-  .bons-table .col-number{width:100px;}
-  .bons-table .col-date{width:92px;}
-  .bons-table .col-amount{width:96px;text-align:right;}
+  .bons-table .col-amount{width:115px;text-align:right;}
   .bon-row{cursor:pointer;}
   .bon-row:hover td{background:var(--bg);}
   .bon-row.active td{background:rgba(37,99,235,.08);}
@@ -44,14 +42,93 @@
   .bons-upload-label{display:flex;align-items:center;gap:8px;font-weight:800;font-size:.82rem;cursor:pointer;min-width:0;}
   .bons-upload-label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .bons-upload input[type=file]{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;}
+  /* Premium Theme enhancements for Espace Bons */
+  [data-theme="dark"] .bon-kind-icon {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text);
+  }
+  [data-theme="dark"] .bon-row.active td {
+    background: rgba(37, 99, 235, 0.15) !important;
+  }
+  .bon-row.active td:first-child {
+    border-left: 3.5px solid var(--accent, #2563eb);
+  }
+
+  /* Mobile Tabs segmented control style */
+  .mobile-bons-tabs {
+    display: none;
+    background: var(--glass-bg, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  }
+  [data-theme="dark"] .mobile-bons-tabs {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+  .mobile-tab-btn {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    padding: 9px 12px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    border-radius: 8px;
+    transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mobile-tab-btn i {
+    font-size: 0.95rem;
+  }
+  .mobile-tab-btn.active {
+    background: var(--accent, #2563eb);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.24);
+  }
+
   @media(max-width:991px){
     .bons-page{height:auto;min-height:0;overflow:visible;}
-    .bons-toolbar{grid-template-columns:1fr;}
-    .bons-layout{flex-direction:column;gap:12px;}
-    .bons-list{max-height:380px;}
-    .bons-table .col-date,.bons-table .col-amount{display:none;}
-    .bons-frame-wrap{height:72vh;min-height:520px;}
-    .bons-frame{height:100%;}
+    .bons-toolbar{grid-template-columns:1fr; margin-bottom: 12px;}
+    .mobile-bons-tabs {
+      display: flex;
+    }
+    
+    /* Toggle visibility in mobile tabbed layout */
+    .bons-layout.show-preview #bonsList {
+      display: none !important;
+    }
+    .bons-layout.show-list .bons-preview {
+      display: none !important;
+    }
+    
+    .bons-layout{flex-direction:column; gap:0;}
+    .bons-list{
+      height: calc(100vh - 275px) !important;
+      max-height: none !important;
+      width: 100% !important;
+      border-radius: 12px;
+    }
+    .bons-preview{
+      height: calc(100vh - 275px) !important;
+      width: 100% !important;
+      border-radius: 12px;
+      display: flex;
+    }
+    .bons-frame-wrap{
+      height: 100% !important;
+      min-height: 0 !important;
+      padding: 6px;
+    }
+    .bons-frame{
+      height:100% !important;
+      border-radius: 6px;
+    }
+    .bons-table .col-amount{display:table-cell; width: 95px;}
   }
   .bons-resizer{width:18px;margin:0 -4px;cursor:col-resize;display:flex;align-items:center;justify-content:center;position:relative;z-index:10;user-select:none;touch-action:none;}
   .bons-resizer-handle{display:flex;align-items:center;justify-content:center;width:24px;height:48px;background:var(--card);border:1px solid var(--line);border-radius:12px;color:var(--muted);box-shadow:0 2px 6px rgba(0,0,0,0.06);transition:all 0.2s ease;}
@@ -89,7 +166,16 @@
     <button class="btn btn-sm btn-dark" type="submit"><i class="bi bi-funnel me-1"></i>Filtrer</button>
   </form>
 
-  <div class="bons-layout" id="bonsLayout">
+  <div class="mobile-bons-tabs">
+    <button type="button" class="mobile-tab-btn {% if not selected_doc %}active{% endif %}" id="btnShowList">
+      <i class="bi bi-list-ul me-2"></i>Liste des Bons
+    </button>
+    <button type="button" class="mobile-tab-btn {% if selected_doc %}active{% endif %}" id="btnShowPreview">
+      <i class="bi bi-eye me-2"></i>Aperçu du Bon
+    </button>
+  </div>
+
+  <div class="bons-layout {% if selected_doc %}show-preview{% else %}show-list{% endif %}" id="bonsLayout">
     <aside class="bons-list" id="bonsList">
       <div class="bons-list-head">
         <strong>Documents</strong>
@@ -102,8 +188,6 @@
             <tr>
               <th class="col-type" data-bon-sort="type" tabindex="0" aria-sort="none">Type</th>
               <th data-bon-sort="document" tabindex="0" aria-sort="none">Document</th>
-              <th class="col-number" data-bon-sort="number" tabindex="0" aria-sort="none">N&deg;</th>
-              <th class="col-date" data-bon-sort="date" tabindex="0" aria-sort="none">Date</th>
               <th class="col-amount" data-bon-sort="amount" tabindex="0" aria-sort="none">Montant</th>
             </tr>
           </thead>
@@ -124,17 +208,29 @@
               </td>
               <td data-sort-value="{{ doc.title }} {{ doc.partner_name or doc.detail or '' }}">
                 <a class="bon-doc-link" href="{{ row_url }}">{{ doc.title }}</a>
-                <span class="bon-muted">{{ doc.partner_name or doc.detail or '-' }}</span>
+                <div class="d-flex align-items-center gap-1 flex-wrap mt-1" style="font-size: 0.74rem; line-height: 1.2;">
+                  <span class="badge bg-secondary-subtle text-secondary font-monospace" style="padding: 1px 4px; font-size: 0.7rem; border: 1px solid var(--line);">N° {{ doc.number }}</span>
+                  <span class="text-muted">·</span>
+                  <span class="text-muted">{{ doc.doc_date or '-' }}</span>
+                  {% if doc.partner_name or doc.detail %}
+                  <span class="text-muted">·</span>
+                  <span class="text-muted text-truncate" style="max-width: 140px; display: inline-block; vertical-align: bottom;">{{ doc.partner_name or doc.detail }}</span>
+                  {% endif %}
+                </div>
               </td>
-              <td class="col-number" data-sort-value="{{ doc.number }}"><span class="bon-number-cell">{{ doc.number }}</span></td>
-              <td class="col-date" data-sort-value="{{ doc.doc_date or '' }}"><span class="bon-muted">{{ doc.doc_date or '-' }}</span></td>
-              <td class="col-amount" data-sort-value="{{ doc.amount if doc.amount is not none else '' }}">{% if doc.amount is not none %}<span class="bon-amount-cell">{{ doc.amount|money }}</span>{% else %}<span class="bon-muted">-</span>{% endif %}</td>
+              <td class="col-amount" data-sort-value="{{ doc.amount if doc.amount is not none else '' }}">
+                {% if doc.amount is not none %}
+                <span class="bon-amount-cell text-primary">{{ doc.amount|money }}</span>
+                {% else %}
+                <span class="text-muted">—</span>
+                {% endif %}
+              </td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="5" class="text-center py-4 text-muted small">
+              <td colspan="3" class="text-center py-4 text-muted small">
                 <i class="bi bi-folder2-open d-block mb-2" style="font-size:1.7rem;opacity:.45;"></i>
-                Aucun bon trouve.
+                Aucun bon trouvé.
               </td>
             </tr>
             {% endfor %}
@@ -330,6 +426,29 @@
   if (savedWidth && leftPanel) {
     leftPanel.style.width = savedWidth;
   }
+
+  // Mobile tab toggling
+  const btnShowList = document.getElementById('btnShowList');
+  const btnShowPreview = document.getElementById('btnShowPreview');
+  const bonsLayout = document.getElementById('bonsLayout');
+
+  function setMobileTab(tab) {
+    if (!bonsLayout) return;
+    if (tab === 'preview') {
+      bonsLayout.classList.remove('show-list');
+      bonsLayout.classList.add('show-preview');
+      btnShowList?.classList.remove('active');
+      btnShowPreview?.classList.add('active');
+    } else {
+      bonsLayout.classList.remove('show-preview');
+      bonsLayout.classList.add('show-list');
+      btnShowPreview?.classList.remove('active');
+      btnShowList?.classList.add('active');
+    }
+  }
+
+  btnShowList?.addEventListener('click', () => setMobileTab('list'));
+  btnShowPreview?.addEventListener('click', () => setMobileTab('preview'));
 })();
 </script>
 {% endblock %}

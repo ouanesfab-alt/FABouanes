@@ -17,19 +17,20 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;850&display=swap');
 
-:root {
-  --bg: #f8fafc;
-  --text: #0f172a;
-  --card: rgba(255, 255, 255, 0.7);
-  --surface: rgba(241, 245, 249, 0.8);
-  --accent: #4f46e5;
-  --line: rgba(226, 232, 240, 0.6);
+/* macOS Sequoia Light & Windows Light Theme Variables */
+:root, [data-theme="light"], [data-theme="windows"] {
+  --bg: #f5f5f7;
+  --text: #1d1d1f;
+  --card: rgba(255, 255, 255, 0.6);
+  --surface: rgba(235, 235, 240, 0.7);
+  --accent: #007aff;
+  --line: rgba(0, 0, 0, 0.06);
   
   /* Extended Tokens */
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-info: #3b82f6;
+  --color-success: #34c759;
+  --color-warning: #ff9500;
+  --color-danger: #ff3b30;
+  --color-info: #007aff;
 
   --space-xs: 0.25rem;
   --space-sm: 0.5rem;
@@ -39,36 +40,365 @@
 
   --radius-xs: 6px;
   --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
   --radius-full: 9999px;
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.01);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.01);
 
   /* Glassmorphism Specification */
-  --glass-bg: rgba(255, 255, 255, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.4);
-  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
-  --backdrop-blur: blur(12px);
-  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --font-title: 'Outfit', 'Plus Jakarta Sans', sans-serif;
-  --font-body: 'Inter', 'Plus Jakarta Sans', sans-serif;
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.03);
+  --backdrop-blur: blur(24px);
+  --transition-smooth: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Inter", sans-serif;
+  --font-title-val: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Icons", "Outfit", "Inter", sans-serif;
+
+  /* Ambient Wallpapers (Gold-Amber & Emerald Sequoia colors) */
+  --sequoia-color-1: rgba(255, 149, 0, 0.3);
+  --sequoia-color-2: rgba(255, 45, 85, 0.18);
+  --sequoia-color-3: rgba(52, 199, 89, 0.15);
+  --sequoia-color-4: rgba(0, 122, 255, 0.12);
 }
 
-[data-theme="dark"] {
-  --bg: #070a13;
-  --text: #f1f5f9;
-  --card: rgba(13, 20, 38, 0.6);
-  --surface: rgba(30, 41, 59, 0.4);
-  --accent: #818cf8;
-  --line: rgba(255, 255, 255, 0.07);
+/* macOS Sequoia Dark & Windows Dark Theme Variables */
+[data-theme="dark"], [data-theme="windows-dark"] {
+  --bg: #0c0c0e;
+  --text: #f5f5f7;
+  --card: rgba(28, 28, 30, 0.65);
+  --surface: rgba(44, 44, 46, 0.7);
+  --accent: #0a84ff;
+  --line: rgba(255, 255, 255, 0.06);
+
+  /* Extended Tokens Dark */
+  --color-success: #30d158;
+  --color-warning: #ff9f0a;
+  --color-danger: #ff453a;
+  --color-info: #0a84ff;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.12);
 
   /* Dark Glassmorphism */
-  --glass-bg: rgba(13, 20, 38, 0.5);
-  --glass-border: rgba(255, 255, 255, 0.06);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  --glass-bg: rgba(28, 28, 30, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  --backdrop-blur: blur(24px);
+
+  /* Ambient Wallpapers (Deep twilight Sequoia colors) */
+  --sequoia-color-1: rgba(255, 159, 10, 0.15);
+  --sequoia-color-2: rgba(191, 90, 242, 0.12);
+  --sequoia-color-3: rgba(48, 209, 88, 0.09);
+  --sequoia-color-4: rgba(10, 132, 255, 0.1);
 }
 
+/* macOS Sequoia Ambient Backdrop */
+.sequoia-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -2;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--bg);
+  transition: background 0.5s ease;
+}
+.sequoia-blob {
+  position: absolute;
+  width: 65vw;
+  height: 65vw;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.8;
+  mix-blend-mode: normal;
+  transition: background 0.5s ease;
+}
+.sequoia-blob-1 {
+  background: var(--sequoia-color-1);
+  top: -15%;
+  left: -10%;
+  animation: sequoia-flow-1 28s infinite alternate ease-in-out;
+}
+.sequoia-blob-2 {
+  background: var(--sequoia-color-2);
+  bottom: -20%;
+  right: -10%;
+  animation: sequoia-flow-2 32s infinite alternate ease-in-out;
+}
+.sequoia-blob-3 {
+  background: var(--sequoia-color-3);
+  top: 35%;
+  right: -15%;
+  animation: sequoia-flow-3 36s infinite alternate ease-in-out;
+}
+.sequoia-blob-4 {
+  background: var(--sequoia-color-4);
+  bottom: 15%;
+  left: -15%;
+  animation: sequoia-flow-4 25s infinite alternate ease-in-out;
+}
 
+@keyframes sequoia-flow-1 {
+  0% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50% { transform: translate(12vw, 10vh) scale(1.12) rotate(90deg); }
+  100% { transform: translate(-4vw, 4vh) scale(0.92) rotate(180deg); }
+}
+@keyframes sequoia-flow-2 {
+  0% { transform: translate(0, 0) scale(0.95) rotate(0deg); }
+  50% { transform: translate(-10vw, -12vh) scale(1.08) rotate(-90deg); }
+  100% { transform: translate(6vw, 8vh) scale(0.9) rotate(180deg); }
+}
+@keyframes sequoia-flow-3 {
+  0% { transform: translate(0, 0) scale(1.05); }
+  50% { transform: translate(-6vw, 15vh) scale(0.92); }
+  100% { transform: translate(10vw, -4vh) scale(1.1); }
+}
+@keyframes sequoia-flow-4 {
+  0% { transform: translate(0, 0) scale(0.9); }
+  50% { transform: translate(10vw, -10vh) scale(1.05); }
+  100% { transform: translate(-8vw, 4vh) scale(1.0); }
+}
+
+/* Global Resets */
+body {
+  font-family: var(--font-main) !important;
+  background: transparent !important;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+html {
+  background-color: var(--bg);
+  height: 100%;
+}
+
+h1, h2, h3, h4, h5, h6, .section-title {
+  font-family: var(--font-title-val, var(--font-main)) !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.015em !important;
+}
+
+/* Reflective Liquid Glass Panels */
+.card, .table-card, .login-card, .dashboard-card {
+  background: var(--card) !important;
+  backdrop-filter: var(--backdrop-blur) !important;
+  -webkit-backdrop-filter: var(--backdrop-blur) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.25),
+    var(--shadow-md) !important;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Sweeping shine animation on hover */
+.card::before, .table-card::before, .login-card::before, .dashboard-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-20deg);
+  pointer-events: none;
+  transition: left 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.card:hover::before, .table-card:hover::before, .login-card:hover::before, .dashboard-card:hover::before {
+  left: 150%;
+}
+
+/* Form inputs with Sequoia focus rings */
+.form-control, .form-select {
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid var(--line) !important;
+  background-color: var(--card) !important;
+  color: var(--text) !important;
+  font-size: 0.92rem !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.form-control:focus, .form-select:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.18) !important;
+  background-color: var(--card) !important;
+}
+
+/* Rounded, spring-scaled buttons */
+.btn {
+  border-radius: var(--radius-sm) !important;
+  font-weight: 500 !important;
+  padding: 8px 16px !important;
+  font-size: 0.9rem !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.btn-primary, .btn-warning, .btn-premium {
+  background: 
+    linear-gradient(180deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.1) 100%),
+    var(--accent) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 4px 12px rgba(10, 132, 255, 0.2) !important;
+}
+.btn-primary:hover, .btn-warning:hover, .btn-premium:hover {
+  transform: translateY(-0.5px) !important;
+  filter: brightness(1.05) !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 6px 16px rgba(10, 132, 255, 0.35) !important;
+}
+.btn-primary:active, .btn-warning:active, .btn-premium:active {
+  transform: scale(0.97) !important;
+}
+
+/* Translucent navigation header & drawer */
+.app-navbar {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--backdrop-blur) !important;
+  -webkit-backdrop-filter: var(--backdrop-blur) !important;
+  border-bottom: 1px solid var(--line) !important;
+}
+.nav-drawer {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--backdrop-blur) !important;
+  -webkit-backdrop-filter: var(--backdrop-blur) !important;
+  border-right: 1px solid var(--line) !important;
+}
+
+/* Table styling fixes */
+.table {
+  color: var(--text) !important;
+}
+.table th {
+  font-weight: 600 !important;
+  font-size: 0.85rem !important;
+  letter-spacing: -0.01em !important;
+  color: var(--text) !important;
+  opacity: 0.8 !important;
+}
+
+/* Custom Sequoia Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb,
+[data-theme="windows-dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Simulated macOS Window Controls styling */
+.mac-window-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 16px;
+  padding-left: 8px;
+  user-select: none;
+}
+.mac-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  position: relative;
+  transition: all 0.2s ease;
+}
+.mac-close {
+  background-color: #ff5f56;
+  border: 0.5px solid #e0443e;
+}
+.mac-minimize {
+  background-color: #ffbd2e;
+  border: 0.5px solid #dfa123;
+}
+.mac-maximize {
+  background-color: #27c93f;
+  border: 0.5px solid #1aab29;
+}
+.mac-window-controls:hover .mac-dot::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 8px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.65);
+  line-height: 1;
+}
+.mac-window-controls:hover .mac-close::after {
+  content: '×';
+}
+.mac-window-controls:hover .mac-minimize::after {
+  content: '−';
+  font-size: 6px;
+}
+.mac-window-controls:hover .mac-maximize::after {
+  content: '+';
+  font-size: 6px;
+}
+
+@media (max-width: 768px) {
+  .mac-window-controls {
+    display: none !important;
+  }
+}
+
+/* Font mapping overrides to restore application preference controls */
+html[data-font="jakarta"] {
+  --font-main: "Plus Jakarta Sans", "Inter", sans-serif !important;
+  --font-title-val: "Outfit", "Plus Jakarta Sans", "Inter", sans-serif !important;
+}
+html[data-font="arial"] {
+  --font-main: Arial, Helvetica, sans-serif !important;
+  --font-title-val: Arial, Helvetica, sans-serif !important;
+}
+html[data-font="calibri"] {
+  --font-main: Calibri, Candara, "Segoe UI", sans-serif !important;
+  --font-title-val: Calibri, Candara, "Segoe UI", sans-serif !important;
+}
+html[data-font="system"] {
+  --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Segoe UI", sans-serif !important;
+  --font-title-val: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Icons", "Segoe UI", sans-serif !important;
+}
+
+/* Modal and dialog sheets styled like macOS Sequoia */
+.modal-content {
+  background: var(--card) !important;
+  backdrop-filter: var(--backdrop-blur) !important;
+  -webkit-backdrop-filter: var(--backdrop-blur) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+.modal-header {
+  border-bottom: 1px solid var(--line) !important;
+}
+.modal-footer {
+  border-top: 1px solid var(--line) !important;
+}

@@ -42,21 +42,13 @@
       <h2 class="section-title mb-1">Operations</h2>
     </div>
     <div class="transactions-actions">
-      <div class="dropdown">
-        <button class="btn btn-warning dropdown-toggle" data-bs-toggle="dropdown">
-          <i class="bi bi-plus-lg me-1"></i>Ajouter
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end">
-          <li><a class="dropdown-item" href="{{ url_for('new_purchase') }}">Achat</a></li>
-          <li><a class="dropdown-item" href="{{ url_for('new_sale') }}">Vente</a></li>
-          <li><a class="dropdown-item" href="{{ url_for('new_payment', mode='versement') }}">Versement</a></li>
-          <li><a class="dropdown-item" href="{{ url_for('new_payment', mode='avance') }}">Avance</a></li>
-        </ul>
-      </div>
-      <a href="{{ url_for('operations', type='all') }}" class="btn {{ 'btn-dark' if filter_type=='all' else 'btn-outline-secondary' }}">Toutes</a>
-      <a href="{{ url_for('operations', type='purchase') }}" class="btn {{ 'btn-dark' if filter_type=='purchase' else 'btn-outline-secondary' }}">Achats</a>
-      <a href="{{ url_for('operations', type='sale') }}" class="btn {{ 'btn-dark' if filter_type=='sale' else 'btn-outline-secondary' }}">Ventes</a>
-      <a href="{{ url_for('operations', type='payment') }}" class="btn {{ 'btn-dark' if filter_type=='payment' else 'btn-outline-secondary' }}">Versements / avances</a>
+      <a href="{{ url_for('new_operation') }}" class="btn btn-warning">
+        <i class="bi bi-plus-lg me-1"></i>Ajouter une opération
+      </a>
+      <a href="{{ url_for('operations', type='all') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='all' else 'btn-outline-secondary' }}">Toutes</a>
+      <a href="{{ url_for('operations', type='purchase') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='purchase' else 'btn-outline-secondary' }}">Achats</a>
+      <a href="{{ url_for('operations', type='sale') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='sale' else 'btn-outline-secondary' }}">Ventes</a>
+      <a href="{{ url_for('operations', type='payment') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='payment' else 'btn-outline-secondary' }}">Versements / avances</a>
     </div>
   </div>
 
@@ -233,5 +225,105 @@
       console.error("Auto-refresh failed", e);
     }
   };
+
+  // Single-page style filtering and navigation
+  async function loadTransactions(url, pushHistory = true) {
+    const tableContainer = document.querySelector('.transactions-table-wrap');
+    if (tableContainer) {
+      tableContainer.style.opacity = '0.6';
+      tableContainer.style.transition = 'opacity 0.15s ease';
+    }
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error();
+      const html = await response.text();
+      
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      const currentCard = document.querySelector('.transactions-table-card');
+      const newCard = doc.querySelector('.transactions-table-card');
+      if (currentCard && newCard) {
+        currentCard.innerHTML = newCard.innerHTML;
+      }
+      
+      const currentUrlObj = new URL(url, window.location.origin);
+      const currentType = currentUrlObj.searchParams.get('type') || 'all';
+      
+      document.querySelectorAll('.js-filter-tab').forEach(tab => {
+        const tabUrl = new URL(tab.getAttribute('href'), window.location.origin);
+        const tabType = tabUrl.searchParams.get('type') || 'all';
+        if (tabType === currentType) {
+          tab.className = tab.className.replace('btn-outline-secondary', 'btn-dark');
+          if (!tab.classList.contains('btn-dark')) tab.classList.add('btn-dark');
+        } else {
+          tab.className = tab.className.replace('btn-dark', 'btn-outline-secondary');
+          if (!tab.classList.contains('btn-outline-secondary')) tab.classList.add('btn-outline-secondary');
+        }
+      });
+      
+      if (pushHistory) {
+        history.pushState(null, '', url);
+      }
+    } catch (e) {
+      if (pushHistory) {
+        window.location.href = url;
+      }
+    } finally {
+      if (tableContainer) {
+        tableContainer.style.opacity = '1';
+      }
+    }
+  }
+
+  // Handle browser Back/Forward navigation
+  window.addEventListener('popstate', function() {
+    loadTransactions(window.location.href, false);
+  });
+
+  // Intercept click on tabs, pagination, and reset filters
+  document.addEventListener('click', function(e) {
+    const tab = e.target.closest('.js-filter-tab');
+    if (tab) {
+      e.preventDefault();
+      loadTransactions(tab.getAttribute('href'));
+      return;
+    }
+
+    const pageLink = e.target.closest('.transactions-table-card [role="aria-label"] a, .transactions-table-card .btn-group a');
+    if (pageLink && !pageLink.classList.contains('disabled')) {
+      const href = pageLink.getAttribute('href');
+      if (href && href !== '#') {
+        e.preventDefault();
+        loadTransactions(href);
+        return;
+      }
+    }
+
+    const resetLink = e.target.closest('.transactions-table-card a[aria-label="Reinitialiser les filtres"]');
+    if (resetLink) {
+      e.preventDefault();
+      loadTransactions(resetLink.getAttribute('href'));
+    }
+  });
+
+  // Intercept form filter submission to load dynamically
+  document.addEventListener('submit', function(e) {
+    const form = e.target.closest('.transactions-filter-row');
+    if (form) {
+      e.preventDefault();
+      const url = new URL(form.action || window.location.href, window.location.origin);
+      const formData = new FormData(form);
+      
+      url.search = '';
+      for (const [key, value] of formData.entries()) {
+        if (value) {
+          url.searchParams.set(key, value);
+        }
+      }
+      loadTransactions(url.toString());
+    }
+  });
 </script>
 {% endblock %}

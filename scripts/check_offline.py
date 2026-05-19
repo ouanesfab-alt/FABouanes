@@ -1,11 +1,8 @@
 import sys
 
 checks = [
-    ("templates/sale_new.html", [
-        "sale-form", "offline-db.js", "queueOperation", "fillSelectsFromCache"
-    ]),
-    ("templates/payment_new.html", [
-        "payment-form", "offline-db.js", "queueOperation", "fillClientsFromCache"
+    ("templates/operation_new.html", [
+        "sale-form", "payment-form", "offline-db.js", "queueOperation"
     ]),
     ("templates/base.html", [
         "offline-pending-badge", "icon-online", "initOfflineSync", "offline-sync.js"

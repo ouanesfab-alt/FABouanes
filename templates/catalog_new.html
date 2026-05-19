@@ -1,99 +1,21 @@
 {% extends 'base.html' %}
 {% block content %}
-<style>
-  .catalog-form-page{display:flex;flex-direction:column;gap:16px;}
-  .catalog-form-summary{color:var(--muted);font-size:.92rem;}
-  .catalog-form-shell{max-width:880px;margin:0 auto;width:100%;}
-  .catalog-form-card{padding:20px;}
-  .catalog-form-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;}
-  .catalog-form-grid .span-12{grid-column:span 12;}
-  .catalog-form-grid .span-8{grid-column:span 8;}
-  .catalog-form-grid .span-6{grid-column:span 6;}
-  .catalog-form-grid .span-4{grid-column:span 4;}
-  .catalog-form-grid .span-3{grid-column:span 3;}
-  .catalog-form-grid .span-2{grid-column:span 2;}
-  
-  /* Segmented control style */
-  .glass-segmented-control {
-    display: flex;
-    position: relative;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 4px;
-    width: 100%;
-    margin-bottom: 8px;
-    backdrop-filter: blur(10px);
-    overflow: hidden;
-  }
-  .glass-segmented-control input[type="radio"] {
-    display: none;
-  }
-  .glass-segmented-control label {
-    flex: 1;
-    text-align: center;
-    padding: 10px 16px;
-    z-index: 2;
-    cursor: pointer;
-    font-weight: 600;
-    color: var(--muted);
-    transition: color 0.3s ease, transform 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 0;
-  }
-  .glass-segmented-control label:hover {
-    color: var(--text);
-  }
-  .glass-segmented-control input[type="radio"]:checked + label {
-    color: #fff;
-  }
-  .glass-segmented-control .glass-slider {
-    position: absolute;
-    top: 4px;
-    bottom: 4px;
-    left: 4px;
-    width: calc(50% - 4px);
-    background: linear-gradient(135deg, var(--accent, #3b82f6), #1d4ed8);
-    border-radius: 8px;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 1;
-    box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);
-  }
-  .glass-segmented-control input[id="kindFinished"]:checked ~ .glass-slider {
-    transform: translateX(100%);
-  }
-
-  .catalog-form-note{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);
-    color:var(--muted);font-size:.9rem;line-height:1.55;}
-  .catalog-form-hidden[hidden]{display:none !important;}
-  .catalog-form-actions{display:flex;gap:10px;flex-wrap:wrap;}
-  .catalog-form-actions > *{flex:1 1 220px;}
-  @media(max-width:767px){
-    .catalog-form-card{padding:16px;}
-    .catalog-form-grid .span-8,.catalog-form-grid .span-6,.catalog-form-grid .span-4,.catalog-form-grid .span-3{grid-column:span 12;}
-    .catalog-form-actions{flex-direction:column;}
-    .catalog-form-actions > *{width:100%;flex:1 1 auto;}
-  }
-</style>
-
-<div class="catalog-form-page">
+<div class="entity-form-page">
   <div class="page-hero mb-0">
     <div>
       <h2 class="section-title mb-1">Nouveau produit / matière</h2>
-      <p class="catalog-form-summary mb-0">Renseigne les informations de base, puis enregistre l'article dans le catalogue.</p>
+      <p class="entity-form-summary mb-0">Renseigne les informations de base, puis enregistre l'article dans le catalogue.</p>
     </div>
   </div>
 
-  <div class="catalog-form-shell">
-    <div class="card catalog-form-card">
-      <form method="post" class="catalog-form-grid">
+  <div class="entity-form-shell is-narrow">
+    <div class="card entity-form-card">
+      <form method="post" class="entity-form-grid">
         
         <!-- Segmented control to choose kind -->
         <div class="span-12">
           <label class="form-label">Type d'article</label>
-          <div class="glass-segmented-control">
+          <div class="glass-segmented-control theme-blue">
             <input type="radio" name="kind" id="kindRaw" value="raw" {% if kind == 'raw' %}checked{% endif %}>
             <label for="kindRaw">
               <i class="bi bi-box-seam me-2"></i>Matière première
@@ -119,7 +41,7 @@
           </div>
         </div>
         <div class="span-3">
-          <label class="form-label">Unite</label>
+          <label class="form-label">Unité</label>
           <select name="unit" class="form-select">
             {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
           </select>
@@ -129,7 +51,7 @@
           <input name="stock_qty" type="text" inputmode="decimal" value="0" class="form-control">
         </div>
         <div class="span-3">
-          <label class="form-label">Cout moyen par kg</label>
+          <label class="form-label">Coût moyen par kg</label>
           <input id="avgCostKg" name="avg_cost" type="text" inputmode="decimal" value="0" class="form-control">
         </div>
         <div class="span-3">
@@ -141,14 +63,14 @@
           <input name="alert_threshold" type="text" inputmode="decimal" value="0" class="form-control">
         </div>
         <div class="span-12">
-          <div class="catalog-form-note">
-            Les prix saisis ici servent de reference pour les operations et le calcul du benefice.
-            Apercu : 1 kg = <strong><span id="kgPrev">0</span> DA</strong>,
+          <div class="entity-form-note">
+            Les prix saisis ici servent de référence pour les opérations et le calcul du bénéfice.
+            Aperçu : 1 kg = <strong><span id="kgPrev">0</span> DA</strong>,
             1 sac = <strong><span id="sacPrev">0</span> DA</strong>,
             1 Qt = <strong><span id="qtPrev">0</span> DA</strong>.
           </div>
         </div>
-        <div class="span-12 catalog-form-actions">
+        <div class="span-12 entity-form-actions">
           <button class="btn btn-dark">Enregistrer</button>
           <a href="{{ url_for('catalog') }}" class="btn btn-outline-secondary">Retour</a>
         </div>
@@ -225,22 +147,4 @@
   syncPricePreview();
 })();
 </script>
-<style>
-  .preset-badge {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--line);
-    border-radius: 20px;
-    padding: 4px 12px;
-    font-size: 0.85rem;
-    cursor: pointer;
-    color: var(--muted);
-    transition: all 0.2s ease;
-    user-select: none;
-  }
-  .preset-badge:hover {
-    background: rgba(59, 130, 246, 0.1);
-    border-color: var(--accent, #3b82f6);
-    color: var(--text);
-  }
-</style>
 {% endblock %}

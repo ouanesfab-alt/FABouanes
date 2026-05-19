@@ -1,5 +1,8 @@
 /* ── Variables ── */
 :root {
+  --mac-spring: cubic-bezier(0.23, 1, 0.32, 1);
+  --mac-bezier: cubic-bezier(0.16, 1, 0.3, 1);
+  --mac-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   --bg: #f4f7fb;
   --card: #ffffff;
   --surface: #f8fafc;
@@ -52,24 +55,6 @@ html[data-font="system"] {
   --select-active-bg: #1d4ed8;
   --select-active-text: #eff6ff;
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='10' viewBox='0 0 14 10'%3E%3Cpath d='M2 2.25 7 7.25l5-5' fill='none' stroke='%23cbd5e1' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.8'/%3E%3C/svg%3E");
-}
-
-[data-theme="slate"] {
-  --bg: #e7ebf0;
-  --card: #f8fafc;
-  --surface: #eef2f7;
-  --text: #0f172a;
-  --muted: #475569;
-  --line: #cbd5e1;
-}
-
-[data-theme="sand"] {
-  --bg: #f5efe6;
-  --card: #fffdf8;
-  --surface: #f8f1e7;
-  --text: #2f241d;
-  --muted: #7c6a58;
-  --line: #ddd0bf;
 }
 
 /* ── Dark theme — comprehensive overrides ── */
@@ -2868,23 +2853,26 @@ input[type="password"]::-ms-clear {
   position: fixed;
   z-index: 4000;
   min-width: 210px;
-  background: #1e293b;
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, .5);
+  background: var(--glass-bg) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--shadow-lg) !important;
   overflow: hidden;
   display: none;
-  backdrop-filter: blur(16px);
+  backdrop-filter: var(--backdrop-blur) !important;
+  -webkit-backdrop-filter: var(--backdrop-blur) !important;
+  padding: 4px !important;
 }
 
 .context-menu .menu-title {
-  padding: 10px 14px 7px;
-  color: #94a3b8;
-  font-size: .7rem;
+  padding: 8px 12px 6px !important;
+  color: var(--text) !important;
+  opacity: 0.5 !important;
+  font-size: .7rem !important;
   text-transform: uppercase;
   letter-spacing: .08em;
   font-weight: 700;
-  border-bottom: 1px solid rgba(255, 255, 255, .07);
+  border-bottom: 1px solid var(--line) !important;
 }
 
 .context-menu a,
@@ -2895,20 +2883,21 @@ input[type="password"]::-ms-clear {
   width: 100%;
   border: none;
   text-align: left;
-  padding: 10px 14px;
-  color: #e2e8f0;
+  padding: 8px 12px !important;
+  color: var(--text) !important;
   text-decoration: none;
   font-size: .88rem;
   font-weight: 500;
   background: transparent;
-  transition: background .12s;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
   cursor: pointer;
+  border-radius: 6px !important;
 }
 
 .context-menu a:hover,
 .context-menu button:hover {
-  background: rgba(255, 255, 255, .09);
-  color: #fff;
+  background: var(--accent) !important;
+  color: #fff !important;
 }
 
 .context-menu i {
@@ -2920,25 +2909,26 @@ input[type="password"]::-ms-clear {
 
 .context-menu .cm-divider {
   height: 1px;
-  background: rgba(255, 255, 255, .07);
-  margin: 3px 0;
+  background: var(--line) !important;
+  margin: 4px 0 !important;
 }
 
 .context-menu .danger {
-  color: #f87171;
+  color: var(--color-danger) !important;
 }
 
 .context-menu .danger:hover {
-  background: rgba(248, 113, 113, .15) !important;
-  color: #fca5a5;
+  background: var(--color-danger) !important;
+  color: #fff !important;
 }
 
 .context-menu .cm-print {
-  color: #60a5fa;
+  color: var(--color-info) !important;
 }
 
 .context-menu .cm-print:hover {
-  background: rgba(96, 165, 250, .13) !important;
+  background: var(--accent) !important;
+  color: #fff !important;
 }
 
 /* ── Misc ── */
@@ -4494,7 +4484,7 @@ th.sort-desc .sort-icon::before { content: "\F229"; } /* bi-chevron-down */
 }
 
 .search-result-item:hover {
-  background: #2563eb !important;
+  background: var(--accent) !important;
   color: #ffffff !important;
 }
 
@@ -4586,4 +4576,955 @@ th.sort-desc .sort-icon::before { content: "\F229"; } /* bi-chevron-down */
   .search-icon {
     font-size: 1.3rem !important;
   }
+}
+
+/* --- Unified Glass Segmented Control & Form Layout Styles --- */
+.glass-segmented-control {
+  display: flex;
+  position: relative;
+  background: rgba(255, 255, 255, 0.07);
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
+  padding: 4px;
+  width: 100%;
+  margin-bottom: 8px;
+  backdrop-filter: blur(24px) saturate(190%);
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.1), 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+.glass-segmented-control input[type="radio"] {
+  display: none;
+}
+.glass-segmented-control label {
+  flex: 1;
+  text-align: center;
+  padding: 11px 16px;
+  z-index: 2;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--muted);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+.glass-segmented-control label:hover {
+  color: var(--text);
+}
+.glass-segmented-control label:active {
+  transform: scale(0.97);
+}
+.glass-segmented-control input[type="radio"]:checked + label {
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.glass-segmented-control .glass-slider {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  border-radius: 10px;
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+  z-index: 1;
+}
+
+/* Accent themes with macOS Aqua Liquid Glass Glossy Overlays */
+.theme-blue .glass-slider {
+  width: calc(50% - 4px);
+  background: 
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.2) 100%), 
+    linear-gradient(135deg, var(--accent, #3b82f6), #1d4ed8);
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.4), 
+    0 4px 12px rgba(29, 78, 216, 0.4),
+    0 8px 24px rgba(29, 78, 216, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.theme-amber .glass-slider {
+  width: calc(50% - 4px);
+  background: 
+    linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.2) 100%), 
+    linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.4), 
+    0 4px 12px rgba(217, 119, 6, 0.4),
+    0 8px 24px rgba(217, 119, 6, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.theme-emerald .glass-slider {
+  width: calc(25% - 2px);
+  background: 
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.2) 100%), 
+    linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.4), 
+    0 4px 12px rgba(16, 185, 129, 0.4),
+    0 8px 24px rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.op-switcher .glass-slider {
+  width: calc(25% - 2px) !important;
+}
+
+@media(max-width:767px){
+  .glass-segmented-control {
+    flex-wrap: wrap;
+    gap: 4px;
+    border-radius: 12px;
+  }
+  .glass-segmented-control label {
+    flex: 1 1 45%;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+  }
+  
+  /* Adapt 4-item glass-slider for 2x2 grid layout on mobile */
+  .theme-emerald .glass-slider,
+  .op-switcher .glass-slider {
+    width: calc(50% - 4px) !important;
+    height: calc(50% - 4px) !important;
+  }
+  .glass-segmented-control input[id="opVente"]:checked ~ .glass-slider {
+    transform: translate(100%, 0) !important;
+  }
+  .glass-segmented-control input[id="opVersement"]:checked ~ .glass-slider {
+    transform: translate(0, 100%) !important;
+  }
+  .glass-segmented-control input[id="opAvance"]:checked ~ .glass-slider {
+    transform: translate(100%, 100%) !important;
+  }
+}
+
+.preset-badge {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.preset-badge:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--accent, #3b82f6);
+  color: var(--text);
+}
+
+/* Slider dynamic translations */
+.glass-segmented-control input[id="kindFinished"]:checked ~ .glass-slider {
+  transform: translateX(100%);
+}
+.glass-segmented-control input[id="kindSupplier"]:checked ~ .glass-slider {
+  transform: translateX(100%);
+}
+.glass-segmented-control input[id="opVente"]:checked ~ .glass-slider {
+  transform: translateX(100%);
+}
+.glass-segmented-control input[id="opVersement"]:checked ~ .glass-slider {
+  transform: translateX(200%);
+}
+.glass-segmented-control input[id="opAvance"]:checked ~ .glass-slider {
+  transform: translateX(300%);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   macOS Liquid Glass Global Application Overrides (Dual Theme)
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* A. Global Base Layout & Background Blobs Setup */
+body {
+  position: relative !important;
+  z-index: 1;
+  transition: background-color 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+body::before, body::after {
+  content: "";
+  position: fixed;
+  width: 650px;
+  height: 650px;
+  border-radius: 50%;
+  filter: blur(140px);
+  z-index: -2;
+  pointer-events: none;
+  animation: macMeshFloat 28s infinite alternate ease-in-out;
+  transition: background 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease !important;
+}
+@keyframes macMeshFloat {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(120px, 90px) scale(1.15); }
+  100% { transform: translate(-60px, 140px) scale(0.95); }
+}
+
+/* B. Global Transition Animations */
+@keyframes macPageLoadSlide {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+main, .entity-form-page, .container, .dashboard-container, .card, .page-hero {
+  animation: macPageLoadSlide 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Staggered entrance for form rows */
+.entity-form-grid > div:nth-child(1) { animation-delay: 0.02s; }
+.entity-form-grid > div:nth-child(2) { animation-delay: 0.04s; }
+.entity-form-grid > div:nth-child(3) { animation-delay: 0.06s; }
+.entity-form-grid > div:nth-child(4) { animation-delay: 0.08s; }
+.entity-form-grid > div:nth-child(5) { animation-delay: 0.1s; }
+.entity-form-grid > div:nth-child(6) { animation-delay: 0.12s; }
+
+/* C. Global macOS Aqua Gel Buttons (Consistent between light/dark themes) */
+.btn {
+  border-radius: 10px !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  border: 1px solid transparent !important;
+}
+.btn:active {
+  transform: scale(0.96) !important;
+}
+
+.btn-primary {
+  background: 
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.2) 100%), 
+    linear-gradient(135deg, var(--accent, #3b82f6), #1d4ed8) !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.4), 
+    0 4px 12px rgba(37, 99, 235, 0.3),
+    0 8px 24px rgba(37, 99, 235, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+.btn-primary:hover {
+  background: 
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.25) 100%), 
+    linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.5), 
+    0 6px 18px rgba(37, 99, 235, 0.45) !important;
+}
+
+.btn-success {
+  background: 
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.2) 100%), 
+    linear-gradient(135deg, #10b981, #059669) !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.4), 
+    0 4px 12px rgba(16, 185, 129, 0.3),
+    0 8px 24px rgba(16, 185, 129, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+.btn-success:hover {
+  background: 
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.25) 100%), 
+    linear-gradient(135deg, #34d399, #10b981) !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.5), 
+    0 6px 18px rgba(16, 185, 129, 0.45) !important;
+}
+
+.btn-danger {
+  background: 
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.2) 100%), 
+    linear-gradient(135deg, #ef4444, #b91c1c) !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.4), 
+    0 4px 12px rgba(239, 68, 68, 0.3),
+    0 8px 24px rgba(239, 68, 68, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+.btn-danger:hover {
+  background: 
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.25) 100%), 
+    linear-gradient(135deg, #f87171, #ef4444) !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.5), 
+    0 6px 18px rgba(239, 68, 68, 0.45) !important;
+}
+
+.btn-dark {
+  background: 
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.25) 100%), 
+    #1e293b !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.25), 
+    0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+.btn-dark:hover {
+  background: 
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.3) 100%), 
+    #334155 !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.35), 
+    0 6px 18px rgba(0, 0, 0, 0.3) !important;
+}
+
+.btn-outline-secondary {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  color: #f3f4f6 !important;
+  backdrop-filter: blur(10px) !important;
+  text-shadow: none !important;
+  transition: all 0.3s var(--mac-spring) !important;
+}
+.btn-outline-secondary:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  color: #fff !important;
+}
+
+
+/* ──────────────────────────────────────────────────────────────────────────
+   THEME 1: macOS DARK / GRAPHITE GLASS (Default & Dark Modes)
+   ────────────────────────────────────────────────────────────────────────── */
+html:not([data-theme="light"]) body {
+  background-color: #0e0f12 !important; /* Premium deep dark graphite */
+  color: #f5f5f7 !important;
+}
+html:not([data-theme="light"]) body::before {
+  background: radial-gradient(circle, rgba(10, 132, 255, 0.08) 0%, transparent 70%) !important;
+  opacity: 0.9;
+}
+html:not([data-theme="light"]) body::after {
+  background: radial-gradient(circle, rgba(191, 90, 242, 0.06) 0%, transparent 70%) !important;
+  opacity: 0.9;
+}
+
+/* Glass Cards - Dark Mode (Graphite Glass) */
+html:not([data-theme="light"]) .card, 
+html:not([data-theme="light"]) .dashboard-container .card, 
+html:not([data-theme="light"]) .report-card, 
+html:not([data-theme="light"]) .status-card, 
+html:not([data-theme="light"]) .metric-card {
+  background: rgba(30, 30, 32, 0.82) !important;
+  backdrop-filter: blur(35px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(35px) saturate(190%) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.09) !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.25) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 
+    0 0 0 1px rgba(255, 255, 255, 0.01),
+    0 8px 30px rgba(0, 0, 0, 0.35) !important;
+  color: #f5f5f7 !important;
+  transition: transform 0.4s var(--mac-spring), box-shadow 0.4s var(--mac-spring), background 0.4s var(--mac-spring) !important;
+}
+html:not([data-theme="light"]) .card:hover, 
+html:not([data-theme="light"]) .report-card:hover, 
+html:not([data-theme="light"]) .metric-card:hover {
+  background: rgba(36, 36, 38, 0.88) !important;
+  box-shadow: 
+    0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 16px 45px rgba(0, 0, 0, 0.45) !important;
+  transform: translateY(-2px) scale(1.002) !important;
+}
+
+/* Card titles and headings - Dark Mode */
+html:not([data-theme="light"]) .card-title,
+html:not([data-theme="light"]) .card-header,
+html:not([data-theme="light"]) .card-body,
+html:not([data-theme="light"]) .section-title,
+html:not([data-theme="light"]) .page-title,
+html:not([data-theme="light"]) h1,
+html:not([data-theme="light"]) h2,
+html:not([data-theme="light"]) h3,
+html:not([data-theme="light"]) h4,
+html:not([data-theme="light"]) h5,
+html:not([data-theme="light"]) h6 {
+  color: #ffffff !important;
+}
+
+/* Super-Sleek Header - Dark Mode */
+html:not([data-theme="light"]) .app-navbar {
+  background: rgba(30, 30, 32, 0.72) !important;
+  backdrop-filter: blur(24px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+}
+html:not([data-theme="light"]) .nav-brand-title {
+  color: #ffffff !important;
+}
+html:not([data-theme="light"]) .nav-brand-subtitle {
+  color: #a1a1a6 !important;
+}
+html:not([data-theme="light"]) .nav-links > a,
+html:not([data-theme="light"]) .nav-links > .dropdown > .nav-link-menu {
+  color: #cccccc !important;
+}
+html:not([data-theme="light"]) .nav-links > a:hover,
+html:not([data-theme="light"]) .nav-links > .dropdown > .nav-link-menu:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+html:not([data-theme="light"]) .nav-links > a.active,
+html:not([data-theme="light"]) .nav-links > .dropdown > .nav-link-menu.active {
+  color: #0a84ff !important; /* macOS Vibrant Blue active indicator */
+  background: rgba(10, 132, 255, 0.08) !important;
+}
+html:not([data-theme="light"]) .nav-links > a::after,
+html:not([data-theme="light"]) .nav-links > .dropdown > .nav-link-menu::after {
+  background: #0a84ff !important;
+}
+
+/* Topbar search & user actions in Dark Mode */
+html:not([data-theme="light"]) .nav-btn {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  color: #cccccc !important;
+  transition: all 0.3s var(--mac-spring) !important;
+}
+html:not([data-theme="light"]) .nav-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+html:not([data-theme="light"]) .nav-kbd {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #a1a1a6 !important;
+}
+
+/* Dropdown menus - Dark Mode */
+html:not([data-theme="light"]) .dropdown-menu {
+  background: rgba(30, 30, 32, 0.94) !important;
+  backdrop-filter: blur(35px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(35px) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+}
+html:not([data-theme="light"]) .dropdown-item {
+  color: #e5e5ea !important;
+}
+html:not([data-theme="light"]) .dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #ffffff !important;
+}
+html:not([data-theme="light"]) .dropdown-item.active {
+  background: #0a84ff !important;
+  color: #ffffff !important;
+}
+
+/* Glass Inputs - Dark Mode */
+html:not([data-theme="light"]) .form-control, 
+html:not([data-theme="light"]) .form-select {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.3s var(--mac-spring) !important;
+}
+html:not([data-theme="light"]) .form-control:focus, 
+html:not([data-theme="light"]) .form-select:focus {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: #0a84ff !important;
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.22), inset 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+html:not([data-theme="light"]) .form-control::placeholder {
+  color: #8e8e93 !important;
+}
+html:not([data-theme="light"]) .form-label,
+html:not([data-theme="light"]) label,
+html:not([data-theme="light"]) .text-muted,
+html:not([data-theme="light"]) .contacts-summary,
+html:not([data-theme="light"]) .nav-drawer .drawer-brand-sub,
+html:not([data-theme="light"]) .nav-drawer .drawer-sub {
+  color: #a1a1a6 !important;
+}
+
+/* Custom outline buttons - Dark Mode */
+html:not([data-theme="light"]) .btn-outline-secondary {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #cccccc !important;
+  transition: all 0.3s var(--mac-spring) !important;
+}
+html:not([data-theme="light"]) .btn-outline-secondary:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+}
+html:not([data-theme="light"]) .btn-outline-secondary:active,
+html:not([data-theme="light"]) .btn-outline-secondary.active {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+/* Tables - Dark Mode */
+html:not([data-theme="light"]) .record-table tbody tr,
+html:not([data-theme="light"]) .table tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+  transition: background 0.3s var(--mac-spring) !important;
+}
+html:not([data-theme="light"]) .record-table tbody tr:hover, 
+html:not([data-theme="light"]) .table tbody tr:hover {
+  background: rgba(10, 132, 255, 0.04) !important;
+}
+html:not([data-theme="light"]) .record-table thead th, 
+html:not([data-theme="light"]) .table thead th {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+html:not([data-theme="light"]) .contacts-link,
+html:not([data-theme="light"]) .col-name a {
+  color: #f5f5f7 !important;
+}
+html:not([data-theme="light"]) .contacts-link:hover,
+html:not([data-theme="light"]) .col-name a:hover {
+  color: #0a84ff !important;
+}
+
+/* Segmented Controls - Dark Mode */
+html:not([data-theme="light"]) .glass-segmented-control {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.2) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.25) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15), 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+html:not([data-theme="light"]) .glass-segmented-control label {
+  color: #a1a1a6 !important;
+}
+html:not([data-theme="light"]) .glass-segmented-control label:hover {
+  color: #ffffff !important;
+}
+html:not([data-theme="light"]) .glass-segmented-control input[type="radio"]:checked + label {
+  color: #ffffff !important;
+}
+
+/* Drawer & Modals - Dark Mode */
+html:not([data-theme="light"]) .nav-drawer {
+  background: rgba(30, 30, 32, 0.95) !important;
+  color: #f5f5f7 !important;
+}
+html:not([data-theme="light"]) .drawer-link {
+  color: #cccccc !important;
+}
+html:not([data-theme="light"]) .drawer-link:hover,
+html:not([data-theme="light"]) .drawer-link.active {
+  background: rgba(10, 132, 255, 0.08) !important;
+  color: #0a84ff !important;
+}
+html:not([data-theme="light"]) .modal-content {
+  background: rgba(30, 30, 32, 0.96) !important;
+  backdrop-filter: blur(35px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4) !important;
+  color: #f5f5f7 !important;
+}
+
+
+/* ──────────────────────────────────────────────────────────────────────────
+   THEME 2: macOS LIGHT GLASS (Frosted Light Aqua Mode)
+   ────────────────────────────────────────────────────────────────────────── */
+html[data-theme="light"] body {
+  background-color: #f5f5f7 !important; /* Authentic soft light-grey macOS background */
+  color: #1d1d1f !important;
+}
+html[data-theme="light"] body::before {
+  background: radial-gradient(circle, rgba(0, 122, 255, 0.08) 0%, transparent 70%) !important;
+  opacity: 0.8;
+}
+html[data-theme="light"] body::after {
+  background: radial-gradient(circle, rgba(147, 51, 234, 0.06) 0%, transparent 70%) !important;
+  opacity: 0.8;
+}
+
+/* Glass Cards - Light Mode (Beautiful High-Contrast Frosted Glass) */
+html[data-theme="light"] .card, 
+html[data-theme="light"] .dashboard-container .card, 
+html[data-theme="light"] .report-card, 
+html[data-theme="light"] .status-card, 
+html[data-theme="light"] .metric-card {
+  background: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(35px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(35px) saturate(190%) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.95) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.8) !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.04) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03) !important;
+  box-shadow: 
+    0 0 0 1px rgba(0, 0, 0, 0.015),
+    0 4px 18px rgba(0, 0, 0, 0.02),
+    0 12px 30px rgba(0, 0, 0, 0.04) !important;
+  color: #1d1d1f !important;
+  transition: transform 0.4s var(--mac-spring), box-shadow 0.4s var(--mac-spring), background 0.4s var(--mac-spring) !important;
+}
+html[data-theme="light"] .card:hover, 
+html[data-theme="light"] .report-card:hover, 
+html[data-theme="light"] .metric-card:hover {
+  background: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 
+    0 0 0 1px rgba(0, 0, 0, 0.015),
+    0 16px 45px rgba(0, 0, 0, 0.07) !important;
+  transform: translateY(-2px) scale(1.002) !important;
+}
+
+/* Card titles and headings */
+html[data-theme="light"] .card-title,
+html[data-theme="light"] .card-header,
+html[data-theme="light"] .card-body,
+html[data-theme="light"] .section-title,
+html[data-theme="light"] .page-title,
+html[data-theme="light"] h1,
+html[data-theme="light"] h2,
+html[data-theme="light"] h3,
+html[data-theme="light"] h4,
+html[data-theme="light"] h5,
+html[data-theme="light"] h6 {
+  color: #1d1d1f !important;
+}
+
+/* Super-Sleek Header - Light Mode */
+html[data-theme="light"] .app-navbar {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(24px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+}
+html[data-theme="light"] .nav-brand-title {
+  color: #1d1d1f !important;
+}
+html[data-theme="light"] .nav-brand-subtitle {
+  color: #6e6e73 !important;
+}
+html[data-theme="light"] .nav-links > a,
+html[data-theme="light"] .nav-links > .dropdown > .nav-link-menu {
+  color: #515154 !important;
+}
+html[data-theme="light"] .nav-links > a:hover,
+html[data-theme="light"] .nav-links > .dropdown > .nav-link-menu:hover {
+  color: #1d1d1f !important;
+  background: rgba(0, 0, 0, 0.03) !important;
+}
+html[data-theme="light"] .nav-links > a.active,
+html[data-theme="light"] .nav-links > .dropdown > .nav-link-menu.active {
+  color: #007aff !important; /* macOS Royal Blue active indicator */
+  background: rgba(0, 122, 255, 0.06) !important;
+}
+html[data-theme="light"] .nav-links > a::after,
+html[data-theme="light"] .nav-links > .dropdown > .nav-link-menu::after {
+  background: #007aff !important;
+}
+
+/* Topbar search & user actions in Light Mode */
+html[data-theme="light"] .nav-btn {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  color: #515154 !important;
+  transition: all 0.3s var(--mac-spring) !important;
+}
+html[data-theme="light"] .nav-btn:hover {
+  background: rgba(0, 0, 0, 0.07) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  color: #1d1d1f !important;
+}
+html[data-theme="light"] .nav-kbd {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  color: #86868b !important;
+}
+
+/* Dropdown menus - Light Mode (Apple style) */
+html[data-theme="light"] .dropdown-menu {
+  background: rgba(255, 255, 255, 0.94) !important;
+  backdrop-filter: blur(24px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06) !important;
+}
+html[data-theme="light"] .dropdown-item {
+  color: #1d1d1f !important;
+}
+html[data-theme="light"] .dropdown-item:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: #1d1d1f !important;
+}
+html[data-theme="light"] .dropdown-item.active {
+  background: #007aff !important;
+  color: #ffffff !important;
+}
+
+/* Glass Inputs - Light Mode */
+html[data-theme="light"] .form-control, 
+html[data-theme="light"] .form-select {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  color: #1d1d1f !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  transition: all 0.3s var(--mac-spring) !important;
+}
+html[data-theme="light"] .form-control:focus, 
+html[data-theme="light"] .form-select:focus {
+  background: #ffffff !important;
+  border-color: #007aff !important;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+html[data-theme="light"] .form-control::placeholder {
+  color: #86868b !important;
+}
+html[data-theme="light"] .form-label,
+html[data-theme="light"] label,
+html[data-theme="light"] .text-muted,
+html[data-theme="light"] .contacts-summary,
+html[data-theme="light"] .nav-drawer .drawer-brand-sub,
+html[data-theme="light"] .nav-drawer .drawer-sub {
+  color: #6e6e73 !important;
+}
+
+/* Custom outline buttons */
+html[data-theme="light"] .btn-outline-secondary {
+  background: rgba(0, 0, 0, 0.03) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: #515154 !important;
+  text-shadow: none !important;
+  transition: all 0.3s var(--mac-spring) !important;
+}
+html[data-theme="light"] .btn-outline-secondary:hover {
+  background: rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  color: #1d1d1f !important;
+}
+html[data-theme="light"] .btn-outline-secondary:active,
+html[data-theme="light"] .btn-outline-secondary.active {
+  background: rgba(0, 0, 0, 0.09) !important;
+  color: #1d1d1f !important;
+}
+
+/* Tables - Light Mode (macOS premium grid style) */
+html[data-theme="light"] .record-table tbody tr,
+html[data-theme="light"] .table tbody tr {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
+  transition: background 0.3s var(--mac-spring) !important;
+}
+html[data-theme="light"] .record-table tbody tr:hover, 
+html[data-theme="light"] .table tbody tr:hover {
+  background: rgba(0, 122, 255, 0.02) !important;
+}
+html[data-theme="light"] .record-table thead th, 
+html[data-theme="light"] .table thead th {
+  background: rgba(0, 0, 0, 0.02) !important;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.06) !important;
+  color: #1d1d1f !important;
+  font-weight: 700 !important;
+}
+html[data-theme="light"] .contacts-link,
+html[data-theme="light"] .col-name a {
+  color: #1d1d1f !important;
+}
+html[data-theme="light"] .contacts-link:hover,
+html[data-theme="light"] .col-name a:hover {
+  color: #007aff !important;
+}
+
+/* Segmented Controls - Light Mode */
+html[data-theme="light"] .glass-segmented-control {
+  background: rgba(0, 0, 0, 0.035) !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-left: 1px solid rgba(0, 0, 0, 0.06) !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.04) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.02) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03), 0 8px 32px rgba(0, 0, 0, 0.04) !important;
+}
+html[data-theme="light"] .glass-segmented-control label {
+  color: #6e6e73 !important;
+}
+html[data-theme="light"] .glass-segmented-control label:hover {
+  color: #1d1d1f !important;
+}
+html[data-theme="light"] .glass-segmented-control input[type="radio"]:checked + label {
+  color: #ffffff !important;
+}
+
+/* Drawer & Modals */
+html[data-theme="light"] .nav-drawer {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #1d1d1f !important;
+}
+html[data-theme="light"] .drawer-brand-name {
+  color: #1d1d1f !important;
+}
+html[data-theme="light"] .nav-drawer-close {
+  color: #515154 !important;
+}
+html[data-theme="light"] .nav-drawer-close:hover {
+  color: #1d1d1f !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+html[data-theme="light"] .nav-hamburger {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  color: #515154 !important;
+}
+html[data-theme="light"] .nav-hamburger:hover {
+  background: rgba(0, 0, 0, 0.07) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: #1d1d1f !important;
+}
+html[data-theme="light"] .drawer-link {
+  color: #515154 !important;
+}
+html[data-theme="light"] .drawer-link:hover,
+html[data-theme="light"] .drawer-link.active {
+  background: rgba(0, 122, 255, 0.06) !important;
+  color: #007aff !important;
+}
+html[data-theme="light"] .modal-content {
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(35px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12) !important;
+  color: #1d1d1f !important;
+}
+
+html:not([data-theme="light"]) .btn-dark,
+[data-theme="dark"] .btn-dark {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+  backdrop-filter: blur(10px) !important;
+}
+html:not([data-theme="light"]) .btn-dark:hover,
+[data-theme="dark"] .btn-dark:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  color: #ffffff !important;
+}
+
+/* Custom submit buttons matching the active segment theme colors in Operation New */
+.btn-achat-submit {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+  border: none !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 15px rgba(217, 119, 6, 0.25) !important;
+  transition: all 0.2s ease !important;
+}
+.btn-achat-submit:hover {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+  box-shadow: 0 6px 20px rgba(217, 119, 6, 0.4) !important;
+  transform: translateY(-1px) !important;
+  color: #fff !important;
+}
+.btn-achat-submit:active {
+  transform: scale(0.97) !important;
+}
+
+.btn-vente-submit {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+  border: none !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 15px rgba(29, 78, 216, 0.25) !important;
+  transition: all 0.2s ease !important;
+}
+.btn-vente-submit:hover {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%) !important;
+  box-shadow: 0 6px 20px rgba(29, 78, 216, 0.4) !important;
+  transform: translateY(-1px) !important;
+  color: #fff !important;
+}
+.btn-vente-submit:active {
+  transform: scale(0.97) !important;
+}
+
+.btn-payment-submit {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border: none !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25) !important;
+  transition: all 0.2s ease !important;
+}
+.btn-payment-submit:hover {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4) !important;
+  transform: translateY(-1px) !important;
+  color: #fff !important;
+}
+.btn-payment-submit:active {
+  transform: scale(0.97) !important;
+}
+
+/* Custom totals colors matching the active segment theme colors in Operation New */
+#purchaseDocumentTotal {
+  color: #d97706 !important;
+}
+html:not([data-theme="light"]) #purchaseDocumentTotal,
+[data-theme="dark"] #purchaseDocumentTotal {
+  color: #fbbf24 !important;
+}
+
+#saleDocumentTotal {
+  color: #2563eb !important;
+}
+html:not([data-theme="light"]) #saleDocumentTotal,
+[data-theme="dark"] #saleDocumentTotal {
+  color: #60a5fa !important;
+}
+
+/* Premium Button Styling - Liquid Glass Aesthetic (Visible in both Light and Dark Themes) */
+.btn-premium {
+  background: 
+    linear-gradient(180deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.15) 100%), 
+    linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 4px 15px rgba(99, 102, 241, 0.35),
+    0 8px 24px rgba(99, 102, 241, 0.15) !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.btn-premium:hover {
+  background: 
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.2) 100%), 
+    linear-gradient(135deg, #5a52e6 0%, #6e72f2 100%) !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 6px 20px rgba(99, 102, 241, 0.5) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) !important;
+}
+
+.btn-premium:active {
+  transform: scale(0.96) !important;
+}
+
+/* Global Page Transitions (SPA Feeling) */
+html.js-transitions .app-content {
+  opacity: 0;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+html.js-transitions .app-content.page-visible {
+  opacity: 1;
+}
+html.js-transitions .app-content.page-hidden {
+  opacity: 0;
 }

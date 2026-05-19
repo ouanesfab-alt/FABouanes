@@ -61,7 +61,8 @@ async def new_purchase_page(request: Request):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
-    return templates.TemplateResponse("purchase_new.html", template_context(request, **purchase_form_context()))
+    return RedirectResponse("/operations/new?mode=achat", status_code=303)
+
 
 
 @router.post("/operations/purchases/new", name="new_purchase")

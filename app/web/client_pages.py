@@ -88,7 +88,9 @@ async def new_client_page(request: Request):
     denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
     if denied:
         return denied
-    return templates.TemplateResponse("client_new.html", template_context(request))
+    return RedirectResponse("/contacts/new?kind=client", status_code=303)
+
+
 
 
 @router.post("/contacts/clients/new", name="new_client")
@@ -107,8 +109,8 @@ async def new_client_submit(request: Request):
         errors = [err["msg"] for err in e.errors()] if isinstance(e, ValidationError) else [str(e)]
         flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
         return templates.TemplateResponse(
-            "client_new.html",
-            template_context(request, client=form)
+            "contact_new.html",
+            template_context(request, client=form, kind="client")
         )
         
     create_client_from_form(validated.model_dump())

@@ -245,8 +245,8 @@
         </select>
       </div>
       <div class="col-12 d-flex gap-2">
-        <button class="btn btn-dark">Filtrer</button>
-        <a href="{{ url_for('admin_audit_page') }}" class="btn btn-outline-secondary">Reinitialiser</a>
+        <button class="btn btn-outline-secondary"><i class="bi bi-funnel me-1"></i>Filtrer</button>
+        <a href="{{ url_for('admin_audit_page') }}" class="btn btn-outline-secondary"><i class="bi bi-x-circle me-1"></i>Annuler</a>
       </div>
     </form>
     <div class="table-responsive">
@@ -369,10 +369,9 @@
       <div class="col-md-2">
         <input type="date" name="activity_date" value="{{ activity_filters.activity_date }}" class="form-control">
       </div>
-      <div class="col-md-1 d-flex gap-2">
-        <button class="btn btn-dark w-100">Filtrer</button>
-        <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-secondary" aria-label="Reinitialiser"><i
-            class="bi bi-x-lg"></i></a>
+      <div class="col-12 d-flex gap-2">
+        <button class="btn btn-outline-secondary"><i class="bi bi-funnel me-1"></i>Filtrer</button>
+        <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-secondary"><i class="bi bi-x-circle me-1"></i>Annuler</a>
       </div>
     </form>
     <div class="table-responsive">
@@ -546,8 +545,6 @@
         <div class="d-flex flex-wrap gap-2">
           <button class="btn btn-outline-secondary js-theme d-flex align-items-center gap-2" type="button" data-theme-value="light" style="min-width:120px;"><i class="bi bi-sun-fill text-warning"></i> Clair</button>
           <button class="btn btn-outline-secondary js-theme d-flex align-items-center gap-2" type="button" data-theme-value="dark" style="min-width:120px;"><i class="bi bi-moon-stars-fill"></i> Nuit</button>
-          <button class="btn btn-outline-secondary js-theme d-flex align-items-center gap-2" type="button" data-theme-value="slate" style="min-width:120px;"><i class="bi bi-layers-fill"></i> Acier</button>
-          <button class="btn btn-outline-secondary js-theme d-flex align-items-center gap-2" type="button" data-theme-value="sand" style="min-width:120px;"><i class="bi bi-brightness-alt-high-fill text-warning"></i> Sable</button>
         </div>
       </div>
 

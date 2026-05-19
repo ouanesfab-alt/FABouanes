@@ -64,16 +64,8 @@ async def new_payment_page(request: Request):
     if denied:
         return denied
     mode = request.query_params.get("mode", "versement")
-    heading = "Enregistrer une avance" if mode == "avance" else "Enregistrer un versement"
-    button_label = "Enregistrer l'avance" if mode == "avance" else "Enregistrer le versement"
-    context = new_payment_context()
-    context.update({
-        "heading": heading,
-        "button_label": button_label,
-        "payment_type": mode,
-        "show_sale_link": mode != "avance",
-    })
-    return templates.TemplateResponse("payment_new.html", template_context(request, **context))
+    return RedirectResponse(f"/operations/new?mode={mode}", status_code=303)
+
 
 
 @router.post("/operations/payments/new", name="new_payment")

@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from app.services.print_service import COMPANY_INFO, PRINT_LAYOUT, build_print_payload, generate_invoice_pdf
 from app.services.transactions_service import transactions_context, update_production_notes
 from app.web.deps import csrf_protect, flash, get_current_user, login_redirect, require_permission, template_context, templates
-from app.core.permissions import PERMISSION_OPERATIONS_READ, PERMISSION_PRODUCTION_WRITE
+from app.core.permissions import PERMISSION_OPERATIONS_READ, PERMISSION_PRODUCTION_WRITE, PERMISSION_OPERATIONS_WRITE
 
 
 router = APIRouter()
@@ -45,6 +45,34 @@ async def operations_page(request: Request):
         path=request.url.path,
     )
     return templates.TemplateResponse("transactions.html", template_context(request, **context))
+
+
+@router.get("/operations/new", name="new_operation")
+async def new_operation_page(request: Request):
+    denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
+    if denied:
+        return denied
+    
+    from app.services.purchase_service import purchase_form_context
+    from app.services.sale_service import sale_form_context
+    from app.services.payment_service import new_payment_context
+    from app.core.db_access import query_db
+
+    p_ctx = purchase_form_context()
+    s_ctx = sale_form_context()
+    pay_ctx = new_payment_context()
+    
+    context = {}
+    context.update(p_ctx)
+    context.update(s_ctx)
+    context.update(pay_ctx)
+    
+    context["clients"] = query_db("SELECT * FROM clients ORDER BY name")
+    context["suppliers"] = query_db("SELECT * FROM suppliers ORDER BY name")
+    context["mode"] = request.query_params.get("mode", "achat")
+    
+    return templates.TemplateResponse("operation_new.html", template_context(request, **context))
+
 
 
 @router.get("/print/{doc_type}/{item_id}", name="print_document")

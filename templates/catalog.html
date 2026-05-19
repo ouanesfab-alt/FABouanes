@@ -128,3 +128,104 @@
   </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+  // Single-page style filtering and navigation for catalog
+  async function loadCatalog(url, pushHistory = true) {
+    const tableContainer = document.querySelector('.catalog-table-wrap');
+    if (tableContainer) {
+      tableContainer.style.opacity = '0.6';
+      tableContainer.style.transition = 'opacity 0.15s ease';
+    }
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error();
+      const html = await response.text();
+      
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      const currentCard = document.querySelector('.catalog-table-card');
+      const newCard = doc.querySelector('.catalog-table-card');
+      if (currentCard && newCard) {
+        currentCard.innerHTML = newCard.innerHTML;
+      }
+      
+      const currentSummary = document.querySelector('.catalog-summary');
+      const newSummary = doc.querySelector('.catalog-summary');
+      if (currentSummary && newSummary) {
+        currentSummary.innerHTML = newSummary.innerHTML;
+      }
+      
+      if (pushHistory) {
+        history.pushState(null, '', url);
+      }
+    } catch (e) {
+      if (pushHistory) {
+        window.location.href = url;
+      }
+    } finally {
+      if (tableContainer) {
+        tableContainer.style.opacity = '1';
+      }
+    }
+  }
+
+  // Handle browser Back/Forward navigation
+  window.addEventListener('popstate', function() {
+    if (window.location.pathname.startsWith('/catalog')) {
+      loadCatalog(window.location.href, false);
+    }
+  });
+
+  // Intercept click on pagination, and reset filters
+  document.addEventListener('click', function(e) {
+    const pageLink = e.target.closest('.catalog-table-card [role="aria-label"] a, .catalog-table-card .btn-group a');
+    if (pageLink && !pageLink.classList.contains('disabled') && window.location.pathname.startsWith('/catalog')) {
+      const href = pageLink.getAttribute('href');
+      if (href && href !== '#') {
+        e.preventDefault();
+        loadCatalog(href);
+        return;
+      }
+    }
+
+    const resetLink = e.target.closest('.catalog-table-card a[aria-label="Reinitialiser les filtres"]');
+    if (resetLink && window.location.pathname.startsWith('/catalog')) {
+      e.preventDefault();
+      loadCatalog(resetLink.getAttribute('href'));
+    }
+  });
+
+  // Intercept form filter submission to load dynamically
+  document.addEventListener('submit', function(e) {
+    const form = e.target.closest('.catalog-filter-row');
+    if (form && window.location.pathname.startsWith('/catalog')) {
+      e.preventDefault();
+      const url = new URL(form.action || window.location.href, window.location.origin);
+      const formData = new FormData(form);
+      
+      url.search = '';
+      for (const [key, value] of formData.entries()) {
+        if (value) {
+          url.searchParams.set(key, value);
+        }
+      }
+      loadCatalog(url.toString());
+    }
+  });
+
+  // Intercept change event on selects for immediate filtering
+  document.addEventListener('change', function(e) {
+    const select = e.target.closest('.catalog-filter-row select');
+    if (select && window.location.pathname.startsWith('/catalog')) {
+      const form = select.closest('form');
+      if (form) {
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+      }
+    }
+  });
+</script>
+{% endblock %}

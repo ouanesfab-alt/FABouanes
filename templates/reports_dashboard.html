@@ -85,6 +85,32 @@
   [data-theme="dark"] .rpt-rank{background:rgba(96,165,250,.12);color:#93c5fd;border-color:rgba(96,165,250,.2);}
   [data-theme="dark"] .rpt-rank.gold{background:rgba(250,204,21,.12);color:#fde047;border-color:rgba(250,204,21,.2);}
 
+  /* Aging table custom theme-dependent colors */
+  .rpt-debt-value { color: #2563eb !important; }
+  .rpt-debt-success { color: #16a34a !important; }
+  .rpt-debt-warning { color: #d97706 !important; }
+  .rpt-debt-danger { color: #dc2626 !important; }
+  .rpt-badge-delay {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: rgba(107, 114, 128, 0.08);
+    color: #5b6270;
+    border: 1px solid rgba(107, 114, 128, 0.15);
+  }
+  
+  [data-theme="dark"] .rpt-debt-value { color: #60a5fa !important; }
+  [data-theme="dark"] .rpt-debt-success { color: #4ade80 !important; }
+  [data-theme="dark"] .rpt-debt-warning { color: #fbbf24 !important; }
+  [data-theme="dark"] .rpt-debt-danger { color: #f87171 !important; }
+  [data-theme="dark"] .rpt-badge-delay {
+    background: rgba(156, 163, 175, 0.12);
+    color: #cbd5e1;
+    border-color: rgba(156, 163, 175, 0.2);
+  }
+
   @media(max-width:991px){
     .rpt-chart-grid,.rpt-top-grid{grid-template-columns:1fr;}
   }
@@ -112,7 +138,7 @@
     <label class="fw-bold small">Période :</label>
     <input type="date" name="date_from" value="{{ date_from }}" class="form-control" title="Du">
     <input type="date" name="date_to" value="{{ date_to }}" class="form-control" title="Au">
-    <button class="btn btn-premium btn-sm"><i class="bi bi-funnel me-1"></i>Filtrer</button>
+    <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-funnel me-1"></i>Filtrer</button>
     <a href="{{ url_for('reports_dashboard') }}" class="btn btn-outline-secondary btn-sm">Tout afficher</a>
   </form>
 
@@ -225,9 +251,14 @@
           <span class="text-muted small">Charges d'exploitation (Dépenses)</span>
           <span class="fw-bold text-danger">- {{ expenses_total|money }}</span>
         </div>
-        <div class="d-flex justify-content-between align-items-center bg-body-tertiary p-2 rounded mt-1">
+        <div class="d-flex justify-content-between align-items-center bg-body-tertiary p-2 rounded mt-1" style="border: 1px solid {% if net_profit >= 0 %}rgba(22, 163, 74, 0.15){% else %}rgba(220, 38, 38, 0.15){% endif %}; background: {% if net_profit >= 0 %}rgba(22, 163, 74, 0.04){% else %}rgba(220, 38, 38, 0.04){% endif %} !important;">
           <span class="fw-bold">Bénéfice Net Réel</span>
-          <span class="fw-bold text-primary" style="font-size: 1.15rem;">{{ net_profit|money }} <span class="badge bg-primary ms-1" style="font-size: 0.78rem;">{{ net_margin_pct }}%</span></span>
+          <span class="fw-bold {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}" style="font-size: 1.15rem;">
+            {{ net_profit|money }}
+            <span class="badge {% if net_profit >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} ms-1" style="font-size: 0.78rem;">
+              {{ net_margin_pct }}%
+            </span>
+          </span>
         </div>
       </div>
     </div>
@@ -251,15 +282,15 @@
     <div class="row g-3">
       <div class="col-lg-8">
         {% if client_debts %}
-        <div class="table-responsive" style="max-height: 420px; overflow-y: auto; border: 1px solid rgba(128, 128, 128, 0.15); border-radius: 8px;">
-          <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.85rem; border-collapse: separate; border-spacing: 0;">
-            <thead style="position: sticky; top: 0; z-index: 10; background-color: var(--bs-body-bg, #ffffff); box-shadow: inset 0 -2px 0 rgba(128,128,128,0.15);">
-              <tr class="table-light">
+        <div class="table-responsive" style="max-height: 420px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px;">
+          <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.85rem; border-collapse: separate; border-spacing: 0; background: transparent; color: var(--text);">
+            <thead style="position: sticky; top: 0; z-index: 10; background: var(--surface); color: var(--text); box-shadow: inset 0 -2px 0 var(--line);">
+              <tr>
                 <th>Client</th>
                 <th class="text-end">Dette Totale</th>
-                <th class="text-end text-success">< 30 j</th>
-                <th class="text-end text-warning">30-90 j</th>
-                <th class="text-end text-danger">> 90 j</th>
+                <th class="text-end rpt-debt-success">< 30 j</th>
+                <th class="text-end rpt-debt-warning">30-90 j</th>
+                <th class="text-end rpt-debt-danger">> 90 j</th>
                 <th class="text-center">Respect Limite</th>
                 <th class="text-end">Délai Recouv. Moyen</th>
               </tr>
@@ -268,10 +299,10 @@
               {% for d in client_debts %}
               <tr>
                 <td class="fw-bold">{{ d.name }}</td>
-                <td class="text-end fw-semibold text-primary">{{ d.debt|money }}</td>
-                <td class="text-end text-success">{{ d.under_30|money if d.under_30 > 0 else '—' }}</td>
-                <td class="text-end text-warning">{{ d.days_30_to_90|money if d.days_30_to_90 > 0 else '—' }}</td>
-                <td class="text-end text-danger">{{ d.over_90|money if d.over_90 > 0 else '—' }}</td>
+                <td class="text-end fw-semibold rpt-debt-value">{{ d.debt|money }}</td>
+                <td class="text-end rpt-debt-success">{{ d.under_30|money if d.under_30 > 0 else '—' }}</td>
+                <td class="text-end rpt-debt-warning">{{ d.days_30_to_90|money if d.days_30_to_90 > 0 else '—' }}</td>
+                <td class="text-end rpt-debt-danger">{{ d.over_90|money if d.over_90 > 0 else '—' }}</td>
                 <td class="text-center">
                   <div class="d-flex align-items-center justify-content-center gap-2">
                     <div class="progress" style="width: 50px; height: 5px;" title="Utilisation de la limite : {{ d.limit_utilized_pct }}% (Seuil : {{ d.limit|money }})">
@@ -282,7 +313,7 @@
                 </td>
                 <td class="text-end">
                   {% if d.avg_delay is not none %}
-                    <span class="badge bg-secondary-subtle text-secondary" title="Délai de versement moyen">{{ d.avg_delay }} jours</span>
+                    <span class="rpt-badge-delay" title="Délai de versement moyen">{{ d.avg_delay }} jours</span>
                   {% else %}
                     <span class="text-muted">—</span>
                   {% endif %}
@@ -311,8 +342,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
-                 document.documentElement.getAttribute('data-theme') === 'slate';
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)';
   const textColor = isDark ? 'rgba(255,255,255,.6)' : 'rgba(0,0,0,.5)';
 

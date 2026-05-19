@@ -64,9 +64,8 @@ async def new_sale_page(request: Request):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
-    context = sale_form_context()
-    context["clients"] = query_db("SELECT * FROM clients ORDER BY name")
-    return templates.TemplateResponse("sale_new.html", template_context(request, **context))
+    return RedirectResponse("/operations/new?mode=vente", status_code=303)
+
 
 
 @router.post("/operations/sales/new", name="new_sale")

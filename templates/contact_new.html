@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="entity-form-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1" id="pageTitle">Nouveau contact</h2>
+      <p class="entity-form-summary mb-0" id="pageSummary">Renseigne les coordonnées et informations pour enregistrer la fiche de contact.</p>
+    </div>
+  </div>
+
+  <div class="entity-form-shell is-narrow">
+    <div class="card entity-form-card">
+      <form method="post" class="entity-form-grid" id="contactForm" action="">
+        
+        <!-- Segmented control to choose kind -->
+        <div class="span-12">
+          <label class="form-label">Type de contact</label>
+          <div class="glass-segmented-control theme-amber">
+            <input type="radio" name="kind" id="kindClient" value="client" {% if kind == 'client' %}checked{% endif %}>
+            <label for="kindClient">
+              <i class="bi bi-person-fill me-2"></i>Client
+            </label>
+            <input type="radio" name="kind" id="kindSupplier" value="supplier" {% if kind == 'supplier' %}checked{% endif %}>
+            <label for="kindSupplier">
+              <i class="bi bi-truck me-2"></i>Fournisseur
+            </label>
+            <div class="glass-slider"></div>
+          </div>
+        </div>
+
+        <div class="span-6">
+          <label class="form-label">Nom complet</label>
+          <input name="name" class="form-control" value="{{ client.name if client else '' }}" required id="inputName">
+        </div>
+        <div class="span-6">
+          <label class="form-label">Téléphone</label>
+          <input name="phone" class="form-control" value="{{ client.phone if client else '' }}" id="inputPhone">
+        </div>
+        <div class="span-12">
+          <label class="form-label">Adresse</label>
+          <input name="address" class="form-control" value="{{ client.address if client else '' }}" id="inputAddress">
+        </div>
+        
+        <!-- Client-only credit field -->
+        <div class="span-6" id="creditFieldWrapper">
+          <label class="form-label">Crédit / dette initiale (DA)</label>
+          <input name="opening_credit" type="number" step="0.01" value="{{ client.opening_credit if client else '0' }}" class="form-control" id="inputCredit">
+        </div>
+        
+        <div class="span-12">
+          <label class="form-label">Notes / Observations</label>
+          <textarea name="notes" class="form-control" rows="3" id="inputNotes">{{ client.notes if client else '' }}</textarea>
+        </div>
+        
+        <!-- Info notes -->
+        <div class="span-12" id="infoNoteWrapper">
+          <div class="entity-form-note" id="infoNoteText">
+            Le crédit initial sert de point de départ pour le suivi des dettes et des versements du client.
+          </div>
+        </div>
+
+        <div class="span-12 entity-form-actions">
+          <button class="btn btn-dark" id="btnSubmit">Enregistrer le contact</button>
+          <a href="{{ url_for('contacts') }}" class="btn btn-outline-secondary" id="btnCancel">Annuler</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const kindClient = document.getElementById('kindClient');
+  const kindSupplier = document.getElementById('kindSupplier');
+  const creditFieldWrapper = document.getElementById('creditFieldWrapper');
+  const infoNoteText = document.getElementById('infoNoteText');
+  const contactForm = document.getElementById('contactForm');
+  const pageTitle = document.getElementById('pageTitle');
+  const pageSummary = document.getElementById('pageSummary');
+  const btnSubmit = document.getElementById('btnSubmit');
+  const btnCancel = document.getElementById('btnCancel');
+
+  const CLIENT_ACTION = "{{ url_for('new_client') }}";
+  const SUPPLIER_ACTION = "{{ url_for('new_supplier') }}";
+  const CONTACTS_PAGE = "{{ url_for('contacts') }}";
+
+  function updateFormKind() {
+    if (kindClient.checked) {
+      // Set to Client view
+      contactForm.action = CLIENT_ACTION;
+      creditFieldWrapper.style.display = 'block';
+      document.getElementById('inputCredit').disabled = false;
+      pageTitle.textContent = "Ajouter un client";
+      pageSummary.textContent = "Renseigne les coordonnées et le crédit initial avant d'enregistrer la fiche client.";
+      infoNoteText.textContent = "Le crédit initial sert de point de départ pour le suivi des dettes et des versements du client.";
+      btnSubmit.textContent = "Enregistrer le client";
+      btnCancel.href = CONTACTS_PAGE + "?type=client";
+    } else {
+      // Set to Supplier view
+      contactForm.action = SUPPLIER_ACTION;
+      creditFieldWrapper.style.display = 'none';
+      document.getElementById('inputCredit').disabled = true;
+      pageTitle.textContent = "Ajouter un fournisseur";
+      pageSummary.textContent = "Crée une fiche fournisseur simple pour suivre les achats et les références de contact.";
+      infoNoteText.textContent = "Ajoute ici les informations pratiques utiles aux prochains achats et aux rappels de livraison.";
+      btnSubmit.textContent = "Enregistrer le fournisseur";
+      btnCancel.href = CONTACTS_PAGE + "?type=supplier";
+    }
+  }
+
+  kindClient.addEventListener('change', updateFormKind);
+  kindSupplier.addEventListener('change', updateFormKind);
+
+  // Initialize
+  updateFormKind();
+});
+</script>
+{% endblock %}

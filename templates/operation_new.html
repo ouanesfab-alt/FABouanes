@@ -1,0 +1,706 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  /* Unique layout styles for operation lines */
+  .doc-lines-shell{display:flex;flex-direction:column;gap:16px;}
+  .doc-lines-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;}
+  .doc-lines-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .doc-lines-list{display:flex;flex-direction:column;gap:12px;}
+  .doc-line-card{border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--surface);}
+  .doc-line-top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap;}
+  .doc-line-grid{display:grid;grid-template-columns:minmax(0,2.4fr) repeat(3,minmax(120px,1fr)) auto;gap:12px;align-items:end;}
+  .doc-line-meta{font-size:.9rem;color:var(--muted);}
+  
+  @media(max-width:991px){
+    .doc-line-grid{grid-template-columns:1fr 1fr;}
+  }
+  @media(max-width:767px){
+    .doc-line-grid{grid-template-columns:1fr;}
+  }
+</style>
+
+<div class="entity-form-page">
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1" id="operationPageTitle">Nouvelle opération</h2>
+      <p class="entity-form-summary mb-0" id="operationPageSummary">Choisis le type de transaction à effectuer, renseigne les détails, puis enregistre l'opération.</p>
+    </div>
+  </div>
+
+  <div class="entity-form-shell is-wide">
+    <!-- Horizontal glass segmented control -->
+    <div class="glass-segmented-control op-switcher theme-emerald">
+      <input type="radio" name="operation_choice" id="opAchat" value="achat" {% if mode == 'achat' %}checked{% endif %}>
+      <label for="opAchat">
+        <i class="bi bi-bag-plus me-2"></i>Achat
+      </label>
+      <input type="radio" name="operation_choice" id="opVente" value="vente" {% if mode == 'vente' %}checked{% endif %}>
+      <label for="opVente">
+        <i class="bi bi-cart-dash me-2"></i>Vente
+      </label>
+      <input type="radio" name="operation_choice" id="opVersement" value="versement" {% if mode == 'versement' %}checked{% endif %}>
+      <label for="opVersement">
+        <i class="bi bi-cash-coin me-2"></i>Versement
+      </label>
+      <input type="radio" name="operation_choice" id="opAvance" value="avance" {% if mode == 'avance' %}checked{% endif %}>
+      <label for="opAvance">
+        <i class="bi bi-hourglass-split me-2"></i>Avance
+      </label>
+      <div class="glass-slider"></div>
+    </div>
+
+    <!-- 1. ACHAT SECTION -->
+    <div class="card entity-form-card" id="section-purchase" style="display: none;">
+      <form method="post" class="entity-form-grid" id="purchaseDocumentForm" action="/operations/purchases/new">
+        <div class="span-6 form-float">
+          <select name="supplier_id" class="form-select" id="supplierSelect" placeholder=" ">
+            <option value="">Sans fournisseur</option>
+            {% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+          </select>
+          <label for="supplierSelect">Fournisseur</label>
+        </div>
+        <div class="span-6 form-float">
+          <input name="purchase_date" type="date" class="form-control" id="purchaseDate" placeholder=" ">
+          <label for="purchaseDate">Date</label>
+        </div>
+        <div class="span-12 form-float">
+          <textarea name="notes" id="purchaseNotes" class="form-control" rows="2" placeholder=" "></textarea>
+          <label for="purchaseNotes">Notes (Observation globale du bon)</label>
+        </div>
+        
+        <div class="span-12 doc-lines-shell">
+          <div class="doc-lines-header">
+            <div>
+              <label class="form-label mb-1">Lignes d'achat</label>
+            </div>
+            <div class="doc-lines-actions">
+              <button type="button" class="btn btn-outline-secondary" id="addPurchaseLine">
+                <i class="bi bi-plus-lg me-1"></i>Ajouter une ligne
+              </button>
+            </div>
+          </div>
+          <div class="doc-lines-list" id="purchaseLines"></div>
+        </div>
+
+        <div class="span-6 entity-form-inline">
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="purchasePrint" name="print_after" value="1" checked>
+            <label class="form-check-label" for="purchasePrint">Ouvrir le bon après enregistrement</label>
+          </div>
+        </div>
+        <div class="span-12">
+          <div class="form-total-bar sticky-bottom z-1 mb-3">
+            <span>Total:</span>
+            <strong id="purchaseDocumentTotal">0,00 DA</strong>
+          </div>
+        </div>
+        <div class="span-12 entity-form-actions">
+          <button class="btn btn-achat-submit"><i class="bi bi-check2-circle me-1"></i>Enregistrer le bon d'achat</button>
+          <a href="{{ url_for('operations') }}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+      </form>
+    </div>
+
+    <!-- 2. VENTE SECTION -->
+    <div class="card entity-form-card" id="section-sale" style="display: none;">
+      <form method="post" class="entity-form-grid" id="sale-form" action="/operations/sales/new">
+        <div class="span-6 form-float">
+          <select name="client_id" class="form-select" id="clientSelect" placeholder=" ">
+            <option value="">Comptoir (cash)</option>
+            {% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+          </select>
+          <label for="clientSelect">Client</label>
+        </div>
+        <div class="span-6 form-float">
+          <input name="sale_date" type="date" class="form-control" id="saleDate" placeholder=" ">
+          <label for="saleDate">Date de vente</label>
+        </div>
+        <div class="span-12 form-float">
+          <input name="notes" id="saleNotes" class="form-control" placeholder=" ">
+          <label for="saleNotes">Notes (Observation globale de la facture)</label>
+        </div>
+
+        <div class="span-12 doc-lines-shell">
+          <div class="doc-lines-header">
+            <div>
+              <label class="form-label mb-1">Lignes de vente</label>
+            </div>
+            <div class="doc-lines-actions">
+              <button type="button" class="btn btn-outline-secondary" id="addSaleLine">
+                <i class="bi bi-plus-lg me-1"></i>Ajouter une ligne
+              </button>
+            </div>
+          </div>
+          <div class="doc-lines-list" id="saleLines"></div>
+        </div>
+
+        <div class="span-6 entity-form-inline">
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="salePrint" name="print_after" value="1" checked>
+            <label class="form-check-label" for="salePrint">Ouvrir la facture après enregistrement</label>
+          </div>
+        </div>
+        <div class="span-12">
+          <div class="form-total-bar sticky-bottom z-1 mb-3">
+            <span>Total:</span>
+            <strong id="saleDocumentTotal">0,00 DA</strong>
+          </div>
+        </div>
+        <div class="span-12 entity-form-actions">
+          <button type="submit" class="btn btn-vente-submit"><i class="bi bi-check2-circle me-1"></i>Enregistrer la facture</button>
+          <a href="{{ url_for('operations') }}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+      </form>
+    </div>
+
+    <!-- 3. VERSEMENT & AVANCE SECTION -->
+    <div class="card entity-form-card" id="section-payment" style="display: none;">
+      <form method="post" class="entity-form-grid" id="payment-form" action="/operations/payments/new">
+        <input type="hidden" name="payment_type" id="paymentTypeInput" value="versement">
+        
+        <div class="span-6">
+          <label class="form-label">Client</label>
+          <select name="client_id" class="form-select" id="paymentClientSelect" required>
+            {% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="span-3">
+          <label class="form-label">Montant (DA)</label>
+          <input name="amount" type="number" step="0.01" min="0.01" class="form-control" required placeholder="0.00">
+        </div>
+        <div class="span-3">
+          <label class="form-label">Date</label>
+          <input name="payment_date" type="date" class="form-control" id="paymentDate">
+        </div>
+        
+        <div class="span-12" id="paymentSaleLinkWrapper">
+          <label class="form-label">Créance liée</label>
+          <select name="sale_link" class="form-select">
+            <option value="">Affectation automatique</option>
+            {% for s in open_sales %}<option value="{{ s.item_kind }}:{{ s.id }}">{{ s.client_name }} · {{ s.item_name }} · reste {{ s.balance_due|money }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="span-6 entity-form-inline">
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="paymentPrint" name="print_after" value="1" checked>
+            <label class="form-check-label" for="paymentPrint">Ouvrir le reçu après enregistrement</label>
+          </div>
+        </div>
+        
+        <div class="span-12">
+          <label class="form-label">Notes / Observations</label>
+          <input name="notes" class="form-control" placeholder="Optionnel">
+        </div>
+        
+        <div class="span-12">
+          <div class="entity-form-note" id="paymentNoteText">
+            Le versement peut être affecté automatiquement à la dette du client ou lié à une créance précise.
+          </div>
+        </div>
+        
+        <div class="span-12 entity-form-actions">
+          <button class="btn btn-payment-submit" id="paymentSubmitBtn">Enregistrer le versement</button>
+          <a href="{{ url_for('operations', type='payment') }}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<!-- LINE TEMPLATES -->
+<template id="purchaseLineTemplate">
+  <div class="doc-line-card">
+    <div class="doc-line-top">
+      <div class="fw-semibold">Ligne <span class="purchase-line-number"></span></div>
+      <button type="button" class="btn btn-outline-danger btn-sm doc-line-remove">
+        <i class="bi bi-trash3 me-1"></i>Retirer
+      </button>
+    </div>
+    <div class="doc-line-grid">
+      <div>
+        <label class="form-label">Matière</label>
+        <select name="raw_material_id[]" class="form-select purchase-material" required>
+          {% for r in raw_materials %}
+          <option value="{{ r.id }}" data-unit="{{ r.unit }}" data-price="{{ r.avg_cost }}" data-stock="{{ r.stock_qty }}" data-force-unit="{{ r.force_unit or '' }}" data-custom-name-required="{{ r.custom_name_required or '' }}">{{ r.option_label or r.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="doc-line-meta purchase-meta"></div>
+        <div class="purchase-custom-wrap" hidden>
+          <label class="form-label mt-2">Préciser le produit</label>
+          <input name="custom_item_name[]" type="text" class="form-control purchase-custom-name" placeholder="Nom du produit">
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Quantité</label>
+        <input name="quantity[]" type="text" inputmode="decimal" class="form-control purchase-qty" required placeholder="0">
+      </div>
+      <div>
+        <label class="form-label">Unité</label>
+        <select name="unit[]" class="form-select purchase-unit">
+          {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Prix unitaire</label>
+        <input name="unit_price[]" type="text" inputmode="decimal" class="form-control purchase-price" required placeholder="0">
+      </div>
+      <div>
+        <label class="form-label">Total</label>
+        <input type="text" class="form-control purchase-total" readonly tabindex="-1">
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="saleLineTemplate">
+  <div class="doc-line-card">
+    <div class="doc-line-top">
+      <div class="fw-semibold">Ligne <span class="sale-line-number"></span></div>
+      <button type="button" class="btn btn-outline-danger btn-sm doc-line-remove">
+        <i class="bi bi-trash3 me-1"></i>Retirer
+      </button>
+    </div>
+    <div class="doc-line-grid">
+      <div>
+        <label class="form-label">Produit / matière</label>
+        <select name="item_key[]" class="form-select sale-item" required>
+          {% for p in sellable_items %}
+          <option value="{{ p.key }}" data-unit="{{ p.unit }}" data-price="{{ p.sale_price }}" data-stock="{{ p.stock_qty }}" data-cost="{{ p.avg_cost }}" data-force-unit="{{ p.force_unit or '' }}" data-custom-name-required="{{ p.custom_name_required or '' }}">{{ p.label }}</option>
+          {% endfor %}
+        </select>
+        <div class="doc-line-meta sale-meta"></div>
+        <div class="sale-custom-wrap" hidden>
+          <label class="form-label mt-2">Préciser le produit</label>
+          <input name="custom_item_name[]" type="text" class="form-control sale-custom-name" placeholder="Nom du produit">
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Quantité</label>
+        <input name="quantity[]" type="text" inputmode="decimal" class="form-control sale-qty" required placeholder="0">
+      </div>
+      <div>
+        <label class="form-label">Unité</label>
+        <select name="unit[]" class="form-select sale-unit">
+          {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Prix unitaire</label>
+        <input name="unit_price[]" type="text" inputmode="decimal" class="form-control sale-price" required placeholder="0">
+      </div>
+      <div>
+        <label class="form-label">Total</label>
+        <input type="text" class="form-control sale-total" readonly tabindex="-1">
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- JAVASCRIPT FOR OFF-LINE AND DYNAMIC FORM CALCULATIONS -->
+<script type="module">
+import { queueOperation, getRefData } from '/static/js/offline-db.js';
+
+// Setup horizontal switching
+document.addEventListener('DOMContentLoaded', () => {
+  const opAchat = document.getElementById('opAchat');
+  const opVente = document.getElementById('opVente');
+  const opVersement = document.getElementById('opVersement');
+  const opAvance = document.getElementById('opAvance');
+
+  const sectionPurchase = document.getElementById('section-purchase');
+  const sectionSale = document.getElementById('section-sale');
+  const sectionPayment = document.getElementById('section-payment');
+
+  const paymentTypeInput = document.getElementById('paymentTypeInput');
+  const paymentSaleLinkWrapper = document.getElementById('paymentSaleLinkWrapper');
+  const paymentNoteText = document.getElementById('paymentNoteText');
+  const paymentSubmitBtn = document.getElementById('paymentSubmitBtn');
+
+  const operationPageTitle = document.getElementById('operationPageTitle');
+  const operationPageSummary = document.getElementById('operationPageSummary');
+  const control = document.querySelector('.glass-segmented-control');
+
+  function updateActiveSection() {
+    // Hide everything
+    sectionPurchase.style.display = 'none';
+    sectionSale.style.display = 'none';
+    sectionPayment.style.display = 'none';
+
+    if (control) {
+      control.classList.remove('theme-amber', 'theme-blue');
+      control.classList.add('theme-emerald');
+    }
+
+    if (opAchat.checked) {
+      sectionPurchase.style.display = 'block';
+      operationPageTitle.textContent = "Nouvel achat";
+      operationPageSummary.textContent = "Crée un bon d'achat, renseigne les matières premières reçues et les prix unitaires.";
+    } else if (opVente.checked) {
+      sectionSale.style.display = 'block';
+      operationPageTitle.textContent = "Nouvelle vente";
+      operationPageSummary.textContent = "Génère une nouvelle facture client, précise les produits vendus et les prix appliqués.";
+    } else if (opVersement.checked) {
+      sectionPayment.style.display = 'block';
+      paymentTypeInput.value = 'versement';
+      paymentSaleLinkWrapper.style.display = 'block';
+      paymentNoteText.textContent = "Le versement peut être affecté automatiquement à la dette du client ou lié à une créance précise.";
+      paymentSubmitBtn.textContent = "Enregistrer le versement";
+      operationPageTitle.textContent = "Nouveau versement";
+      operationPageSummary.textContent = "Enregistre un versement reçu de la part d'un client pour régler une créance ou une dette.";
+    } else if (opAvance.checked) {
+      sectionPayment.style.display = 'block';
+      paymentTypeInput.value = 'avance';
+      paymentSaleLinkWrapper.style.display = 'none';
+      paymentNoteText.textContent = "Une avance augmente temporairement le solde disponible du client.";
+      paymentSubmitBtn.textContent = "Enregistrer l'avance";
+      operationPageTitle.textContent = "Nouvelle avance";
+      operationPageSummary.textContent = "Saisis une avance de fonds client, créditée pour de futures livraisons ou ventes.";
+    }
+  }
+
+  [opAchat, opVente, opVersement, opAvance].forEach(radio => {
+    radio.addEventListener('change', updateActiveSection);
+  });
+
+  // Initialize
+  updateActiveSection();
+});
+</script>
+
+<script>
+// --- ACHAT DYNAMIC SCRIPT ---
+(function(){
+  const linesHost = document.getElementById('purchaseLines');
+  const lineTemplate = document.getElementById('purchaseLineTemplate');
+  const addLineBtn = document.getElementById('addPurchaseLine');
+  const totalNode = document.getElementById('purchaseDocumentTotal');
+  const dateInput = document.getElementById('purchaseDate');
+ 
+  function unitFactor(unit){ unit=(unit||'kg').toLowerCase(); if(unit==='sac') return 50; if(unit==='qt'||unit==='quintal') return 100; return 1; }
+  function parseNum(value){ return parseFloat(String(value||'0').replace(',','.').replace(/\s/g,'')) || 0; }
+  function fmtMoney(value){ return value.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' DA'; }
+ 
+  if (dateInput) {
+    dateInput.max = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    dateInput.value = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+  }
+ 
+  function renumberLines(){
+    [...linesHost.querySelectorAll('.doc-line-card')].forEach((row, idx) => {
+      row.querySelector('.purchase-line-number').textContent = idx + 1;
+    });
+  }
+ 
+  function updateDocumentTotal(){
+    let total = 0;
+    linesHost.querySelectorAll('.doc-line-card').forEach((row) => {
+      total += parseNum(row.querySelector('.purchase-qty')?.value) * parseNum(row.querySelector('.purchase-price')?.value);
+    });
+    totalNode.textContent = fmtMoney(total);
+  }
+ 
+  function syncCustomField(row){
+    const materialSelect = row.querySelector('.purchase-material');
+    const customWrap = row.querySelector('.purchase-custom-wrap');
+    const customInput = row.querySelector('.purchase-custom-name');
+    const option = materialSelect?.options[materialSelect.selectedIndex];
+    const requireCustomName = (option?.dataset.customNameRequired || '') === '1';
+    customWrap.hidden = !requireCustomName;
+    customInput.required = requireCustomName;
+    if(!requireCustomName){
+      customInput.value = '';
+    }
+  }
+ 
+  async function syncLine(row, resetPrice){
+    const materialSelect = row.querySelector('.purchase-material');
+    const unitSelect = row.querySelector('.purchase-unit');
+    const priceInput = row.querySelector('.purchase-price');
+    const metaNode = row.querySelector('.purchase-meta');
+    const materialId = materialSelect?.value;
+    if(!materialId) return;
+    const option = materialSelect.options[materialSelect.selectedIndex];
+    const forcedUnit = option.dataset.forceUnit || '';
+    let unit = option.dataset.unit || 'kg';
+    let avgCost = parseFloat(option.dataset.price || 0);
+    let stock = parseFloat(option.dataset.stock || 0);
+    try{
+      let kind = 'raw';
+      let realId = materialId;
+      if (materialId.includes(':')) {
+        const parts = materialId.split(':');
+        kind = parts[0];
+        realId = parts[1];
+      }
+      const response = await fetch(`/api/item-info?kind=${kind}&id=${realId}`);
+      const data = await response.json();
+      if(data.ok){
+        unit = data.item.unit || unit;
+        avgCost = parseFloat(data.item.avg_cost || avgCost || 0);
+        stock = parseFloat(data.item.stock_qty || stock || 0);
+      }
+    }catch(error){}
+    if(forcedUnit){
+      unit = forcedUnit;
+      unitSelect.dataset.touched = '';
+      unitSelect.value = forcedUnit;
+    } else if(!unitSelect.dataset.touched){
+      unitSelect.value = unit;
+    }
+    const displayUnit = forcedUnit || unitSelect.value || unit;
+    if(resetPrice || !priceInput.value){
+      priceInput.value = (avgCost * unitFactor(displayUnit)).toFixed(2);
+    }
+    syncCustomField(row);
+    metaNode.textContent = `Stock: ${(stock / unitFactor(displayUnit)).toFixed(2)} ${displayUnit} | Coût: ${fmtMoney(avgCost * unitFactor(displayUnit))}/${displayUnit}${forcedUnit ? ' | Unité fixe' : ''}`;
+    updateLineTotal(row);
+  }
+ 
+  function updateLineTotal(row){
+    const qty = parseNum(row.querySelector('.purchase-qty')?.value);
+    const price = parseNum(row.querySelector('.purchase-price')?.value);
+    row.querySelector('.purchase-total').value = qty > 0 && price > 0 ? fmtMoney(qty * price) : '';
+    updateDocumentTotal();
+  }
+ 
+  function attachLine(row){
+    const materialSelect = row.querySelector('.purchase-material');
+    const unitSelect = row.querySelector('.purchase-unit');
+    const qtyInput = row.querySelector('.purchase-qty');
+    const priceInput = row.querySelector('.purchase-price');
+    const removeBtn = row.querySelector('.doc-line-remove');
+ 
+    materialSelect.addEventListener('change', () => {
+      unitSelect.dataset.touched = '';
+      syncLine(row, true);
+    });
+    unitSelect.addEventListener('change', () => {
+      const option = materialSelect.options[materialSelect.selectedIndex];
+      if((option?.dataset.forceUnit || '') === 'unite'){
+        unitSelect.value = 'unite';
+        unitSelect.dataset.touched = '';
+      } else {
+        unitSelect.dataset.touched = '1';
+      }
+      syncLine(row, true);
+    });
+    qtyInput.addEventListener('input', () => updateLineTotal(row));
+    priceInput.addEventListener('input', () => updateLineTotal(row));
+    removeBtn.addEventListener('click', () => {
+      if(linesHost.children.length === 1){
+        qtyInput.value = '';
+        priceInput.value = '';
+        updateLineTotal(row);
+        return;
+      }
+      row.remove();
+      renumberLines();
+      updateDocumentTotal();
+    });
+    syncLine(row, true);
+  }
+ 
+  function addLine(){
+    const fragment = lineTemplate.content.cloneNode(true);
+    const row = fragment.querySelector('.doc-line-card');
+    linesHost.appendChild(row);
+    attachLine(row);
+    renumberLines();
+  }
+ 
+  addLineBtn.addEventListener('click', addLine);
+  addLine();
+})();
+</script>
+
+<script>
+// --- VENTE DYNAMIC SCRIPT ---
+(function(){
+  const linesHost = document.getElementById('saleLines');
+  const lineTemplate = document.getElementById('saleLineTemplate');
+  const addLineBtn = document.getElementById('addSaleLine');
+  const totalNode = document.getElementById('saleDocumentTotal');
+  const saleDateInput = document.getElementById('saleDate');
+ 
+  function unitFactor(unit){ unit=(unit||'kg').toLowerCase(); if(unit==='sac') return 50; if(unit==='qt'||unit==='quintal') return 100; return 1; }
+  function parseNum(value){ return parseFloat(String(value||'0').replace(',','.').replace(/\s/g,'')) || 0; }
+  function fmtMoney(value){ return value.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' DA'; }
+ 
+  if (saleDateInput) {
+    saleDateInput.max = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    saleDateInput.value = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+  }
+ 
+  function renumberLines(){
+    [...linesHost.querySelectorAll('.doc-line-card')].forEach((row, idx) => {
+      row.querySelector('.sale-line-number').textContent = idx + 1;
+    });
+  }
+ 
+  function updateDocumentTotal(){
+    let total = 0;
+    linesHost.querySelectorAll('.doc-line-card').forEach((row) => {
+      total += parseNum(row.querySelector('.sale-qty')?.value) * parseNum(row.querySelector('.sale-price')?.value);
+    });
+    totalNode.textContent = fmtMoney(total);
+  }
+ 
+  function syncCustomField(row){
+    const itemSelect = row.querySelector('.sale-item');
+    const customWrap = row.querySelector('.sale-custom-wrap');
+    const customInput = row.querySelector('.sale-custom-name');
+    const option = itemSelect?.options[itemSelect.selectedIndex];
+    const requireCustomName = (option?.dataset.customNameRequired || '') === '1';
+    customWrap.hidden = !requireCustomName;
+    customInput.required = requireCustomName;
+    if(!requireCustomName){
+      customInput.value = '';
+    }
+  }
+ 
+  async function syncLine(row, resetPrice){
+    const itemSelect = row.querySelector('.sale-item');
+    const unitSelect = row.querySelector('.sale-unit');
+    const priceInput = row.querySelector('.sale-price');
+    const metaNode = row.querySelector('.sale-meta');
+    const itemKey = itemSelect?.value;
+    if(!itemKey) return;
+    const option = itemSelect.options[itemSelect.selectedIndex];
+    const forcedUnit = option.dataset.forceUnit || '';
+    let unit = option.dataset.unit || 'kg';
+    let salePrice = parseFloat(option.dataset.price || 0);
+    let stock = parseFloat(option.dataset.stock || 0);
+    try{
+      let kind = 'product';
+      let realId = itemKey;
+      if (itemKey.includes(':')) {
+        const parts = itemKey.split(':');
+        kind = parts[0] === 'finished' ? 'product' : 'raw';
+        realId = parts[1];
+      }
+      const response = await fetch(`/api/item-info?kind=${kind}&id=${realId}`);
+      const data = await response.json();
+      if(data.ok){
+        unit = data.item.unit || unit;
+        salePrice = parseFloat(data.item.sale_price || salePrice || 0);
+        stock = parseFloat(data.item.stock_qty || stock || 0);
+      }
+    }catch(error){}
+    if(forcedUnit){
+      unit = forcedUnit;
+      unitSelect.dataset.touched = '';
+      unitSelect.value = forcedUnit;
+    } else if(!unitSelect.dataset.touched){
+      unitSelect.value = unit;
+    }
+    const displayUnit = forcedUnit || unitSelect.value || unit;
+    if(resetPrice || !priceInput.value){
+      priceInput.value = (salePrice * unitFactor(displayUnit)).toFixed(2);
+    }
+    syncCustomField(row);
+    metaNode.textContent = `Stock: ${(stock / unitFactor(displayUnit)).toFixed(2)} ${displayUnit} | Prix: ${fmtMoney(salePrice * unitFactor(displayUnit))}/${displayUnit}${forcedUnit ? ' | Unité fixe' : ''}`;
+    updateLineTotal(row);
+  }
+ 
+  function updateLineTotal(row){
+    const qty = parseNum(row.querySelector('.sale-qty')?.value);
+    const price = parseNum(row.querySelector('.sale-price')?.value);
+    row.querySelector('.sale-total').value = qty > 0 && price > 0 ? fmtMoney(qty * price) : '';
+    updateDocumentTotal();
+  }
+ 
+  function attachLine(row){
+    const itemSelect = row.querySelector('.sale-item');
+    const unitSelect = row.querySelector('.sale-unit');
+    const qtyInput = row.querySelector('.sale-qty');
+    const priceInput = row.querySelector('.sale-price');
+    const removeBtn = row.querySelector('.doc-line-remove');
+ 
+    itemSelect.addEventListener('change', () => {
+      unitSelect.dataset.touched = '';
+      syncLine(row, true);
+    });
+    unitSelect.addEventListener('change', () => {
+      const option = itemSelect.options[itemSelect.selectedIndex];
+      if((option?.dataset.forceUnit || '') === 'unite'){
+        unitSelect.value = 'unite';
+        unitSelect.dataset.touched = '';
+      } else {
+        unitSelect.dataset.touched = '1';
+      }
+      syncLine(row, true);
+    });
+    qtyInput.addEventListener('input', () => updateLineTotal(row));
+    priceInput.addEventListener('input', () => updateLineTotal(row));
+    removeBtn.addEventListener('click', () => {
+      if(linesHost.children.length === 1){
+        qtyInput.value = '';
+        priceInput.value = '';
+        updateLineTotal(row);
+        return;
+      }
+      row.remove();
+      renumberLines();
+      updateDocumentTotal();
+    });
+    syncLine(row, true);
+  }
+ 
+  function addLine(){
+    const fragment = lineTemplate.content.cloneNode(true);
+    const row = fragment.querySelector('.doc-line-card');
+    linesHost.appendChild(row);
+    attachLine(row);
+    renumberLines();
+  }
+ 
+  addLineBtn.addEventListener('click', addLine);
+  addLine();
+})();
+</script>
+
+<script type="module">
+import { queueOperation, getRefData } from '/static/js/offline-db.js';
+
+// --- PAYMENT & OFFLINE FORM SYNC ---
+const form = document.getElementById('payment-form');
+const paymentDateInput = document.getElementById('paymentDate');
+ 
+if (paymentDateInput) {
+  const today = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+  paymentDateInput.max = today;
+  if (!paymentDateInput.value) paymentDateInput.value = today;
+}
+ 
+async function fillClientsFromCache() {
+  if (navigator.onLine) return;
+  const clients = await getRefData('clients');
+  const sel = document.getElementById('paymentClientSelect');
+  if (clients && sel) {
+    sel.innerHTML = clients.map(c =>
+      `<option value="${c.id}">${c.name}${c.phone ? ' — ' + c.phone : ''}</option>`
+    ).join('');
+  }
+}
+ 
+form?.addEventListener('submit', async (e) => {
+  if (navigator.onLine) return;
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(form).entries());
+  await queueOperation('create_payment', data);
+  form.innerHTML = `
+    <div class="alert alert-success text-center p-4">
+      <i class="bi bi-clock-history fs-3 d-block mb-2"></i>
+      <strong>Paiement enregistré hors-ligne</strong><br>
+      <small class="text-muted">Il sera synchronisé automatiquement à la reconnexion.</small>
+      <div class="mt-3">
+        <a href="/operations" class="btn btn-sm btn-success">Retour aux opérations</a>
+      </div>
+    </div>`;
+});
+ 
+document.addEventListener('DOMContentLoaded', fillClientsFromCache);
+</script>
+{% endblock %}

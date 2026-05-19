@@ -66,12 +66,23 @@ async def compat_new_supplier_page(request: Request):
     return RedirectResponse(NEW_SUPPLIER_URL, status_code=303)
 
 
+@router.get("/contacts/new", name="new_contact")
+async def new_contact_page(request: Request):
+    denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
+    if denied:
+        return denied
+    kind = request.query_params.get("kind", "client")
+    return templates.TemplateResponse("contact_new.html", template_context(request, kind=kind))
+
+
 @router.get("/contacts/suppliers/new", name="new_supplier")
 async def new_supplier_page(request: Request):
     denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
     if denied:
         return denied
-    return templates.TemplateResponse("supplier_new.html", template_context(request))
+    return RedirectResponse("/contacts/new?kind=supplier", status_code=303)
+
+
 
 
 @router.post("/contacts/suppliers/new", name="new_supplier")
