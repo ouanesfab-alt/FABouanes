@@ -958,7 +958,7 @@ iframe {
   html[data-nav="vertical"] .side-nav-toggle {
     display: flex;
     position: fixed;
-    left: calc(var(--side-nav-w) - 54px);
+    left: calc(var(--side-nav-w) - 19px);
     top: 18px;
     z-index: 1045;
     width: 38px;
@@ -5618,5 +5618,18 @@ html[data-theme="windows-dark"] .nav-links a:not(.active):hover {
 }
 .btn:active {
   transform: scale(0.97) !important;
+}
+
+/* ── Vertical Navigation Toggle Light Mode Overrides ── */
+html[data-theme="light"] .side-nav-toggle {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  color: #515154 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+html[data-theme="light"] .side-nav-toggle:hover {
+  background: #007aff !important;
+  border-color: #007aff !important;
+  color: #ffffff !important;
 }
 
