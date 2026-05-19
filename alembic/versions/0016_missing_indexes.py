@@ -15,15 +15,13 @@ down_revision = '0015_client_stats_view'
 branch_labels = None
 depends_on = None
 
-
 def upgrade() -> None:
-    # Use raw connection for CONCURRENTLY indexes
-    op.execute('CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_stock_movements_item ON stock_movements(item_kind, item_id, created_at DESC)')
-    op.execute('CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_stock_movements_reference ON stock_movements(reference_type, reference_id)')
-    op.execute('CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_performance_logs_kind ON performance_logs(kind, created_at DESC)')
-    op.execute('CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_imported_client_history_client ON imported_client_history(client_id, created_at DESC)')
-    op.execute('CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_purchases_finished_product_id ON purchases(finished_product_id) WHERE finished_product_id IS NOT NULL')
-    op.execute('CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id)')
+    op.execute('CREATE INDEX IF NOT EXISTS idx_stock_movements_item ON stock_movements(item_kind, item_id, created_at DESC)')
+    op.execute('CREATE INDEX IF NOT EXISTS idx_stock_movements_reference ON stock_movements(reference_type, reference_id)')
+    op.execute('CREATE INDEX IF NOT EXISTS idx_performance_logs_kind ON performance_logs(kind, created_at DESC)')
+    op.execute('CREATE INDEX IF NOT EXISTS idx_imported_client_history_client ON imported_client_history(client_id, created_at DESC)')
+    op.execute('CREATE INDEX IF NOT EXISTS idx_purchases_finished_product_id ON purchases(finished_product_id) WHERE finished_product_id IS NOT NULL')
+    op.execute('CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id)')
 
 
 def downgrade() -> None:

@@ -21,8 +21,13 @@ def upgrade() -> None:
     op.execute("ALTER TABLE production_batches ALTER COLUMN production_date TYPE DATE USING production_date::DATE")
 
     # Fix user boolean flags from INTEGER to proper BOOLEAN type
+    op.execute("ALTER TABLE users ALTER COLUMN must_change_password DROP DEFAULT")
     op.execute("ALTER TABLE users ALTER COLUMN must_change_password TYPE BOOLEAN USING (must_change_password::int != 0)")
+    op.execute("ALTER TABLE users ALTER COLUMN must_change_password SET DEFAULT FALSE")
+    
+    op.execute("ALTER TABLE users ALTER COLUMN is_active DROP DEFAULT")
     op.execute("ALTER TABLE users ALTER COLUMN is_active TYPE BOOLEAN USING (is_active::int != 0)")
+    op.execute("ALTER TABLE users ALTER COLUMN is_active SET DEFAULT TRUE")
 
 
 def downgrade() -> None:
@@ -30,5 +35,10 @@ def downgrade() -> None:
     op.execute("ALTER TABLE production_batches ALTER COLUMN production_date TYPE TEXT USING production_date::TEXT")
 
     # Revert user boolean flags back to INTEGER
+    op.execute("ALTER TABLE users ALTER COLUMN must_change_password DROP DEFAULT")
     op.execute("ALTER TABLE users ALTER COLUMN must_change_password TYPE INTEGER USING must_change_password::int")
+    op.execute("ALTER TABLE users ALTER COLUMN must_change_password SET DEFAULT 0")
+
+    op.execute("ALTER TABLE users ALTER COLUMN is_active DROP DEFAULT")
     op.execute("ALTER TABLE users ALTER COLUMN is_active TYPE INTEGER USING is_active::int")
+    op.execute("ALTER TABLE users ALTER COLUMN is_active SET DEFAULT 1")

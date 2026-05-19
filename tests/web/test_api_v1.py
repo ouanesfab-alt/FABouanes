@@ -5,18 +5,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.core.db_access import query_db, execute_db
 
-@pytest.fixture()
-def api_tokens(client: TestClient):
-    # Log in as admin via the API login endpoint
-    response = client.post("/api/v1/auth/login", json={"username": "admin", "password": "1234"})
-    assert response.status_code == 200
-    data = response.json()["data"]
-    return data["access_token"], data["refresh_token"]
 
-@pytest.fixture()
-def api_headers(api_tokens):
-    access_token, _ = api_tokens
-    return {"Authorization": f"Bearer {access_token}"}
 
 # ================= AUTH ENDPOINTS =================
 

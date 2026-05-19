@@ -133,7 +133,7 @@ from app.core.security import _rl_store  # noqa: E402
 @pytest.fixture(scope="session", autouse=True)
 def clean_runtime():
     if TEST_DATA_DIR.exists():
-        shutil.rmtree(TEST_DATA_DIR)
+        shutil.rmtree(TEST_DATA_DIR, ignore_errors=True)
     TEST_DATA_DIR.mkdir(parents=True, exist_ok=True)
     _reset_database()
     bootstrap_and_migrate()
@@ -159,12 +159,12 @@ def ensure_admin_user(client: TestClient):
     execute_db(
         """
         INSERT INTO users (username, password_hash, role, must_change_password, is_active, last_password_change_at)
-        VALUES (%s, %s, %s, 0, 1, CURRENT_TIMESTAMP)
+        VALUES (%s, %s, %s, FALSE, TRUE, CURRENT_TIMESTAMP)
         ON CONFLICT(username) DO UPDATE SET
             password_hash = excluded.password_hash,
             role = excluded.role,
-            must_change_password = 0,
-            is_active = 1,
+            must_change_password = FALSE,
+            is_active = TRUE,
             last_password_change_at = CURRENT_TIMESTAMP
         """,
         ("admin", generate_password_hash("1234"), "admin"),
@@ -253,3 +253,18 @@ def first_purchase_id():
     row = query_db("SELECT id FROM purchases ORDER BY id LIMIT 1", one=True)
     assert row is not None
     return int(row["id"])
+
+
+@pytest.fixture()
+def api_tokens(client: TestClient):
+    # Log in as admin via the API login endpoint
+    response = client.post("/api/v1/auth/login", json={"username": "admin", "password": "1234"})
+    assert response.status_code == 200
+    data = response.json()["data"]
+    return data["access_token"], data["refresh_token"]
+
+
+@pytest.fixture()
+def api_headers(api_tokens):
+    access_token, _ = api_tokens
+    return {"Authorization": f"Bearer {access_token}"}

@@ -2,97 +2,533 @@
 {% block content %}
 {% set company = company %}
 <style>
-  html,body{overflow-x:auto!important;}
-  body.print-route .app-content{min-width:190mm;}
-  .print-doc-shell{width:190mm;min-width:190mm;max-width:none;margin:0 auto;display:flex;flex-direction:column;gap:5mm;}
-  .print-doc-paper{background:#fff;color:#111;border:1px solid #cfd3d8;border-radius:6px;box-shadow:0 10px 26px rgba(15,23,42,.08);padding:8mm;min-height:277mm;font-family:"Plus Jakarta Sans",var(--font-main),Arial,Helvetica,sans-serif;}
-  .print-doc-top{display:grid;grid-template-columns:minmax(0,1fr) 76mm;gap:11mm;align-items:start;margin-bottom:9mm;}
-  .print-doc-company{display:block;min-width:0;}
-  .print-doc-party{min-width:0;}
-  .print-doc-logo{display:block;width:min(128mm,100%);height:auto;max-height:45mm;object-fit:contain;object-position:left top;}
-  .print-doc-brand{font-size:30pt;line-height:.95;font-weight:900;letter-spacing:0;color:#000;margin:2mm 0 0;}
-  .print-doc-tagline{font-size:15pt;line-height:1.2;margin:1mm 0 6mm;color:#222;}
-  .print-doc-contact{display:grid;grid-template-columns:7mm minmax(0,1fr);gap:2.6mm 3mm;font-size:10.5pt;line-height:1.25;color:#1b1b1b;}
-  .print-doc-contact i{font-size:11pt;color:#000;text-align:center;}
-  .print-doc-invoice-box{border:1.2px solid #333;border-radius:5px;padding:5mm 6mm 6mm;}
-  .print-doc-invoice-title{display:block;width:100%;font-size:26pt;line-height:1.05;font-weight:900;text-align:center;margin:0 auto 6mm;color:#000;letter-spacing:0;white-space:nowrap;}
-  .print-doc-refrow{display:grid;grid-template-columns:35mm 1fr;gap:4mm;align-items:center;margin:3.2mm 0;font-size:10.7pt;}
-  .print-doc-refrow span{font-weight:800;color:#000;}
-  .print-doc-refrow strong{font-weight:500;text-align:right;color:#222;overflow-wrap:anywhere;}
-  .print-doc-refrow .line-value{display:block;border-bottom:1.2px solid #111;min-height:5mm;}
-  .print-doc-client-box{position:relative;border:1.2px solid #333;border-radius:5px;min-height:31mm;padding:10mm 6mm 5mm;margin-bottom:7mm;}
-  .print-doc-client-tab{position:absolute;top:-7mm;left:0;background:#000;color:#fff;border-radius:5px 5px 0 0;min-width:28mm;text-align:center;font-size:10.5pt;font-weight:800;padding:2mm 6mm;}
-  .print-doc-client-meta-row{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,.85fr);gap:8mm;align-items:start;color:#222;}
-  .print-doc-client-meta-cell{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2mm;align-items:baseline;min-width:0;}
-  .print-doc-client-meta-cell span{font-weight:900;color:#000;white-space:nowrap;}
-  .print-doc-client-meta-cell strong{font-weight:600;color:#222;overflow-wrap:anywhere;}
-  .print-doc-client-meta-cell.is-partner{display:block;font-size:18pt;line-height:1.1;}
-  .print-doc-client-meta-cell.is-partner strong{display:block;font-weight:900;}
-  .print-doc-client-meta-cell.is-prepared{font-size:9.4pt;color:#555;align-self:center;}
-  .print-doc-client-meta-cell.is-prepared span{color:#111;}
-  .print-doc-client-meta-cell.is-prepared strong{font-weight:500;color:#333;}
-  .print-doc-client-row{display:grid;grid-template-columns:7mm minmax(0,1fr);gap:3mm;align-items:center;margin:5mm 0 0;font-size:11pt;color:#222;}
-  .print-doc-client-row i{font-size:12pt;color:#000;text-align:center;}
-  .print-doc-client-row strong{font-weight:500;overflow-wrap:anywhere;}
-  .print-doc-table-wrap{margin-top:4mm;}
-  .print-doc-table{width:100%;border-collapse:collapse;table-layout:fixed;}
-  .print-doc-table thead{display:table-header-group;}
-  .print-doc-table tbody tr{break-inside:avoid-page;page-break-inside:avoid;}
-  .print-doc-table th,.print-doc-table td{border:1px solid #777;padding:3mm 2.7mm;vertical-align:top;color:#111;}
-  .print-doc-table th{background:#f5f5f5;text-align:center;font-weight:800;font-size:10pt;}
-  .print-doc-table td{font-size:9.4pt;line-height:1.25;overflow-wrap:anywhere;}
-  .print-doc-table .col-right{text-align:right;white-space:nowrap;}
-  .print-doc-bottom{display:grid;grid-template-columns:minmax(0,1fr) 82mm;gap:19mm;align-items:start;margin-top:7mm;}
-  .print-doc-observations{border:1.2px solid #333;border-radius:5px;min-height:31mm;padding:4mm;}
-  .print-doc-observations h2{font-size:10.5pt;margin:0 0 2mm;font-weight:900;}
-  .print-doc-observations .rule{height:1px;background:#b8b8b8;margin:0 0 4mm;}
-  .print-doc-observations p{font-size:9.8pt;margin:0;line-height:1.35;color:#222;}
-  .print-doc-summary{border-collapse:collapse;width:100%;font-size:10.2pt;}
-  .print-doc-summary td{border:1px solid #777;padding:3mm 4mm;height:8mm;}
-  .print-doc-summary td:last-child{text-align:right;}
-  .print-doc-summary .total td{font-size:14pt;font-weight:900;}
-  .print-doc-signatures{display:grid;grid-template-columns:1fr 1fr;gap:18mm;border-top:1px dashed #999;margin-top:8mm;padding-top:7mm;text-align:center;break-inside:avoid;page-break-inside:avoid;}
-  .print-doc-signature-title{font-size:10pt;font-weight:800;margin-bottom:11mm;}
-  .print-doc-signature-line{width:62mm;max-width:100%;height:1px;background:#111;margin:0 auto;}
-  .print-doc-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
-  @page{size:A4 portrait;margin:10mm;}
-  @media print{
-    html,body{margin:0!important;padding:0!important;}
-    .no-print,.app-navbar,.page-hero,.table-toolbar,.context-menu,.btn,.dropdown,.alert{display:none!important;}
-    body{padding-top:0!important;background:#fff!important;}
-    .app-content{padding:0!important;}
-    .print-doc-shell{width:190mm!important;max-width:none!important;gap:0!important;}
-    .print-doc-paper{box-shadow:none!important;border:0!important;border-radius:0!important;min-height:auto!important;padding:0!important;}
+  :root {
+    --print-page-width: 210mm;
+    --print-page-height: 297mm;
+    --print-page-margin: 10mm;
+    --print-content-width: 190mm;
+    --print-paper-height: 277mm;
+    --print-gap: 5mm;
+    --print-header-padding: 8mm;
+    --print-body-padding: 8mm;
+    --print-screen-scale: 0.95;
+    
+    /* Premium Color Scheme */
+    --primary-color: #0f172a; /* Deep Charcoal */
+    --accent-color: #0284c7;  /* Corporate Ocean Blue */
+    --text-dark: #1e293b;     /* Dark Slate Text */
+    --text-muted: #64748b;    /* Light Slate Text */
+    --border-color: #cbd5e1;  /* Slate Border */
+    --border-light: #e2e8f0;  /* Light Slate Divider */
+    --bg-light: #f8fafc;      /* Soft Accent Background */
+  }
+  
+  html, body { overflow-x: auto !important; }
+  body.print-route .app-content { min-width: var(--print-content-width); min-width:190mm; }
+  
+  /* Outer Shell styling */
+  .print-doc-shell {
+    width: var(--print-content-width);
+    min-width: var(--print-content-width);
+    max-width: none;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--print-gap);
+  }
+  
+  .print-doc-paper {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(15,23,42,.06);
+    overflow: hidden;
+    min-height: var(--print-paper-height);
+    padding: var(--print-header-padding);
+    font-family: "Inter", "SF Pro Text", "Plus Jakarta Sans", Arial, sans-serif;
+    color: var(--text-dark);
+  }
+
+  /* ===== HEADER INVOICE TITLE ===== */
+  .print-doc-invoice-title-wrap {
+    background: var(--bg-light);
+    border-left: 4px solid var(--accent-color);
+    border-radius: 4px;
+    margin: -3mm -4mm 4mm -4mm;
+    padding: 5mm 6mm;
+    text-align: left;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .print-doc-invoice-title {
+    margin: 0;
+    font-family: "SF Pro Display", var(--font-title), sans-serif;
+    font-size: 20pt;
+    font-weight: 800;
+    color: #0f172a !important;
+    letter-spacing: -0.5px;
+    text-transform: uppercase;
+    line-height: 1.1;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Prevent global dark mode rules from overriding print document title colors */
+  html:not([data-theme="light"]) h1.print-doc-invoice-title,
+  html[data-theme="dark"] h1.print-doc-invoice-title,
+  html body.print-route h1.print-doc-invoice-title,
+  body.print-route h1.print-doc-invoice-title {
+    color: #0f172a !important;
+  }
+
+  /* ===== EN-TÊTE ===== */
+  .print-doc-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 76mm;
+    gap: 10mm;
+    align-items: start;
+    margin-bottom: 8mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  
+  .print-doc-company {
+    display: block;
+    min-width: 0;
+  }
+  
+  .print-doc-logo {
+    display: block;
+    width: min(128mm, 100%);
+    height: auto;
+    max-height: 38mm;
+    object-fit: contain;
+    object-position: left top;
+    margin-bottom: 4mm;
+  }
+  
+  .print-doc-contact {
+    display: flex;
+    flex-direction: column;
+    gap: 2mm;
+    color: var(--text-dark);
+    font-size: 9.5pt;
+    line-height: 1.4;
+  }
+  
+  .print-doc-contact-row {
+    display: flex;
+    align-items: center;
+    gap: 3.5mm;
+  }
+  
+  .print-doc-contact-row i {
+    font-size: 11pt;
+    color: var(--accent-color);
+    width: 6mm;
+    text-align: left;
+  }
+
+  /* ===== BOITE RÉFÉRENCES ===== */
+  .print-doc-invoice-box {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 6mm;
+    background: var(--bg-light);
+  }
+  
+  .print-doc-refrow {
+    display: grid;
+    grid-template-columns: 32mm 1fr;
+    gap: 2mm;
+    align-items: center;
+    margin: 2.2mm 0;
+    color: var(--text-dark);
+    font-size: 9.5pt;
+    border-bottom: 1px dashed var(--border-light);
+    padding-bottom: 1.5mm;
+  }
+  
+  .print-doc-refrow:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+  
+  .print-doc-refrow span {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .print-doc-refrow strong {
+    font-weight: 700;
+    text-align: right;
+    color: var(--primary-color);
+  }
+
+  /* ===== CLIENT BOX ===== */
+  .print-doc-client-box {
+    position: relative;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 7mm 6mm 5mm;
+    background: #fff;
+    margin-bottom: 6mm;
+  }
+  
+  .print-doc-client-tab {
+    position: absolute;
+    top: -4mm;
+    left: 6mm;
+    background: var(--primary-color);
+    color: #fff;
+    border-radius: 4px;
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    padding: 1.5mm 4mm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .print-doc-client-meta-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.85fr);
+    gap: 8mm;
+    align-items: start;
+    color: var(--text-dark);
+  }
+  
+  .print-doc-client-meta-cell.is-partner {
+    font-size: 14pt;
+    font-weight: 800;
+    color: var(--primary-color);
+  }
+  
+  .print-doc-client-meta-cell.is-prepared {
+    font-size: 8.5pt;
+    color: var(--text-muted);
+    text-align: right;
+  }
+  
+  .print-doc-client-meta-cell.is-prepared span {
+    font-weight: 500;
+  }
+  
+  .print-doc-client-meta-cell.is-prepared strong {
+    font-weight: 700;
+    color: var(--text-dark);
+  }
+  
+  .print-doc-client-row {
+    display: flex;
+    align-items: center;
+    gap: 3.5mm;
+    margin: 3.5mm 0 0;
+    font-size: 10pt;
+    color: var(--text-dark);
+  }
+  
+  .print-doc-client-row i {
+    font-size: 11pt;
+    color: var(--accent-color);
+    width: 6mm;
+  }
+
+  /* ===== TABLEAU ===== */
+  .print-doc-table-wrap {
+    margin-top: 2mm;
+  }
+  
+  .print-doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  
+  .print-doc-table thead th {
+    padding: 3mm 4mm;
+    border-bottom: 2px solid var(--primary-color);
+    background: var(--bg-light);
+    color: var(--primary-color);
+    font-size: 8pt;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    text-align: left;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .print-doc-table tbody td {
+    padding: 3.5mm 4mm;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+    color: var(--text-dark);
+    font-size: 9.5pt;
+    line-height: 1.35;
+  }
+  
+  .print-doc-table tbody tr {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+  
+  .print-doc-table tbody tr:nth-child(even) {
+    background-color: rgba(248, 250, 252, 0.5);
+  }
+  
+  .print-doc-table .col-right {
+    text-align: right;
+    white-space: nowrap;
+  }
+  
+  .print-doc-table tbody tr td strong {
+    font-weight: 700;
+    color: var(--primary-color);
+  }
+
+  /* ===== BLOC DU BAS ===== */
+  .print-doc-bottom {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 82mm;
+    gap: 10mm;
+    align-items: start;
+    margin-top: 6mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  
+  .print-doc-observations {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 5mm;
+    background: #fff;
+    min-height: 31mm;
+  }
+  
+  .print-doc-observations h2 {
+    font-size: 9.5pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #0f172a !important;
+    margin: 0 0 2mm 0;
+  }
+
+  /* Prevent global dark mode rules from overriding print document observations h2 */
+  html:not([data-theme="light"]) .print-doc-observations h2,
+  html[data-theme="dark"] .print-doc-observations h2,
+  html body.print-route .print-doc-observations h2,
+  body.print-route .print-doc-observations h2 {
+    color: #0f172a !important;
+  }
+  
+  .print-doc-observations .rule {
+    height: 1px;
+    background: var(--border-light);
+    margin: 0 0 3mm 0;
+  }
+  
+  .print-doc-observations p {
+    font-size: 9.5pt;
+    margin: 0;
+    line-height: 1.4;
+    color: var(--text-muted);
+  }
+  
+  .print-doc-summary {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  .print-doc-summary tbody tr {
+    background: var(--bg-light);
+  }
+  
+  .print-doc-summary td {
+    padding: 3mm 4mm;
+    border: none;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-dark);
+  }
+  
+  .print-doc-summary td:first-child {
+    font-size: 7.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+  }
+  
+  .print-doc-summary td:last-child {
+    font-size: 9.5pt;
+    font-weight: 700;
+    text-align: right;
+    color: var(--primary-color);
+  }
+  
+  .print-doc-summary tr:last-child td {
+    border-bottom: none;
+  }
+  
+  .print-doc-summary tr.total td {
+    border-top: 1.5px solid var(--primary-color);
+    background: var(--bg-light);
+  }
+  
+  .print-doc-summary tr.total td:first-child {
+    color: var(--primary-color);
+    font-weight: 800;
+  }
+  
+  .print-doc-summary tr.total td:last-child {
+    font-size: 12pt;
+    font-weight: 800;
+    color: var(--accent-color);
+  }
+
+  /* ===== SIGNATURES ===== */
+  .print-doc-signatures {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15mm;
+    border-top: 1.5px dashed var(--border-color);
+    margin-top: 8mm;
+    padding-top: 6mm;
+    text-align: center;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  
+  .print-doc-signature-title {
+    font-size: 8.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 12mm;
+  }
+  
+  .print-doc-signature-line {
+    width: 60mm;
+    max-width: 100%;
+    height: 1px;
+    border-bottom: 1px dashed var(--border-color);
+    margin: 0 auto;
+  }
+  
+  .print-doc-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 4mm;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+  
+  @media screen and (min-width: 768px) {
+    .print-doc-shell { zoom: var(--print-screen-scale); }
+  }
+  
+  @media print {
+    html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+    .no-print, .app-navbar, .page-hero, .table-toolbar, .context-menu, .btn, .dropdown, .alert { display: none !important; }
+    body { padding-top: 0 !important; }
+    .app-content { padding: 0 !important; }
+    .print-doc-paper { box-shadow: none !important; border: 0 !important; border-radius: 0 !important; min-height: auto !important; padding: 0 !important; }
+    .print-doc-shell { width: var(--print-content-width) !important; max-width: none !important; gap: 0 !important; zoom: 1 !important; }
+    .print-doc-top, .print-doc-client-box, .print-doc-bottom, .print-doc-signatures { break-inside: avoid-page; page-break-inside: avoid; }
+    .print-doc-table { page-break-inside: auto; }
+    .print-doc-table thead { display: table-header-group; }
+    .print-doc-table tr { break-inside: avoid-page; page-break-inside: avoid; }
+    
+    .print-doc-invoice-title-wrap {
+      background: #f8fafc !important;
+      border-left: 4px solid #0284c7 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-doc-invoice-title {
+      color: #0f172a !important;
+    }
+    .print-doc-invoice-box, .print-doc-summary {
+      background: #f8fafc !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-doc-summary tbody tr {
+      background: #f8fafc !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-doc-table thead th {
+      background: #f8fafc !important;
+      color: #0f172a !important;
+      border-bottom: 2px solid #0f172a !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-doc-client-tab {
+      background: #0f172a !important;
+      color: #fff !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-doc-table tbody tr:nth-child(even) {
+      background-color: #f8fafc !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
   }
 </style>
 
 <div class="print-doc-shell">
   <article class="print-doc-paper print-card">
     <header class="print-doc-top">
-      <section class="print-doc-company print-doc-party">
+      <section class="print-doc-company">
         <img src="{{ url_for('static', filename='fab_invoice_logo_clean.webp') }}" alt="FABOuanes" class="print-doc-logo">
         <div>
           <div class="print-doc-contact">
-            <i class="bi bi-geo-alt-fill"></i><span>{{ company.address }}</span>
-            <i class="bi bi-telephone-fill"></i><span>{{ company.phones }}</span>
-            <i class="bi bi-envelope"></i><span>{{ company.email }}</span>
+            <div class="print-doc-contact-row"><i class="bi bi-geo-alt-fill"></i><span>{{ company.address }}</span></div>
+            <div class="print-doc-contact-row"><i class="bi bi-telephone-fill"></i><span>{{ company.phones }}</span></div>
+            <div class="print-doc-contact-row"><i class="bi bi-envelope"></i><span>{{ company.email }}</span></div>
           </div>
         </div>
       </section>
 
-      <section class="print-doc-invoice-box print-doc-reference">
-        <h2 class="print-doc-invoice-title">HISTORIQUE</h2>
-        <div class="print-doc-refrow"><span>N&deg; facture :</span><strong>HIS-{{ client.id }}</strong></div>
-        <div class="print-doc-refrow"><span>Date / Heure :</span><strong>{{ printed_date }} {{ printed_time }}</strong></div>
+      <section class="print-doc-invoice-box">
+        <div class="print-doc-invoice-title-wrap">
+          <h1 class="print-doc-invoice-title">HISTORIQUE</h1>
+        </div>
+        <div class="print-doc-refrow"><span>N&deg; client :</span><strong>HIS-{{ client.id }}</strong></div>
+        <div class="print-doc-refrow"><span>Date :</span><strong>{{ printed_date }}</strong></div>
+        <div class="print-doc-refrow"><span>Heure :</span><strong>{{ printed_time }}</strong></div>
       </section>
     </header>
 
-    <section class="print-doc-client-box print-doc-partner-block">
+    <section class="print-doc-client-box">
       <div class="print-doc-client-tab">Client</div>
       <div class="print-doc-client-meta-row">
-        <div class="print-doc-client-meta-cell is-partner print-doc-partner-name"><strong>{{ client.name }}</strong></div>
+        <div class="print-doc-client-meta-cell is-partner"><strong>{{ client.name }}</strong></div>
         <div class="print-doc-client-meta-cell is-prepared"><span>Pr&eacute;par&eacute; par :</span><strong>{{ printed_by }}</strong></div>
       </div>
+      {% if client.phone %}
+      <div class="print-doc-client-row"><i class="bi bi-telephone-fill"></i><span>{{ client.phone }}</span></div>
+      {% endif %}
       {% if client.address %}
       <div class="print-doc-client-row"><i class="bi bi-geo-alt-fill"></i><span>{{ client.address }}</span></div>
       {% endif %}
@@ -111,9 +547,9 @@
           <tr>
             <th>Date</th>
             <th>Designation</th>
-            <th>Debit</th>
-            <th>Versement</th>
-            <th>Solde</th>
+            <th class="col-right">Debit</th>
+            <th class="col-right">Versement</th>
+            <th class="col-right">Solde</th>
           </tr>
         </thead>
         <tbody>
@@ -121,13 +557,13 @@
           <tr>
             <td>{{ item.event_date }}</td>
             <td><strong>{{ item.designation }}</strong></td>
-            <td class="col-right">{{ item.purchase_amount|money }}</td>
-            <td class="col-right">{{ item.payment_amount|money }}</td>
+            <td class="col-right">{% if item.purchase_amount > 0 %}{{ item.purchase_amount|money }}{% else %}-{% endif %}</td>
+            <td class="col-right">{% if item.payment_amount > 0 %}{{ item.payment_amount|money }}{% else %}-{% endif %}</td>
             <td class="col-right"><strong>{{ item.running_balance|money }}</strong></td>
           </tr>
           {% else %}
           <tr>
-            <td colspan="5" class="text-muted">Aucun historique.</td>
+            <td colspan="5" class="text-center text-muted" style="padding: 6mm;">Aucun historique.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -138,7 +574,7 @@
       <div class="print-doc-observations">
         <h2>Observations</h2>
         <div class="rule"></div>
-        <p>Historique client imprime depuis FABOuanes.</p>
+        <p>Historique client imprimé depuis l'application FABOuanes.</p>
       </div>
 
       <table class="print-doc-summary">
@@ -166,7 +602,7 @@
   {% if request.query_params.get('embed') != '1' %}
   <div class="print-doc-actions no-print">
     <a href="{{ url_for('client_detail', client_id=client.id) }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Retour</a>
-    <button class="btn btn-dark" type="button" onclick="window.print()"><i class="bi bi-printer me-2"></i>Imprimer la page</button>
+    <button class="btn btn-outline-dark" type="button" onclick="window.print()"><i class="bi bi-printer me-2"></i>Imprimer la page</button>
   </div>
   {% endif %}
 </div>
