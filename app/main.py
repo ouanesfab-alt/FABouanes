@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import secrets
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -39,10 +40,10 @@ class CachedStaticFiles(StaticFiles):
 from app.api.router import router as api_router
 from app.core.config import settings, validate_single_worker_runtime
 from app.core.database import bootstrap_and_migrate, create_request_connection
-from app.core.db_access import execute_db
+from app.core.db_access import execute_db, record_request_timing
 from app.core.logging import configure_logging
 from app.core.registry import discover_modules, get_enabled_modules, mount_api_routes, mount_web_routes
-from app.core.request_state import push_request_state, reset_request_state, set_state_value
+from app.core.request_state import get_state_value, push_request_state, reset_request_state, set_state_value
 from app.core.runtime_paths import ensure_runtime_dirs, paths
 from app.core.security import security_headers
 from app.services.backup_service import start_background_services
@@ -128,6 +129,9 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         request.form = sanitized_form
 
         db = create_request_connection()
+        started_at = time.perf_counter()
+        status_code = 500
+        timing_recorded = False
         token = push_request_state(
             request=request,
             db=db,
@@ -136,6 +140,8 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             audit_source="api" if request.url.path.startswith("/api/v1/") else "web",
             user=None,
             g=SimpleNamespace(user=None),
+            db_query_count=0,
+            db_time_ms=0.0,
         )
         try:
             ensure_csrf_token(request)
@@ -144,13 +150,36 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             set_state_value("user", user)
             set_state_value("g", SimpleNamespace(user=user))
             response = await call_next(request)
+            status_code = int(getattr(response, "status_code", 500) or 500)
+            elapsed_ms = (time.perf_counter() - started_at) * 1000.0
+            db_count = int(get_state_value("db_query_count", 0) or 0)
+            db_time = float(get_state_value("db_time_ms", 0.0) or 0.0)
+            response.headers.setdefault("X-Process-Time-ms", f"{elapsed_ms:.1f}")
+            response.headers.setdefault("X-DB-Query-Count", str(db_count))
+            record_request_timing(
+                f"{request.method} {request.url.path}",
+                elapsed_ms,
+                status_code,
+                f"db_queries={db_count} db_ms={db_time:.1f}",
+            )
+            timing_recorded = True
+            return security_headers(response)
         finally:
+            if not timing_recorded and status_code == 500:
+                elapsed_ms = (time.perf_counter() - started_at) * 1000.0
+                db_count = int(get_state_value("db_query_count", 0) or 0)
+                db_time = float(get_state_value("db_time_ms", 0.0) or 0.0)
+                record_request_timing(
+                    f"{request.method} {request.url.path}",
+                    elapsed_ms,
+                    status_code,
+                    f"db_queries={db_count} db_ms={db_time:.1f}",
+                )
             try:
                 db.close()
             except Exception:
                 pass
             reset_request_state(token)
-        return security_headers(response)
 
 
 app.add_middleware(RequestContextMiddleware)
@@ -282,9 +311,10 @@ async def health_check():
     import shutil
     import time
     from app.core.database import healthcheck
+    from app.core.db_access import query_db
     from app.services.backup_service import BACKGROUND_STATE
 
-    checks: dict[str, str] = {"db": "ok", "scheduler": "ok", "disk": "ok"}
+    checks: dict[str, str] = {"db": "ok", "scheduler": "ok", "disk": "ok", "backup": "ok"}
     now = time.time()
 
     # Database connectivity
@@ -319,7 +349,32 @@ async def health_check():
     except Exception:
         checks["disk"] = "unknown"
 
-    status = "ok" if all(v == "ok" for k, v in checks.items() if k not in ["disk_free_mb", "last_run_age_s", "last_backup_age_h"]) else "degraded"
+    # Backup queue health
+    try:
+        backup_row = await asyncio.to_thread(
+            query_db,
+            """
+            SELECT
+                COUNT(*) FILTER (WHERE status = 'pending') AS pending,
+                COUNT(*) FILTER (WHERE status = 'failed' AND finished_at > NOW() - INTERVAL '24 hours') AS failed_24h
+            FROM backup_jobs
+            """,
+            (),
+            True,
+        )
+        pending = int(backup_row["pending"] if backup_row else 0)
+        failed_24h = int(backup_row["failed_24h"] if backup_row else 0)
+        checks["backup_pending"] = str(pending)
+        checks["backup_failed_24h"] = str(failed_24h)
+        if failed_24h > 0:
+            checks["backup"] = "failed"
+        elif pending > 50:
+            checks["backup"] = "backlog"
+    except Exception:
+        checks["backup"] = "unknown"
+
+    metric_keys = {"disk_free_mb", "last_run_age_s", "last_backup_age_h", "backup_pending", "backup_failed_24h"}
+    status = "ok" if all(v == "ok" for k, v in checks.items() if k not in metric_keys) else "degraded"
     code = 200 if status == "ok" else 503
     return JSONResponse({"status": status, **checks}, status_code=code)
 

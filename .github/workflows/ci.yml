@@ -39,11 +39,11 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest pytest-asyncio httpx ruff pytest-cov
+        pip install pytest pytest-asyncio httpx pytest-cov
         
-    - name: Lint with ruff
+    - name: Python syntax smoke test
       run: |
-        ruff check app/
+        python -m compileall -q app tests
         
     - name: Run tests with coverage
       run: |

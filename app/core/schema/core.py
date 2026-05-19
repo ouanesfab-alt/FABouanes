@@ -113,6 +113,21 @@ CREATE TABLE IF NOT EXISTS api_refresh_tokens (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS offline_operation_receipts (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    client_operation_id TEXT NOT NULL,
+    operation_type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'processing',
+    request_json TEXT,
+    response_json TEXT,
+    error_message TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    processed_at TIMESTAMPTZ,
+    UNIQUE(user_id, client_operation_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_activity_logs_action ON activity_logs(action);
 CREATE INDEX IF NOT EXISTS idx_activity_logs_username ON activity_logs(username);
 CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at);
@@ -127,4 +142,6 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_backup_jobs_status ON backup_jobs(status);
 CREATE INDEX IF NOT EXISTS idx_backup_runs_job ON backup_runs(job_id);
 CREATE INDEX IF NOT EXISTS idx_api_refresh_tokens_user ON api_refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_offline_receipts_user_created ON offline_operation_receipts(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_offline_receipts_status ON offline_operation_receipts(status, updated_at);
 """

@@ -17,6 +17,13 @@ def get_reports_service() -> ReportsService:
     return ReportsService()
 
 
+def _reports_context_dict(reports_service: ReportsService, date_from: str, date_to: str) -> dict:
+    context = reports_service.build_reports_context(date_from or None, date_to or None)
+    if hasattr(context, "model_dump"):
+        return context.model_dump()
+    return context.dict()
+
+
 @router.get("/reports", name="reports_dashboard")
 async def reports_page(
     request: Request,
@@ -30,7 +37,7 @@ async def reports_page(
     
     ctx = cached_result(
         ("dashboard", "reports", date_from or "", date_to or ""),
-        lambda: reports_service.build_reports_context(date_from or None, date_to or None).dict(),
+        lambda: _reports_context_dict(reports_service, date_from, date_to),
         ttl_seconds=300.0,
     )
     
@@ -52,7 +59,7 @@ async def export_csv(
     
     ctx = cached_result(
         ("dashboard", "reports", date_from or "", date_to or ""),
-        lambda: reports_service.build_reports_context(date_from or None, date_to or None).dict(),
+        lambda: _reports_context_dict(reports_service, date_from, date_to),
         ttl_seconds=300.0,
     )
 

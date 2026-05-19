@@ -22,6 +22,30 @@ from app.repositories.user_repository import get_user_by_id
 from app.web.compat import COMPAT_ROUTE_MAP
 
 
+class CompatJinja2Templates(Jinja2Templates):
+    def TemplateResponse(self, *args: Any, **kwargs: Any):
+        if args and isinstance(args[0], str):
+            name = args[0]
+            context = args[1] if len(args) > 1 else kwargs.pop("context", {})
+            status_code = args[2] if len(args) > 2 else kwargs.pop("status_code", 200)
+            headers = args[3] if len(args) > 3 else kwargs.pop("headers", None)
+            media_type = args[4] if len(args) > 4 else kwargs.pop("media_type", None)
+            background = args[5] if len(args) > 5 else kwargs.pop("background", None)
+            request = context.get("raw_request") or getattr(context.get("request"), "_request", None)
+            if request is None:
+                request = context.get("request")
+            return super().TemplateResponse(
+                request,
+                name,
+                context,
+                status_code=status_code,
+                headers=headers,
+                media_type=media_type,
+                background=background,
+            )
+        return super().TemplateResponse(*args, **kwargs)
+
+
 class TemplateRequestProxy:
     def __init__(self, request: Request):
         self._request = request
@@ -42,7 +66,7 @@ class TemplateRequestProxy:
         return getattr(self._request, item)
 
 
-templates = Jinja2Templates(directory=str(paths.templates_dir))
+templates = CompatJinja2Templates(directory=str(paths.templates_dir))
 
 
 def _money_filter(value: Any) -> str:

@@ -39,7 +39,11 @@ export async function syncPendingOperations() {
           'Content-Type': 'application/json',
           'X-CSRF-Token': csrfToken,
         },
-        body: JSON.stringify({ type: op.type, payload: op.payload }),
+        body: JSON.stringify({
+          client_operation_id: op.client_operation_id,
+          type: op.type,
+          payload: op.payload,
+        }),
       });
 
       if (res.ok) {
@@ -47,7 +51,8 @@ export async function syncPendingOperations() {
         synced++;
       } else {
         const err = await res.text();
-        await updateOperationStatus(op.id, op.retry_count >= 3 ? 'failed' : 'pending', err);
+        const nextRetry = (op.retry_count || 0) + 1;
+        await updateOperationStatus(op.id, nextRetry >= 3 ? 'failed' : 'pending', err);
         failed++;
       }
     } catch (e) {
@@ -68,17 +73,13 @@ export async function syncPendingOperations() {
 export async function cacheReferenceData() {
   if (!navigator.onLine) return;
   try {
-    const [clientsRes, catalogRes] = await Promise.all([
-      fetch('/api/v1/clients?limit=500'),
-      fetch('/api/v1/sellable-items'),
-    ]);
-    if (clientsRes.ok) {
-      const data = await clientsRes.json();
-      await cacheRefData('clients', data.data || data);
-    }
-    if (catalogRes.ok) {
-      const data = await catalogRes.json();
-      await cacheRefData('catalog', data.data || data);
+    const res = await fetch('/api/v1/offline/reference-data', {
+      headers: { 'Accept': 'application/json' },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      await cacheRefData('clients', data.clients || []);
+      await cacheRefData('catalog', data.catalog || []);
     }
   } catch (e) {
     console.warn('[FAB offline] Impossible de mettre en cache les données de référence :', e);

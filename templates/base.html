@@ -291,11 +291,10 @@
       category == 'warning' else 'dark' %}
       <div class="toast align-items-center text-bg-{{ bg_class }} border-0 mb-2 shadow" role="alert"
         aria-live="assertive" aria-atomic="true" data-bs-delay="4000">
-        <div class="d-flex">
-          <div class="toast-body fw-medium">
-            <i
-              class="bi bi-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' if category == 'danger' else 'info-circle' }} me-2"></i>
-            {{ message }}
+        <div class="d-flex align-items-center">
+          <div class="toast-body fw-medium d-flex align-items-center">
+            <i class="bi bi-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' if category == 'danger' else 'info-circle' }} me-2" style="font-size: 1.1rem; line-height: 1;"></i>
+            <span>{{ message }}</span>
           </div>
           <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
             aria-label="Fermer"></button>
@@ -665,8 +664,8 @@
             
             toastEl.innerHTML = `
               <div class="toast-body p-3">
-                <div class="d-flex justify-content-between align-items-start mb-1">
-                  <strong class="me-auto" style="color: #25D366;"><i class="bi bi-bell-fill me-2"></i>Nouvelle Activité</strong>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <strong class="me-auto" style="color: #25D366; display: inline-flex; align-items: center; gap: 8px;"><i class="bi bi-bell-fill" style="line-height: 1;"></i>Nouvelle Activité</strong>
                   <button type="button" class="btn-close" style="font-size: 0.7em;" data-bs-dismiss="toast" aria-label="Fermer"></button>
                 </div>
                 <div style="font-size: 0.95rem; line-height: 1.4; display:flex; align-items:center; gap:12px;">

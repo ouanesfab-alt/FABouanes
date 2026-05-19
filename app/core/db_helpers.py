@@ -111,7 +111,24 @@ class DatabaseManager:
         self._ensure_performance_worker()
         self._perf_event.set()
 
+    def record_request_timing(self, name: str, elapsed_ms: float, status_code: int, details: str = "") -> None:
+        threshold_ms = float(os.environ.get("FAB_SLOW_REQUEST_MS", "300") or "300")
+        if elapsed_ms < threshold_ms and status_code < 500:
+            return
+        detail_parts = [f"status={status_code}"]
+        if details:
+            detail_parts.append(details)
+        self._record_performance_event("request", name, elapsed_ms, " ".join(detail_parts))
+
+    def _record_request_db_timing(self, elapsed_ms: float) -> None:
+        state = get_request_state()
+        if state is None:
+            return
+        state.db_query_count = int(getattr(state, "db_query_count", 0) or 0) + 1
+        state.db_time_ms = float(getattr(state, "db_time_ms", 0.0) or 0.0) + float(elapsed_ms)
+
     def _record_sql_timing(self, query: str, params: tuple, elapsed_ms: float) -> None:
+        self._record_request_db_timing(elapsed_ms)
         if elapsed_ms < self._slow_sql_threshold_ms:
             return
         normalized = " ".join(str(query or "").split())
@@ -389,6 +406,9 @@ def pending_performance_event_count() -> int:
 def drain_performance_events_once() -> int:
     return db_manager.drain_performance_events_once()
 
+def record_request_timing(name: str, elapsed_ms: float, status_code: int, details: str = "") -> None:
+    db_manager.record_request_timing(name, elapsed_ms, status_code, details)
+
 def db_task(func):
     """
     Decorator to wrap synchronous repository or database operations.
@@ -428,4 +448,3 @@ def query_sa(query, one: bool = False):
     sql = str(compiled)
     params = tuple(compiled.params[name] for name in compiled.positiontup)
     return query_db(sql, params, one=one)
-

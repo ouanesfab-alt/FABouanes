@@ -15,8 +15,6 @@
   font-display: swap;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;850&display=swap');
-
 /* macOS Sequoia Light & Windows Light Theme Variables */
 :root, [data-theme="light"], [data-theme="windows"] {
   --bg: #f5f5f7;
@@ -54,8 +52,8 @@
   --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.03);
   --backdrop-blur: blur(10px);
   --transition-smooth: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Inter", sans-serif;
-  --font-title-val: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Icons", "Outfit", "Inter", sans-serif;
+  --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Plus Jakarta Sans", sans-serif;
+  --font-title-val: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Icons", "Plus Jakarta Sans", sans-serif;
 
   /* Ambient Wallpapers (Gold-Amber & Emerald Sequoia colors) */
   --sequoia-color-1: rgba(255, 149, 0, 0.3);
@@ -329,7 +327,7 @@ h1, h2, h3, h4, h5, h6, .section-title {
 /* Font mapping overrides to restore application preference controls */
 html[data-font="jakarta"] {
   --font-main: "Plus Jakarta Sans", "Inter", sans-serif !important;
-  --font-title-val: "Outfit", "Plus Jakarta Sans", "Inter", sans-serif !important;
+  --font-title-val: "Plus Jakarta Sans", "Inter", sans-serif !important;
 }
 html[data-font="arial"] {
   --font-main: Arial, Helvetica, sans-serif !important;
