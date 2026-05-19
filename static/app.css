@@ -959,7 +959,7 @@ iframe {
     display: flex;
     position: fixed;
     left: calc(var(--side-nav-w) - 76px); /* Moved further to the left to be well inside the sidebar */
-    top: 43px; /* Centered vertically with FAB text and logo */
+    top: 21px; /* Centered vertically with FAB text and logo (after removing traffic light controls) */
     z-index: 1045;
     width: 38px;
     height: 38px;
@@ -1031,7 +1031,7 @@ iframe {
 
   html[data-nav="vertical"][data-nav-hidden="1"] .side-nav-toggle {
     left: 9px;
-    top: 43px; /* Stays at the exact same level for a smooth transition */
+    top: 21px; /* Stays at the exact same level for a smooth transition */
     background: rgba(255, 255, 255, .10);
   }
 
