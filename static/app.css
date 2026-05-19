@@ -5528,3 +5528,95 @@ html.js-transitions .app-content.page-visible {
 html.js-transitions .app-content.page-hidden {
   opacity: 0;
 }
+
+/* 💎 macOS Sequoia Titlebar Window controls (Traffic Lights) 💎 */
+.mac-window-controls {
+  display: flex;
+  gap: 8px;
+  margin-right: 14px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.mac-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.mac-dot.red { background-color: #ff5f56; border: 0.5px solid #e0443e; }
+.mac-dot.yellow { background-color: #ffbd2e; border: 0.5px solid #dfa123; }
+.mac-dot.green { background-color: #27c93f; border: 0.5px solid #1aab29; }
+.mac-window-controls:hover .mac-dot {
+  transform: scale(1.15);
+}
+
+/* 🧪 Unified Liquid Glassmorphism Makeover */
+.app-navbar {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--backdrop-blur) !important;
+  -webkit-backdrop-filter: var(--backdrop-blur) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  transition: var(--transition-smooth) !important;
+}
+
+.card, .table-card, .login-card, .dashboard-card, .modal-content {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--backdrop-blur) !important;
+  -webkit-backdrop-filter: var(--backdrop-blur) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--glass-shadow) !important;
+  transition: var(--transition-smooth) !important;
+}
+.card:hover, .table-card:hover, .dashboard-card:hover {
+  transform: translateY(-3px) !important;
+  border-color: rgba(0, 122, 255, 0.3) !important;
+  box-shadow: 0 16px 45px rgba(0, 122, 255, 0.08) !important;
+}
+
+/* 🔘 Soft Pill macOS Sidebar & Navigation Capsules */
+.nav-links a {
+  border-radius: 8px !important;
+  padding: 6px 12px !important;
+  transition: var(--transition-smooth) !important;
+  font-weight: 500 !important;
+}
+.nav-links a.active {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3) !important;
+}
+.nav-links a:not(.active):hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+html[data-theme="dark"] .nav-links a:not(.active):hover,
+html[data-theme="windows-dark"] .nav-links a:not(.active):hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ⌨️ Form controls & text box macOS Styling */
+.form-control, .form-select {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text) !important;
+  transition: var(--transition-smooth) !important;
+}
+.form-control:focus, .form-select:focus {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.25) !important;
+  outline: none !important;
+}
+
+/* 🌟 Spotlight Reactive Focus Rings for Buttons */
+.btn:not(.btn-premium) {
+  border-radius: var(--radius-sm) !important;
+  transition: var(--transition-smooth) !important;
+  font-weight: 500 !important;
+}
+.btn:active {
+  transform: scale(0.97) !important;
+}
+

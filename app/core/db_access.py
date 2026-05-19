@@ -16,8 +16,8 @@ from app.core.connection import (
     set_setting,
     pending_performance_event_count,
     drain_performance_events_once,
-    record_request_timing,
     db_task,
     execute_sa,
     query_sa,
 )
+

@@ -8,7 +8,7 @@ from sqlalchemy import inspect as sa_inspect
 
 # revision identifiers, used by Alembic.
 revision = '0003_consolidate_compat_columns'
-down_revision = '0002b_add_performance_indexes'
+down_revision = '0002_perf_indexes'
 
 branch_labels = None
 depends_on = None

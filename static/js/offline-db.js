@@ -6,13 +6,6 @@ const DB_VERSION = 1;
 
 let _db = null;
 
-function operationId() {
-  if (window.crypto && typeof window.crypto.randomUUID === 'function') {
-    return window.crypto.randomUUID();
-  }
-  return 'op-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
-}
-
 function openDB() {
   if (_db) return Promise.resolve(_db);
   return new Promise((resolve, reject) => {
@@ -49,7 +42,6 @@ export async function queueOperation(type, payload) {
     const tx    = db.transaction('pending_ops', 'readwrite');
     const store = tx.objectStore('pending_ops');
     const op = {
-      client_operation_id: operationId(),
       type,
       payload,
       status: 'pending',
@@ -88,7 +80,7 @@ export async function updateOperationStatus(id, status, error = null) {
       if (!op) return resolve();
       op.status      = status;
       op.error       = error;
-      op.retry_count = (op.retry_count || 0) + (error && status !== 'synced' ? 1 : 0);
+      op.retry_count = (op.retry_count || 0) + (status === 'failed' ? 1 : 0);
       const put = store.put(op);
       put.onsuccess = () => resolve();
       put.onerror   = () => reject(put.error);
