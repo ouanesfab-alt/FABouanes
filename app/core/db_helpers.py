@@ -38,39 +38,7 @@ class DatabaseManager:
         return pool_manager.get_database_engine(database_url)
 
     def connect_database(self, database_url: str) -> CompatConnection:
-        raw_url = str(database_url or "").strip()
-        try:
-            engine = pool_manager.get_database_engine(raw_url)
-            conn = engine.raw_connection()
-        except Exception as e:
-            err_msg = str(e).lower()
-            if "does not exist" in err_msg or "3d000" in err_msg:
-                parsed = urlparse(raw_url)
-                database = parsed.path.lstrip("/")
-                port_part = f":{parsed.port}" if parsed.port else ""
-                pass_part = f":{parsed.password}" if parsed.password else ""
-                user_part = f"{parsed.username}{pass_part}@" if parsed.username else ""
-                postgres_url = f"{parsed.scheme}://{user_part}{parsed.hostname}{port_part}/postgres"
-                
-                pg_engine = create_engine(
-                    pool_manager.sqlalchemy_database_url(postgres_url),
-                    isolation_level="AUTOCOMMIT",
-                    future=True,
-                )
-                with pg_engine.connect() as pg_conn:
-                    pg_conn.execute(text(f'CREATE DATABASE "{database}"'))
-                pg_engine.dispose()
-                
-                engine = pool_manager.get_database_engine(raw_url)
-                conn = engine.raw_connection()
-            else:
-                raise e
-
-        return CompatConnection(
-            conn,
-            "postgres",
-            reconnect=lambda: engine.raw_connection(),
-        )
+        return pool_manager.connect_database(database_url)
 
     def get_db(self) -> CompatConnection:
         state = get_request_state()

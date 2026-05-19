@@ -1,0 +1,96 @@
+<!-- -- Mobile Side Drawer -- -->
+<div class="nav-overlay" id="navOverlay"></div>
+<div class="nav-drawer" id="navDrawer">
+  <div class="nav-drawer-header">
+    <div class="d-flex align-items-center gap-2">
+      <img src="{{ url_for('static', filename='desktop_logo_shield.webp') }}" alt="FABOuanes"
+        style="height:38px;border-radius:6px;" loading="lazy" decoding="async">
+      <div>
+        <div class="drawer-brand-name">FAB</div>
+        <div class="drawer-brand-sub">Navigation</div>
+      </div>
+    </div>
+    <button class="nav-drawer-close" id="drawerClose"><i class="bi bi-x-lg"></i></button>
+  </div>
+  <div class="nav-drawer-body">
+    <div class="drawer-sub">Navigation</div>
+    <a href="#" class="drawer-link mb-3" onclick="document.getElementById('drawerClose').click(); setTimeout(() => { window.openSearch && window.openSearch(); }, 250); return false;" style="background: rgba(37, 99, 235, 0.08); border: 1px dashed rgba(37, 99, 235, 0.25); color: #2563eb; border-radius: 10px;">
+      <i class="bi bi-search"></i> <strong>Recherche globale</strong>
+    </a>
+    <a href="{{ url_for('index') }}" class="drawer-link {{ 'active' if request.endpoint == 'index' else '' }}">
+      <i class="bi bi-house"></i> Tableau de bord
+    </a>
+    <a href="{{ url_for('contacts') }}" class="drawer-link {{ 'active' if contacts_nav_active else '' }}">
+      <i class="bi bi-people"></i> Contacts
+    </a>
+    <a href="{{ url_for('catalog') }}" class="drawer-link {{ 'active' if request.endpoint == 'catalog' else '' }}">
+      <i class="bi bi-box-seam"></i> Produits & Stocks
+    </a>
+    <a href="{{ url_for('operations') }}" class="drawer-link {{ 'active' if operations_nav_active else '' }}">
+      <i class="bi bi-arrow-left-right"></i> Opérations
+    </a>
+
+    <div class="drawer-group {{ 'open' if tools_nav_active else '' }}">
+      <button type="button" class="drawer-link drawer-link-btn {{ 'active' if tools_nav_active else '' }}"
+        id="drawerToolsToggle" data-drawer-toggle aria-expanded="{{ 'true' if tools_nav_active else 'false' }}">
+        <span class="drawer-link-main">
+          <i class="bi bi-folder2-open"></i> Outils
+        </span>
+        <i class="bi bi-chevron-down drawer-caret"></i>
+      </button>
+      <div class="drawer-submenu">
+        <a href="{{ url_for('expenses') }}"
+          class="drawer-sublink {{ 'active' if request.endpoint in ['expenses','new_expense','edit_expense'] else '' }}">
+          <i class="bi bi-wallet2"></i> Dépenses
+        </a>
+        <a href="{{ url_for('reports_dashboard') }}"
+          class="drawer-sublink {{ 'active' if request.endpoint in ['reports_dashboard','reports_export_csv'] else '' }}">
+          <i class="bi bi-bar-chart-line"></i> Rapports
+        </a>
+        <a href="{{ url_for('production') }}"
+          class="drawer-sublink {{ 'active' if request.endpoint in ['production','new_production'] else '' }}">
+          <i class="bi bi-gear"></i> Production
+        </a>
+
+        <a href="{{ url_for('notes_page') }}"
+          class="drawer-sublink {{ 'active' if request.endpoint == 'notes_page' else '' }}">
+          <i class="bi bi-journal-text"></i> Bloc-note
+        </a>
+        <a href="{{ url_for('bons_space') }}"
+          class="drawer-sublink {{ 'active' if request.endpoint in ['bons_space','bons_pdf_file','pdf_reader','pdf_reader_file'] else '' }}">
+          <i class="bi bi-receipt"></i> Espace bons
+        </a>
+        <a href="{{ url_for('mobile_connect') }}"
+          class="drawer-sublink {{ 'active' if request.endpoint == 'mobile_connect' else '' }}">
+          <i class="bi bi-qr-code"></i> Connexion mobile
+        </a>
+        <a href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer" class="drawer-sublink">
+          <i class="bi bi-stars" style="color:#886cf5"></i> Assistant IA <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.65rem;opacity:.5"></i>
+        </a>
+      </div>
+    </div>
+    <div class="drawer-divider"></div>
+    <div class="drawer-sub">Actions</div>
+    <a href="{{ url_for('quick_add') }}"
+      class="drawer-link {{ 'active' if request.endpoint == 'quick_add' else '' }}">
+      <i class="bi bi-plus-circle"></i> Ajout rapide
+    </a>
+    <div class="drawer-divider"></div>
+    {% if g.user.role == 'admin' %}
+    <a href="{{ url_for('admin_panel') }}" class="drawer-link">
+      <i class="bi bi-sliders"></i> Paramètres &amp; supervision
+    </a>
+    {% endif %}
+    <button type="button" class="drawer-link w-100 text-start border-0 bg-transparent"
+            id="themeToggleBtnMobile">
+      <i class="bi bi-sun"></i> Mode nuit
+      <span class="badge bg-secondary ms-auto" id="themeToggleBadgeMobile">Clair</span>
+    </button>
+    <a href="{{ url_for('change_password') }}" class="drawer-link">
+      <i class="bi bi-key"></i> Mot de passe
+    </a>
+    <a href="{{ url_for('logout') }}" class="drawer-link drawer-link-danger">
+      <i class="bi bi-box-arrow-right"></i> Déconnexion
+    </a>
+  </div>
+</div>

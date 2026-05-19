@@ -4,11 +4,17 @@ from typing import Any
 from starlette.datastructures import FormData
 
 def payload_to_form_data(payload: dict[str, Any]) -> FormData:
-    items: list[tuple[str, Any]] = []
+    items: list[tuple[str, str]] = []
     for key, value in payload.items():
+        if value is None:
+            continue
         if isinstance(value, list):
             for item in value:
-                items.append((key, item))
+                if item is not None:
+                    items.append((key, str(item)))
         else:
-            items.append((key, value))
+            if isinstance(value, bool):
+                items.append((key, "1" if value else "0"))
+            else:
+                items.append((key, str(value)))
     return FormData(items)

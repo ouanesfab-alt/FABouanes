@@ -1,0 +1,59 @@
+<script>
+  // Enable page transitions by adding JS class
+  document.documentElement.classList.add('js-transitions');
+  
+  document.addEventListener('DOMContentLoaded', function() {
+    const appContent = document.querySelector('.app-content');
+    if (appContent) {
+      // Smooth fade-in on load
+      requestAnimationFrame(function() {
+        appContent.classList.add('page-visible');
+      });
+    }
+
+    // Smooth fade-out before navigating internal links
+    document.addEventListener('click', function(event) {
+      const link = event.target.closest('a');
+      if (link && 
+          link.href && 
+          link.host === window.location.host && 
+          !link.getAttribute('target') && 
+          !link.getAttribute('download') && 
+          !link.href.includes('#') && 
+          !link.href.startsWith('javascript:') && 
+          !link.classList.contains('disabled') &&
+          !link.classList.contains('js-no-transition') &&
+          !link.classList.contains('js-filter-tab')) {
+        
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        
+        event.preventDefault();
+        const href = link.href;
+        
+        if (appContent) {
+          appContent.classList.remove('page-visible');
+          appContent.classList.add('page-hidden');
+          setTimeout(function() {
+            window.location.href = href;
+          }, 180);
+        } else {
+          window.location.href = href;
+        }
+      }
+    });
+
+    // Smooth fade-out on form submission
+    document.addEventListener('submit', function(event) {
+      const form = event.target;
+      if (form.getAttribute('target') === '_blank' || 
+          form.classList.contains('js-no-transition') || 
+          form.classList.contains('transactions-filter-row') ||
+          form.classList.contains('js-ajax-form')) return;
+      
+      if (appContent) {
+        appContent.classList.remove('page-visible');
+        appContent.classList.add('page-hidden');
+      }
+    });
+  });
+</script>

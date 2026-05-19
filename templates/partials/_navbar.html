@@ -1,0 +1,109 @@
+<!-- -- Top Navbar -- -->
+<nav class="app-navbar" id="appNavbar">
+  <div class="nav-inner">
+    <!-- macOS Sequoia Titlebar controls decoration -->
+    <div class="mac-window-controls d-none d-sm-flex">
+      <div class="mac-dot red" title="Fermer"></div>
+      <div class="mac-dot yellow" title="Réduire"></div>
+      <div class="mac-dot green" title="Agrandir"></div>
+    </div>
+    <a href="{{ url_for('index') }}" class="nav-brand" aria-label="Accueil FAB">
+      <img src="{{ url_for('static', filename='desktop_logo_shield.webp') }}" alt="FABOuanes" class="nav-logo">
+      <span class="nav-brand-text d-none d-sm-flex">
+        <span class="nav-brand-title">FAB</span>
+      </span>
+    </a>
+    <div class="nav-page-title d-md-none">
+      {% block page_title %}{% endblock %}
+    </div>
+    <!-- Desktop nav -->
+    <div class="nav-links d-none d-md-flex">
+      <a href="{{ url_for('contacts') }}" class="{{ 'active' if contacts_nav_active else '' }}"><i
+          class="bi bi-people me-1"></i>Contacts</a>
+      <a href="{{ url_for('catalog') }}"
+        class="{{ 'active' if request.endpoint in ['catalog','catalog_new','raw_materials'] else '' }}"><i
+          class="bi bi-box-seam me-1"></i>Produits</a>
+      <a href="{{ url_for('operations') }}" class="{{ 'active' if operations_nav_active else '' }}"><i
+          class="bi bi-arrow-left-right me-1"></i>Opérations<span id="offline-pending-badge" class="badge bg-warning text-dark ms-1" hidden title="Opérations en attente de synchronisation"></span><span id="network-status-icon" class="ms-1" title="Statut réseau"><i class="bi bi-wifi" id="icon-online" style="color:#4ade80;font-size:.75rem"></i><i class="bi bi-wifi-off d-none" id="icon-offline" style="color:#fb923c;font-size:.75rem"></i></span></a>
+
+      <div class="dropdown">
+        <button type="button" class="nav-link-menu {{ 'active' if tools_nav_active else '' }}"
+          data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-folder2-open"></i>
+          <span>Outils</span>
+          <i class="bi bi-chevron-down nav-link-caret"></i>
+        </button>
+        <ul class="dropdown-menu">
+          <li><a
+              class="dropdown-item {{ 'active' if request.endpoint in ['expenses','new_expense','edit_expense'] else '' }}"
+              href="{{ url_for('expenses') }}"><i class="bi bi-wallet2 me-2"></i>Dépenses</a></li>
+          <li><a
+              class="dropdown-item {{ 'active' if request.endpoint in ['reports_dashboard','reports_export_csv'] else '' }}"
+              href="{{ url_for('reports_dashboard') }}"><i class="bi bi-bar-chart-line me-2"></i>Rapports</a></li>
+          <li><a class="dropdown-item {{ 'active' if request.endpoint in ['production','new_production'] else '' }}"
+              href="{{ url_for('production') }}"><i class="bi bi-gear me-2"></i>Production</a></li>
+
+          <li>
+            <hr class="dropdown-divider">
+          </li>
+          <li><a class="dropdown-item {{ 'active' if request.endpoint == 'notes_page' else '' }}"
+              href="{{ url_for('notes_page') }}"><i class="bi bi-journal-text me-2"></i>Bloc-note</a></li>
+          <li><a
+              class="dropdown-item {{ 'active' if request.endpoint in ['bons_space','bons_pdf_file','pdf_reader','pdf_reader_file'] else '' }}"
+              href="{{ url_for('bons_space') }}"><i class="bi bi-receipt me-2"></i>Espace bons</a></li>
+          <li><a class="dropdown-item {{ 'active' if request.endpoint == 'mobile_connect' else '' }}"
+              href="{{ url_for('mobile_connect') }}"><i class="bi bi-qr-code me-2"></i>Connexion mobile</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item" href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer"><i class="bi bi-stars me-2" style="color:#886cf5"></i>Assistant IA <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.7rem;opacity:.5"></i></a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="nav-spacer"></div>
+    <!-- Desktop actions -->
+    <div class="nav-actions">
+      <button type="button" class="nav-btn d-flex" id="globalSearchBtn"
+              aria-label="Recherche rapide" title="Recherche rapide (Ctrl+K)">
+        <i class="bi bi-search"></i>
+        <span class="nav-action-label d-none">Rechercher</span>
+        <kbd class="nav-kbd ms-2 d-none d-md-inline-block" style="font-size: .65rem; padding: 2px 5px; border-radius: 4px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); color: rgba(255,255,255,.65); font-family: inherit; letter-spacing: .02em;">Ctrl K</kbd>
+      </button>
+      <a href="{{ url_for('quick_add') }}" class="nav-btn d-none d-md-flex"><i class="bi bi-plus-lg"></i>Ajouter</a>
+      <!-- User -->
+      <div class="dropdown d-none d-md-block">
+        <button class="nav-btn dropdown-toggle border-0" data-bs-toggle="dropdown" data-bs-display="static">
+          <i class="bi bi-person-circle"></i>{{ g.user['username'] }}
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          {% if g.user.role == 'admin' %}<li><a class="dropdown-item" href="{{ url_for('admin_panel') }}"><i
+                class="bi bi-sliders me-2"></i>Paramètres &amp; supervision</a></li>
+          <li>
+            <hr class="dropdown-divider">
+          </li>{% endif %}
+          <li>
+            <button type="button" class="dropdown-item d-flex align-items-center justify-content-between"
+                    id="themeToggleBtn">
+              <span><i class="bi bi-sun me-2"></i>Mode nuit</span>
+              <span class="badge bg-secondary" id="themeToggleBadge">Clair</span>
+            </button>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item" href="{{ url_for('change_password') }}"><i class="bi bi-key me-2"></i>Mot de
+              passe</a></li>
+          <li>
+            <hr class="dropdown-divider">
+          </li>
+          <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i
+                class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></li>
+        </ul>
+      </div>
+      <!-- Mobile hamburger -->
+      <button class="nav-hamburger" id="drawerBtn" aria-label="Menu">
+        <i class="bi bi-list"></i>
+      </button>
+    </div>
+  </div>
+</nav>
+<button type="button" class="side-nav-toggle" id="sideNavToggle" aria-label="Masquer la barre verticale"
+  aria-controls="appNavbar" aria-expanded="true" hidden>
+  <i class="bi bi-list"></i>
+</button>

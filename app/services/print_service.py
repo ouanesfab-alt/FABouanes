@@ -133,20 +133,33 @@ def build_print_payload(doc_type: str, item_id: int):
             return build_print_payload("purchase_document", int(pointer["document_id"]))
         row = query_db(
             """
-            SELECT p.*, COALESCE(NULLIF(p.custom_item_name, ''), rm.name) AS item_name, rm.unit AS base_unit, COALESCE(p.unit, rm.unit, 'kg') AS display_unit,
+            SELECT p.*, 
+                   CASE 
+                       WHEN p.finished_product_id IS NOT NULL THEN fp.name
+                       ELSE COALESCE(NULLIF(p.custom_item_name, ''), rm.name)
+                   END AS item_name, 
+                   CASE 
+                       WHEN p.finished_product_id IS NOT NULL THEN fp.default_unit
+                       ELSE rm.unit
+                   END AS base_unit, 
+                   CASE 
+                       WHEN p.finished_product_id IS NOT NULL THEN COALESCE(p.unit, fp.default_unit, 'kg')
+                       ELSE COALESCE(p.unit, rm.unit, 'kg')
+                   END AS display_unit,
                    CASE
-                       WHEN lower(COALESCE(p.unit, rm.unit, 'kg')) = 'sac' THEN p.quantity / 50.0
-                       WHEN lower(COALESCE(p.unit, rm.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
+                       WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) = 'sac' THEN p.quantity / 50.0
+                       WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
                        ELSE p.quantity
                    END AS display_quantity,
                    CASE
-                       WHEN lower(COALESCE(p.unit, rm.unit, 'kg')) = 'sac' THEN p.unit_price * 50.0
-                       WHEN lower(COALESCE(p.unit, rm.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
+                       WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) = 'sac' THEN p.unit_price * 50.0
+                       WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
                        ELSE p.unit_price
                    END AS display_unit_price,
                    s.name AS partner_name, s.phone AS partner_phone, s.address AS partner_address
             FROM purchases p
-            JOIN raw_materials rm ON rm.id = p.raw_material_id
+            LEFT JOIN raw_materials rm ON rm.id = p.raw_material_id
+            LEFT JOIN finished_products fp ON fp.id = p.finished_product_id
             LEFT JOIN suppliers s ON s.id = p.supplier_id
             WHERE p.id = %s
             """,
@@ -192,19 +205,32 @@ def build_print_payload(doc_type: str, item_id: int):
             return None
         line_rows = query_db(
             """
-            SELECT p.*, COALESCE(NULLIF(p.custom_item_name, ''), rm.name) AS item_name, rm.unit AS base_unit, COALESCE(p.unit, rm.unit, 'kg') AS display_unit,
+            SELECT p.*, 
+                   CASE 
+                       WHEN p.finished_product_id IS NOT NULL THEN fp.name
+                       ELSE COALESCE(NULLIF(p.custom_item_name, ''), rm.name)
+                   END AS item_name, 
+                   CASE 
+                       WHEN p.finished_product_id IS NOT NULL THEN fp.default_unit
+                       ELSE rm.unit
+                   END AS base_unit, 
+                   CASE 
+                       WHEN p.finished_product_id IS NOT NULL THEN COALESCE(p.unit, fp.default_unit, 'kg')
+                       ELSE COALESCE(p.unit, rm.unit, 'kg')
+                   END AS display_unit,
                    CASE
-                       WHEN lower(COALESCE(p.unit, rm.unit, 'kg')) = 'sac' THEN p.quantity / 50.0
-                       WHEN lower(COALESCE(p.unit, rm.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
+                       WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) = 'sac' THEN p.quantity / 50.0
+                       WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
                        ELSE p.quantity
                    END AS display_quantity,
                    CASE
-                       WHEN lower(COALESCE(p.unit, rm.unit, 'kg')) = 'sac' THEN p.unit_price * 50.0
-                       WHEN lower(COALESCE(p.unit, rm.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
+                       WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) = 'sac' THEN p.unit_price * 50.0
+                       WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
                        ELSE p.unit_price
                    END AS display_unit_price
             FROM purchases p
-            JOIN raw_materials rm ON rm.id = p.raw_material_id
+            LEFT JOIN raw_materials rm ON rm.id = p.raw_material_id
+            LEFT JOIN finished_products fp ON fp.id = p.finished_product_id
             WHERE p.document_id = %s
             ORDER BY p.id ASC
             """,
@@ -660,8 +686,8 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
         "print_invoice_title",
         parent=styles["Normal"],
         fontName=pdf_font_bold,
-        fontSize=28.0,
-        leading=29.0,
+        fontSize=18.0,
+        leading=20.0,
         textColor=colors.black,
         alignment=TA_CENTER,
     )

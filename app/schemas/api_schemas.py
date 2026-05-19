@@ -1,0 +1,63 @@
+from __future__ import annotations
+
+from pydantic import BaseModel, Field, field_validator, ConfigDict
+from typing import Optional, List, Union
+
+class UserLoginSchema(BaseModel):
+    username: str = Field(..., description="Nom d'utilisateur")
+    password: str = Field(..., description="Mot de passe")
+
+    @field_validator("username", mode="before")
+    @classmethod
+    def clean_username(cls, value: str) -> str:
+        if not value or not str(value).strip():
+            raise ValueError("Le nom d'utilisateur ne peut pas être vide.")
+        return str(value).strip()
+
+    @field_validator("password", mode="before")
+    @classmethod
+    def clean_password(cls, value: str) -> str:
+        if not value or not str(value).strip():
+            raise ValueError("Le mot de passe ne peut pas être vide.")
+        return value
+
+class PaymentCreateSchema(BaseModel):
+    client_id: Union[int, str] = Field(..., description="ID du client")
+    amount: Union[float, str] = Field(..., description="Montant du paiement")
+    payment_date: Optional[str] = Field(default=None, description="Date du versement (YYYY-MM-DD)")
+    payment_type: Optional[str] = Field(default="versement", description="Type de paiement")
+    sale_link: Optional[str] = Field(default="", description="Lien de la vente liée (kind:id)")
+    notes: Optional[str] = Field(default="", description="Notes additionnelles")
+
+    @field_validator("client_id", mode="before")
+    @classmethod
+    def clean_client_id(cls, value: object) -> int:
+        if value is None or value == "":
+            raise ValueError("Choisis un client.")
+        try:
+            return int(str(value).strip())
+        except ValueError:
+            raise ValueError("ID de client invalide.")
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def clean_amount(cls, value: object) -> float:
+        if value is None or value == "":
+            raise ValueError("Le montant est requis.")
+        cleaned = str(value).replace(" ", "").replace("\xa0", "").replace(",", ".")
+        try:
+            return float(cleaned)
+        except ValueError:
+            raise ValueError("Montant invalide.")
+
+class ProductionCreateSchema(BaseModel):
+    finished_product_id: int = Field(..., description="ID du produit fini")
+    output_quantity: float = Field(..., gt=0, description="Quantité produite")
+    production_date: Optional[str] = Field(default=None, description="Date de production (YYYY-MM-DD)")
+    notes: Optional[str] = Field(default="", description="Notes additionnelles")
+    recipe_name: Optional[str] = Field(default="", description="Nom de la recette optionnel")
+    save_recipe: Optional[Union[bool, int, str]] = Field(default=0, description="Sauvegarder comme recette")
+    raw_material_ids: Optional[List[int]] = Field(default=None, alias="raw_material_id[]", description="Liste des IDs de matières premières")
+    quantities: Optional[List[float]] = Field(default=None, alias="quantity[]", description="Liste des quantités consommées")
+
+    model_config = ConfigDict(populate_by_name=True)

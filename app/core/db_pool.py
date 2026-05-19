@@ -7,7 +7,7 @@ from collections import OrderedDict
 from typing import Any, Callable
 from urllib.parse import urlparse
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
 from app.core.config import settings
@@ -177,9 +177,29 @@ class ConnectionPoolManager:
             conn = engine.raw_connection()
         except Exception as e:
             err_msg = str(e).lower()
-            if "authentification" in err_msg or "password authentication failed" in err_msg or "28p01" in err_msg:
+            if "does not exist" in err_msg or "3d000" in err_msg:
+                parsed = urlparse(raw_url)
+                database = parsed.path.lstrip("/")
+                port_part = f":{parsed.port}" if parsed.port else ""
+                pass_part = f":{parsed.password}" if parsed.password else ""
+                user_part = f"{parsed.username}{pass_part}@" if parsed.username else ""
+                postgres_url = f"{parsed.scheme}://{user_part}{parsed.hostname}{port_part}/postgres"
+                
+                pg_engine = create_engine(
+                    self.sqlalchemy_database_url(postgres_url),
+                    isolation_level="AUTOCOMMIT",
+                    future=True,
+                )
+                with pg_engine.connect() as pg_conn:
+                    pg_conn.execute(text(f'CREATE DATABASE "{database}"'))
+                pg_engine.dispose()
+                
+                engine = self.get_database_engine(raw_url)
+                conn = engine.raw_connection()
+            elif "authentification" in err_msg or "password authentication failed" in err_msg or "28p01" in err_msg:
                 raise RuntimeError("Erreur critique d'authentification PostgreSQL. Verifie le mot de passe dans .env") from e
-            raise RuntimeError(f"Impossible de se connecter a la base de donnees PostgreSQL: {e}") from e
+            else:
+                raise RuntimeError(f"Impossible de se connecter a la base de donnees PostgreSQL: {e}") from e
 
         def _reconnect():
             return engine.raw_connection()

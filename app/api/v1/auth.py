@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
@@ -17,7 +18,7 @@ from app.core.activity import log_activity
 from app.core.audit import audit_event
 from app.services.auth_service import attempt_login
 from app.core.rate_limit import limiter
-
+from app.schemas.api_schemas import UserLoginSchema
 
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -30,15 +31,14 @@ def _response(payload: dict):
 
 @router.post("/login")
 @limiter.limit("10/minute")
-async def api_auth_login(request: Request):
-    payload = await request.json()
-    result = attempt_login(payload.get("username", ""), payload.get("password", ""))
+async def api_auth_login(request: Request, payload: UserLoginSchema):
+    result = await asyncio.to_thread(attempt_login, payload.username, payload.password)
     if not result["ok"]:
         return JSONResponse({"error": {"code": "login_failed", "message": result["message"], "details": None}}, status_code=int(result.get("status") or 401))
     user = result["user"]
     access_token = create_access_token(user)
-    refresh_token = create_refresh_token(request, user)
-    audit_event("api_login", "user", user["id"], source="api", after={"username": user["username"]})
+    refresh_token = await asyncio.to_thread(create_refresh_token, request, user)
+    await asyncio.to_thread(audit_event, "api_login", "user", user["id"], source="api", after={"username": user["username"]})
     return _response(
         api_success(
             {
@@ -61,31 +61,31 @@ async def api_auth_login(request: Request):
 async def api_auth_refresh(request: Request):
     payload = await request.json()
     raw_refresh = str(payload.get("refresh_token", "") or "").strip()
-    user = validate_refresh_token(raw_refresh)
+    user = await asyncio.to_thread(validate_refresh_token, raw_refresh)
     if not user:
         return JSONResponse({"error": {"code": "refresh_token_invalid", "message": "Jeton de renouvellement invalide.", "details": None}}, status_code=401)
     access_token = create_access_token(user)
-    audit_event("api_refresh", "user", user["id"], source="api", after={"username": user["username"]})
+    await asyncio.to_thread(audit_event, "api_refresh", "user", user["id"], source="api", after={"username": user["username"]})
     return _response(api_success({"access_token": access_token, "token_type": "Bearer", "expires_in": ACCESS_TOKEN_TTL_SECONDS}))
 
 
 @router.post("/logout")
 async def api_auth_logout(request: Request):
-    user = require_api_user(request)
+    user = await asyncio.to_thread(require_api_user, request)
     payload = await request.json()
     raw_refresh = str(payload.get("refresh_token", "") or "").strip()
     if raw_refresh:
-        revoke_refresh_token(raw_refresh)
+        await asyncio.to_thread(revoke_refresh_token, raw_refresh)
     else:
-        revoke_all_user_tokens(int(user["id"]))
-    log_activity("api_logout", "user", user["id"], f"API logout {user['username']}")
-    audit_event("api_logout", "user", user["id"], source="api", after={"username": user["username"]})
+        await asyncio.to_thread(revoke_all_user_tokens, int(user["id"]))
+    await asyncio.to_thread(log_activity, "api_logout", "user", user["id"], f"API logout {user['username']}")
+    await asyncio.to_thread(audit_event, "api_logout", "user", user["id"], source="api", after={"username": user["username"]})
     return _response(api_success({"revoked": True}))
 
 
 @router.get("/me")
 async def api_auth_me(request: Request):
-    user = require_api_user(request)
+    user = await asyncio.to_thread(require_api_user, request)
     return _response(
         api_success(
             {
@@ -93,8 +93,8 @@ async def api_auth_me(request: Request):
                 "username": user["username"],
                 "role": user["role"],
                 "must_change_password": bool(int(user.get("must_change_password", 0) or 0)),
-                "last_login_at": user.get("last_login_at"),
-                "last_password_change_at": user.get("last_password_change_at"),
+                "last_login_at": user.get("last_login_at").isoformat() if hasattr(user.get("last_login_at"), "isoformat") else str(user.get("last_login_at")) if user.get("last_login_at") else None,
+                "last_password_change_at": user.get("last_password_change_at").isoformat() if hasattr(user.get("last_password_change_at"), "isoformat") else str(user.get("last_password_change_at")) if user.get("last_password_change_at") else None,
             }
         )
     )

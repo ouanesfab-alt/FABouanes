@@ -34,29 +34,33 @@ def _build_dashboard_snapshot(today: str) -> dict:
         lambda: query_db("SELECT * FROM raw_materials WHERE stock_qty <= alert_threshold ORDER BY stock_qty ASC"),
         ttl_seconds=TTL_FREQUENT,
     )
-    recent_sales = query_db(
-        """
-        SELECT * FROM (
-            SELECT s.sale_date, COALESCE(c.name, 'Comptoir') AS client_name, f.name AS item_name,
-                   s.total, s.balance_due, s.profit_amount, 'Produit final' AS source
-            FROM sales s
-            LEFT JOIN clients c ON c.id = s.client_id
-            JOIN finished_products f ON f.id = s.finished_product_id
-            ORDER BY s.sale_date DESC, s.id DESC
-            LIMIT 15
-        ) finished_recent
-        UNION ALL
-        SELECT * FROM (
-            SELECT rs.sale_date, COALESCE(c.name, 'Comptoir') AS client_name, COALESCE(NULLIF(rs.custom_item_name, ''), r.name) AS item_name,
-                   rs.total, rs.balance_due, rs.profit_amount, 'Matiere premiere' AS source
-            FROM raw_sales rs
-            LEFT JOIN clients c ON c.id = rs.client_id
-            JOIN raw_materials r ON r.id = rs.raw_material_id
-            ORDER BY rs.sale_date DESC, rs.id DESC
-            LIMIT 15
-        ) raw_recent
-        ORDER BY sale_date DESC LIMIT 10
-        """
+    recent_sales = cached_result(
+        ("dashboard", "recent_sales"),
+        lambda: query_db(
+            """
+            SELECT * FROM (
+                SELECT s.sale_date, COALESCE(c.name, 'Comptoir') AS client_name, f.name AS item_name,
+                       s.total, s.balance_due, s.profit_amount, 'Produit final' AS source
+                FROM sales s
+                LEFT JOIN clients c ON c.id = s.client_id
+                JOIN finished_products f ON f.id = s.finished_product_id
+                ORDER BY s.sale_date DESC, s.id DESC
+                LIMIT 15
+            ) finished_recent
+            UNION ALL
+            SELECT * FROM (
+                SELECT rs.sale_date, COALESCE(c.name, 'Comptoir') AS client_name, COALESCE(NULLIF(rs.custom_item_name, ''), r.name) AS item_name,
+                       rs.total, rs.balance_due, rs.profit_amount, 'Matiere premiere' AS source
+                FROM raw_sales rs
+                LEFT JOIN clients c ON c.id = rs.client_id
+                JOIN raw_materials r ON r.id = rs.raw_material_id
+                ORDER BY rs.sale_date DESC, rs.id DESC
+                LIMIT 15
+            ) raw_recent
+            ORDER BY sale_date DESC LIMIT 10
+            """
+        ),
+        ttl_seconds=TTL_FREQUENT,
     )
     counts = cached_result(
         ("dashboard", "counts"),
@@ -72,105 +76,50 @@ def _build_dashboard_snapshot(today: str) -> dict:
         ),
         ttl_seconds=TTL_FREQUENT,
     )
-    sales_summary = query_db(
-        """
-        SELECT sale_date,
-               SUM(nb_sales) AS nb_sales,
-               SUM(total_sales) AS total_sales,
-               SUM(total_paid) AS total_paid,
-               SUM(total_due) AS total_due,
-               SUM(total_profit) AS total_profit
-        FROM (
-            SELECT sale_date, COUNT(*) AS nb_sales, SUM(total) AS total_sales, SUM(amount_paid) AS total_paid,
-                   SUM(balance_due) AS total_due, SUM(profit_amount) AS total_profit
-            FROM sales GROUP BY sale_date
-            UNION ALL
-            SELECT sale_date, COUNT(*) AS nb_sales, SUM(total) AS total_sales, SUM(amount_paid) AS total_paid,
-                   SUM(balance_due) AS total_due, SUM(profit_amount) AS total_profit
-            FROM raw_sales GROUP BY sale_date
-        ) x
-        GROUP BY sale_date
-        ORDER BY sale_date DESC LIMIT 15
-        """
-    )
-    stock_materials_raw = query_db(
-        """
-        WITH consumed AS (
-            SELECT raw_material_id, SUM(qty) AS consumed_30d
+    sales_summary = cached_result(
+        ("dashboard", "sales_summary"),
+        lambda: query_db(
+            """
+            SELECT sale_date,
+                   SUM(nb_sales) AS nb_sales,
+                   SUM(total_sales) AS total_sales,
+                   SUM(total_paid) AS total_paid,
+                   SUM(total_due) AS total_due,
+                   SUM(total_profit) AS total_profit
             FROM (
-                SELECT raw_material_id,
-                       CASE
-                           WHEN lower(unit) = 'sac' THEN quantity * 50
-                           WHEN lower(unit) IN ('qt', 'quintal') THEN quantity * 100
-                           ELSE quantity
-                       END AS qty
-                FROM raw_sales
-                WHERE sale_date >= %s
+                SELECT sale_date, COUNT(*) AS nb_sales, SUM(total) AS total_sales, SUM(amount_paid) AS total_paid,
+                       SUM(balance_due) AS total_due, SUM(profit_amount) AS total_profit
+                FROM sales GROUP BY sale_date
                 UNION ALL
-                SELECT pbi.raw_material_id, pbi.quantity AS qty
-                FROM production_batch_items pbi
-                JOIN production_batches pb ON pb.id = pbi.batch_id
-                WHERE pb.production_date >= %s
-            ) source
-            GROUP BY raw_material_id
-        )
-        SELECT rm.*, COALESCE(c.consumed_30d, 0) AS consumed_30d
-        FROM raw_materials rm
-        LEFT JOIN consumed c ON c.raw_material_id = rm.id
-        ORDER BY rm.name
-        LIMIT 15
-        """,
-        (cutoff_30d, cutoff_30d),
+                SELECT sale_date, COUNT(*) AS nb_sales, SUM(total) AS total_sales, SUM(amount_paid) AS total_paid,
+                       SUM(balance_due) AS total_due, SUM(profit_amount) AS total_profit
+                FROM raw_sales GROUP BY sale_date
+            ) x
+            GROUP BY sale_date
+            ORDER BY sale_date DESC LIMIT 15
+            """
+        ),
+        ttl_seconds=TTL_FREQUENT,
     )
-    stock_materials = []
-    for material in stock_materials_raw:
-        row = dict(material)
-        daily = float(row.get("consumed_30d") or 0) / 30.0
-        row["days_left"] = int(round(float(row["stock_qty"]) / daily)) if daily > 0.01 else None
-        stock_materials.append(row)
-    stock_products = query_db("SELECT * FROM finished_products ORDER BY name LIMIT 10")
+    stock_materials = cached_result(
+        ("dashboard", "stock_materials", cutoff_30d),
+        lambda: _build_stock_materials(cutoff_30d),
+        ttl_seconds=TTL_FREQUENT,
+    )
+    stock_products = cached_result(
+        ("dashboard", "stock_products"),
+        lambda: query_db("SELECT * FROM finished_products ORDER BY name LIMIT 10"),
+        ttl_seconds=TTL_FREQUENT,
+    )
 
     today_value = float(summary["sales_today"])
     week_value = float(summary["sales_week_ago"])
     sales_delta_pct = round((today_value - week_value) / week_value * 100, 1) if week_value > 0 else None
 
-    debt_by_client = query_db(
-        """
-        WITH finished_totals AS (
-            SELECT client_id, SUM(total) AS credit_total
-            FROM sales
-            WHERE client_id IS NOT NULL AND sale_type = 'credit'
-            GROUP BY client_id
-        ),
-        raw_totals AS (
-            SELECT client_id, SUM(total) AS credit_total
-            FROM raw_sales
-            WHERE client_id IS NOT NULL AND sale_type = 'credit'
-            GROUP BY client_id
-        ),
-        payment_totals AS (
-            SELECT client_id,
-                   SUM(CASE WHEN payment_type = 'versement' THEN amount ELSE 0 END) AS versements,
-                   SUM(CASE WHEN payment_type = 'avance' THEN amount ELSE 0 END) AS avances
-            FROM payments
-            GROUP BY client_id
-        )
-        SELECT * FROM (
-            SELECT c.id, c.name,
-                   c.opening_credit
-                   + COALESCE(ft.credit_total, 0)
-                   + COALESCE(rt.credit_total, 0)
-                   - COALESCE(pt.versements, 0)
-                   + COALESCE(pt.avances, 0) AS balance
-            FROM clients c
-            LEFT JOIN finished_totals ft ON ft.client_id = c.id
-            LEFT JOIN raw_totals rt ON rt.client_id = c.id
-            LEFT JOIN payment_totals pt ON pt.client_id = c.id
-        ) x
-        WHERE balance > 0
-        ORDER BY balance DESC
-        LIMIT 10
-        """
+    debt_by_client = cached_result(
+        ("dashboard", "debt_by_client"),
+        _build_debt_by_client,
+        ttl_seconds=TTL_FREQUENT,
     )
     production_history = cached_result(
         ("dashboard", "production_history"),

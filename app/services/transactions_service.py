@@ -19,22 +19,27 @@ def transactions_context(
         """
         SELECT * FROM (
             SELECT 'Achat' AS tx_type, 'purchase' AS tx_kind, p.id, p.purchase_date AS tx_date,
-                   COALESCE(s.name, '-') AS partner_name, r.name AS designation,
+                   COALESCE(s.name, '-') AS partner_name, 
+                   CASE 
+                       WHEN p.finished_product_id IS NOT NULL THEN fp.name
+                       ELSE r.name 
+                   END AS designation,
                    CASE
-                       WHEN lower(COALESCE(p.unit, r.unit, 'kg')) = 'sac' THEN p.quantity / 50.0
-                       WHEN lower(COALESCE(p.unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
+                       WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) = 'sac' THEN p.quantity / 50.0
+                       WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
                        ELSE p.quantity
                    END AS quantity,
-                   COALESCE(p.unit, r.unit, 'kg') AS unit,
+                   COALESCE(p.unit, fp.default_unit, r.unit, 'kg') AS unit,
                    CASE
-                       WHEN lower(COALESCE(p.unit, r.unit, 'kg')) = 'sac' THEN p.unit_price * 50.0
-                       WHEN lower(COALESCE(p.unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
+                       WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) = 'sac' THEN p.unit_price * 50.0
+                       WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
                        ELSE p.unit_price
                    END AS unit_price,
                    p.total, CAST(NULL AS numeric) AS paid, CAST(NULL AS numeric) AS due, p.document_id AS document_id, p.created_at AS tx_created_at
             FROM purchases p
             LEFT JOIN suppliers s ON s.id = p.supplier_id
-            JOIN raw_materials r ON r.id = p.raw_material_id
+            LEFT JOIN raw_materials r ON r.id = p.raw_material_id
+            LEFT JOIN finished_products fp ON fp.id = p.finished_product_id
             UNION ALL
             SELECT 'Vente' AS tx_type,
                    CASE WHEN x.row_kind='finished' THEN 'sale_finished' ELSE 'sale_raw' END AS tx_kind,

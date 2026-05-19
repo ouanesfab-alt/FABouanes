@@ -1,0 +1,26 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<meta name="theme-color" content="#1a2235">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FABOuanes">
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<title>{{ title or "FABOuanes" }}</title>
+
+<link rel="preload" href="/static/fonts/PlusJakartaSans-0.woff2" as="font" type="font/woff2" crossorigin>
+
+<link href="{{ url_for('static', filename='css/bootstrap.min.css', v='20260516-local-assets') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/bootstrap-icons.css', v='20260516-local-assets') }}" rel="stylesheet"
+  media="print" onload="this.media='all'">
+<noscript>
+  <link href="{{ url_for('static', filename='css/bootstrap-icons.css', v='20260516-local-assets') }}"
+    rel="stylesheet">
+</noscript>
+<link href="{{ url_for('static', filename='css/tokens.css', v='20260519-sequoia-v3') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/components.css', v='20260517-spotlight') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='fonts/fonts.css', v='20260517-spotlight') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='app.css', v='20260519-spotlight-v15') }}" rel="stylesheet">

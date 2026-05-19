@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 
 from app.api.deps import api_success
 from app.core.db_access import query_db
@@ -15,7 +16,7 @@ from app.services.sale_service import get_sale_document_context
 
 def json_response(payload: dict[str, Any]) -> JSONResponse:
     status_code = int(payload.pop("_status_code", 200))
-    return JSONResponse(payload, status_code=status_code)
+    return JSONResponse(jsonable_encoder(payload), status_code=status_code)
 
 def client_payload(client_id: int):
     row = query_db(

@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+  <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="269335099c583010483464b89dcbe258">
+<meta name="theme-color" content="#1a2235">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FABOuanes">
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<title>FABOuanes</title>
+
+<link rel="preload" href="/static/fonts/PlusJakartaSans-0.woff2" as="font" type="font/woff2" crossorigin>
+
+<link href="/mock_url" rel="stylesheet">
+<link href="/mock_url" rel="stylesheet"
+  media="print" onload="this.media='all'">
+<noscript>
+  <link href="/mock_url"
+    rel="stylesheet">
+</noscript>
+<link href="/mock_url" rel="stylesheet">
+<link href="/mock_url" rel="stylesheet">
+<link href="/mock_url" rel="stylesheet">
+<link href="/mock_url" rel="stylesheet">
+</head>
+
+
+<body class="">
+  
+  <!-- macOS Sequoia Ambient Background Backdrop -->
+  <div class="sequoia-backdrop" aria-hidden="true"></div>
+  
+  <script>
+    
+    if (document.body.classList.contains('desktop-app') && !document.body.classList.contains('print-route') && !document.body.classList.contains('auth-page')) {
+      document.documentElement.classList.add('desktop-app-root');
+    } else {
+      document.documentElement.classList.remove('desktop-app-root');
+    }
+  </script>
+  
+  
+  
+  
+  
+  <!-- -- Top Navbar -- -->
+<nav class="app-navbar" id="appNavbar">
+  <div class="nav-inner">
+    <!-- macOS Sequoia Titlebar controls decoration -->
+    <div class="mac-window-controls d-none d-sm-flex">
+      <div class="mac-dot red" title="Fermer"></div>
+      <div class="mac-dot yellow" title="Réduire"></div>
+      <div class="mac-dot green" title="Agrandir"></div>
+    </div>
+    <a href="/mock_url" class="nav-brand" aria-label="Accueil FAB">
+      <img src="/mock_url" alt="FABOuanes" class="nav-logo">
+      <span class="nav-brand-text d-none d-sm-flex">
+        <span class="nav-brand-title">FAB</span>
+      </span>
+    </a>
+    <div class="nav-page-title d-md-none">
+      
+    </div>
+    <!-- Desktop nav -->
+    <div class="nav-links d-none d-md-flex">
+      <a href="/mock_url" class=""><i
+          class="bi bi-people me-1"></i>Contacts</a>
+      <a href="/mock_url"
+        class=""><i
+          class="bi bi-box-seam me-1"></i>Produits</a>
+      <a href="/mock_url" class=""><i
+          class="bi bi-arrow-left-right me-1"></i>Opérations<span id="offline-pending-badge" class="badge bg-warning text-dark ms-1" hidden title="Opérations en attente de synchronisation"></span><span id="network-status-icon" class="ms-1" title="Statut réseau"><i class="bi bi-wifi" id="icon-online" style="color:#4ade80;font-size:.75rem"></i><i class="bi bi-wifi-off d-none" id="icon-offline" style="color:#fb923c;font-size:.75rem"></i></span></a>
+
+      <div class="dropdown">
+        <button type="button" class="nav-link-menu "
+          data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-folder2-open"></i>
+          <span>Outils</span>
+          <i class="bi bi-chevron-down nav-link-caret"></i>
+        </button>
+        <ul class="dropdown-menu">
+          <li><a
+              class="dropdown-item "
+              href="/mock_url"><i class="bi bi-wallet2 me-2"></i>Dépenses</a></li>
+          <li><a
+              class="dropdown-item "
+              href="/mock_url"><i class="bi bi-bar-chart-line me-2"></i>Rapports</a></li>
+          <li><a class="dropdown-item "
+              href="/mock_url"><i class="bi bi-gear me-2"></i>Production</a></li>
+
+          <li>
+            <hr class="dropdown-divider">
+          </li>
+          <li><a class="dropdown-item "
+              href="/mock_url"><i class="bi bi-journal-text me-2"></i>Bloc-note</a></li>
+          <li><a
+              class="dropdown-item "
+              href="/mock_url"><i class="bi bi-receipt me-2"></i>Espace bons</a></li>
+          <li><a class="dropdown-item "
+              href="/mock_url"><i class="bi bi-qr-code me-2"></i>Connexion mobile</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item" href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer"><i class="bi bi-stars me-2" style="color:#886cf5"></i>Assistant IA <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.7rem;opacity:.5"></i></a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="nav-spacer"></div>
+    <!-- Desktop actions -->
+    <div class="nav-actions">
+      <button type="button" class="nav-btn d-flex" id="globalSearchBtn"
+              aria-label="Recherche rapide" title="Recherche rapide (Ctrl+K)">
+        <i class="bi bi-search"></i>
+        <span class="nav-action-label d-none">Rechercher</span>
+        <kbd class="nav-kbd ms-2 d-none d-md-inline-block" style="font-size: .65rem; padding: 2px 5px; border-radius: 4px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); color: rgba(255,255,255,.65); font-family: inherit; letter-spacing: .02em;">Ctrl K</kbd>
+      </button>
+      <a href="/mock_url" class="nav-btn d-none d-md-flex"><i class="bi bi-plus-lg"></i>Ajouter</a>
+      <!-- User -->
+      <div class="dropdown d-none d-md-block">
+        <button class="nav-btn dropdown-toggle border-0" data-bs-toggle="dropdown" data-bs-display="static">
+          <i class="bi bi-person-circle"></i>admin
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          
+          <li>
+            <button type="button" class="dropdown-item d-flex align-items-center justify-content-between"
+                    id="themeToggleBtn">
+              <span><i class="bi bi-sun me-2"></i>Mode nuit</span>
+              <span class="badge bg-secondary" id="themeToggleBadge">Clair</span>
+            </button>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item" href="/mock_url"><i class="bi bi-key me-2"></i>Mot de
+              passe</a></li>
+          <li>
+            <hr class="dropdown-divider">
+          </li>
+          <li><a class="dropdown-item text-danger" href="/mock_url"><i
+                class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></li>
+        </ul>
+      </div>
+      <!-- Mobile hamburger -->
+      <button class="nav-hamburger" id="drawerBtn" aria-label="Menu">
+        <i class="bi bi-list"></i>
+      </button>
+    </div>
+  </div>
+</nav>
+<button type="button" class="side-nav-toggle" id="sideNavToggle" aria-label="Masquer la barre verticale"
+  aria-controls="appNavbar" aria-expanded="true" hidden>
+  <i class="bi bi-list"></i>
+</button>
+  <!-- -- Mobile Side Drawer -- -->
+<div class="nav-overlay" id="navOverlay"></div>
+<div class="nav-drawer" id="navDrawer">
+  <div class="nav-drawer-header">
+    <div class="d-flex align-items-center gap-2">
+      <img src="/mock_url" alt="FABOuanes"
+        style="height:38px;border-radius:6px;" loading="lazy" decoding="async">
+      <div>
+        <div class="drawer-brand-name">FAB</div>
+        <div class="drawer-brand-sub">Navigation</div>
+      </div>
+    </div>
+    <button class="nav-drawer-close" id="drawerClose"><i class="bi bi-x-lg"></i></button>
+  </div>
+  <div class="nav-drawer-body">
+    <div class="drawer-sub">Navigation</div>
+    <a href="#" class="drawer-link mb-3" onclick="document.getElementById('drawerClose').click(); setTimeout(() => { window.openSearch && window.openSearch(); }, 250); return false;" style="background: rgba(37, 99, 235, 0.08); border: 1px dashed rgba(37, 99, 235, 0.25); color: #2563eb; border-radius: 10px;">
+      <i class="bi bi-search"></i> <strong>Recherche globale</strong>
+    </a>
+    <a href="/mock_url" class="drawer-link ">
+      <i class="bi bi-house"></i> Tableau de bord
+    </a>
+    <a href="/mock_url" class="drawer-link ">
+      <i class="bi bi-people"></i> Contacts
+    </a>
+    <a href="/mock_url" class="drawer-link ">
+      <i class="bi bi-box-seam"></i> Produits & Stocks
+    </a>
+    <a href="/mock_url" class="drawer-link ">
+      <i class="bi bi-arrow-left-right"></i> Opérations
+    </a>
+
+    <div class="drawer-group ">
+      <button type="button" class="drawer-link drawer-link-btn "
+        id="drawerToolsToggle" data-drawer-toggle aria-expanded="false">
+        <span class="drawer-link-main">
+          <i class="bi bi-folder2-open"></i> Outils
+        </span>
+        <i class="bi bi-chevron-down drawer-caret"></i>
+      </button>
+      <div class="drawer-submenu">
+        <a href="/mock_url"
+          class="drawer-sublink ">
+          <i class="bi bi-wallet2"></i> Dépenses
+        </a>
+        <a href="/mock_url"
+          class="drawer-sublink ">
+          <i class="bi bi-bar-chart-line"></i> Rapports
+        </a>
+        <a href="/mock_url"
+          class="drawer-sublink ">
+          <i class="bi bi-gear"></i> Production
+        </a>
+
+        <a href="/mock_url"
+          class="drawer-sublink ">
+          <i class="bi bi-journal-text"></i> Bloc-note
+        </a>
+        <a href="/mock_url"
+          class="drawer-sublink ">
+          <i class="bi bi-receipt"></i> Espace bons
+        </a>
+        <a href="/mock_url"
+          class="drawer-sublink ">
+          <i class="bi bi-qr-code"></i> Connexion mobile
+        </a>
+        <a href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer" class="drawer-sublink">
+          <i class="bi bi-stars" style="color:#886cf5"></i> Assistant IA <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.65rem;opacity:.5"></i>
+        </a>
+      </div>
+    </div>
+    <div class="drawer-divider"></div>
+    <div class="drawer-sub">Actions</div>
+    <a href="/mock_url"
+      class="drawer-link ">
+      <i class="bi bi-plus-circle"></i> Ajout rapide
+    </a>
+    <div class="drawer-divider"></div>
+    
+    <button type="button" class="drawer-link w-100 text-start border-0 bg-transparent"
+            id="themeToggleBtnMobile">
+      <i class="bi bi-sun"></i> Mode nuit
+      <span class="badge bg-secondary ms-auto" id="themeToggleBadgeMobile">Clair</span>
+    </button>
+    <a href="/mock_url" class="drawer-link">
+      <i class="bi bi-key"></i> Mot de passe
+    </a>
+    <a href="/mock_url" class="drawer-link drawer-link-danger">
+      <i class="bi bi-box-arrow-right"></i> Déconnexion
+    </a>
+  </div>
+</div>
+  <!-- -- Bottom Nav (mobile) -- -->
+<nav class="bot-nav">
+  <div class="bot-nav-inner">
+    <a href="/mock_url" class="bot-tab ">
+      <i class="bi bi-house"></i><span>Accueil</span>
+    </a>
+    <a href="/mock_url"
+      class="bot-tab ">
+      <i
+        class="bi bi-box-seam"></i><span>Produits</span>
+    </a>
+    <a href="/mock_url" class="bot-tab ">
+      <i class="bi bi-arrow-left-right"></i><span>Opérations</span>
+    </a>
+    <a href="/mock_url" class="bot-tab-add" title="Ajouter">
+      <i class="bi bi-plus-lg"></i>
+    </a>
+    <a href="/mock_url" class="bot-tab ">
+      <i class="bi bi-people"></i><span>Contacts</span>
+    </a>
+  </div>
+</nav>
+  
+
+  <!-- -- Main Content -- -->
+  <div class="app-content">
+    <div class="toast-container position-fixed top-0 end-0 p-4 toast-container-app" id="toastContainer" style="margin-top: 60px; z-index: 9999;">
+      
+      
+      
+    </div>
+    
+
+<style>
+  :root{
+    --print-page-width:mm;
+    --print-page-height:mm;
+    --print-page-margin:mm;
+    --print-content-width:mm;
+    --print-paper-height:mm;
+    --print-gap:mm;
+    --print-header-padding:mm;
+    --print-body-padding:mm;
+    --print-screen-scale:;
+    --print-summary-width:px;
+  }
+  html,body{overflow-x:auto!important;}
+  body.print-route .app-content{min-width:var(--print-content-width);}
+  .print-doc-shell{width:var(--print-content-width);min-width:var(--print-content-width);max-width:none;margin:0 auto;display:flex;flex-direction:column;gap:var(--print-gap);}
+  .print-doc-paper{background:#fff;border:1px solid #d7dee8;border-radius:6px;box-shadow:0 6px 18px rgba(15,23,42,.05);overflow:hidden;min-height:var(--print-paper-height);font-family:"Plus Jakarta Sans",var(--font-main),Arial,Helvetica,sans-serif;}
+  .print-doc-header{padding:var(--print-header-padding) var(--print-body-padding) 6mm;border-bottom:1px solid #d7dee8;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-top-grid{display:grid;grid-template-columns:minmax(0,1fr) 60mm;gap:8mm;align-items:start;}
+  .print-doc-brand-row{display:block;min-width:0;max-width:128mm;}
+  .print-doc-brand-logo{display:block;width:min(128mm,100%);height:auto;max-height:45mm;object-fit:contain;object-position:left top;}
+  .print-doc-brand-copy{display:none;}
+  .print-doc-brand-name{margin:0;font-family:Arial,Helvetica,sans-serif;font-size:33pt;line-height:.9;font-weight:800;color:black !important;letter-spacing:0;}
+  .print-doc-brand-subtitle{margin:2mm 0 0;font-size:14pt;line-height:1.08;color:#222;font-weight:400;}
+  .print-doc-contact-list{display:grid;grid-template-columns:1fr;gap:3mm;margin-top:6mm;color:#222;font-size:10.2pt;line-height:1.2;}
+  .print-doc-contact-row{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:3mm;align-items:center;}
+  .print-doc-contact-row i{font-size:12pt;color:#000;text-align:center;}
+  .print-doc-invoice-box{border:1.2px solid #333;border-radius:5px;padding:4mm 5mm;background:#fff;}
+  .print-doc-invoice-title{margin:0 0 2mm;font-family:Arial,Helvetica,sans-serif;text-align:center;font-size:22pt;line-height:1;font-weight:bold;color:black !important;letter-spacing:0;}
+  .print-doc-invoice-subtitle{margin:0 0 4mm;text-align:center;font-size:9pt;line-height:1.2;color:#555;font-weight:600;}
+  .print-doc-refrow{display:grid;grid-template-columns:27mm 1fr;gap:3mm;align-items:center;margin:2.4mm 0;color:#111;font-size:9.5pt;}
+  .print-doc-refrow span{font-weight:800;color:#000;white-space:nowrap;}
+  .print-doc-refrow strong{font-weight:500;text-align:right;color:#222;overflow-wrap:anywhere;}
+  .print-doc-refrow .line-value{display:block;border-bottom:1.2px solid #111;min-height:4.4mm;}
+  .print-doc-client-box{position:relative;margin-top:10mm;border:1.2px solid #333;border-radius:5px;min-height:0;padding:9mm 6mm 5mm;background:#fff;}
+  .print-doc-client-tab{position:absolute;top:-7mm;left:0;min-width:28mm;padding:2mm 6mm;border-radius:5px 5px 0 0;background:#000;color:#fff;text-align:center;font-size:10.5pt;font-weight:800;}
+  .print-doc-client-meta-row{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,.85fr);gap:8mm;align-items:start;color:#222;}
+  .print-doc-client-meta-cell{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2mm;align-items:baseline;min-width:0;}
+  .print-doc-client-meta-cell span{font-weight:800;color:#000;white-space:nowrap;}
+  .print-doc-client-meta-cell strong{font-weight:600;color:#222;overflow-wrap:anywhere;}
+  .print-doc-client-meta-cell.is-partner{display:block;font-size:18pt;line-height:1.1;}
+  .print-doc-client-meta-cell.is-partner strong{display:block;font-weight:800;}
+  .print-doc-client-meta-cell.is-prepared{font-size:9.4pt;color:#555;align-self:center;}
+  .print-doc-client-meta-cell.is-prepared span{color:#111;}
+  .print-doc-client-meta-cell.is-prepared strong{font-weight:500;color:#333;}
+  .print-doc-client-row{display:grid;grid-template-columns:8mm minmax(0,1fr);gap:4mm;align-items:center;margin:5mm 0 0;font-size:10.5pt;color:#222;}
+  .print-doc-client-row i{font-size:12pt;color:#000;text-align:center;}
+  .print-doc-client-row strong{font-weight:500;overflow-wrap:anywhere;}
+  .print-doc-info-meta{display:none;}
+  .print-doc-table-wrap{padding:5mm var(--print-body-padding) 0;}
+  .print-doc-table{width:100%;border-collapse:collapse;table-layout:fixed;}
+  .print-doc-table thead{display:table-header-group;}
+  .print-doc-table tfoot{display:table-footer-group;}
+  .print-doc-table thead th{padding:2.2mm 2.6mm;border:1px solid #d7dee8;background:#f8fafc;color:#374151;font-size:7.3pt;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;}
+  .print-doc-table tbody td{padding:2.4mm 2.6mm;border:1px solid #d7dee8;vertical-align:top;color:#111827;font-size:8.4pt;overflow-wrap:anywhere;word-break:break-word;line-height:1.25;}
+  .print-doc-table tbody tr{break-inside:avoid-page;page-break-inside:avoid;}
+  .print-doc-table .col-right{text-align:right;white-space:nowrap;}
+  .print-doc-summary{display:flex;justify-content:flex-end;padding:5mm var(--print-body-padding) 0;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-summary-box{width:min(100%,var(--print-summary-width));border:1px solid #d7dee8;border-radius:6px;padding:6px 12px;background:#fff;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-summary-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #eef2f7;}
+  .print-doc-summary-row:last-child{border-bottom:none;}
+  .print-doc-summary-row span{font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;}
+  .print-doc-summary-row strong{font-size:.92rem;color:#111827;text-align:right;white-space:nowrap;}
+  .print-doc-summary-row.total strong{font-size:1.05rem;font-weight:800;}
+  .print-doc-footer{padding:5mm var(--print-body-padding) var(--print-body-padding);text-align:center;font-size:8pt;color:#6b7280;border-top:1px solid #eef2f7;break-inside:avoid;page-break-inside:avoid;}
+  .print-doc-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+  @page{size:A4 portrait;margin:mm;}
+  @media screen and (min-width:768px){
+    .print-doc-shell{zoom:var(--print-screen-scale);}
+  }
+  @media print{
+    html,body{margin:0!important;padding:0!important;}
+    .no-print,.app-navbar,.page-hero,.table-toolbar,.context-menu,.btn,.dropdown,.alert{display:none !important;}
+    body{padding-top:0 !important;background:#fff !important;}
+    .app-content{padding:0 !important;}
+    .print-doc-paper{box-shadow:none !important;border:0 !important;border-radius:0 !important;min-height:auto !important;}
+    .print-doc-shell{width:var(--print-content-width) !important;max-width:none !important;gap:0 !important;zoom:1 !important;}
+    .print-doc-header,.print-doc-top-grid,.print-doc-client-box,.print-doc-summary,.print-doc-footer{break-inside:avoid-page;page-break-inside:avoid;}
+    .print-doc-table{page-break-inside:auto;}
+    .print-doc-table thead{display:table-header-group;}
+    .print-doc-table tfoot{display:table-footer-group;}
+    .print-doc-table tr{break-inside:avoid-page;page-break-inside:avoid;}
+  }
+</style>
+
+<div class="print-doc-shell">
+  <article class="print-doc-paper print-card">
+    <header class="print-doc-header">
+      <section class="print-doc-top-grid">
+        <div>
+          <div class="print-doc-brand-row">
+            <img src="/mock_url" alt="FABOuanes - Fabrication d&#39;aliment de bétail" class="print-doc-brand-logo">
+          </div>
+          <div class="print-doc-contact-list">
+            <div class="print-doc-contact-row"><i class="bi bi-geo-alt-fill"></i><span>Tala Tegana, Freha, Tizi Ouzou</span></div>
+            <div class="print-doc-contact-row"><i class="bi bi-telephone-fill"></i><span>0771214948 / 0553183302</span></div>
+            <div class="print-doc-contact-row"><i class="bi bi-envelope"></i><span>ouanesfab@gmail.com</span></div>
+          </div>
+        </div>
+
+        <section class="print-doc-invoice-box">
+          <h1 class="print-doc-invoice-title">FACTURE</h1>
+          <div class="print-doc-invoice-subtitle">Vente produit final</div>
+          <div class="print-doc-refrow"><span>N&deg; facture :</span><strong>FAC-000659</strong></div>
+          <div class="print-doc-refrow"><span>Date / Heure :</span><strong>2026-05-19 </strong></div>
+        </section>
+      </section>
+
+      <section class="print-doc-client-box">
+        <div class="print-doc-client-tab">Client</div>
+        <div class="print-doc-client-meta-row">
+          <div class="print-doc-client-meta-cell is-partner"><strong>Comptoir</strong></div>
+          <div class="print-doc-client-meta-cell is-prepared"><span>Pr&eacute;par&eacute; par :</span><strong>admin</strong></div>
+        </div>
+        
+        
+      </section>
+    </header>
+
+    <section class="print-doc-table-wrap">
+      <table class="print-doc-table">
+        <colgroup>
+          <col style="width:52%">
+          <col style="width:16%">
+          <col style="width:16%">
+          <col style="width:16%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Article</th>
+            <th class="col-right">Quantite</th>
+            <th class="col-right">PU</th>
+            <th class="col-right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+          <tr>
+            <td><strong>Aliment bétail : JBV</strong></td>
+            <td class="col-right">66 kg</td>
+            <td class="col-right">60,00 DA</td>
+            <td class="col-right"><strong>3 960,00 DA</strong></td>
+          </tr>
+          
+        </tbody>
+      </table>
+    </section>
+
+    <section class="print-doc-summary">
+      <div class="print-doc-summary-box">
+        
+        <div class="print-doc-summary-row">
+          <span>Paye</span>
+          <strong>3 960,00 DA</strong>
+        </div>
+        
+        
+        <div class="print-doc-summary-row">
+          <span>Reste</span>
+          <strong>0,00 DA</strong>
+        </div>
+        
+        <div class="print-doc-summary-row total">
+          <span>Total</span>
+          <strong>3 960,00 DA</strong>
+        </div>
+      </div>
+    </section>
+
+    <footer class="print-doc-footer">
+      FABOuanes - Document commercial
+    </footer>
+  </article>
+
+  
+  <div class="print-doc-actions no-print">
+    <button class="btn btn-outline-secondary" id="btnBack"><i class="bi bi-arrow-left me-1"></i>Retour</button>
+    <div class="d-flex gap-2 flex-wrap">
+      <button class="btn btn-outline-dark" type="button" onclick="window.print()"><i class="bi bi-printer me-2"></i>Imprimer la page</button>
+      <a href="?format=pdf" class="btn btn-dark" id="btnPrint" target="_blank"><i class="bi bi-file-earmark-pdf me-2"></i>Telecharger PDF</a>
+    </div>
+  </div>
+  
+</div>
+
+<script>
+(function(){
+  const btn = document.getElementById('btnBack');
+  if (!btn) return;
+  btn.addEventListener('click', function(){
+    const ref = document.referrer || '';
+    if (ref && ref !== window.location.href) {
+      window.location.href = ref;
+      return;
+    }
+    if (history.length > 1) {
+      history.back();
+      return;
+    }
+    window.location.href = '/mock_url';
+  });
+})();
+</script>
+
+  </div>
+
+  
+  <!-- -- Context Menu -- -->
+  <div class="pwa-banner" id="pwaBanner" role="status" aria-live="polite">
+    <div>
+      <div class="fw-semibold">Nouvelle version disponible</div>
+      <div class="small text-muted" id="pwaBannerText">Recharge l'application pour recuperer la derniere version.</div>
+    </div>
+    <div class="pwa-banner-actions">
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="pwaDismiss">Plus tard</button>
+      <button type="button" class="btn btn-sm btn-dark" id="pwaReload">Mettre a jour</button>
+    </div>
+  </div>
+  <div id="contextMenu" class="context-menu" role="menu" aria-label="Actions">
+    <div class="menu-title" id="contextTitle">Actions</div>
+    <a href="#" id="contextView" style="display:none"
+      onclick="if(this.href&&this.href!=='#')openInvoice(event,this.href)"><i class="bi bi-eye"></i> Voir la facture</a>
+    <a href="#" id="contextPrint" class="cm-print" style="display:none"
+      onclick="if(this.href&&this.href!=='#')openInvoice(event,this.href)"><i class="bi bi-printer"></i> Imprimer</a>
+    <a href="#" id="contextEdit" style="display:none"><i class="bi bi-pencil"></i> Modifier</a>
+    <div class="cm-divider" id="contextDivider" style="display:none"></div>
+    <form id="contextDeleteForm" method="post" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="269335099c583010483464b89dcbe258">
+      <button type="submit" class="danger" id="contextDelete" style="display:none"><i class="bi bi-trash3"></i>
+        Supprimer</button>
+    </form>
+  </div>
+
+  <div class="search-overlay" id="searchOverlay" role="dialog" aria-modal="true"
+     aria-label="Recherche rapide" hidden>
+  <div class="search-modal">
+    <div class="search-input-row">
+      <i class="bi bi-search search-icon"></i>
+      <input type="search" id="globalSearchInput" class="search-input"
+             placeholder="Rechercher un client, produit, opération…"
+             autocomplete="off" spellcheck="false">
+      <kbd class="search-kbd">Esc</kbd>
+    </div>
+    <div class="search-results" id="searchResults">
+      <div class="search-hint">Tapez au moins 2 caractères…</div>
+    </div>
+  </div>
+</div>
+  
+
+  <script src="/mock_url"></script>
+<script src="/mock_url"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const toasts = document.querySelectorAll('.toast');
+    toasts.forEach(t => new bootstrap.Toast(t).show());
+
+    // Autofocus first valid input
+    const firstInput = document.querySelector('form:not([data-no-autofocus]) input:not([type=hidden]):not([readonly])');
+    if (firstInput && !firstInput.closest('.modal')) {
+      setTimeout(() => firstInput.focus(), 100);
+    }
+
+    // Floating labels select fix
+    document.querySelectorAll('.form-float select').forEach(sel => {
+      const checkVal = () => { if(sel.value) sel.classList.add('has-value'); else sel.classList.remove('has-value'); };
+      sel.addEventListener('change', checkVal);
+      checkVal();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.ctrlKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        const submitBtn = document.querySelector('form button[type="submit"]:not(.is-loading)');
+        if (submitBtn) submitBtn.click();
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === 'f') {
+        const searchInput = document.querySelector('input[type="search"], input[name="q"]');
+        if (searchInput) {
+          e.preventDefault();
+          searchInput.focus();
+          searchInput.select();
+        }
+      }
+    });
+
+    // Validation live des champs obligatoires et montants
+    document.querySelectorAll('input[required], select[required]').forEach(field => {
+      field.addEventListener('blur', function () {
+        if (!this.value.trim()) {
+          this.classList.add('is-invalid');
+          this.classList.remove('is-valid');
+        } else {
+          this.classList.remove('is-invalid');
+          this.classList.add('is-valid');
+        }
+      });
+      field.addEventListener('input', function () {
+        if (this.value.trim()) {
+          this.classList.remove('is-invalid');
+        }
+      });
+    });
+
+    // Validation montants positifs
+    document.querySelectorAll('input[type="number"]').forEach(field => {
+      field.addEventListener('blur', function () {
+        const val = parseFloat(this.value);
+        const min = parseFloat(this.min ?? 0);
+        if (this.value !== '' && (isNaN(val) || val < min)) {
+          this.classList.add('is-invalid');
+          if (!this.nextElementSibling?.classList.contains('invalid-feedback')) {
+            const msg = document.createElement('div');
+            msg.className = 'invalid-feedback';
+            msg.textContent = 'Valeur invalide (doit être ≥ ' + min + ').';
+            this.after(msg);
+          }
+        } else {
+          this.classList.remove('is-invalid');
+          if (this.value) this.classList.add('is-valid');
+        }
+      });
+    });
+  });
+
+  // Persistance tab dashboard
+  (function () {
+    const STORAGE_KEY = 'fab_dash_tab';
+    const root = document.querySelector('[data-fab-switch-root]');
+    if (!root) return;
+
+    // Restaurer la tab sauvegardée
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const btn = root.querySelector('[data-fab-switch-target="' + saved + '"]');
+      if (btn) btn.click();
+    }
+
+    // Sauvegarder à chaque clic
+    root.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-fab-switch-target]');
+      if (btn) {
+        localStorage.setItem(STORAGE_KEY, btn.getAttribute('data-fab-switch-target'));
+      }
+    });
+  })();
+
+  // Dark mode toggle dans le menu user
+  (function () {
+    const THEME_KEY = 'fab_theme';
+    const themes = ['light', 'dark'];
+    const labels = { light: 'Clair', dark: 'Nuit' };
+    const icons  = { light: 'bi-sun', dark: 'bi-moon' };
+
+    function applyTheme(t) {
+      if (t === 'auto' || !themes.includes(t)) {
+        t = 'light';
+      }
+      document.documentElement.setAttribute('data-theme', t);
+      ['themeToggleBtn', 'themeToggleBtnMobile'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        const badge = btn.querySelector('.badge');
+        const icon  = btn.querySelector('.bi');
+        if (badge) badge.textContent = labels[t];
+        if (icon)  icon.className = 'bi ' + icons[t] + ' me-2';
+      });
+    }
+
+    function nextTheme(current) {
+      let actual = (current === 'auto' || !themes.includes(current)) ? 'light' : current;
+      return themes[(themes.indexOf(actual) + 1) % themes.length];
+    }
+
+    let current = localStorage.getItem(THEME_KEY) || 'light';
+    if (current === 'auto') {
+      current = 'light';
+      localStorage.setItem(THEME_KEY, 'light');
+    }
+    applyTheme(current);
+
+    ['themeToggleBtn', 'themeToggleBtnMobile'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        current = nextTheme(current);
+        localStorage.setItem(THEME_KEY, current);
+        applyTheme(current);
+      });
+    });
+  })();
+
+  // Recherche rapide
+  (function () {
+    const overlay = document.getElementById('searchOverlay');
+    const input   = document.getElementById('globalSearchInput');
+    const results = document.getElementById('searchResults');
+    if (!overlay) return;
+
+    function openSearch() {
+      overlay.hidden = false;
+      input.value = '';
+      results.innerHTML = '<div class="search-hint">Tapez au moins 2 caractères…</div>';
+      setTimeout(() => input.focus(), 50);
+    }
+    window.openSearch = openSearch;
+    function closeSearch() {
+      overlay.hidden = true;
+    }
+
+    // Ouvrir
+    document.getElementById('globalSearchBtn')?.addEventListener('click', openSearch);
+    document.addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault(); openSearch();
+      }
+      if (e.key === 'Escape' && !overlay.hidden) closeSearch();
+      if (e.key === '/' && overlay.hidden === true
+          && document.activeElement.tagName !== 'INPUT'
+          && document.activeElement.tagName !== 'TEXTAREA') {
+        e.preventDefault(); openSearch();
+      }
+    });
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) closeSearch();
+    });
+
+    // Recherche
+    let timer;
+    input.addEventListener('input', function () {
+      clearTimeout(timer);
+      const q = input.value.trim();
+      if (q.length < 2) {
+        results.innerHTML = '<div class="search-hint">Tapez au moins 2 caractères…</div>';
+        return;
+      }
+      results.innerHTML = '<div class="search-hint">Recherche…</div>';
+      timer = setTimeout(() => doSearch(q), 250);
+    });
+
+    async function doSearch(q) {
+      try {
+        const res = await fetch('/api/search?q=' + encodeURIComponent(q));
+        if (!res.ok) {
+          results.innerHTML = '<div class="search-hint">Erreur lors de la recherche.</div>';
+          return;
+        }
+        const json = await res.json();
+        const items = json.data || [];
+
+        if (items.length === 0) {
+          results.innerHTML = '<div class="search-hint">Aucun résultat pour "' +
+            q.replace(/</g, '&lt;') + '"</div>';
+          return;
+        }
+
+        results.innerHTML = items.map(item => `
+          <a class="search-result-item" href="${item.href}" onclick="document.getElementById('searchOverlay').hidden=true">
+            <div class="search-result-icon"><i class="bi ${item.icon}"></i></div>
+            <div>
+              <div class="search-result-title">${item.title.replace(/</g,'&lt;')}</div>
+              ${item.sub ? '<div class="search-result-sub">' + item.sub.replace(/</g,'&lt;') + '</div>' : ''}
+            </div>
+            <span class="search-result-type">${item.type}</span>
+          </a>
+        `).join('');
+
+      } catch (e) {
+        results.innerHTML = '<div class="search-hint">Erreur lors de la recherche.</div>';
+      }
+    }
+  })();
+</script>
+<script>
+  // Évite d'avoir une date de formulaire obsolète (ex: page ouverte avant minuit, soumise après minuit)
+  (function autoUpdateDateInputs() {
+    let lastToday = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    setInterval(() => {
+      const currentToday = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+      if (currentToday !== lastToday) {
+        document.querySelectorAll('input[type="date"]').forEach(input => {
+          if (input.value === lastToday) {
+            input.value = currentToday;
+            if (input.max === lastToday) input.max = currentToday;
+          }
+        });
+        lastToday = currentToday;
+      }
+    }, 60000); // Check every minute
+  })();
+</script>
+<!-- Elements masqués pour compatibilité avec les tests et scripts génériques -->
+<div style="display: none;" aria-hidden="true">
+  <button class="js-theme" data-theme-value="light">Clair</button>
+  <button class="js-theme" data-theme-value="dark">Nuit</button>
+  <button class="js-font" data-font="jakarta">Plus Jakarta</button>
+  <button class="js-nav-layout" data-nav-layout="vertical">Verticale</button>
+</div>
+  
+<script type="module">
+  import { initOfflineSync } from '/static/js/offline-sync.js';
+  initOfflineSync();
+  function updateNetworkIcon() {
+    const online = navigator.onLine;
+    document.getElementById('icon-online')?.classList.toggle('d-none', !online);
+    document.getElementById('icon-offline')?.classList.toggle('d-none', online);
+  }
+  window.addEventListener('online',  updateNetworkIcon);
+  window.addEventListener('offline', updateNetworkIcon);
+  document.addEventListener('DOMContentLoaded', updateNetworkIcon);
+</script>
+<script>
+  // Configuration WebSocket globale
+  (function initWebSocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = protocol + '//' + window.location.host + '/api/v1/ws';
+      let ws;
+      let reconnectTimer;
+
+      function connect() {
+          ws = new WebSocket(wsUrl);
+          ws.onmessage = function(event) {
+              if (event.data === 'refresh_operations') {
+                  showToast("Nouvelle opération enregistrée à distance.", "info", true);
+                  if (window.location.pathname.startsWith('/operations') && typeof window.onOperationsRefresh === 'function') {
+                      window.onOperationsRefresh();
+                  }
+              } else if (event.data === 'backup_completed') {
+                  showToast("✅ Sauvegarde réseau terminée avec succès.", "success", false);
+              } else if (event.data === 'low_stock_alert') {
+                  showToast("⚠️ Alerte Stock : Un article vient de passer sous le seuil critique !", "warning", false);
+              }
+          };
+          ws.onclose = function() {
+              clearTimeout(reconnectTimer);
+              reconnectTimer = setTimeout(connect, 5000);
+          };
+          ws.onerror = function(err) {
+              ws.close();
+          };
+      }
+      
+      function showToast(message, category = "info", autoRefresh = false) {
+          const container = document.getElementById('toastContainer');
+          if(!container) return;
+          const toastEl = document.createElement('div');
+          
+          // Style WhatsApp Web
+          toastEl.className = `toast border-0 mb-2 shadow-lg`;
+          toastEl.style.borderRadius = '8px';
+          toastEl.style.backgroundColor = document.documentElement.getAttribute('data-theme') === 'dark' ? '#202c33' : '#ffffff';
+          toastEl.style.color = document.documentElement.getAttribute('data-theme') === 'dark' ? '#e9edef' : '#111b21';
+          toastEl.style.borderLeft = '4px solid #25D366'; // WhatsApp Green Accent
+          
+          toastEl.setAttribute('role', 'alert');
+          toastEl.setAttribute('aria-live', 'assertive');
+          toastEl.setAttribute('aria-atomic', 'true');
+          if (autoRefresh) toastEl.setAttribute('data-bs-autohide', 'false');
+          
+          toastEl.innerHTML = `
+            <div class="toast-body p-3">
+              <div class="d-flex justify-content-between align-items-start mb-1">
+                <strong class="me-auto" style="color: #25D366;"><i class="bi bi-bell-fill me-2"></i>Nouvelle Activité</strong>
+                <button type="button" class="btn-close" style="font-size: 0.7em;" data-bs-dismiss="toast" aria-label="Fermer"></button>
+              </div>
+              <div style="font-size: 0.95rem; line-height: 1.4; display:flex; align-items:center; gap:12px;">
+                <span>${message}</span>
+                ${autoRefresh ? '<button class="btn btn-sm btn-success ms-auto" onclick="location.reload()" style="border-radius: 20px; font-weight: 600; flex-shrink: 0; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; padding: 6px 16px; font-size: 0.85rem; border: none; height: 32px;">Rafraîchir</button>' : ''}
+              </div>
+            </div>
+          `;
+          
+          try {
+              const blop = new Audio('data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq');
+          } catch(e) {}
+
+          container.appendChild(toastEl);
+          const t = new bootstrap.Toast(toastEl);
+          t.show();
+          if(!autoRefresh) {
+              setTimeout(() => { t.hide(); setTimeout(() => toastEl.remove(), 500); }, 5000);
+          }
+      }
+      
+      connect();
+  })();
+</script>
+
+  <script>
+  // Enable page transitions by adding JS class
+  document.documentElement.classList.add('js-transitions');
+  
+  document.addEventListener('DOMContentLoaded', function() {
+    const appContent = document.querySelector('.app-content');
+    if (appContent) {
+      // Smooth fade-in on load
+      requestAnimationFrame(function() {
+        appContent.classList.add('page-visible');
+      });
+    }
+
+    // Smooth fade-out before navigating internal links
+    document.addEventListener('click', function(event) {
+      const link = event.target.closest('a');
+      if (link && 
+          link.href && 
+          link.host === window.location.host && 
+          !link.getAttribute('target') && 
+          !link.getAttribute('download') && 
+          !link.href.includes('#') && 
+          !link.href.startsWith('javascript:') && 
+          !link.classList.contains('disabled') &&
+          !link.classList.contains('js-no-transition') &&
+          !link.classList.contains('js-filter-tab')) {
+        
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        
+        event.preventDefault();
+        const href = link.href;
+        
+        if (appContent) {
+          appContent.classList.remove('page-visible');
+          appContent.classList.add('page-hidden');
+          setTimeout(function() {
+            window.location.href = href;
+          }, 180);
+        } else {
+          window.location.href = href;
+        }
+      }
+    });
+
+    // Smooth fade-out on form submission
+    document.addEventListener('submit', function(event) {
+      const form = event.target;
+      if (form.getAttribute('target') === '_blank' || 
+          form.classList.contains('js-no-transition') || 
+          form.classList.contains('transactions-filter-row') ||
+          form.classList.contains('js-ajax-form')) return;
+      
+      if (appContent) {
+        appContent.classList.remove('page-visible');
+        appContent.classList.add('page-hidden');
+      }
+    });
+  });
+</script>
+  
+</body>
+</html>

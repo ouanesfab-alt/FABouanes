@@ -1,0 +1,90 @@
+{% if g.user %}
+<script type="module">
+  import { initOfflineSync } from '/static/js/offline-sync.js';
+  initOfflineSync();
+  function updateNetworkIcon() {
+    const online = navigator.onLine;
+    document.getElementById('icon-online')?.classList.toggle('d-none', !online);
+    document.getElementById('icon-offline')?.classList.toggle('d-none', online);
+  }
+  window.addEventListener('online',  updateNetworkIcon);
+  window.addEventListener('offline', updateNetworkIcon);
+  document.addEventListener('DOMContentLoaded', updateNetworkIcon);
+</script>
+<script>
+  // Configuration WebSocket globale
+  (function initWebSocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = protocol + '//' + window.location.host + '/api/v1/ws';
+      let ws;
+      let reconnectTimer;
+
+      function connect() {
+          ws = new WebSocket(wsUrl);
+          ws.onmessage = function(event) {
+              if (event.data === 'refresh_operations') {
+                  showToast("Nouvelle opération enregistrée à distance.", "info", true);
+                  if (window.location.pathname.startsWith('/operations') && typeof window.onOperationsRefresh === 'function') {
+                      window.onOperationsRefresh();
+                  }
+              } else if (event.data === 'backup_completed') {
+                  showToast("✅ Sauvegarde réseau terminée avec succès.", "success", false);
+              } else if (event.data === 'low_stock_alert') {
+                  showToast("⚠️ Alerte Stock : Un article vient de passer sous le seuil critique !", "warning", false);
+              }
+          };
+          ws.onclose = function() {
+              clearTimeout(reconnectTimer);
+              reconnectTimer = setTimeout(connect, 5000);
+          };
+          ws.onerror = function(err) {
+              ws.close();
+          };
+      }
+      
+      function showToast(message, category = "info", autoRefresh = false) {
+          const container = document.getElementById('toastContainer');
+          if(!container) return;
+          const toastEl = document.createElement('div');
+          
+          // Style WhatsApp Web
+          toastEl.className = `toast border-0 mb-2 shadow-lg`;
+          toastEl.style.borderRadius = '8px';
+          toastEl.style.backgroundColor = document.documentElement.getAttribute('data-theme') === 'dark' ? '#202c33' : '#ffffff';
+          toastEl.style.color = document.documentElement.getAttribute('data-theme') === 'dark' ? '#e9edef' : '#111b21';
+          toastEl.style.borderLeft = '4px solid #25D366'; // WhatsApp Green Accent
+          
+          toastEl.setAttribute('role', 'alert');
+          toastEl.setAttribute('aria-live', 'assertive');
+          toastEl.setAttribute('aria-atomic', 'true');
+          if (autoRefresh) toastEl.setAttribute('data-bs-autohide', 'false');
+          
+          toastEl.innerHTML = `
+            <div class="toast-body p-3">
+              <div class="d-flex justify-content-between align-items-start mb-1">
+                <strong class="me-auto" style="color: #25D366;"><i class="bi bi-bell-fill me-2"></i>Nouvelle Activité</strong>
+                <button type="button" class="btn-close" style="font-size: 0.7em;" data-bs-dismiss="toast" aria-label="Fermer"></button>
+              </div>
+              <div style="font-size: 0.95rem; line-height: 1.4; display:flex; align-items:center; gap:12px;">
+                <span>${message}</span>
+                ${autoRefresh ? '<button class="btn btn-sm btn-success ms-auto" onclick="location.reload()" style="border-radius: 20px; font-weight: 600; flex-shrink: 0; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; padding: 6px 16px; font-size: 0.85rem; border: none; height: 32px;">Rafraîchir</button>' : ''}
+              </div>
+            </div>
+          `;
+          
+          try {
+              const blop = new Audio('data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq');
+          } catch(e) {}
+
+          container.appendChild(toastEl);
+          const t = new bootstrap.Toast(toastEl);
+          t.show();
+          if(!autoRefresh) {
+              setTimeout(() => { t.hide(); setTimeout(() => toastEl.remove(), 500); }, 5000);
+          }
+      }
+      
+      connect();
+  })();
+</script>
+{% endif %}
