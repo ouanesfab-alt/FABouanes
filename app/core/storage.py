@@ -31,8 +31,17 @@ BACKUP_SUFFIX = ".sql.gz.enc"
 
 
 def _get_encryption_key() -> bytes:
-    """Derives a 256-bit key from the app's secret key for AES-GCM."""
-    return hashlib.sha256(settings.secret_key.encode("utf-8")).digest()
+    """Derives a 256-bit key from the app's secret key using PBKDF2-HMAC-SHA256.
+
+    Uses a deterministic salt so the same key is derived across restarts.
+    PBKDF2 with 600k iterations provides brute-force resistance compared to raw SHA-256.
+    """
+    # Deterministic salt tied to the application identity
+    salt = hashlib.sha256(b"FABOuanes-backup-encryption-v1").digest()[:16]
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+    from cryptography.hazmat.primitives import hashes
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=600_000)
+    return kdf.derive(settings.secret_key.encode("utf-8"))
 
 
 def _encrypt_file(input_path: Path, output_path: Path) -> None:

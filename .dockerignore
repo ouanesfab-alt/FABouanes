@@ -1,15 +1,52 @@
+# Version control
 .git
-.venv
+.gitignore
+
+# Python
 __pycache__
-.pytest_cache
-tests/_runtime*
+*.pyc
+*.pyo
+*.egg-info
+.eggs
 dist
 build
-installer_output
-*.db
-*.sqlite
-*.sqlite3
-frontend
-backend
-test_reports
-memory
+*.egg
+
+# Virtual environment
+.venv
+venv
+env
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Tests
+tests/
+pytest.ini
+.pytest_cache
+htmlcov
+.coverage
+
+# Development files
+*.md
+LICENSE
+LANCER*.bat
+PUSH_GITHUB.bat
+CREER_INSTALLATEUR_WINDOWS.bat
+scripts/
+installer/
+deploy/
+.github/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Temp files
+test.pdf
+test_facture.pdf
+test_print.html
+*.log

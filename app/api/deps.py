@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException, Request, status
@@ -34,7 +34,7 @@ def refresh_token_hash(token: str) -> str:
 
 def create_refresh_token(request: Request, user) -> str:
     raw_token = secrets.token_urlsafe(48)
-    expires_at = (datetime.utcnow() + timedelta(days=REFRESH_TOKEN_TTL_DAYS)).strftime("%Y-%m-%d %H:%M:%S")
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_TTL_DAYS)).strftime("%Y-%m-%d %H:%M:%S")
     execute_db(
         """
         INSERT INTO api_refresh_tokens (user_id, token_hash, token_hint, created_ip, user_agent, expires_at)
@@ -117,7 +117,7 @@ def revoke_all_user_tokens(user_id: int) -> None:
 def validate_refresh_token(raw_token: str):
     row = query_db(
         """
-        SELECT *
+        SELECT id, user_id, expires_at
         FROM api_refresh_tokens
         WHERE token_hash = %s
           AND revoked_at IS NULL

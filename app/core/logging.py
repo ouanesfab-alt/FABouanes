@@ -13,10 +13,13 @@ from app.core.runtime_paths import ensure_runtime_dirs, paths
 class JSONFormatter(logging.Formatter):
     """
     Structured JSON formatter for production logging and centralized ingestion.
+    Includes request_id for request-level correlation.
     """
     def format(self, record: logging.LogRecord) -> str:
         log_data = {
-            "timestamp": datetime.datetime.utcfromtimestamp(record.created).isoformat() + "Z",
+            "timestamp": datetime.datetime.fromtimestamp(
+                record.created, tz=datetime.timezone.utc
+            ).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -24,6 +27,16 @@ class JSONFormatter(logging.Formatter):
             "funcName": record.funcName,
             "lineno": record.lineno,
         }
+        # Add request_id for correlation if available
+        request_id = getattr(record, "request_id", None)
+        if not request_id:
+            try:
+                from app.core.request_state import get_state_value
+                request_id = get_state_value("request_id")
+            except Exception:
+                pass
+        if request_id:
+            log_data["request_id"] = request_id
         if record.exc_info:
             log_data["exception"] = "".join(traceback.format_exception(*record.exc_info))
         return json.dumps(log_data, ensure_ascii=False)

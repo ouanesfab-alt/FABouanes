@@ -124,6 +124,16 @@ def _auto_websocket(event: DomainEvent) -> None:
         manager.broadcast_sync("refresh_operations")
 
 
+def _auto_refresh_balances(event: DomainEvent) -> None:
+    """Refresh the mv_client_balances materialized view after financial mutations."""
+    if event.entity_type in ("sale", "payment", "client", "sale_document"):
+        try:
+            from app.repositories.dashboard_repository import refresh_client_balances_view
+            refresh_client_balances_view()
+        except Exception:
+            logger.debug("Could not refresh client balances view after %s.%s", event.action, event.entity_type)
+
+
 # ── Enregistrement des listeners par défaut au chargement du module ──
 on("*", _auto_audit)
 on("*", _auto_activity)
@@ -134,3 +144,7 @@ on("delete.*", _auto_backup)
 on("create.*", _auto_websocket)
 on("update.*", _auto_websocket)
 on("delete.*", _auto_websocket)
+
+on("create.*", _auto_refresh_balances)
+on("update.*", _auto_refresh_balances)
+on("delete.*", _auto_refresh_balances)

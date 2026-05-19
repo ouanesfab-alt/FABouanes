@@ -158,6 +158,111 @@ def _build_dashboard_snapshot(today: str) -> dict:
     }
 
 
+def _build_stock_materials(cutoff_30d: str) -> list[dict]:
+    """Build stock materials list with consumption data and days-left estimates."""
+    stock_materials_raw = query_db(
+        """
+        WITH consumed AS (
+            SELECT raw_material_id, SUM(qty) AS consumed_30d
+            FROM (
+                SELECT raw_material_id,
+                       CASE
+                           WHEN lower(unit) = 'sac' THEN quantity * 50
+                           WHEN lower(unit) IN ('qt', 'quintal') THEN quantity * 100
+                           ELSE quantity
+                       END AS qty
+                FROM raw_sales
+                WHERE sale_date >= %s
+                UNION ALL
+                SELECT pbi.raw_material_id, pbi.quantity AS qty
+                FROM production_batch_items pbi
+                JOIN production_batches pb ON pb.id = pbi.batch_id
+                WHERE pb.production_date >= %s
+            ) source
+            GROUP BY raw_material_id
+        )
+        SELECT rm.*, COALESCE(c.consumed_30d, 0) AS consumed_30d
+        FROM raw_materials rm
+        LEFT JOIN consumed c ON c.raw_material_id = rm.id
+        ORDER BY rm.name
+        LIMIT 15
+        """,
+        (cutoff_30d, cutoff_30d),
+    )
+    result = []
+    for material in stock_materials_raw:
+        row = dict(material)
+        daily = float(row.get("consumed_30d") or 0) / 30.0
+        row["days_left"] = int(round(float(row["stock_qty"]) / daily)) if daily > 0.01 else None
+        result.append(row)
+    return result
+
+
+def _build_debt_by_client() -> list:
+    """Build the top debtors list. Uses the materialized view if available, falls back to CTE query."""
+    try:
+        return query_db(
+            """
+            SELECT client_id AS id, name, balance
+            FROM mv_client_balances
+            WHERE balance > 0
+            ORDER BY balance DESC
+            LIMIT 10
+            """
+        )
+    except Exception:
+        pass
+    # Fallback: compute directly if materialized view does not exist yet
+    return query_db(
+        """
+        WITH finished_totals AS (
+            SELECT client_id, SUM(total) AS credit_total
+            FROM sales
+            WHERE client_id IS NOT NULL AND sale_type = 'credit'
+            GROUP BY client_id
+        ),
+        raw_totals AS (
+            SELECT client_id, SUM(total) AS credit_total
+            FROM raw_sales
+            WHERE client_id IS NOT NULL AND sale_type = 'credit'
+            GROUP BY client_id
+        ),
+        payment_totals AS (
+            SELECT client_id,
+                   SUM(CASE WHEN payment_type = 'versement' THEN amount ELSE 0 END) AS versements,
+                   SUM(CASE WHEN payment_type = 'avance' THEN amount ELSE 0 END) AS avances
+            FROM payments
+            GROUP BY client_id
+        )
+        SELECT * FROM (
+            SELECT c.id, c.name,
+                   c.opening_credit
+                   + COALESCE(ft.credit_total, 0)
+                   + COALESCE(rt.credit_total, 0)
+                   - COALESCE(pt.versements, 0)
+                   + COALESCE(pt.avances, 0) AS balance
+            FROM clients c
+            LEFT JOIN finished_totals ft ON ft.client_id = c.id
+            LEFT JOIN raw_totals rt ON rt.client_id = c.id
+            LEFT JOIN payment_totals pt ON pt.client_id = c.id
+        ) x
+        WHERE balance > 0
+        ORDER BY balance DESC
+        LIMIT 10
+        """
+    )
+
+
+def refresh_client_balances_view() -> None:
+    """Refresh the mv_client_balances materialized view after financial mutations."""
+    import logging
+    try:
+        from app.core.db_access import execute_db
+        execute_db("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_client_balances")
+    except Exception as e:
+        logging.getLogger("fabouanes").debug("Could not refresh mv_client_balances: %s", e)
+
+
 def _dashboard_daily_summary(today: str, week_iso: str) -> dict[str, float]:
     row = cached_result(
         ("dashboard_daily_summary", today, week_iso),
