@@ -958,27 +958,45 @@ iframe {
   html[data-nav="vertical"] .side-nav-toggle {
     display: flex;
     position: fixed;
-    left: calc(var(--side-nav-w) - 19px);
-    top: 18px;
+    left: calc(var(--side-nav-w) - 50px); /* Aligned next to FAB on the right */
+    top: 43px; /* Centered vertically with FAB text and logo */
     z-index: 1045;
     width: 38px;
     height: 38px;
     border: 1px solid rgba(255, 255, 255, .14);
-    border-radius: 8px;
+    border-radius: var(--radius-sm); /* macOS style rounded rectangle */
     background: rgba(255, 255, 255, .10);
     color: #fff;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 10px 26px rgba(15, 23, 42, .24);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     cursor: pointer;
     font-size: 1.15rem;
     line-height: 1;
-    transition: left .2s ease, background .15s ease, transform .15s ease, box-shadow .15s ease;
+    transition: left .2s ease, background .15s ease, transform .15s ease, box-shadow .15s ease, color .15s ease, border-color .15s ease;
   }
 
   html[data-nav="vertical"] .side-nav-toggle:hover {
     background: #2563eb;
+    border-color: #2563eb;
     transform: translateY(-1px);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  }
+
+  /* Light Theme Styles for Vertical Sidebar Toggle (Expanded) */
+  html:not([data-theme="dark"]):not([data-theme="windows-dark"])[data-nav="vertical"] .side-nav-toggle {
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    color: #515154;
+    box-shadow: none;
+  }
+
+  html:not([data-theme="dark"]):not([data-theme="windows-dark"])[data-nav="vertical"] .side-nav-toggle:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
   }
 
   html[data-nav="vertical"][data-nav-hidden="1"] body:not(.auth-page):not(.print-route) {
@@ -999,6 +1017,13 @@ iframe {
     pointer-events: none;
   }
 
+  /* Collapsed Strip in Light Theme */
+  html:not([data-theme="dark"]):not([data-theme="windows-dark"])[data-nav="vertical"][data-nav-hidden="1"] body:not(.auth-page):not(.print-route)::before {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+  }
+
   html[data-nav="vertical"][data-nav-hidden="1"] .app-navbar {
     transform: translateX(calc(-1 * var(--side-nav-w)));
     pointer-events: none;
@@ -1006,7 +1031,22 @@ iframe {
 
   html[data-nav="vertical"][data-nav-hidden="1"] .side-nav-toggle {
     left: 9px;
+    top: 43px; /* Stays at the exact same level for a smooth transition */
     background: rgba(255, 255, 255, .10);
+  }
+
+  /* Collapsed Toggle Button in Light Theme */
+  html:not([data-theme="dark"]):not([data-theme="windows-dark"])[data-nav="vertical"][data-nav-hidden="1"] .side-nav-toggle {
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    color: #515154;
+  }
+
+  html:not([data-theme="dark"]):not([data-theme="windows-dark"])[data-nav="vertical"][data-nav-hidden="1"] .side-nav-toggle:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
   }
 
   body.auth-page .side-nav-toggle,
@@ -5618,18 +5658,5 @@ html[data-theme="windows-dark"] .nav-links a:not(.active):hover {
 }
 .btn:active {
   transform: scale(0.97) !important;
-}
-
-/* ── Vertical Navigation Toggle Light Mode Overrides ── */
-html[data-theme="light"] .side-nav-toggle {
-  background: rgba(0, 0, 0, 0.05) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  color: #515154 !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
-}
-html[data-theme="light"] .side-nav-toggle:hover {
-  background: #007aff !important;
-  border-color: #007aff !important;
-  color: #ffffff !important;
 }
 
