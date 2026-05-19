@@ -23,7 +23,7 @@ def test_volume_operations(client, api_headers):
 
     res = client.post(
         "/api/v1/raw-materials",
-        json={"name": "Mat Premiere", "unit": "kg", "initial_stock": 0},
+        json={"name": "Mat Premiere", "unit": "kg", "stock_qty": 0.0},
         headers=api_headers
     )
     assert res.status_code in (200, 201)
@@ -53,7 +53,7 @@ def test_volume_operations(client, api_headers):
 
     # Test Dashboard performance after insertion
     start_time = time.time()
-    res = client.get("/api/v1/dashboard/", headers=api_headers)
+    res = client.get("/api/v1/dashboard/summary", headers=api_headers)
     assert res.status_code == 200
     assert time.time() - start_time < 2.0  # Should be fast
 
@@ -68,7 +68,7 @@ def test_concurrency_stock_deduction(client, api_headers):
 
     res = client.post(
         "/api/v1/raw-materials",
-        json={"name": "Concurrent Material", "unit": "kg", "initial_stock": 100.0},
+        json={"name": "Concurrent Material", "unit": "kg", "stock_qty": 100.0},
         headers=api_headers
     )
     assert res.status_code in (200, 201)
@@ -94,14 +94,19 @@ def test_concurrency_stock_deduction(client, api_headers):
         futures = [executor.submit(sell) for _ in range(10)]
         results = [f.result() for f in concurrent.futures.as_completed(futures)]
     
-    for r in results:
-        assert r.status_code in (200, 201), r.json()
+    # Exactly 5 should succeed (stock goes 100 -> 80 -> 60 -> 40 -> 20 -> 0)
+    # The other 5 should fail with 422 (insufficient stock)
+    successes = [r for r in results if r.status_code in (200, 201)]
+    failures = [r for r in results if r.status_code == 422]
+    
+    assert len(successes) == 5, f"Expected 5 successes, got {len(successes)}. Results: {[r.status_code for r in results]}"
+    assert len(failures) == 5, f"Expected 5 failures, got {len(failures)}"
 
     res = client.get(f"/api/v1/raw-materials", headers=api_headers)
     mats = res.json()["data"]
     mat = next(m for m in mats if m["id"] == raw_id)
-    # Since 10 * 20 = 200, and initial was 100, stock should be exactly -100.0
-    assert mat["stock_qty"] == -100.0
+    # Stock should be exactly 0.0, not negative, because negative stock is disallowed and prevented
+    assert mat["stock_qty"] == 0.0
 
 def test_math_edge_cases(client, api_headers):
     res = client.post(
@@ -114,7 +119,7 @@ def test_math_edge_cases(client, api_headers):
 
     res = client.post(
         "/api/v1/raw-materials",
-        json={"name": "Math Material", "unit": "kg", "initial_stock": 50.0},
+        json={"name": "Math Material", "unit": "kg", "stock_qty": 50.0},
         headers=api_headers
     )
     assert res.status_code in (200, 201)
@@ -124,8 +129,8 @@ def test_math_edge_cases(client, api_headers):
         "/api/v1/sales",
         json={
             "client_id": client_id,
-            "amount_paid": 2000.0,  # Paying 2000
-            "payment_type": "cash",
+            "amount_paid": 0,
+            "payment_type": "credit",
             "document_date": "2026-05-19",
             "item_key[]": [f"raw:{raw_id}"],
             "quantity[]": [10.0],
@@ -136,8 +141,20 @@ def test_math_edge_cases(client, api_headers):
     )
     assert res.status_code in (200, 201)
 
+    res = client.post(
+        "/api/v1/payments",
+        json={
+            "client_id": client_id,
+            "amount": 2000.0,
+            "payment_type": "versement",
+            "payment_date": "2026-05-19"
+        },
+        headers=api_headers
+    )
+    assert res.status_code in (200, 201)
+
     res = client.get(f"/api/v1/clients/{client_id}", headers=api_headers)
     client_data = res.json()["data"]
     # Debt should be negative or handled as advance?
     # Total bought: 1000, Total paid: 2000. Debt = 1000 - 2000 = -1000
-    assert client_data["balance"] == -1000.0
+    assert client_data["current_balance"] == -1000.0
