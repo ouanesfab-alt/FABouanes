@@ -24,7 +24,7 @@
     <link href="{{ url_for('static', filename='css/bootstrap-icons.css', v='20260516-local-assets') }}"
       rel="stylesheet">
   </noscript>
-  <link href="{{ url_for('static', filename='css/tokens.css', v='20260519-sequoia-v2') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/tokens.css', v='20260519-sequoia-v3') }}" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/components.css', v='20260517-spotlight') }}" rel="stylesheet">
   <link href="{{ url_for('static', filename='fonts/fonts.css', v='20260517-spotlight') }}" rel="stylesheet">
   <link href="{{ url_for('static', filename='app.css', v='20260519-spotlight-v15') }}" rel="stylesheet">
@@ -33,13 +33,8 @@
 
 <body class="{% if is_desktop_app %}desktop-app {% endif %}{% if is_print_view %}print-route{% endif %}">
   {% if not is_print_view %}
-  <!-- macOS Sequoia Ambient Background Blobs -->
-  <div class="sequoia-backdrop" aria-hidden="true">
-    <div class="sequoia-blob sequoia-blob-1"></div>
-    <div class="sequoia-blob sequoia-blob-2"></div>
-    <div class="sequoia-blob sequoia-blob-3"></div>
-    <div class="sequoia-blob sequoia-blob-4"></div>
-  </div>
+  <!-- macOS Sequoia Ambient Background Backdrop -->
+  <div class="sequoia-backdrop" aria-hidden="true"></div>
   {% endif %}
   <script>
     {% if not g.user and not is_print_view %}
@@ -64,12 +59,6 @@
   <!-- -- Top Navbar -- -->
   <nav class="app-navbar" id="appNavbar">
     <div class="nav-inner">
-      <!-- macOS Window Controls (Simulated Sequoia traffic lights) -->
-      <div class="mac-window-controls" aria-hidden="true">
-        <span class="mac-dot mac-close" title="Fermer"></span>
-        <span class="mac-dot mac-minimize" title="Réduire"></span>
-        <span class="mac-dot mac-maximize" title="Agrandir"></span>
-      </div>
       <a href="{{ url_for('index') }}" class="nav-brand" aria-label="Accueil FAB">
         <img src="{{ url_for('static', filename='desktop_logo_shield.webp') }}" alt="FABOuanes" class="nav-logo">
         <span class="nav-brand-text d-none d-sm-flex">
