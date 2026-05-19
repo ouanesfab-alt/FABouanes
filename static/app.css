@@ -958,7 +958,7 @@ iframe {
   html[data-nav="vertical"] .side-nav-toggle {
     display: flex;
     position: fixed;
-    left: calc(var(--side-nav-w) - 50px); /* Aligned next to FAB on the right */
+    left: calc(var(--side-nav-w) - 76px); /* Moved further to the left to be well inside the sidebar */
     top: 43px; /* Centered vertically with FAB text and logo */
     z-index: 1045;
     width: 38px;
