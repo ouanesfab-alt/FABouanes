@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
-  .bons-page{display:flex;flex-direction:column;gap:12px;min-height:620px;}
+  .bons-page{display:flex;flex-direction:column;gap:12px;height:auto;min-height:100%;overflow:visible;}
   .bons-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) 180px auto;gap:8px;align-items:center;}
-  .bons-layout{display:flex;flex-direction:row;min-height:0;flex:1;align-items:flex-start;gap:16px;}
-  .bons-list{background:var(--card);border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;overflow:hidden;width:40%;min-width:320px;max-width:80%;position:sticky;top:68px;height:calc(100vh - 90px);}
+  .bons-layout{display:flex;flex-direction:row;min-height:0;flex:1;}
+  .bons-list{background:var(--card);border:1px solid var(--line);border-radius:8px;min-height:0;height:1400px;display:flex;flex-direction:column;overflow:hidden;width:40%;min-width:320px;max-width:80%;}
   .bons-list-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);}
   .bons-list-count{color:var(--muted);font-size:.75rem;font-weight:700;}
   .bons-list-body{overflow:auto;padding:0;min-height:0;flex:1;background:var(--card);}
@@ -26,14 +26,14 @@
   .bon-muted,.bon-number-cell{display:block;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .bon-number-cell{font-size:.74rem;font-weight:800;}
   .bon-amount-cell{font-weight:900;white-space:nowrap;}
-  .bons-preview{background:var(--card);border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;min-width:320px;flex:1;height:auto;overflow:visible;}
-  .bons-preview-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);position:sticky;top:68px;background:var(--card);z-index:1000;border-radius:8px 8px 0 0;box-shadow: 0 4px 12px rgba(0,0,0,0.02);}
+  .bons-preview{background:var(--card);border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;min-width:320px;flex:1;height:1400px;overflow:hidden;}
+  .bons-preview-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);}
   .bons-preview-title{min-width:0;}
   .bons-preview-title strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.92rem;}
   .bons-preview-title span{display:block;color:var(--muted);font-size:.76rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .bons-preview-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end;}
-  .bons-frame-wrap{flex:1;min-height:0;background:#525659;padding:14px;overflow:visible;display:flex;justify-content:center;align-items:flex-start;border-radius:0 0 8px 8px;}
-  .bons-frame{width:min(100%,940px);height:1350px;min-height:0;border:0;background:#fff;box-shadow:0 10px 32px rgba(0,0,0,.24);transition:height 0.2s ease;}
+  .bons-frame-wrap{flex:1;min-height:0;background:#525659;padding:10px;overflow:auto;display:flex;justify-content:center;align-items:flex-start;}
+  .bons-frame{width:min(100%,940px);height:100%;min-height:0;border:0;background:#fff;box-shadow:0 10px 32px rgba(0,0,0,.24);}
   .bons-empty{display:flex;align-items:center;justify-content:center;flex:1;color:var(--muted);padding:32px;text-align:center;}
   .bons-empty strong{display:block;color:var(--text);margin-bottom:6px;}
   .bons-empty.is-error i{color:#dc2626;opacity:.55;}
@@ -390,23 +390,6 @@
       sortRows();
     });
   });
-
-  // Auto-resize iframe to avoid inner scrollbars
-  const frame = document.querySelector('.bons-frame');
-  function resizeIframe() {
-    try {
-      const doc = frame.contentDocument || frame.contentWindow.document;
-      if (doc) {
-        const height = doc.documentElement.scrollHeight || doc.body.scrollHeight;
-        if (height > 100) {
-          frame.style.height = (height + 25) + 'px';
-        }
-      }
-    } catch (e) {
-      // Fallback for PDFs / external documents is handled by CSS height: 1350px
-    }
-  }
-  frame?.addEventListener('load', resizeIframe);
 
   // Resizable panels
   const resizer = document.getElementById('bonsResizer');
