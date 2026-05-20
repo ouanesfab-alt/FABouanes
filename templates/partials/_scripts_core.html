@@ -161,6 +161,7 @@
 
     // Ouvrir
     document.getElementById('globalSearchBtn')?.addEventListener('click', openSearch);
+    document.getElementById('searchCloseBtn')?.addEventListener('click', closeSearch);
     document.addEventListener('keydown', function (e) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault(); openSearch();

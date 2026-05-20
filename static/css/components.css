@@ -98,6 +98,26 @@
   background: var(--bg);
   flex-shrink: 0;
 }
+.search-close-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.25rem;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, transform 0.15s;
+  flex-shrink: 0;
+}
+.search-close-btn:hover {
+  color: var(--system-red, #dc2626);
+  transform: scale(1.05);
+}
+@media (max-width: 575px) {
+  .search-kbd { display: none !important; }
+}
 .search-results {
   max-height: 360px;
   overflow-y: auto;
