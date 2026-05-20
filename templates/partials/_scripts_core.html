@@ -162,18 +162,19 @@
     // Ouvrir
     document.getElementById('globalSearchBtn')?.addEventListener('click', openSearch);
     document.addEventListener('keydown', function (e) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      const isDesktop = window.innerWidth >= 1024;
+      if (isDesktop && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault(); openSearch();
       }
       if (e.key === 'Escape' && !overlay.hidden) closeSearch();
-      if (e.key === '/' && overlay.hidden === true
+      if (isDesktop && e.key === '/' && overlay.hidden === true
           && document.activeElement.tagName !== 'INPUT'
           && document.activeElement.tagName !== 'TEXTAREA') {
         e.preventDefault(); openSearch();
       }
     });
     overlay.addEventListener('click', function (e) {
-      if (!e.target.closest('#globalSearchInput') && !e.target.closest('#searchResults')) {
+      if (e.target !== input && !e.target.closest('.search-result-item')) {
         closeSearch();
       }
     });
