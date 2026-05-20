@@ -236,3 +236,27 @@ h1, h2, h3, h4, h5, h6, .brand-title, .title-premium {
   border-radius: var(--radius-full);
 }
 
+/* Premium Responsive Pagination */
+@media (max-width: 575px) {
+  .pagination-container {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    width: 100%;
+  }
+  .pagination-container .text-muted {
+    text-align: center;
+    width: 100%;
+  }
+  .pagination-container .btn-group {
+    display: flex !important;
+    width: 100%;
+  }
+  .pagination-container .btn {
+    flex: 1;
+    text-align: center;
+    font-size: 0.82rem;
+    padding: 8px 6px;
+  }
+}
+

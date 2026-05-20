@@ -43,11 +43,11 @@
   .bons-upload-label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .bons-upload input[type=file]{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;}
   /* Premium Theme enhancements for Espace Bons */
-  [data-theme="dark"] .bon-kind-icon {
+  [data-theme="dark"] .bon-kind-icon, [data-theme="windows-dark"] .bon-kind-icon {
     background: rgba(255, 255, 255, 0.06);
     color: var(--text);
   }
-  [data-theme="dark"] .bon-row.active td {
+  [data-theme="dark"] .bon-row.active td, [data-theme="windows-dark"] .bon-row.active td {
     background: rgba(37, 99, 235, 0.15) !important;
   }
   .bon-row.active td:first-child {
@@ -64,7 +64,7 @@
     margin-bottom: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
   }
-  [data-theme="dark"] .mobile-bons-tabs {
+  [data-theme="dark"] .mobile-bons-tabs, [data-theme="windows-dark"] .mobile-bons-tabs {
     background: rgba(255, 255, 255, 0.03);
     border-color: rgba(255, 255, 255, 0.06);
   }
@@ -133,7 +133,7 @@
   .bons-resizer{width:18px;margin:0 -4px;cursor:col-resize;display:flex;align-items:center;justify-content:center;position:relative;z-index:10;user-select:none;touch-action:none;}
   .bons-resizer-handle{display:flex;align-items:center;justify-content:center;width:24px;height:48px;background:var(--card);border:1px solid var(--line);border-radius:12px;color:var(--muted);box-shadow:0 2px 6px rgba(0,0,0,0.06);transition:all 0.2s ease;}
   .bons-resizer:hover .bons-resizer-handle, .bons-resizer.is-resizing .bons-resizer-handle{background:var(--accent, #2563eb);border-color:var(--accent, #2563eb);color:#fff;box-shadow:0 4px 12px rgba(37,99,235,0.25);transform:scale(1.05);}
-  [data-theme="dark"] .bons-resizer-handle{box-shadow:0 2px 6px rgba(0,0,0,0.3);}
+  [data-theme="dark"] .bons-resizer-handle, [data-theme="windows-dark"] .bons-resizer-handle{box-shadow:0 2px 6px rgba(0,0,0,0.3);}
   @media(max-width:991px){
     .bons-resizer{display:none;}
   }
