@@ -47,6 +47,9 @@ Name: "{localappdata}\{#MyAppName}\pdf_reader"
 Name: "{localappdata}\{#MyAppName}\reports_generated"
 Name: "{localappdata}\{#MyAppName}\webview"
 
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\_internal"
+
 [Files]
 Source: "..\..\dist\FABOuanes\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
