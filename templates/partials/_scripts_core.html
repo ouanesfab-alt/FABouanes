@@ -148,7 +148,9 @@
     const results = document.getElementById('searchResults');
     if (!overlay) return;
 
+    const pageLoadTime = Date.now();
     function openSearch() {
+      if (Date.now() - pageLoadTime < 500) return;
       overlay.hidden = false;
       input.value = '';
       results.innerHTML = '<div class="search-hint">Tapez au moins 2 caractères…</div>';
@@ -174,7 +176,7 @@
       }
     });
     overlay.addEventListener('click', function (e) {
-      if (e.target !== input && !e.target.closest('.search-result-item')) {
+      if (!e.target.closest('.search-modal')) {
         closeSearch();
       }
     });

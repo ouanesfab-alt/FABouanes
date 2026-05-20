@@ -971,7 +971,7 @@ iframe {
   html[data-nav="vertical"] .side-nav-toggle {
     display: flex;
     position: fixed;
-    left: calc(var(--side-nav-w) - 76px); /* Moved further to the left to be well inside the sidebar */
+    left: calc(var(--side-nav-w) - 50px); /* Aligned with the right padding of the sidebar now that traffic lights are removed */
     top: 21px; /* Centered vertically with FAB text and logo (after removing traffic light controls) */
     z-index: 1045;
     width: 38px;
@@ -5237,28 +5237,26 @@ html:not([data-theme="light"]) .glass-segmented-control label:hover {
 html:not([data-theme="light"]) .glass-segmented-control input[type="radio"]:checked + label {
   color: #ffffff !important;
 }
-
 /* Drawer & Modals - Dark Mode */
-html:not([data-theme="light"]) .nav-drawer {
+html:not([data-theme="light"]):not([data-theme="windows"]) .nav-drawer {
   background: rgba(30, 30, 32, 0.95) !important;
   color: #f5f5f7 !important;
 }
-html:not([data-theme="light"]) .drawer-link {
+html:not([data-theme="light"]):not([data-theme="windows"]) .drawer-link {
   color: #cccccc !important;
 }
-html:not([data-theme="light"]) .drawer-link:hover,
-html:not([data-theme="light"]) .drawer-link.active {
+html:not([data-theme="light"]):not([data-theme="windows"]) .drawer-link:hover,
+html:not([data-theme="light"]):not([data-theme="windows"]) .drawer-link.active {
   background: rgba(10, 132, 255, 0.08) !important;
   color: #0a84ff !important;
 }
-html:not([data-theme="light"]) .modal-content {
+html:not([data-theme="light"]):not([data-theme="windows"]) .modal-content {
   background: rgba(30, 30, 32, 0.96) !important;
   backdrop-filter: blur(35px) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4) !important;
   color: #f5f5f7 !important;
 }
-
 
 /* ──────────────────────────────────────────────────────────────────────────
    THEME 2: macOS LIGHT GLASS (Frosted Light Aqua Mode)
@@ -5329,65 +5327,82 @@ html[data-theme="light"] .app-navbar {
   border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
 }
-html[data-theme="light"] .nav-brand-title {
+html[data-theme="light"] .nav-brand-title,
+html[data-theme="windows"] .nav-brand-title {
   color: #1d1d1f !important;
 }
-html[data-theme="light"] .nav-brand-subtitle {
+html[data-theme="light"] .nav-brand-subtitle,
+html[data-theme="windows"] .nav-brand-subtitle {
   color: #6e6e73 !important;
 }
 html[data-theme="light"] .nav-links > a,
-html[data-theme="light"] .nav-links > .dropdown > .nav-link-menu {
+html[data-theme="windows"] .nav-links > a,
+html[data-theme="light"] .nav-links > .dropdown > .nav-link-menu,
+html[data-theme="windows"] .nav-links > .dropdown > .nav-link-menu {
   color: #515154 !important;
 }
 html[data-theme="light"] .nav-links > a:hover,
-html[data-theme="light"] .nav-links > .dropdown > .nav-link-menu:hover {
+html[data-theme="windows"] .nav-links > a:hover,
+html[data-theme="light"] .nav-links > .dropdown > .nav-link-menu:hover,
+html[data-theme="windows"] .nav-links > .dropdown > .nav-link-menu:hover {
   color: #1d1d1f !important;
   background: rgba(0, 0, 0, 0.03) !important;
 }
 html[data-theme="light"] .nav-links > a.active,
-html[data-theme="light"] .nav-links > .dropdown > .nav-link-menu.active {
+html[data-theme="windows"] .nav-links > a.active,
+html[data-theme="light"] .nav-links > .dropdown > .nav-link-menu.active,
+html[data-theme="windows"] .nav-links > .dropdown > .nav-link-menu.active {
   color: #007aff !important; /* macOS Royal Blue active indicator */
   background: rgba(0, 122, 255, 0.06) !important;
 }
 html[data-theme="light"] .nav-links > a::after,
-html[data-theme="light"] .nav-links > .dropdown > .nav-link-menu::after {
+html[data-theme="windows"] .nav-links > a::after,
+html[data-theme="light"] .nav-links > .dropdown > .nav-link-menu::after,
+html[data-theme="windows"] .nav-links > .dropdown > .nav-link-menu::after {
   background: #007aff !important;
 }
 
 /* Topbar search & user actions in Light Mode */
-html[data-theme="light"] .nav-btn {
+html[data-theme="light"] .nav-btn,
+html[data-theme="windows"] .nav-btn {
   background: rgba(0, 0, 0, 0.04) !important;
   border: 1px solid rgba(0, 0, 0, 0.06) !important;
   color: #515154 !important;
   transition: all 0.3s var(--mac-spring) !important;
 }
-html[data-theme="light"] .nav-btn:hover {
+html[data-theme="light"] .nav-btn:hover,
+html[data-theme="windows"] .nav-btn:hover {
   background: rgba(0, 0, 0, 0.07) !important;
   border-color: rgba(0, 0, 0, 0.1) !important;
   color: #1d1d1f !important;
 }
-html[data-theme="light"] .nav-kbd {
+html[data-theme="light"] .nav-kbd,
+html[data-theme="windows"] .nav-kbd {
   background: rgba(0, 0, 0, 0.05) !important;
   border: 1px solid rgba(0, 0, 0, 0.08) !important;
   color: #86868b !important;
 }
 
 /* Dropdown menus - Light Mode (Apple style) */
-html[data-theme="light"] .dropdown-menu {
+html[data-theme="light"] .dropdown-menu,
+html[data-theme="windows"] .dropdown-menu {
   background: rgba(255, 255, 255, 0.94) !important;
   backdrop-filter: blur(24px) saturate(190%) !important;
   -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
   border: 1px solid rgba(0, 0, 0, 0.08) !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06) !important;
 }
-html[data-theme="light"] .dropdown-item {
+html[data-theme="light"] .dropdown-item,
+html[data-theme="windows"] .dropdown-item {
   color: #1d1d1f !important;
 }
-html[data-theme="light"] .dropdown-item:hover {
+html[data-theme="light"] .dropdown-item:hover,
+html[data-theme="windows"] .dropdown-item:hover {
   background: rgba(0, 0, 0, 0.04) !important;
   color: #1d1d1f !important;
 }
-html[data-theme="light"] .dropdown-item.active {
+html[data-theme="light"] .dropdown-item.active,
+html[data-theme="windows"] .dropdown-item.active {
   background: #007aff !important;
   color: #ffffff !important;
 }
@@ -5484,50 +5499,64 @@ html[data-theme="light"] .glass-segmented-control input[type="radio"]:checked + 
 }
 
 /* Drawer & Modals */
-html[data-theme="light"] .nav-drawer {
+html[data-theme="light"] .nav-drawer,
+html[data-theme="windows"] .nav-drawer {
   background: rgba(255, 255, 255, 0.95) !important;
   color: #1d1d1f !important;
 }
-html[data-theme="light"] .drawer-brand-name {
+html[data-theme="light"] .drawer-brand-name,
+html[data-theme="windows"] .drawer-brand-name {
   color: #1d1d1f !important;
 }
-html[data-theme="light"] .nav-drawer-close {
+html[data-theme="light"] .nav-drawer-close,
+html[data-theme="windows"] .nav-drawer-close {
   color: #515154 !important;
 }
-html[data-theme="light"] .nav-drawer-close:hover {
+html[data-theme="light"] .nav-drawer-close:hover,
+html[data-theme="windows"] .nav-drawer-close:hover {
   color: #1d1d1f !important;
   background: rgba(0, 0, 0, 0.05) !important;
 }
-html[data-theme="light"] .nav-hamburger {
+html[data-theme="light"] .nav-hamburger,
+html[data-theme="windows"] .nav-hamburger {
   background: rgba(0, 0, 0, 0.04) !important;
   border: 1px solid rgba(0, 0, 0, 0.08) !important;
   color: #515154 !important;
 }
-html[data-theme="light"] .nav-hamburger:hover {
+html[data-theme="light"] .nav-hamburger:hover,
+html[data-theme="windows"] .nav-hamburger:hover {
   background: rgba(0, 0, 0, 0.07) !important;
   border-color: rgba(0, 0, 0, 0.12) !important;
   color: #1d1d1f !important;
 }
-html[data-theme="light"] .drawer-link {
+html[data-theme="light"] .drawer-link,
+html[data-theme="windows"] .drawer-link {
   color: #515154 !important;
 }
 html[data-theme="light"] .drawer-link:hover,
-html[data-theme="light"] .drawer-link.active {
+html[data-theme="windows"] .drawer-link:hover,
+html[data-theme="light"] .drawer-link.active,
+html[data-theme="windows"] .drawer-link.active {
   background: rgba(0, 122, 255, 0.06) !important;
   color: #007aff !important;
 }
-html[data-theme="light"] .nav-drawer-header {
+html[data-theme="light"] .nav-drawer-header,
+html[data-theme="windows"] .nav-drawer-header {
   border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
 }
-html[data-theme="light"] .drawer-sublink {
+html[data-theme="light"] .drawer-sublink,
+html[data-theme="windows"] .drawer-sublink {
   color: #515154 !important;
 }
 html[data-theme="light"] .drawer-sublink:hover,
-html[data-theme="light"] .drawer-sublink.active {
+html[data-theme="windows"] .drawer-sublink:hover,
+html[data-theme="light"] .drawer-sublink.active,
+html[data-theme="windows"] .drawer-sublink.active {
   background: rgba(0, 122, 255, 0.06) !important;
   color: #007aff !important;
 }
-html[data-theme="light"] .modal-content {
+html[data-theme="light"] .modal-content,
+html[data-theme="windows"] .modal-content {
   background: rgba(255, 255, 255, 0.96) !important;
   backdrop-filter: blur(35px) !important;
   border: 1px solid rgba(0, 0, 0, 0.08) !important;

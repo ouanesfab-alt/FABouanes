@@ -3,8 +3,6 @@
   const themeColors={
     light:'#1a2235',
     dark:'#0d1117',
-    slate:'#475569',
-    sand:'#7c5a34',
     windows:'#0067c0',
     'windows-dark':'#202020'
   };
