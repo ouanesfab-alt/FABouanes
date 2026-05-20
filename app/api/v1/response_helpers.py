@@ -167,8 +167,8 @@ def client_history_payload(client_id: int):
         "current_balance": float(detail_context.get("client_balance") or 0),
     }
 
-async def filtered_sellable_items(request: Request):
-    items = [dict(item) for item in await asyncio.to_thread(build_sellable_items)]
+def filtered_sellable_items(request: Request):
+    items = [dict(item) for item in build_sellable_items()]
     term = str(request.query_params.get("q", "") or "").strip().lower()
     kind_filter = str(request.query_params.get("kind", "") or "").strip().lower()
     if term:

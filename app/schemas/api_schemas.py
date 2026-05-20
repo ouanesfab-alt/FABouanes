@@ -3,23 +3,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List, Union
 
-class UserLoginSchema(BaseModel):
-    username: str = Field(..., description="Nom d'utilisateur")
-    password: str = Field(..., description="Mot de passe")
-
-    @field_validator("username", mode="before")
-    @classmethod
-    def clean_username(cls, value: str) -> str:
-        if not value or not str(value).strip():
-            raise ValueError("Le nom d'utilisateur ne peut pas être vide.")
-        return str(value).strip()
-
-    @field_validator("password", mode="before")
-    @classmethod
-    def clean_password(cls, value: str) -> str:
-        if not value or not str(value).strip():
-            raise ValueError("Le mot de passe ne peut pas être vide.")
-        return value
+from app.schemas.auth import LoginRequest as UserLoginSchema
 
 class PaymentCreateSchema(BaseModel):
     client_id: Union[int, str] = Field(..., description="ID du client")

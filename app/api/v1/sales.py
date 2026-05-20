@@ -42,7 +42,7 @@ router = APIRouter(prefix="/api/v1", tags=["sales"])
 @router.get("/sellable-items")
 async def api_sellable_items(request: Request):
     require_api_user(request, PERMISSION_CATALOG_READ)
-    return json_response(await filtered_sellable_items(request))
+    return json_response(await asyncio.to_thread(filtered_sellable_items, request))
 
 
 

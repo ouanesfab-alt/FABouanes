@@ -5,15 +5,12 @@ from __future__ import annotations
 # - db_pool.py (for ConnectionPoolManager and DBAPI compatibility wrappers)
 # - db_helpers.py (for query, transaction wrappers, and performance logs)
 
-from app.core.db_pool import (
+from app.core.db_helpers import (
     CompatRow,
     CompatCursor,
     CompatConnection,
     ConnectionPoolManager,
     pool_manager,
-)
-
-from app.core.db_helpers import (
     DatabaseManager,
     db_manager,
     get_db,

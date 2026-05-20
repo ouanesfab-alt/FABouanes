@@ -5,15 +5,22 @@ from typing import Optional
 
 
 class LoginRequest(BaseModel):
-    username: str = Field(..., min_length=1, max_length=100)
-    password: str = Field(..., min_length=1, max_length=200)
+    username: str = Field(..., min_length=1, max_length=100, description="Nom d'utilisateur")
+    password: str = Field(..., min_length=1, max_length=200, description="Mot de passe")
 
-    @field_validator('username')
+    @field_validator('username', mode="before")
     @classmethod
     def username_not_blank(cls, v: str) -> str:
-        if not v.strip():
+        if not v or not str(v).strip():
             raise ValueError("Le nom d'utilisateur ne peut pas être vide.")
-        return v.strip()
+        return str(v).strip()
+
+    @field_validator('password', mode="before")
+    @classmethod
+    def password_not_blank(cls, v: str) -> str:
+        if not v or not str(v).strip():
+            raise ValueError("Le mot de passe ne peut pas être vide.")
+        return v
 
 
 class ChangePasswordRequest(BaseModel):
