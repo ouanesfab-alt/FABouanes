@@ -129,8 +129,21 @@ class CompatConnection:
             pass
         self.conn = self._reconnect()
 
-class ConnectionPoolManager:
+class DatabaseManager:
     def __init__(self):
+        # Performance monitoring & slow SQL configuration
+        self._slow_sql_threshold_ms = float(os.environ.get("FAB_SLOW_SQL_MS", "100") or "100")
+        self._perf_queue_maxlen = int(os.environ.get("FAB_PERF_QUEUE_MAXLEN", "1000") or "1000")
+        from collections import deque
+        self._perf_queue = deque(maxlen=max(100, self._perf_queue_maxlen))
+        self._perf_lock = threading.Lock()
+        self._perf_event = threading.Event()
+        self._perf_worker_started = False
+        self._perf_worker_lock = threading.Lock()
+        self._perf_conn = None
+        self._perf_conn_lock = threading.Lock()
+
+        # Engine pool management
         self._engines: dict[str, Engine] = {}
         self._engine_lock = threading.Lock()
 
@@ -230,30 +243,6 @@ class ConnectionPoolManager:
                 except Exception:
                     pass
         return status
-
-pool_manager = ConnectionPoolManager()
-
-logger = logging.getLogger("fabouanes")
-_PERF_LOGGER = logging.getLogger("fabouanes.performance")
-
-class DatabaseManager:
-    def __init__(self):
-        self._slow_sql_threshold_ms = float(os.environ.get("FAB_SLOW_SQL_MS", "100") or "100")
-        self._perf_queue_maxlen = int(os.environ.get("FAB_PERF_QUEUE_MAXLEN", "1000") or "1000")
-        from collections import deque
-        self._perf_queue = deque(maxlen=max(100, self._perf_queue_maxlen))
-        self._perf_lock = threading.Lock()
-        self._perf_event = threading.Event()
-        self._perf_worker_started = False
-        self._perf_worker_lock = threading.Lock()
-        self._perf_conn = None
-        self._perf_conn_lock = threading.Lock()
-
-    def get_database_engine(self, database_url: str) -> Engine:
-        return pool_manager.get_database_engine(database_url)
-
-    def connect_database(self, database_url: str) -> CompatConnection:
-        return pool_manager.connect_database(database_url)
 
     def get_db(self) -> CompatConnection:
         state = get_request_state()
@@ -449,9 +438,6 @@ class DatabaseManager:
             (key, value)
         )
 
-    def postgres_pool_status(self, database_url: str) -> dict[str, int | str]:
-        return pool_manager.postgres_pool_status(database_url)
-
     def list_columns(self, conn: CompatConnection, table: str) -> set[str]:
         cur = conn.execute(
             "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = %s",
@@ -528,6 +514,17 @@ class DatabaseManager:
         return len(batch)
 
 db_manager = DatabaseManager()
+
+# Backwards compatibility facades
+class ConnectionPoolManager(DatabaseManager):
+    pass
+
+pool_manager = db_manager
+
+logger = logging.getLogger("fabouanes")
+_PERF_LOGGER = logging.getLogger("fabouanes.performance")
+
+
 
 def get_db() -> CompatConnection:
     return db_manager.get_db()

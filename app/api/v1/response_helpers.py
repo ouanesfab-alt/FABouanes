@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+# NOTE: Ces fonctions sont intentionnellement synchrones.
+# Toutes les routes API de FastAPI qui les appellent doivent le faire
+# via asyncio.to_thread(la_fonction, *args, **kwargs) pour éviter de bloquer l'event loop.
+
 import asyncio
 from typing import Any
 
