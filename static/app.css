@@ -1927,11 +1927,11 @@ body.desktop-app .app-content {
 }
 
 .kpi-delta.up {
-  color: #16a34a;
+  color: var(--system-green);
 }
 
 .kpi-delta.down {
-  color: #dc2626;
+  color: var(--system-red);
 }
 
 
@@ -2979,11 +2979,42 @@ input[type="password"]::-ms-clear {
 
 /* ── Misc ── */
 .text-success {
-  color: #16a34a !important;
+  color: var(--system-green) !important;
 }
 
 .text-danger {
-  color: #dc2626 !important;
+  color: var(--system-red) !important;
+}
+
+/* Theme overrides for Bootstrap subtle classes to make them adapt beautifully */
+[data-theme="dark"] .bg-success-subtle, [data-theme="windows-dark"] .bg-success-subtle {
+  background-color: rgba(48, 209, 88, 0.15) !important;
+  color: #30d158 !important;
+}
+[data-theme="dark"] .bg-danger-subtle, [data-theme="windows-dark"] .bg-danger-subtle {
+  background-color: rgba(255, 69, 58, 0.15) !important;
+  color: #ff453a !important;
+}
+[data-theme="dark"] .bg-warning-subtle, [data-theme="windows-dark"] .bg-warning-subtle {
+  background-color: rgba(255, 159, 10, 0.15) !important;
+  color: #ffd60a !important;
+}
+[data-theme="dark"] .bg-secondary-subtle, [data-theme="windows-dark"] .bg-secondary-subtle {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: var(--text-secondary) !important;
+}
+
+html:not([data-theme="dark"]):not([data-theme="windows-dark"]) .bg-success-subtle {
+  background-color: rgba(52, 199, 89, 0.12) !important;
+  color: #1a7f37 !important;
+}
+html:not([data-theme="dark"]):not([data-theme="windows-dark"]) .bg-danger-subtle {
+  background-color: rgba(255, 59, 48, 0.12) !important;
+  color: #cf222e !important;
+}
+html:not([data-theme="dark"]):not([data-theme="windows-dark"]) .bg-warning-subtle {
+  background-color: rgba(255, 149, 0, 0.12) !important;
+  color: #b45309 !important;
 }
 
 .fab-mobile-return {

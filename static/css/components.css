@@ -1,6 +1,17 @@
 .status-pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:.82rem;font-weight:800;background:var(--surface);color:var(--text);}
-.status-pill.ok{border-color:rgba(22,163,74,.25);background:rgba(22,163,74,.10);color:#15803d;}
-.status-pill.warn{border-color:rgba(217,119,6,.25);background:rgba(217,119,6,.10);color:#b45309;}
+.status-pill.ok{border-color:rgba(52,199,89,.2);background:rgba(52,199,89,.08);color:#1a7f37;}
+.status-pill.warn{border-color:rgba(255,149,0,.2);background:rgba(255,149,0,.08);color:#b45309;}
+
+[data-theme="dark"] .status-pill.ok, [data-theme="windows-dark"] .status-pill.ok {
+  border-color: rgba(48,209,88,.25);
+  background: rgba(48,209,88,.12);
+  color: #30d158;
+}
+[data-theme="dark"] .status-pill.warn, [data-theme="windows-dark"] .status-pill.warn {
+  border-color: rgba(255,159,10,.25);
+  background: rgba(255,159,10,.12);
+  color: #ffd60a;
+}
 
 /* Drawer brand */
 .drawer-brand-name {
@@ -18,11 +29,11 @@
 
 /* Drawer danger link */
 .drawer-link-danger {
-  color: #f87171;
+  color: var(--system-red);
 }
 .drawer-link-danger:hover {
-  color: #fca5a5;
-  background: rgba(248, 113, 113, .08);
+  color: var(--system-red);
+  background: rgba(255, 59, 48, .08);
 }
 
 /* Toast au-dessus de la bottom nav sur mobile */

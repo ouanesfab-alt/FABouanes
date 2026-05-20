@@ -30,8 +30,10 @@
   .kpi-label{font-size:.86rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.02em;}
   .kpi-value{margin-top:12px;font-size:2.4rem;line-height:1;font-weight:900;letter-spacing:-0.02em;color:var(--text);}
   .kpi-delta{margin-top:12px;font-size:.85rem;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:8px;max-width:100%;white-space:normal;}
-  .kpi-delta.up{background:rgba(22,163,74,.1);color:#15803d;}
-  .kpi-delta.down{background:rgba(220,38,38,.1);color:#b91c1c;}
+  .kpi-delta.up{background:rgba(52,199,89,.12);color:#1a7f37;}
+  .kpi-delta.down{background:rgba(255,59,48,.12);color:#cf222e;}
+  [data-theme="dark"] .kpi-delta.up, [data-theme="windows-dark"] .kpi-delta.up{background:rgba(48,209,88,.15);color:#30d158;}
+  [data-theme="dark"] .kpi-delta.down, [data-theme="windows-dark"] .kpi-delta.down{background:rgba(255,69,58,.15);color:#ff453a;}
   .kpi-date-badge{position:relative;left:auto;bottom:auto;margin-top:auto;display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;background:rgba(239,246,255,0.8);color:#1d4ed8;font-size:.85rem;font-weight:800;max-width:100%;white-space:normal;transition:background 0.2s ease;}
   .kpi-card:hover .kpi-date-badge{background:#dbeafe;}
   .dashboard-switch-stack{display:flex;flex-direction:column;gap:18px;}

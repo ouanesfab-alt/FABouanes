@@ -14,26 +14,26 @@
   .expense-cat-badge.telecom{border-color:rgba(37,99,235,.15);background:rgba(37,99,235,.07);color:#1d4ed8;}
   .expense-cat-badge.energie{border-color:rgba(234,179,8,.15);background:rgba(234,179,8,.07);color:#a16207;}
   .expense-cat-badge.impots{border-color:rgba(239,68,68,.15);background:rgba(239,68,68,.07);color:#dc2626;}
-  [data-theme="dark"] .expense-cat-badge{border-color:rgba(156,163,175,.2);background:rgba(156,163,175,.1);color:var(--text);}
-  [data-theme="dark"] .expense-cat-badge.transport{border-color:rgba(251,191,36,.2);background:rgba(251,191,36,.08);color:#fcd34d;}
-  [data-theme="dark"] .expense-cat-badge.fournitures{border-color:rgba(74,222,128,.2);background:rgba(74,222,128,.08);color:#86efac;}
-  [data-theme="dark"] .expense-cat-badge.loyer{border-color:rgba(192,132,252,.2);background:rgba(192,132,252,.08);color:#c4b5fd;}
-  [data-theme="dark"] .expense-cat-badge.salaires{border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.08);color:#fca5a5;}
-  [data-theme="dark"] .expense-cat-badge.maintenance{border-color:rgba(34,211,238,.2);background:rgba(34,211,238,.08);color:#67e8f9;}
-  [data-theme="dark"] .expense-cat-badge.telecom{border-color:rgba(96,165,250,.2);background:rgba(96,165,250,.08);color:#93c5fd;}
-  [data-theme="dark"] .expense-cat-badge.energie{border-color:rgba(250,204,21,.2);background:rgba(250,204,21,.08);color:#fde047;}
-  [data-theme="dark"] .expense-cat-badge.impots{border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.08);color:#fca5a5;}
+  [data-theme="dark"] .expense-cat-badge, [data-theme="windows-dark"] .expense-cat-badge{border-color:rgba(156,163,175,.2);background:rgba(156,163,175,.1);color:var(--text);}
+  [data-theme="dark"] .expense-cat-badge.transport, [data-theme="windows-dark"] .expense-cat-badge.transport{border-color:rgba(251,191,36,.2);background:rgba(251,191,36,.08);color:#fcd34d;}
+  [data-theme="dark"] .expense-cat-badge.fournitures, [data-theme="windows-dark"] .expense-cat-badge.fournitures{border-color:rgba(74,222,128,.2);background:rgba(74,222,128,.08);color:#86efac;}
+  [data-theme="dark"] .expense-cat-badge.loyer, [data-theme="windows-dark"] .expense-cat-badge.loyer{border-color:rgba(192,132,252,.2);background:rgba(192,132,252,.08);color:#c4b5fd;}
+  [data-theme="dark"] .expense-cat-badge.salaires, [data-theme="windows-dark"] .expense-cat-badge.salaires{border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.08);color:#fca5a5;}
+  [data-theme="dark"] .expense-cat-badge.maintenance, [data-theme="windows-dark"] .expense-cat-badge.maintenance{border-color:rgba(34,211,238,.2);background:rgba(34,211,238,.08);color:#67e8f9;}
+  [data-theme="dark"] .expense-cat-badge.telecom, [data-theme="windows-dark"] .expense-cat-badge.telecom{border-color:rgba(96,165,250,.2);background:rgba(96,165,250,.08);color:#93c5fd;}
+  [data-theme="dark"] .expense-cat-badge.energie, [data-theme="windows-dark"] .expense-cat-badge.energie{border-color:rgba(250,204,21,.2);background:rgba(250,204,21,.08);color:#fde047;}
+  [data-theme="dark"] .expense-cat-badge.impots, [data-theme="windows-dark"] .expense-cat-badge.impots{border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.08);color:#fca5a5;}
   .expense-method{font-size:.78rem;color:var(--muted);font-weight:600;}
   .expense-total-bar{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-radius:var(--radius);background:linear-gradient(135deg,rgba(220,38,38,.04),rgba(220,38,38,.08));border:1px solid rgba(220,38,38,.12);backdrop-filter:blur(8px);}
   .expense-total-label{font-size:.88rem;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:8px;}
   .expense-total-value{font-size:1.5rem;font-weight:900;color:#dc2626;}
-  [data-theme="dark"] .expense-total-bar{background:linear-gradient(135deg,rgba(248,113,113,.06),rgba(220,38,38,.1));border-color:rgba(248,113,113,.15);}
-  [data-theme="dark"] .expense-total-value{color:#f87171;}
+  [data-theme="dark"] .expense-total-bar, [data-theme="windows-dark"] .expense-total-bar{background:linear-gradient(135deg,rgba(248,113,113,.06),rgba(220,38,38,.1));border-color:rgba(248,113,113,.15);}
+  [data-theme="dark"] .expense-total-value, [data-theme="windows-dark"] .expense-total-value{color:#f87171;}
   .expense-breakdown{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
   .expense-breakdown-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:8px;background:var(--card);border:1px solid var(--line);font-size:.85rem;}
   .expense-breakdown-cat{font-weight:700;}
   .expense-breakdown-val{font-weight:900;color:#dc2626;}
-  [data-theme="dark"] .expense-breakdown-val{color:#f87171;}
+  [data-theme="dark"] .expense-breakdown-val, [data-theme="windows-dark"] .expense-breakdown-val{color:#f87171;}
   @media(max-width:767px){
     .expenses-table-card{padding:14px;}
     .expenses-actions{flex-direction:column;}
@@ -118,7 +118,7 @@
             <td class="text-muted small">{{ e.date }}</td>
             <td><span class="expense-cat-badge {{ e.category }}">{{ e.category|capitalize }}</span></td>
             <td>{{ e.description or '—' }}</td>
-            <td class="text-end fw-bold" style="color:#dc2626;">{{ e.amount|money }}</td>
+            <td class="text-end fw-bold text-danger">{{ e.amount|money }}</td>
             <td class="hide-mobile"><span class="expense-method">{{ e.payment_method|capitalize }}</span></td>
             <td class="text-nowrap">
               <a href="{{ url_for('edit_expense', expense_id=e.id) }}" class="btn btn-sm btn-outline-secondary" title="Modifier"><i class="bi bi-pencil"></i></a>
