@@ -10,11 +10,11 @@ set "EXIT_CODE=%ERRORLEVEL%"
 if not "%EXIT_CODE%"=="0" (
     echo.
     echo ERREUR: creation de l'installateur echouee.
-    pause
+    if not "%FAB_NO_PAUSE%"=="1" pause
     exit /b %EXIT_CODE%
 )
 
 echo.
 echo Installateur cree: installer_output\FABOuanes_Setup.exe
-pause
+if not "%FAB_NO_PAUSE%"=="1" pause
 endlocal
