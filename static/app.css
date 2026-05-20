@@ -5467,6 +5467,17 @@ html[data-theme="light"] .drawer-link.active {
   background: rgba(0, 122, 255, 0.06) !important;
   color: #007aff !important;
 }
+html[data-theme="light"] .nav-drawer-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+html[data-theme="light"] .drawer-sublink {
+  color: #515154 !important;
+}
+html[data-theme="light"] .drawer-sublink:hover,
+html[data-theme="light"] .drawer-sublink.active {
+  background: rgba(0, 122, 255, 0.06) !important;
+  color: #007aff !important;
+}
 html[data-theme="light"] .modal-content {
   background: rgba(255, 255, 255, 0.96) !important;
   backdrop-filter: blur(35px) !important;
