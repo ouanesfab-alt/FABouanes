@@ -45,3 +45,24 @@ class ProductionCreateSchema(BaseModel):
     quantities: Optional[List[float]] = Field(default=None, alias="quantity[]", description="Liste des quantités consommées")
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class ClientHistoryRowSchema(BaseModel):
+    operation_date: str
+    designation: str
+    montant_achat: float
+    montant_verse: float
+    solde_cumule: float
+    ordre_import: int
+    source: str
+    type_operation: str
+
+
+class ClientHistoryResponseSchema(BaseModel):
+    client_id: int
+    rows: List[ClientHistoryRowSchema]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+

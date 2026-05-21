@@ -14,3 +14,5 @@ gunicorn>=22.0
 qrcode[pil]>=8.0
 Pillow>=10.0
 slowapi>=0.1.9
+pandas>=2.0
+

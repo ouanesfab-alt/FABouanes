@@ -305,3 +305,70 @@ async def delete_client(request: Request, client_id: int):
     backup_database("delete_client")
     flash(request, "Client supprime.", "success")
     return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
+
+
+@router.get("/contacts/clients/{client_id}/history", name="client_history_page")
+async def client_history_page(request: Request, client_id: int):
+    denied = require_permission(request, PERMISSION_CONTACTS_READ)
+    if denied:
+        return denied
+    
+    client = get_client(client_id)
+    if not client:
+        flash(request, "Client introuvable.", "danger")
+        return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
+        
+    try:
+        page = int(request.query_params.get("page", 1))
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
+        
+    page_size = 15
+    
+    from app.api.v1.clients import _fetch_client_history
+    import asyncio
+    rows, total = await asyncio.to_thread(_fetch_client_history, client_id, page, page_size)
+    
+    import math
+    total_pages = math.ceil(total / page_size) if page_size > 0 else 1
+    
+    stats = query_db(
+        """
+        SELECT 
+            COUNT(CASE WHEN source = 'import_excel' THEN 1 END) AS nb_excel,
+            COUNT(CASE WHEN source = 'app' THEN 1 END) AS nb_app,
+            COALESCE(SUM(montant_achat), 0) AS total_achats,
+            COALESCE(SUM(montant_verse), 0) AS total_versements
+        FROM client_history
+        WHERE client_id = %s
+        """,
+        (client_id,),
+        one=True,
+    )
+    
+    balance_row = query_db(
+        "SELECT balance FROM mv_client_balances WHERE client_id = %s",
+        (client_id,),
+        one=True,
+    )
+    client_balance = balance_row["balance"] if balance_row else client["opening_credit"]
+    
+    context = template_context(
+        request,
+        client=client,
+        client_balance=client_balance,
+        history=rows,
+        stats={
+            "nb_excel": stats["nb_excel"] if stats else 0,
+            "nb_app": stats["nb_app"] if stats else 0,
+            "total_achats": stats["total_achats"] if stats else 0,
+            "total_versements": stats["total_versements"] if stats else 0,
+        },
+        page=page,
+        total_pages=total_pages,
+        total=total,
+    )
+    return templates.TemplateResponse("clients/history.html", context)
+

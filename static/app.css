@@ -64,6 +64,12 @@ html[data-font="system"] {
   position: relative;
 }
 
+[data-theme="dark"] .text-danger, [data-theme="windows-dark"] .text-danger { color: #f87171 !important; }
+[data-theme="dark"] .text-success, [data-theme="windows-dark"] .text-success { color: #4ade80 !important; }
+[data-theme="dark"] .text-primary, [data-theme="windows-dark"] .text-primary { color: #60a5fa !important; }
+[data-theme="dark"] .text-info, [data-theme="windows-dark"] .text-info { color: #38bdf8 !important; }
+[data-theme="dark"] .text-warning, [data-theme="windows-dark"] .text-warning { color: #fbbf24 !important; }
+
 [data-theme="dark"] body::before, [data-theme="windows-dark"] body::before {
   content: "";
   position: fixed;
@@ -93,6 +99,17 @@ html[data-font="system"] {
   border-color: rgba(59, 130, 246, 0.35);
   box-shadow: 0 12px 40px rgba(59, 130, 246, 0.15);
   transform: translateY(-2px);
+}
+
+/* macOS style glassmorphic surface */
+.mac-surface {
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.04); overflow: hidden;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+[data-theme="dark"] .mac-surface, [data-theme="windows-dark"] .mac-surface {
+  background: rgba(13,20,38,.55); border-color: rgba(255,255,255,.08);
+  box-shadow: 0 8px 32px rgba(0,0,0,.3);
 }
 
 [data-theme="dark"] h1, [data-theme="windows-dark"] h1,
@@ -663,7 +680,7 @@ iframe {
   padding: 8px 13px;
   border-radius: 12px;
   font-size: .88rem;
-  font-weight: 700;
+  font-weight: 900 !important;
   transition: all .2s ease;
   white-space: nowrap;
   display: inline-flex;
@@ -789,7 +806,7 @@ iframe {
   align-items: center;
   gap: 6px;
   transition: all .2s ease;
-  font-weight: 700;
+  font-weight: 900 !important;
 }
 
 .nav-btn:hover {
@@ -1168,7 +1185,7 @@ iframe {
   color: rgba(255, 255, 255, .85);
   text-decoration: none;
   border-radius: 10px;
-  font-weight: 600;
+  font-weight: 800;
   font-size: 1rem;
   transition: all .15s;
   margin-bottom: 2px;
@@ -1229,7 +1246,7 @@ iframe {
   color: rgba(255, 255, 255, .72);
   text-decoration: none;
   font-size: .92rem;
-  font-weight: 600;
+  font-weight: 800;
   transition: all .15s;
 }
 

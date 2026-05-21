@@ -1,60 +1,173 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="record-shell">
-  <section class="record-surface">
-    <header class="record-header">
-      <div class="record-copy">
-        <div class="record-kicker">Client</div>
-        <h1 class="record-title">{{ client.name }}</h1>
-        <p class="record-subtitle">{{ client.phone or '-' }} · {{ client.address or '-' }}</p>
+<style>
+  /* ── macOS-style Client Detail ── */
+  .detail-shell { max-width: 1080px; margin: 0 auto; }
+
+  .mac-surface {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.04); overflow: hidden;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  }
+  [data-theme="dark"] .mac-surface {
+    background: rgba(13,20,38,.55); border-color: rgba(255,255,255,.08);
+    box-shadow: 0 8px 32px rgba(0,0,0,.3);
+  }
+
+  /* Header */
+  .detail-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 20px; flex-wrap: wrap; padding: 22px 28px 18px; border-bottom: 1px solid var(--line);
+  }
+  .detail-kicker { font-size: .72rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .detail-name { margin: 2px 0 0; font-size: 1.6rem; font-weight: 900; letter-spacing: -.03em; color: var(--text); line-height: 1.1; }
+  .detail-meta { margin: 4px 0 0; font-size: .86rem; color: var(--muted); }
+
+  /* Reference card */
+  .detail-ref {
+    flex: 0 0 260px; border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; background: var(--surface);
+  }
+  [data-theme="dark"] .detail-ref { background: rgba(15,23,42,.4); border-color: rgba(255,255,255,.06); }
+  .detail-ref-row {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line);
+  }
+  .detail-ref-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .detail-ref-row:first-child { padding-top: 0; }
+  .detail-ref-label { font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .detail-ref-value { font-size: .92rem; font-weight: 700; color: var(--text); text-align: right; }
+
+  /* Stat cards */
+  .detail-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; padding: 16px 28px 0; }
+  .detail-stat {
+    border-radius: 12px; padding: 14px 16px; border: 1px solid var(--line);
+    background: var(--surface); transition: all .2s cubic-bezier(.23,1,.32,1);
+  }
+  .detail-stat:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+  [data-theme="dark"] .detail-stat { background: rgba(15,23,42,.4); border-color: rgba(255,255,255,.06); }
+  [data-theme="dark"] .detail-stat:hover { box-shadow: 0 4px 16px rgba(59,130,246,.08); border-color: rgba(59,130,246,.2); }
+  .detail-stat-label { font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .detail-stat-value { font-size: 1.05rem; font-weight: 800; color: var(--text); }
+
+  /* Colored stat borders */
+  .detail-stat.stat-red   { border-left: 3px solid #dc2626; }
+  .detail-stat.stat-green { border-left: 3px solid #16a34a; }
+  .detail-stat.stat-blue  { border-left: 3px solid #2563eb; }
+  .detail-stat.stat-amber { border-left: 3px solid #d97706; }
+  .detail-stat.stat-red   .detail-stat-value { color: #dc2626; }
+  .detail-stat.stat-green .detail-stat-value { color: #16a34a; }
+  .detail-stat.stat-blue  .detail-stat-value { color: #2563eb; }
+  .detail-stat.stat-amber .detail-stat-value { color: #d97706; }
+  [data-theme="dark"] .detail-stat.stat-red   .detail-stat-value { color: #f87171; }
+  [data-theme="dark"] .detail-stat.stat-green .detail-stat-value { color: #4ade80; }
+  [data-theme="dark"] .detail-stat.stat-blue  .detail-stat-value { color: #60a5fa; }
+  [data-theme="dark"] .detail-stat.stat-amber .detail-stat-value { color: #fbbf24; }
+
+  /* Table section */
+  .detail-table-section { padding: 16px 28px 28px; }
+  .detail-table-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
+  }
+  .detail-section-title { font-size: .95rem; font-weight: 800; color: var(--text); margin: 0; }
+  .detail-section-sub { font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 2px; }
+
+  /* Record table dark overrides */
+  [data-theme="dark"] .record-table thead th { background: rgba(15,23,42,.6) !important; color: var(--muted) !important; border-color: var(--line) !important; }
+  [data-theme="dark"] .record-table tbody td { border-color: var(--line) !important; color: var(--text) !important; }
+  [data-theme="dark"] .record-table tbody tr:hover { background: rgba(59,130,246,.04) !important; }
+
+  /* Dark mode text colors */
+  [data-theme="dark"] .text-danger { color: #f87171 !important; }
+  [data-theme="dark"] .text-success { color: #4ade80 !important; }
+  [data-theme="dark"] .text-primary { color: #60a5fa !important; }
+  [data-theme="dark"] .text-info { color: #38bdf8 !important; }
+  [data-theme="dark"] .text-warning { color: #fbbf24 !important; }
+
+  /* Buttons */
+  .detail-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .detail-actions .btn { border-radius: 10px; font-size: .82rem; }
+
+  @media(max-width:991px) { .detail-stats { grid-template-columns: repeat(2,1fr); } }
+  @media(max-width:767px) {
+    .detail-header { padding: 18px 18px 14px; }
+    .detail-stats { grid-template-columns: 1fr; padding: 14px 18px 0; }
+    .detail-table-section { padding: 14px 18px 18px; }
+    .detail-name { font-size: 1.3rem; }
+    .detail-ref { flex-basis: 100%; }
+    .detail-actions { flex-direction: column; }
+    .detail-actions .btn { width: 100%; }
+  }
+</style>
+
+<div class="detail-shell">
+  <section class="mac-surface">
+    <header class="detail-header">
+      <div style="min-width:0; flex:1;">
+        <div class="detail-kicker">Client</div>
+        <h1 class="detail-name">{{ client.name }}</h1>
+        <p class="detail-meta">{{ client.phone or '-' }} · {{ client.address or '-' }}</p>
       </div>
-      <div class="record-reference">
-        <div class="record-refrow"><span>Client</span><strong>#{{ client.id }}</strong></div>
-        <div class="record-refrow"><span>Reste</span><strong>{{ client_balance|money }}</strong></div>
-        <div class="record-refrow"><span>Ouverture</span><strong>{{ stats.opening_credit|money }}</strong></div>
+      <div class="detail-ref">
+        <div class="detail-ref-row"><span class="detail-ref-label">Client</span><span class="detail-ref-value">#{{ client.id }}</span></div>
+        <div class="detail-ref-row">
+          <span class="detail-ref-label">Reste</span>
+          <span class="detail-ref-value {% if client_balance > 0 %}text-danger{% elif client_balance < 0 %}text-success{% endif %}" style="font-size:1.05rem;">{{ client_balance|money }}</span>
+        </div>
+        <div class="detail-ref-row"><span class="detail-ref-label">Ouverture</span><span class="detail-ref-value">{{ stats.opening_credit|money }}</span></div>
       </div>
     </header>
 
-    <section class="record-grid">
-      <div class="record-card">
-        <div class="record-card-label">Total ventes / achats</div>
-        <div class="record-card-value">{{ stats.total_sales|money }}</div>
+    <section class="detail-stats">
+      <div class="detail-stat stat-red">
+        <div class="detail-stat-label">Total ventes / achats</div>
+        <div class="detail-stat-value">{{ stats.total_sales|money }}</div>
       </div>
-      <div class="record-card">
-        <div class="record-card-label">Avances</div>
-        <div class="record-card-value">{{ stats.total_advance|money }}</div>
+      <div class="detail-stat stat-amber">
+        <div class="detail-stat-label">Avances</div>
+        <div class="detail-stat-value">{{ stats.total_advance|money }}</div>
       </div>
-      <div class="record-card">
-        <div class="record-card-label">Versements</div>
-        <div class="record-card-value">{{ stats.total_paid|money }}</div>
+      <div class="detail-stat stat-green">
+        <div class="detail-stat-label">Versements</div>
+        <div class="detail-stat-value">{{ stats.total_paid|money }}</div>
       </div>
-      <div class="record-card">
-        <div class="record-card-label">Reste a payer</div>
-        <div class="record-card-value">{{ client_balance|money }}</div>
+      <div class="detail-stat {% if client_balance > 0 %}stat-red{% else %}stat-green{% endif %}">
+        <div class="detail-stat-label">Reste à payer</div>
+        <div class="detail-stat-value">{{ client_balance|money }}</div>
       </div>
     </section>
 
-    <section class="record-table-wrap">
-      <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
+    <section class="detail-table-section">
+      <div class="detail-table-bar">
         <div>
-          <div class="record-kicker">Historique</div>
-          <h2 class="h5 mb-0">Mouvements du client</h2>
+          <div class="detail-section-sub">Historique</div>
+          <h2 class="detail-section-title">Mouvements du client</h2>
         </div>
-        <div class="record-actions">
-          <a href="{{ url_for('print_client_history', client_id=client.id) }}" class="btn btn-outline-primary" target="_blank">Imprimer l'historique</a>
-          <a href="{{ url_for('edit_client', client_id=client.id) }}" class="btn btn-outline-dark">Editer le client</a>
-          <a href="{{ url_for('contacts', type='client') }}" class="btn btn-dark">Retour</a>
+        <div class="detail-actions">
+          <a href="{{ url_for('client_history_page', client_id=client.id) }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-clock-history me-1"></i>Historique Complet
+          </a>
+          <a href="{{ url_for('print_client_history', client_id=client.id) }}" class="btn btn-outline-primary btn-sm" target="_blank">
+            <i class="bi bi-printer me-1"></i>Imprimer
+          </a>
+          <a href="{{ url_for('edit_client', client_id=client.id) }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-pencil me-1"></i>Éditer
+          </a>
+          <a href="{{ url_for('contacts', type='client') }}" class="btn btn-dark btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Retour
+          </a>
         </div>
       </div>
-      <div class="table-responsive">
+      <div class="table-responsive" style="border-radius:10px; overflow:hidden;">
         <table class="record-table js-datagrid align-middle">
           <thead>
             <tr>
               <th>Date</th>
-              <th>Designation d'achat / operation</th>
-                <th class="col-right hide-mobile">Prix d'achat / credit</th>
-                <th class="col-right hide-mobile">Versement</th>
-                <th class="col-right">Reste a payer</th>
+              <th>Désignation d'achat / opération</th>
+              <th class="col-right hide-mobile">Prix d'achat / crédit</th>
+              <th class="col-right hide-mobile">Versement</th>
+              <th class="col-right">Reste à payer</th>
             </tr>
           </thead>
           <tbody>
@@ -65,13 +178,29 @@
                   data-edit-url="{% if item.event_type == 'sale_finished' %}{{ url_for('edit_sale_document', document_id=item.document_id) if item.document_id else url_for('edit_sale', kind='finished', row_id=item.row_id) }}{% elif item.event_type == 'sale_raw' %}{{ url_for('edit_sale_document', document_id=item.document_id) if item.document_id else url_for('edit_sale', kind='raw', row_id=item.row_id) }}{% elif item.event_type in ['payment','advance'] %}{{ url_for('edit_payment', payment_id=item.row_id) }}{% endif %}"
                   data-delete-url="{% if item.event_type == 'sale_finished' %}{{ url_for('delete_sale', kind='finished', row_id=item.row_id) }}{% elif item.event_type == 'sale_raw' %}{{ url_for('delete_sale', kind='raw', row_id=item.row_id) }}{% elif item.event_type in ['payment','advance'] %}{{ url_for('delete_payment', payment_id=item.row_id) }}{% endif %}">
               <td>{{ item.event_date }}</td>
-              <td>{{ item.designation }}</td>
-                <td class="col-right hide-mobile">{{ item.purchase_amount|money }}</td>
-                <td class="col-right hide-mobile">{{ item.payment_amount|money }}</td>
-                <td class="col-right"><strong>{{ item.running_balance|money }}</strong></td>
+              <td><span class="fw-medium">{{ item.designation }}</span></td>
+              <td class="col-right hide-mobile">
+                {% if item.purchase_amount > 0 %}
+                  <span class="text-danger">{{ item.purchase_amount|money }}</span>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td class="col-right hide-mobile">
+                {% if item.payment_amount > 0 %}
+                  <span class="text-success">{{ item.payment_amount|money }}</span>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td class="col-right">
+                <strong class="{% if item.running_balance > 0 %}text-danger{% elif item.running_balance < 0 %}text-success{% endif %}">
+                  {{ item.running_balance|money }}
+                </strong>
+              </td>
             </tr>
             {% else %}
-            <tr><td colspan="5" class="text-muted">Aucun historique.</td></tr>
+            <tr><td colspan="5" class="text-muted text-center py-4">Aucun historique.</td></tr>
             {% endfor %}
           </tbody>
         </table>

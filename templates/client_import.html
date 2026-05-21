@@ -1,144 +1,278 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-  <div>
-    <h4 class="mb-0">Import clients Excel</h4>
-    <div class="text-muted small">Previsualisation, detection des doublons et rollback si le fichier est invalide.</div>
-  </div>
-  <a href="{{ url_for('contacts', type='client') }}" class="btn btn-outline-secondary btn-sm">Retour contacts</a>
-</div>
+<style>
+  /* ── macOS-style Import Page ── */
+  .import-shell { max-width: 1080px; margin: 0 auto; }
 
-<div class="row g-3">
-  <div class="col-lg-5">
-    <div class="card p-3">
-      <h6 class="fw-bold mb-3"><i class="bi bi-upload me-1"></i>Selectionner les fichiers</h6>
-      <form method="post" enctype="multipart/form-data">
-        <div class="mb-3">
-          <input type="file" name="excel_files" class="form-control" accept=".xlsx,.xlsm" multiple required>
-          <div class="form-text">Un fichier = un client. Aucun enregistrement n'est cree pendant la previsualisation.</div>
-        </div>
-        <div class="d-grid gap-2">
-          <button type="submit" name="action" value="preview" class="btn btn-outline-dark">
-            <i class="bi bi-eye me-1"></i>Previsualiser
-          </button>
-          <button type="submit" name="action" value="import" class="btn btn-dark">
-            <i class="bi bi-database-up me-1"></i>Importer
-          </button>
-        </div>
-      </form>
+  .import-hero {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 14px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  .import-hero-title { font-size: 1.35rem; font-weight: 900; color: var(--text); margin: 0; letter-spacing: -.03em; display: flex; align-items: center; gap: 10px; }
+  .import-hero-title .icon-circle {
+    width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center;
+    background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; font-size: 1rem;
+    box-shadow: 0 4px 12px rgba(22,163,74,.3);
+  }
+  .import-hero-sub { font-size: .82rem; color: var(--muted); margin: 3px 0 0; }
+
+  /* Glass card */
+  .mac-card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 22px; box-shadow: 0 4px 16px rgba(0,0,0,.04);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  }
+  [data-theme="dark"] .mac-card {
+    background: rgba(13,20,38,.55); border-color: rgba(255,255,255,.08);
+    box-shadow: 0 8px 32px rgba(0,0,0,.3);
+  }
+  .mac-card-title {
+    font-size: .86rem; font-weight: 800; color: var(--text);
+    display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
+  }
+  .mac-card-title i { color: var(--muted); font-size: .95rem; }
+
+  /* Feature items */
+  .mac-feature {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 14px 16px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--surface);
+    transition: all .2s cubic-bezier(.23,1,.32,1);
+  }
+  .mac-feature:hover { border-color: rgba(37,99,235,.3); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+  [data-theme="dark"] .mac-feature { background: rgba(15,23,42,.4); border-color: rgba(255,255,255,.06); }
+  [data-theme="dark"] .mac-feature:hover { border-color: rgba(59,130,246,.3); box-shadow: 0 4px 16px rgba(59,130,246,.1); }
+
+  .mac-feature-icon {
+    width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+    flex-shrink: 0; font-size: 1.1rem;
+  }
+  .mac-feature-icon.blue { background: rgba(37,99,235,.1); color: #2563eb; }
+  .mac-feature-icon.green { background: rgba(22,163,74,.1); color: #16a34a; }
+  .mac-feature-icon.amber { background: rgba(217,119,6,.1); color: #d97706; }
+  .mac-feature-icon.red { background: rgba(220,38,38,.1); color: #dc2626; }
+  [data-theme="dark"] .mac-feature-icon.blue { background: rgba(59,130,246,.15); color: #60a5fa; }
+  [data-theme="dark"] .mac-feature-icon.green { background: rgba(34,197,94,.15); color: #4ade80; }
+  [data-theme="dark"] .mac-feature-icon.amber { background: rgba(251,191,36,.15); color: #fbbf24; }
+  [data-theme="dark"] .mac-feature-icon.red { background: rgba(248,113,113,.15); color: #f87171; }
+
+  .mac-feature-title { font-size: .84rem; font-weight: 700; color: var(--text); }
+  .mac-feature-desc { font-size: .76rem; color: var(--muted); margin-top: 2px; line-height: 1.45; }
+
+  /* Accent feature */
+  .mac-feature.accent { border-color: rgba(37,99,235,.2); background: rgba(37,99,235,.04); }
+  [data-theme="dark"] .mac-feature.accent { border-color: rgba(59,130,246,.2); background: rgba(59,130,246,.06); }
+
+  /* Tip bar */
+  .mac-tip {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 16px; border-radius: 10px;
+    background: rgba(217,119,6,.06); border: 1px solid rgba(217,119,6,.15);
+    font-size: .8rem; color: var(--muted); line-height: 1.5;
+  }
+  .mac-tip i { color: #d97706; flex-shrink: 0; font-size: .95rem; margin-top: 1px; }
+  [data-theme="dark"] .mac-tip { background: rgba(251,191,36,.06); border-color: rgba(251,191,36,.12); }
+  [data-theme="dark"] .mac-tip i { color: #fbbf24; }
+
+  /* Upload zone */
+  .mac-upload-zone {
+    border: 2px dashed var(--line); border-radius: 12px; padding: 24px; text-align: center;
+    transition: all .2s; cursor: pointer; background: var(--surface);
+  }
+  .mac-upload-zone:hover, .mac-upload-zone.dragover { border-color: var(--accent); background: rgba(37,99,235,.04); }
+  [data-theme="dark"] .mac-upload-zone { background: rgba(15,23,42,.3); border-color: rgba(255,255,255,.08); }
+  [data-theme="dark"] .mac-upload-zone:hover { border-color: rgba(59,130,246,.4); background: rgba(59,130,246,.06); }
+  .mac-upload-icon { font-size: 2rem; color: var(--muted); margin-bottom: 8px; }
+  .mac-upload-text { font-size: .84rem; font-weight: 600; color: var(--text); }
+  .mac-upload-hint { font-size: .75rem; color: var(--muted); margin-top: 4px; }
+
+  /* Preview table dark mode */
+  [data-theme="dark"] .table { color: var(--text); }
+  [data-theme="dark"] .table thead th { color: var(--muted) !important; border-color: var(--line) !important; background: transparent !important; }
+  [data-theme="dark"] .table tbody td { border-color: var(--line) !important; color: var(--text); }
+  [data-theme="dark"] .badge.text-bg-light { background: rgba(100,116,139,.2) !important; color: var(--text) !important; }
+  [data-theme="dark"] .badge.text-bg-primary { background: rgba(37,99,235,.25) !important; color: #60a5fa !important; }
+  [data-theme="dark"] .badge.text-bg-info { background: rgba(14,165,233,.25) !important; color: #38bdf8 !important; }
+  [data-theme="dark"] .alert-danger { background: rgba(220,38,38,.1) !important; border-color: rgba(220,38,38,.2) !important; color: #f87171 !important; }
+  [data-theme="dark"] .alert-warning { background: rgba(217,119,6,.1) !important; border-color: rgba(217,119,6,.2) !important; color: #fbbf24 !important; }
+  [data-theme="dark"] .form-text { color: var(--muted) !important; }
+</style>
+
+<div class="import-shell">
+  <div class="import-hero">
+    <div>
+      <h1 class="import-hero-title">
+        <span class="icon-circle"><i class="bi bi-file-earmark-excel"></i></span>
+        Import clients Excel
+      </h1>
+      <p class="import-hero-sub">Prévisualisation, détection des doublons et rollback si le fichier est invalide.</p>
     </div>
+    <a href="{{ url_for('contacts', type='client') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Retour contacts
+    </a>
+  </div>
 
-    <div class="card p-3 mt-3">
-      <h6 class="fw-bold mb-3"><i class="bi bi-shield-check me-1"></i>Controle avant import</h6>
-      <div class="small text-muted">
-        Les fichiers sont analyses avant toute ecriture. Si une ligne est invalide ou si deux fichiers portent le meme client, l'import est annule et rien n'est enregistre.
+  <div class="row g-3">
+    <!-- LEFT: Upload -->
+    <div class="col-lg-5">
+      <div class="mac-card">
+        <div class="mac-card-title"><i class="bi bi-cloud-arrow-up"></i> Téléverser les fichiers</div>
+        <form method="post" enctype="multipart/form-data" id="importForm">
+          <div class="mac-upload-zone mb-3" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+            <div class="mac-upload-icon"><i class="bi bi-folder2-open"></i></div>
+            <div class="mac-upload-text">Glisser-déposer ou cliquer pour sélectionner</div>
+            <div class="mac-upload-hint">Fichiers .xlsx — un fichier par client</div>
+            <input type="file" name="excel_files" id="fileInput" accept=".xlsx,.xlsm" multiple required style="display:none" onchange="updateFileLabel(this)">
+          </div>
+          <div id="fileLabel" class="small text-muted mb-3" style="display:none;"></div>
+          <div class="d-grid gap-2">
+            <button type="submit" name="action" value="preview" class="btn btn-outline-dark">
+              <i class="bi bi-eye me-1"></i>Prévisualiser
+            </button>
+            <button type="submit" name="action" value="import" class="btn btn-dark">
+              <i class="bi bi-database-up me-1"></i>Importer directement
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="mac-card mt-3">
+        <div class="mac-card-title"><i class="bi bi-shield-check"></i> Sécurité de l'import</div>
+        <p style="font-size: .82rem; color: var(--muted); margin: 0; line-height: 1.55;">
+          Les fichiers sont analysés <strong style="color:var(--text)">avant toute écriture</strong>. 
+          Si une ligne est invalide ou si deux fichiers portent le même client, 
+          l'import est annulé et <strong style="color:var(--text)">rien n'est enregistré</strong>.
+        </p>
       </div>
     </div>
-  </div>
 
-  <div class="col-lg-7">
-    {% if preview %}
-      <div class="card p-3">
-        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
-          <h6 class="fw-bold mb-0"><i class="bi bi-table me-1"></i>Previsualisation</h6>
-          <span class="badge text-bg-light">{{ preview.rows|length }} fichier(s)</span>
-        </div>
-
-        {% if preview.errors %}
-          <div class="alert alert-danger py-2">
-            <div class="fw-semibold mb-1">Erreurs detectees</div>
-            {% for err in preview.errors %}
-              <div class="small">{{ err }}</div>
-            {% endfor %}
+    <!-- RIGHT: Preview or Info -->
+    <div class="col-lg-7">
+      {% if preview %}
+        <div class="mac-card">
+          <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+            <div class="mac-card-title mb-0"><i class="bi bi-table"></i> Prévisualisation</div>
+            <span class="badge text-bg-light" style="font-size:.78rem;">{{ preview.rows|length }} fichier(s)</span>
           </div>
-        {% endif %}
 
-        {% if preview.duplicates %}
-          <div class="alert alert-warning py-2">
-            <div class="fw-semibold mb-1">Doublons dans le lot</div>
-            {% for name in preview.duplicates %}
-              <div class="small">{{ name }}</div>
-            {% endfor %}
-          </div>
-        {% endif %}
-
-        {% if preview.rows %}
-          {% if preview.token %}
-            <form method="post" class="mb-3">
-              <input type="hidden" name="action" value="confirm_preview">
-              <input type="hidden" name="preview_token" value="{{ preview.token }}">
-              <button type="submit" class="btn btn-dark w-100">
-                <i class="bi bi-check2-circle me-1"></i>Confirmer cet import
-              </button>
-            </form>
+          {% if preview.errors %}
+            <div class="alert alert-danger py-2 mb-3" style="border-radius:10px;">
+              <div class="fw-semibold mb-1"><i class="bi bi-exclamation-triangle me-1"></i>Erreurs détectées</div>
+              {% for err in preview.errors %}
+                <div class="small">{{ err }}</div>
+              {% endfor %}
+            </div>
           {% endif %}
-          <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>Fichier</th>
-                  <th>Client</th>
-                  <th>Solde</th>
-                  <th>Lignes</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in preview.rows %}
+
+          {% if preview.duplicates %}
+            <div class="alert alert-warning py-2 mb-3" style="border-radius:10px;">
+              <div class="fw-semibold mb-1"><i class="bi bi-files me-1"></i>Doublons dans le lot</div>
+              {% for name in preview.duplicates %}
+                <div class="small">{{ name }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          {% if preview.rows %}
+            {% if preview.token %}
+              <form method="post" class="mb-3">
+                <input type="hidden" name="action" value="confirm_preview">
+                <input type="hidden" name="preview_token" value="{{ preview.token }}">
+                <button type="submit" class="btn btn-dark w-100" style="border-radius:10px;">
+                  <i class="bi bi-check2-circle me-1"></i>Confirmer cet import
+                </button>
+              </form>
+            {% endif %}
+            <div class="table-responsive" style="border-radius:10px; overflow:hidden;">
+              <table class="table table-sm align-middle mb-0">
+                <thead>
                   <tr>
-                    <td class="text-muted small">{{ row.filename }}</td>
-                    <td>
-                      <div class="fw-semibold">{{ row.name }}</div>
-                      <div class="text-muted small">{{ row.phone or row.address or "-" }}</div>
-                    </td>
-                    <td>{{ "%.2f"|format(row.opening_credit) }}</td>
-                    <td>{{ row.history_count }}</td>
-                    <td>
-                      <span class="badge {{ 'text-bg-primary' if row.status == 'create' else 'text-bg-info' }}">
-                        {{ "Creer" if row.status == "create" else "Mettre a jour" }}
-                      </span>
-                    </td>
+                    <th>Fichier</th>
+                    <th>Client</th>
+                    <th class="text-end">Solde</th>
+                    <th class="text-center">Lignes</th>
+                    <th class="text-center">Action</th>
                   </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        {% else %}
-          <div class="text-muted small">Aucun client valide detecte.</div>
-        {% endif %}
-      </div>
-    {% else %}
-      <div class="card p-3 h-100">
-        <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-1"></i>Ce qui est importe</h6>
-        <div class="d-flex flex-column gap-2 mb-3">
-          <div class="d-flex align-items-center gap-2 border rounded p-2">
-            <i class="bi bi-person fs-4 text-primary"></i>
-            <div>
-              <div class="fw-semibold small">Fiche client</div>
-              <div class="text-muted" style="font-size:.81rem">Nom, telephone et adresse detectes depuis le fichier</div>
+                </thead>
+                <tbody>
+                  {% for row in preview.rows %}
+                    <tr>
+                      <td class="text-muted small">{{ row.filename }}</td>
+                      <td>
+                        <div class="fw-semibold">{{ row.name }}</div>
+                        <div class="text-muted small">{{ row.phone or row.address or "-" }}</div>
+                      </td>
+                      <td class="text-end fw-semibold">{{ "%.2f"|format(row.opening_credit) }}</td>
+                      <td class="text-center">{{ row.history_count }}</td>
+                      <td class="text-center">
+                        <span class="badge {{ 'text-bg-primary' if row.status == 'create' else 'text-bg-info' }}" style="border-radius:6px;">
+                          {{ "Créer" if row.status == "create" else "Mettre à jour" }}
+                        </span>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-muted small text-center py-3">Aucun client valide détecté.</div>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="mac-card h-100">
+          <div class="mac-card-title"><i class="bi bi-info-circle"></i> Ce qui est importé</div>
+          <div class="d-flex flex-column gap-3 mb-4">
+            <div class="mac-feature">
+              <div class="mac-feature-icon blue"><i class="bi bi-person-vcard"></i></div>
+              <div>
+                <div class="mac-feature-title">Fiche client</div>
+                <div class="mac-feature-desc">Nom, téléphone et adresse détectés depuis le fichier</div>
+              </div>
+            </div>
+            <div class="mac-feature">
+              <div class="mac-feature-icon green"><i class="bi bi-bar-chart-line"></i></div>
+              <div>
+                <div class="mac-feature-title">Historique analysé</div>
+                <div class="mac-feature-desc">Nombre de lignes et dernier solde avant import</div>
+              </div>
+            </div>
+            <div class="mac-feature accent">
+              <div class="mac-feature-icon amber"><i class="bi bi-cash-stack"></i></div>
+              <div>
+                <div class="mac-feature-title">Dernier reste à payer</div>
+                <div class="mac-feature-desc">Enregistré comme crédit d'ouverture pour continuer la gestion</div>
+              </div>
             </div>
           </div>
-          <div class="d-flex align-items-center gap-2 border rounded p-2">
-            <i class="bi bi-clock-history fs-4 text-secondary"></i>
-            <div>
-              <div class="fw-semibold small">Historique analyse</div>
-              <div class="text-muted" style="font-size:.81rem">Nombre de lignes et dernier solde avant import</div>
-            </div>
-          </div>
-          <div class="d-flex align-items-center gap-2 border rounded p-2" style="background:rgba(59,130,246,.05);border-color:rgba(59,130,246,.25)!important">
-            <i class="bi bi-cash-coin fs-4 text-primary"></i>
-            <div>
-              <div class="fw-semibold small text-primary">Dernier reste a payer</div>
-              <div class="text-muted" style="font-size:.81rem">Enregistre comme credit d'ouverture pour continuer la gestion</div>
-            </div>
+          <div class="mac-tip">
+            <i class="bi bi-lightbulb-fill"></i>
+            <span>L'historique détaillé n'est pas importé. Seul le solde final est repris.</span>
           </div>
         </div>
-        <div class="alert alert-light border-0 py-2 mb-0" style="font-size:.82rem">
-          <i class="bi bi-lightbulb me-1 text-warning"></i>
-          L'historique detaille n'est pas importe. Seul le solde final est repris.
-        </div>
-      </div>
-    {% endif %}
+      {% endif %}
+    </div>
   </div>
 </div>
+
+<script>
+  // Drag & drop support
+  const zone = document.getElementById('uploadZone');
+  const fileInput = document.getElementById('fileInput');
+  if (zone) {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); zone.classList.remove('dragover');
+      fileInput.files = e.dataTransfer.files;
+      updateFileLabel(fileInput);
+    });
+  }
+  function updateFileLabel(input) {
+    const label = document.getElementById('fileLabel');
+    if (input.files.length > 0) {
+      label.style.display = 'block';
+      label.innerHTML = '<i class="bi bi-check-circle text-success me-1"></i>' + input.files.length + ' fichier(s) sélectionné(s)';
+    }
+  }
+</script>
 {% endblock %}

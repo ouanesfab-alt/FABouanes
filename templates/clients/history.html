@@ -1,0 +1,295 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  /* ── macOS-style History Page ── */
+  .hist-shell { max-width: 1080px; margin: 0 auto; }
+
+  .mac-surface {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.04); overflow: hidden;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  }
+  [data-theme="dark"] .mac-surface {
+    background: rgba(13,20,38,.55); border-color: rgba(255,255,255,.08);
+    box-shadow: 0 8px 32px rgba(0,0,0,.3);
+  }
+
+  /* Header */
+  .hist-header {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 16px; flex-wrap: wrap;
+    padding: 20px 28px; border-bottom: 1px solid var(--line);
+  }
+  .hist-back {
+    font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
+    transition: color .15s;
+  }
+  .hist-back:hover { color: var(--text); }
+  .hist-name { margin: 2px 0 0; font-size: 1.4rem; font-weight: 900; letter-spacing: -.03em; color: var(--text); line-height: 1.15; }
+  .hist-meta { margin: 2px 0 0; font-size: .82rem; color: var(--muted); }
+
+  .hist-balance-box {
+    text-align: right; padding: 12px 16px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--surface); min-width: 180px;
+  }
+  [data-theme="dark"] .hist-balance-box { background: rgba(15,23,42,.4); border-color: rgba(255,255,255,.06); }
+  .hist-balance-label { font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .hist-balance-value { font-size: 1.2rem; font-weight: 900; margin-top: 2px; }
+
+  /* Stats cards */
+  .hist-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; padding: 16px 28px 0; }
+  .hist-stat {
+    border-radius: 12px; padding: 14px 16px; border: 1px solid var(--line);
+    background: var(--surface); transition: all .2s cubic-bezier(.23,1,.32,1);
+  }
+  .hist-stat:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+  [data-theme="dark"] .hist-stat { background: rgba(15,23,42,.4); border-color: rgba(255,255,255,.06); }
+  [data-theme="dark"] .hist-stat:hover { box-shadow: 0 4px 16px rgba(59,130,246,.08); border-color: rgba(59,130,246,.2); }
+  .hist-stat-label { font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .hist-stat-value { font-size: 1rem; font-weight: 800; color: var(--text); }
+
+  /* Colored accent borders */
+  .hist-stat.stat-blue  { border-left: 3px solid #2563eb; }
+  .hist-stat.stat-green { border-left: 3px solid #16a34a; }
+  .hist-stat.stat-red   { border-left: 3px solid #dc2626; }
+  .hist-stat.stat-amber { border-left: 3px solid #d97706; }
+  .hist-stat.stat-blue  .hist-stat-value { color: #2563eb; }
+  .hist-stat.stat-green .hist-stat-value { color: #16a34a; }
+  .hist-stat.stat-red   .hist-stat-value { color: #dc2626; }
+  .hist-stat.stat-amber .hist-stat-value { color: #d97706; }
+  [data-theme="dark"] .hist-stat.stat-blue  .hist-stat-value { color: #60a5fa; }
+  [data-theme="dark"] .hist-stat.stat-green .hist-stat-value { color: #4ade80; }
+  [data-theme="dark"] .hist-stat.stat-red   .hist-stat-value { color: #f87171; }
+  [data-theme="dark"] .hist-stat.stat-amber .hist-stat-value { color: #fbbf24; }
+
+  /* Table section */
+  .hist-table-section { padding: 16px 28px 28px; }
+  .hist-table-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
+  }
+  .hist-section-title { font-size: .95rem; font-weight: 800; color: var(--text); margin: 0; }
+  .hist-section-sub { font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 2px; }
+  .hist-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .hist-actions .btn { border-radius: 10px; font-size: .82rem; }
+
+  /* Record table dark overrides */
+  [data-theme="dark"] .record-table thead th { background: rgba(15,23,42,.6) !important; color: var(--muted) !important; border-color: var(--line) !important; }
+  [data-theme="dark"] .record-table tbody td { border-color: var(--line) !important; color: var(--text) !important; }
+  [data-theme="dark"] .record-table tbody tr:hover { background: rgba(59,130,246,.04) !important; }
+  [data-theme="dark"] .record-table tfoot td { color: var(--text) !important; }
+  [data-theme="dark"] .record-table tfoot .text-dark { color: var(--text) !important; }
+
+  /* Dark mode text colors */
+  [data-theme="dark"] .text-danger { color: #f87171 !important; }
+  [data-theme="dark"] .text-success { color: #4ade80 !important; }
+  [data-theme="dark"] .text-primary { color: #60a5fa !important; }
+  [data-theme="dark"] .text-info { color: #38bdf8 !important; }
+  [data-theme="dark"] .text-warning { color: #fbbf24 !important; }
+
+  /* Dark mode badges */
+  [data-theme="dark"] .badge.bg-danger-subtle  { background: rgba(220,38,38,.18) !important; color: #f87171 !important; border-color: rgba(220,38,38,.3) !important; }
+  [data-theme="dark"] .badge.bg-success-subtle { background: rgba(22,163,74,.18) !important; color: #4ade80 !important; border-color: rgba(22,163,74,.3) !important; }
+  [data-theme="dark"] .badge.bg-primary-subtle { background: rgba(37,99,235,.18) !important; color: #60a5fa !important; border-color: rgba(37,99,235,.3) !important; }
+  [data-theme="dark"] .badge.bg-warning-subtle { background: rgba(217,119,6,.18) !important; color: #fbbf24 !important; border-color: rgba(217,119,6,.3) !important; }
+  [data-theme="dark"] .badge.bg-info-subtle    { background: rgba(14,165,233,.18) !important; color: #38bdf8 !important; border-color: rgba(14,165,233,.3) !important; }
+  [data-theme="dark"] .badge.bg-secondary-subtle { background: rgba(100,116,139,.18) !important; color: #94a3b8 !important; }
+  [data-theme="dark"] .badge.bg-secondary { background: rgba(100,116,139,.3) !important; }
+
+  /* Separator row */
+  .separator-row td { background: var(--surface) !important; }
+  [data-theme="dark"] .separator-row td { background: rgba(30,41,59,.6) !important; }
+
+  /* Pagination */
+  [data-theme="dark"] .page-link { background: var(--card); border-color: var(--line); color: var(--text); }
+  [data-theme="dark"] .page-item.active .page-link { background: #2563eb; border-color: #2563eb; color: #fff; }
+  [data-theme="dark"] .page-item.disabled .page-link { background: transparent; color: var(--muted); border-color: var(--line); }
+
+  @media(max-width:991px) { .hist-stats { grid-template-columns: repeat(2,1fr); } }
+  @media(max-width:767px) {
+    .hist-header { padding: 16px 18px; }
+    .hist-stats { grid-template-columns: 1fr; padding: 14px 18px 0; }
+    .hist-table-section { padding: 14px 18px 18px; }
+    .hist-name { font-size: 1.2rem; }
+    .hist-balance-box { min-width: unset; flex: 1; }
+    .hist-actions { flex-direction: column; }
+    .hist-actions .btn { width: 100%; }
+  }
+</style>
+
+<div class="hist-shell">
+  <section class="mac-surface">
+    <!-- Compact Header -->
+    <header class="hist-header">
+      <div style="min-width:0;">
+        <a href="{{ url_for('client_detail', client_id=client.id) }}" class="hist-back">
+          <i class="bi bi-arrow-left"></i> Client #{{ client.id }}
+        </a>
+        <h1 class="hist-name">{{ client.name }}</h1>
+        <p class="hist-meta">{{ client.phone or '-' }} · {{ client.address or '-' }}</p>
+      </div>
+      <div class="hist-balance-box">
+        <div class="hist-balance-label">Solde Actuel</div>
+        <div class="hist-balance-value {% if client_balance > 0 %}text-danger{% elif client_balance < 0 %}text-success{% endif %}">
+          {{ client_balance|money }}
+        </div>
+      </div>
+    </header>
+
+    <!-- Stats Cards -->
+    <section class="hist-stats">
+      <div class="hist-stat stat-blue">
+        <div class="hist-stat-label">Opérations Excel</div>
+        <div class="hist-stat-value">{{ stats.nb_excel }}</div>
+      </div>
+      <div class="hist-stat stat-amber">
+        <div class="hist-stat-label">Opérations Appli</div>
+        <div class="hist-stat-value">{{ stats.nb_app }}</div>
+      </div>
+      <div class="hist-stat stat-red">
+        <div class="hist-stat-label">Total Achats</div>
+        <div class="hist-stat-value">{{ stats.total_achats|money }}</div>
+      </div>
+      <div class="hist-stat stat-green">
+        <div class="hist-stat-label">Total Versements</div>
+        <div class="hist-stat-value">{{ stats.total_versements|money }}</div>
+      </div>
+    </section>
+
+    <!-- Table -->
+    <section class="hist-table-section">
+      <div class="hist-table-bar">
+        <div>
+          <div class="hist-section-sub">Historique détaillé</div>
+          <h2 class="hist-section-title">Grand Livre des Mouvements</h2>
+        </div>
+        <div class="hist-actions">
+          <a href="{{ url_for('client_detail', client_id=client.id) }}" class="btn btn-outline-secondary btn-sm">Fiche Client</a>
+          <a href="{{ url_for('contacts', type='client') }}" class="btn btn-dark btn-sm">Liste des Clients</a>
+        </div>
+      </div>
+
+      <div class="table-responsive" style="border-radius:10px; max-height:none; overflow:visible;">
+        <table class="record-table align-middle">
+          <thead>
+            <tr>
+              <th style="width:110px;">Date</th>
+              <th>Désignation</th>
+              <th class="col-right" style="width:130px;">Prix d'achat</th>
+              <th class="col-right" style="width:130px;">Versement</th>
+              <th class="col-right" style="width:140px;">Reste à payer</th>
+              <th class="text-center" style="width:110px;">Type</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in history %}
+              {% if item.source == 'app' and loop.changed(item.source) %}
+                <tr class="separator-row" style="border-top:2px dashed var(--line);border-bottom:2px dashed var(--line);">
+                  <td colspan="6" class="text-center py-2">
+                    <span class="badge bg-secondary px-3 py-1 text-uppercase fw-semibold" style="font-size:.72rem; border-radius:8px;">
+                      <i class="bi bi-cpu me-1"></i> Opérations Appli
+                    </span>
+                  </td>
+                </tr>
+              {% endif %}
+
+              <tr>
+                <td>{{ item.operation_date }}</td>
+                <td><span class="fw-medium">{{ item.designation or '-' }}</span></td>
+                <td class="col-right">
+                  {% if item.montant_achat > 0 %}
+                    <span class="text-danger">{{ item.montant_achat|money }}</span>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td class="col-right">
+                  {% if item.montant_verse > 0 %}
+                    <span class="text-success">{{ item.montant_verse|money }}</span>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td class="col-right font-monospace">
+                  <strong class="{% if item.solde_cumule > 0 %}text-danger{% elif item.solde_cumule < 0 %}text-success{% endif %}">
+                    {{ item.solde_cumule|money }}
+                  </strong>
+                </td>
+                <td class="text-center">
+                  {% if item.type_operation == 'ouverture' %}
+                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1" style="border-radius:6px;">Ouverture</span>
+                  {% elif item.type_operation == 'achat' %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="border-radius:6px;">Crédit</span>
+                  {% elif item.type_operation == 'versement' %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="border-radius:6px;">Versement</span>
+                  {% elif item.type_operation == 'immediat' %}
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style="border-radius:6px;">Cash</span>
+                  {% elif item.type_operation == 'mixte' %}
+                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1" style="border-radius:6px;">Mixte</span>
+                  {% else %}
+                    <span class="badge bg-secondary-subtle text-secondary px-2 py-1" style="border-radius:6px;">-</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="6" class="text-center py-5 text-muted">
+                  <i class="bi bi-journal-x fs-2 d-block mb-2"></i>
+                  Aucun historique disponible pour ce client.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          
+          {% if history %}
+            <tfoot>
+              <tr class="fw-bold" style="background:var(--surface); border-top:2px solid var(--line);">
+                <td colspan="2" class="text-end py-3">Total Page :</td>
+                <td class="col-right text-danger py-3">
+                  {% set page_achat = history | map(attribute='montant_achat') | sum %}
+                  {% if page_achat > 0 %}{{ page_achat|money }}{% else %}-{% endif %}
+                </td>
+                <td class="col-right text-success py-3">
+                  {% set page_verse = history | map(attribute='montant_verse') | sum %}
+                  {% if page_verse > 0 %}{{ page_verse|money }}{% else %}-{% endif %}
+                </td>
+                <td colspan="2" class="py-3"></td>
+              </tr>
+            </tfoot>
+          {% endif %}
+        </table>
+      </div>
+
+      <div class="text-center mt-3 mb-2" style="font-size:.82rem; color:var(--muted);">
+          Page {{ page }} sur {{ total_pages }} · {{ total }} opérations au total
+        </div>
+      {% if total_pages > 1 %}
+        <nav aria-label="Page navigation">
+          <ul class="pagination justify-content-center gap-1 flex-wrap">
+            {% if page > 1 %}
+              <li class="page-item"><a class="page-link js-no-transition" href="{{ url_for('client_history_page', client_id=client.id) }}?page={{ page - 1 }}" style="border-radius:8px;">&laquo; Précédent</a></li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link" style="border-radius:8px;">&laquo; Précédent</span></li>
+            {% endif %}
+            {% for p in range(1, total_pages + 1) %}
+              {% if p == page %}
+                <li class="page-item active"><span class="page-link" style="border-radius:8px;">{{ p }}</span></li>
+              {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
+                <li class="page-item"><a class="page-link js-no-transition" href="{{ url_for('client_history_page', client_id=client.id) }}?page={{ p }}" style="border-radius:8px;">{{ p }}</a></li>
+              {% elif p == 4 or p == total_pages - 3 %}
+                <li class="page-item disabled"><span class="page-link" style="border-radius:8px;">…</span></li>
+              {% endif %}
+            {% endfor %}
+            {% if page < total_pages %}
+              <li class="page-item"><a class="page-link js-no-transition" href="{{ url_for('client_history_page', client_id=client.id) }}?page={{ page + 1 }}" style="border-radius:8px;">Suivant &raquo;</a></li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link" style="border-radius:8px;">Suivant &raquo;</span></li>
+            {% endif %}
+          </ul>
+        </nav>
+      {% endif %}
+    </section>
+  </section>
+</div>
+{% endblock %}

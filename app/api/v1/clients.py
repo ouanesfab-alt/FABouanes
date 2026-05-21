@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, UploadFile, File, Form
 import asyncio
 
 from app.api.deps import api_error, api_success, require_api_user
@@ -25,7 +25,8 @@ from app.services.catalog_service import (
 )
 from app.core.activity import log_activity
 from app.core.audit import audit_event
-from app.core.db_access import execute_db_async
+from app.core.db_access import execute_db_async, query_db
+
 
 from app.core.permissions import (
     PERMISSION_CATALOG_DELETE,
@@ -71,13 +72,149 @@ async def api_client_detail(request: Request, client_id: int):
     client["summary"] = detail.get("stats", {}) if detail else {}
     return json_response(api_success(client))
 
+def _fetch_client_history(client_id: int, page: int, page_size: int) -> tuple[list, int]:
+    # 1. Fetch all rows to calculate the running balance correctly across all pages
+    rows = query_db(
+        """
+        SELECT
+            id,
+            operation_date,
+            designation,
+            montant_achat,
+            montant_verse,
+            solde_cumule,
+            ordre_import,
+            source,
+            created_at
+        FROM client_history
+        WHERE client_id = %s
+        ORDER BY
+            CASE WHEN source = 'import_excel' THEN 0 ELSE 1 END,
+            CASE WHEN source = 'import_excel' THEN ordre_import ELSE NULL END,
+            CASE WHEN source = 'app'          THEN operation_date ELSE NULL END,
+            CASE WHEN source = 'app'          THEN id             ELSE NULL END
+        """,
+        (client_id,),
+    )
+    
+    total = len(rows)
+    
+    # 2. Calculate the running balance
+    current_balance = 0.0
+    processed_rows = []
+    
+    for r in rows:
+        m_achat = float(r["montant_achat"] or 0)
+        m_verse = float(r["montant_verse"] or 0)
+        
+        if r["source"] == "import_excel":
+            current_balance = float(r["solde_cumule"] or 0)
+            solde = current_balance
+        else:
+            current_balance = current_balance + m_achat - m_verse
+            solde = current_balance
+            
+        designation = r["designation"] or ""
+        ordre = r["ordre_import"] or 0
+        if r["source"] == "import_excel" and ordre == 0 and "ancien" in designation.lower():
+            type_op = "ouverture"
+        elif m_achat > 0 and m_verse == 0:
+            type_op = "achat"
+        elif m_achat == 0 and m_verse > 0:
+            type_op = "versement"
+        elif m_achat > 0 and m_verse > 0:
+            if abs(m_achat - m_verse) < 0.01:
+                type_op = "immediat"
+            else:
+                type_op = "mixte"
+        else:
+            type_op = "achat"
+            
+        processed_rows.append({
+            "operation_date": str(r["operation_date"]),
+            "designation": designation,
+            "montant_achat": m_achat,
+            "montant_verse": m_verse,
+            "solde_cumule": round(solde, 2),
+            "ordre_import": int(ordre),
+            "source": r["source"],
+            "type_operation": type_op,
+            "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+        })
+        
+    # 3. Apply pagination in memory
+    offset = (page - 1) * page_size
+    paginated = processed_rows[offset : offset + page_size]
+    
+    return paginated, total
+
+
+@router.post("/clients/import-history")
+async def import_client_history(
+    request: Request,
+    file: UploadFile = File(...),
+    client_id: int | None = Form(None),
+    force_reimport: bool = Form(True),
+):
+    require_api_user(request, PERMISSION_CONTACTS_WRITE)
+    import tempfile
+    import os
+    
+    suffix = os.path.splitext(file.filename)[1]
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        content = await file.read()
+        tmp.write(content)
+        temp_path = tmp.name
+
+    try:
+        from app.services.client_import_service import import_client_history_from_excel
+        result = await asyncio.to_thread(
+            import_client_history_from_excel,
+            temp_path,
+            client_id,
+            force_reimport
+        )
+        log_activity(
+            "import_client_history",
+            "client",
+            result["client_id"],
+            f"Import historique client '{result['client_name']}' - {result['nb_lignes']} lignes, solde final: {result['solde_final']}"
+        )
+        return json_response(api_success(result))
+    except Exception as e:
+        api_error("bad_request", f"Erreur lors de l'import : {str(e)}", 400)
+    finally:
+        try:
+            os.unlink(temp_path)
+        except Exception:
+            pass
+
+
 @router.get("/clients/{client_id}/history")
-async def api_client_history(request: Request, client_id: int):
+async def api_client_history(
+    request: Request,
+    client_id: int,
+    page: int = 1,
+    page_size: int = 50,
+):
     require_api_user(request, PERMISSION_CONTACTS_READ)
-    payload = await asyncio.to_thread(client_history_payload, client_id)
-    if not payload:
+    client_exists = await asyncio.to_thread(query_db, "SELECT 1 FROM clients WHERE id = %s", (client_id,), True)
+    if not client_exists:
         api_error("not_found", "Client introuvable.", 404)
-    return json_response(api_success(payload))
+        
+    rows, total = await asyncio.to_thread(_fetch_client_history, client_id, page, page_size)
+    import math
+    total_pages = math.ceil(total / page_size) if page_size > 0 else 1
+    
+    return json_response(api_success({
+        "client_id": client_id,
+        "rows": rows,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+    }))
+
 
 @router.api_route("/suppliers", methods=["GET", "POST"])
 async def api_suppliers(request: Request):

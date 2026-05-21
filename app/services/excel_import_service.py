@@ -4,7 +4,172 @@ import re
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
+import pandas as pd
+from decimal import Decimal, InvalidOperation
 
+
+def parse_client_history_excel(file_path: str) -> dict:
+    """
+    Parse un grand livre client au format Excel FABOuanes.
+
+    Structure attendue du fichier :
+      - iloc[0, 1] : nom du client
+      - iloc[1]    : ligne vide
+      - iloc[2]    : en-têtes (Date | Designation | Montant a Payer | Versement | Reste a Payer)
+      - iloc[3+]   : lignes de données
+
+    Retourne un dict avec :
+      {
+        "client_name": str,
+        "rows": [
+          {
+            "ordre_import": int,
+            "date": str,                # format ISO "YYYY-MM-DD"
+            "designation": str,
+            "montant_achat": float,
+            "montant_verse": float,
+            "solde_cumule": float,
+            "type_operation": str,      # "achat"|"versement"|"mixte"|"immediat"|"ouverture"
+          },
+          ...
+        ],
+        "solde_final": float,
+        "total_achats": float,
+        "total_verses": float,
+        "nb_lignes": int,
+        "nb_dates_hors_ordre": int,
+      }
+    """
+    # === Lecture du nom client ===
+    try:
+        raw = pd.read_excel(file_path, header=None)
+    except Exception as e:
+        raise ValueError(f"Impossible de lire le fichier Excel : {e}")
+
+    if raw.shape[0] < 3 or raw.shape[1] < 2:
+        raise ValueError("Le fichier Excel ne respecte pas le format attendu (trop petit).")
+
+    client_name = str(raw.iloc[0, 1]).strip()
+    if client_name.lower() in ("nan", "none", ""):
+        client_name = "Client inconnu"
+
+    # === Lecture des données ===
+    try:
+        df = pd.read_excel(
+            file_path,
+            skiprows=2,  # saute ligne nom + ligne vide
+            header=0,    # la ligne 3 (index 2) est l'en-tête
+            usecols=[0, 1, 2, 3, 4],
+            names=["date_raw", "designation", "montant_achat_raw",
+                   "montant_verse_raw", "solde_cumule_raw"],
+            dtype=str,
+        )
+    except Exception as e:
+        raise ValueError(f"Erreur lors de la lecture des lignes de données : {e}")
+
+    rows = []
+    ordre = 0
+
+    for _, row in df.iterrows():
+        date_str = str(row.get("date_raw", "")).strip()
+
+        # Ignorer les lignes sans date valide ou lignes d'en-tête répétées
+        if not date_str or date_str.lower() in ("nan", "none", "date", ""):
+            continue
+
+        # Parser la date (format JJ/MM/AAAA)
+        try:
+            date_parsed = pd.to_datetime(
+                date_str, dayfirst=True, errors="raise"
+            ).date().isoformat()
+        except Exception:
+            continue  # ignorer les lignes avec date illisible
+
+        montant_achat = _to_float(row.get("montant_achat_raw"))
+        montant_verse = _to_float(row.get("montant_verse_raw"))
+        solde_cumule  = _to_float(row.get("solde_cumule_raw"))
+        
+        designation   = str(row.get("designation", "")).strip()
+        if designation.lower() in ("nan", "none"):
+            designation = ""
+
+        # Déterminer le type d'opération
+        type_op = _classify_operation(
+            designation, montant_achat, montant_verse, ordre
+        )
+
+        rows.append({
+            "ordre_import":  ordre,
+            "date":          date_parsed,
+            "designation":   designation,
+            "montant_achat": montant_achat,
+            "montant_verse": montant_verse,
+            "solde_cumule":  solde_cumule,
+            "type_operation": type_op,
+        })
+        ordre += 1
+
+    if not rows:
+        raise ValueError("Aucune ligne de données valide trouvée dans le fichier Excel.")
+
+    # Compter les dates hors ordre
+    nb_hors_ordre = 0
+    for i in range(1, len(rows)):
+        if rows[i]["date"] < rows[i-1]["date"]:
+            nb_hors_ordre += 1
+
+    return {
+        "client_name":        client_name,
+        "rows":               rows,
+        "solde_final":        rows[-1]["solde_cumule"],
+        "total_achats":       sum(r["montant_achat"] for r in rows),
+        "total_verses":       sum(r["montant_verse"] for r in rows),
+        "nb_lignes":          len(rows),
+        "nb_dates_hors_ordre": nb_hors_ordre,
+    }
+
+
+def _to_float(val) -> float:
+    """Convertit une valeur brute Excel en float, 0.0 si vide/invalide."""
+    try:
+        s = str(val or "").strip().replace(" ", "").replace("\xa0", "").replace(",", ".")
+        if s.lower() in ("nan", "none", ""):
+            return 0.0
+        return float(Decimal(s))
+    except (InvalidOperation, ValueError):
+        return 0.0
+
+
+def _classify_operation(
+    designation: str,
+    montant_achat: float,
+    montant_verse: float,
+    ordre: int
+) -> str:
+    """
+    Classifie le type d'opération pour l'affichage.
+
+    Règles :
+    - ordre == 0 ET designation contient "ancien" → "ouverture"
+    - purchase > 0 ET verse == 0  → "achat"
+    - purchase == 0 ET verse > 0  → "versement"
+    - purchase > 0 ET verse > 0 ET purchase == verse → "immediat" (payé cash)
+    - purchase > 0 ET verse > 0 ET purchase != verse → "mixte"
+    """
+    if ordre == 0 and "ancien" in designation.lower():
+        return "ouverture"
+    if montant_achat > 0 and montant_verse == 0:
+        return "achat"
+    if montant_achat == 0 and montant_verse > 0:
+        return "versement"
+    if montant_achat > 0 and montant_verse > 0:
+        if abs(montant_achat - montant_verse) < 0.01:
+            return "immediat"
+        return "mixte"
+    return "achat"  # fallback
+
+
+# === FONCTIONS ORIGINALES RESTAURÉES ===
 
 def parse_flexible_date(value) -> str:
     if isinstance(value, datetime):
