@@ -337,24 +337,17 @@ class DatabaseManager:
         db = self.get_db()
         started = monotonic()
         
-        is_insert = bool(re.match(r"\s*INSERT\s+INTO\s+", str(query or ""), flags=re.I))
+        has_returning = bool(re.search(r"\breturning\b", query, flags=re.I))
         
-        adapted_query = query
-        has_returning = False
-        if is_insert:
-            if " returning " not in query.lower():
-                match = re.match(r"\s*INSERT\s+INTO\s+([a-zA-Z_][a-zA-Z0-9_]*)\b", str(query or ""), flags=re.I)
-                if match:
-                    table = match.group(1).lower()
-                    if table not in {"app_settings", "schema_migrations"}:
-                        adapted_query = query.rstrip().rstrip(";") + " RETURNING id"
-                        has_returning = True
-
         try:
-            cur = db.execute(adapted_query, params)
+            cur = db.execute(query, params)
+            last_id = None
             if has_returning:
-                row = cur.fetchone()
-                last_id = row[0] if row else None
+                try:
+                    row = cur.fetchone()
+                    last_id = row[0] if row else None
+                except Exception:
+                    pass
             else:
                 last_id = cur.lastrowid
                 
@@ -374,6 +367,7 @@ class DatabaseManager:
         self._record_sql_timing(query, params, (monotonic() - started) * 1000.0)
         self._invalidate_after_write(query)
         return int(last_id or 0)
+
 
     async def execute_db_async(self, query: str, params: tuple = ()) -> int:
         return await asyncio.to_thread(self.execute_db, query, params)
@@ -409,17 +403,33 @@ class DatabaseManager:
         db = self.get_db()
         previous_depth = self._tx_depth()
         self._set_tx_depth(previous_depth + 1)
+        savepoint_name = f"sp_depth_{previous_depth}"
+        if previous_depth > 0:
+            cur = db.execute(f"SAVEPOINT {savepoint_name}")
+            cur.close()
         try:
             yield db
         except Exception:
-            if previous_depth == 0:
+            if previous_depth > 0:
+                try:
+                    cur = db.execute(f"ROLLBACK TO SAVEPOINT {savepoint_name}")
+                    cur.close()
+                except Exception as e2:
+                    logger.debug("Ignored savepoint rollback error: %s", e2, exc_info=False)
+            else:
                 try:
                     db.rollback()
                 except Exception as e2:
                     logger.debug("Ignored error: %s", e2, exc_info=False)
             raise
         else:
-            if previous_depth == 0:
+            if previous_depth > 0:
+                try:
+                    cur = db.execute(f"RELEASE SAVEPOINT {savepoint_name}")
+                    cur.close()
+                except Exception as e2:
+                    logger.debug("Ignored savepoint release error: %s", e2, exc_info=False)
+            else:
                 db.commit()
         finally:
             self._set_tx_depth(previous_depth)

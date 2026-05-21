@@ -6,7 +6,7 @@
     windows:'#0067c0',
     'windows-dark':'#202020'
   };
-  const fonts={jakarta:true,arial:true,calibri:true,system:true};
+  const fonts={jakarta:true,google:true,system:true};
   const navLayouts={horizontal:true,vertical:true};
 
   function readStorage(key,fallback){
@@ -50,7 +50,7 @@
   }
 
   function applyFont(font){
-    const name=fonts[font]?font:'system';
+    const name=fonts[font]?font:'jakarta';
     document.documentElement.setAttribute('data-font',name);
     markSelected('.js-font','font',name);
   }
@@ -91,7 +91,7 @@
   }catch(e){}
 
   applyTheme(readStorage('fab_theme','light'));
-  applyFont(readStorage('fab_font','system'));
+  applyFont(readStorage('fab_font','jakarta'));
   applyNavHidden(readStorage('fab_nav_hidden','0')==='1');
   applyNavLayout(readStorage('fab_nav_layout','horizontal'));
 

@@ -214,7 +214,7 @@ def create_purchase_record(
         unit_price_kg = unit_price_to_kg(unit_price, unit)
 
         if item_kind == "raw":
-            material = query_db("SELECT * FROM raw_materials WHERE id = %s", (real_item_id,), one=True)
+            material = query_db("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (real_item_id,), one=True)
             if not material:
                 raise NotFoundError("Matière première", real_item_id)
             if is_other_operation_name(material["name"]):
@@ -240,7 +240,7 @@ def create_purchase_record(
             execute_db("UPDATE raw_materials SET stock_qty = %s, avg_cost = %s, sale_price = %s WHERE id = %s", (stock_after, avg_cost, sale_price, real_item_id))
             record_stock_movement("raw", real_item_id, "in", qty_kg, "kg", stock_before, stock_after, "create_purchase", "purchase", purchase_id)
         else:
-            product = query_db("SELECT * FROM finished_products WHERE id = %s", (real_item_id,), one=True)
+            product = query_db("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (real_item_id,), one=True)
             if not product:
                 raise NotFoundError("Produit fini", real_item_id)
             
@@ -296,7 +296,7 @@ def create_sale_record(
         if item_kind == "finished":
             qty_kg = qty_to_kg(qty, unit)
             unit_price_kg = unit_price_to_kg(unit_price, unit)
-            item = query_db("SELECT * FROM finished_products WHERE id = %s", (item_id,), one=True)
+            item = query_db("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (item_id,), one=True)
             if not item:
                 raise NotFoundError("Produit fini", item_id)
             stock_before = float(item["stock_qty"])
@@ -325,7 +325,7 @@ def create_sale_record(
                 _flash_warning(f"Vente sous cout : {unit_price_kg:.2f} DA/kg < cout de revient {cost_snapshot:.2f} DA/kg.")
             return "finished", row_id
 
-        item = query_db("SELECT * FROM raw_materials WHERE id = %s", (item_id,), one=True)
+        item = query_db("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (item_id,), one=True)
         if not item:
             raise NotFoundError("Matière première", item_id)
         custom_item_name = str(custom_item_name or "").strip()
@@ -371,7 +371,7 @@ def reverse_purchase(purchase_id: int) -> bool:
             return False
         
         if row["finished_product_id"]:
-            product = query_db("SELECT * FROM finished_products WHERE id = %s", (row["finished_product_id"],), one=True)
+            product = query_db("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (row["finished_product_id"],), one=True)
             if not product or float(product["stock_qty"]) < float(row["quantity"]):
                 return False
             stock_before = float(product["stock_qty"])
@@ -386,7 +386,7 @@ def reverse_purchase(purchase_id: int) -> bool:
             execute_db("DELETE FROM purchases WHERE id = %s", (purchase_id,))
             record_stock_movement("finished", int(row["finished_product_id"]), "out", float(row["quantity"]), "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id)
         else:
-            material = query_db("SELECT * FROM raw_materials WHERE id = %s", (row["raw_material_id"],), one=True)
+            material = query_db("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (row["raw_material_id"],), one=True)
             if not material or float(material["stock_qty"]) < float(row["quantity"]):
                 return False
             stock_before = float(material["stock_qty"])
@@ -411,7 +411,7 @@ def reverse_sale(kind: str, row_id: int) -> bool:
             row = query_db("SELECT * FROM sales WHERE id = %s", (row_id,), one=True)
             if not row:
                 return False
-            product = query_db("SELECT stock_qty FROM finished_products WHERE id = %s", (row["finished_product_id"],), one=True)
+            product = query_db("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (row["finished_product_id"],), one=True)
             stock_before = float(product["stock_qty"] if product else 0)
             restore_qty = qty_to_kg(float(row["quantity"]), row["unit"])
             stock_after = stock_before + restore_qty
@@ -424,7 +424,7 @@ def reverse_sale(kind: str, row_id: int) -> bool:
         row = query_db("SELECT * FROM raw_sales WHERE id = %s", (row_id,), one=True)
         if not row:
             return False
-        material = query_db("SELECT stock_qty FROM raw_materials WHERE id = %s", (row["raw_material_id"],), one=True)
+        material = query_db("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (row["raw_material_id"],), one=True)
         stock_before = float(material["stock_qty"] if material else 0)
         restore_qty = qty_to_kg(float(row["quantity"]), row["unit"])
         stock_after = stock_before + restore_qty
@@ -437,23 +437,31 @@ def reverse_sale(kind: str, row_id: int) -> bool:
 
 
 def apply_raw_material_consumption(material, qty: float, reference_type: str, reference_id: int, reason: str = "production") -> None:
-    stock_before = float(material["stock_qty"])
+    material_id = int(material["id"])
+    db_material = query_db("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (material_id,), one=True)
+    if not db_material:
+        raise ValueError(f"Matière première introuvable: {material_id}")
+    stock_before = float(db_material["stock_qty"])
     stock_after = stock_before - float(qty)
     if stock_after < -1e-9:
-        raise ValueError(f"Stock insuffisant pour {material['name']}.")
-    execute_db("UPDATE raw_materials SET stock_qty = %s WHERE id = %s", (stock_after, int(material["id"])))
-    record_stock_movement("raw", int(material["id"]), "out", float(qty), "kg", stock_before, stock_after, reason, reference_type, reference_id)
+        raise ValueError(f"Stock insuffisant pour {db_material['name']}.")
+    execute_db("UPDATE raw_materials SET stock_qty = %s WHERE id = %s", (stock_after, material_id))
+    record_stock_movement("raw", material_id, "out", float(qty), "kg", stock_before, stock_after, reason, reference_type, reference_id)
 
 
 def apply_finished_production(product, output_qty: float, total_cost: float, reference_id: int) -> None:
-    stock_before = float(product["stock_qty"])
-    current_value = stock_before * float(product["avg_cost"])
+    product_id = int(product["id"])
+    db_product = query_db("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (product_id,), one=True)
+    if not db_product:
+        raise ValueError(f"Produit fini introuvable: {product_id}")
+    stock_before = float(db_product["stock_qty"])
+    current_value = stock_before * float(db_product["avg_cost"])
     new_value = current_value + float(total_cost)
     stock_after = stock_before + float(output_qty)
     new_avg = (new_value / stock_after) if stock_after > 0 else 0
-    sale_price = float(product["sale_price"]) if float(product["sale_price"]) > 0 else new_avg * 1.15
-    execute_db("UPDATE finished_products SET stock_qty = %s, avg_cost = %s, sale_price = %s WHERE id = %s", (stock_after, new_avg, sale_price, int(product["id"])))
-    record_stock_movement("finished", int(product["id"]), "in", float(output_qty), "kg", stock_before, stock_after, "create_production", "production", reference_id)
+    sale_price = float(db_product["sale_price"]) if float(db_product["sale_price"]) > 0 else new_avg * 1.15
+    execute_db("UPDATE finished_products SET stock_qty = %s, avg_cost = %s, sale_price = %s WHERE id = %s", (stock_after, new_avg, sale_price, product_id))
+    record_stock_movement("finished", product_id, "in", float(output_qty), "kg", stock_before, stock_after, "create_production", "production", reference_id)
 
 
 def reverse_production(batch_id: int) -> bool:
@@ -461,12 +469,12 @@ def reverse_production(batch_id: int) -> bool:
         batch = query_db("SELECT * FROM production_batches WHERE id = %s", (batch_id,), one=True)
         if not batch:
             return False
-        product = query_db("SELECT * FROM finished_products WHERE id = %s", (batch["finished_product_id"],), one=True)
+        product = query_db("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (batch["finished_product_id"],), one=True)
         if not product or float(product["stock_qty"]) < float(batch["output_quantity"]):
             return False
         items = query_db("SELECT * FROM production_batch_items WHERE batch_id = %s", (batch_id,))
         for item in items:
-            material = query_db("SELECT stock_qty FROM raw_materials WHERE id = %s", (item["raw_material_id"],), one=True)
+            material = query_db("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (item["raw_material_id"],), one=True)
             stock_before = float(material["stock_qty"] if material else 0)
             stock_after = stock_before + float(item["quantity"])
             execute_db("UPDATE raw_materials SET stock_qty = %s WHERE id = %s", (stock_after, item["raw_material_id"]))
