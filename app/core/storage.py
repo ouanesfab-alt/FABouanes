@@ -170,8 +170,8 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
     ensure_runtime_dirs()
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_reason = reason.replace(" ", "_")
-    # Nom final (compressé)
-    final_name = f"database_{stamp}_{safe_reason}.sql.gz"
+    # Nom final (compressé et chiffré)
+    final_name = f"database_{stamp}_{safe_reason}{BACKUP_SUFFIX}"
     final_path = LOCAL_BACKUP_DIR / final_name
 
     parsed = urlparse(DATABASE_URL)
@@ -354,7 +354,7 @@ def restore_database_from(path_str: str) -> None:
     verify_backup_file(path, expected_sha256=stored_sha256)
 
     from app.core.db import connect_database
-    from app.core.db_compat import split_sql_script
+    from app.core.sql_compat import split_sql_script
 
     # Lire le SQL (déchiffrement puis décompression si applicable)
     if path.name.endswith(".enc"):
@@ -463,7 +463,7 @@ def verify_backup_file(path: Path, *, expected_sha256: str | None = None) -> dic
         "engine": "postgres",
         "path": str(path),
         "sha256_verified": expected_sha256 is not None,
-        "compressed": path.name.endswith(".sql.gz"),
+        "compressed": path.name.endswith(".sql.gz") or path.name.endswith(".sql.gz.enc"),
     }
 
 

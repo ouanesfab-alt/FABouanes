@@ -22,8 +22,8 @@ def create_user(
     username: str,
     password_hash: str,
     role: str = "operator",
-    must_change_password: int = 0,
-    is_active: int = 1,
+    must_change_password: bool = False,
+    is_active: bool = True,
 ) -> int:
     return execute_db(
         """
@@ -36,11 +36,11 @@ def create_user(
             last_password_change_at
         ) VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
         """,
-        (username, password_hash, normalize_role(role), must_change_password, int(bool(is_active))),
+        (username, password_hash, normalize_role(role), bool(must_change_password), bool(is_active)),
     )
 
 
-def update_password(user_id: int, password_hash: str, must_change_password: int = 0) -> int:
+def update_password(user_id: int, password_hash: str, must_change_password: bool = False) -> int:
     return execute_db(
         """
         UPDATE users
@@ -49,14 +49,14 @@ def update_password(user_id: int, password_hash: str, must_change_password: int 
             last_password_change_at = CURRENT_TIMESTAMP
         WHERE id = %s
         """,
-        (password_hash, must_change_password, user_id),
+        (password_hash, bool(must_change_password), user_id),
     )
 
 
-def update_user_role_and_status(user_id: int, role: str, is_active: int) -> int:
+def update_user_role_and_status(user_id: int, role: str, is_active: bool) -> int:
     return execute_db(
         "UPDATE users SET role = %s, is_active = %s WHERE id = %s",
-        (normalize_role(role), int(bool(is_active)), user_id),
+        (normalize_role(role), bool(is_active), user_id),
     )
 
 

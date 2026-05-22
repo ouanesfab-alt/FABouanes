@@ -148,9 +148,9 @@ def _retention_limit_for_type(backup_type: str) -> int:
 
 
 def _apply_retention_to_directory(directory: Path, backup_type: str) -> None:
-    # Gestion des deux extensions : .sql.gz (nouveau) et .sql (legacy)
+    # Gestion des extensions de sauvegarde (.sql.gz.enc, .sql.gz, .sql)
     all_files = []
-    for pattern in ("*.sql.gz", "*.sql"):
+    for pattern in ("*.sql.gz.enc", "*.sql.gz", "*.sql"):
         all_files.extend(directory.glob(pattern))
     files = sorted(set(all_files), key=lambda p: p.stat().st_mtime, reverse=True)
     limit = _retention_limit_for_type(backup_type)

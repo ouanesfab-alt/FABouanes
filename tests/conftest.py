@@ -136,6 +136,8 @@ def clean_runtime():
         shutil.rmtree(TEST_DATA_DIR, ignore_errors=True)
     TEST_DATA_DIR.mkdir(parents=True, exist_ok=True)
     _reset_database()
+    from app.core import database
+    database._BOOTSTRAPPED = False
     bootstrap_and_migrate()
     yield
     _stop_postgres_cluster()

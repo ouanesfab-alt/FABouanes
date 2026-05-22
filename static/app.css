@@ -3862,6 +3862,52 @@ html.theme-changing .btn {
   border-color: #30363d !important;
 }
 
+[data-theme="dark"] .btn-primary,
+[data-theme="windows-dark"] .btn-primary {
+  background: #007aff !important;
+  border-color: #007aff !important;
+  color: #fff !important;
+}
+
+[data-theme="dark"] .btn-primary:hover,
+[data-theme="windows-dark"] .btn-primary:hover {
+  background: #0062cc !important;
+  border-color: #005cbf !important;
+  color: #fff !important;
+}
+
+[data-theme="dark"] .btn-primary:active,
+[data-theme="dark"] .btn-primary:focus,
+[data-theme="windows-dark"] .btn-primary:active,
+[data-theme="windows-dark"] .btn-primary:focus {
+  background: #0062cc !important;
+  border-color: #005cbf !important;
+  color: #fff !important;
+}
+
+[data-theme="dark"] .btn-success,
+[data-theme="windows-dark"] .btn-success {
+  background: #30d158 !important;
+  border-color: #30d158 !important;
+  color: #fff !important;
+}
+
+[data-theme="dark"] .btn-success:hover,
+[data-theme="windows-dark"] .btn-success:hover {
+  background: #24ab44 !important;
+  border-color: #1e8f37 !important;
+  color: #fff !important;
+}
+
+[data-theme="dark"] .btn-success:active,
+[data-theme="dark"] .btn-success:focus,
+[data-theme="windows-dark"] .btn-success:active,
+[data-theme="windows-dark"] .btn-success:focus {
+  background: #24ab44 !important;
+  border-color: #1e8f37 !important;
+  color: #fff !important;
+}
+
 [data-theme="dark"] .btn-warning,
 [data-theme="windows-dark"] .btn-warning {
   background: #d97706 !important;
@@ -3884,6 +3930,18 @@ html.theme-changing .btn {
   border-color: #b45309 !important;
   color: #fff !important;
 }
+
+[data-theme="dark"] a.btn-primary,
+[data-theme="dark"] a.btn-success,
+[data-theme="dark"] a.btn-warning,
+[data-theme="dark"] a.btn-danger,
+[data-theme="windows-dark"] a.btn-primary,
+[data-theme="windows-dark"] a.btn-success,
+[data-theme="windows-dark"] a.btn-warning,
+[data-theme="windows-dark"] a.btn-danger {
+  color: #ffffff !important;
+}
+
 
 [data-theme="dark"] .table> :not(caption)>*>*,
 [data-theme="windows-dark"] .table> :not(caption)>*>* {
