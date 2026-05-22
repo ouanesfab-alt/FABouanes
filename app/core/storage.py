@@ -232,7 +232,7 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
 
         conn = connect_database(DATABASE_URL)
         try:
-            # Lecture des tables dans l'ordre topologique (dépendances FK)
+            # 1. Fetch tables
             cur = conn.execute(
                 """
                 SELECT tablename
@@ -243,6 +243,51 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
             )
             tables = [r[0] if not hasattr(r, "keys") else r["tablename"] for r in cur.fetchall()]
             cur.close()
+
+            # 2. Fetch foreign key dependencies
+            cur = conn.execute(
+                """
+                SELECT
+                    tc.table_name AS child_table,
+                    ccu.table_name AS parent_table
+                FROM
+                    information_schema.table_constraints AS tc
+                    JOIN information_schema.key_column_usage AS kcu
+                      ON tc.constraint_name = kcu.constraint_name
+                      AND tc.table_schema = kcu.table_schema
+                    JOIN information_schema.constraint_column_usage AS ccu
+                      ON ccu.constraint_name = tc.constraint_name
+                      AND ccu.table_schema = tc.table_schema
+                WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public'
+                """
+            )
+            deps_raw = cur.fetchall()
+            cur.close()
+
+            dependencies = {}
+            for dep in deps_raw:
+                child = dep[0] if not hasattr(dep, "keys") else dep["child_table"]
+                parent = dep[1] if not hasattr(dep, "keys") else dep["parent_table"]
+                if child not in dependencies:
+                    dependencies[child] = set()
+                dependencies[child].add(parent)
+
+            # 3. Topological sort
+            visited = {}
+            ordered_tables = []
+
+            def visit(node):
+                if visited.get(node) == "visiting" or visited.get(node) == "visited":
+                    return
+                visited[node] = "visiting"
+                for parent in dependencies.get(node, []):
+                    if parent in tables:
+                        visit(parent)
+                visited[node] = "visited"
+                ordered_tables.append(node)
+
+            for table in tables:
+                visit(table)
 
             with tempfile.NamedTemporaryFile(
                 mode="wt",
@@ -257,7 +302,13 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
                 tmp_f.write("BEGIN;\n")
                 tmp_f.write("SET CONSTRAINTS ALL DEFERRED;\n\n")
 
-                for table in tables:
+                # Deletions in child-to-parent order
+                for table in reversed(ordered_tables):
+                    tmp_f.write(f"DELETE FROM {table};\n")
+                tmp_f.write("\n")
+
+                # Insertions in parent-to-child order
+                for table in ordered_tables:
                     # Colonnes
                     cur = conn.execute(
                         "SELECT column_name FROM information_schema.columns "
@@ -267,9 +318,6 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
                     )
                     cols = [r[0] if not hasattr(r, "keys") else r["column_name"] for r in cur.fetchall()]
                     cur.close()
-
-                    # DELETE au lieu de TRUNCATE CASCADE pour éviter les suppressions en cascade
-                    tmp_f.write(f"DELETE FROM {table};\n")
 
                     cur = conn.execute(f"SELECT * FROM {table}")
                     rows = cur.fetchall()
