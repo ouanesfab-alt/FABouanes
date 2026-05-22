@@ -42,7 +42,7 @@
       <h2 class="section-title mb-1">Operations</h2>
     </div>
     <div class="transactions-actions">
-      <a href="{{ url_for('new_operation') }}" class="btn btn-warning">
+      <a href="{{ url_for('new_operation') }}" class="btn btn-success">
         <i class="bi bi-plus-lg me-1"></i>Ajouter une opération
       </a>
       <a href="{{ url_for('operations', type='all') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='all' else 'btn-outline-secondary' }}">Toutes</a>
