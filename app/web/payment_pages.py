@@ -44,7 +44,7 @@ async def payments_submit(request: Request):
     set_state_value("submitted_form", form)
     try:
         create_payment_from_form(form)
-        flash(request, "Paiement enregistre.", "success")
+        flash(request, "Paiement enregistré.", "success")
     except Exception as exc:
         flash(request, str(exc), "danger")
     return RedirectResponse(PAYMENTS_FILTER_URL, status_code=303)
@@ -80,7 +80,7 @@ async def new_payment_submit(request: Request):
     mode = form.get("payment_type", "versement")
     try:
         payment_id, payment_type = create_payment_from_form(form)
-        flash(request, "Avance enregistree." if payment_type == "avance" else "Versement enregistre.", "success")
+        flash(request, "Avance enregistrée." if payment_type == "avance" else "Versement enregistré.", "success")
         if wants_print_after_submit():
             return RedirectResponse(f"/print/payment/{payment_id}", status_code=303)
         return RedirectResponse(PAYMENTS_FILTER_URL, status_code=303)
@@ -120,7 +120,7 @@ async def edit_payment_submit(request: Request, payment_id: int):
     set_state_value("submitted_form", form)
     try:
         edit_payment_from_form(payment_id, form)
-        flash(request, "Transaction client modifiee.", "success")
+        flash(request, "Transaction client modifiée.", "success")
     except Exception as exc:
         flash(request, str(exc), "danger")
         return RedirectResponse(str(request.url), status_code=303)
@@ -135,7 +135,7 @@ async def delete_payment(request: Request, payment_id: int):
         return denied
     await csrf_protect(request)
     if delete_payment_by_id(payment_id):
-        flash(request, "Transaction client supprimee.", "success")
+        flash(request, "Transaction client supprimée.", "success")
     else:
         flash(request, "Transaction introuvable.", "danger")
     return RedirectResponse(PAYMENTS_FILTER_URL, status_code=303)

@@ -42,7 +42,7 @@ async def purchases_submit(request: Request):
     set_state_value("submitted_form", form)
     try:
         create_purchase_from_form(form)
-        flash(request, "Achat enregistre et stock mis a jour.", "success")
+        flash(request, "Achat enregistré et stock mis à jour.", "success")
     except Exception as exc:
         flash(request, str(exc), "danger")
     return RedirectResponse(PURCHASES_FILTER_URL, status_code=303)
@@ -76,7 +76,7 @@ async def new_purchase_submit(request: Request):
     set_state_value("submitted_form", form)
     try:
         created = create_purchase_from_form(form)
-        flash(request, "Achat enregistre avec succes.", "success")
+        flash(request, "Achat enregistré avec succès.", "success")
         if wants_print_after_submit():
             return RedirectResponse(f"/print/{created['print_doc_type']}/{created['print_item_id']}", status_code=303)
         return RedirectResponse(PURCHASES_FILTER_URL, status_code=303)
@@ -118,7 +118,7 @@ async def edit_purchase_document_submit(request: Request, document_id: int):
     set_state_value("submitted_form", form)
     try:
         edit_purchase_document_from_form(document_id, form)
-        flash(request, "Bon d'achat modifie.", "success")
+        flash(request, "Bon d'achat modifié.", "success")
     except Exception as exc:
         flash(request, str(exc), "danger")
         return RedirectResponse(str(request.url), status_code=303)
@@ -160,7 +160,7 @@ async def edit_purchase_submit(request: Request, purchase_id: int):
     set_state_value("submitted_form", form)
     try:
         edit_purchase_from_form(purchase_id, form)
-        flash(request, "Achat modifie.", "success")
+        flash(request, "Achat modifié.", "success")
     except Exception as exc:
         flash(request, str(exc), "danger")
         return RedirectResponse(str(request.url), status_code=303)
@@ -175,7 +175,7 @@ async def delete_purchase(request: Request, purchase_id: int):
         return denied
     await csrf_protect(request)
     if delete_purchase_by_id(purchase_id):
-        flash(request, "Achat supprime et stock corrige.", "success")
+        flash(request, "Achat supprimé et stock corrigé.", "success")
     else:
         flash(request, "Impossible de supprimer cet achat.", "danger")
     return RedirectResponse(PURCHASES_FILTER_URL, status_code=303)

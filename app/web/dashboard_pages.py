@@ -71,7 +71,7 @@ async def api_kpi_at_date(request: Request):
         "sales": "Ventes",
         "cash": "Encaisse",
         "profit": "Profit",
-        "receivables": "Creances",
+        "receivables": "Créances",
     }
     try:
         values = get_kpis_for_date(target_date)

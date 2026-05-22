@@ -31,7 +31,7 @@ async def production_submit(request: Request):
     set_state_value("submitted_form", form)
     try:
         create_production_from_form(form)
-        flash(request, "Production multi-matieres enregistree avec cout de revient.", "success")
+        flash(request, "Production multi-matières enregistrée avec coût de revient.", "success")
     except Exception as exc:
         flash(request, str(exc), "danger")
     return RedirectResponse("/production", status_code=303)
@@ -56,9 +56,9 @@ async def new_production_submit(request: Request):
     try:
         result = create_production_from_form(form)
         if result["recipe_id"]:
-            flash(request, f"Production enregistree. Recette sauvegardee ({result['recipe_label']}). Reste theorique: {result['remainder']:.2f} kg.", "success")
+            flash(request, f"Production enregistrée. Recette sauvegardée ({result['recipe_label']}). Reste théorique : {result['remainder']:.2f} kg.", "success")
         else:
-            flash(request, f"Production enregistree avec recette et cout de revient. Reste theorique: {result['remainder']:.2f} kg.", "success")
+            flash(request, f"Production enregistrée avec recette et coût de revient. Reste théorique : {result['remainder']:.2f} kg.", "success")
         if wants_print_after_submit():
             return RedirectResponse(f"/print/production/{result['batch_id']}", status_code=303)
         return RedirectResponse("/production", status_code=303)
@@ -74,7 +74,7 @@ async def delete_production(request: Request, batch_id: int):
         return denied
     await csrf_protect(request)
     if delete_production_by_id(batch_id):
-        flash(request, "Production supprimee et stock corrige.", "success")
+        flash(request, "Production supprimée et stock corrigé.", "success")
     else:
         flash(request, "Impossible de supprimer cette production.", "danger")
     return RedirectResponse("/production", status_code=303)

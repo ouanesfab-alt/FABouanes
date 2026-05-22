@@ -71,7 +71,7 @@ async def clients_submit(request: Request):
         return RedirectResponse(NEW_CLIENT_URL, status_code=303)
         
     create_client_from_form(validated.model_dump())
-    flash(request, "Client ajoute avec succes.", "success")
+    flash(request, "Client ajouté avec succès.", "success")
     return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
 
 
@@ -114,7 +114,7 @@ async def new_client_submit(request: Request):
         )
         
     create_client_from_form(validated.model_dump())
-    flash(request, "Client ajoute avec succes.", "success")
+    flash(request, "Client ajouté avec succès.", "success")
     return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
 
 
@@ -157,12 +157,12 @@ async def import_clients_submit(request: Request):
                 "token": "",
             }
             return templates.TemplateResponse("client_import.html", template_context(request, preview=preview))
-        flash(request, f"Import termine : {result['created']} client(s) crees, {result['updated']} mis a jour avec dernier solde.", "success")
+        flash(request, f"Import terminé : {result['created']} client(s) créés, {result['updated']} mis à jour avec dernier solde.", "success")
         return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
 
     files = form.getlist("excel_files")
     if not files:
-        flash(request, "Ajoute au moins un fichier Excel.", "warning")
+        flash(request, "Ajoutez au moins un fichier Excel.", "warning")
         return RedirectResponse(IMPORT_CLIENTS_URL, status_code=303)
 
     if action == "preview":
@@ -177,7 +177,7 @@ async def import_clients_submit(request: Request):
     for err in result["errors"][:5]:
         flash(request, err, "danger")
     level = "success" if (result["created"] or result["updated"]) else "warning"
-    flash(request, f"Import termine : {result['created']} client(s) crees, {result['updated']} mis a jour avec dernier solde.", level)
+    flash(request, f"Import terminé : {result['created']} client(s) créés, {result['updated']} mis à jour avec dernier solde.", level)
     return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
 
 
@@ -281,7 +281,7 @@ async def edit_client_submit(request: Request, client_id: int):
         )
         
     update_client_from_form(client_id, validated.model_dump())
-    flash(request, "Client modifie avec succes.", "success")
+    flash(request, "Client modifié avec succès.", "success")
     return RedirectResponse(f"/contacts/clients/{client_id}", status_code=303)
 
 
@@ -303,7 +303,7 @@ async def delete_client(request: Request, client_id: int):
     execute_db("DELETE FROM clients WHERE id = %s", (client_id,))
     log_activity("delete_client", "client", client_id, "Suppression client")
     backup_database("delete_client")
-    flash(request, "Client supprime.", "success")
+    flash(request, "Client supprimé.", "success")
     return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
 
 

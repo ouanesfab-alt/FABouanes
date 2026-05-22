@@ -45,7 +45,7 @@ def create_user_account(username: str, password: str, role: str):
         mark_backup_needed("create_user")
     except Exception:
         pass
-    return {"ok": True, "message": "Compte cree avec succes."}
+    return {"ok": True, "message": "Compte créé avec succès."}
 
 
 def update_user_account(user_id: int, role: str, is_active: bool, new_password: str = ""):
@@ -77,13 +77,13 @@ def update_user_account(user_id: int, role: str, is_active: bool, new_password: 
         mark_backup_needed("update_user_password" if password_changed else "update_user")
     except Exception:
         pass
-    message = "Compte et mot de passe mis a jour." if password_changed else "Compte mis a jour."
+    message = "Compte et mot de passe mis à jour." if password_changed else "Compte mis à jour."
     return {"ok": True, "message": message}
 
 
 def save_backup_settings_from_form(form_data: dict[str, str]):
     save_backup_configuration(form_data)
-    log_activity("update_backup_settings", "settings", None, "Mise a jour des parametres de sauvegarde")
+    log_activity("update_backup_settings", "settings", None, "Mise à jour des paramètres de sauvegarde")
     audit_event(
         "update_backup_settings",
         "settings",
@@ -95,7 +95,7 @@ def save_backup_settings_from_form(form_data: dict[str, str]):
             "backup_event_retention": form_data.get("backup_event_retention", "100"),
         },
     )
-    return {"ok": True, "message": "Parametres de sauvegarde enregistres."}
+    return {"ok": True, "message": "Paramètres de sauvegarde enregistrés."}
 
 
 def create_manual_backup():
@@ -117,7 +117,7 @@ def restore_backup_by_value(backup_value: str):
         return {"ok": False, "message": f"Restauration impossible: {exc}"}
     log_activity("restore_backup", "backup", None, backup_path.name)
     audit_event("restore_backup", "backup", backup_path.name, after={"filename": backup_path.name})
-    return {"ok": True, "message": "Restauration effectuee."}
+    return {"ok": True, "message": "Restauration effectuée."}
 
 
 def run_database_maintenance():

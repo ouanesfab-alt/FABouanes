@@ -322,7 +322,7 @@ def create_sale_record(
                 )
             recalc_sale_document_totals(document_id)
             if unit_price_kg < cost_snapshot * 0.97 and cost_snapshot > 0:
-                _flash_warning(f"Vente sous cout : {unit_price_kg:.2f} DA/kg < cout de revient {cost_snapshot:.2f} DA/kg.")
+                _flash_warning(f"Vente sous coût : {unit_price_kg:.2f} DA/kg < coût de revient {cost_snapshot:.2f} DA/kg.")
             return "finished", row_id
 
         item = query_db("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (item_id,), one=True)
@@ -360,7 +360,7 @@ def create_sale_record(
             )
         recalc_sale_document_totals(document_id)
         if unit_price_kg < cost_snapshot * 0.97 and cost_snapshot > 0:
-            _flash_warning(f"Vente sous cout : {unit_price_kg:.2f} DA/kg < cout de revient {cost_snapshot:.2f} DA/kg.")
+            _flash_warning(f"Vente sous coût : {unit_price_kg:.2f} DA/kg < coût de revient {cost_snapshot:.2f} DA/kg.")
         return "raw", row_id
 
 

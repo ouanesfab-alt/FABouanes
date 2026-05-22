@@ -41,7 +41,7 @@ def attempt_login(username: str, password: str, request: Request | None = None):
             actor={"username": normalized or "anonymous", "role": "anonymous"},
             meta={"reason": "locked_out", "ip": ip},
         )
-        return {"ok": False, "status": 429, "message": "Trop d'echecs de connexion. Votre IP est temporairement bloquee."}
+        return {"ok": False, "status": 429, "message": "Trop d'échecs de connexion. Votre IP est temporairement bloquée."}
 
     # 2. Check standard rate limit (réduit à 5 tentatives / 5 minutes)
     login_key = f"login:{ip}:{normalized.lower()}"
@@ -54,7 +54,7 @@ def attempt_login(username: str, password: str, request: Request | None = None):
             actor={"username": normalized or "anonymous", "role": "anonymous"},
             meta={"reason": "rate_limited"},
         )
-        return {"ok": False, "status": 429, "message": "Trop de tentatives de connexion. Reessaie dans 5 minutes."}
+        return {"ok": False, "status": 429, "message": "Trop de tentatives de connexion. Réessayez dans 5 minutes."}
         
     user = get_user_by_username(normalized)
     if user and int(user.get("is_active", 1) or 0) and check_password_hash(user["password_hash"], password or ""):
@@ -122,7 +122,7 @@ def change_user_password(user_id: int, current_password: str, new_password: str,
         before=before,
         after={"must_change_password": int(updated_user["must_change_password"] or 0), "last_password_change_at": updated_user["last_password_change_at"]},
     )
-    return {"ok": True, "message": "Mot de passe mis a jour."}
+    return {"ok": True, "message": "Mot de passe mis à jour."}
 
 
 def validate_new_user_payload(username: str, password: str, role: str):
@@ -136,7 +136,7 @@ def validate_new_user_payload(username: str, password: str, role: str):
     if role_value not in VALID_ROLES:
         return {"ok": False, "message": "Role invalide."}
     if not re.fullmatch(r"[A-Za-z0-9_.-]{3,50}", normalized):
-        return {"ok": False, "message": "Nom d'utilisateur invalide. Utilise 3 a 50 caracteres: lettres, chiffres, point, tiret, underscore."}
+        return {"ok": False, "message": "Nom d'utilisateur invalide. Utilisez 3 à 50 caractères : lettres, chiffres, point, tiret, underscore."}
     return {"ok": True, "username": normalized, "role": role_value}
 
 

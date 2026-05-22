@@ -67,12 +67,12 @@ async def notes_submit(request: Request):
         old_content = read_notes_version(filename)
         if old_content:
             write_app_notes(old_content)
-            flash(request, "Version restauree avec succes.", "success")
+            flash(request, "Version restaurée avec succès.", "success")
         else:
             flash(request, "Version introuvable.", "danger")
     else:
         write_app_notes(str(form.get("content", "") or ""))
-        flash(request, "Bloc-note enregistre.", "success")
+        flash(request, "Bloc-note enregistré.", "success")
     return RedirectResponse("/notes", status_code=303)
 
 
@@ -114,20 +114,20 @@ async def pdf_reader_submit(request: Request):
     if action == "delete":
         filename = str(form.get("filename", "") or "").strip()
         if filename and delete_pdf_reader_file(filename):
-            flash(request, f"PDF supprime : {filename}", "success")
+            flash(request, f"PDF supprimé : {filename}", "success")
         else:
             flash(request, "Fichier introuvable.", "warning")
         return RedirectResponse("/bons", status_code=303)
     uploaded = form.get("pdf_file")
     if not uploaded or not getattr(uploaded, "filename", ""):
-        flash(request, "Choisis un fichier PDF.", "warning")
+        flash(request, "Choisissez un fichier PDF.", "warning")
         return RedirectResponse("/bons", status_code=303)
     try:
         filename = save_pdf_reader_upload(uploaded)
     except ValueError as exc:
         flash(request, str(exc), "danger" if "acceptes" in str(exc) else "warning")
         return RedirectResponse("/bons", status_code=303)
-    flash(request, f"PDF ajoute : {filename}", "success")
+    flash(request, f"PDF ajouté : {filename}", "success")
     return RedirectResponse(f"/bons?doc=pdf:{filename}", status_code=303)
 
 

@@ -43,7 +43,7 @@ async def sales_submit(request: Request):
     set_state_value("submitted_form", form)
     try:
         created = create_sale_from_form(form)
-        flash(request, "Vente enregistree avec benefice estime.", "success")
+        flash(request, "Vente enregistrée avec bénéfice estimé.", "success")
         if wants_print_after_submit():
             return RedirectResponse(f"/print/{created['print_doc_type']}/{created['print_item_id']}", status_code=303)
     except Exception as exc:
@@ -79,7 +79,7 @@ async def new_sale_submit(request: Request):
     set_state_value("submitted_form", form)
     try:
         created = create_sale_from_form(form)
-        flash(request, "Vente enregistree avec benefice estime.", "success")
+        flash(request, "Vente enregistrée avec bénéfice estimé.", "success")
         if wants_print_after_submit():
             return RedirectResponse(f"/print/{created['print_doc_type']}/{created['print_item_id']}", status_code=303)
         return RedirectResponse(SALES_FILTER_URL, status_code=303)
@@ -122,7 +122,7 @@ async def edit_sale_document_submit(request: Request, document_id: int):
     set_state_value("submitted_form", form)
     try:
         edit_sale_document_from_form(document_id, form)
-        flash(request, "Facture modifiee.", "success")
+        flash(request, "Facture modifiée.", "success")
     except Exception as exc:
         flash(request, str(exc), "danger")
         return RedirectResponse(str(request.url), status_code=303)
@@ -165,7 +165,7 @@ async def edit_sale_submit(request: Request, kind: str, row_id: int):
     set_state_value("submitted_form", form)
     try:
         edit_sale_from_form(kind, row_id, form)
-        flash(request, "Vente modifiee.", "success")
+        flash(request, "Vente modifiée.", "success")
     except Exception as exc:
         flash(request, str(exc), "danger")
         return RedirectResponse(str(request.url), status_code=303)
@@ -180,7 +180,7 @@ async def delete_sale(request: Request, kind: str, row_id: int):
         return denied
     await csrf_protect(request)
     if delete_sale_by_id(kind, row_id):
-        flash(request, "Vente supprimee et stock corrige.", "success")
+        flash(request, "Vente supprimée et stock corrigé.", "success")
     else:
         flash(request, "Vente introuvable.", "danger")
     return RedirectResponse(SALES_FILTER_URL, status_code=303)

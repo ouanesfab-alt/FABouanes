@@ -55,9 +55,9 @@ def _extract_purchase_lines(form) -> list[dict[str, object]]:
         qty = to_float(qty_raw)
         unit_price = to_float(unit_price_raw)
         if qty <= 0:
-            raise ValidationError("Chaque ligne d'achat doit avoir une quantite superieure a zero.", field="quantity")
+            raise ValidationError("Chaque ligne d'achat doit avoir une quantité supérieure à zéro.", field="quantity")
         if unit_price <= 0:
-            raise ValidationError("Chaque ligne d'achat doit avoir un prix unitaire superieur a zero.", field="unit_price")
+            raise ValidationError("Chaque ligne d'achat doit avoir un prix unitaire supérieur à zéro.", field="unit_price")
         
         if ":" in raw_val:
             kind, real_id_str = raw_val.split(":", 1)
@@ -79,7 +79,7 @@ def _extract_purchase_lines(form) -> list[dict[str, object]]:
             
         custom_item_name = custom_item_name.strip()
         if is_autre and not custom_item_name:
-            raise ValidationError("Precise le nom du produit pour la ligne AUTRE.", field="custom_item_name")
+            raise ValidationError("Précisez le nom du produit pour la ligne AUTRE.", field="custom_item_name")
             
         lines.append(
             {
@@ -92,7 +92,7 @@ def _extract_purchase_lines(form) -> list[dict[str, object]]:
             }
         )
     if not lines:
-        raise ValidationError("Ajoute au moins une ligne a ce bon d'achat.")
+        raise ValidationError("Ajoutez au moins une ligne à ce bon d'achat.")
     return lines
 
 

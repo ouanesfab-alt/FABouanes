@@ -57,9 +57,9 @@ def _extract_sale_lines(form) -> list[dict[str, object]]:
         qty = to_float(qty_raw)
         unit_price = to_float(unit_price_raw)
         if qty <= 0:
-            raise ValidationError("Chaque ligne de vente doit avoir une quantite superieure a zero.", field="quantity")
+            raise ValidationError("Chaque ligne de vente doit avoir une quantité supérieure à zéro.", field="quantity")
         if unit_price <= 0:
-            raise ValidationError("Chaque ligne de vente doit avoir un prix unitaire superieur a zero.", field="unit_price")
+            raise ValidationError("Chaque ligne de vente doit avoir un prix unitaire supérieur à zéro.", field="unit_price")
         item_id = int(item_id_str)
         custom_item_name = custom_item_name.strip()
         if item_kind == "raw":
@@ -69,7 +69,7 @@ def _extract_sale_lines(form) -> list[dict[str, object]]:
                     raise ValidationError("Matière première introuvable.", field="item_key")
                 other_cache[item_id] = str(material["name"] or "").strip().casefold() == "autre"
             if other_cache[item_id] and not custom_item_name:
-                raise ValidationError("Precise le nom du produit pour la ligne AUTRE.", field="custom_item_name")
+                raise ValidationError("Précisez le nom du produit pour la ligne AUTRE.", field="custom_item_name")
         lines.append(
             {
                 "item_key": item_key,
@@ -82,7 +82,7 @@ def _extract_sale_lines(form) -> list[dict[str, object]]:
             }
         )
     if not lines:
-        raise ValidationError("Ajoute au moins une ligne a la facture.")
+        raise ValidationError("Ajoutez au moins une ligne à la facture.")
 
     return lines
 

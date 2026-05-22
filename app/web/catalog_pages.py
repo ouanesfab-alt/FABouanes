@@ -70,7 +70,7 @@ async def new_catalog_item_submit(request: Request):
     await csrf_protect(request)
     form = await request.form()
     kind, _item_id = create_catalog_item_from_form(form)
-    flash(request, "Matiere premiere ajoutee avec succes." if kind == "raw" else "Produit final ajoute avec succes.", "success")
+    flash(request, "Matière première ajoutée avec succès." if kind == "raw" else "Produit final ajouté avec succès.", "success")
     return RedirectResponse("/catalog", status_code=303)
 
 
@@ -81,7 +81,7 @@ async def edit_raw_material_page(request: Request, material_id: int):
         return denied
     context = raw_material_edit_context(material_id)
     if not context:
-        flash(request, "Matiere introuvable.", "danger")
+        flash(request, "Matière introuvable.", "danger")
         return RedirectResponse("/catalog", status_code=303)
     return templates.TemplateResponse("raw_material_edit.html", template_context(request, **context))
 
@@ -93,11 +93,11 @@ async def edit_raw_material_submit(request: Request, material_id: int):
         return denied
     await csrf_protect(request)
     if not get_raw_material(material_id):
-        flash(request, "Matiere introuvable.", "danger")
+        flash(request, "Matière introuvable.", "danger")
         return RedirectResponse("/catalog", status_code=303)
     form = await request.form()
     update_raw_material_from_form(material_id, form)
-    flash(request, "Matiere premiere modifiee.", "success")
+    flash(request, "Matière première modifiée.", "success")
     return RedirectResponse("/catalog", status_code=303)
 
 
@@ -124,7 +124,7 @@ async def edit_product_submit(request: Request, product_id: int):
         return RedirectResponse("/catalog", status_code=303)
     form = await request.form()
     update_product_from_form(product_id, form)
-    flash(request, "Produit modifie.", "success")
+    flash(request, "Produit modifié.", "success")
     return RedirectResponse("/catalog", status_code=303)
 
 
@@ -135,9 +135,9 @@ async def delete_raw_material(request: Request, material_id: int):
         return denied
     await csrf_protect(request)
     if delete_raw_material_by_id(material_id):
-        flash(request, "Matiere premiere supprimee.", "success")
+        flash(request, "Matière première supprimée.", "success")
     else:
-        flash(request, "Impossible de supprimer une matiere avec historique.", "danger")
+        flash(request, "Impossible de supprimer une matière avec historique.", "danger")
     return RedirectResponse("/catalog", status_code=303)
 
 
@@ -148,7 +148,7 @@ async def delete_product(request: Request, product_id: int):
         return denied
     await csrf_protect(request)
     if delete_product_by_id(product_id):
-        flash(request, "Produit fini supprime.", "success")
+        flash(request, "Produit fini supprimé.", "success")
     else:
         flash(request, "Impossible de supprimer un produit avec historique.", "danger")
     return RedirectResponse("/catalog", status_code=303)

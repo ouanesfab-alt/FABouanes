@@ -36,10 +36,10 @@ async def login_submit(request: Request):
         # request.session.clear() est déjà géré par la rotation dans attempt_login, on garde les attributs restants
         request.session["user_id"] = user["id"]
         request.session["remember"] = bool(form.get("remember"))
-        flash(request, "Connexion reussie.", "success")
+        flash(request, "Connexion réussie.", "success")
         target = "/change-password" if int(user.get("must_change_password", 0) or 0) else "/"
         if int(user.get("must_change_password", 0) or 0):
-            flash(request, "Change immediatement le mot de passe administrateur par defaut.", "warning")
+            flash(request, "Changez immédiatement le mot de passe administrateur par défaut.", "warning")
         response = RedirectResponse(target, status_code=303)
         response.set_cookie(
             AUTH_COOKIE_NAME,
@@ -85,10 +85,10 @@ async def change_password_submit(request: Request):
 async def logout(request: Request):
     user = get_current_user(request)
     if user:
-        log_activity("logout", "user", user["id"], f"Deconnexion de {user['username']}")
+        log_activity("logout", "user", user["id"], f"Déconnexion de {user['username']}")
         audit_event("logout", "user", user["id"], after={"username": user["username"]})
     request.session.clear()
-    flash(request, "Vous etes deconnecte.", "success")
+    flash(request, "Vous êtes déconnecté.", "success")
     response = RedirectResponse("/login", status_code=303)
     response.delete_cookie(AUTH_COOKIE_NAME, path="/")
     return response

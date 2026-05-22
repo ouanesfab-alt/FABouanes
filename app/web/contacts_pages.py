@@ -54,7 +54,7 @@ async def suppliers_submit(request: Request):
     await csrf_protect(request)
     form = await request.form()
     create_supplier_from_form(form)
-    flash(request, "Fournisseur ajoute avec succes.", "success")
+    flash(request, "Fournisseur ajouté avec succès.", "success")
     return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
 
 
@@ -94,7 +94,7 @@ async def new_supplier_submit(request: Request):
     await csrf_protect(request)
     form = await request.form()
     create_supplier_from_form(form)
-    flash(request, "Fournisseur ajoute avec succes.", "success")
+    flash(request, "Fournisseur ajouté avec succès.", "success")
     return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
 
 
@@ -151,7 +151,7 @@ async def edit_supplier_submit(request: Request, supplier_id: int):
         return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
     form = await request.form()
     update_supplier_from_form(supplier_id, form)
-    flash(request, "Fournisseur modifie.", "success")
+    flash(request, "Fournisseur modifié.", "success")
     return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
 
 
@@ -167,5 +167,5 @@ async def delete_supplier(request: Request, supplier_id: int):
         flash(request, "Fournisseur introuvable.", "danger")
         return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
     delete_supplier_by_id(supplier_id)
-    flash(request, "Fournisseur supprime.", "success")
+    flash(request, "Fournisseur supprimé.", "success")
     return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)

@@ -22,7 +22,7 @@ def _print_not_found_response(message: str = "Bon introuvable.") -> HTMLResponse
 <body style="margin:0;font-family:Arial,sans-serif;background:#f8fafc;color:#111827;display:grid;place-items:center;min-height:100vh;">
   <main style="max-width:520px;padding:24px;text-align:center;">
     <h1 style="font-size:1.25rem;margin:0 0 8px;">{message}</h1>
-    <p style="margin:0;color:#64748b;">Le document demande n'existe plus ou n'est pas disponible.</p>
+    <p style="margin:0;color:#64748b;">Le document demandé n'existe plus ou n'est pas disponible.</p>
   </main>
 </body>
 </html>""",
@@ -94,7 +94,7 @@ async def print_document_page(request: Request, doc_type: str, item_id: int):
         if pdf_buf:
             headers = {"Content-Disposition": f'attachment; filename="{payload["number"]}.pdf"'}
             return StreamingResponse(pdf_buf, media_type="application/pdf", headers=headers)
-        flash(request, "Generation PDF indisponible. Affichage HTML utilise a la place.", "warning")
+        flash(request, "Génération PDF indisponible. Affichage HTML utilisé à la place.", "warning")
     return templates.TemplateResponse(
         "print_document.html",
         template_context(
@@ -125,7 +125,7 @@ async def edit_production_notes(request: Request):
             production_date=str(form.get("production_date", "") or "").strip(),
             notes=str(form.get("notes", "") or "").strip(),
         )
-        flash(request, "Notes de production mises a jour.", "success")
+        flash(request, "Notes de production mises à jour.", "success")
     except Exception as exc:
         flash(request, str(exc), "danger")
     return RedirectResponse("/production", status_code=303)
