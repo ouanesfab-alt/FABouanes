@@ -1,0 +1,1575 @@
+...............................F..............FF...........F............ [ 55%]
+......F.....................EEEEEEEEEEEEEEEEEEEEEEEEEEEEEE               [100%]
+=================================== ERRORS ====================================
+_____________ ERROR at setup of test_notes_history_rotation_limit _____________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:144: in _flush
+    sock.flush()
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:703: in execute_unnamed
+    _flush(self._sock)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:146: in _flush
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:45,048 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:45,049 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+_______ ERROR at setup of test_read_notes_version_traversal_protection ________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:144: in _flush
+    sock.flush()
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:703: in execute_unnamed
+    _flush(self._sock)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:146: in _flush
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:45,440 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:45,440 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+__________ ERROR at setup of test_create_purchase_validation_errors ___________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:144: in _flush
+    sock.flush()
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:703: in execute_unnamed
+    _flush(self._sock)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:146: in _flush
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:45,827 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:45,827 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+______________ ERROR at setup of test_create_and_delete_purchase ______________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:144: in _flush
+    sock.flush()
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:703: in execute_unnamed
+    _flush(self._sock)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:146: in _flush
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:46,141 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:46,141 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+____________ ERROR at setup of test_nested_transactions_savepoint _____________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:144: in _flush
+    sock.flush()
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:703: in execute_unnamed
+    _flush(self._sock)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:146: in _flush
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:46,548 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:46,549 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+_____________ ERROR at setup of test_pessimistic_lock_concurrency _____________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:144: in _flush
+    sock.flush()
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:703: in execute_unnamed
+    _flush(self._sock)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:146: in _flush
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:47,041 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:47,041 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+___________ ERROR at setup of test_empty_database_url_raises_error ____________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:144: in _flush
+    sock.flush()
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:703: in execute_unnamed
+    _flush(self._sock)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:146: in _flush
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:47,354 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:47,354 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+____ ERROR at setup of test_desktop_mode_without_database_url_raises_error ____
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:47,654 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:47,654 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+_______ ERROR at setup of test_launcher_defaults_to_network_server_mode _______
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:48,054 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:48,054 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+______ ERROR at setup of test_launcher_without_database_url_raises_error ______
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:48,461 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:48,461 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+__ ERROR at setup of test_multi_worker_runtime_is_rejected_without_override ___
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:48,962 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:48,962 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+______ ERROR at setup of test_cache_generation_invalidates_cached_value _______
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:49,335 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:49,335 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+_____________ ERROR at setup of test_pool_status_reports_postgres _____________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:49,770 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:49,770 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+____ ERROR at setup of test_application_logger_does_not_duplicate_to_root _____
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:50,113 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:50,113 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+_____ ERROR at setup of test_bootstrap_and_migrate_runs_once_per_process ______
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:50,575 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:50,576 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+____________ ERROR at setup of test_create_sale_validation_errors _____________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:51,142 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:51,142 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+________________ ERROR at setup of test_create_and_delete_sale ________________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:51,512 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:51,512 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+________________ ERROR at setup of test_get_backup_dir_default ________________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:51,885 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:51,885 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+_______________ ERROR at setup of test_save_and_get_backup_dir ________________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:52,399 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:52,399 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+____________ ERROR at setup of test_stress_sales_math_calculations ____________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:52,904 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:52,904 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+___________ ERROR at setup of test_stress_production_cost_rounding ____________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:53,308 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:53,308 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+_______________ ERROR at setup of test_stress_stock_adjustments _______________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:53,641 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:53,641 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+_________ ERROR at setup of test_stress_floating_point_extreme_inputs _________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:54,107 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:54,107 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+_______________ ERROR at setup of test_abusive_contact_creation _______________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:54,558 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:54,558 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+_____________ ERROR at setup of test_abusive_production_creation ______________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:54,958 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:54,958 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+_______________ ERROR at setup of test_abusive_sales_validation _______________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:55,395 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:55,395 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+_____________ ERROR at setup of test_client_history_print_renders _____________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:55,726 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:55,726 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+_____________ ERROR at setup of test_purchase_print_page_renders ______________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:56,070 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:56,070 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+__________ ERROR at setup of test_purchase_print_embed_hides_actions __________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:56,691 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:56,691 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+_____________ ERROR at setup of test_purchase_print_pdf_downloads _____________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:165: in _write
+    sock.write(d)
+..\..\AppData\Local\Programs\Python\Python311\Lib\socket.py:723: in write
+    return self._sock.send(b)
+           ^^^^^^^^^^^^^^^^^^
+E   ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+tests\conftest.py:161: in ensure_admin_user
+    execute_db(
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:701: in execute_unnamed
+    self.send_PARSE(NULL_BYTE, statement, oids)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:679: in send_PARSE
+    self._send_message(PARSE, val)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:769: in _send_message
+    _write(self._sock, bytes(buff))
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:167: in _write
+    raise InterfaceError("network error") from e
+E   pg8000.exceptions.InterfaceError: network error
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:57,220 WARNING fabouanes - Module schema error for expenses: 
+    CREATE TABLE IF NOT EXISTS expenses (
+        id BIGSERIAL PRIMARY KEY,
+   
+2026-05-22 02:48:57,220 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+================================== FAILURES ===================================
+_______________________ test_dashboard_unauthenticated ________________________
+tests\web\test_dashboard_pages.py:8: in test_dashboard_unauthenticated
+    assert response.status_code == 303
+E   assert 200 == 303
+E    +  where 200 = <Response [200 OK]>.status_code
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:24,426 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+-------------------------- Captured stderr teardown ---------------------------
+2026-05-22 02:48:24,815 INFO fabouanes - Arrêt en cours, attente du scheduler...
+2026-05-22 02:48:24,815 INFO fabouanes - Background services stopped.
+2026-05-22 02:48:24,815 INFO fabouanes - Shutdown terminé.
+_______________________ test_production_submit_success ________________________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:704: in execute_unnamed
+    self.handle_messages(context)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:844: in handle_messages
+    raise context.error
+E   pg8000.exceptions.DatabaseError: {'S': 'ERREUR', 'V': 'ERROR', 'C': '42P01', 'M': "la relation « recipes » n'existe pas", 'P': '13', 'F': 'parse_relation.c', 'L': '1469', 'R': 'parserOpenTable'}
+
+During handling of the above exception, another exception occurred:
+tests\web\test_production_pages.py:62: in test_production_submit_success
+    execute_db("DELETE FROM recipes WHERE finished_product_id = %s", (p_id,))
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:283: in execute
+    raise cls(msg)
+E   pg8000.dbapi.ProgrammingError: {'S': 'ERREUR', 'V': 'ERROR', 'C': '42P01', 'M': "la relation « recipes » n'existe pas", 'P': '13', 'F': 'parse_relation.c', 'L': '1469', 'R': 'parserOpenTable'}
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:29,226 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+-------------------------- Captured stderr teardown ---------------------------
+2026-05-22 02:48:29,861 INFO fabouanes - Arrêt en cours, attente du scheduler...
+2026-05-22 02:48:29,861 INFO fabouanes - Background services stopped.
+2026-05-22 02:48:29,861 INFO fabouanes - Shutdown terminé.
+__________________ test_production_submit_insufficient_stock __________________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:253: in execute
+    self._context = self._c.execute_simple(operation)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:694: in execute_simple
+    self.handle_messages(context)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:844: in handle_messages
+    raise context.error
+E   pg8000.exceptions.DatabaseError: {'S': 'ERREUR', 'V': 'ERROR', 'C': '23505', 'M': "la valeur d'une clé dupliquée rompt la contrainte unique « finished_products_name_key »", 'D': 'La clé « (name)=(Prod Prod) » existe déjà.', 's': 'public', 't': 'finished_products', 'n': 'finished_products_name_key', 'F': 'nbtinsert.c', 'L': '673', 'R': '_bt_check_unique'}
+
+During handling of the above exception, another exception occurred:
+tests\web\test_production_pages.py:70: in test_production_submit_insufficient_stock
+    p_id = execute_db("INSERT INTO finished_products (name, default_unit, stock_qty) VALUES ('Prod Prod', 'kg', 50.0)")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:552: in execute_db
+    return db_manager.execute_db(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:343: in execute_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:283: in execute
+    raise cls(msg)
+E   pg8000.dbapi.IntegrityError: {'S': 'ERREUR', 'V': 'ERROR', 'C': '23505', 'M': "la valeur d'une clé dupliquée rompt la contrainte unique « finished_products_name_key »", 'D': 'La clé « (name)=(Prod Prod) » existe déjà.', 's': 'public', 't': 'finished_products', 'n': 'finished_products_name_key', 'F': 'nbtinsert.c', 'L': '673', 'R': '_bt_check_unique'}
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:29,869 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+-------------------------- Captured stderr teardown ---------------------------
+2026-05-22 02:48:30,366 INFO fabouanes - Arrêt en cours, attente du scheduler...
+2026-05-22 02:48:30,366 INFO fabouanes - Background services stopped.
+2026-05-22 02:48:30,366 INFO fabouanes - Shutdown terminé.
+__________________________ test_search_date_matching __________________________
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:256: in execute
+    self._context = self._c.execute_unnamed(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:704: in execute_unnamed
+    self.handle_messages(context)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py:844: in handle_messages
+    raise context.error
+E   pg8000.exceptions.DatabaseError: {'S': 'ERREUR', 'V': 'ERROR', 'C': '42883', 'M': "l'opérateur n'existe pas : date ~~ unknown", 'H': "Aucun opérateur ne correspond au nom donné et aux types d'arguments.\nVous devez ajouter des conversions explicites de type.", 'P': '331', 'F': 'parse_oper.c', 'L': '644', 'R': 'op_error'}
+
+The above exception was the direct cause of the following exception:
+tests\web\test_search_pages.py:113: in test_search_date_matching
+    response_partial = logged_client.get("/api/search?q=05/2026")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\testclient.py:473: in get
+    return super().get(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx\_client.py:1053: in get
+    return self.request(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\testclient.py:445: in request
+    return super().request(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx\_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx\_client.py:914: in send
+    response = self._send_handling_auth(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx\_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx\_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx\_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\testclient.py:348: in handle_request
+    raise exc
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\testclient.py:345: in handle_request
+    portal.call(self.app, scope, receive, send)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\anyio\from_thread.py:334: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py:456: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+..\..\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py:401: in __get_result
+    raise self._exception
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\anyio\from_thread.py:259: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\applications.py:1160: in __call__
+    await super().__call__(scope, receive, send)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\applications.py:107: in __call__
+    await self.middleware_stack(scope, receive, send)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py:186: in __call__
+    raise exc
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\gzip.py:29: in __call__
+    await responder(scope, receive, send)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\gzip.py:130: in __call__
+    await super().__call__(scope, receive, send)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\gzip.py:46: in __call__
+    await self.app(scope, receive, self.send_with_compression)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\sessions.py:85: in __call__
+    await self.app(scope, receive, send_wrapper)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py:191: in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+..\..\AppData\Local\Programs\Python\Python311\Lib\contextlib.py:155: in __exit__
+    self.gen.throw(typ, value, traceback)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_utils.py:87: in collapse_excgroups
+    raise exc
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py:193: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\main.py:134: in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py:168: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py:144: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\middleware\asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\routing.py:716: in __call__
+    await self.middleware_stack(scope, receive, send)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\routing.py:736: in app
+    await route.handle(scope, receive, send)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\routing.py:290: in handle
+    await self.app(scope, receive, send)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py:130: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py:116: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py:670: in app
+    raw_response = await run_endpoint_function(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py:324: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\web\search_pages.py:107: in global_search
+    sales = query_db(
+app\core\db_helpers.py:546: in query_db
+    return db_manager.query_db(query, params, one)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:317: in query_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\db_helpers.py:80: in execute
+    cur.execute(query, params)
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py:283: in execute
+    raise cls(msg)
+E   pg8000.dbapi.ProgrammingError: {'S': 'ERREUR', 'V': 'ERROR', 'C': '42883', 'M': "l'opérateur n'existe pas : date ~~ unknown", 'H': "Aucun opérateur ne correspond au nom donné et aux types d'arguments.\nVous devez ajouter des conversions explicites de type.", 'P': '331', 'F': 'parse_oper.c', 'L': '644', 'R': 'op_error'}
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:34,841 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+---------------------------- Captured stderr call -----------------------------
+2026-05-22 02:48:35,177 ERROR fabouanes - Unhandled exception on GET /api/search
+Traceback (most recent call last):
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py", line 256, in execute
+    self._context = self._c.execute_unnamed(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py", line 704, in execute_unnamed
+    self.handle_messages(context)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\core.py", line 844, in handle_messages
+    raise context.error
+pg8000.exceptions.DatabaseError: {'S': 'ERREUR', 'V': 'ERROR', 'C': '42883', 'M': "l'opérateur n'existe pas : date ~~ unknown", 'H': "Aucun opérateur ne correspond au nom donné et aux types d'arguments.\nVous devez ajouter des conversions explicites de type.", 'P': '331', 'F': 'parse_oper.c', 'L': '644', 'R': 'op_error'}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 155, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\massi\Downloads\FABouanes-main\app\main.py", line 134, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 130, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 116, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 670, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 324, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\massi\Downloads\FABouanes-main\app\web\search_pages.py", line 107, in global_search
+    sales = query_db(
+            ^^^^^^^^^
+  File "C:\Users\massi\Downloads\FABouanes-main\app\core\db_helpers.py", line 546, in query_db
+    return db_manager.query_db(query, params, one)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\massi\Downloads\FABouanes-main\app\core\db_helpers.py", line 317, in query_db
+    cur = db.execute(query, params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\massi\Downloads\FABouanes-main\app\core\db_helpers.py", line 80, in execute
+    cur.execute(query, params)
+  File "C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\pg8000\legacy.py", line 283, in execute
+    raise cls(msg)
+pg8000.dbapi.ProgrammingError: {'S': 'ERREUR', 'V': 'ERROR', 'C': '42883', 'M': "l'opérateur n'existe pas : date ~~ unknown", 'H': "Aucun opérateur ne correspond au nom donné et aux types d'arguments.\nVous devez ajouter des conversions explicites de type.", 'P': '331', 'F': 'parse_oper.c', 'L': '644', 'R': 'op_error'}
+-------------------------- Captured stderr teardown ---------------------------
+2026-05-22 02:48:36,616 INFO fabouanes - Arrêt en cours, attente du scheduler...
+2026-05-22 02:48:36,616 INFO fabouanes - Background services stopped.
+2026-05-22 02:48:36,616 INFO fabouanes - Shutdown terminé.
+______________________ test_import_client_nonexistent_id ______________________
+app\services\excel_import_service.py:45: in parse_client_history_excel
+    raw = pd.read_excel(file_path, header=None)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pandas\io\excel\_base.py:481: in read_excel
+    io = ExcelFile(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pandas\io\excel\_base.py:1604: in __init__
+    ext = inspect_excel_format(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pandas\io\excel\_base.py:1452: in inspect_excel_format
+    with get_handle(
+..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\pandas\io\common.py:939: in get_handle
+    handle = open(handle, ioargs.mode)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: 'dummy.xlsx'
+
+During handling of the above exception, another exception occurred:
+tests\services\test_client_import_service.py:19: in test_import_client_nonexistent_id
+    import_client_history_from_excel("dummy.xlsx", client_id=999999)
+app\services\client_import_service.py:29: in import_client_history_from_excel
+    data = parse_client_history_excel(file_path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\services\excel_import_service.py:47: in parse_client_history_excel
+    raise ValueError(f"Impossible de lire le fichier Excel : {e}")
+E   ValueError: Impossible de lire le fichier Excel : [Errno 2] No such file or directory: 'dummy.xlsx'
+
+During handling of the above exception, another exception occurred:
+tests\services\test_client_import_service.py:18: in test_import_client_nonexistent_id
+    with pytest.raises(ValueError, match="Le client spécifié.*n'existe pas"):
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: "Le client spécifié.*n'existe pas"
+E     Actual message: "Impossible de lire le fichier Excel : [Errno 2] No such file or directory: 'dummy.xlsx'"
+---------------------------- Captured stderr setup ----------------------------
+2026-05-22 02:48:40,577 INFO fabouanes - Modules loaded: ['expenses', 'reports']
+-------------------------- Captured stderr teardown ---------------------------
+2026-05-22 02:48:40,841 INFO fabouanes - Arrêt en cours, attente du scheduler...
+2026-05-22 02:48:40,841 INFO fabouanes - Background services stopped.
+2026-05-22 02:48:40,841 INFO fabouanes - Shutdown terminé.
+============================== warnings summary ===============================
+tests/web/test_admin_pages.py::test_admin_panel_renders
+tests/web/test_admin_pages.py::test_admin_panel_renders
+  C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\alembic\config.py:612: DeprecationWarning: No path_separator found in configuration; falling back to legacy splitting on spaces, commas, and colons for prepend_sys_path.  Consider adding path_separator=os to Alembic config.
+    util.warn_deprecated(
+
+tests/web/test_admin_pages.py: 7 warnings
+tests/web/test_auth_pages.py: 2 warnings
+tests/web/test_clients_pages.py: 11 warnings
+tests/web/test_contacts_catalog_pages.py: 14 warnings
+tests/web/test_dashboard_pages.py: 7 warnings
+tests/web/test_expenses_pages.py: 13 warnings
+tests/web/test_production_cleanup.py: 1 warning
+tests/web/test_production_pages.py: 8 warnings
+tests/web/test_purchases_pages.py: 6 warnings
+tests/web/test_reports_page.py: 2 warnings
+tests/web/test_sales_pages.py: 5 warnings
+tests/web/test_search_pages.py: 3 warnings
+tests/web/test_tool_pages.py: 13 warnings
+  C:\Users\massi\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\templating.py:162: DeprecationWarning: The `name` is not the first parameter anymore. The first parameter should be the `Request` instance.
+  Replace `TemplateResponse(name, {"request": request})` by `TemplateResponse(request, name)`.
+    warnings.warn(
+
+tests/web/test_reports_page.py::test_reports_page_renders
+  C:\Users\massi\Downloads\FABouanes-main\app\modules\reports\web.py:33: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    lambda: reports_service.build_reports_context(date_from or None, date_to or None).dict(),
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.11.0-final-0 _______________
+
+Name                                         Stmts   Miss  Cover   Missing
+--------------------------------------------------------------------------
+app\api\__init__.py                              2      0   100%
+app\api\compat_routes.py                        33     23    30%   15-48, 63-87
+app\api\deps.py                                 70     12    83%   58-61, 64, 72, 86, 89-98, 111, 133-134
+app\api\router.py                               26      0   100%
+app\api\v1\__init__.py                           0      0   100%
+app\api\v1\_common.py                            5      0   100%
+app\api\v1\admin.py                             12      0   100%
+app\api\v1\auth.py                              50      2    96%   37, 80
+app\api\v1\clients.py                          193    157    19%   45-59, 63-73, 77-149, 159-190, 200-209, 221-246, 250-279, 283-299, 303-320, 324-339, 343-360
+app\api\v1\dashboard.py                         14      3    79%   18-20
+app\api\v1\form_parsers.py                      16      1    94%   17
+app\api\v1\mobile_api.py                         7      1    86%   12
+app\api\v1\offline.py                           28     16    43%   24-47
+app\api\v1\payments.py                          58      5    91%   45-46, 69-70, 85
+app\api\v1\production.py                        72      3    96%   40, 42, 73
+app\api\v1\purchases.py                         56     41    27%   26-56, 62-98, 104-114
+app\api\v1\query_builders.py                    39     20    49%   14-18, 38, 41-46, 49-56
+app\api\v1\response_helpers.py                  65     34    48%   26-31, 34-35, 38-49, 52-61, 77-88, 91-117, 120-123, 130-133, 164-167, 175-182
+app\api\v1\sales.py                             77     57    26%   44-45, 51-95, 101-139, 144-156, 162-178
+app\api\ws.py                                   16      9    44%   10-20
+app\core\__init__.py                             2      0   100%
+app\core\activity.py                            63     20    68%   32-33, 49-54, 72-73, 94-95, 103-116
+app\core\audit.py                              149     28    81%   29, 74-75, 99, 122, 126, 128, 130, 196-197, 199-200, 202-203, 205-206, 208-209, 211-212, 218, 225-263
+app\core\auth_cookie.py                         19      8    58%   22-29
+app\core\config.py                              90     27    70%   21-29, 56-61, 65-70, 74-75, 81, 83, 96-99, 107
+app\core\connection.py                           3      0   100%
+app\core\database.py                            68     12    82%   29-31, 46, 61-62, 66, 86-90
+app\core\db.py                                   8      1    88%   19
+app\core\db_access.py                            2      0   100%
+app\core\db_compat.py                            3      3     0%   1-4
+app\core\db_helpers.py                         475     93    80%   29, 54-55, 90-91, 96-98, 116, 121, 124-130, 153-154, 164-166, 194-218, 221, 243-244, 260, 271-274, 278, 329-330, 349-350, 373, 387-389, 414-418, 422-423, 430-431, 441-443, 446, 462, 464, 467, 481, 496-502, 514-515, 518-519, 522-524, 555, 569, 578, 581, 601
+app\core\document_numbering.py                  50     26    48%   20-36, 40-50, 72-74
+app\core\events.py                              62     12    81%   56-58, 73-74, 123-124, 130-134
+app\core\exceptions.py                          27     14    48%   6-9, 13-15, 19-22, 26, 30, 34
+app\core\helpers.py                             58     24    59%   9-10, 25-27, 37-39, 43-45, 49-51, 55-57, 61-63, 108-110, 146-148, 152-154, 158-160, 164-166
+app\core\logging.py                             43     16    63%   19-42, 55, 70-71
+app\core\perf_cache.py                         179     72    60%   20-21, 28, 32, 36, 40, 44, 48, 52, 92, 100, 114-115, 118-119, 125-128, 131, 134-137, 140-144, 147-158, 161-171, 175-176, 179-185, 188-191, 198-206, 214, 246, 249
+app\core\permissions.py                        119     70    41%   165-167, 177-197, 202, 204, 212-219, 223-231, 235-255, 259-272, 276-288
+app\core\rate_limit.py                           8      1    88%   15
+app\core\registry.py                            84     20    76%   67-70, 80, 95-98, 108-109, 127, 135-141, 160-162
+app\core\request_state.py                       25      1    96%   35
+app\core\runtime_paths.py                       20      0   100%
+app\core\sanitizer.py                           15     15     0%   1-26
+app\core\schema.py                             100    100     0%   1-176
+app\core\schema\__init__.py                      0      0   100%
+app\core\schema\catalog.py                       1      0   100%
+app\core\schema\contacts.py                      1      0   100%
+app\core\schema\core.py                          1      0   100%
+app\core\schema\operations.py                    1      0   100%
+app\core\schema\production.py                    1      0   100%
+app\core\schema_bootstrap.py                    45      9    80%   40-42, 50-52, 57, 61-62
+app\core\security.py                            89     19    79%   33, 40, 50, 53, 72-78, 82, 96, 123-126, 131-132
+app\core\sql_compat.py                          32      1    97%   25
+app\core\storage.py                            341    262    23%   40-44, 49-56, 61-66, 70, 74-80, 105-106, 115-116, 121, 143-147, 152-156, 170-371, 378-388, 400-435, 440-447, 452-461, 472-509, 522, 532-535, 545-550, 562-577
+app\core\websockets.py                          28     13    54%   15-18, 21-22, 25-30, 35
+app\modules\__init__.py                          0      0   100%
+app\modules\base.py                             32      7    78%   16, 21, 26, 31, 36, 51, 56
+app\modules\expenses\__init__.py                30      0   100%
+app\modules\expenses\repository.py              64     16    75%   111-120, 131, 133, 135, 141-147
+app\modules\expenses\schema.py                   1      0   100%
+app\modules\expenses\schemas_validation.py      33      5    85%   30, 38, 40, 45-46
+app\modules\expenses\service.py                 28      0   100%
+app\modules\expenses\web.py                     85     18    79%   23, 44, 55, 91, 94-95, 106, 111-112, 123-129, 150, 155
+app\modules\reports\__init__.py                 26      0   100%
+app\modules\reports\dtos.py                     59      0   100%
+app\modules\reports\repository.py              117     40    66%   51-53, 55-57, 85-87, 89-91, 119-124, 126-131, 185-186, 193-194, 196-197, 200-201, 208-210, 212-214, 247-248
+app\modules\reports\service.py                 154     40    74%   19, 22-24, 89, 95-98, 101, 106, 115-136, 144-147, 208, 220-224, 274-276
+app\modules\reports\web.py                      51     30    41%   27, 47-88
+app\repositories\__init__.py                     0      0   100%
+app\repositories\client_repository.py           54     30    44%   6-7, 12, 17-33, 42, 75-91
+app\repositories\dashboard_repository.py        57      9    84%   213-216, 258-263
+app\repositories\operation_repository.py        32     26    19%   15-79, 84-95
+app\repositories\payment_repository.py          56     32    43%   9-39, 70-72, 75-76, 78-79, 82-83, 96
+app\repositories\production_repository.py       68     13    81%   16-17, 19-20, 27, 80-82, 85-86, 88-89, 97
+app\repositories\purchase_repository.py         83     60    28%   71-135, 160, 193, 206, 245-284
+app\repositories\sale_repository.py             58     35    40%   57-109, 113-122, 131, 135
+app\repositories\settings_repository.py          6      2    67%   7, 11
+app\repositories\stock_repository.py            46     36    22%   7, 11, 15, 19, 62-88, 97-115
+app\repositories\supplier_repository.py         17     14    18%   10-27
+app\repositories\transaction_repository.py      95     35    63%   25, 27, 32-50, 64-66, 84, 87-88, 91-92, 94-95, 97-98, 158-169, 178-179, 190-192
+app\repositories\user_repository.py             22      2    91%   18, 28
+app\schemas\api_schemas.py                      56      3    95%   23-24, 30
+app\schemas\auth.py                             42      7    83%   34-36, 47-50
+app\schemas\client_validation.py                30      5    83%   18, 25, 27, 32-33
+app\services\__init__.py                         0      0   100%
+app\services\activity_service.py                78     23    71%   65-74, 84, 127-128, 130-131, 133-134, 136-137, 139-148, 151
+app\services\admin_service.py                   98     43    56%   33-48, 54, 60, 68-69, 78-79, 85-98, 102-105, 109-120, 125
+app\services\auth_service.py                    66     40    39%   35-43, 48-56, 68-78, 82-113, 117-128
+app\services\backup_service.py                 285    231    19%   38-42, 47-51, 65-72, 83, 112, 136, 146-147, 152-161, 165-166, 176-195, 199-205, 209-280, 284-325, 329-343, 347-374, 379-384, 389-417, 422-432, 436-475, 481, 485-501, 510
+app\services\bon_space_service.py               84     12    86%   14-15, 139, 201, 231-232, 300, 321-322, 353, 357, 374
+app\services\catalog_service.py                161     74    54%   14, 18, 20, 22-23, 107-110, 125, 127, 193-209, 213, 224-253, 267, 271, 275, 277, 291, 295, 299, 301, 313-331, 335-352, 356-366, 370-380
+app\services\client_account_service.py         108     15    86%   77-78, 84, 89-92, 95, 100-103, 139, 144, 149
+app\services\client_import_service.py           26      2    92%   44, 53
+app\services\client_service.py                 215    169    21%   45-128, 132-136, 156-159, 163-167, 171-185, 189-192, 196-243, 247-261, 265-269, 280-336, 340-347, 351-356
+app\services\contact_directory_service.py       62     21    66%   60, 70-84, 92-106, 110-114, 120, 132
+app\services\excel_import_service.py           176     13    93%   67-68, 85-86, 94, 119, 224, 235, 274-275, 293, 302, 304
+app\services\notes_service.py                   43      7    84%   30-33, 44-45, 55
+app\services\payment_service.py                 78     23    71%   20, 36-63, 69, 90
+app\services\print_service.py                  333    293    12%   21-22, 54-69, 73-82, 86-96, 100-101, 111, 121-126, 131-172, 194-242, 266, 281-513, 517-520, 524-526, 530-973, 977-1246
+app\services\production_service.py             107     23    79%   34-35, 40-56, 69, 71, 74, 80, 83, 86, 94
+app\services\purchase_service.py               202    120    41%   29-33, 54, 58, 60, 66-67, 72, 75-78, 82, 95, 104-105, 109-113, 121-125, 132-148, 152-156, 163-172, 203-220, 264-312, 323-398, 409-416, 420
+app\services\recipe_service.py                  28      5    82%   23, 58, 65-70
+app\services\sale_service.py                   248    219    12%   27-34, 38-87, 91-107, 117-121, 128-147, 151, 155-173, 177-179, 190-200, 204-210, 214-218, 226-234, 264-327, 339-393, 405-490, 502-509, 513
+app\services\stock_service.py                  345    214    38%   18, 20, 27, 29, 34-39, 43-48, 52, 68-69, 74-79, 96-97, 103, 117-132, 137, 144-145, 150-169, 173-184, 202-203, 209, 219, 221-223, 243-261, 281-364, 368-405, 409-436, 443, 447, 456, 471, 474, 499-502
+app\services\system_service.py                  86     30    65%   26-27, 44-46, 108-109, 123-125, 129-132, 141-153, 157-169
+app\services\transactions_service.py            52     23    56%   79, 81, 83, 85, 91-94, 109-124
+app\utils\__init__.py                            0      0   100%
+app\utils\mobile_connect.py                    115     17    85%   30, 39-40, 50-51, 70, 87-89, 96, 111, 117, 125, 135, 152-153, 170
+app\utils\pagination.py                         99     52    47%   17-31, 35-36, 40-49, 55-56, 59-60, 81-85, 115-116, 122-130, 150-158
+app\utils\printing.py                            3      3     0%   1-5
+app\utils\tool_pages.py                         75     41    45%   31-39, 47-52, 57-61, 70-74, 78-88, 92-96
+app\web\__init__.py                              2      0   100%
+app\web\admin_pages.py                          71     28    61%   28, 37, 42, 50-59, 66-69, 74-78, 83-87, 98, 106
+app\web\auth_pages.py                           66     27    59%   22, 30, 42, 54-56, 61-64, 69-81, 86-94
+app\web\catalog_pages.py                       115     67    42%   36, 42-45, 50-53, 58-62, 67-74, 81, 84-85, 91-101, 108, 111-112, 118-128, 133-141, 146-154, 161
+app\web\client_pages.py                        237    137    42%   51-54, 59-75, 82, 90, 101, 123-126, 131-134, 140-181, 186-189, 194-201, 206-209, 216, 220-222, 237-240, 247, 250-251, 260, 264-265, 270-278, 291-307, 312-373
+app\web\compat.py                                2      0   100%
+app\web\contacts_pages.py                      124     69    44%   32, 43-46, 51-58, 65, 73, 80-83, 91-98, 103-106, 113, 116-117, 123-126, 131-138, 144-155, 161-171
+app\web\dashboard_pages.py                      63     11    83%   19-20, 36, 45, 54, 59, 67, 90-93
+app\web\deps.py                                208     47    77%   51, 61, 65-68, 90, 101-102, 108-117, 130, 143, 145, 148, 152-153, 158, 180-181, 186, 190-193, 199, 201-202, 222, 225, 227-229, 237-238, 246-249
+app\web\operations_pages.py                     74     27    64%   38, 54, 82, 86-98, 113-131
+app\web\payment_pages.py                       108     71    34%   31-34, 39-50, 57, 63-67, 74-89, 94-97, 102-109, 115-127, 133-141
+app\web\production_pages.py                     64     22    66%   20, 26-37, 44, 52, 61, 63, 65-67, 74, 79
+app\web\purchase_pages.py                      142     90    37%   29-32, 37-48, 55, 61-64, 73, 81, 83-85, 90-93, 98-107, 113-125, 130-133, 138-149, 155-167, 173-181
+app\web\report_pages.py                         93     39    58%   39, 61, 66-72, 83, 89, 109-131, 137-142, 147
+app\web\router.py                               28      0   100%
+app\web\sales_pages.py                         147    101    31%   30-33, 38-51, 58, 66, 74-88, 93-96, 101-111, 117-129, 134-137, 142-154, 160-172, 178-186
+app\web\search_pages.py                         85     14    84%   36-37, 44-45, 50-54, 59-62, 78
+--------------------------------------------------------------------------
+TOTAL                                         9255   4179    55%
+Required test coverage of 50% reached. Total coverage: 54.85%
+=========================== short test summary info ===========================
+FAILED tests/web/test_dashboard_pages.py::test_dashboard_unauthenticated - as...
+FAILED tests/web/test_production_pages.py::test_production_submit_success - p...
+FAILED tests/web/test_production_pages.py::test_production_submit_insufficient_stock
+FAILED tests/web/test_search_pages.py::test_search_date_matching - pg8000.dba...
+FAILED tests/services/test_client_import_service.py::test_import_client_nonexistent_id
+ERROR tests/services/test_notes_service.py::test_notes_history_rotation_limit
+ERROR tests/services/test_notes_service.py::test_read_notes_version_traversal_protection
+ERROR tests/services/test_purchase_service.py::test_create_purchase_validation_errors
+ERROR tests/services/test_purchase_service.py::test_create_and_delete_purchase
+ERROR tests/services/test_robustness.py::test_nested_transactions_savepoint
+ERROR tests/services/test_robustness.py::test_pessimistic_lock_concurrency - ...
+ERROR tests/services/test_runtime_reliability.py::test_empty_database_url_raises_error
+ERROR tests/services/test_runtime_reliability.py::test_desktop_mode_without_database_url_raises_error
+ERROR tests/services/test_runtime_reliability.py::test_launcher_defaults_to_network_server_mode
+ERROR tests/services/test_runtime_reliability.py::test_launcher_without_database_url_raises_error
+ERROR tests/services/test_runtime_reliability.py::test_multi_worker_runtime_is_rejected_without_override
+ERROR tests/services/test_runtime_reliability.py::test_cache_generation_invalidates_cached_value
+ERROR tests/services/test_runtime_reliability.py::test_pool_status_reports_postgres
+ERROR tests/services/test_runtime_reliability.py::test_application_logger_does_not_duplicate_to_root
+ERROR tests/services/test_runtime_reliability.py::test_bootstrap_and_migrate_runs_once_per_process
+ERROR tests/services/test_sale_service.py::test_create_sale_validation_errors
+ERROR tests/services/test_sale_service.py::test_create_and_delete_sale - pg80...
+ERROR tests/services/test_settings_repository.py::test_get_backup_dir_default
+ERROR tests/services/test_settings_repository.py::test_save_and_get_backup_dir
+ERROR tests/services/test_stress_calculations.py::test_stress_sales_math_calculations
+ERROR tests/services/test_stress_calculations.py::test_stress_production_cost_rounding
+ERROR tests/services/test_stress_calculations.py::test_stress_stock_adjustments
+ERROR tests/services/test_stress_calculations.py::test_stress_floating_point_extreme_inputs
+ERROR tests/services/test_stress_calculations.py::test_abusive_contact_creation
+ERROR tests/services/test_stress_calculations.py::test_abusive_production_creation
+ERROR tests/services/test_stress_calculations.py::test_abusive_sales_validation
+ERROR tests/printing/test_print_documents.py::test_client_history_print_renders
+ERROR tests/printing/test_print_documents.py::test_purchase_print_page_renders
+ERROR tests/printing/test_print_documents.py::test_purchase_print_embed_hides_actions
+ERROR tests/printing/test_print_documents.py::test_purchase_print_pdf_downloads
+5 failed, 95 passed, 95 warnings, 30 errors in 51.83s

@@ -247,3 +247,29 @@ def cache_entry_count() -> int:
 
 def clear_cache() -> None:
     _BACKEND.clear()
+
+
+def invalidate_client_cache(client_id: int) -> None:
+    """
+    Invalide uniquement les clés de cache liées à un client précis.
+    À utiliser à la place de invalidate_cache_domains("clients", "dashboard", ...)
+    pour les mutations qui n'affectent qu'un seul client.
+    """
+    keys_to_delete = [
+        ("client_detail", client_id),
+        ("client_history", client_id),
+        ("client_account", client_id),
+    ]
+    for key in keys_to_delete:
+        try:
+            if isinstance(_BACKEND, InMemoryCache):
+                with _BACKEND._lock:
+                    _BACKEND._cache.pop(key, None)
+            elif isinstance(_BACKEND, RedisCache):
+                r_key = _BACKEND._redis_key(key)
+                _BACKEND.client.delete(r_key)
+            else:
+                _BACKEND.invalidate_domains(f"client_detail:{client_id}", f"client_history:{client_id}", f"client_account:{client_id}")
+        except Exception:
+            pass
+

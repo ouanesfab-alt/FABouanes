@@ -148,3 +148,33 @@ on("delete.*", _auto_websocket)
 on("create.*", _auto_refresh_balances)
 on("update.*", _auto_refresh_balances)
 on("delete.*", _auto_refresh_balances)
+
+
+# Choix importants :
+# 1. Utilisation de BackgroundScheduler pour exécuter des tâches récurrentes de façon asynchrone sans bloquer l'application.
+# 2. Enregistrement de la tâche daily_overdue_alerts à 8h chaque jour avec replace_existing=True pour éviter les doublons au redémarrage.
+
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+    scheduler = BackgroundScheduler()
+except ImportError:
+    scheduler = None
+
+
+def startup():
+    """Démarre le planificateur de tâches en arrière-plan."""
+    if scheduler:
+        try:
+            if not scheduler.running:
+                scheduler.start()
+            from app.services.alert_service import broadcast_overdue_alerts
+            scheduler.add_job(
+                broadcast_overdue_alerts,
+                "cron", hour=8, minute=0,  # Chaque jour à 8h
+                id="daily_overdue_alerts",
+                replace_existing=True,
+            )
+            logger.info("Scheduler APScheduler démarré et tâche d'alertes enregistrée.")
+        except Exception as e:
+            logger.error("Erreur lors du démarrage du scheduler : %s", e)
+

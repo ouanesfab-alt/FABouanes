@@ -59,7 +59,7 @@ def test_production_submit_success(logged_client: TestClient):
 
     finally:
         # Cleanup
-        execute_db("DELETE FROM recipes WHERE finished_product_id = %s", (p_id,))
+        execute_db("DELETE FROM saved_recipes WHERE finished_product_id = %s", (p_id,))
         execute_db("DELETE FROM production_batch_items WHERE raw_material_id = %s", (r_id,))
         execute_db("DELETE FROM production_batches WHERE finished_product_id = %s", (p_id,))
         execute_db("DELETE FROM finished_products WHERE id = %s", (p_id,))

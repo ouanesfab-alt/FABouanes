@@ -90,3 +90,14 @@ def list_clients(
     total = int(rows[0]["_total_count"]) if rows else 0
     return [dict(r) for r in rows], total
 
+
+@db_task
+def list_clients_with_balance(
+    search: str | None = None,
+    page: int = 1,
+    page_size: int = 50,
+) -> tuple[list[dict], int]:
+    """Liste les clients avec leur solde actuel, utilisé par l'API mobile."""
+    return list_clients(search, page, page_size)
+
+

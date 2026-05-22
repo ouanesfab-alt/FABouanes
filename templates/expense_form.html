@@ -48,7 +48,7 @@
         </div>
       </div>
       <div class="d-flex gap-2 mt-4">
-        <button type="submit" class="btn btn-dark"><i class="bi bi-check-lg me-2"></i>{{ 'Enregistrer' if expense and expense.id else 'Ajouter' }}</button>
+        <button type="submit" class="btn btn-danger"><i class="bi bi-check-lg me-2"></i>{{ 'Enregistrer' if expense and expense.id else 'Ajouter' }}</button>
         <a href="{{ url_for('expenses') }}" class="btn btn-outline-secondary">Annuler</a>
       </div>
     </form>

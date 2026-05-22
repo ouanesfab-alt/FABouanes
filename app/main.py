@@ -71,9 +71,22 @@ async def lifespan(_: FastAPI):
 
     start_background_services(app)
     try:
+        from app.core.events import startup as events_startup
+        events_startup()
+    except Exception as e:
+        logger.warning("Erreur au démarrage du scheduler d'événements: %s", e)
+
+    try:
         yield
     finally:
         logger.info("Arrêt en cours, attente du scheduler...")
+        try:
+            from app.core.events import scheduler as events_scheduler
+            if events_scheduler and events_scheduler.running:
+                events_scheduler.shutdown()
+        except Exception as e:
+            logger.warning("Erreur à l'arrêt du scheduler d'événements: %s", e)
+
         try:
             from app.services.backup_service import shutdown_background_services
             shutdown_background_services(app)
@@ -150,7 +163,7 @@ app.add_middleware(
     https_only=settings.session_cookie_secure,
     max_age=settings.session_max_age,
 )
-app.add_middleware(GZipMiddleware, minimum_size=500)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 def is_html_request(request: Request) -> bool:

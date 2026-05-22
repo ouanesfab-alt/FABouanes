@@ -358,3 +358,122 @@ async def api_finished_product_detail(request: Request, product_id: int):
             api_error("conflict", "Suppression impossible.", 409)
         return json_response(api_success({"deleted": True}))
     return json_response(api_success(product))
+
+
+@router.post("/clients/import-history/bulk")
+async def bulk_import_client_history(
+    file: UploadFile = File(...),
+):
+    """
+    Accepte un fichier ZIP contenant plusieurs .xlsx (un par client).
+    Importe chaque fichier et retourne un rapport global.
+    """
+    # Choix importants :
+    # 1. Utilisation de zipfile pour extraire dynamiquement les fichiers Excel en mémoire/dossier temporaire.
+    # 2. Appel asynchrone sécurisé de import_client_history_from_excel dans un thread séparé.
+    import tempfile, zipfile, os
+    from app.services.client_import_service import (
+        import_client_history_from_excel
+    )
+
+    results = []
+    errors = []
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        zip_path = os.path.join(tmpdir, "upload.zip")
+        with open(zip_path, "wb") as f:
+            f.write(await file.read())
+
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                xlsx_files = [
+                    name for name in zf.namelist()
+                    if name.lower().endswith(".xlsx")
+                    and not name.startswith("__MACOSX")
+                ]
+                if not xlsx_files:
+                    raise HTTPException(400,
+                        "Aucun fichier .xlsx trouvé dans le ZIP")
+
+                for xlsx_name in xlsx_files:
+                    extracted = os.path.join(tmpdir, xlsx_name)
+                    zf.extract(xlsx_name, tmpdir)
+                    try:
+                        rapport = await asyncio.to_thread(
+                            import_client_history_from_excel,
+                            extracted, None, True
+                        )
+                        results.append(rapport)
+                    except Exception as e:
+                        errors.append({
+                            "fichier": xlsx_name,
+                            "erreur": str(e)
+                        })
+        except zipfile.BadZipFile:
+            raise HTTPException(400, "Fichier ZIP invalide ou corrompu")
+
+    return {
+        "success": len(errors) == 0,
+        "importes": len(results),
+        "erreurs": len(errors),
+        "detail_succes": results,
+        "detail_erreurs": errors,
+    }
+
+
+@router.get("/clients/export")
+async def export_clients_csv():
+    """
+    Exporte tous les clients avec solde, total achats, total versements,
+    dernière opération. Format CSV téléchargeable.
+    """
+    # Choix importants :
+    # 1. Requête SQL pure optimisée avec agrégations pour éviter les requêtes par lot.
+    # 2. Utilisation de Response de FastAPI pour renvoyer des données binaires (CSV encodé UTF-8 avec BOM pour Excel).
+    import csv, io
+    from datetime import date
+    from fastapi import Response
+
+    def _build_export():
+        rows = query_db("""
+            SELECT
+                c.id, c.name,
+                c.balance,
+                COALESCE(SUM(s.total), 0) AS total_achats,
+                COALESCE(SUM(p.amount), 0) AS total_verses,
+                MAX(s.sale_date) AS derniere_vente,
+                MAX(p.payment_date) AS dernier_paiement
+            FROM clients c
+            LEFT JOIN sales s ON s.client_id = c.id
+            LEFT JOIN raw_sales rs ON rs.client_id = c.id
+            LEFT JOIN payments p ON p.client_id = c.id
+            GROUP BY c.id, c.name, c.balance
+            ORDER BY c.balance DESC
+        """)
+        buf = io.StringIO()
+        writer = csv.DictWriter(buf, fieldnames=[
+            "id", "nom", "solde_actuel",
+            "total_achats", "total_versements",
+            "derniere_vente", "dernier_paiement",
+        ])
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({
+                "id": row["id"],
+                "nom": row["name"],
+                "solde_actuel": row["balance"],
+                "total_achats": row["total_achats"],
+                "total_versements": row["total_verses"],
+                "derniere_vente": row["derniere_vente"] or "",
+                "dernier_paiement": row["dernier_paiement"] or "",
+            })
+        return buf.getvalue()
+
+    csv_content = await asyncio.to_thread(_build_export)
+    filename = f"clients_export_{date.today().isoformat()}.csv"
+    return Response(
+        content=csv_content.encode("utf-8-sig"),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+

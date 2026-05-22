@@ -4,7 +4,7 @@ import json
 from datetime import date
 
 from app.core.activity import log_activity
-from app.core.audit import audit_event
+from app.core.audit import audit_event, audit_delete_event
 from app.core.db_access import db_transaction, execute_db, query_db
 from app.core.helpers import create_sale_record, reverse_sale, to_float, unit_choices
 from app.core.storage import mark_backup_needed
@@ -500,6 +500,8 @@ def edit_sale_from_form(kind: str, row_id: int, form):
 
 def delete_sale_by_id(kind: str, row_id: int) -> bool:
     before = get_sale(kind, row_id)
+    if before:
+        audit_delete_event("sale", row_id, dict(before))
     ok = reverse_sale(kind, row_id)
     if ok:
         log_activity("delete_sale", "sale", row_id, f"Suppression vente {kind}")

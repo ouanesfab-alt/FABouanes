@@ -110,14 +110,14 @@ async def global_search(request: Request):
                 FROM sales s
                 LEFT JOIN clients c ON c.id = s.client_id
                 JOIN finished_products f ON f.id = s.finished_product_id
-                WHERE s.sale_date {operator} %s
+                WHERE CAST(s.sale_date AS TEXT) {operator} %s
                 UNION ALL
                 SELECT rs.id, rs.sale_date, COALESCE(c.name, 'Comptoir') AS client_name,
                        r.name AS item_name, rs.total, rs.sale_type
                 FROM raw_sales rs
                 LEFT JOIN clients c ON c.id = rs.client_id
                 JOIN raw_materials r ON r.id = rs.raw_material_id
-                WHERE rs.sale_date {operator} %s
+                WHERE CAST(rs.sale_date AS TEXT) {operator} %s
                 ORDER BY sale_date DESC LIMIT 5""",
             (date_param, date_param),
         )
@@ -139,7 +139,7 @@ async def global_search(request: Request):
                 FROM purchases p
                 LEFT JOIN suppliers s ON s.id = p.supplier_id
                 LEFT JOIN raw_materials r ON r.id = p.raw_material_id
-                WHERE p.purchase_date {operator} %s
+                WHERE CAST(p.purchase_date AS TEXT) {operator} %s
                 ORDER BY p.purchase_date DESC LIMIT 4""",
             (date_param,),
         )
@@ -159,7 +159,7 @@ async def global_search(request: Request):
                        p.amount, p.payment_type
                 FROM payments p
                 JOIN clients c ON c.id = p.client_id
-                WHERE p.payment_date {operator} %s
+                WHERE CAST(p.payment_date AS TEXT) {operator} %s
                 ORDER BY p.payment_date DESC LIMIT 4""",
             (date_param,),
         )

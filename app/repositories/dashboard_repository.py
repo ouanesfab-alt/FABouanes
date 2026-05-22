@@ -268,16 +268,29 @@ def _dashboard_daily_summary(today: str, week_iso: str) -> dict[str, float]:
         ("dashboard_daily_summary", today, week_iso),
         lambda: query_db(
             """
+            WITH ts AS (
+                SELECT COALESCE(SUM(total), 0) AS sales, COALESCE(SUM(profit_amount), 0) AS profit FROM sales WHERE sale_date = %s
+            ),
+            trs AS (
+                SELECT COALESCE(SUM(total), 0) AS sales, COALESCE(SUM(profit_amount), 0) AS profit FROM raw_sales WHERE sale_date = %s
+            ),
+            tp AS (
+                SELECT COALESCE(SUM(amount), 0) AS cash FROM payments WHERE payment_date = %s
+            ),
+            ws AS (
+                SELECT COALESCE(SUM(total), 0) AS sales FROM sales WHERE sale_date = %s
+            ),
+            wrs AS (
+                SELECT COALESCE(SUM(total), 0) AS sales FROM raw_sales WHERE sale_date = %s
+            )
             SELECT
-                COALESCE((SELECT SUM(total) FROM sales WHERE sale_date = %s), 0)
-                + COALESCE((SELECT SUM(total) FROM raw_sales WHERE sale_date = %s), 0) AS sales_today,
-                COALESCE((SELECT SUM(total) FROM sales WHERE sale_date = %s), 0)
-                + COALESCE((SELECT SUM(total) FROM raw_sales WHERE sale_date = %s), 0) AS sales_week_ago,
-                COALESCE((SELECT SUM(amount) FROM payments WHERE payment_date = %s), 0) AS cash_today,
-                COALESCE((SELECT SUM(profit_amount) FROM sales WHERE sale_date = %s), 0)
-                + COALESCE((SELECT SUM(profit_amount) FROM raw_sales WHERE sale_date = %s), 0) AS profit_today
+                (ts.sales + trs.sales) AS sales_today,
+                (ws.sales + wrs.sales) AS sales_week_ago,
+                tp.cash AS cash_today,
+                (ts.profit + trs.profit) AS profit_today
+            FROM ts, trs, tp, ws, wrs
             """,
-            (today, today, week_iso, week_iso, today, today, today),
+            (today, today, today, week_iso, week_iso),
             one=True,
         ),
         ttl_seconds=20.0,
@@ -327,21 +340,36 @@ def _dashboard_cumulative_summary() -> dict[str, float]:
 def _build_kpis_for_date(target_date: str) -> dict[str, float | str]:
     row = query_db(
         """
+        WITH s AS (
+            SELECT COALESCE(SUM(total), 0) AS sales_total,
+                   COALESCE(SUM(profit_amount), 0) AS profit
+            FROM sales WHERE sale_date = %s
+        ),
+        rs AS (
+            SELECT COALESCE(SUM(total), 0) AS sales_total,
+                   COALESCE(SUM(profit_amount), 0) AS profit
+            FROM raw_sales WHERE sale_date = %s
+        ),
+        p AS (
+            SELECT COALESCE(SUM(amount), 0) AS cash
+            FROM payments WHERE payment_date = %s
+        ),
+        receivables_cte AS (
+            SELECT
+                COALESCE((SELECT SUM(opening_credit) FROM clients), 0)
+                + COALESCE((SELECT SUM(total) FROM sales WHERE sale_type = 'credit' AND sale_date <= %s), 0)
+                + COALESCE((SELECT SUM(total) FROM raw_sales WHERE sale_type = 'credit' AND sale_date <= %s), 0)
+                - COALESCE((SELECT SUM(amount) FROM payments WHERE payment_type = 'versement' AND payment_date <= %s), 0)
+                + COALESCE((SELECT SUM(amount) FROM payments WHERE payment_type = 'avance' AND payment_date <= %s), 0) AS receivables
+        )
         SELECT
-            COALESCE((SELECT SUM(total) FROM sales WHERE sale_date = %s), 0)
-            + COALESCE((SELECT SUM(total) FROM raw_sales WHERE sale_date = %s), 0) AS sales,
-            COALESCE((SELECT SUM(amount) FROM payments WHERE payment_date = %s), 0) AS cash,
-            COALESCE((SELECT SUM(profit_amount) FROM sales WHERE sale_date = %s), 0)
-            + COALESCE((SELECT SUM(profit_amount) FROM raw_sales WHERE sale_date = %s), 0) AS profit,
-            COALESCE((SELECT SUM(opening_credit) FROM clients), 0)
-            + COALESCE((SELECT SUM(total) FROM sales WHERE sale_type = 'credit' AND sale_date <= %s), 0)
-            + COALESCE((SELECT SUM(total) FROM raw_sales WHERE sale_type = 'credit' AND sale_date <= %s), 0)
-            - COALESCE((SELECT SUM(amount) FROM payments WHERE payment_type = 'versement' AND payment_date <= %s), 0)
-            + COALESCE((SELECT SUM(amount) FROM payments WHERE payment_type = 'avance' AND payment_date <= %s), 0) AS receivables
+            (s.sales_total + rs.sales_total) AS sales,
+            p.cash AS cash,
+            (s.profit + rs.profit) AS profit,
+            rc.receivables AS receivables
+        FROM s, rs, p, receivables_cte rc
         """,
         (
-            target_date,
-            target_date,
             target_date,
             target_date,
             target_date,

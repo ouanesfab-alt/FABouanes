@@ -261,3 +261,63 @@ def export_audit_logs_csv(filters: Mapping[str, Any] | None = None, *, limit: in
             ]
         )
     return output.getvalue().encode("utf-8")
+
+
+def audit_delete_event(
+    entity_type: str,
+    entity_id: int,
+    snapshot: dict,
+    user_id: int | None = None,
+) -> None:
+    """
+    Trace une suppression dans audit_logs.
+    snapshot = état de l'entité AVANT suppression.
+    """
+    resolved_user_id = user_id
+    if resolved_user_id is None:
+        user_state = get_state_value("user")
+        if isinstance(user_state, dict):
+            resolved_user_id = user_state.get("id")
+        elif hasattr(user_state, "id"):
+            resolved_user_id = getattr(user_state, "id")
+
+    actor_username = "anonymous"
+    actor_role = "anonymous"
+    if resolved_user_id:
+        try:
+            from app.repositories.user_repository import get_user_by_id
+            user = get_user_by_id(resolved_user_id)
+            if user:
+                actor_username = user.get("username", "anonymous")
+                actor_role = user.get("role", "anonymous")
+        except Exception:
+            pass
+    else:
+        user_state = get_state_value("user")
+        if user_state:
+            if isinstance(user_state, dict):
+                actor_username = user_state.get("username", "anonymous")
+                actor_role = user_state.get("role", "anonymous")
+            else:
+                actor_username = getattr(user_state, "username", "anonymous")
+                actor_role = getattr(user_state, "role", "anonymous")
+
+    source = get_state_value("audit_source") or "web"
+
+    execute_db(
+        """
+        INSERT INTO audit_logs
+            (action, entity_type, entity_id,
+             before_json, actor_user_id, actor_username, actor_role, source, status, created_at)
+        VALUES ('delete', %s, %s, %s, %s, %s, %s, %s, 'success', NOW())
+        """,
+        (
+            entity_type,
+            str(entity_id),
+            json.dumps(snapshot, default=str),
+            resolved_user_id,
+            actor_username,
+            actor_role,
+            source,
+        ),
+    )

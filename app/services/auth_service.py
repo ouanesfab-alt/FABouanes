@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from fastapi import Request
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -26,7 +27,7 @@ from app.core.security import (
 VALID_ROLES = {ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR}
 
 
-def attempt_login(username: str, password: str):
+def attempt_login(username: str, password: str, request: Request | None = None):
     normalized = (username or "").strip()
     ip = client_ip()
     
@@ -42,9 +43,9 @@ def attempt_login(username: str, password: str):
         )
         return {"ok": False, "status": 429, "message": "Trop d'echecs de connexion. Votre IP est temporairement bloquee."}
 
-    # 2. Check standard rate limit
+    # 2. Check standard rate limit (réduit à 5 tentatives / 5 minutes)
     login_key = f"login:{ip}:{normalized.lower()}"
-    if not consume_rate_limit(login_key, 8, 300):
+    if not consume_rate_limit(login_key, 5, 300):
         audit_event(
             action="login",
             entity_type="user",
@@ -62,7 +63,18 @@ def attempt_login(username: str, password: str):
         user = get_user_by_username(normalized)
         log_activity("login", "user", user["id"], f"Connexion de {normalized}")
         audit_event("login", "user", user["id"], after={"username": normalized, "role": user["role"]})
+        
+        # Rotation de session pour empêcher la fixation de session
+        if request and hasattr(request, "session"):
+            old_data = dict(request.session)
+            request.session.clear()
+            request.session.update(old_data)
+            request.session["user_id"] = int(user["id"])
+            request.session["role"] = user["role"]
+            request.session["username"] = normalized
+
         return {"ok": True, "user": user}
+
         
     # Failed attempt
     record_login_failure(ip)
@@ -126,3 +138,15 @@ def validate_new_user_payload(username: str, password: str, role: str):
     if not re.fullmatch(r"[A-Za-z0-9_.-]{3,50}", normalized):
         return {"ok": False, "message": "Nom d'utilisateur invalide. Utilise 3 a 50 caracteres: lettres, chiffres, point, tiret, underscore."}
     return {"ok": True, "username": normalized, "role": role_value}
+
+
+def verify_credentials(username: str, password: str) -> dict | None:
+    """
+    Vérifie les identifiants d'un utilisateur et retourne ses informations s'ils sont valides.
+    Utilisé par l'API mobile.
+    """
+    res = attempt_login(username, password)
+    if res.get("ok") and "user" in res:
+        return res["user"]
+    return None
+

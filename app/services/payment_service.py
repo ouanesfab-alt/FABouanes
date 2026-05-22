@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from app.core.activity import log_activity
-from app.core.audit import audit_event
+from app.core.audit import audit_event, audit_delete_event
 from app.core.db_access import db_transaction, execute_db, query_db
 from app.core.helpers import create_payment_record, get_open_credit_entries, reverse_payment_allocations, to_float
 from app.core.storage import mark_backup_needed
@@ -89,6 +89,8 @@ def delete_payment_by_id(payment_id: int) -> bool:
     if not payment:
         return False
     before = dict(payment)
+    # Appel avant la suppression physique
+    audit_delete_event("payment", payment_id, before)
     with db_transaction():
         reverse_payment_allocations(payment)
         execute_db("DELETE FROM payments WHERE id = %s", (payment_id,))
@@ -96,3 +98,38 @@ def delete_payment_by_id(payment_id: int) -> bool:
     audit_event("delete_payment", "payment", payment_id, before=before, after=None)
     mark_backup_needed("delete_payment")
     return True
+
+
+def create_mobile_payment(
+    client_id: int,
+    amount: float,
+    payment_date: str,
+    notes: str,
+    recorded_by: int | None = None,
+) -> dict:
+    """
+    Enregistre un versement depuis l'application mobile.
+    Le paiement est enregistré par défaut comme un 'versement' global réparti sur les créances.
+    """
+    payment_id = create_payment_record(
+        client_id=client_id,
+        amount=amount,
+        payment_date=payment_date or date.today().isoformat(),
+        notes=notes,
+        sale_link="",
+        payment_type="versement",
+    )
+    from app.core.audit import audit_event
+    created = get_payment(payment_id)
+    log_activity("create_mobile_payment", "payment", payment_id, f"Mobile: client #{client_id} montant={amount} par user #{recorded_by}")
+    audit_event(
+        "create_payment",
+        "payment",
+        payment_id,
+        after=created,
+        actor={"id": recorded_by, "username": f"user_{recorded_by}", "role": "operator"},
+        source="mobile_api",
+    )
+    mark_backup_needed("create_mobile_payment")
+    return {"ok": True, "payment_id": payment_id, "payment": created}
+

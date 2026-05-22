@@ -48,7 +48,8 @@ def list_notes_history() -> list[dict]:
 
 
 def read_notes_version(filename: str) -> str:
-    safe = filename.replace("..", "").replace("/", "").replace("\\", "")
+    # Traversal protection : on n'accepte que le nom de fichier de base
+    safe = Path(filename).name.replace("..", "").replace("/", "").replace("\\", "")
     path = NOTES_DIR / safe
     if path.exists() and path.suffix == ".txt":
         return path.read_text(encoding="utf-8")

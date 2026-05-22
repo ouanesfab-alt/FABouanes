@@ -30,10 +30,10 @@ async def login_submit(request: Request):
         return RedirectResponse("/", status_code=303)
     await csrf_protect(request)
     form = await request.form()
-    result = attempt_login(form.get("username", ""), form.get("password", ""))
+    result = attempt_login(form.get("username", ""), form.get("password", ""), request)
     if result["ok"]:
         user = result["user"]
-        request.session.clear()
+        # request.session.clear() est déjà géré par la rotation dans attempt_login, on garde les attributs restants
         request.session["user_id"] = user["id"]
         request.session["remember"] = bool(form.get("remember"))
         flash(request, "Connexion reussie.", "success")

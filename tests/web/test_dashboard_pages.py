@@ -4,11 +4,11 @@ from fastapi.testclient import TestClient
 
 
 def test_dashboard_unauthenticated(client: TestClient):
-    response = client.get("/")
+    response = client.get("/", follow_redirects=False)
     assert response.status_code == 303
     assert response.headers["location"] == "/login"
 
-    response_mc = client.get("/mobile-connect")
+    response_mc = client.get("/mobile-connect", follow_redirects=False)
     assert response_mc.status_code == 303
 
     response_kpi = client.get("/api/kpi-date")

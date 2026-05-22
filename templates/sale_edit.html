@@ -78,7 +78,7 @@
           <div class="doc-lines-list" id="saleLines"></div>
         </div>
         <div class="span-12 entity-form-actions">
-          <button type="submit" class="btn btn-dark" {% if edit_locked %}disabled{% endif %}>
+          <button type="submit" class="btn btn-success" {% if edit_locked %}disabled{% endif %}>
             <i class="bi bi-check2-circle me-1"></i>Enregistrer les modifications
           </button>
           <a href="{{ url_for('transactions', type='sale') }}" class="btn btn-outline-secondary">Retour</a>

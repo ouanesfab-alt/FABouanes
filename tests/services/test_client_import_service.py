@@ -15,8 +15,14 @@ def cleanup_database():
 
 
 def test_import_client_nonexistent_id():
-    with pytest.raises(ValueError, match="Le client spécifié.*n'existe pas"):
-        import_client_history_from_excel("dummy.xlsx", client_id=999999)
+    mock_data = {
+        "client_name": "Nonexistent Client",
+        "solde_final": 0.0,
+        "rows": []
+    }
+    with patch("app.services.client_import_service.parse_client_history_excel", return_value=mock_data):
+        with pytest.raises(ValueError, match="Le client spécifié.*n'existe pas"):
+            import_client_history_from_excel("dummy.xlsx", client_id=999999)
 
 
 def test_import_client_new_client():
