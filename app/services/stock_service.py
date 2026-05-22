@@ -497,6 +497,7 @@ def reverse_production(batch_id: int) -> bool:
 
 def smart_profit_for_sale(item_kind: str, item_id: int, qty_kg: float, total: float) -> tuple[float, float]:
     table = "finished_products" if item_kind == "finished" else "raw_materials"
+    assert table in {"finished_products", "raw_materials"}, f"Table {table} is not allowed"
     row = query_db(f"SELECT avg_cost FROM {table} WHERE id = %s", (item_id,), one=True)
     cost_snapshot = float(row["avg_cost"]) if row else 0.0
     return cost_snapshot, round(float(total) - float(qty_kg) * cost_snapshot, 2)

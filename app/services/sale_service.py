@@ -357,7 +357,6 @@ def edit_sale_document_from_form(document_id: int, form):
         for line in context["sale_lines"]:
             if not reverse_sale(str(line["row_kind"]), int(line["row_id"])):
                 raise ValueError("Impossible de modifier cette facture.")
-        _insert_sale_document(document_id, client_id, sale_type, sale_date, notes)
         created_lines: list[tuple[str, int]] = []
         for line in lines:
             created_lines.append(

@@ -4,11 +4,11 @@
     {% if pagination.total %}
       {{ pagination.start }}-{{ pagination.end }} sur {{ pagination.total }}
     {% else %}
-      0 resultat
+      0 résultat
     {% endif %}
   </div>
   <div class="btn-group" role="group" aria-label="Pagination">
-    <a class="btn btn-sm btn-outline-secondary{% if not pagination.has_prev %} disabled{% endif %}" href="{{ pagination.prev_url or '#' }}">Precedent</a>
+    <a class="btn btn-sm btn-outline-secondary{% if not pagination.has_prev %} disabled{% endif %}" href="{{ pagination.prev_url or '#' }}">Précédent</a>
     <span class="btn btn-sm btn-outline-secondary disabled">Page {{ pagination.page }} / {{ pagination.pages }}</span>
     <a class="btn btn-sm btn-outline-secondary{% if not pagination.has_next %} disabled{% endif %}" href="{{ pagination.next_url or '#' }}">Suivant</a>
   </div>

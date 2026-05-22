@@ -50,7 +50,7 @@
     <form method="get" class="row g-2 mb-3 contacts-filter-row">
       <input type="hidden" name="type" value="{{ filter_type }}">
       <div class="col-md-6">
-        <input type="text" name="name" value="{{ filter_name }}" class="form-control" placeholder="Nom, telephone...">
+        <input type="text" name="name" value="{{ filter_name }}" class="form-control" placeholder="Nom, téléphone...">
       </div>
       <div class="col-md-3">
         <select name="page_size" class="form-select">
@@ -61,7 +61,7 @@
       </div>
       <div class="col-md-3 d-flex gap-2">
         <button class="btn btn-dark w-100">Filtrer</button>
-        <a href="{{ url_for('contacts', type=filter_type) }}" class="btn btn-outline-secondary" aria-label="Reinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
+        <a href="{{ url_for('contacts', type=filter_type) }}" class="btn btn-outline-secondary" aria-label="Réinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
       </div>
     </form>
 
@@ -70,7 +70,7 @@
         <thead>
           <tr>
             <th class="col-name">Nom</th>
-            <th class="col-phone hide-mobile">Telephone</th>
+            <th class="col-phone hide-mobile">Téléphone</th>
             <th class="col-type hide-mobile">Type</th>
             <th class="col-money hide-mobile">Total ventes / achats</th>
             <th class="col-money hide-mobile">Versements</th>
@@ -217,7 +217,7 @@
       }
     }
 
-    const resetLink = e.target.closest('.contacts-table-card a[aria-label="Reinitialiser les filtres"]');
+    const resetLink = e.target.closest('.contacts-table-card a[aria-label="Réinitialiser les filtres"]');
     if (resetLink && window.location.pathname.startsWith('/contacts')) {
       e.preventDefault();
       loadContacts(resetLink.getAttribute('href'));

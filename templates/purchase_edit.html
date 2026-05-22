@@ -95,16 +95,16 @@
         </select>
         <div class="doc-line-meta purchase-meta"></div>
         <div class="purchase-custom-wrap" hidden>
-          <label class="form-label mt-2">Preciser le produit</label>
+          <label class="form-label mt-2">Préciser le produit</label>
           <input name="custom_item_name[]" type="text" class="form-control purchase-custom-name" placeholder="Nom du produit">
         </div>
       </div>
       <div>
-        <label class="form-label">Quantite</label>
+        <label class="form-label">Quantité</label>
         <input name="quantity[]" type="text" inputmode="decimal" class="form-control purchase-qty" required placeholder="0">
       </div>
       <div>
-        <label class="form-label">Unite</label>
+        <label class="form-label">Unité</label>
         <select name="unit[]" class="form-select purchase-unit">
           {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
         </select>
@@ -206,7 +206,7 @@
       priceInput.value = (avgCost * unitFactor(displayUnit)).toFixed(2);
     }
     syncCustomField(row);
-    metaNode.textContent = `Stock: ${(stock / unitFactor(displayUnit)).toFixed(2)} ${displayUnit} | Cout: ${fmtMoney(avgCost * unitFactor(displayUnit))}/${displayUnit}${forcedUnit ? ' | Unite fixe' : ''}`;
+    metaNode.textContent = `Stock: ${(stock / unitFactor(displayUnit)).toFixed(2)} ${displayUnit} | Coût: ${fmtMoney(avgCost * unitFactor(displayUnit))}/${displayUnit}${forcedUnit ? ' | Unité fixe' : ''}`;
     updateLineTotal(row);
   }
 

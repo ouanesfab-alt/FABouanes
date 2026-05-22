@@ -137,6 +137,46 @@ def _json_dump(value: Any) -> str | None:
     return json.dumps(sanitize_payload(row_to_dict(value)), ensure_ascii=False, sort_keys=True, default=str)
 
 
+def _resolve_actor(user_id: int | None = None, actor: Any = None) -> tuple[int | None, str, str]:
+    resolved_id = user_id
+    resolved_username = None
+    resolved_role = None
+
+    if actor:
+        if isinstance(actor, Mapping):
+            resolved_id = actor.get("id") or resolved_id
+            resolved_username = actor.get("username")
+            resolved_role = actor.get("role")
+        else:
+            resolved_id = getattr(actor, "id", None) or resolved_id
+            resolved_username = getattr(actor, "username", None)
+            resolved_role = getattr(actor, "role", None)
+
+    if resolved_id is None and not resolved_username:
+        state_user = get_state_value("user")
+        if state_user:
+            if isinstance(state_user, Mapping):
+                resolved_id = state_user.get("id")
+                resolved_username = state_user.get("username")
+                resolved_role = state_user.get("role")
+            else:
+                resolved_id = getattr(state_user, "id", None)
+                resolved_username = getattr(state_user, "username", None)
+                resolved_role = getattr(state_user, "role", None)
+
+    if resolved_id and (not resolved_username or not resolved_role):
+        try:
+            from app.repositories.user_repository import get_user_by_id
+            user = get_user_by_id(resolved_id)
+            if user:
+                resolved_username = resolved_username or user.get("username")
+                resolved_role = resolved_role or user.get("role")
+        except Exception:
+            pass
+
+    return resolved_id, resolved_username or "anonymous", resolved_role or "anonymous"
+
+
 def audit_event(
     action: str,
     entity_type: str = "",
@@ -149,11 +189,7 @@ def audit_event(
     source: str | None = None,
     actor: Mapping[str, Any] | None = None,
 ) -> None:
-    state_user = get_state_value("user")
-    actor_user = actor or state_user or {}
-    actor_user_id = actor_user.get("id") if isinstance(actor_user, Mapping) else None
-    actor_username = actor_user.get("username") if isinstance(actor_user, Mapping) else None
-    actor_role = actor_user.get("role") if isinstance(actor_user, Mapping) else None
+    actor_user_id, actor_username, actor_role = _resolve_actor(actor=actor)
     request_id = get_state_value("request_id")
     request_source = source or get_state_value("audit_source")
     remote_addr = ""
@@ -273,35 +309,7 @@ def audit_delete_event(
     Trace une suppression dans audit_logs.
     snapshot = état de l'entité AVANT suppression.
     """
-    resolved_user_id = user_id
-    if resolved_user_id is None:
-        user_state = get_state_value("user")
-        if isinstance(user_state, dict):
-            resolved_user_id = user_state.get("id")
-        elif hasattr(user_state, "id"):
-            resolved_user_id = getattr(user_state, "id")
-
-    actor_username = "anonymous"
-    actor_role = "anonymous"
-    if resolved_user_id:
-        try:
-            from app.repositories.user_repository import get_user_by_id
-            user = get_user_by_id(resolved_user_id)
-            if user:
-                actor_username = user.get("username", "anonymous")
-                actor_role = user.get("role", "anonymous")
-        except Exception:
-            pass
-    else:
-        user_state = get_state_value("user")
-        if user_state:
-            if isinstance(user_state, dict):
-                actor_username = user_state.get("username", "anonymous")
-                actor_role = user_state.get("role", "anonymous")
-            else:
-                actor_username = getattr(user_state, "username", "anonymous")
-                actor_role = getattr(user_state, "role", "anonymous")
-
+    resolved_user_id, actor_username, actor_role = _resolve_actor(user_id=user_id)
     source = get_state_value("audit_source") or "web"
 
     execute_db(

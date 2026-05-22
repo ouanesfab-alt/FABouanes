@@ -39,7 +39,7 @@
 <div class="transactions-page">
   <div class="page-hero mb-0">
     <div>
-      <h2 class="section-title mb-1">Operations</h2>
+      <h2 class="section-title mb-1">Opérations</h2>
     </div>
     <div class="transactions-actions">
       <a href="{{ url_for('new_operation') }}" class="btn btn-success">
@@ -56,14 +56,14 @@
     <form method="get" class="row g-2 mb-3 transactions-filter-row">
       <input type="hidden" name="type" value="{{ filter_type }}">
       <div class="col-md-3">
-        <input type="text" name="name" value="{{ filter_name }}" class="form-control" placeholder="Nom ou designation">
+        <input type="text" name="name" value="{{ filter_name }}" class="form-control" placeholder="Nom ou désignation">
       </div>
       <div class="col-md-2">
         <input type="date" name="date" value="{{ filter_date }}" class="form-control">
       </div>
       <div class="col-md-3">
         <select name="operation" class="form-select">
-          <option value="">Toutes les operations</option>
+          <option value="">Toutes les opérations</option>
           <option value="achat" {{ 'selected' if filter_operation=='achat' else '' }}>Achat</option>
           <option value="vente" {{ 'selected' if filter_operation=='vente' else '' }}>Vente</option>
           <option value="versement" {{ 'selected' if filter_operation=='versement' else '' }}>Versement</option>
@@ -79,7 +79,7 @@
       </div>
       <div class="col-md-2 d-flex gap-2">
         <button class="btn btn-dark w-100">Filtrer</button>
-        <a href="{{ url_for('operations', type=filter_type) }}" class="btn btn-outline-secondary" aria-label="Reinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
+        <a href="{{ url_for('operations', type=filter_type) }}" class="btn btn-outline-secondary" aria-label="Réinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
       </div>
     </form>
 
@@ -90,11 +90,11 @@
             <th class="col-date">Date</th>
             <th class="col-type">Type</th>
             <th class="col-partner">Client / fournisseur</th>
-            <th class="col-designation">Designation</th>
-            <th class="col-qty">Qte</th>
+            <th class="col-designation">Désignation</th>
+            <th class="col-qty">Qté</th>
             <th class="col-money">PU</th>
             <th class="col-money">Total</th>
-            <th class="col-money">Paye</th>
+            <th class="col-money">Payé</th>
             <th class="col-money">Reste</th>
             <th class="col-actions">Actions</th>
           </tr>
@@ -301,7 +301,7 @@
       }
     }
 
-    const resetLink = e.target.closest('.transactions-table-card a[aria-label="Reinitialiser les filtres"]');
+    const resetLink = e.target.closest('.transactions-table-card a[aria-label="Réinitialiser les filtres"]');
     if (resetLink) {
       e.preventDefault();
       loadTransactions(resetLink.getAttribute('href'));

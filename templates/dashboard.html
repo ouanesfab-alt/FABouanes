@@ -107,7 +107,7 @@
       </div>
       <div class="dash-connect-url">{{ mobile_connect_url }}</div>
       {% else %}
-      <div class="dash-connect-status">{% if mobile_connect_url %}{{ mobile_connect_url }}{% else %}Serveur reseau indisponible sur cette session.{% endif %}</div>
+      <div class="dash-connect-status">{% if mobile_connect_url %}{{ mobile_connect_url }}{% else %}Serveur réseau indisponible sur cette session.{% endif %}</div>
       {% endif %}
     </div>
   </section>
@@ -142,10 +142,10 @@
 
   <div class="dashboard-switch-stack">
     <div class="fab-switcher" id="dashboardSwitchButtons" data-fab-switch-root data-fab-switch-placeholder="dashboardSwitchPlaceholder">
-      <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardOperations" aria-controls="dashboardOperations" aria-pressed="false"><i class="bi bi-graph-up"></i> Operations</button>
+      <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardOperations" aria-controls="dashboardOperations" aria-pressed="false"><i class="bi bi-graph-up"></i> Opérations</button>
       <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardTopDebtors" aria-controls="dashboardTopDebtors" aria-pressed="false"><i class="bi bi-people"></i> Top débiteurs</button>
       <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardLowStock" aria-controls="dashboardLowStock" aria-pressed="false"><i class="bi bi-exclamation-triangle"></i> Stocks faibles</button>
-      <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardRecentSales" aria-controls="dashboardRecentSales" aria-pressed="false"><i class="bi bi-receipt"></i> Ventes recentes</button>
+      <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardRecentSales" aria-controls="dashboardRecentSales" aria-pressed="false"><i class="bi bi-receipt"></i> Ventes récentes</button>
       <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardDailySummary" aria-controls="dashboardDailySummary" aria-pressed="false"><i class="bi bi-calendar3"></i> Résumé journalier</button>
       <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardRawMaterials" aria-controls="dashboardRawMaterials" aria-pressed="false"><i class="bi bi-flower1"></i> Matières premières</button>
       <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardFinishedProducts" aria-controls="dashboardFinishedProducts" aria-pressed="false"><i class="bi bi-box-seam"></i> Produits finaux</button>
@@ -156,19 +156,19 @@
     </div>
 
     <section id="dashboardOperations" class="card p-3 fab-switch-panel" hidden>
-      <h5 class="dashboard-panel-title">Operations</h5>
-      <p class="dashboard-panel-subtitle">Vue rapide des montants globaux de l'activite.</p>
+      <h5 class="dashboard-panel-title">Opérations</h5>
+      <p class="dashboard-panel-subtitle">Vue rapide des montants globaux de l'activité.</p>
       <table class="table table-sm no-grid mb-0">
         <tr><td class="text-muted">Revenus totaux</td><td class="fw-bold text-end">{{ profit_stats.revenue|money }}</td></tr>
-        <tr><td class="text-muted">Cout des ventes</td><td class="fw-bold text-end">{{ profit_stats.cost_of_goods|money }}</td></tr>
-        <tr><td class="text-muted">Benefice brut</td><td class="fw-bold text-success text-end">{{ profit_stats.gross_profit|money }}</td></tr>
-        <tr><td class="text-muted">Creances ouvertes</td><td class="fw-bold text-danger text-end">{{ total_receivables|money }}</td></tr>
+        <tr><td class="text-muted">Coût des ventes</td><td class="fw-bold text-end">{{ profit_stats.cost_of_goods|money }}</td></tr>
+        <tr><td class="text-muted">Bénéfice brut</td><td class="fw-bold text-success text-end">{{ profit_stats.gross_profit|money }}</td></tr>
+        <tr><td class="text-muted">Créances ouvertes</td><td class="fw-bold text-danger text-end">{{ total_receivables|money }}</td></tr>
       </table>
     </section>
 
     <section id="dashboardTopDebtors" class="card p-3 fab-switch-panel" hidden>
       <h5 class="dashboard-panel-title">Top débiteurs</h5>
-      <p class="dashboard-panel-subtitle">Clients avec les soldes ouverts les plus eleves.</p>
+      <p class="dashboard-panel-subtitle">Clients avec les soldes ouverts les plus élevés.</p>
       {% if debt_by_client %}
       <table class="table table-sm no-grid mb-0">
         {% for d in debt_by_client[:6] %}
@@ -203,12 +203,12 @@
     </section>
 
     <section id="dashboardRecentSales" class="card p-3 fab-switch-panel" hidden>
-      <h5 class="dashboard-panel-title">Ventes recentes</h5>
-      <p class="dashboard-panel-subtitle">Dernieres ventes produits finaux et matières premières confondues.</p>
+      <h5 class="dashboard-panel-title">Ventes récentes</h5>
+      <p class="dashboard-panel-subtitle">Dernières ventes, produits finaux et matières premières confondues.</p>
       {% if recent_sales %}
       <div class="table-responsive">
         <table class="table table-sm align-middle table-row-hover">
-          <thead><tr><th>Date</th><th class="hide-mobile">Client</th><th>Article</th><th>Total</th><th>Reste</th><th class="hide-mobile">Benefice</th></tr></thead>
+          <thead><tr><th>Date</th><th class="hide-mobile">Client</th><th>Article</th><th>Total</th><th>Reste</th><th class="hide-mobile">Bénéfice</th></tr></thead>
           <tbody>
             {% for item in recent_sales %}
             <tr><td class="text-muted small">{{ item.sale_date }}</td><td class="hide-mobile">{{ item.client_name }}</td><td class="small">{{ item.item_name }}</td><td>{{ item.total|money }}</td><td class="{{ 'text-danger' if item.balance_due > 0 else 'text-muted' }}">{{ item.balance_due|money }}</td><td class="text-success small hide-mobile">{{ item.profit_amount|money }}</td></tr>
@@ -230,11 +230,11 @@
 
     <section id="dashboardDailySummary" class="card p-3 fab-switch-panel" hidden>
       <h5 class="dashboard-panel-title">Résumé journalier</h5>
-      <p class="dashboard-panel-subtitle">Synthese quotidienne des ventes, paiements et benefices.</p>
+      <p class="dashboard-panel-subtitle">Synthèse quotidienne des ventes, paiements et bénéfices.</p>
       {% if sales_summary %}
       <div class="table-responsive">
         <table class="table table-sm align-middle">
-          <thead><tr><th>Date</th><th>Ventes</th><th>Total</th><th class="hide-mobile">Paye</th><th>Reste</th><th class="hide-mobile">Benefice</th></tr></thead>
+          <thead><tr><th>Date</th><th>Ventes</th><th>Total</th><th class="hide-mobile">Payé</th><th>Reste</th><th class="hide-mobile">Bénéfice</th></tr></thead>
           <tbody>
             {% for r in sales_summary %}
             <tr><td class="text-muted small">{{ r.sale_date }}</td><td class="fw-bold">{{ r.nb_sales }}</td><td>{{ r.total_sales|money }}</td><td class="hide-mobile">{{ r.total_paid|money }}</td><td class="{{ 'text-danger' if r.total_due > 0 else 'text-muted' }}">{{ r.total_due|money }}</td><td class="text-success hide-mobile">{{ r.total_profit|money }}</td></tr>
@@ -253,11 +253,11 @@
 
     <section id="dashboardRawMaterials" class="card p-3 fab-switch-panel" hidden>
       <h5 class="dashboard-panel-title">Matières premières</h5>
-      <p class="dashboard-panel-subtitle">Etat du stock, autonomie estimee et cout moyen.</p>
+      <p class="dashboard-panel-subtitle">État du stock, autonomie estimée et coût moyen.</p>
       {% if stock_materials %}
       <div class="table-responsive">
         <table class="table table-sm align-middle">
-          <thead><tr><th>Nom</th><th>Stock</th><th>Jours</th><th>Cout</th></tr></thead>
+          <thead><tr><th>Nom</th><th>Stock</th><th>Jours</th><th>Coût</th></tr></thead>
           <tbody>
             {% for s in stock_materials %}
             <tr><td>{{ s.name }}</td><td class="{{ 'text-danger fw-bold' if s.stock_qty <= s.alert_threshold else '' }}">{{ s.stock_qty }} {{ s.unit }}</td><td>{% if s.days_left is not none %}<span class="badge {{ 'bg-danger' if s.days_left < 7 else ('bg-warning text-dark' if s.days_left < 15 else 'bg-success') }} small">{{ s.days_left }}j</span>{% else %}<span class="text-muted small">-</span>{% endif %}</td><td class="small text-muted">{{ s.avg_cost|money }}</td></tr>

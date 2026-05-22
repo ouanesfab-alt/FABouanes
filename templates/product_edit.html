@@ -26,7 +26,7 @@
   <div class="page-hero mb-0">
     <div>
       <h2 class="section-title mb-1">Modifier le produit final</h2>
-      <p class="product-edit-summary mb-0">Mets a jour le stock, les prix et les references de {{ product.name }}.</p>
+      <p class="product-edit-summary mb-0">Mettez à jour le stock, les prix et les références de {{ product.name }}.</p>
     </div>
   </div>
 
@@ -49,7 +49,7 @@
           </div>
         </div>
         <div class="span-4">
-          <label class="form-label">Unite</label>
+          <label class="form-label">Unité</label>
           <select name="default_unit" class="form-select">
             {% for u in units %}<option value="{{ u }}" {% if product.default_unit==u %}selected{% endif %}>{{ u }}</option>{% endfor %}
           </select>
@@ -63,13 +63,13 @@
           <input id="salePriceKg" name="sale_price" type="text" inputmode="decimal" class="form-control" value="{{ product.sale_price }}">
         </div>
         <div class="span-12">
-          <label class="form-label">Prix de production / cout moyen par kg</label>
+          <label class="form-label">Prix de production / coût moyen par kg</label>
           <input id="avgCostKg" name="avg_cost" type="text" inputmode="decimal" class="form-control" value="{{ product.avg_cost }}">
         </div>
         <div class="span-12">
           <div class="product-edit-note">
-            Cette fiche reste la source de reference pour les prix et le calcul du benefice.
-            Apercu : 1 kg = <strong><span id="kgPrev">0</span> DA</strong>,
+            Cette fiche reste la source de référence pour les prix et le calcul du bénéfice.
+            Aperçu : 1 kg = <strong><span id="kgPrev">0</span> DA</strong>,
             1 sac = <strong><span id="sacPrev">0</span> DA</strong>,
             1 Qt = <strong><span id="qtPrev">0</span> DA</strong>.
           </div>

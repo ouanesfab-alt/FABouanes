@@ -26,7 +26,7 @@
   <div class="page-hero mb-0">
     <div>
       <h2 class="section-title mb-1">Modifier la matière première</h2>
-      <p class="raw-edit-summary mb-0">Mets a jour le stock, les prix et le seuil de {{ material.name }}.</p>
+      <p class="raw-edit-summary mb-0">Mettez à jour le stock, les prix et le seuil de {{ material.name }}.</p>
     </div>
   </div>
 
@@ -49,7 +49,7 @@
           </div>
         </div>
         <div class="span-4">
-          <label class="form-label">Unite</label>
+          <label class="form-label">Unité</label>
           <select name="unit" class="form-select">
             {% for u in units %}<option value="{{ u }}" {% if material.unit==u %}selected{% endif %}>{{ u }}</option>{% endfor %}
           </select>
@@ -63,7 +63,7 @@
           <input name="alert_threshold" type="text" inputmode="decimal" class="form-control" value="{{ material.alert_threshold }}">
         </div>
         <div class="span-6">
-          <label class="form-label">Cout achat moyen</label>
+          <label class="form-label">Coût d'achat moyen</label>
           <input name="avg_cost" type="text" inputmode="decimal" class="form-control" value="{{ material.avg_cost }}">
         </div>
         <div class="span-6">
@@ -72,8 +72,8 @@
         </div>
         <div class="span-12">
           <div class="raw-edit-note">
-            Les operations et le calcul du benefice utilisent les prix enregistres ici.
-            Apercu : 1 kg = <strong><span id="kgPrev">0</span> DA</strong>,
+            Les opérations et le calcul du bénéfice utilisent les prix enregistrés ici.
+            Aperçu : 1 kg = <strong><span id="kgPrev">0</span> DA</strong>,
             1 sac = <strong><span id="sacPrev">0</span> DA</strong>,
             1 Qt = <strong><span id="qtPrev">0</span> DA</strong>.
           </div>

@@ -102,6 +102,7 @@ async def global_search(request: Request):
     if exact_date or partial_date_like:
         date_param = exact_date if exact_date else partial_date_like
         operator  = "=" if exact_date else "LIKE"
+        assert operator in {"=", "LIKE"}, f"Operator {operator} is not allowed"
 
         # Ventes pour cette date
         sales = query_db(

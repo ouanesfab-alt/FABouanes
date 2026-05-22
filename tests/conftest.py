@@ -20,7 +20,7 @@ except Exception:  # pragma: no cover - optional integration dependency
 TEST_ROOT = Path(__file__).resolve().parent / "_runtime_fastapi"
 TEST_DATA_DIR = TEST_ROOT / "data"
 USE_POSTGRES = True
-PG_PORT = int(os.environ.get("FAB_TEST_PG_PORT", "55432"))
+PG_PORT = int(os.environ.get("FAB_TEST_PG_PORT", "54321"))
 PG_DB = os.environ.get("FAB_TEST_PG_DB", "fabouanes_test")
 PG_USER = os.environ.get("FAB_TEST_PG_USER", "fabouanes")
 PG_PASSWORD = os.environ.get("FAB_TEST_PG_PASSWORD", "")
@@ -61,7 +61,14 @@ def _find_pg_binary(executable: str) -> str:
 def _pg8000_connect(database: str):
     if pg8000 is None:
         raise RuntimeError("pg8000 is required when FAB_TEST_DB=postgres.")
-    return pg8000.connect(user=PG_USER, password=PG_PASSWORD or None, host="127.0.0.1", port=PG_PORT, database=database)
+    attempts = 5
+    for attempt in range(attempts):
+        try:
+            return pg8000.connect(user=PG_USER, password=PG_PASSWORD or None, host="127.0.0.1", port=PG_PORT, database=database)
+        except Exception as e:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(0.5 * (attempt + 1))
 
 
 def _ensure_postgres_cluster() -> None:
@@ -110,16 +117,24 @@ def _stop_postgres_cluster() -> None:
 
 
 def _reset_database() -> None:
-    conn = _pg8000_connect(PG_DB)
-    try:
-        cursor = conn.cursor()
-        cursor.execute("DROP SCHEMA IF EXISTS public CASCADE")
-        cursor.execute("CREATE SCHEMA public")
-        cursor.execute(f'GRANT ALL ON SCHEMA public TO "{PG_USER}"')
-        cursor.execute("GRANT ALL ON SCHEMA public TO PUBLIC")
-        conn.commit()
-    finally:
-        conn.close()
+    attempts = 5
+    for attempt in range(attempts):
+        try:
+            conn = _pg8000_connect(PG_DB)
+            try:
+                cursor = conn.cursor()
+                cursor.execute("DROP SCHEMA IF EXISTS public CASCADE")
+                cursor.execute("CREATE SCHEMA public")
+                cursor.execute(f'GRANT ALL ON SCHEMA public TO "{PG_USER}"')
+                cursor.execute("GRANT ALL ON SCHEMA public TO PUBLIC")
+                conn.commit()
+                return
+            finally:
+                conn.close()
+        except Exception as e:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(0.5 * (attempt + 1))
 
 
 _ensure_postgres_cluster()

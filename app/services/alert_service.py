@@ -8,7 +8,7 @@ Lancé quotidiennement par APScheduler via app/core/events.py.
 
 from __future__ import annotations
 from datetime import date, timedelta
-from app.core.db_access import query_db
+from app.core.db_access import query_db, db_transaction
 from app.core.websockets import manager
 import json, logging
 
@@ -48,18 +48,26 @@ def broadcast_overdue_alerts() -> int:
     Retourne le nombre de clients en retard détectés.
     Appelé quotidiennement par le scheduler.
     """
-    overdue = check_overdue_clients()
-    if overdue:
-        payload = json.dumps({
-            "type": "overdue_alert",
-            "count": len(overdue),
-            "clients": [
-                {"id": r["id"], "name": r["name"],
-                 "balance": float(r["balance"]),
-                 "jours": int(r["jours_inactif"] or 0)}
-                for r in overdue
-            ],
-        })
-        manager.broadcast_sync(payload)
-        logger.info(f"Alerte : {len(overdue)} clients en retard.")
-    return len(overdue)
+    with db_transaction():
+        # Essaye d'obtenir un verrou consultatif transactionnel (advisory lock)
+        # pour éviter les exécutions multiples concurrentes (par exemple avec plusieurs workers Gunicorn)
+        locked_row = query_db("SELECT pg_try_advisory_xact_lock(48216732) AS locked", one=True)
+        if not locked_row or not locked_row["locked"]:
+            logger.info("Verrou consultatif déjà détenu par un autre worker. Tâche ignorée.")
+            return 0
+
+        overdue = check_overdue_clients()
+        if overdue:
+            payload = json.dumps({
+                "type": "overdue_alert",
+                "count": len(overdue),
+                "clients": [
+                    {"id": r["id"], "name": r["name"],
+                     "balance": float(r["balance"]),
+                     "jours": int(r["jours_inactif"] or 0)}
+                    for r in overdue
+                ],
+            })
+            manager.broadcast_sync(payload)
+            logger.info(f"Alerte : {len(overdue)} clients en retard.")
+        return len(overdue)

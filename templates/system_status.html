@@ -2,12 +2,12 @@
 {% block content %}
 <div class="page-hero mb-3">
   <div>
-    <h2 class="section-title mb-1">Diagnostic systeme</h2>
-    <p class="text-muted mb-0">Etat du systeme: base, sauvegardes, version, chemins et tests d'ecriture.</p>
+    <h2 class="section-title mb-1">Diagnostic système</h2>
+    <p class="text-muted mb-0">État du système : base, sauvegardes, version, chemins et tests d'écriture.</p>
   </div>
   <div class="d-flex gap-2 flex-wrap">
     <a href="{{ url_for('admin_system_status_export') }}" class="btn btn-outline-dark"><i class="bi bi-download me-1"></i>Exporter rapport diagnostic</a>
-    <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Parametres</a>
+    <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Paramètres</a>
   </div>
 </div>
 
@@ -25,7 +25,7 @@
       <div class="fs-4 fw-bold">{{ system_status.database.status }}</div>
       <div class="small text-break">{{ system_status.database.path }}</div>
       <div class="small text-muted mt-1">{{ system_status.database.engine }}</div>
-      <div class="small mt-1">Ecriture: {{ system_status.database.write_status.status }}</div>
+      <div class="small mt-1">Écriture : {{ system_status.database.write_status.status }}</div>
     </div>
   </div>
   <div class="col-md-6 col-xl-3">
@@ -33,15 +33,15 @@
       <div class="small text-muted">Sauvegardes</div>
       <div class="fs-4 fw-bold">{{ system_status.backups.status }}</div>
       <div class="small">{{ system_status.backups.count }} fichier(s) disponible(s)</div>
-      <div class="small">Ecriture: {{ system_status.backups.write_status.status }}</div>
+      <div class="small">Écriture : {{ system_status.backups.write_status.status }}</div>
       {% if system_status.backups.pending_reason %}
-      <div class="small text-warning">Backup differe: {{ system_status.backups.pending_reason }}</div>
+      <div class="small text-warning">Backup différé : {{ system_status.backups.pending_reason }}</div>
       {% endif %}
     </div>
   </div>
   <div class="col-md-6 col-xl-3">
     <div class="card p-3 h-100">
-      <div class="small text-muted">Dossier donnees</div>
+      <div class="small text-muted">Dossier données</div>
       <div class="fs-6 fw-bold text-break">{{ system_status.paths.data_dir }}</div>
       <div class="small">{{ 'OK' if system_status.paths.data_dir_ok else 'Introuvable' }}</div>
       <div class="small text-break">Logs: {{ system_status.paths.log_dir }}</div>
@@ -50,7 +50,7 @@
 </div>
 
 <div class="card p-3 mt-3">
-  <h5 class="section-title">Details sauvegarde</h5>
+  <h5 class="section-title">Détails sauvegarde</h5>
   <div class="table-responsive">
     <table class="table align-middle">
       <tbody>
@@ -58,14 +58,14 @@
         <tr><th>Dossier logs</th><td class="text-break">{{ system_status.paths.log_dir }}</td></tr>
         <tr><th>Mode base</th><td>{{ system_status.database.engine }}</td></tr>
         <tr><th>Pool PostgreSQL</th><td class="text-break">{{ system_status.database.pool }}</td></tr>
-        <tr><th>Statut ecriture base</th><td>{{ system_status.database.write_status.status }} - {{ system_status.database.write_status.message }}</td></tr>
+        <tr><th>Statut écriture base</th><td>{{ system_status.database.write_status.status }} - {{ system_status.database.write_status.message }}</td></tr>
         <tr><th>Statut sauvegarde</th><td>{{ system_status.backups.write_status.status }} - {{ system_status.backups.write_status.message }}</td></tr>
-        <tr><th>Derniere sauvegarde</th><td>{{ system_status.backups.latest_file or '-' }} {{ system_status.backups.latest_file_at }}</td></tr>
+        <tr><th>Dernière sauvegarde</th><td>{{ system_status.backups.latest_file or '-' }} {{ system_status.backups.latest_file_at }}</td></tr>
         <tr><th>Dernier job</th><td>{{ system_status.backups.latest_job_status }} {{ system_status.backups.latest_job_reason }}</td></tr>
-        <tr><th>Backup differe</th><td>{{ system_status.backups.pending_reason or '-' }} {{ system_status.backups.pending_since }}</td></tr>
+        <tr><th>Backup différé</th><td>{{ system_status.backups.pending_reason or '-' }} {{ system_status.backups.pending_since }}</td></tr>
         <tr><th>Message base</th><td>{{ system_status.database.message }}</td></tr>
         <tr><th>Indexes performance</th><td>{{ system_status.performance.index_count }}</td></tr>
-        <tr><th>Plan requete clients</th><td class="text-break">{{ system_status.performance.sample_query_plan or '-' }}</td></tr>
+        <tr><th>Plan requête clients</th><td class="text-break">{{ system_status.performance.sample_query_plan or '-' }}</td></tr>
       </tbody>
     </table>
   </div>

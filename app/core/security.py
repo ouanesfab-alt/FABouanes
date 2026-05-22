@@ -95,13 +95,23 @@ def security_headers(response):
     if settings.env == "production" and not settings.desktop_mode:
         response.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
 
-    csp = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline'; "
-        "style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data: blob:; "
-        "connect-src 'self';"
-    )
+    nonce = get_state_value("csp_nonce")
+    if settings.strict_csp and not settings.desktop_mode and nonce:
+        csp = (
+            f"default-src 'self'; "
+            f"script-src 'self' 'nonce-{nonce}'; "
+            f"style-src 'self' 'nonce-{nonce}'; "
+            f"img-src 'self' data: blob:; "
+            f"connect-src 'self';"
+        )
+    else:
+        csp = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob:; "
+            "connect-src 'self';"
+        )
     response.headers["Content-Security-Policy"] = csp
     return response
 

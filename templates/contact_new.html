@@ -4,7 +4,7 @@
   <div class="page-hero mb-0">
     <div>
       <h2 class="section-title mb-1" id="pageTitle">Nouveau contact</h2>
-      <p class="entity-form-summary mb-0" id="pageSummary">Renseigne les coordonnées et informations pour enregistrer la fiche de contact.</p>
+      <p class="entity-form-summary mb-0" id="pageSummary">Renseignez les coordonnées et informations pour enregistrer la fiche de contact.</p>
     </div>
   </div>
 
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
       creditFieldWrapper.style.display = 'block';
       document.getElementById('inputCredit').disabled = false;
       pageTitle.textContent = "Ajouter un client";
-      pageSummary.textContent = "Renseigne les coordonnées et le crédit initial avant d'enregistrer la fiche client.";
+      pageSummary.textContent = "Renseignez les coordonnées et le crédit initial avant d'enregistrer la fiche client.";
       infoNoteText.textContent = "Le crédit initial sert de point de départ pour le suivi des dettes et des versements du client.";
       btnSubmit.textContent = "Enregistrer le client";
       btnCancel.href = CONTACTS_PAGE + "?type=client";
@@ -103,8 +103,8 @@ document.addEventListener('DOMContentLoaded', () => {
       creditFieldWrapper.style.display = 'none';
       document.getElementById('inputCredit').disabled = true;
       pageTitle.textContent = "Ajouter un fournisseur";
-      pageSummary.textContent = "Crée une fiche fournisseur simple pour suivre les achats et les références de contact.";
-      infoNoteText.textContent = "Ajoute ici les informations pratiques utiles aux prochains achats et aux rappels de livraison.";
+      pageSummary.textContent = "Créez une fiche fournisseur simple pour suivre les achats et les références de contact.";
+      infoNoteText.textContent = "Ajoutez ici les informations pratiques utiles aux prochains achats et aux rappels de livraison.";
       btnSubmit.textContent = "Enregistrer le fournisseur";
       btnCancel.href = CONTACTS_PAGE + "?type=supplier";
     }

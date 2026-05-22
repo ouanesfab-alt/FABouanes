@@ -378,7 +378,9 @@ def _purge_old_logs() -> None:
     """Purge performance/error/system logs older than 7 days to prevent table bloat."""
     try:
         from app.core.db_access import execute_db
+        ALLOWED_LOG_TABLES = {"performance_logs", "error_logs", "system_logs"}
         for table in ("performance_logs", "error_logs", "system_logs"):
+            assert table in ALLOWED_LOG_TABLES, f"Table {table} is not allowed for log purge"
             execute_db(f"DELETE FROM {table} WHERE created_at < NOW() - INTERVAL '7 days'")
     except Exception:
         logger.debug("Log purge skipped (table may not exist yet)")

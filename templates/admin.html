@@ -1,15 +1,15 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="page-hero mb-3">
-  <h2 class="section-title mb-1">Parametres et supervision</h2>
-  <p class="text-muted mb-0">Roles, sauvegardes, journal d'audit et etat des traitements.</p>
+  <h2 class="section-title mb-1">Paramètres et supervision</h2>
+  <p class="text-muted mb-0">Rôles, sauvegardes, journal d'audit et état des traitements.</p>
 </div>
 
 <div class="d-flex flex-column gap-3">
   <div class="fab-switcher" id="adminSwitchButtons" data-fab-switch-root
     data-fab-switch-placeholder="adminSwitchPlaceholder">
     <button type="button" class="fab-switch-btn" data-fab-switch-target="adminCreateUser"
-      aria-controls="adminCreateUser" aria-pressed="false"><i class="bi bi-person-plus"></i> Creer un
+      aria-controls="adminCreateUser" aria-pressed="false"><i class="bi bi-person-plus"></i> Créer un
       utilisateur</button>
     <button type="button" class="fab-switch-btn" data-fab-switch-target="adminCloudBackup"
       aria-controls="adminCloudBackup" aria-pressed="false"><i class="bi bi-cloud-arrow-up"></i> Sauvegarde
@@ -25,9 +25,9 @@
       sauvegarde</button>
     <button type="button" class="fab-switch-btn" data-fab-switch-target="adminRecentActivity"
       aria-controls="adminRecentActivity" aria-pressed="false"><i class="bi bi-activity"></i> Journal
-      d'activite</button>
+      d'activité</button>
     <button type="button" class="fab-switch-btn" data-fab-switch-target="adminSystemLogs"
-      aria-controls="adminSystemLogs" aria-pressed="false"><i class="bi bi-cpu"></i> Systeme</button>
+      aria-controls="adminSystemLogs" aria-pressed="false"><i class="bi bi-cpu"></i> Système</button>
     <button type="button" class="fab-switch-btn" data-fab-switch-target="adminUIPrefs"
       aria-controls="adminUIPrefs" aria-pressed="false"><i class="bi bi-palette"></i> Préférences UI</button>
   </div>
@@ -39,8 +39,8 @@
   <section id="adminCreateUser" class="card p-3 fab-switch-panel" hidden>
     <div class="card-header-row">
       <div>
-        <h5 class="section-title">Creer un utilisateur</h5>
-        <div class="small text-muted mt-1">Ajouter un compte interne et definir son role.</div>
+        <h5 class="section-title">Créer un utilisateur</h5>
+        <div class="small text-muted mt-1">Ajouter un compte interne et définir son rôle.</div>
       </div>
     </div>
     <form method="post" class="row g-2">
@@ -56,7 +56,7 @@
           minlength="4" placeholder="1234" required>
       </div>
       <div class="col-12">
-        <label class="form-label">Role</label>
+        <label class="form-label">Rôle</label>
         <select name="role" class="form-select">
           <option value="operator">Operator</option>
           <option value="manager">Manager</option>
@@ -64,7 +64,7 @@
         </select>
       </div>
       <div class="col-12">
-        <button class="btn btn-dark w-100">Creer le compte</button>
+        <button class="btn btn-dark w-100">Créer le compte</button>
       </div>
     </form>
   </section>
@@ -73,7 +73,7 @@
     <div class="card-header-row">
       <div>
         <h5 class="section-title">Sauvegarde Google Drive</h5>
-        <div class="small text-muted mt-1">Choisis un dossier local synchronise par Google Drive Desktop pour y copier
+        <div class="small text-muted mt-1">Choisissez un dossier local synchronisé par Google Drive Desktop pour y copier
           les sauvegardes.</div>
       </div>
     </div>
@@ -84,10 +84,10 @@
       <div class="small mt-2">Les sauvegardes locales seront copiees automatiquement dans ce dossier.</div>
       {% else %}
       <div class="fw-semibold">Aucun dossier Google Drive configure</div>
-      <div>Les sauvegardes restent locales tant qu'aucun dossier synchronise n'est renseigne.</div>
+      <div>Les sauvegardes restent locales tant qu'aucun dossier synchronisé n'est renseigné.</div>
       {% endif %}
       {% if latest_backup_error %}
-      <div class="small mt-2 text-break">Derniere erreur backup: {{ latest_backup_error.error_message }}</div>
+      <div class="small mt-2 text-break">Dernière erreur de sauvegarde : {{ latest_backup_error.error_message }}</div>
       {% endif %}
     </div>
     <form method="post" class="row g-2">
@@ -97,7 +97,7 @@
         <label class="form-label">Dossier Google Drive local</label>
         <input name="gdrive_backup_dir" class="form-control" value="{{ settings.gdrive_backup_dir }}"
           placeholder="Ex: C:\Users\massi\Google Drive\FABOuanes">
-        <div class="small text-muted mt-1">Choisis ici le dossier deja synchronise par Google Drive sur ce PC.</div>
+        <div class="small text-muted mt-1">Choisissez ici le dossier déjà synchronisé par Google Drive sur ce PC.</div>
       </div>
       <div class="col-md-4">
         <label class="form-label">Snapshot</label>
@@ -126,13 +126,13 @@
     <div class="card-header-row">
       <div>
         <h5 class="section-title">Actions backup</h5>
-        <div class="small text-muted mt-1">Creer une sauvegarde ou restaurer un snapshot existant.</div>
+        <div class="small text-muted mt-1">Créer une sauvegarde ou restaurer un snapshot existant.</div>
       </div>
     </div>
     <form method="post" class="d-grid gap-2">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="action" value="backup_now">
-      <button class="btn btn-dark">Creer une sauvegarde maintenant</button>
+      <button class="btn btn-dark">Créer une sauvegarde maintenant</button>
     </form>
     <hr>
     <form method="post" class="row g-2">
@@ -158,7 +158,7 @@
     <div class="card-header-row">
       <div>
         <h5 class="section-title">Utilisateurs</h5>
-        <div class="small text-muted mt-1">Actif, role, derniere connexion et modification mot de passe.</div>
+        <div class="small text-muted mt-1">Actif, rôle, dernière connexion et modification du mot de passe.</div>
       </div>
     </div>
     <div class="table-responsive">
@@ -166,9 +166,9 @@
         <thead>
           <tr>
             <th>Utilisateur</th>
-            <th>Role</th>
+            <th>Rôle</th>
             <th>Actif</th>
-            <th>Derniere connexion</th>
+            <th>Dernière connexion</th>
             <th>PIN / Mot de passe</th>
             <th>Action</th>
           </tr>
@@ -183,7 +183,7 @@
               <input form="{{ user_form_id }}" type="hidden" name="action" value="update_user">
               <input form="{{ user_form_id }}" type="hidden" name="user_id" value="{{ u.id }}">
               <div class="fw-semibold">{{ u.username }}</div>
-              <div class="small text-muted">Cree le {{ u.created_at|dt(16) }}</div>
+              <div class="small text-muted">Créé le {{ u.created_at|dt(16) }}</div>
             </td>
             <td>
               <select form="{{ user_form_id }}" name="role" class="form-select form-select-sm">
@@ -307,7 +307,7 @@
             <th class="hide-mobile">Type</th>
             <th>Statut</th>
             <th class="hide-mobile">Copie Drive</th>
-            <th>Cree le</th>
+            <th>Créé le</th>
             <th class="hide-mobile">Erreur</th>
           </tr>
         </thead>
@@ -335,7 +335,7 @@
   <section id="adminRecentActivity" class="card p-3 fab-switch-panel" hidden>
     <div class="card-header-row">
       <div>
-        <h5 class="section-title">Journal d'activite admin</h5>
+        <h5 class="section-title">Journal d'activité admin</h5>
         <div class="small text-muted mt-1">Actions metier lisibles par l'administrateur.</div>
       </div>
     </div>
@@ -399,7 +399,7 @@
           </tr>
           {% else %}
           <tr>
-            <td colspan="5" class="text-muted">Aucune activite.</td>
+            <td colspan="5" class="text-muted">Aucune activité.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -410,11 +410,11 @@
   <section id="adminSystemLogs" class="card p-3 fab-switch-panel" hidden>
     <div class="card-header-row">
       <div>
-        <h5 class="section-title">Systeme</h5>
-        <div class="small text-muted mt-1">Logs techniques et messages recents du systeme.</div>
+        <h5 class="section-title">Système</h5>
+        <div class="small text-muted mt-1">Logs techniques et messages récents du système.</div>
       </div>
       <a href="{{ url_for('admin_system_status') }}" class="btn btn-sm btn-outline-dark"><i
-          class="bi bi-clipboard2-pulse me-1"></i> Etat du systeme</a>
+          class="bi bi-clipboard2-pulse me-1"></i> État du système</a>
     </div>
     <form method="post" class="d-flex gap-2 flex-wrap mb-3">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -456,7 +456,7 @@
             <th>Article</th>
             <th>Mouvement</th>
             <th class="hide-mobile">Stock</th>
-            <th>Reference</th>
+            <th>Référence</th>
           </tr>
         </thead>
         <tbody>
@@ -523,7 +523,7 @@
           </tr>
           {% else %}
           <tr>
-            <td colspan="3" class="text-muted">Aucun log systeme.</td>
+            <td colspan="3" class="text-muted">Aucun log système.</td>
           </tr>
           {% endfor %}
         </tbody>

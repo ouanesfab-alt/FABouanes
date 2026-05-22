@@ -143,7 +143,7 @@
   <div class="page-hero mb-0">
     <div>
       <h2 class="section-title mb-1">Espace bons</h2>
-      <div class="text-muted small">Achat, vente, versement, avance, production, historique client et PDF importes.</div>
+      <div class="text-muted small">Achat, vente, versement, avance, production, historique client et PDF importés.</div>
     </div>
     <span class="text-muted small">{{ documents|length }} document(s)</span>
   </div>
@@ -151,7 +151,7 @@
   <form class="bons-toolbar" method="get" action="{{ url_for('bons_space') }}">
     <div class="input-group input-group-sm">
       <span class="input-group-text"><i class="bi bi-search"></i></span>
-      <input class="form-control" name="q" value="{{ filters.q }}" placeholder="Rechercher client, numero, date...">
+      <input class="form-control" name="q" value="{{ filters.q }}" placeholder="Rechercher client, numéro, date...">
     </div>
     <select class="form-select form-select-sm" name="kind">
       <option value="" {{ 'selected' if not filters.kind else '' }}>Tous les bons</option>
@@ -161,7 +161,7 @@
       <option value="advance" {{ 'selected' if filters.kind == 'advance' else '' }}>Avances</option>
       <option value="production" {{ 'selected' if filters.kind == 'production' else '' }}>Production</option>
       <option value="client_history" {{ 'selected' if filters.kind == 'client_history' else '' }}>Historiques client</option>
-      <option value="external" {{ 'selected' if filters.kind == 'external' else '' }}>PDF importes</option>
+      <option value="external" {{ 'selected' if filters.kind == 'external' else '' }}>PDF importés</option>
     </select>
     <button class="btn btn-sm btn-dark" type="submit"><i class="bi bi-funnel me-1"></i>Filtrer</button>
   </form>
@@ -179,8 +179,8 @@
     <aside class="bons-list" id="bonsList">
       <div class="bons-list-head">
         <strong>Documents</strong>
-        <span class="bons-list-count">{{ documents|length }} affiches</span>
-        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('bons_space') }}" title="Reinitialiser"><i class="bi bi-arrow-counterclockwise"></i></a>
+        <span class="bons-list-count">{{ documents|length }} affichés</span>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('bons_space') }}" title="Réinitialiser"><i class="bi bi-arrow-counterclockwise"></i></a>
       </div>
       <div class="bons-list-body">
         <table class="bons-table">
@@ -261,9 +261,9 @@
         <div>
           <i class="bi bi-exclamation-triangle d-block mb-2" style="font-size:3rem;"></i>
           <strong>Bon introuvable</strong>
-          <div class="mb-3">Le document demande n'existe plus, a ete supprime ou ne correspond pas au filtre actuel.</div>
+          <div class="mb-3">Le document demandé n'existe plus, a été supprimé ou ne correspond pas au filtre actuel.</div>
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('bons_space', q=filters.q, kind=filters.kind) }}">
-            <i class="bi bi-arrow-left me-1"></i>Revenir a la liste
+            <i class="bi bi-arrow-left me-1"></i>Revenir à la liste
           </a>
         </div>
       </div>
@@ -299,7 +299,7 @@
       <div class="bons-empty">
         <div>
           <i class="bi bi-receipt d-block mb-2" style="font-size:3rem;opacity:.25;"></i>
-          <strong>Aucun document a afficher</strong>
+          <strong>Aucun document à afficher</strong>
         </div>
       </div>
       {% endif %}

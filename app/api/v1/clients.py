@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, UploadFile, File, Form
+from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException
 import asyncio
 
 from app.api.deps import api_error, api_success, require_api_user
@@ -376,13 +376,23 @@ async def bulk_import_client_history(
         import_client_history_from_excel
     )
 
+    # Enforce a strict 50MB file size limit for ZIP uploads
+    MAX_SIZE = 50 * 1024 * 1024
+    if file.size is not None and file.size > MAX_SIZE:
+        raise HTTPException(400, "Le fichier est trop volumineux (max 50 Mo)")
+
     results = []
     errors = []
 
     with tempfile.TemporaryDirectory() as tmpdir:
         zip_path = os.path.join(tmpdir, "upload.zip")
+        total_size = 0
         with open(zip_path, "wb") as f:
-            f.write(await file.read())
+            while chunk := await file.read(8192):
+                total_size += len(chunk)
+                if total_size > MAX_SIZE:
+                    raise HTTPException(400, "Le fichier est trop volumineux (max 50 Mo)")
+                f.write(chunk)
 
         try:
             with zipfile.ZipFile(zip_path, "r") as zf:
@@ -439,15 +449,16 @@ async def export_clients_csv():
             SELECT
                 c.id, c.name,
                 c.balance,
-                COALESCE(SUM(s.total), 0) AS total_achats,
-                COALESCE(SUM(p.amount), 0) AS total_verses,
-                MAX(s.sale_date) AS derniere_vente,
-                MAX(p.payment_date) AS dernier_paiement
+                (COALESCE((SELECT SUM(s.total) FROM sales s WHERE s.client_id = c.id), 0) +
+                 COALESCE((SELECT SUM(rs.total) FROM raw_sales rs WHERE rs.client_id = c.id), 0)) AS total_achats,
+                COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.client_id = c.id), 0) AS total_verses,
+                (SELECT MAX(d) FROM (
+                    SELECT MAX(sale_date) AS d FROM sales WHERE client_id = c.id
+                    UNION ALL
+                    SELECT MAX(sale_date) AS d FROM raw_sales WHERE client_id = c.id
+                 ) t) AS derniere_vente,
+                (SELECT MAX(payment_date) FROM payments WHERE client_id = c.id) AS dernier_paiement
             FROM clients c
-            LEFT JOIN sales s ON s.client_id = c.id
-            LEFT JOIN raw_sales rs ON rs.client_id = c.id
-            LEFT JOIN payments p ON p.client_id = c.id
-            GROUP BY c.id, c.name, c.balance
             ORDER BY c.balance DESC
         """)
         buf = io.StringIO()

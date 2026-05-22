@@ -23,7 +23,7 @@
   <div class="page-hero mb-0">
     <div>
       <h2 class="section-title mb-1" id="operationPageTitle">Nouvelle opération</h2>
-      <p class="entity-form-summary mb-0" id="operationPageSummary">Choisis le type de transaction à effectuer, renseigne les détails, puis enregistre l'opération.</p>
+      <p class="entity-form-summary mb-0" id="operationPageSummary">Choisissez le type de transaction à effectuer, renseignez les détails, puis enregistrez l'opération.</p>
     </div>
   </div>
 
@@ -90,7 +90,7 @@
         </div>
         <div class="span-12">
           <div class="form-total-bar sticky-bottom z-1 mb-3">
-            <span>Total:</span>
+            <span>Total :</span>
             <strong id="purchaseDocumentTotal">0,00 DA</strong>
           </div>
         </div>
@@ -142,7 +142,7 @@
         </div>
         <div class="span-12">
           <div class="form-total-bar sticky-bottom z-1 mb-3">
-            <span>Total:</span>
+            <span>Total :</span>
             <strong id="saleDocumentTotal">0,00 DA</strong>
           </div>
         </div>
@@ -336,11 +336,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (opAchat.checked) {
       sectionPurchase.style.display = 'block';
       operationPageTitle.textContent = "Nouvel achat";
-      operationPageSummary.textContent = "Crée un bon d'achat, renseigne les matières premières reçues et les prix unitaires.";
+      operationPageSummary.textContent = "Créez un bon d'achat, renseignez les matières premières reçues et les prix unitaires.";
     } else if (opVente.checked) {
       sectionSale.style.display = 'block';
       operationPageTitle.textContent = "Nouvelle vente";
-      operationPageSummary.textContent = "Génère une nouvelle facture client, précise les produits vendus et les prix appliqués.";
+      operationPageSummary.textContent = "Générez une nouvelle facture client, précisez les produits vendus et les prix appliqués.";
     } else if (opVersement.checked) {
       sectionPayment.style.display = 'block';
       paymentTypeInput.value = 'versement';
@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
       paymentNoteText.textContent = "Le versement peut être affecté automatiquement à la dette du client ou lié à une créance précise.";
       paymentSubmitBtn.textContent = "Enregistrer le versement";
       operationPageTitle.textContent = "Nouveau versement";
-      operationPageSummary.textContent = "Enregistre un versement reçu de la part d'un client pour régler une créance ou une dette.";
+      operationPageSummary.textContent = "Enregistrez un versement reçu de la part d'un client pour régler une créance ou une dette.";
     } else if (opAvance.checked) {
       sectionPayment.style.display = 'block';
       paymentTypeInput.value = 'avance';
@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
       paymentNoteText.textContent = "Une avance augmente temporairement le solde disponible du client.";
       paymentSubmitBtn.textContent = "Enregistrer l'avance";
       operationPageTitle.textContent = "Nouvelle avance";
-      operationPageSummary.textContent = "Saisis une avance de fonds client, créditée pour de futures livraisons ou ventes.";
+      operationPageSummary.textContent = "Saisissez une avance de fonds client, créditée pour de futures livraisons ou ventes.";
     }
   }
 
@@ -454,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
       priceInput.value = (avgCost * unitFactor(displayUnit)).toFixed(2);
     }
     syncCustomField(row);
-    metaNode.textContent = `Stock: ${(stock / unitFactor(displayUnit)).toFixed(2)} ${displayUnit} | Coût: ${fmtMoney(avgCost * unitFactor(displayUnit))}/${displayUnit}${forcedUnit ? ' | Unité fixe' : ''}`;
+    metaNode.textContent = `Stock : ${(stock / unitFactor(displayUnit)).toFixed(2)} ${displayUnit} | Coût : ${fmtMoney(avgCost * unitFactor(displayUnit))}/${displayUnit}${forcedUnit ? ' | Unité fixe' : ''}`;
     updateLineTotal(row);
   }
  
@@ -600,7 +600,7 @@ document.addEventListener('DOMContentLoaded', () => {
       priceInput.value = (salePrice * unitFactor(displayUnit)).toFixed(2);
     }
     syncCustomField(row);
-    metaNode.textContent = `Stock: ${(stock / unitFactor(displayUnit)).toFixed(2)} ${displayUnit} | Prix: ${fmtMoney(salePrice * unitFactor(displayUnit))}/${displayUnit}${forcedUnit ? ' | Unité fixe' : ''}`;
+    metaNode.textContent = `Stock : ${(stock / unitFactor(displayUnit)).toFixed(2)} ${displayUnit} | Prix : ${fmtMoney(salePrice * unitFactor(displayUnit))}/${displayUnit}${forcedUnit ? ' | Unité fixe' : ''}`;
     updateLineTotal(row);
   }
  

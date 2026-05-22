@@ -81,7 +81,7 @@
       </div>
       <div class="col-md-2 d-flex gap-2">
         <button class="btn btn-dark w-100">Filtrer</button>
-        <a href="{{ url_for('production') }}" class="btn btn-outline-secondary" aria-label="Reinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
+        <a href="{{ url_for('production') }}" class="btn btn-outline-secondary" aria-label="Réinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
       </div>
     </form>
     <div class="table-responsive production-table-wrap">
@@ -92,8 +92,8 @@
             <th class="col-product">Produit final</th>
             <th class="col-recipe hide-mobile">Recette</th>
             <th class="col-qty">Qt produite</th>
-            <th class="col-money hide-mobile">Cout total</th>
-            <th class="col-money">Cout/kg</th>
+            <th class="col-money hide-mobile">Coût total</th>
+            <th class="col-money">Coût/kg</th>
             <th class="col-actions">Actions</th>
           </tr>
         </thead>
@@ -121,7 +121,7 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="7" class="text-muted text-center py-4">Aucune production enregistree.</td></tr>
+          <tr><td colspan="7" class="text-muted text-center py-4">Aucune production enregistrée.</td></tr>
           {% endfor %}
         </tbody>
       </table>

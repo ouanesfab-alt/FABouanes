@@ -17,7 +17,7 @@
 
     <section class="record-grid record-grid-three">
       <div class="record-card">
-        <div class="record-card-label">Achats enregistres</div>
+        <div class="record-card-label">Achats enregistrés</div>
         <div class="record-card-value">{{ purchase_count }}</div>
       </div>
       <div class="record-card">
@@ -37,7 +37,7 @@
           <h2 class="h5 mb-0">Achats du fournisseur</h2>
         </div>
         <div class="record-actions">
-          <a href="{{ url_for('edit_supplier', supplier_id=supplier.id) }}" class="btn btn-outline-dark">Editer le fournisseur</a>
+          <a href="{{ url_for('edit_supplier', supplier_id=supplier.id) }}" class="btn btn-outline-dark">Éditer le fournisseur</a>
           <a href="{{ url_for('contacts', type='supplier') }}" class="btn btn-dark">Retour</a>
         </div>
       </div>
@@ -58,8 +58,8 @@
           <thead>
             <tr>
               <th>Date</th>
-              <th>Designation</th>
-              <th>Quantite</th>
+              <th>Désignation</th>
+              <th>Quantité</th>
                 <th class="col-right hide-mobile">Prix unitaire</th>
                 <th class="col-right">Total</th>
             </tr>

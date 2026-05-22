@@ -19,9 +19,13 @@ from app.core.perf_cache import invalidate_cache_domains
 from app.core.request_state import ensure_request_state, get_request_state
 
 class CompatRow(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._values_tuple = tuple(self.values())
+
     def __getitem__(self, key):
         if isinstance(key, int):
-            return list(self.values())[key]
+            return self._values_tuple[key]
         return super().__getitem__(key)
 
 def _wrap_rows(rows, description):

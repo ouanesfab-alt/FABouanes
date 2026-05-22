@@ -120,14 +120,27 @@ def create_mobile_payment(
         payment_type="versement",
     )
     from app.core.audit import audit_event
+    from app.repositories.user_repository import get_user_by_id
+    
     created = get_payment(payment_id)
     log_activity("create_mobile_payment", "payment", payment_id, f"Mobile: client #{client_id} montant={amount} par user #{recorded_by}")
+    
+    actor_data = {"id": recorded_by, "username": f"user_{recorded_by}", "role": "operator"}
+    if recorded_by:
+        try:
+            user_info = get_user_by_id(recorded_by)
+            if user_info:
+                actor_data["username"] = user_info.get("username", actor_data["username"])
+                actor_data["role"] = user_info.get("role", actor_data["role"])
+        except Exception:
+            pass
+
     audit_event(
         "create_payment",
         "payment",
         payment_id,
         after=created,
-        actor={"id": recorded_by, "username": f"user_{recorded_by}", "role": "operator"},
+        actor=actor_data,
         source="mobile_api",
     )
     mark_backup_needed("create_mobile_payment")

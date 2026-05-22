@@ -68,7 +68,7 @@
       </div>
       <div class="col-md-3 d-flex gap-2">
         <button class="btn btn-dark w-100">Filtrer</button>
-        <a href="{{ url_for('catalog') }}" class="btn btn-outline-secondary" aria-label="Reinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
+        <a href="{{ url_for('catalog') }}" class="btn btn-outline-secondary" aria-label="Réinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
       </div>
     </form>
     <div class="table-responsive catalog-table-wrap">
@@ -77,10 +77,10 @@
           <tr>
             <th class="col-type hide-mobile">Type</th>
             <th class="col-name">Nom</th>
-            <th class="col-unit">Unite</th>
+            <th class="col-unit">Unité</th>
             <th class="col-stock">Stock</th>
             <th class="col-money hide-mobile text-end" style="width: 1%; white-space: nowrap;">Autonomie</th>
-            <th class="col-money hide-mobile">Cout</th>
+            <th class="col-money hide-mobile">Coût</th>
             <th class="col-money">Prix de vente</th>
           </tr>
         </thead>
@@ -119,7 +119,7 @@
             <td class="cell-num col-money">{{ i.sale_price|money }}</td>
           </tr>
           {% else %}
-          <tr><td colspan="7" class="text-muted text-center py-4">Aucun produit enregistre.</td></tr>
+          <tr><td colspan="7" class="text-muted text-center py-4">Aucun produit enregistré.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -192,7 +192,7 @@
       }
     }
 
-    const resetLink = e.target.closest('.catalog-table-card a[aria-label="Reinitialiser les filtres"]');
+    const resetLink = e.target.closest('.catalog-table-card a[aria-label="Réinitialiser les filtres"]');
     if (resetLink && window.location.pathname.startsWith('/catalog')) {
       e.preventDefault();
       loadCatalog(resetLink.getAttribute('href'));

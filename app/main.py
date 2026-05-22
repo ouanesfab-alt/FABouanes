@@ -129,6 +129,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 
 
         db = create_request_connection()
+        csp_nonce = secrets.token_hex(16)
         token = push_request_state(
             request=request,
             db=db,
@@ -137,6 +138,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             audit_source="api" if request.url.path.startswith("/api/v1/") else "web",
             user=None,
             g=SimpleNamespace(user=None),
+            csp_nonce=csp_nonce,
         )
         try:
             ensure_csrf_token(request)

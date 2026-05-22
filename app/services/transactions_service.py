@@ -115,6 +115,11 @@ def update_production_notes(batch_id: int, production_date: str, notes: str) -> 
     if production_date:
         updates["production_date"] = production_date
     updates["notes"] = notes
+    
+    ALLOWED_KEYS = {"production_date", "notes"}
+    for key in updates:
+        assert key in ALLOWED_KEYS, f"Key {key} is not allowed for update"
+
     sets = ", ".join(f"{key}=%s" for key in updates)
     values = list(updates.values()) + [batch_id]
     execute_db(f"UPDATE production_batches SET {sets} WHERE id = %s", tuple(values))

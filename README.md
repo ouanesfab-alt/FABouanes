@@ -156,6 +156,11 @@ python -m alembic upgrade head
 > [!NOTE]
 > **Règle transactionnelle** : Pour garantir l'intégrité des opérations d'écriture de données sur PostgreSQL, toute logique d'écriture multi-requête doit être enveloppée dans le décorateur de transaction `db_transaction()`.
 
+### Multi-workers & Tâches Planifiées (Scheduler)
+En cas de déploiement multi-workers (par exemple sous Gunicorn avec plusieurs processus actifs et la variable `FAB_ALLOW_MULTI_WORKER=1`), les planifications d'alertes quotidiennes via APScheduler risquent de se déclencher simultanément sur chaque worker.
+Pour prévenir les doublons d'alertes, un mécanisme de verrou consultatif transactionnel PostgreSQL (`pg_try_advisory_xact_lock`) est utilisé. Seul le premier worker à acquérir le verrou exécute la diffusion, les autres workers ignorant la tâche de façon transparente.
+
+
 ---
 
 ## 🧪 Suite de Tests Unitaires & Couverture

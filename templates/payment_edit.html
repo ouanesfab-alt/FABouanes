@@ -24,7 +24,7 @@
   <div class="page-hero mb-0">
     <div>
       <h2 class="section-title mb-1">Modifier une transaction client</h2>
-      <p class="payment-edit-summary mb-0">Mets à jour le type, le client, le montant et l'affectation du paiement.</p>
+      <p class="payment-edit-summary mb-0">Mettez à jour le type, le client, le montant et l'affectation du paiement.</p>
     </div>
   </div>
 
@@ -45,7 +45,7 @@
           </select>
         </div>
         <div class="span-6">
-          <label class="form-label">Creance liee</label>
+          <label class="form-label">Créance liée</label>
           <select name="sale_link" class="form-select">
             <option value="">Affectation automatique FIFO</option>
             {% for s in open_sales %}<option value="{{ s.item_kind }}:{{ s.id }}" {% if current_link == (s.item_kind ~ ":" ~ s.id) %}selected{% endif %}>{{ s.client_name }} · {{ s.item_name }} · reste {{ s.balance_due|money }}</option>{% endfor %}

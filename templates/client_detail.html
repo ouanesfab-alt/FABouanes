@@ -174,7 +174,7 @@
             {% for item in timeline %}
             <tr class="context-target"
                   data-sort-sequence="{{ item.sort_sequence or item.row_id or 0 }}"
-                  data-delete-label="{% if item.event_type in ['sale_finished','sale_raw'] %}cette vente{% elif item.event_type in ['payment','advance'] %}cette transaction{% else %}cet element{% endif %}"
+                  data-delete-label="{% if item.event_type in ['sale_finished','sale_raw'] %}cette vente{% elif item.event_type in ['payment','advance'] %}cette transaction{% else %}cet élément{% endif %}"
                   data-edit-url="{% if item.event_type == 'sale_finished' %}{{ url_for('edit_sale_document', document_id=item.document_id) if item.document_id else url_for('edit_sale', kind='finished', row_id=item.row_id) }}{% elif item.event_type == 'sale_raw' %}{{ url_for('edit_sale_document', document_id=item.document_id) if item.document_id else url_for('edit_sale', kind='raw', row_id=item.row_id) }}{% elif item.event_type in ['payment','advance'] %}{{ url_for('edit_payment', payment_id=item.row_id) }}{% endif %}"
                   data-delete-url="{% if item.event_type == 'sale_finished' %}{{ url_for('delete_sale', kind='finished', row_id=item.row_id) }}{% elif item.event_type == 'sale_raw' %}{{ url_for('delete_sale', kind='raw', row_id=item.row_id) }}{% elif item.event_type in ['payment','advance'] %}{{ url_for('delete_payment', payment_id=item.row_id) }}{% endif %}">
               <td>{{ item.event_date }}</td>
