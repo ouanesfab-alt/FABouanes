@@ -62,8 +62,8 @@ def _build_client_detail_context(client_id: int):
             UNION ALL
             SELECT p.id AS row_id, NULL AS document_id, p.id AS sort_sequence, p.payment_date AS event_date,
                    CASE
-                       WHEN p.sale_kind = 'raw' THEN 'Versement lie a vente matière'
-                       WHEN p.sale_kind = 'finished' THEN 'Versement lie a vente produit'
+                       WHEN p.sale_kind = 'raw' THEN 'Versement lié à la vente matière'
+                       WHEN p.sale_kind = 'finished' THEN 'Versement lié à la vente produit'
                        ELSE COALESCE(NULLIF(p.notes,''), CASE WHEN p.payment_type='avance' THEN 'Avance client' ELSE 'Versement client' END)
                    END AS designation,
                    NULL AS item_name, NULL AS quantity, NULL AS unit,

@@ -145,8 +145,8 @@ def upgrade() -> None:
                     NEW.client_id,
                     NEW.payment_date,
                     CASE
-                        WHEN NEW.sale_kind = 'raw' THEN 'Versement lie a vente matière'
-                        WHEN NEW.sale_kind = 'finished' THEN 'Versement lie a vente produit'
+                        WHEN NEW.sale_kind = 'raw' THEN 'Versement lié à la vente matière'
+                        WHEN NEW.sale_kind = 'finished' THEN 'Versement lié à la vente produit'
                         ELSE COALESCE(NULLIF(NEW.notes,''), CASE WHEN NEW.payment_type='avance' THEN 'Avance client' ELSE 'Versement client' END)
                     END,
                     v_montant_achat,
@@ -162,8 +162,8 @@ def upgrade() -> None:
                 UPDATE client_history
                 SET operation_date = NEW.payment_date,
                     designation = CASE
-                        WHEN NEW.sale_kind = 'raw' THEN 'Versement lie a vente matière'
-                        WHEN NEW.sale_kind = 'finished' THEN 'Versement lie a vente produit'
+                        WHEN NEW.sale_kind = 'raw' THEN 'Versement lié à la vente matière'
+                        WHEN NEW.sale_kind = 'finished' THEN 'Versement lié à la vente produit'
                         ELSE COALESCE(NULLIF(NEW.notes,''), CASE WHEN NEW.payment_type='avance' THEN 'Avance client' ELSE 'Versement client' END)
                     END,
                     montant_achat = CASE WHEN NEW.payment_type='avance' THEN NEW.amount ELSE 0 END,
@@ -237,8 +237,8 @@ def downgrade() -> None:
                     NEW.client_id,
                     NEW.payment_date,
                     CASE
-                        WHEN NEW.sale_kind = 'raw' THEN 'Versement lie a vente matière'
-                        WHEN NEW.sale_kind = 'finished' THEN 'Versement lie a vente produit'
+                        WHEN NEW.sale_kind = 'raw' THEN 'Versement lié à la vente matière'
+                        WHEN NEW.sale_kind = 'finished' THEN 'Versement lié à la vente produit'
                         ELSE COALESCE(NULLIF(NEW.notes,''), CASE WHEN NEW.payment_type='avance' THEN 'Avance client' ELSE 'Versement client' END)
                     END,
                     CASE WHEN NEW.payment_type='avance' THEN NEW.amount ELSE 0 END,
@@ -251,8 +251,8 @@ def downgrade() -> None:
                 UPDATE client_history
                 SET operation_date = NEW.payment_date,
                     designation = CASE
-                        WHEN NEW.sale_kind = 'raw' THEN 'Versement lie a vente matière'
-                        WHEN NEW.sale_kind = 'finished' THEN 'Versement lie a vente produit'
+                        WHEN NEW.sale_kind = 'raw' THEN 'Versement lié à la vente matière'
+                        WHEN NEW.sale_kind = 'finished' THEN 'Versement lié à la vente produit'
                         ELSE COALESCE(NULLIF(NEW.notes,''), CASE WHEN NEW.payment_type='avance' THEN 'Avance client' ELSE 'Versement client' END)
                     END,
                     montant_achat = CASE WHEN NEW.payment_type='avance' THEN NEW.amount ELSE 0 END,
