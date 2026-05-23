@@ -169,3 +169,37 @@ class TestSaleTrigger:
         )
         row = query_db("SELECT source FROM client_history WHERE client_id = %s", (client_id,), one=True)
         assert row["source"] == "app"
+
+    def test_cash_sale_without_client_does_not_create_history_row(self, client):
+        """Une vente au comptoir (sans client_id) ne doit pas créer de ligne dans client_history ni lever d'erreur."""
+        prod = query_db("SELECT id FROM finished_products LIMIT 1", one=True)
+        prod_id = int(prod["id"])
+
+        sale_id = execute_db(
+            """
+            INSERT INTO sales (client_id, finished_product_id, quantity, unit, unit_price, total, sale_type, amount_paid, balance_due, sale_date)
+            VALUES (NULL, %s, 10.0, 'kg', 100.0, 1000.0, 'cash', 1000.0, 0.0, '2026-05-01')
+            """,
+            (prod_id,)
+        )
+
+        assert sale_id > 0
+        row = query_db("SELECT COUNT(*) AS cnt FROM client_history WHERE sale_id = %s", (sale_id,), one=True)
+        assert int(row["cnt"]) == 0
+
+    def test_raw_cash_sale_without_client_does_not_create_history_row(self, client):
+        """Une vente au comptoir de matière première (sans client_id) ne doit pas créer de ligne dans client_history ni lever d'erreur."""
+        raw = query_db("SELECT id FROM raw_materials LIMIT 1", one=True)
+        raw_id = int(raw["id"])
+
+        raw_sale_id = execute_db(
+            """
+            INSERT INTO raw_sales (client_id, raw_material_id, quantity, unit, unit_price, total, sale_type, amount_paid, balance_due, sale_date)
+            VALUES (NULL, %s, 2.0, 'kg', 50.0, 100.0, 'cash', 100.0, 0.0, '2026-05-01')
+            """,
+            (raw_id,)
+        )
+
+        assert raw_sale_id > 0
+        row = query_db("SELECT COUNT(*) AS cnt FROM client_history WHERE raw_sale_id = %s", (raw_sale_id,), one=True)
+        assert int(row["cnt"]) == 0
