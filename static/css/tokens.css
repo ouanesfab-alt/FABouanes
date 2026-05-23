@@ -488,7 +488,7 @@ h1, h2, h3, h4, h5, h6, .section-title {
   color: var(--text-secondary) !important;
   padding: 8px 12px !important;
   border-bottom: 0.5px solid var(--separator) !important;
-  background: var(--glass-ultra-thin) !important;
+  background: var(--bg-tertiary) !important;
   backdrop-filter: var(--blur-xs);
 }
 .table td {

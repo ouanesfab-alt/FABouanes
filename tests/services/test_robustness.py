@@ -40,6 +40,9 @@ def test_nested_transactions_savepoint():
 
 
 def test_pessimistic_lock_concurrency():
+    # Clean up any existing test product to prevent unique constraint conflicts
+    execute_db("DELETE FROM finished_products WHERE name = %s", ("Locking Test Product",))
+    
     # Insert a product to test pessimistic locking
     product_id = execute_db(
         "INSERT INTO finished_products (name, default_unit, stock_qty, sale_price, avg_cost) VALUES (%s, %s, %s, %s, %s)",

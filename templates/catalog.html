@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .catalog-page{display:flex;flex-direction:column;gap:16px;}
   .catalog-actions{display:flex;gap:10px;flex-wrap:wrap;}
   .catalog-summary{color:var(--muted);font-size:.92rem;}
@@ -130,7 +130,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
   // Single-page style filtering and navigation for catalog
   async function loadCatalog(url, pushHistory = true) {
     const tableContainer = document.querySelector('.catalog-table-wrap');

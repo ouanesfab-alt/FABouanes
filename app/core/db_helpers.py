@@ -497,7 +497,8 @@ class DatabaseManager:
                     )
                     cur.close()
                 self._perf_conn.commit()
-            except Exception:
+            except Exception as e:
+                logger.warning("Échec de l'écriture du lot de logs de performance: %s", e)
                 try:
                     self._perf_conn.close()
                 except Exception as e2:

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   /* Unique layout styles for operation lines */
   .doc-lines-shell{display:flex;flex-direction:column;gap:16px;}
   .doc-lines-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;}
@@ -299,7 +299,7 @@
 </template>
 
 <!-- JAVASCRIPT FOR OFF-LINE AND DYNAMIC FORM CALCULATIONS -->
-<script type="module">
+<script type="module" nonce="{{ csp_nonce }}">
 import { queueOperation, getRefData } from '/static/js/offline-db.js';
 
 // Setup horizontal switching
@@ -369,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // --- ACHAT DYNAMIC SCRIPT ---
 (function(){
   const linesHost = document.getElementById('purchaseLines');
@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
 })();
 </script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // --- VENTE DYNAMIC SCRIPT ---
 (function(){
   const linesHost = document.getElementById('saleLines');
@@ -661,7 +661,7 @@ document.addEventListener('DOMContentLoaded', () => {
 })();
 </script>
 
-<script type="module">
+<script type="module" nonce="{{ csp_nonce }}">
 import { queueOperation, getRefData } from '/static/js/offline-db.js';
 
 // --- PAYMENT & OFFLINE FORM SYNC ---

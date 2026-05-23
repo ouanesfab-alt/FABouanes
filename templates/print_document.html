@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 {% set company = company or doc.company %}
-<style>
+<style nonce="{{ csp_nonce }}">
   :root{
     --print-page-width:{{ print_layout.page_width_mm }}mm;
     --print-page-height:{{ print_layout.page_height_mm }}mm;
@@ -564,7 +564,7 @@
   {% endif %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 (function(){
   const btn = document.getElementById('btnBack');
   if (!btn) return;

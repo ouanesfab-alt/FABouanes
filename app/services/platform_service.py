@@ -1,0 +1,26 @@
+from __future__ import annotations
+from app.core.config import settings
+
+class PlatformService:
+    @staticmethod
+    def is_desktop() -> bool:
+        """Return True if running in Desktop (Electron wrapper) mode."""
+        return settings.desktop_mode
+
+    @staticmethod
+    def is_server() -> bool:
+        """Return True if running in standard server deployment mode."""
+        return not settings.desktop_mode
+
+    @staticmethod
+    def should_apply_strict_csp() -> bool:
+        """Strict CSP nonce-based policy should only be applied in server mode when configured."""
+        return settings.strict_csp and not settings.desktop_mode
+
+    @staticmethod
+    def should_secure_cookies() -> bool:
+        """Session cookies should be secure in non-desktop production server environments."""
+        return settings.session_cookie_secure
+
+# Global helper instance
+platform = PlatformService()

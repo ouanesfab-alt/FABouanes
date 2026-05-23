@@ -9,8 +9,8 @@ from tests.conftest import extract_csrf
 def test_admin_panel_renders(logged_client):
     response = logged_client.get("/admin")
     assert response.status_code == 200
-    assert "Parametres" in response.text
-    assert "Etat du systeme" in response.text
+    assert "Paramètres" in response.text
+    assert "État du système" in response.text
     assert "Nouveau PIN" in response.text
 
 
@@ -44,7 +44,7 @@ def test_admin_can_update_user_password(logged_client):
 def test_admin_system_status_renders(logged_client):
     response = logged_client.get("/admin/system-status")
     assert response.status_code == 200
-    assert "Diagnostic systeme" in response.text
+    assert "Diagnostic système" in response.text
 
 
 def test_admin_system_status_export(logged_client):

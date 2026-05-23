@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   /* ── macOS-style Import Page ── */
   .import-shell { max-width: 1080px; margin: 0 auto; }
 
@@ -254,7 +254,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
   // Drag & drop support
   const zone = document.getElementById('uploadZone');
   const fileInput = document.getElementById('fileInput');

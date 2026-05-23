@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 {% set company = company %}
-<style>
+<style nonce="{{ csp_nonce }}">
   :root {
     --print-page-width: 210mm;
     --print-page-height: 297mm;

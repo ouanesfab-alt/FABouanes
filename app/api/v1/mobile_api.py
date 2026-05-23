@@ -10,7 +10,7 @@ Toutes les routes sont protégées sauf /ping et /auth/token.
 from __future__ import annotations
 import asyncio
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from app.core.jwt_auth import (
     create_access_token, create_refresh_token,
@@ -23,6 +23,7 @@ from app.api.v1.clients import _fetch_client_history
 from app.services.payment_service import create_mobile_payment
 from app.repositories.dashboard_repository import get_dashboard_snapshot
 from app.schemas.payment import PaymentCreate
+from app.core.rate_limit import limiter
 
 router = APIRouter(prefix="/api/v1", tags=["mobile"])
 
@@ -33,7 +34,8 @@ async def api_ping():
 
 
 @router.post("/auth/token")
-async def mobile_login(body: dict):
+@limiter.limit("5/minute")
+async def mobile_login(request: Request, body: dict):
     """
     POST {"username": "...", "password": "..."}
     → {"access_token": "...", "refresh_token": "...", "token_type": "bearer"}
@@ -56,7 +58,8 @@ async def mobile_login(body: dict):
 
 
 @router.post("/auth/refresh")
-async def mobile_refresh(body: dict):
+@limiter.limit("10/minute")
+async def mobile_refresh(request: Request, body: dict):
     """Renouvelle l'access_token depuis un refresh_token valide."""
     refresh_token = body.get("refresh_token")
     if not refresh_token:

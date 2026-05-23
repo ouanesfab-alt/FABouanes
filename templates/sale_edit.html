@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% set edit_locked = sale_document.id and has_linked_payments %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .doc-lines-shell{display:flex;flex-direction:column;gap:16px;}
   .doc-lines-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;}
   .doc-lines-actions{display:flex;gap:10px;flex-wrap:wrap;}
@@ -134,7 +134,7 @@
 </template>
 {% endblock %}
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function(){
   const linesHost = document.getElementById('saleLines');
   const lineTemplate = document.getElementById('saleLineTemplate');

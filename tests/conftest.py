@@ -151,9 +151,24 @@ def clean_runtime():
         shutil.rmtree(TEST_DATA_DIR, ignore_errors=True)
     TEST_DATA_DIR.mkdir(parents=True, exist_ok=True)
     _reset_database()
+    
+    # Dispose engines after reset to clear any connections opened before reset
+    from app.core.db_helpers import db_manager
+    with db_manager._engine_lock:
+        for engine in list(db_manager._engines.values()):
+            engine.dispose()
+        db_manager._engines.clear()
+
     from app.core import database
     database._BOOTSTRAPPED = False
     bootstrap_and_migrate()
+
+    # Dispose engines again after bootstrap and migrate to clear any connections used during migrate
+    with db_manager._engine_lock:
+        for engine in list(db_manager._engines.values()):
+            engine.dispose()
+        db_manager._engines.clear()
+
     yield
     _stop_postgres_cluster()
 

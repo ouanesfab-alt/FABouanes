@@ -1,7 +1,7 @@
 <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js', v='20260516-local-assets') }}"></script>
 <script src="{{ url_for('static', filename='js/app.bundle.js', v='20260516-local-assets') }}"></script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
   document.addEventListener('DOMContentLoaded', () => {
     const toasts = document.querySelectorAll('.toast');
     toasts.forEach(t => new bootstrap.Toast(t).show());
@@ -227,7 +227,7 @@
     }
   })();
 </script>
-<script>
+<script nonce="{{ csp_nonce }}">
   // Évite d'avoir une date de formulaire obsolète (ex: page ouverte avant minuit, soumise après minuit)
   (function autoUpdateDateInputs() {
     let lastToday = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];

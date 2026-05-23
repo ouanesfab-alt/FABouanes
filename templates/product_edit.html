@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .product-edit-page{display:flex;flex-direction:column;gap:16px;}
   .product-edit-summary{color:var(--muted);font-size:.92rem;}
   .product-edit-shell{max-width:880px;margin:0 auto;width:100%;}
@@ -12,13 +12,9 @@
   .product-edit-note{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);
     color:var(--muted);font-size:.9rem;line-height:1.55;}
   .product-edit-hidden[hidden]{display:none !important;}
-  .product-edit-actions{display:flex;gap:10px;flex-wrap:wrap;}
-  .product-edit-actions > *{flex:1 1 220px;}
   @media(max-width:767px){
     .product-edit-card{padding:16px;}
     .product-edit-grid .span-6,.product-edit-grid .span-4{grid-column:span 12;}
-    .product-edit-actions{flex-direction:column;}
-    .product-edit-actions > *{width:100%;flex:1 1 auto;}
   }
 </style>
 
@@ -74,7 +70,7 @@
             1 Qt = <strong><span id="qtPrev">0</span> DA</strong>.
           </div>
         </div>
-        <div class="span-12 product-edit-actions">
+        <div class="span-12 entity-form-actions">
           <button class="btn btn-primary">Enregistrer</button>
           <a href="{{ url_for('catalog') }}" class="btn btn-outline-secondary">Retour</a>
         </div>
@@ -85,12 +81,12 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const priceKg=document.getElementById('salePriceKg');
 function syncPricePreview(){const v=parseFloat(priceKg?.value||0); document.getElementById('kgPrev').textContent=v.toFixed(2); document.getElementById('sacPrev').textContent=(v*50).toFixed(2); document.getElementById('qtPrev').textContent=(v*100).toFixed(2);}
 priceKg?.addEventListener('input', syncPricePreview); syncPricePreview();
 </script>
-<style>
+<style nonce="{{ csp_nonce }}">
   .preset-badge {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--line);

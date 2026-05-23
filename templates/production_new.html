@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .production-form-page{display:flex;flex-direction:column;gap:16px;}
   .production-form-summary{color:var(--muted);font-size:.92rem;}
   .production-form-shell{max-width:1100px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:16px;}
@@ -171,7 +171,7 @@
   </div>
 </div>
 {% endblock %}
-{% block scripts %}<script>
+{% block scripts %}<script nonce="{{ csp_nonce }}">
 const RAW_MATERIALS={{ raw_materials_json|tojson }};
 const SAVED_RECIPES={{ recipes|tojson }};
 const ingredientRows=document.getElementById('ingredientRows');

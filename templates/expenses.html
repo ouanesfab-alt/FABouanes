@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .expenses-page{display:flex;flex-direction:column;gap:18px;}
   .expenses-actions{display:flex;gap:10px;flex-wrap:wrap;}
   .expenses-summary{color:var(--muted);font-size:.92rem;}

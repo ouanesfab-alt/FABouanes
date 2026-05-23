@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .payment-edit-page{display:flex;flex-direction:column;gap:16px;}
   .payment-edit-summary{color:var(--muted);font-size:.92rem;}
   .payment-edit-shell{max-width:920px;margin:0 auto;width:100%;}
@@ -10,13 +10,9 @@
   .payment-edit-grid .span-6{grid-column:span 6;}
   .payment-edit-note{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);
     color:var(--muted);font-size:.9rem;line-height:1.55;}
-  .payment-edit-actions{display:flex;gap:10px;flex-wrap:wrap;}
-  .payment-edit-actions > *{flex:1 1 220px;}
   @media(max-width:767px){
     .payment-edit-card{padding:16px;}
     .payment-edit-grid .span-6{grid-column:span 12;}
-    .payment-edit-actions{flex-direction:column;}
-    .payment-edit-actions > *{width:100%;flex:1 1 auto;}
   }
 </style>
 
@@ -68,7 +64,7 @@
             Si aucune créance précise n'est choisie, l'affectation suit l'ordre automatique des dettes ouvertes du client.
           </div>
         </div>
-        <div class="span-12 payment-edit-actions">
+        <div class="span-12 entity-form-actions">
           <button class="btn btn-success">Enregistrer les modifications</button>
           <a href="{{ url_for('operations', type='payment') }}" class="btn btn-outline-secondary">Retour</a>
         </div>

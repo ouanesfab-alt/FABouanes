@@ -81,7 +81,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function(){
   const rawPresets = {{ raw_presets|tojson }};
   const finishedPresets = {{ finished_presets|tojson }};

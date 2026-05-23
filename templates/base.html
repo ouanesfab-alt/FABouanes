@@ -11,7 +11,7 @@
   <!-- macOS Sequoia Ambient Background Backdrop -->
   <div class="sequoia-backdrop" aria-hidden="true"></div>
   {% endif %}
-  <script>
+  <script nonce="{{ csp_nonce }}">
     {% if not g.user and not is_print_view %}
     document.body.classList.add('auth-page');
     {% endif %}

@@ -85,6 +85,7 @@ def validate_password_strength(password: str, mode: str | None = None) -> tuple[
 
 def security_headers(response):
     from app.core.config import settings
+    from app.services.platform_service import platform
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-XSS-Protection", "1; mode=block")
@@ -92,11 +93,11 @@ def security_headers(response):
     response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
 
     # Enable HSTS only in non-desktop production environments
-    if settings.env == "production" and not settings.desktop_mode:
+    if settings.env == "production" and platform.is_server():
         response.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
 
     nonce = get_state_value("csp_nonce")
-    if settings.strict_csp and not settings.desktop_mode and nonce:
+    if platform.should_apply_strict_csp() and nonce:
         csp = (
             f"default-src 'self'; "
             f"script-src 'self' 'nonce-{nonce}'; "

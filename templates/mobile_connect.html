@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .mobile-connect-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
   .network-card { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 1rem; text-align: center; }
   .network-name { font-weight: 700; margin-bottom: 0.25rem; font-size: 1.1rem; }

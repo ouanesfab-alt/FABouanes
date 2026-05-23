@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .transactions-page{display:flex;flex-direction:column;gap:16px;}
   .transactions-actions{display:flex;gap:10px;flex-wrap:wrap;}
   .transactions-filter-row{align-items:stretch;}
@@ -153,7 +153,7 @@
 {% endblock %}
 
 {% block scripts %}
-<style>
+<style nonce="{{ csp_nonce }}">
   /* Animation style WhatsApp pour les nouvelles lignes */
   @keyframes slideDownFadeIn {
     0% {
@@ -174,7 +174,7 @@
     animation: slideDownFadeIn 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 </style>
-<script>
+<script nonce="{{ csp_nonce }}">
   window.onOperationsRefresh = async function() {
     try {
       const response = await fetch(window.location.href);

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .production-page{display:flex;flex-direction:column;gap:16px;}
   .production-actions{display:flex;gap:10px;flex-wrap:wrap;}
   .production-summary{color:var(--muted);font-size:.92rem;}
@@ -160,7 +160,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 function editProductionNotes(id, date, name, notes) {
   const sheet = document.getElementById('editProdSheet');
   if (sheet.parentElement !== document.body) {

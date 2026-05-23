@@ -171,8 +171,9 @@ def _resolve_actor(user_id: int | None = None, actor: Any = None) -> tuple[int |
             if user:
                 resolved_username = resolved_username or user.get("username")
                 resolved_role = resolved_role or user.get("role")
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger("fabouanes.audit").warning("Impossible de charger l'utilisateur pour l'audit: %s", e)
 
     return resolved_id, resolved_username or "anonymous", resolved_role or "anonymous"
 

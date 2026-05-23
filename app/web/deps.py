@@ -203,6 +203,8 @@ def require_permission(request: Request, permission: str):
     return None
 
 
+from app.services.platform_service import platform
+
 def template_context(request: Request, **context: Any) -> dict[str, Any]:
     csrf_token = ensure_csrf_token(request)
     proxy = TemplateRequestProxy(request)
@@ -213,7 +215,7 @@ def template_context(request: Request, **context: Any) -> dict[str, Any]:
         "request": proxy,
         "raw_request": request,
         "csrf_token": csrf_token,
-        "is_desktop_app": settings.desktop_mode,
+        "is_desktop_app": platform.is_desktop(),
         "g": SimpleNamespace(user=user),
         "csp_nonce": csp_nonce,
         **context,

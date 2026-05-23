@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .expense-form-page{display:flex;flex-direction:column;gap:18px;max-width:680px;}
   .expense-form-card{padding:28px;}
   @media(max-width:767px){.expense-form-card{padding:18px;}}

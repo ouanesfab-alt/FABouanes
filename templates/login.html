@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .login-page {
     min-height: 100vh;
     min-height: 100dvh;
@@ -329,7 +329,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 if (!localStorage.getItem('fab_theme')) {
   localStorage.setItem('fab_theme', 'light');
   document.documentElement.setAttribute('data-theme', 'light');

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .bons-page{display:flex;flex-direction:column;gap:12px;height:auto;min-height:100%;overflow:visible;}
   .bons-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) 180px auto;gap:8px;align-items:center;}
   .bons-layout{display:flex;flex-direction:row;min-height:0;flex:1;}
@@ -310,7 +310,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function(){
   const input = document.getElementById('pdfInput');
   const button = document.getElementById('uploadButton');

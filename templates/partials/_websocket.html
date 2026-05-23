@@ -1,5 +1,5 @@
 {% if g.user %}
-<script type="module">
+<script type="module" nonce="{{ csp_nonce }}">
   import { initOfflineSync } from '/static/js/offline-sync.js';
   initOfflineSync();
   function updateNetworkIcon() {
@@ -11,7 +11,7 @@
   window.addEventListener('offline', updateNetworkIcon);
   document.addEventListener('DOMContentLoaded', updateNetworkIcon);
 </script>
-<script>
+<script nonce="{{ csp_nonce }}">
   // Configuration WebSocket globale
   (function initWebSocket() {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';

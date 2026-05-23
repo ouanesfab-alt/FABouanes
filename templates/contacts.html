@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .contacts-page{display:flex;flex-direction:column;gap:16px;}
   .contacts-actions{display:flex;gap:10px;flex-wrap:wrap;}
   .contacts-summary{color:var(--muted);font-size:.92rem;}
@@ -133,7 +133,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
   // Single-page style filtering and navigation for contacts
   async function loadContacts(url, pushHistory = true) {
     const tableContainer = document.querySelector('.contacts-table-wrap');

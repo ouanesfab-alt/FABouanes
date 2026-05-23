@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .notes-grid{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:14px;align-items:start}
   .notes-grid,.notes-grid > *{min-width:0}
   .notes-textarea{
@@ -103,7 +103,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function(){
   const area = document.getElementById('notesArea');
   const counter = document.getElementById('charCount');

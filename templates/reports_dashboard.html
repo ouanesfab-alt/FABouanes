@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
-<style>
+<style nonce="{{ csp_nonce }}">
   .reports-page{display:flex;flex-direction:column;gap:20px;}
   .reports-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
   .reports-filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
@@ -340,7 +340,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)';

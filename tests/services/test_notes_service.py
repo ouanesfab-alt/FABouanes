@@ -20,12 +20,27 @@ from app.services.notes_service import (
 @pytest.fixture(autouse=True)
 def clean_notes_directory():
     """Ensure NOTES_DIR is empty before and after each test."""
+    import time
     if NOTES_DIR.exists():
-        shutil.rmtree(NOTES_DIR)
+        for _ in range(5):
+            try:
+                shutil.rmtree(NOTES_DIR)
+                break
+            except PermissionError:
+                time.sleep(0.1)
+        else:
+            shutil.rmtree(NOTES_DIR, ignore_errors=True)
     NOTES_DIR.mkdir(parents=True, exist_ok=True)
     yield
     if NOTES_DIR.exists():
-        shutil.rmtree(NOTES_DIR)
+        for _ in range(5):
+            try:
+                shutil.rmtree(NOTES_DIR)
+                break
+            except PermissionError:
+                time.sleep(0.1)
+        else:
+            shutil.rmtree(NOTES_DIR, ignore_errors=True)
 
 
 def test_notes_file_path():
