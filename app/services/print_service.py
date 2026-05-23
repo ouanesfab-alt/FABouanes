@@ -9,7 +9,7 @@ from app.core.db_access import query_db
 
 try:
     from reportlab.lib import colors
-    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import cm
@@ -542,208 +542,272 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
     content_width = float(page_doc.width)
     styles = getSampleStyleSheet()
     pdf_font_regular, pdf_font_bold = _pdf_font_names()
-    dark = colors.HexColor("#111827")
-    muted = colors.HexColor("#6B7280")
-    light = colors.HexColor("#F8FAFC")
-    line = colors.HexColor("#D7DEE8")
+
+    # Premium Color Scheme matching HTML CSS variables
+    primary_color = colors.HexColor("#0f172a")  # Deep Charcoal
+    accent_color = colors.HexColor("#0284c7")   # Corporate Ocean Blue
+    text_dark = colors.HexColor("#1e293b")      # Dark Slate Text
+    text_muted = colors.HexColor("#64748b")     # Light Slate Text
+    border_color = colors.HexColor("#cbd5e1")   # Slate Border
+    border_light = colors.HexColor("#e2e8f0")   # Light Slate Divider
+    bg_light = colors.HexColor("#f8fafc")       # Soft Accent Background
+
     story = []
 
-    title_style = ParagraphStyle(
-        "print_title",
+    # Title & Subtitle for Ref Box
+    invoice_title_style = ParagraphStyle(
+        "print_invoice_title",
         parent=styles["Normal"],
         fontName=pdf_font_bold,
-        fontSize=16.5,
-        leading=18.0,
-        textColor=dark,
+        fontSize=15.0,
+        leading=17.0,
+        textColor=primary_color,
         spaceAfter=0,
-        alignment=TA_CENTER,
+        alignment=TA_LEFT,
     )
     subtitle_style = ParagraphStyle(
         "print_subtitle",
         parent=styles["Normal"],
         fontName=pdf_font_regular,
-        fontSize=8.6,
-        leading=10.8,
-        textColor=muted,
-        alignment=TA_CENTER,
+        fontSize=8.5,
+        leading=10.0,
+        textColor=text_muted,
+        spaceAfter=0,
+        alignment=TA_LEFT,
     )
-    label_style = ParagraphStyle(
-        "print_label",
+
+    # Key/Value for Invoice Box
+    invoice_label_style = ParagraphStyle(
+        "print_invoice_label",
         parent=styles["Normal"],
         fontName=pdf_font_bold,
-        fontSize=7.0,
-        leading=8.6,
-        textColor=muted,
+        fontSize=8.0,
+        leading=10.0,
+        textColor=text_muted,
     )
-    value_style = ParagraphStyle(
-        "print_value",
+    invoice_value_style = ParagraphStyle(
+        "print_invoice_value",
         parent=styles["Normal"],
         fontName=pdf_font_bold,
         fontSize=9.0,
-        leading=11.2,
-        textColor=dark,
+        leading=11.0,
+        textColor=primary_color,
+        alignment=TA_RIGHT,
     )
+
+    # Contact style for company details
+    contact_style = ParagraphStyle(
+        "print_contact",
+        parent=styles["Normal"],
+        fontName=pdf_font_regular,
+        fontSize=9.0,
+        leading=12.0,
+        textColor=text_dark,
+    )
+
+    # Client Box Header Tab Badge Style
+    tab_style = ParagraphStyle(
+        "print_client_tab",
+        parent=styles["Normal"],
+        fontName=pdf_font_bold,
+        fontSize=7.5,
+        leading=9.0,
+        textColor=colors.white,
+    )
+
+    # Client Box Details
     partner_name_style = ParagraphStyle(
         "print_partner_name",
-        parent=value_style,
+        parent=styles["Normal"],
+        fontName=pdf_font_bold,
         fontSize=13.0,
-        leading=14.2,
-        textColor=colors.HexColor("#1F2937"),
-    )
-    partner_main_style = ParagraphStyle(
-        "print_partner_main",
-        parent=value_style,
-        fontSize=16.4,
-        leading=18.2,
-        textColor=colors.HexColor("#111827"),
+        leading=15.0,
+        textColor=primary_color,
     )
     prepared_label_style = ParagraphStyle(
         "print_prepared_label",
-        parent=label_style,
-        fontSize=7.2,
-        leading=9.0,
-        textColor=colors.HexColor("#111827"),
+        parent=styles["Normal"],
+        fontName=pdf_font_regular,
+        fontSize=8.0,
+        leading=10.0,
+        textColor=text_muted,
+        alignment=TA_RIGHT,
     )
     prepared_value_style = ParagraphStyle(
         "print_prepared_value",
-        parent=value_style,
-        fontName=pdf_font_regular,
-        fontSize=8.3,
+        parent=styles["Normal"],
+        fontName=pdf_font_bold,
+        fontSize=8.5,
         leading=10.0,
-        textColor=colors.HexColor("#374151"),
-    )
-    ref_label_style = ParagraphStyle(
-        "print_ref_label",
-        parent=label_style,
+        textColor=text_dark,
         alignment=TA_RIGHT,
     )
-    ref_value_style = ParagraphStyle(
-        "print_ref_value",
-        parent=value_style,
-        alignment=TA_RIGHT,
-        fontSize=9.4,
+    client_box_text_style = ParagraphStyle(
+        "print_client_text",
+        parent=styles["Normal"],
+        fontName=pdf_font_regular,
+        fontSize=9.0,
+        leading=12.0,
+        textColor=text_dark,
     )
+
+    # Table Header Styles
     table_head_style = ParagraphStyle(
         "print_table_head",
         parent=styles["Normal"],
         fontName=pdf_font_bold,
-        fontSize=7.1,
-        leading=8.5,
-        textColor=colors.HexColor("#374151"),
+        fontSize=8.0,
+        leading=10.0,
+        textColor=primary_color,
     )
+    table_head_right_style = ParagraphStyle(
+        "print_table_head_right",
+        parent=table_head_style,
+        alignment=TA_RIGHT,
+    )
+
+    # Table Cell Styles
     cell_style = ParagraphStyle(
         "print_cell",
         parent=styles["Normal"],
         fontName=pdf_font_regular,
-        fontSize=8.3,
-        leading=10.3,
-        textColor=dark,
+        fontSize=9.0,
+        leading=11.0,
+        textColor=text_dark,
     )
     cell_bold_style = ParagraphStyle(
         "print_cell_bold",
         parent=cell_style,
         fontName=pdf_font_bold,
+        textColor=primary_color,
     )
     cell_right_style = ParagraphStyle(
         "print_cell_right",
         parent=cell_style,
         alignment=TA_RIGHT,
     )
+    cell_right_bold_style = ParagraphStyle(
+        "print_cell_right_bold",
+        parent=cell_bold_style,
+        alignment=TA_RIGHT,
+    )
+
+    # Summary Box Styles
+    summary_label_style = ParagraphStyle(
+        "print_summary_label",
+        parent=styles["Normal"],
+        fontName=pdf_font_bold,
+        fontSize=8.0,
+        leading=10.0,
+        textColor=text_muted,
+    )
+    summary_value_style = ParagraphStyle(
+        "print_summary_value",
+        parent=styles["Normal"],
+        fontName=pdf_font_bold,
+        fontSize=10.0,
+        leading=12.0,
+        textColor=primary_color,
+        alignment=TA_RIGHT,
+    )
+    summary_total_label_style = ParagraphStyle(
+        "print_summary_total_label",
+        parent=styles["Normal"],
+        fontName=pdf_font_bold,
+        fontSize=8.0,
+        leading=10.0,
+        textColor=primary_color,
+    )
+    summary_total_value_style = ParagraphStyle(
+        "print_summary_total_value",
+        parent=styles["Normal"],
+        fontName=pdf_font_bold,
+        fontSize=13.0,
+        leading=15.0,
+        textColor=accent_color,
+        alignment=TA_RIGHT,
+    )
+
+    # Footer Style
     footer_style = ParagraphStyle(
         "print_footer",
         parent=styles["Normal"],
         fontName=pdf_font_regular,
-        fontSize=8.0,
-        leading=10.0,
+        fontSize=8.5,
+        leading=11.0,
         alignment=TA_CENTER,
-        textColor=muted,
-    )
-    brand_name_style = ParagraphStyle(
-        "print_brand_name",
-        parent=styles["Normal"],
-        fontName=pdf_font_bold,
-        fontSize=30.0,
-        leading=29.0,
-        textColor=colors.black,
-    )
-    brand_subtitle_style = ParagraphStyle(
-        "print_brand_subtitle",
-        parent=styles["Normal"],
-        fontName=pdf_font_regular,
-        fontSize=12.6,
-        leading=14.0,
-        textColor=colors.HexColor("#222222"),
-    )
-    contact_style = ParagraphStyle(
-        "print_contact",
-        parent=styles["Normal"],
-        fontName=pdf_font_regular,
-        fontSize=10.8,
-        leading=14.0,
-        textColor=colors.HexColor("#222222"),
-    )
-    invoice_title_style = ParagraphStyle(
-        "print_invoice_title",
-        parent=styles["Normal"],
-        fontName=pdf_font_bold,
-        fontSize=18.0,
-        leading=20.0,
-        textColor=colors.black,
-        alignment=TA_CENTER,
-    )
-    invoice_label_style = ParagraphStyle(
-        "print_invoice_label",
-        parent=styles["Normal"],
-        fontName=pdf_font_bold,
-        fontSize=10.5,
-        leading=13.0,
-        textColor=colors.black,
-    )
-    invoice_value_style = ParagraphStyle(
-        "print_invoice_value",
-        parent=styles["Normal"],
-        fontName=pdf_font_regular,
-        fontSize=10.5,
-        leading=13.0,
-        textColor=colors.HexColor("#222222"),
-        alignment=TA_RIGHT,
+        textColor=text_muted,
     )
 
     printed_date = str(doc.get("printed_date") or doc.get("date") or "")
     printed_time = str(doc.get("printed_time") or "")
-    show_partner_phone = str(doc.get("partner_label", "")).strip().lower() != "client"
+    show_partner_phone = str(doc.get("partner_label", "")).strip().lower() != "client" and bool(doc.get("partner_phone"))
+
+    # Company Contact Info Block
     brand_logo = _logo_cell(BASE_DIR / "static" / "fab_invoice_logo_clean.png", 12.4, 3.98)
     company_block = [
         brand_logo,
         Spacer(1, 0.34 * cm),
-        Paragraph(f"Adresse : {COMPANY_INFO['address']}", contact_style),
+        Paragraph(f"<b>Adresse :</b> {COMPANY_INFO['address']}", contact_style),
         Spacer(1, 0.12 * cm),
-        Paragraph(f"Tel : {COMPANY_INFO['phones']}", contact_style),
+        Paragraph(f"<b>Tél :</b> {COMPANY_INFO['phones']}", contact_style),
         Spacer(1, 0.12 * cm),
-        Paragraph(f"Email : {COMPANY_INFO['email']}", contact_style),
+        Paragraph(f"<b>Email :</b> {COMPANY_INFO['email']}", contact_style),
     ]
 
-    invoice_box = Table(
-        [
-            [[Paragraph(str(doc.get("title", "")).upper(), invoice_title_style), Spacer(1, 0.04 * cm), Paragraph(str(doc.get("subtitle", "")), subtitle_style)], ""],
-            [Paragraph("N facture :", invoice_label_style), Paragraph(str(doc.get("number", "")), invoice_value_style)],
-            [Paragraph("Date / Heure :", invoice_label_style), Paragraph(f"{printed_date} {printed_time}".strip(), invoice_value_style)],
-        ],
-        colWidths=[3.4 * cm, 2.7 * cm],
-    )
-    invoice_box.setStyle(
+    # Inner title banner with left accent border
+    title_sub_rows = [
+        [Paragraph(str(doc.get("title", "")).upper(), invoice_title_style)]
+    ]
+    if doc.get("subtitle"):
+        title_sub_rows.append([Paragraph(str(doc.get("subtitle", "")), subtitle_style)])
+    
+    title_wrap_table = Table(title_sub_rows, colWidths=[6.0 * cm])
+    title_wrap_table.setStyle(
         TableStyle(
             [
-                ("SPAN", (0, 0), (1, 0)),
-                ("BOX", (0, 0), (-1, -1), 0.9, colors.black),
+                ("BACKGROUND", (0, 0), (-1, -1), bg_light),
+                ("LINEBEFORE", (0, 0), (0, -1), 3.0, accent_color),
                 ("LEFTPADDING", (0, 0), (-1, -1), 8),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                ("TOPPADDING", (0, 0), (-1, -1), 6),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
             ]
         )
     )
+
+    # Document reference rows (metadata)
+    invoice_rows = [
+        [title_wrap_table, ""]  # Spanned over 2 columns
+    ]
+    invoice_rows.append([Paragraph("N° DOCUMENT :", invoice_label_style), Paragraph(str(doc.get("number", "")), invoice_value_style)])
+    invoice_rows.append([Paragraph("DATE :", invoice_label_style), Paragraph(printed_date, invoice_value_style)])
+    if printed_time:
+        invoice_rows.append([Paragraph("HEURE :", invoice_label_style), Paragraph(printed_time, invoice_value_style)])
+
+    payment_mode = doc.get("payment_mode")
+    if payment_mode and payment_mode != "-":
+        pay_lbl = _payment_mode_label(payment_mode)
+        invoice_rows.append([Paragraph("PAIEMENT :", invoice_label_style), Paragraph(pay_lbl, invoice_value_style)])
+
+    invoice_box = Table(
+        invoice_rows,
+        colWidths=[3.1 * cm, 3.1 * cm],
+    )
+    invoice_box_commands = [
+        ("SPAN", (0, 0), (1, 0)),
+        ("BACKGROUND", (0, 0), (-1, -1), bg_light),
+        ("BOX", (0, 0), (-1, -1), 1.0, border_color),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]
+    for r in range(1, len(invoice_rows) - 1):
+        invoice_box_commands.append(("LINEBELOW", (0, r), (-1, r), 0.5, border_light))
+        
+    invoice_box.setStyle(TableStyle(invoice_box_commands))
 
     brand_table = Table([[company_block, invoice_box]], colWidths=[content_width - 6.4 * cm, 6.4 * cm])
     brand_table.setStyle(
@@ -760,133 +824,81 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
     story.append(brand_table)
     story.append(Spacer(1, 0.72 * cm))
 
-    partner_box = Table(
-        [
-            [
-                Paragraph(str(doc.get("partner_label", "")), label_style),
-                Spacer(1, 0.05 * cm),
-                Paragraph(str(doc.get("partner_name", "")), partner_name_style),
-            ]
-        ],
-        colWidths=[4.8 * cm],
-    )
-    partner_box.setStyle(
+    # Client Box Layout (indented tab/badge above client box table)
+    tab_label = str(doc.get("partner_label", "Client")).upper()
+    tab_table = Table([[Paragraph(tab_label, tab_style)]], colWidths=[2.2 * cm], hAlign="LEFT")
+    tab_table.setStyle(
         TableStyle(
             [
-                ("BOX", (0, 0), (-1, -1), 0.7, line),
-                ("LEFTPADDING", (0, 0), (-1, -1), 7),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-                ("TOPPADDING", (0, 0), (-1, -1), 7),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ]
-        )
-    )
-
-    ref_box = Table(
-        [
-            [Paragraph("Reference", ref_label_style), Paragraph(str(doc.get("number", "")), ref_value_style)],
-            [Paragraph("Date", ref_label_style), Paragraph(printed_date, ref_value_style)],
-            [Paragraph("Heure", ref_label_style), Paragraph(printed_time or "-", ref_value_style)],
-            [Paragraph("Total", ref_label_style), Paragraph(_fmt_money_pdf(doc.get("total", 0)), ref_value_style)],
-        ],
-        colWidths=[2.2 * cm, 3.2 * cm],
-    )
-    ref_box.setStyle(
-        TableStyle(
-            [
-                ("BOX", (0, 0), (-1, -1), 0.7, line),
-                ("INNERGRID", (0, 0), (-1, -1), 0.4, line),
-                ("LEFTPADDING", (0, 0), (-1, -1), 7),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-                ("TOPPADDING", (0, 0), (-1, -1), 5),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("BACKGROUND", (0, 0), (-1, -1), primary_color),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
             ]
         )
     )
-
-    party_width = 5.2 * cm
-    ref_width = 5.4 * cm
-    header_table = Table(
-        [
-            [
-                [partner_box],
-                [Paragraph(str(doc.get("title", "")), title_style), Spacer(1, 0.08 * cm), Paragraph(str(doc.get("subtitle", "")), subtitle_style)],
-                ref_box,
-            ]
-        ],
-        colWidths=[party_width, content_width - party_width - ref_width, ref_width],
-    )
-    header_table.setStyle(
-        TableStyle(
-            [
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                ("TOPPADDING", (0, 0), (-1, -1), 0),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-            ]
-        )
-    )
+    
+    # Indent the tab by 0.4 cm to match HTML layout alignment
+    tab_indent = Table([["", tab_table]], colWidths=[0.4 * cm, 2.2 * cm], hAlign="LEFT")
+    tab_indent.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    
     client_rows = [
         [
-            Paragraph(str(doc.get("partner_name", "")), partner_main_style),
-            Paragraph("Prepare par :", prepared_label_style),
+            Paragraph(str(doc.get("partner_name", "")), partner_name_style),
+            Paragraph("Préparé par :", prepared_label_style),
             Paragraph(str(printed_by), prepared_value_style),
-        ],
+        ]
+    ]
+    client_style_commands = [
+        ("BOX", (0, 0), (-1, -1), 1.0, border_color),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.white),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
     ]
     if show_partner_phone:
-        client_rows.append([Paragraph("Telephone :", label_style), Paragraph(str(doc.get("partner_phone") or "-"), value_style), ""])
+        client_rows.append([
+            Paragraph(f"<b>Tél :</b> {doc['partner_phone']}", client_box_text_style),
+            "", ""
+        ])
+        r_idx = len(client_rows) - 1
+        client_style_commands.append(("SPAN", (0, r_idx), (2, r_idx)))
+        client_style_commands.append(("TOPPADDING", (0, r_idx), (-1, r_idx), 0))
+        client_style_commands.append(("BOTTOMPADDING", (0, r_idx), (-1, r_idx), 4))
+
     if doc.get("partner_address"):
-        client_rows.append([Paragraph("Adresse :", label_style), Paragraph(str(doc.get("partner_address")), value_style), ""])
+        client_rows.append([
+            Paragraph(f"<b>Adresse :</b> {doc['partner_address']}", client_box_text_style),
+            "", ""
+        ])
+        r_idx = len(client_rows) - 1
+        client_style_commands.append(("SPAN", (0, r_idx), (2, r_idx)))
+        client_style_commands.append(("TOPPADDING", (0, r_idx), (-1, r_idx), 0))
+        client_style_commands.append(("BOTTOMPADDING", (0, r_idx), (-1, r_idx), 4))
+
     client_box = Table(
         client_rows,
         colWidths=[content_width * 0.58, 2.3 * cm, content_width - (content_width * 0.58) - 2.3 * cm],
         hAlign="LEFT",
     )
-    client_style_commands = [
-        ("BOX", (0, 0), (-1, -1), 0.9, colors.black),
-        ("LEFTPADDING", (0, 0), (-1, -1), 10),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-        ("TOPPADDING", (0, 0), (-1, -1), 7),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-    ]
-    for row_index in range(1, len(client_rows)):
-        client_style_commands.append(("SPAN", (1, row_index), (2, row_index)))
-    client_box.setStyle(
-        TableStyle(
-            client_style_commands
-        )
-    )
+    client_box.setStyle(TableStyle(client_style_commands))
+    
+    story.append(tab_indent)
+    story.append(Spacer(1, 0.08 * cm))
     story.append(client_box)
-    story.append(Spacer(1, 0.45 * cm))
+    story.append(Spacer(1, 0.55 * cm))
 
-    info_table = Table(
-        [
-            [
-                [Paragraph("Préparé par", label_style), Spacer(1, 0.04 * cm), Paragraph(str(printed_by), value_style)],
-                [Paragraph("Document", label_style), Spacer(1, 0.04 * cm), Paragraph(str(doc.get("number", "")), value_style)],
-            ]
-        ],
-        colWidths=[content_width / 2.0, content_width / 2.0],
-    )
-    info_table.setStyle(
-        TableStyle(
-            [
-                ("BOX", (0, 0), (-1, -1), 0.7, line),
-                ("INNERGRID", (0, 0), (-1, -1), 0.4, line),
-                ("LEFTPADDING", (0, 0), (-1, -1), 7),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-                ("TOPPADDING", (0, 0), (-1, -1), 7),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ]
-        )
-    )
-    # The invoice top now carries the visible reference and partner blocks.
-
+    # Items Table Layout (no outer BOX border to make it open on the sides)
     lines = doc.get("lines") or [
         {
             "item_name": doc.get("item_name") or "-",
@@ -899,9 +911,9 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
     table_rows = [
         [
             Paragraph(str(doc.get("item_label", "Article")), table_head_style),
-            Paragraph("Quantite", table_head_style),
-            Paragraph("PU", table_head_style),
-            Paragraph("Total", table_head_style),
+            Paragraph("Quantité", table_head_right_style),
+            Paragraph("PU", table_head_right_style),
+            Paragraph("Total", table_head_right_style),
         ]
     ]
     for line_item in lines:
@@ -913,7 +925,7 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
                 Paragraph(str(line_item.get("item_name") or "-"), cell_bold_style),
                 Paragraph(qty_str, cell_right_style),
                 Paragraph(unit_price_str, cell_right_style),
-                Paragraph(total_str, cell_right_style),
+                Paragraph(total_str, cell_right_bold_style),
             ]
         )
 
@@ -925,46 +937,50 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
     items_table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, 0), light),
-                ("BOX", (0, 0), (-1, -1), 0.7, line),
-                ("INNERGRID", (0, 0), (-1, -1), 0.4, line),
-                ("LEFTPADDING", (0, 0), (-1, -1), 7),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+                ("BACKGROUND", (0, 0), (-1, 0), bg_light),
+                ("LINEBELOW", (0, 0), (-1, 0), 1.5, primary_color),
+                ("LINEBELOW", (0, 1), (-1, -1), 0.5, border_light),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, bg_light]),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
                 ("TOPPADDING", (0, 0), (-1, -1), 6),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ]
         )
     )
     story.append(items_table)
     story.append(Spacer(1, 0.24 * cm))
 
+    # Summary Totals Box
     summary_rows = []
     if doc.get("paid") is not None:
-        summary_rows.append([Paragraph("Paye", label_style), Paragraph(_fmt_money_pdf(doc["paid"]), ref_value_style)])
+        summary_rows.append([Paragraph("Payé", summary_label_style), Paragraph(_fmt_money_pdf(doc["paid"]), summary_value_style)])
     if doc.get("due") is not None:
-        summary_rows.append([Paragraph("Reste", label_style), Paragraph(_fmt_money_pdf(doc["due"]), ref_value_style)])
-    summary_rows.append([Paragraph("Total", label_style), Paragraph(_fmt_money_pdf(doc.get("total", 0)), ref_value_style)])
+        summary_rows.append([Paragraph("Reste", summary_label_style), Paragraph(_fmt_money_pdf(doc["due"]), summary_value_style)])
+    summary_rows.append([Paragraph("Total", summary_total_label_style), Paragraph(_fmt_money_pdf(doc.get("total", 0)), summary_total_value_style)])
 
     summary_table = Table(summary_rows, colWidths=[3.0 * cm, 3.4 * cm], hAlign="RIGHT")
-    summary_table.setStyle(
-        TableStyle(
-            [
-                ("BOX", (0, 0), (-1, -1), 0.7, line),
-                ("INNERGRID", (0, 0), (-1, -1), 0.4, line),
-                ("LEFTPADDING", (0, 0), (-1, -1), 7),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-                ("TOPPADDING", (0, 0), (-1, -1), 6),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-                ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-            ]
-        )
-    )
+    summary_commands = [
+        ("BACKGROUND", (0, 0), (-1, -1), bg_light),
+        ("BOX", (0, 0), (-1, -1), 1.0, border_color),
+        ("LEFTPADDING", (0, 0), (-1, -1), 12),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]
+    num_rows = len(summary_rows)
+    for r in range(num_rows - 1):
+        summary_commands.append(("LINEBELOW", (0, r), (-1, r), 0.5, border_light))
+    summary_commands.append(("LINEABOVE", (0, num_rows - 1), (-1, num_rows - 1), 1.5, primary_color))
+    
+    summary_table.setStyle(TableStyle(summary_commands))
     story.append(summary_table)
 
+    # Footer Layout
     story.append(Spacer(1, 0.45 * cm))
-    story.append(HRFlowable(width="100%", thickness=0.7, color=line))
+    story.append(HRFlowable(width="100%", thickness=0.7, color=border_light))
     story.append(Spacer(1, 0.12 * cm))
     story.append(Paragraph("FABOuanes - Document commercial", footer_style))
 
