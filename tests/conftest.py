@@ -170,6 +170,25 @@ def clean_runtime():
         db_manager._engines.clear()
 
     yield
+    try:
+        from app.core.db_helpers import db_manager
+        with db_manager._engine_lock:
+            for engine in list(db_manager._engines.values()):
+                engine.dispose()
+            db_manager._engines.clear()
+    except Exception:
+        pass
+
+    try:
+        from app.core.async_db import async_engine
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(async_engine.dispose())
+        except RuntimeError:
+            asyncio.run(async_engine.dispose())
+    except Exception:
+        pass
     _stop_postgres_cluster()
 
 
@@ -177,6 +196,22 @@ def clean_runtime():
 def client():
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture(autouse=True)
+def dispose_async_engine_after_each_test():
+    yield
+    try:
+        from app.core.async_db import async_engine
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+            fut = asyncio.run_coroutine_threadsafe(async_engine.dispose(), loop)
+            fut.result(timeout=2)
+        except RuntimeError:
+            asyncio.run(async_engine.dispose())
+    except Exception:
+        pass
 
 
 @pytest.fixture(autouse=True)
