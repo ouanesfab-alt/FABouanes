@@ -20,7 +20,9 @@ from app.services.auth_service import verify_credentials
 from app.repositories.user_repository import get_user_by_id
 from app.repositories.client_repository import list_clients_with_balance
 from app.api.v1.clients import _fetch_client_history
-from app.services.payment_service import create_mobile_payment
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.async_db import get_async_session
+from app.modules.payments.service import PaymentsService
 from app.repositories.dashboard_repository import get_dashboard_snapshot
 from app.schemas.payment import PaymentCreate
 from app.core.rate_limit import limiter
@@ -109,6 +111,7 @@ async def mobile_client_history(
 async def mobile_record_payment(
     payload: PaymentCreate,
     user_id: int = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_async_session),
 ):
     """
     Enregistre un versement depuis le terrain.
@@ -116,8 +119,8 @@ async def mobile_record_payment(
                    "notes": str}
     """
     try:
-        result = await asyncio.to_thread(
-            create_mobile_payment,
+        service = PaymentsService(db)
+        result = await service.create_mobile_payment(
             client_id=payload.client_id,
             amount=payload.amount,
             payment_date=payload.payment_date,
@@ -125,7 +128,7 @@ async def mobile_record_payment(
             recorded_by=user_id,
         )
         return result
-    except ValueError as e:
+    except Exception as e:
         raise HTTPException(400, detail=str(e))
 
 

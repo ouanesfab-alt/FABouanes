@@ -158,6 +158,9 @@ async def csrf_protect(request: Request) -> None:
         raise ValueError("CSRF token invalide.")
 
 
+
+
+
 def get_current_user(request: Request):
     return getattr(request.state, "user", None)
 

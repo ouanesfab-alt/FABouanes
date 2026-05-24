@@ -60,6 +60,15 @@ class Settings:
                     self.secret_key = key_file.read_text(encoding="utf-8").strip()
                 except Exception:
                     pass
+            else:
+                try:
+                    # En production locale ou desktop, si aucun SECRET_KEY n'est spécifié,
+                    # on génère et stocke automatiquement une clé persistante dans le dossier de données.
+                    generated_key = _secrets.token_hex(32)
+                    key_file.write_text(generated_key, encoding="utf-8")
+                    self.secret_key = generated_key
+                except Exception:
+                    pass
 
         testing = os.getenv("PYTEST_CURRENT_TEST") or os.getenv("FAB_TESTING", "") == "1"
         if not self.secret_key:

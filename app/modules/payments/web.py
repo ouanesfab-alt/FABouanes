@@ -1,22 +1,19 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import RedirectResponse
+from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.helpers import wants_print_after_submit
-from app.core.permissions import PERMISSION_OPERATIONS_DELETE, PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
-from app.core.request_state import set_state_value
-from app.services.payment_service import (
-    create_payment_from_form,
-    delete_payment_by_id,
-    edit_payment_from_form,
-    get_edit_payment_context,
-    new_payment_context,
-)
+from app.core.async_db import get_async_session
+from app.modules.payments.service import PaymentsService
+from app.modules.payments.schemas_validation import PaymentFormSchema
 from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
+from app.core.permissions import PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE, PERMISSION_OPERATIONS_DELETE
+from app.core.helpers import wants_print_after_submit
+from app.core.request_state import set_state_value
 
-
-router = APIRouter()
+router = APIRouter(tags=["payments"])
 
 PAYMENTS_FILTER_URL = "/operations?type=payment"
 NEW_PAYMENT_URL = "/operations/payments/new"
@@ -35,18 +32,28 @@ async def payments_page(request: Request):
 
 
 @router.post("/payments", name="payments")
-async def payments_submit(request: Request):
+async def payments_submit(
+    request: Request, db: AsyncSession = Depends(get_async_session)
+):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
     await csrf_protect(request)
     form = await request.form()
     set_state_value("submitted_form", form)
+
+    service = PaymentsService(db)
     try:
-        create_payment_from_form(form)
+        schema = PaymentFormSchema.model_validate(form)
+        await service.create_payment_from_form(schema)
         flash(request, "Paiement enregistré.", "success")
     except Exception as exc:
-        flash(request, str(exc), "danger")
+        errors = (
+            [err["msg"] for err in exc.errors()]
+            if isinstance(exc, ValidationError)
+            else [str(exc)]
+        )
+        flash(request, f"Erreur : {', '.join(errors)}", "danger")
     return RedirectResponse(PAYMENTS_FILTER_URL, status_code=303)
 
 
@@ -67,10 +74,11 @@ async def new_payment_page(request: Request):
     return RedirectResponse(f"/operations/new?mode={mode}", status_code=303)
 
 
-
 @router.post("/operations/payments/new", name="new_payment")
 @router.post("/payments/new", name="compat_new_payment_submit")
-async def new_payment_submit(request: Request):
+async def new_payment_submit(
+    request: Request, db: AsyncSession = Depends(get_async_session)
+):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
@@ -78,14 +86,22 @@ async def new_payment_submit(request: Request):
     form = await request.form()
     set_state_value("submitted_form", form)
     mode = form.get("payment_type", "versement")
+
+    service = PaymentsService(db)
     try:
-        payment_id, payment_type = create_payment_from_form(form)
+        schema = PaymentFormSchema.model_validate(form)
+        payment_id, payment_type = await service.create_payment_from_form(schema)
         flash(request, "Avance enregistrée." if payment_type == "avance" else "Versement enregistré.", "success")
         if wants_print_after_submit():
             return RedirectResponse(f"/print/payment/{payment_id}", status_code=303)
         return RedirectResponse(PAYMENTS_FILTER_URL, status_code=303)
     except Exception as exc:
-        flash(request, str(exc), "danger")
+        errors = (
+            [err["msg"] for err in exc.errors()]
+            if isinstance(exc, ValidationError)
+            else [str(exc)]
+        )
+        flash(request, f"Erreur : {', '.join(errors)}", "danger")
         return RedirectResponse(f"{NEW_PAYMENT_URL}?mode={mode}", status_code=303)
 
 
@@ -98,11 +114,15 @@ async def compat_edit_payment_page(request: Request, payment_id: int):
 
 
 @router.get("/operations/payments/{payment_id}/edit", name="edit_payment")
-async def edit_payment_page(request: Request, payment_id: int):
+async def edit_payment_page(
+    request: Request, payment_id: int, db: AsyncSession = Depends(get_async_session)
+):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
-    context = get_edit_payment_context(payment_id)
+
+    service = PaymentsService(db)
+    context = await service.get_edit_payment_context(payment_id)
     if not context:
         flash(request, "Versement introuvable.", "danger")
         return RedirectResponse(PAYMENTS_FILTER_URL, status_code=303)
@@ -111,30 +131,44 @@ async def edit_payment_page(request: Request, payment_id: int):
 
 @router.post("/operations/payments/{payment_id}/edit", name="edit_payment")
 @router.post("/payments/{payment_id}/edit", name="compat_edit_payment_submit")
-async def edit_payment_submit(request: Request, payment_id: int):
+async def edit_payment_submit(
+    request: Request, payment_id: int, db: AsyncSession = Depends(get_async_session)
+):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
     await csrf_protect(request)
     form = await request.form()
     set_state_value("submitted_form", form)
+
+    service = PaymentsService(db)
     try:
-        edit_payment_from_form(payment_id, form)
+        schema = PaymentFormSchema.model_validate(form)
+        await service.edit_payment_from_form(payment_id, schema)
         flash(request, "Transaction client modifiée.", "success")
     except Exception as exc:
-        flash(request, str(exc), "danger")
+        errors = (
+            [err["msg"] for err in exc.errors()]
+            if isinstance(exc, ValidationError)
+            else [str(exc)]
+        )
+        flash(request, f"Erreur : {', '.join(errors)}", "danger")
         return RedirectResponse(str(request.url), status_code=303)
     return RedirectResponse(PAYMENTS_FILTER_URL, status_code=303)
 
 
 @router.post("/operations/payments/{payment_id}/delete", name="delete_payment")
 @router.post("/payments/{payment_id}/delete", name="compat_delete_payment")
-async def delete_payment(request: Request, payment_id: int):
+async def delete_payment(
+    request: Request, payment_id: int, db: AsyncSession = Depends(get_async_session)
+):
     denied = require_permission(request, PERMISSION_OPERATIONS_DELETE)
     if denied:
         return denied
     await csrf_protect(request)
-    if delete_payment_by_id(payment_id):
+
+    service = PaymentsService(db)
+    if await service.delete_payment_by_id(payment_id):
         flash(request, "Transaction client supprimée.", "success")
     else:
         flash(request, "Transaction introuvable.", "danger")
