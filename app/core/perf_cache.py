@@ -236,6 +236,27 @@ def cached_result(
     _BACKEND.set(cache_key, value, ttl_seconds, fingerprint)
     return value
 
+async def async_cached_result(
+    key_parts: tuple[Hashable, ...],
+    builder: Callable[[], Any],
+    *,
+    ttl_seconds: float = 5.0,
+) -> Any:
+    cache_key = tuple(key_parts)
+    val = _BACKEND.get(cache_key)
+    if val is not None:
+        return val
+
+    import inspect
+    if inspect.iscoroutinefunction(builder):
+        value = await builder()
+    else:
+        value = builder()
+
+    fingerprint = _database_fingerprint()
+    _BACKEND.set(cache_key, value, ttl_seconds, fingerprint)
+    return value
+
 def invalidate_cache_domain(domain: str) -> int:
     return _BACKEND.invalidate_domains(domain)
 
