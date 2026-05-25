@@ -1,6 +1,5 @@
 {% extends 'base.html' %}
 {% block content %}
-<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
 <style nonce="{{ csp_nonce }}">
   .reports-page{display:flex;flex-direction:column;gap:20px;}
   .reports-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
@@ -140,8 +139,6 @@
     <input type="date" name="date_to" value="{{ date_to }}" class="form-control" title="Au">
     <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-funnel me-1"></i>Filtrer</button>
     <a href="{{ url_for('reports_dashboard') }}" class="btn btn-outline-secondary btn-sm">Tout afficher</a>
-    <button type="button" onclick="exportReport('csv')" class="btn btn-outline-success btn-sm ms-2"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV</button>
-    <button type="button" onclick="exportReport('xlsx')" class="btn btn-outline-success btn-sm"><i class="bi bi-file-earmark-excel me-1"></i>Export Excel</button>
   </form>
 
   <div class="rpt-kpis">
@@ -176,107 +173,118 @@
     </div>
   </div>
 
-  <!-- ── Graphiques ── -->
-  <div class="rpt-chart-grid">
-    <div class="rpt-chart-card">
+  <div class="fab-switcher" id="reportsSwitchButtons" data-fab-switch-root data-fab-switch-placeholder="reportsSwitchPlaceholder">
+    <button type="button" class="fab-switch-btn" data-fab-switch-target="reportsSalesCharts" aria-controls="reportsSalesCharts" aria-pressed="false"><i class="bi bi-graph-up text-primary"></i> Évolution des Ventes</button>
+    <button type="button" class="fab-switch-btn" data-fab-switch-target="reportsTopStats" aria-controls="reportsTopStats" aria-pressed="false"><i class="bi bi-star text-warning"></i> Top Produits & Clients</button>
+    <button type="button" class="fab-switch-btn" data-fab-switch-target="reportsOperatingProfit" aria-controls="reportsOperatingProfit" aria-pressed="false"><i class="bi bi-pie-chart-fill text-success"></i> Rentabilité</button>
+    <button type="button" class="fab-switch-btn" data-fab-switch-target="reportsExpensesCategory" aria-controls="reportsExpensesCategory" aria-pressed="false"><i class="bi bi-bar-chart-steps text-danger"></i> Charges par Catégorie</button>
+    <button type="button" class="fab-switch-btn" data-fab-switch-target="reportsDebtAging" aria-controls="reportsDebtAging" aria-pressed="false"><i class="bi bi-clock-history text-warning"></i> Âge de la Dette</button>
+  </div>
+
+  <div id="reportsSwitchPlaceholder" class="card fab-switch-placeholder">
+    <strong>Choisissez un tableau ou un graphique pour l'afficher</strong>
+  </div>
+
+  <div id="reportsSalesCharts" class="rpt-chart-grid fab-switch-panel" hidden>
+    <div class="card rpt-chart-card p-4">
       <div class="rpt-chart-title"><i class="bi bi-graph-up text-primary"></i> Évolution mensuelle</div>
       <div class="rpt-chart-wrap"><canvas id="chartMonthly"></canvas></div>
     </div>
-    <div class="rpt-chart-card">
+    <div class="card rpt-chart-card p-4">
       <div class="rpt-chart-title"><i class="bi bi-calendar3 text-success"></i> Ventes quotidiennes (30j)</div>
       <div class="rpt-chart-wrap"><canvas id="chartDaily"></canvas></div>
     </div>
   </div>
 
-  <!-- ── Top Produits & Clients ── -->
-  <div class="rpt-top-grid">
-    <div class="rpt-top-card">
+  <div id="reportsTopStats" class="rpt-top-grid fab-switch-panel" hidden>
+    <div class="card rpt-top-card p-4">
       <div class="rpt-top-title"><i class="bi bi-star text-warning"></i> Top Produits par CA</div>
       {% if top_products %}
-      <table class="table table-sm align-middle mb-0">
-        <thead><tr><th>#</th><th>Produit</th><th class="text-end">CA</th><th class="text-end hide-mobile">Profit</th></tr></thead>
-        <tbody>
-          {% for p in top_products %}
-          <tr>
-            <td><span class="rpt-rank {{ 'gold' if loop.index == 1 else ('silver' if loop.index == 2 else ('bronze' if loop.index == 3 else '')) }}">{{ loop.index }}</span></td>
-            <td class="fw-bold">{{ p.name }}</td>
-            <td class="text-end">{{ p.revenue|money }}</td>
-            <td class="text-end hide-mobile text-success">{{ p.profit|money }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>#</th><th>Produit</th><th class="text-end">CA</th><th class="text-end hide-mobile">Profit</th></tr></thead>
+          <tbody>
+            {% for p in top_products %}
+            <tr>
+              <td><span class="rpt-rank {{ 'gold' if loop.index == 1 else ('silver' if loop.index == 2 else ('bronze' if loop.index == 3 else '')) }}">{{ loop.index }}</span></td>
+              <td class="fw-bold">{{ p.name }}</td>
+              <td class="text-end">{{ p.revenue|money }}</td>
+              <td class="text-end hide-mobile text-success">{{ p.profit|money }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
       {% else %}
       <p class="text-muted text-center py-3">Aucune vente enregistrée.</p>
       {% endif %}
     </div>
-    <div class="rpt-top-card">
+
+    <div class="card rpt-top-card p-4">
       <div class="rpt-top-title"><i class="bi bi-people text-primary"></i> Top Clients par CA</div>
       {% if top_clients %}
-      <table class="table table-sm align-middle mb-0">
-        <thead><tr><th>#</th><th>Client</th><th class="text-end">CA</th><th class="text-end hide-mobile">Profit</th></tr></thead>
-        <tbody>
-          {% for c in top_clients %}
-          <tr>
-            <td><span class="rpt-rank {{ 'gold' if loop.index == 1 else ('silver' if loop.index == 2 else ('bronze' if loop.index == 3 else '')) }}">{{ loop.index }}</span></td>
-            <td class="fw-bold">{{ c.name }}</td>
-            <td class="text-end">{{ c.revenue|money }}</td>
-            <td class="text-end hide-mobile text-success">{{ c.profit|money }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>#</th><th>Client</th><th class="text-end">CA</th><th class="text-end hide-mobile">Profit</th></tr></thead>
+          <tbody>
+            {% for c in top_clients %}
+            <tr>
+              <td><span class="rpt-rank {{ 'gold' if loop.index == 1 else ('silver' if loop.index == 2 else ('bronze' if loop.index == 3 else '')) }}">{{ loop.index }}</span></td>
+              <td class="fw-bold">{{ c.name }}</td>
+              <td class="text-end">{{ c.revenue|money }}</td>
+              <td class="text-end hide-mobile text-success">{{ c.profit|money }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
       {% else %}
       <p class="text-muted text-center py-3">Aucune vente client enregistrée.</p>
       {% endif %}
     </div>
   </div>
 
-  <!-- ── Analyse BI de la Rentabilité Nette & Charges ── -->
-  <div class="rpt-top-grid">
-    <div class="rpt-top-card">
-      <div class="rpt-top-title text-success"><i class="bi bi-pie-chart-fill me-2"></i>Rentabilité Opérationnelle (Marge Nette)</div>
-      <div class="d-flex flex-column gap-2 py-1">
-        <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
-          <span class="text-muted small">Chiffre d'affaires brut (CA)</span>
-          <span class="fw-bold text-primary">{{ summary.total_sales|money }}</span>
-        </div>
-        <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
-          <span class="text-muted small">Coût des matières & marchandises (COGS)</span>
-          <span class="fw-bold text-danger">- {{ cogs|money }}</span>
-        </div>
-        <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
-          <span class="text-muted small">Marge brute globale</span>
-          <span class="fw-bold text-success">{{ gross_margin|money }} <span class="badge bg-success-subtle text-success ms-1" style="font-size: 0.72rem;">{{ gross_margin_pct }}%</span></span>
-        </div>
-        <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
-          <span class="text-muted small">Charges d'exploitation (Dépenses)</span>
-          <span class="fw-bold text-danger">- {{ expenses_total|money }}</span>
-        </div>
-        <div class="d-flex justify-content-between align-items-center bg-body-tertiary p-2 rounded mt-1" style="border: 1px solid {% if net_profit >= 0 %}rgba(22, 163, 74, 0.15){% else %}rgba(220, 38, 38, 0.15){% endif %}; background: {% if net_profit >= 0 %}rgba(22, 163, 74, 0.04){% else %}rgba(220, 38, 38, 0.04){% endif %} !important;">
-          <span class="fw-bold">Bénéfice Net Réel</span>
-          <span class="fw-bold {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}" style="font-size: 1.15rem;">
-            {{ net_profit|money }}
-            <span class="badge {% if net_profit >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} ms-1" style="font-size: 0.78rem;">
-              {{ net_margin_pct }}%
-            </span>
-          </span>
-        </div>
+  <div id="reportsOperatingProfit" class="card rpt-top-card p-4 fab-switch-panel" hidden>
+    <div class="rpt-top-title text-success"><i class="bi bi-pie-chart-fill me-2"></i>Rentabilité Opérationnelle (Marge Nette)</div>
+    <div class="d-flex flex-column gap-2 py-1">
+      <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+        <span class="text-muted small">Chiffre d'affaires brut (CA)</span>
+        <span class="fw-bold text-primary">{{ summary.total_sales|money }}</span>
       </div>
-    </div>
-    
-    <div class="rpt-top-card">
-      <div class="rpt-top-title text-danger"><i class="bi bi-bar-chart-steps me-2"></i>Charges d'Exploitation par Catégorie</div>
-      {% if expenses_by_cat %}
-      <div class="rpt-chart-wrap" style="height: 190px;"><canvas id="chartExpensesCategory"></canvas></div>
-      {% else %}
-      <p class="text-muted text-center py-5">Aucune dépense catégorisée sur cette période.</p>
-      {% endif %}
+      <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+        <span class="text-muted small">Coût des matières & marchandises (COGS)</span>
+        <span class="fw-bold text-danger">- {{ cogs|money }}</span>
+      </div>
+      <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+        <span class="text-muted small">Marge brute globale</span>
+        <span class="fw-bold text-success">{{ gross_margin|money }} <span class="badge bg-success-subtle text-success ms-1" style="font-size: 0.72rem;">{{ gross_margin_pct }}%</span></span>
+      </div>
+      <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+        <span class="text-muted small">Charges d'exploitation (Dépenses)</span>
+        <span class="fw-bold text-danger">- {{ expenses_total|money }}</span>
+      </div>
+      <div class="d-flex justify-content-between align-items-center bg-body-tertiary p-2 rounded mt-1" style="border: 1px solid {% if net_profit >= 0 %}rgba(22, 163, 74, 0.15){% else %}rgba(220, 38, 38, 0.15){% endif %}; background: {% if net_profit >= 0 %}rgba(22, 163, 74, 0.04){% else %}rgba(220, 38, 38, 0.04){% endif %} !important;">
+        <span class="fw-bold">Bénéfice Net Réel</span>
+        <span class="fw-bold {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}" style="font-size: 1.15rem;">
+          {{ net_profit|money }}
+          <span class="badge {% if net_profit >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} ms-1" style="font-size: 0.78rem;">
+            {{ net_margin_pct }}%
+          </span>
+        </span>
+      </div>
     </div>
   </div>
 
-  <!-- ── Analyse BI de l'Âge des Créances & Dettes Clients ── -->
-  <div class="rpt-top-card">
+  <div id="reportsExpensesCategory" class="card rpt-top-card p-4 fab-switch-panel" hidden>
+    <div class="rpt-top-title text-danger"><i class="bi bi-bar-chart-steps me-2"></i>Charges d'Exploitation par Catégorie</div>
+    {% if expenses_by_cat_totals %}
+    <div class="rpt-chart-wrap" style="height: 190px;"><canvas id="chartExpensesCategory"></canvas></div>
+    {% else %}
+    <p class="text-muted text-center py-5">Aucune dépense catégorisée sur cette période.</p>
+    {% endif %}
+  </div>
+
+  <div id="reportsDebtAging" class="card rpt-top-card p-4 fab-switch-panel" hidden>
     <div class="rpt-top-title text-warning d-flex justify-content-between align-items-center mb-3">
       <span><i class="bi bi-clock-history me-2"></i>Analyse de l'Ancienneté de la Dette (Âge de la Dette Clients)</span>
       <span class="badge bg-warning text-dark font-monospace" style="font-size: 0.85rem;">Total Encours : {{ debt_totals.outstanding|money }}</span>
@@ -290,9 +298,9 @@
               <tr>
                 <th>Client</th>
                 <th class="text-end">Dette Totale</th>
-                <th class="text-end rpt-debt-success">< 30 j</th>
+                <th class="text-end rpt-debt-success">&lt; 30 j</th>
                 <th class="text-end rpt-debt-warning">30-90 j</th>
-                <th class="text-end rpt-debt-danger">> 90 j</th>
+                <th class="text-end rpt-debt-danger">&gt; 90 j</th>
                 <th class="text-center">Respect Limite</th>
                 <th class="text-end">Délai Recouv. Moyen</th>
               </tr>
@@ -341,7 +349,10 @@
     </div>
   </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
 <script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -355,192 +366,210 @@ document.addEventListener('DOMContentLoaded', function() {
   // ── Graphique mensuel ──
   const ctxMonthly = document.getElementById('chartMonthly');
   if (ctxMonthly) {
-    new Chart(ctxMonthly, {
-      type: 'bar',
-      data: {
-        labels: {{ chart_labels|tojson }},
-        datasets: [
-          {
-            label: 'Ventes',
-            data: {{ chart_sales|tojson }},
-            backgroundColor: isDark ? 'rgba(96,165,250,.35)' : 'rgba(37,99,235,.2)',
-            borderColor: isDark ? '#60a5fa' : '#2563eb',
-            borderWidth: 2, borderRadius: 6, order: 2,
+    try {
+      new Chart(ctxMonthly, {
+        type: 'bar',
+        data: {
+          labels: {{ chart_labels|tojson }},
+          datasets: [
+            {
+              label: 'Ventes',
+              data: {{ chart_sales|tojson }},
+              backgroundColor: isDark ? 'rgba(96,165,250,.35)' : 'rgba(37,99,235,.2)',
+              borderColor: isDark ? '#60a5fa' : '#2563eb',
+              borderWidth: 2, borderRadius: 6, order: 2,
+            },
+            {
+              label: 'Profit',
+              data: {{ chart_profit|tojson }},
+              type: 'line', fill: false,
+              borderColor: isDark ? '#4ade80' : '#16a34a',
+              backgroundColor: isDark ? '#4ade80' : '#16a34a',
+              borderWidth: 2.5, pointRadius: 3, tension: 0.3, order: 1,
+            },
+            {
+              label: 'Achats',
+              data: {{ chart_purchases|tojson }},
+              backgroundColor: isDark ? 'rgba(251,191,36,.25)' : 'rgba(217,119,6,.15)',
+              borderColor: isDark ? '#fbbf24' : '#d97706',
+              borderWidth: 2, borderRadius: 6, order: 3,
+            },
+            {
+              label: 'Dépenses',
+              data: {{ chart_expenses|tojson }},
+              type: 'line', fill: false,
+              borderColor: isDark ? '#f87171' : '#dc2626',
+              backgroundColor: isDark ? '#f87171' : '#dc2626',
+              borderWidth: 2, borderDash: [5, 3], pointRadius: 3, tension: 0.3, order: 0,
+            },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11, weight: '600' } } },
+            tooltip: {
+              backgroundColor: isDark ? '#1e293b' : '#fff',
+              titleColor: isDark ? '#f1f5f9' : '#111',
+              bodyColor: isDark ? '#cbd5e1' : '#555',
+              borderColor: isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)',
+              borderWidth: 1, padding: 12, cornerRadius: 8,
+              callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + Number(ctx.parsed.y).toLocaleString('fr-FR') + ' DA'; } }
+            },
           },
-          {
-            label: 'Profit',
-            data: {{ chart_profit|tojson }},
-            type: 'line', fill: false,
-            borderColor: isDark ? '#4ade80' : '#16a34a',
-            backgroundColor: isDark ? '#4ade80' : '#16a34a',
-            borderWidth: 2.5, pointRadius: 3, tension: 0.3, order: 1,
-          },
-          {
-            label: 'Achats',
-            data: {{ chart_purchases|tojson }},
-            backgroundColor: isDark ? 'rgba(251,191,36,.25)' : 'rgba(217,119,6,.15)',
-            borderColor: isDark ? '#fbbf24' : '#d97706',
-            borderWidth: 2, borderRadius: 6, order: 3,
-          },
-          {
-            label: 'Dépenses',
-            data: {{ chart_expenses|tojson }},
-            type: 'line', fill: false,
-            borderColor: isDark ? '#f87171' : '#dc2626',
-            backgroundColor: isDark ? '#f87171' : '#dc2626',
-            borderWidth: 2, borderDash: [5, 3], pointRadius: 3, tension: 0.3, order: 0,
-          },
-        ],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11, weight: '600' } } },
-          tooltip: {
-            backgroundColor: isDark ? '#1e293b' : '#fff',
-            titleColor: isDark ? '#f1f5f9' : '#111',
-            bodyColor: isDark ? '#cbd5e1' : '#555',
-            borderColor: isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)',
-            borderWidth: 1, padding: 12, cornerRadius: 8,
-            callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + Number(ctx.parsed.y).toLocaleString('fr-FR') + ' DA'; } }
+          scales: {
+            y: { beginAtZero: true, grid: { color: gridColor }, ticks: { callback: v => (v/1000).toFixed(0) + 'K' } },
+            x: { grid: { display: false } },
           },
         },
-        scales: {
-          y: { beginAtZero: true, grid: { color: gridColor }, ticks: { callback: v => (v/1000).toFixed(0) + 'K' } },
-          x: { grid: { display: false } },
-        },
-      },
-    });
+      });
+    } catch (e) {
+      console.error("Error creating chartMonthly:", e);
+    }
   }
 
   // ── Graphique quotidien ──
   const ctxDaily = document.getElementById('chartDaily');
   if (ctxDaily) {
-    new Chart(ctxDaily, {
-      type: 'line',
-      data: {
-        labels: {{ daily_labels|tojson }},
-        datasets: [
-          {
-            label: 'CA / jour',
-            data: {{ daily_totals|tojson }},
-            borderColor: isDark ? '#60a5fa' : '#2563eb',
-            backgroundColor: isDark ? 'rgba(96,165,250,.1)' : 'rgba(37,99,235,.06)',
-            fill: true, borderWidth: 2.5, pointRadius: 2, tension: 0.35,
+    try {
+      new Chart(ctxDaily, {
+        type: 'line',
+        data: {
+          labels: {{ daily_labels|tojson }},
+          datasets: [
+            {
+              label: 'CA / jour',
+              data: {{ daily_totals|tojson }},
+              borderColor: isDark ? '#60a5fa' : '#2563eb',
+              backgroundColor: isDark ? 'rgba(96,165,250,.1)' : 'rgba(37,99,235,.06)',
+              fill: true, borderWidth: 2.5, pointRadius: 2, tension: 0.35,
+            },
+            {
+              label: 'Profit / jour',
+              data: {{ daily_profits|tojson }},
+              borderColor: isDark ? '#4ade80' : '#16a34a',
+              backgroundColor: 'transparent',
+              fill: false, borderWidth: 2, pointRadius: 2, tension: 0.35, borderDash: [4, 2],
+            },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11, weight: '600' } } },
+            tooltip: {
+              backgroundColor: isDark ? '#1e293b' : '#fff',
+              titleColor: isDark ? '#f1f5f9' : '#111',
+              bodyColor: isDark ? '#cbd5e1' : '#555',
+              borderColor: isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)',
+              borderWidth: 1, padding: 12, cornerRadius: 8,
+              callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + Number(ctx.parsed.y).toLocaleString('fr-FR') + ' DA'; } }
+            },
           },
-          {
-            label: 'Profit / jour',
-            data: {{ daily_profits|tojson }},
-            borderColor: isDark ? '#4ade80' : '#16a34a',
-            backgroundColor: 'transparent',
-            fill: false, borderWidth: 2, pointRadius: 2, tension: 0.35, borderDash: [4, 2],
-          },
-        ],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11, weight: '600' } } },
-          tooltip: {
-            backgroundColor: isDark ? '#1e293b' : '#fff',
-            titleColor: isDark ? '#f1f5f9' : '#111',
-            bodyColor: isDark ? '#cbd5e1' : '#555',
-            borderColor: isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)',
-            borderWidth: 1, padding: 12, cornerRadius: 8,
-            callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + Number(ctx.parsed.y).toLocaleString('fr-FR') + ' DA'; } }
+          scales: {
+            y: { beginAtZero: true, grid: { color: gridColor }, ticks: { callback: v => (v/1000).toFixed(0) + 'K' } },
+            x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 10 } } },
           },
         },
-        scales: {
-          y: { beginAtZero: true, grid: { color: gridColor }, ticks: { callback: v => (v/1000).toFixed(0) + 'K' } },
-          x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 10 } } },
-        },
-      },
-    });
+      });
+    } catch (e) {
+      console.error("Error creating chartDaily:", e);
+    }
   }
 
   // ── Graphique Charges par Catégorie ──
   const ctxExpCat = document.getElementById('chartExpensesCategory');
   if (ctxExpCat) {
-    const categories = {{ expenses_by_cat_labels|tojson }};
-    const totals = {{ expenses_by_cat_totals|tojson }};
-    new Chart(ctxExpCat, {
-      type: 'bar',
-      data: {
-        labels: categories,
-        datasets: [{
-          label: 'Total charges (DA)',
-          data: totals,
-          backgroundColor: isDark ? 'rgba(248, 113, 113, 0.4)' : 'rgba(220, 38, 38, 0.25)',
-          borderColor: isDark ? '#f87171' : '#dc2626',
-          borderWidth: 1.5,
-          borderRadius: 4
-        }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: { label: function(ctx) { return ctx.parsed.x.toLocaleString('fr-FR') + ' DA'; } }
-          }
+    try {
+      const categories = {{ expenses_by_cat_labels|tojson }};
+      const totals = {{ expenses_by_cat_totals|tojson }};
+      new Chart(ctxExpCat, {
+        type: 'bar',
+        data: {
+          labels: categories,
+          datasets: [{
+            label: 'Total charges (DA)',
+            data: totals,
+            backgroundColor: isDark ? 'rgba(248, 113, 113, 0.4)' : 'rgba(220, 38, 38, 0.25)',
+            borderColor: isDark ? '#f87171' : '#dc2626',
+            borderWidth: 1.5,
+            borderRadius: 4
+          }]
         },
-        scales: {
-          x: { beginAtZero: true, grid: { color: gridColor } },
-          y: { grid: { display: false } }
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: { label: function(ctx) { return ctx.parsed.x.toLocaleString('fr-FR') + ' DA'; } }
+            }
+          },
+          scales: {
+            x: { beginAtZero: true, grid: { color: gridColor } },
+            y: { grid: { display: false } }
+          }
         }
-      }
-    });
+      });
+    } catch (e) {
+      console.error("Error creating chartExpensesCategory:", e);
+    }
   }
 
   // ── Graphique Âge de la Dette Clients ──
   const ctxDebtAge = document.getElementById('chartDebtAging');
   if (ctxDebtAge) {
-    new Chart(ctxDebtAge, {
-      type: 'doughnut',
-      data: {
-        labels: ['< 30 jours', '30-90 jours', '> 90 jours'],
-        datasets: [{
-          data: [
-            {{ debt_totals.under_30|float if debt_totals else 0.0 }},
-            {{ debt_totals.days_30_to_90|float if debt_totals else 0.0 }},
-            {{ debt_totals.over_90|float if debt_totals else 0.0 }}
-          ],
-          backgroundColor: [
-            isDark ? 'rgba(74, 222, 128, 0.7)' : '#16a34a',
-            isDark ? 'rgba(251, 191, 36, 0.7)' : '#d97706',
-            isDark ? 'rgba(248, 113, 113, 0.7)' : '#dc2626'
-          ],
-          borderWidth: isDark ? 2 : 1,
-          borderColor: isDark ? '#1e293b' : '#ffffff'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { boxWidth: 12, padding: 8, font: { size: 10 } }
-          },
-          tooltip: {
-            callbacks: {
-              label: function(ctx) {
-                const val = ctx.raw;
-                const total = {{ debt_totals.outstanding|float if debt_totals else 0.0 }};
-                const pct = total > 0 ? ((val / total) * 100).toFixed(1) + '%' : '0%';
-                return ctx.label + ': ' + val.toLocaleString('fr-FR') + ' DA (' + pct + ')';
+    try {
+      new Chart(ctxDebtAge, {
+        type: 'doughnut',
+        data: {
+          labels: ['< 30 jours', '30-90 jours', '> 90 jours'],
+          datasets: [{
+            data: [
+              {{ debt_totals.under_30|float if debt_totals else 0.0 }},
+              {{ debt_totals.days_30_to_90|float if debt_totals else 0.0 }},
+              {{ debt_totals.over_90|float if debt_totals else 0.0 }}
+            ],
+            backgroundColor: [
+              isDark ? 'rgba(74, 222, 128, 0.7)' : '#16a34a',
+              isDark ? 'rgba(251, 191, 36, 0.7)' : '#d97706',
+              isDark ? 'rgba(248, 113, 113, 0.7)' : '#dc2626'
+            ],
+            borderWidth: isDark ? 2 : 1,
+            borderColor: isDark ? '#1e293b' : '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { boxWidth: 12, padding: 8, font: { size: 10 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  const val = ctx.raw;
+                  const total = {{ debt_totals.outstanding|float if debt_totals else 0.0 }};
+                  const pct = total > 0 ? ((val / total) * 100).toFixed(1) + '%' : '0%';
+                  return ctx.label + ': ' + val.toLocaleString('fr-FR') + ' DA (' + pct + ')';
+                }
               }
             }
-          }
-        },
-        cutout: '65%'
-      }
-    });
+          },
+          cutout: '65%'
+        }
+      });
+    } catch (e) {
+      console.error("Error creating chartDebtAging:", e);
+    }
   }
+});
+
 function exportReport(format) {
   const url = new URL(window.location.href);
   const form = document.querySelector('.reports-filter-bar');

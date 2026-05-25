@@ -56,4 +56,13 @@
       }
     });
   });
+
+  // Reset page visibility when restored from back-forward cache (bfcache)
+  window.addEventListener('pageshow', function(event) {
+    const appContent = document.querySelector('.app-content');
+    if (appContent) {
+      appContent.classList.remove('page-hidden');
+      appContent.classList.add('page-visible');
+    }
+  });
 </script>

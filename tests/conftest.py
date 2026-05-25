@@ -226,15 +226,15 @@ def ensure_admin_user(client: TestClient):
     execute_db(
         """
         INSERT INTO users (username, password_hash, role, must_change_password, is_active, last_password_change_at)
-        VALUES (%s, %s, %s, FALSE, TRUE, CURRENT_TIMESTAMP)
+        VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
         ON CONFLICT(username) DO UPDATE SET
             password_hash = excluded.password_hash,
             role = excluded.role,
-            must_change_password = FALSE,
-            is_active = TRUE,
+            must_change_password = excluded.must_change_password,
+            is_active = excluded.is_active,
             last_password_change_at = CURRENT_TIMESTAMP
         """,
-        ("admin", generate_password_hash("1234"), "admin"),
+        ("admin", generate_password_hash("1234"), "admin", 0, 1),
     )
     if query_db("SELECT id FROM clients ORDER BY id LIMIT 1", one=True) is None:
         execute_db(

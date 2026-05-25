@@ -151,6 +151,7 @@
       const newCard = doc.querySelector('.catalog-table-card');
       if (currentCard && newCard) {
         currentCard.innerHTML = newCard.innerHTML;
+        document.dispatchEvent(new CustomEvent('fab:panel-open', { detail: { panel: currentCard } }));
       }
       
       const currentSummary = document.querySelector('.catalog-summary');

@@ -6,7 +6,7 @@
     windows:'#0067c0',
     'windows-dark':'#202020'
   };
-  const fonts={jakarta:true,google:true,system:true};
+  const fonts={jakarta:true,arial:true,calibri:true,system:true};
   const navLayouts={horizontal:true,vertical:true};
 
   function readStorage(key,fallback){
@@ -50,7 +50,7 @@
   }
 
   function applyFont(font){
-    const name=fonts[font]?font:'jakarta';
+    const name=fonts[font]?font:'system';
     document.documentElement.setAttribute('data-font',name);
     markSelected('.js-font','font',name);
   }
@@ -91,7 +91,7 @@
   }catch(e){}
 
   applyTheme(readStorage('fab_theme','light'));
-  applyFont(readStorage('fab_font','jakarta'));
+  applyFont(readStorage('fab_font','system'));
   applyNavHidden(readStorage('fab_nav_hidden','0')==='1');
   applyNavLayout(readStorage('fab_nav_layout','horizontal'));
 
@@ -328,8 +328,8 @@ window.openInvoice = window.openInvoice || function (event, url) {
 // --- tables.js ---
 (function(){
   function queueGridTask(fn){
-    if('requestIdleCallback' in window){
-      window.requestIdleCallback(fn,{timeout:250});
+    if('requestAnimationFrame' in window){
+      window.requestAnimationFrame(fn);
       return;
     }
     window.setTimeout(fn,0);
@@ -497,7 +497,7 @@ window.openInvoice = window.openInvoice || function (event, url) {
         const url = new URL(window.location);
         if (q) url.searchParams.set('q', input.value);
         else url.searchParams.delete('q');
-        window.history.pushState({}, '', url);
+        window.history.replaceState({}, '', url);
       }
     }
     if(input) input.addEventListener('input',applyFilter);

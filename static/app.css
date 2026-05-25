@@ -4961,11 +4961,14 @@ body::before, body::after {
   pointer-events: none;
   animation: macMeshFloat 28s infinite alternate ease-in-out;
   transition: background 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease !important;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
 }
 @keyframes macMeshFloat {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(120px, 90px) scale(1.15); }
-  100% { transform: translate(-60px, 140px) scale(0.95); }
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(120px, 90px, 0) scale(1.15); }
+  100% { transform: translate3d(-60px, 140px, 0) scale(0.95); }
 }
 
 /* B. Global Transition Animations */

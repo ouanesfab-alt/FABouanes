@@ -1,7 +1,7 @@
 (function(){
   function queueGridTask(fn){
-    if('requestIdleCallback' in window){
-      window.requestIdleCallback(fn,{timeout:250});
+    if('requestAnimationFrame' in window){
+      window.requestAnimationFrame(fn);
       return;
     }
     window.setTimeout(fn,0);
@@ -169,7 +169,7 @@
         const url = new URL(window.location);
         if (q) url.searchParams.set('q', input.value);
         else url.searchParams.delete('q');
-        window.history.pushState({}, '', url);
+        window.history.replaceState({}, '', url);
       }
     }
     if(input) input.addEventListener('input',applyFilter);

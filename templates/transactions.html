@@ -49,6 +49,7 @@
       <a href="{{ url_for('operations', type='purchase') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='purchase' else 'btn-outline-secondary' }}">Achats</a>
       <a href="{{ url_for('operations', type='sale') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='sale' else 'btn-outline-secondary' }}">Ventes</a>
       <a href="{{ url_for('operations', type='payment') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='payment' else 'btn-outline-secondary' }}">Versements / avances</a>
+      <button type="button" onclick="exportTransactions('csv')" class="btn btn-outline-success"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV</button>
     </div>
   </div>
 
@@ -80,10 +81,6 @@
       <div class="col-md-2 d-flex gap-2">
         <button class="btn btn-dark w-100">Filtrer</button>
         <a href="{{ url_for('operations', type=filter_type) }}" class="btn btn-outline-secondary" aria-label="Réinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
-      </div>
-      <div class="col-12 d-flex gap-2 justify-content-end mt-2">
-        <button type="button" onclick="exportTransactions('csv')" class="btn btn-outline-success btn-sm"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV</button>
-        <button type="button" onclick="exportTransactions('xlsx')" class="btn btn-outline-success btn-sm"><i class="bi bi-file-earmark-excel me-1"></i>Export Excel</button>
       </div>
     </form>
 
@@ -250,6 +247,7 @@
       const newCard = doc.querySelector('.transactions-table-card');
       if (currentCard && newCard) {
         currentCard.innerHTML = newCard.innerHTML;
+        document.dispatchEvent(new CustomEvent('fab:panel-open', { detail: { panel: currentCard } }));
       }
       
       const currentUrlObj = new URL(url, window.location.origin);
