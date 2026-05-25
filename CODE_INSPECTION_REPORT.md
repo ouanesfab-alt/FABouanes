@@ -45,15 +45,134 @@ FABouanes/
 └── deploy/                 # Deployment configurations
 ```
 
-### Layering
-1. **Presentation Layer**: FastAPI routes (web/, api/) + Jinja2 templates
-2. **Business Logic Layer**: Services (~24 modules)
-3. **Data Access Layer**: Repositories + SQLAlchemy Core
-4. **Infrastructure**: Database, auth, config, caching, event bus
+### System Architecture Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         CLIENT LAYER                             │
+├─────────────────────────────────────────────────────────────────┤
+│  Web Browser (http://localhost:5000)  │  Desktop App (PyWebView) │
+└────────────────┬──────────────────────┬──────────────────────────┘
+                 │                      │
+                 ▼                      ▼
+        ┌────────────────────────────────────┐
+        │   FastAPI Application (app.main)   │
+        │  - ASGI Server (Uvicorn)           │
+        │  - Middleware Stack (Security)     │
+        └────────────┬───────────────────────┘
+                     │
+        ┌────────────┼───────────────────────────────────────┐
+        │            │                                        │
+        ▼            ▼                                        ▼
+    ┌──────────┐  ┌──────────────────┐  ┌──────────────────────┐
+    │ Web Routes│  │  REST API Routes │  │  WebSocket Gateway   │
+    │(Jinja2)  │  │  (JSON)          │  │  (Real-time)         │
+    └────┬─────┘  └────────┬─────────┘  └──────────┬──────────┘
+         │                 │                       │
+         └─────────────────┼───────────────────────┘
+                           │
+        ┌──────────────────▼──────────────────────────────┐
+        │        Service Layer (Business Logic)           │
+        ├──────────────────────────────────────────────────┤
+        │  client_service    payment_service              │
+        │  sale_service      alert_service                │
+        │  purchase_service  catalog_service              │
+        │  stock_service     report_service               │
+        │  production_service (+ 14 more)                │
+        └──────────────────┬───────────────────────────────┘
+                           │
+        ┌──────────────────▼──────────────────────────────┐
+        │    Repository & Data Access Layer               │
+        ├──────────────────────────────────────────────────┤
+        │  SQLAlchemy Core │ Query Builders │ Transactions │
+        │  Parameterized Queries (SQL Injection Protected)│
+        └──────────────────┬───────────────────────────────┘
+                           │
+        ┌──────────────────▼──────────────────────────────┐
+        │         PostgreSQL Database (16+)               │
+        ├──────────────────────────────────────────────────┤
+        │  Tables │ Audit Trail │ Migrations (Alembic)    │
+        │  Advisory Locks │ Settings │ Document Numbering │
+        └──────────────────────────────────────────────────┘
+```
+
+### Layering Architecture
+```
+┌─────────────────────────────────────────────┐
+│  🖥️  Presentation Layer                     │
+│  ├─ FastAPI Routes (web/, api/)             │
+│  ├─ Jinja2 HTML Templates                   │
+│  └─ WebSocket Real-time Connections        │
+├─────────────────────────────────────────────┤
+│  📊 Business Logic Layer (24 Services)      │
+│  ├─ Client Management                       │
+│  ├─ Sales & Invoicing                       │
+│  ├─ Purchase Orders                         │
+│  ├─ Inventory Management                    │
+│  ├─ Production Planning                     │
+│  └─ Payment Processing                      │
+├─────────────────────────────────────────────┤
+│  🔍 Data Access Layer (Repositories)        │
+│  ├─ SQLAlchemy Core Queries                 │
+│  ├─ Repository Pattern Implementation       │
+│  └─ Transaction Management                  │
+├─────────────────────────────────────────────┤
+│  🔧 Infrastructure Layer                    │
+│  ├─ Database Connections & Pooling          │
+│  ├─ Authentication & Authorization          │
+│  ├─ Configuration Management                │
+│  ├─ Caching & Performance                   │
+│  ├─ Event Bus & Audit Trail                 │
+│  └─ Logging & Monitoring                    │
+└─────────────────────────────────────────────┘
+```
 
 ---
 
 ## 🔐 Authentication & Security
+
+### Security Architecture
+```
+┌──────────────────────────────────────────────────────────┐
+│                  Incoming Request                        │
+└────────────────────────┬─────────────────────────────────┘
+                         │
+        ┌────────────────▼─────────────────┐
+        │  Security Headers Middleware      │
+        │  (CSP, X-Frame-Options, etc.)    │
+        └────────────────┬─────────────────┘
+                         │
+        ┌────────────────▼─────────────────┐
+        │  Rate Limiting (slowapi)          │
+        │  & Advisory Locks                 │
+        └────────────────┬─────────────────┘
+                         │
+        ┌────────────────▼─────────────────┐
+        │  Authentication Layer             │
+        │  ├─ Session Cookie Validation     │
+        │  ├─ JWT Token Verification        │
+        │  └─ User Context Loading          │
+        └────────────────┬─────────────────┘
+                         │
+        ┌────────────────▼─────────────────┐
+        │  Authorization (RBAC)             │
+        │  └─ Permission Check              │
+        └────────────────┬─────────────────┘
+                         │
+        ┌────────────────▼─────────────────┐
+        │  CSRF Token Validation            │
+        │  (SessionMiddleware)              │
+        └────────────────┬─────────────────┘
+                         │
+        ┌────────────────▼─────────────────┐
+        │  Route Handler / Business Logic   │
+        │  + Audit Trail Logging            │
+        └────────────────┬─────────────────┘
+                         │
+        ┌────────────────▼─────────────────┐
+        │        Response (Sanitized)       │
+        └──────────────────────────────────┘
+```
 
 ### Current Approach
 - **Session-Based**: SessionMiddleware with server-side session tracking
@@ -80,6 +199,52 @@ FABouanes/
 ---
 
 ## 💾 Database & ORM
+
+### Data Flow Diagram
+
+```
+Request Handler (FastAPI Route)
+        │
+        ▼
+Service Layer (Business Logic)
+        │
+        ├─ Validation (Pydantic Schemas)
+        ├─ Authorization Check
+        └─ Call Repository Method
+        │
+        ▼
+Repository Layer (Data Access)
+        │
+        ├─ Build SQLAlchemy Core Query
+        ├─ Parameterize Parameters (SQL Injection Safe)
+        └─ Execute with Transaction Context
+        │
+        ▼
+Database Connection Pool (pg8000 / asyncpg)
+        │
+        ├─ Acquire Connection
+        └─ Execute Query on PostgreSQL
+        │
+        ▼
+PostgreSQL Database
+        │
+        ├─ Parse Query
+        ├─ Execute (ACID Transaction)
+        ├─ Update Audit Trail
+        └─ Log Activity
+        │
+        ▼
+Return Result (Serialized)
+        │
+        ▼
+Response Handler (FastAPI)
+        │
+        ├─ JSON Serialization
+        └─ CORS/Security Headers
+        │
+        ▼
+Client (Web Browser / Desktop App)
+```
 
 ### Database Layer
 - **ORM**: SQLAlchemy Core (not ORM) for explicit query control
@@ -110,6 +275,51 @@ FABouanes/
 
 ## 🎯 Core Services (24 Modules)
 
+### Service Dependency Map
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                   Core Services (24 modules)               │
+├────────────────────────────────────────────────────────────┤
+│                                                             │
+│  CUSTOMER MANAGEMENT                                        │
+│  ├─ client_service          → client_account_service       │
+│  ├─ client_import_service   → catalog_service              │
+│  └─ contact_directory_service                              │
+│                                                             │
+│  SALES & INVOICING                                          │
+│  ├─ sale_service            → stock_service                │
+│  ├─ payment_service         → client_account_service       │
+│  └─ transactions_service                                    │
+│                                                             │
+│  PROCUREMENT                                                │
+│  ├─ purchase_service        → stock_service                │
+│  ├─ stock_service           → alert_service                │
+│  └─ payment_service         → transactions_service         │
+│                                                             │
+│  PRODUCTION & INVENTORY                                     │
+│  ├─ production_service      → stock_service                │
+│  ├─ recipe_service          → catalog_service              │
+│  └─ stock_service           ◄─ All services                │
+│                                                             │
+│  FINANCE & REPORTING                                        │
+│  ├─ payment_service         → transactions_service         │
+│  ├─ expense_service         ────┐                          │
+│  ├─ report_service          ◄───┘                          │
+│  └─ transactions_service                                    │
+│                                                             │
+│  SUPPORT & ORCHESTRATION                                    │
+│  ├─ print_service           (PDF rendering)                │
+│  ├─ excel_import_service    (Bulk data)                    │
+│  ├─ backup_service          (Scheduled tasks)              │
+│  ├─ auth_service            (User management)              │
+│  ├─ cache_service           (Performance)                  │
+│  ├─ alert_service           (Notifications)                │
+│  └─ system_service          (Health checks)                │
+│                                                             │
+└────────────────────────────────────────────────────────────┘
+```
+
 ### Primary Business Domains
 | Service | Purpose |
 |---------|---------|
@@ -139,6 +349,35 @@ FABouanes/
 
 ## 🖥️ Dual-Mode Architecture (Web + Desktop)
 
+### Deployment Modes Flow
+
+```
+START APPLICATION
+    │
+    ├─ Check FAB_DESKTOP Environment Variable
+    │
+    ├─ YES (FAB_DESKTOP=1)
+    │   │
+    │   ├─ launcher.py
+    │   │   ├─ Create Runtime Directories
+    │   │   ├─ Initialize PostgreSQL Connection
+    │   │   ├─ Run Alembic Migrations
+    │   │   ├─ Start FastAPI Server (Uvicorn, port 5000)
+    │   │   └─ Launch PyWebView Window (Native Desktop App)
+    │   │       └─ Points to http://127.0.0.1:5000
+    │   │
+    │   └─ Result: Desktop Application (Local-only)
+    │
+    └─ NO (Web Mode)
+        │
+        └─ uvicorn app.main:app --host 0.0.0.0 --port 5000
+            │
+            ├─ Listen on Network Interface
+            ├─ Accessible from any machine
+            ├─ Multiple server instances possible (Gunicorn)
+            └─ Result: Web Server (Network-accessible)
+```
+
 ### Web Mode
 - Standard FastAPI server on `localhost:5000` or network
 - Accessible via browser: `http://IP:5000`
@@ -158,6 +397,50 @@ FABouanes/
 ---
 
 ## 🎨 UI & Design System
+
+### Design System Stack
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                     HTML Templates                         │
+│              (Jinja2 Server-Rendered)                      │
+├────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │            CSS Design System                          │  │
+│  ├──────────────────────────────────────────────────────┤  │
+│  │                                                      │  │
+│  │  Design Tokens (static/css/tokens.css)              │  │
+│  │  ├─ Color Palette (Slate, Semantic)                 │  │
+│  │  ├─ Typography (SF Pro Display, SF Mono)            │  │
+│  │  ├─ Spacing Grid (4px-based)                        │  │
+│  │  ├─ Border Radius (12px/16px)                       │  │
+│  │  └─ Shadow Depths (Multi-level)                     │  │
+│  │                                                      │  │
+│  │  Component Library (static/css/components.css)      │  │
+│  │  ├─ Buttons (primary, secondary, destructive)       │  │
+│  │  ├─ Forms (input, select, textarea, checkbox)       │  │
+│  │  ├─ Cards, Modals, Tooltips                         │  │
+│  │  ├─ Tables, Pagination                              │  │
+│  │  ├─ Alerts, Badges                                  │  │
+│  │  └─ Navigation Components                           │  │
+│  │                                                      │  │
+│  │  Theme System (Switchable at Runtime)               │  │
+│  │  ├─ Light Theme (Default)                           │  │
+│  │  ├─ Dark Theme (Slate-based, #0f172a)              │  │
+│  │  └─ Windows-Dark (Adapted for Windows)              │  │
+│  │                                                      │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                             │
+│  CSS Variables + Media Queries + Dark Mode Support         │
+│  (Browser-native dark mode detection)                      │
+│                                                             │
+└────────────────────────────────────────────────────────────┘
+        │
+        ├─ Rendered HTML
+        ├─ Styled Components
+        └─ Responsive Layout (Mobile/Tablet/Desktop)
+```
 
 ### Design Tokens (macOS Sequoia)
 Located in: `static/css/tokens.css`
@@ -202,6 +485,31 @@ tests/
 └── test_*.py         # Integration & robustness tests
 ```
 
+### Test Execution Pipeline
+
+```
+$ pytest
+    │
+    ├─ Load conftest.py Fixtures
+    │   ├─ Create Isolated PostgreSQL on Random Port
+    │   ├─ Run Alembic Migrations
+    │   └─ Initialize Test Data
+    │
+    ├─ Run Test Suites in Parallel (pytest-xdist)
+    │   ├─ tests/web/        (Page Rendering)
+    │   ├─ tests/api/        (REST API)
+    │   ├─ tests/services/   (Business Logic)
+    │   └─ tests/printing/   (PDF Generation)
+    │
+    ├─ Calculate Code Coverage
+    │   ├─ Source: app/ (excluding web routes, api routes)
+    │   ├─ Minimum: 50% (enforced)
+    │   └─ Report: term-missing format
+    │
+    └─ Generate Coverage Report
+        └─ Fail if < 50% coverage
+```
+
 ### Test Database
 - Automatic PostgreSQL provisioning on isolated port
 - Clean isolation: test DB ≠ production DB
@@ -237,6 +545,43 @@ uvicorn app.main:app --host 0.0.0.0 --port 5000 --reload
 python launcher.py
 ```
 
+### Windows Packaging Pipeline
+
+```
+Source Code (app/)
+    │
+    ├─ BUILD EXECUTABLE (.exe Standalone)
+    │   │
+    │   └─ installer\windows\COMPILER_EXE_AVEC_TESTS.bat
+    │       ├─ PyInstaller Bundling
+    │       │   ├─ Python Interpreter
+    │       │   ├─ FastAPI Framework
+    │       │   ├─ PyWebView Library
+    │       │   ├─ All Dependencies
+    │       │   └─ Test Suite
+    │       │
+    │       └─ Output: dist/FABOuanes/ (Standalone folder)
+    │
+    ├─ CREATE INSTALLER (Setup Wizard)
+    │   │
+    │   └─ CREER_INSTALLATEUR_WINDOWS.bat
+    │       ├─ Inno Setup Compilation
+    │       ├─ FABOuanes_Setup.iss Script
+    │       │   ├─ Desktop Shortcuts
+    │       │   ├─ Start Menu Entries
+    │       │   ├─ Registry Entries
+    │       │   └─ Auto-launch First Time
+    │       │
+    │       └─ Output: installer_output/FABOuanes_Setup.exe
+    │
+    └─ DOCKER DEPLOYMENT (Development)
+        │
+        └─ docker-compose up
+            ├─ PostgreSQL 16 (port 5432)
+            ├─ pgAdmin 4 (port 5050)
+            └─ Development Database Ready
+```
+
 ### Windows Packaging
 1. **Executable** (`.exe`):
    ```powershell
@@ -270,6 +615,45 @@ PUSH_GITHUB.bat
 ---
 
 ## 📦 Dependencies Overview
+
+### Dependency Tree (Core)
+
+```
+FastAPI (Web Framework)
+├─ Uvicorn (ASGI Server)
+├─ Starlette (Base Framework)
+│   └─ SessionMiddleware (Session Management)
+│
+SQLAlchemy (Query Builder)
+├─ pg8000 (PostgreSQL Sync)
+└─ asyncpg (PostgreSQL Async)
+    └─ PostgreSQL Database (16+)
+        └─ Alembic (Migrations)
+│
+Data Processing
+├─ Pandas (Excel/Data Analysis)
+│   └─ openpyxl (Excel Files)
+├─ ReportLab (PDF Generation)
+├─ Pillow (Image Processing)
+└─ qrcode (QR Code Generation)
+│
+Security
+├─ Werkzeug (Password Hashing)
+├─ python-jose (JWT Tokens)
+│   └─ cryptography
+└─ itsdangerous (Secure Signing)
+│
+Performance
+├─ slowapi (Rate Limiting)
+├─ apscheduler (Task Scheduling)
+└─ pywebview (Desktop GUI)
+│
+Testing
+├─ pytest (Test Framework)
+├─ pytest-cov (Coverage)
+├─ httpx (HTTP Testing)
+└─ pyinstaller (Packaging)
+```
 
 ### Core Framework
 - **fastapi** `>=0.115` - Web framework
@@ -352,6 +736,30 @@ PUSH_GITHUB.bat
 | Tests | 41+ | 12,000+ LOC |
 | Templates/Static | - | 5,000+ LOC |
 | **Total** | **110+** | **54,000+ LOC** |
+
+### Code Distribution Visualization
+
+```
+Total Codebase: ~54,000 LOC (110+ modules)
+
+Services Layer:
+████████████████████░░░░░░░░  28% (15,000 LOC)
+
+Core Infrastructure:
+█████████████░░░░░░░░░░░░░░░░  18% (10,000 LOC)
+
+Web Routes & Templates:
+███████████░░░░░░░░░░░░░░░░░░  15% (8,000 LOC)
+
+REST API Routes:
+███████░░░░░░░░░░░░░░░░░░░░░░   7% (4,000 LOC)
+
+Test Suite:
+███████████░░░░░░░░░░░░░░░░░░  22% (12,000 LOC)
+
+Templates & Static:
+████░░░░░░░░░░░░░░░░░░░░░░░░░░   9% (5,000 LOC)
+```
 
 ---
 
