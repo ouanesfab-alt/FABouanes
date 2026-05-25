@@ -104,9 +104,13 @@ async def lifespan(_: FastAPI):
         logger.info("Shutdown terminé.")
 
 
+from prometheus_fastapi_instrumentator import Instrumentator
+
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
+Instrumentator().instrument(app).expose(app)
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):

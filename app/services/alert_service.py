@@ -69,7 +69,7 @@ def broadcast_overdue_alerts() -> int:
                 ],
             })
             manager.broadcast_sync(payload)
-            logger.info(f"Alerte : {len(overdue)} clients en retard.")
+            logger.info("Alerte : clients en retard.", extra={"count": len(overdue)})
         return len(overdue)
 
 

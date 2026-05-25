@@ -39,6 +39,18 @@ class JSONFormatter(logging.Formatter):
             log_data["request_id"] = request_id
         if record.exc_info:
             log_data["exception"] = "".join(traceback.format_exception(*record.exc_info))
+            
+        # Add custom extra fields to the JSON log dict
+        standard_attrs = {
+            "args", "asctime", "created", "exc_info", "exc_text", "filename",
+            "funcName", "levelname", "levelno", "lineno", "message", "module",
+            "msecs", "msg", "name", "pathname", "process", "processName",
+            "relativeCreated", "stack_info", "thread", "threadName"
+        }
+        for key, value in record.__dict__.items():
+            if key not in standard_attrs and not key.startswith("_"):
+                log_data[key] = value
+                
         return json.dumps(log_data, ensure_ascii=False)
 
 

@@ -74,48 +74,25 @@
     });
   });
 
-  // Persistance tab dashboard
-  (function () {
-    const STORAGE_KEY = 'fab_dash_tab';
-    const root = document.querySelector('[data-fab-switch-root]');
-    if (!root) return;
 
-    // Restaurer la tab sauvegardée
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const btn = root.querySelector('[data-fab-switch-target="' + saved + '"]');
-      if (btn) btn.click();
-    }
-
-    // Sauvegarder à chaque clic
-    root.addEventListener('click', function (e) {
-      const btn = e.target.closest('[data-fab-switch-target]');
-      if (btn) {
-        localStorage.setItem(STORAGE_KEY, btn.getAttribute('data-fab-switch-target'));
-      }
-    });
-  })();
 
   // Dark mode toggle dans le menu user
   (function () {
     const THEME_KEY = 'fab_theme';
     const themes = ['light', 'dark'];
-    const labels = { light: 'Clair', dark: 'Nuit' };
-    const icons  = { light: 'bi-sun', dark: 'bi-moon' };
 
     function applyTheme(t) {
       if (t === 'auto' || !themes.includes(t)) {
         t = 'light';
       }
       document.documentElement.setAttribute('data-theme', t);
-      ['themeToggleBtn', 'themeToggleBtnMobile'].forEach(id => {
-        const btn = document.getElementById(id);
-        if (!btn) return;
-        const badge = btn.querySelector('.badge');
-        const icon  = btn.querySelector('.bi');
-        if (badge) badge.textContent = labels[t];
-        if (icon)  icon.className = 'bi ' + icons[t] + ' me-2';
-      });
+      const btn = document.getElementById('themeToggleBtnNavbar');
+      if (btn) {
+        const icon = btn.querySelector('.bi');
+        if (icon) {
+          icon.className = 'bi ' + (t === 'light' ? 'bi-moon' : 'bi-sun');
+        }
+      }
     }
 
     function nextTheme(current) {
@@ -130,15 +107,14 @@
     }
     applyTheme(current);
 
-    ['themeToggleBtn', 'themeToggleBtnMobile'].forEach(id => {
-      const btn = document.getElementById(id);
-      if (!btn) return;
+    const btn = document.getElementById('themeToggleBtnNavbar');
+    if (btn) {
       btn.addEventListener('click', function () {
         current = nextTheme(current);
         localStorage.setItem(THEME_KEY, current);
         applyTheme(current);
       });
-    });
+    }
   })();
 
   // Recherche rapide

@@ -22,15 +22,29 @@
       function connect() {
           ws = new WebSocket(wsUrl);
           ws.onmessage = function(event) {
-              if (event.data === 'refresh_operations') {
-                  showToast("Nouvelle opération enregistrée à distance.", "info", true);
-                  if (window.location.pathname.startsWith('/operations') && typeof window.onOperationsRefresh === 'function') {
-                      window.onOperationsRefresh();
+              let data;
+              try {
+                  data = JSON.parse(event.data);
+              } catch (e) {
+                  data = event.data;
+              }
+
+              if (typeof data === 'object' && data !== null) {
+                  if (data.type === 'overdue_alert') {
+                      const label = data.count === 1 ? 'client' : 'clients';
+                      showToast(`⚠️ Alerte : ${data.count} ${label} en retard de paiement.`, "warning", false);
                   }
-              } else if (event.data === 'backup_completed') {
-                  showToast("✅ Sauvegarde réseau terminée avec succès.", "success", false);
-              } else if (event.data === 'low_stock_alert') {
-                  showToast("⚠️ Alerte Stock : Un article vient de passer sous le seuil critique !", "warning", false);
+              } else {
+                  if (data === 'refresh_operations') {
+                      showToast("Nouvelle opération enregistrée à distance.", "info", true);
+                      if (window.location.pathname.startsWith('/operations') && typeof window.onOperationsRefresh === 'function') {
+                          window.onOperationsRefresh();
+                      }
+                  } else if (data === 'backup_completed') {
+                      showToast("✅ Sauvegarde réseau terminée avec succès.", "success", false);
+                  } else if (data === 'low_stock_alert') {
+                      showToast("⚠️ Alerte Stock : Un article vient de passer sous le seuil critique !", "warning", false);
+                  }
               }
           };
           ws.onclose = function() {

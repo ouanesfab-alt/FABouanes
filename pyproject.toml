@@ -24,6 +24,7 @@ dependencies = [
   "gunicorn>=22.0",
   "qrcode[pil]>=8.0",
   "Pillow>=10.0",
+  "prometheus-fastapi-instrumentator>=7.0.0",
 ]
 
 [project.optional-dependencies]

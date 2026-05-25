@@ -86,8 +86,7 @@ class Settings:
 
         # Force secure session cookies in non-desktop production environments by default
         if self.env == "production" and not self.desktop_mode:
-            if os.getenv("SESSION_COOKIE_SECURE") is None:
-                self.session_cookie_secure = True
+            self.session_cookie_secure = True
 
     @property
     def database_url(self) -> str:

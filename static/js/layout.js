@@ -3,28 +3,74 @@
     const buttons = Array.from(root.querySelectorAll('[data-fab-switch-target]'));
     const panels = buttons.map(function (btn) { return document.getElementById(btn.getAttribute('data-fab-switch-target')); }).filter(Boolean);
     const placeholder = document.getElementById(root.getAttribute('data-fab-switch-placeholder') || '');
+    const storageKey = root.id === 'dashboardSwitchButtons' ? 'fab_dash_tab' : (root.id ? 'fab_switch_' + root.id : null);
+
     function reset(showPlaceholder) {
       buttons.forEach(function (btn) { btn.classList.remove('is-active'); btn.setAttribute('aria-pressed', 'false'); });
       panels.forEach(function (panel) { panel.hidden = true; });
       if (placeholder) placeholder.hidden = !showPlaceholder;
     }
+
     buttons.forEach(function (btn) {
       btn.addEventListener('click', function () {
-        const panel = document.getElementById(btn.getAttribute('data-fab-switch-target'));
+        const target = btn.getAttribute('data-fab-switch-target');
+        const panel = document.getElementById(target);
         const active = btn.classList.contains('is-active');
+        
         reset(active);
-        if (!panel || active) return;
+        
+        if (active) {
+          if (storageKey) {
+            try { localStorage.removeItem(storageKey); } catch (e) {}
+          }
+          return;
+        }
+        
+        if (!panel) return;
         btn.classList.add('is-active');
         btn.setAttribute('aria-pressed', 'true');
         panel.hidden = false;
         if (placeholder) placeholder.hidden = true;
+        
+        if (storageKey) {
+          try { localStorage.setItem(storageKey, target); } catch (e) {}
+        }
+        
         requestAnimationFrame(function () {
           document.dispatchEvent(new CustomEvent('fab:panel-open', { detail: { panel: panel } }));
           window.dispatchEvent(new Event('resize'));
         });
       });
     });
-    reset(true);
+
+    let restored = false;
+    if (storageKey) {
+      try {
+        const savedTarget = localStorage.getItem(storageKey);
+        if (savedTarget) {
+          const targetBtn = buttons.find(function (b) { return b.getAttribute('data-fab-switch-target') === savedTarget; });
+          if (targetBtn) {
+            const panel = document.getElementById(savedTarget);
+            if (panel) {
+              reset(false);
+              targetBtn.classList.add('is-active');
+              targetBtn.setAttribute('aria-pressed', 'true');
+              panel.hidden = false;
+              if (placeholder) placeholder.hidden = true;
+              restored = true;
+              requestAnimationFrame(function () {
+                document.dispatchEvent(new CustomEvent('fab:panel-open', { detail: { panel: panel } }));
+                window.dispatchEvent(new Event('resize'));
+              });
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    if (!restored) {
+      reset(true);
+    }
   });
 
   const btn = document.getElementById('drawerBtn');
