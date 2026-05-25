@@ -143,10 +143,12 @@ def discover_modules(modules_dir: Path) -> None:
 
 def mount_web_routes(parent_router: "APIRouter") -> int:
     """Monte les web_router de tous les modules activés. Retourne le nombre monté."""
+    from fastapi import Depends
+    from app.web.deps import verify_csrf_token
     count = 0
     for module in get_enabled_modules():
         if module.web_router:
-            parent_router.include_router(module.web_router)
+            parent_router.include_router(module.web_router, dependencies=[Depends(verify_csrf_token)])
             count += 1
             logger.debug("Mounted web routes for module: %s", module.name)
     return count

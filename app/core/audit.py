@@ -11,9 +11,12 @@ from typing import Any
 
 from app.core.request_state import get_state_value
 
+import time
 from app.core.db_access import execute_db, query_db
 
-_AUDIT_QUEUE: deque[tuple] = deque(maxlen=2000)
+_AUDIT_QUEUE: deque[tuple] = deque(maxlen=50000)
+_last_warned_ts = 0.0
+_AUDIT_DROPPED = 0
 _AUDIT_LOCK = threading.Lock()
 _AUDIT_EVENT = threading.Event()
 _AUDIT_WORKER_STARTED = False
@@ -219,8 +222,27 @@ def audit_event(
         _json_dump(after),
         _json_dump(meta),
     )
+    global _last_warned_ts, _AUDIT_DROPPED
     with _AUDIT_LOCK:
-        _AUDIT_QUEUE.append(params)
+        if len(_AUDIT_QUEUE) >= 50000:
+            _AUDIT_DROPPED += 1
+            import logging
+            logging.getLogger("fabouanes.audit").error(
+                "Audit log queue is full! Dropped event. Total dropped = %d", _AUDIT_DROPPED
+            )
+        else:
+            _AUDIT_QUEUE.append(params)
+
+        q_len = len(_AUDIT_QUEUE)
+        if q_len > 5000:
+            now = time.time()
+            if now - _last_warned_ts > 60.0:
+                _last_warned_ts = now
+                import logging
+                logging.getLogger("fabouanes.audit").warning(
+                    "Audit queue high-watermark exceeded: current size is %d. The database writer is falling behind.",
+                    q_len
+                )
     _ensure_audit_worker()
     _AUDIT_EVENT.set()
 

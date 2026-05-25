@@ -26,16 +26,16 @@ def check_overdue_clients(overdue_days: int = DEFAULT_OVERDUE_DAYS) -> list[dict
     return query_db(
         """
         SELECT
-            c.id, c.name, c.balance,
+            c.id, c.name, c.current_balance AS balance,
             MAX(ch.operation_date) AS derniere_operation,
             DATE_PART('day', NOW() - MAX(ch.operation_date)) AS jours_inactif
-        FROM clients c
+        FROM clients_with_stats c
         LEFT JOIN client_history ch ON ch.client_id = c.id
-        WHERE c.balance > 0
-        GROUP BY c.id, c.name, c.balance
+        WHERE c.current_balance > 0
+        GROUP BY c.id, c.name, c.current_balance
         HAVING MAX(ch.operation_date) < %s
             OR MAX(ch.operation_date) IS NULL
-        ORDER BY c.balance DESC
+        ORDER BY c.current_balance DESC
         LIMIT 50
         """,
         (cutoff,),
@@ -71,3 +71,48 @@ def broadcast_overdue_alerts() -> int:
             manager.broadcast_sync(payload)
             logger.info(f"Alerte : {len(overdue)} clients en retard.")
         return len(overdue)
+
+
+def check_stock_alerts() -> None:
+    """Vérifie le stock de matières premières et de produits finis par rapport au seuil."""
+    from app.core.db_access import query_db
+    
+    # Matières premières
+    raws = query_db(
+        "SELECT id, name, stock_qty, alert_threshold FROM raw_materials WHERE stock_qty <= alert_threshold AND alert_threshold > 0"
+    )
+    for row in raws:
+        _trigger_alert("raw_material", int(row["id"]), row["name"], row["stock_qty"], row["alert_threshold"])
+        
+    # Produits finis
+    products = query_db(
+        "SELECT id, name, stock_qty, alert_threshold FROM finished_products WHERE stock_qty <= alert_threshold AND alert_threshold > 0"
+    )
+    for row in products:
+        _trigger_alert("finished_product", int(row["id"]), row["name"], row["stock_qty"], row["alert_threshold"])
+
+
+def _trigger_alert(product_type: str, product_id: int, name: str, current_qty: float, threshold_qty: float) -> None:
+    from app.core.db_access import query_db, execute_db
+    # Éviter les doublons dans les dernières 24h
+    duplicate = query_db(
+        """
+        SELECT id FROM stock_alerts
+        WHERE product_type = %s AND product_id = %s
+          AND acknowledged_at IS NULL
+          AND triggered_at > NOW() - INTERVAL '24 hours'
+        LIMIT 1
+        """,
+        (product_type, product_id),
+        one=True
+    )
+    if duplicate:
+        return
+        
+    execute_db(
+        """
+        INSERT INTO stock_alerts (product_type, product_id, product_name, current_qty, threshold_qty, triggered_at)
+        VALUES (%s, %s, %s, %s, %s, NOW())
+        """,
+        (product_type, product_id, name, current_qty, threshold_qty)
+    )

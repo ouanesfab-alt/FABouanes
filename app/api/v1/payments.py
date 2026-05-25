@@ -4,7 +4,7 @@ import asyncio
 from fastapi import APIRouter, Request
 
 from app.api.deps import api_error, api_success, require_api_user
-from app.api.v1._common import json_response, payment_payload, payload_to_form_data
+from app.api.v1._common import json_response, payment_payload, payload_to_form_data, add_cache_headers
 from app.repositories.payment_repository import list_payments
 
 from app.core.db_access import query_db_async
@@ -32,7 +32,10 @@ async def api_get_payments(request: Request):
         "returned": len(rows),
         "total": total
     }
-    return json_response(api_success(rows, meta))
+    res_data = api_success(rows, meta)
+    response = json_response(res_data)
+    add_cache_headers(request, response, res_data, max_age=30)
+    return response
 
 @router.post("/payments", status_code=201)
 async def api_create_payment(request: Request, payload: PaymentCreateSchema):
@@ -54,7 +57,10 @@ async def api_get_payment_detail(request: Request, payment_id: int):
     payment = await asyncio.to_thread(payment_payload, payment_id)
     if not payment:
         api_error("not_found", "Paiement introuvable.", 404)
-    return json_response(api_success(payment))
+    res_data = api_success(payment)
+    response = json_response(res_data)
+    add_cache_headers(request, response, res_data, max_age=30)
+    return response
 
 @router.put("/payments/{payment_id}")
 async def api_update_payment(request: Request, payment_id: int, payload: PaymentCreateSchema):

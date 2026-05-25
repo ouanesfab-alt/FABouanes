@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 
@@ -9,7 +10,7 @@ class ClientValidationSchema(BaseModel):
     phone: Optional[str] = Field(default="")
     address: Optional[str] = Field(default="")
     notes: Optional[str] = Field(default="")
-    opening_credit: Optional[float] = Field(default=0.0)
+    opening_credit: Optional[Decimal] = Field(default=Decimal("0.0000"))
 
     @field_validator("name", mode="before")
     @classmethod
@@ -20,17 +21,22 @@ class ClientValidationSchema(BaseModel):
 
     @field_validator("opening_credit", mode="before")
     @classmethod
-    def clean_opening_credit(cls, value: object) -> float:
+    def clean_opening_credit(cls, value: object) -> Decimal:
         if value is None or value == "":
-            return 0.0
-        if isinstance(value, (int, float)):
-            return float(value)
-        # Parse European decimal format (e.g. "1 500,50" -> 1500.50)
-        cleaned = str(value).replace(" ", "").replace("\xa0", "").replace(",", ".")
-        try:
-            val = float(cleaned)
-        except ValueError:
-            raise ValueError("Le montant du crédit initial est invalide.")
+            return Decimal("0.0000")
+        if isinstance(value, (int, float, Decimal)):
+            val = Decimal(str(value))
+        else:
+            # Parse European decimal format (e.g. "1 500,50" -> 1500.50)
+            cleaned = str(value).replace(" ", "").replace("\xa0", "").replace(",", ".")
+            try:
+                val = Decimal(cleaned)
+            except Exception:
+                raise ValueError("Le montant du crédit initial est invalide.")
         if val < 0:
             raise ValueError("Le crédit initial ne peut pas être négatif.")
         return val
+
+    class Config:
+        json_encoders = {Decimal: str}
+

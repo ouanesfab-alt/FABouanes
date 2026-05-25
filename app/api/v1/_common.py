@@ -34,3 +34,20 @@ from app.api.v1.response_helpers import (
     client_history_payload,
     filtered_sellable_items,
 )
+
+
+def add_cache_headers(request, response, response_data, max_age: int = 30) -> None:
+    import hashlib
+    import json
+    from fastapi import HTTPException
+
+    # Generate ETag
+    serialized = json.dumps(response_data, sort_keys=True, default=str)
+    etag = f'"{hashlib.md5(serialized.encode("utf-8")).hexdigest()}"'
+
+    response.headers["ETag"] = etag
+    response.headers["Cache-Control"] = f"private, max-age={max_age}"
+
+    if_none_match = request.headers.get("if-none-match")
+    if if_none_match and if_none_match.strip() == etag:
+        raise HTTPException(status_code=304)

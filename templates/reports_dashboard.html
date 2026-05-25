@@ -140,6 +140,8 @@
     <input type="date" name="date_to" value="{{ date_to }}" class="form-control" title="Au">
     <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-funnel me-1"></i>Filtrer</button>
     <a href="{{ url_for('reports_dashboard') }}" class="btn btn-outline-secondary btn-sm">Tout afficher</a>
+    <button type="button" onclick="exportReport('csv')" class="btn btn-outline-success btn-sm ms-2"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV</button>
+    <button type="button" onclick="exportReport('xlsx')" class="btn btn-outline-success btn-sm"><i class="bi bi-file-earmark-excel me-1"></i>Export Excel</button>
   </form>
 
   <div class="rpt-kpis">
@@ -539,7 +541,21 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
+function exportReport(format) {
+  const url = new URL(window.location.href);
+  const form = document.querySelector('.reports-filter-bar');
+  if (form) {
+    const formData = new FormData(form);
+    for (const [key, value] of formData.entries()) {
+      if (value) {
+        url.searchParams.set(key, value);
+      } else {
+        url.searchParams.delete(key);
+      }
+    }
+  }
+  url.searchParams.set('format', format);
+  window.open(url.toString(), '_blank');
 }
-);
 </script>
 {% endblock %}

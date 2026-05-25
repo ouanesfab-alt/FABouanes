@@ -10,8 +10,9 @@ Toutes les routes sont protégées sauf /ping et /auth/token.
 from __future__ import annotations
 import asyncio
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
+from app.api.v1._common import add_cache_headers
 from app.core.jwt_auth import (
     create_access_token, create_refresh_token,
     decode_token, get_current_user_id,
@@ -80,6 +81,8 @@ async def mobile_refresh(request: Request, body: dict):
 
 @router.get("/mobile/clients")
 async def mobile_list_clients(
+    request: Request,
+    response: Response,
     q: str = "",
     page: int = 1,
     page_size: int = 30,
@@ -89,12 +92,16 @@ async def mobile_list_clients(
     clients, total = await asyncio.to_thread(
         list_clients_with_balance, q, page, page_size
     )
-    return {"clients": clients, "total": total,
+    res_data = {"clients": clients, "total": total,
             "page": page, "page_size": page_size}
+    add_cache_headers(request, response, res_data, max_age=300)
+    return res_data
 
 
 @router.get("/mobile/clients/{client_id}/history")
 async def mobile_client_history(
+    request: Request,
+    response: Response,
     client_id: int,
     page: int = 1,
     page_size: int = 50,
@@ -104,7 +111,9 @@ async def mobile_client_history(
     rows, total = await asyncio.to_thread(
         _fetch_client_history, client_id, page, page_size
     )
-    return {"rows": rows, "total": total, "page": page}
+    res_data = {"rows": rows, "total": total, "page": page}
+    add_cache_headers(request, response, res_data, max_age=30)
+    return res_data
 
 
 @router.post("/mobile/payments")
@@ -134,15 +143,19 @@ async def mobile_record_payment(
 
 @router.get("/mobile/dashboard")
 async def mobile_dashboard_summary(
+    request: Request,
+    response: Response,
     user_id: int = Depends(get_current_user_id),
 ):
     """Résumé du jour : ventes, encaissements, créances totales."""
     snapshot = await asyncio.to_thread(
         get_dashboard_snapshot, date.today().isoformat()
     )
-    return {
+    res_data = {
         "sales_today": snapshot["sales_today"],
         "cash_today": snapshot["cash_today"],
         "total_receivables": snapshot["total_receivables"],
         "profit_today": snapshot["profit_today"],
     }
+    add_cache_headers(request, response, res_data, max_age=30)
+    return res_data

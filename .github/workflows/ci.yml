@@ -55,7 +55,7 @@ jobs:
           pip install -r requirements.txt
           pip install pytest httpx pytest-cov pytest-timeout ruff
       - name: Run tests
-        run: python -m pytest --cov=app --cov-fail-under=55 --timeout=30 --cov-report=term-missing --cov-report=xml -q
+        run: python -m pytest --cov=app --cov-fail-under=65 --timeout=30 --cov-report=term-missing --cov-report=xml -q
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4

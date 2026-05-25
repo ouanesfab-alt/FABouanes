@@ -22,6 +22,28 @@ def bootstrap_schema() -> None:
     try:
         # Core schema first
         conn.executescript(SCHEMA_CORE)
+
+        # Create rate_limit_events and stock_alerts tables
+        conn.executescript("""
+        CREATE TABLE IF NOT EXISTS rate_limit_events (
+            key TEXT NOT NULL,
+            hit_at TIMESTAMPTZ NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_rate_limit_events_key_hit_at ON rate_limit_events(key, hit_at);
+
+        CREATE TABLE IF NOT EXISTS stock_alerts (
+            id BIGSERIAL PRIMARY KEY,
+            product_type TEXT NOT NULL,
+            product_id BIGINT NOT NULL,
+            product_name TEXT NOT NULL,
+            current_qty NUMERIC(15, 4) NOT NULL,
+            threshold_qty NUMERIC(15, 4) NOT NULL,
+            triggered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            acknowledged_at TIMESTAMPTZ
+        );
+        CREATE INDEX IF NOT EXISTS idx_stock_alerts_product ON stock_alerts(product_type, product_id);
+        CREATE INDEX IF NOT EXISTS idx_stock_alerts_triggered_at ON stock_alerts(triggered_at);
+        """)
         
         # Then domain schemas
         conn.executescript(SCHEMA_CONTACTS)

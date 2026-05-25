@@ -117,6 +117,11 @@ def _seed_default_settings(conn) -> None:
 
 
 def _seed_default_admin(conn) -> None:
+    from app.core.config import settings
+    if str(DEFAULT_ADMIN_PASSWORD or "").strip().lower() == "admin" and settings.env == "production" and not settings.desktop_mode:
+        raise RuntimeError(
+            "DEFAULT_ADMIN_PASSWORD cannot be 'admin' in production server mode. Set a strong password in your .env file."
+        )
     admin = conn.execute("SELECT id, password_hash FROM users WHERE username = %s", (DEFAULT_ADMIN_USERNAME,)).fetchone()
     if not admin:
         conn.execute(

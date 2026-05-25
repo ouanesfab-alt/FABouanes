@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 import re
@@ -7,7 +8,7 @@ import re
 
 class PaymentCreate(BaseModel):
     client_id: int = Field(..., gt=0)
-    amount: float = Field(..., gt=0, le=99999999.99)
+    amount: Decimal = Field(..., gt=0, le=Decimal("99999999.99"))
     payment_type: str = Field('versement', pattern=r'^(versement|avance)$')
     payment_date: str = Field(..., description="Format YYYY-MM-DD")
     sale_id: Optional[int] = Field(None, gt=0)
@@ -22,8 +23,15 @@ class PaymentCreate(BaseModel):
             raise ValueError("Format de date invalide. Attendu: YYYY-MM-DD")
         return v
 
+    class Config:
+        json_encoders = {Decimal: str}
+
 
 class PaymentUpdate(BaseModel):
-    amount: Optional[float] = Field(None, gt=0, le=99999999.99)
+    amount: Optional[Decimal] = Field(None, gt=0, le=Decimal("99999999.99"))
     payment_type: Optional[str] = Field(None, pattern=r'^(versement|avance)$')
     notes: Optional[str] = Field(None, max_length=2000)
+
+    class Config:
+        json_encoders = {Decimal: str}
+

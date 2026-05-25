@@ -210,7 +210,7 @@ def dispose_async_engine_after_each_test():
             fut.result(timeout=2)
         except RuntimeError:
             asyncio.run(async_engine.dispose())
-    except Exception:
+    except BaseException:
         pass
 
 

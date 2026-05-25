@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Optional, List
+from sqlalchemy import Column, Numeric
 from sqlmodel import SQLModel, Field, Relationship
 
 class User(SQLModel, table=True):
@@ -25,7 +27,7 @@ class Client(SQLModel, table=True):
     phone: Optional[str] = Field(default=None, index=True)
     address: Optional[str] = Field(default=None)
     notes: Optional[str] = Field(default=None)
-    opening_credit: float = Field(default=0.0)
+    opening_credit: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -48,9 +50,9 @@ class ImportedClientHistory(SQLModel, table=True):
     source_file: Optional[str] = Field(default=None)
     entry_date: str
     designation: Optional[str] = Field(default=None)
-    debit_amount: float = Field(default=0.0)
-    credit_amount: float = Field(default=0.0)
-    running_balance: float = Field(default=0.0)
+    debit_amount: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    credit_amount: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    running_balance: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     imported_by_user_id: Optional[int] = Field(default=None, foreign_key="users.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -60,11 +62,11 @@ class RawMaterial(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)
     unit: str = Field(default="kg")
-    stock_qty: float = Field(default=0.0)
-    avg_cost: float = Field(default=0.0)
-    sale_price: float = Field(default=0.0)
-    alert_threshold: float = Field(default=0.0)
-    threshold_qty: float = Field(default=0.0)
+    stock_qty: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    avg_cost: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    sale_price: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    alert_threshold: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    threshold_qty: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 class FinishedProduct(SQLModel, table=True):
@@ -73,9 +75,10 @@ class FinishedProduct(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)
     default_unit: str = Field(default="kg")
-    stock_qty: float = Field(default=0.0)
-    sale_price: float = Field(default=0.0)
-    avg_cost: float = Field(default=0.0)
+    stock_qty: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    sale_price: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    avg_cost: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    alert_threshold: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 class StockMovement(SQLModel, table=True):
@@ -85,10 +88,10 @@ class StockMovement(SQLModel, table=True):
     item_kind: str
     item_id: int
     direction: str
-    quantity: float = Field(default=0.0)
+    quantity: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     unit: Optional[str] = Field(default=None)
-    stock_before: float = Field(default=0.0)
-    stock_after: float = Field(default=0.0)
+    stock_before: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    stock_after: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     reason: Optional[str] = Field(default=None)
     reference_type: Optional[str] = Field(default=None)
     reference_id: Optional[int] = Field(default=None)
@@ -101,7 +104,7 @@ class PurchaseDocument(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     supplier_id: Optional[int] = Field(default=None, foreign_key="suppliers.id")
     doc_number: str = Field(unique=True)
-    total: float = Field(default=0.0)
+    total: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     purchase_date: date
     notes: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -114,9 +117,9 @@ class SaleDocument(SQLModel, table=True):
     client_id: Optional[int] = Field(default=None, foreign_key="clients.id")
     doc_number: str = Field(unique=True)
     sale_type: str
-    total: float = Field(default=0.0)
-    amount_paid: float = Field(default=0.0)
-    balance_due: float = Field(default=0.0)
+    total: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    amount_paid: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    balance_due: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     sale_date: date
     notes: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -130,10 +133,10 @@ class Purchase(SQLModel, table=True):
     document_id: Optional[int] = Field(default=None)
     raw_material_id: Optional[int] = Field(default=None, foreign_key="raw_materials.id")
     finished_product_id: Optional[int] = Field(default=None, foreign_key="finished_products.id")
-    quantity: float
+    quantity: Decimal = Field(sa_column=Column(Numeric(15, 4)))
     unit: str = Field(default="kg")
-    unit_price: float
-    total: float
+    unit_price: Decimal = Field(sa_column=Column(Numeric(15, 4)))
+    total: Decimal = Field(sa_column=Column(Numeric(15, 4)))
     purchase_date: date
     notes: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -146,15 +149,15 @@ class Sale(SQLModel, table=True):
     client_id: Optional[int] = Field(default=None, foreign_key="clients.id")
     document_id: Optional[int] = Field(default=None)
     finished_product_id: int = Field(foreign_key="finished_products.id")
-    quantity: float
+    quantity: Decimal = Field(sa_column=Column(Numeric(15, 4)))
     unit: str
-    unit_price: float
-    total: float
+    unit_price: Decimal = Field(sa_column=Column(Numeric(15, 4)))
+    total: Decimal = Field(sa_column=Column(Numeric(15, 4)))
     sale_type: str
-    amount_paid: float = Field(default=0.0)
-    balance_due: float = Field(default=0.0)
-    cost_price_snapshot: float = Field(default=0.0)
-    profit_amount: float = Field(default=0.0)
+    amount_paid: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    balance_due: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    cost_price_snapshot: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    profit_amount: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     sale_date: date
     notes: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -167,15 +170,15 @@ class RawSale(SQLModel, table=True):
     client_id: Optional[int] = Field(default=None, foreign_key="clients.id")
     document_id: Optional[int] = Field(default=None)
     raw_material_id: int = Field(foreign_key="raw_materials.id")
-    quantity: float
+    quantity: Decimal = Field(sa_column=Column(Numeric(15, 4)))
     unit: str
-    unit_price: float
-    total: float
+    unit_price: Decimal = Field(sa_column=Column(Numeric(15, 4)))
+    total: Decimal = Field(sa_column=Column(Numeric(15, 4)))
     sale_type: str
-    amount_paid: float = Field(default=0.0)
-    balance_due: float = Field(default=0.0)
-    cost_price_snapshot: float = Field(default=0.0)
-    profit_amount: float = Field(default=0.0)
+    amount_paid: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    balance_due: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    cost_price_snapshot: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    profit_amount: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     sale_date: date
     notes: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -191,7 +194,7 @@ class Payment(SQLModel, table=True):
     sale_kind: Optional[str] = Field(default=None)
     payment_type: str = Field(default="versement")
     allocation_meta: Optional[str] = Field(default=None)
-    amount: float
+    amount: Decimal = Field(sa_column=Column(Numeric(15, 4)))
     payment_date: date
     notes: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -202,9 +205,9 @@ class ProductionBatch(SQLModel, table=True):
     
     id: Optional[int] = Field(default=None, primary_key=True)
     finished_product_id: int = Field(foreign_key="finished_products.id")
-    output_quantity: float
-    production_cost: float = Field(default=0.0)
-    unit_cost: float = Field(default=0.0)
+    output_quantity: Decimal = Field(sa_column=Column(Numeric(15, 4)))
+    production_cost: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    unit_cost: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     production_date: str
     notes: Optional[str] = Field(default=None)
 
@@ -214,9 +217,9 @@ class ProductionBatchItem(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     batch_id: int = Field(foreign_key="production_batches.id")
     raw_material_id: int = Field(foreign_key="raw_materials.id")
-    quantity: float
-    unit_cost_snapshot: float = Field(default=0.0)
-    line_cost: float = Field(default=0.0)
+    quantity: Decimal = Field(sa_column=Column(Numeric(15, 4)))
+    unit_cost_snapshot: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    line_cost: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
 
 class SavedRecipe(SQLModel, table=True):
     __tablename__ = "saved_recipes"
@@ -235,5 +238,6 @@ class SavedRecipeItem(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     recipe_id: int = Field(foreign_key="saved_recipes.id")
     raw_material_id: int = Field(foreign_key="raw_materials.id")
-    quantity: float
+    quantity: Decimal = Field(sa_column=Column(Numeric(15, 4)))
     position: int = Field(default=0)
+

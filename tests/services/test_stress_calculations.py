@@ -53,6 +53,8 @@ def test_stress_sales_math_calculations(first_client_id, first_product_id):
         }
         
         result = create_sale_from_form(FormMock(form_data))
+        if not result or "line_count" not in result:
+            raise RuntimeError(f"Debug: result is {result}")
         assert result["line_count"] == 1
         
         sale_id = result["first_line_id"]

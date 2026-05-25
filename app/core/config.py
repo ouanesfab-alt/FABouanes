@@ -79,6 +79,11 @@ class Settings:
                 )
             self.secret_key = _secrets.token_hex(32)
 
+        if self.default_admin_password.strip().lower() == "admin" and self.env == "production" and not self.desktop_mode:
+            raise RuntimeError(
+                "DEFAULT_ADMIN_PASSWORD cannot be 'admin' in production server mode. Set a strong password in your .env file."
+            )
+
         # Force secure session cookies in non-desktop production environments by default
         if self.env == "production" and not self.desktop_mode:
             if os.getenv("SESSION_COOKIE_SECURE") is None:

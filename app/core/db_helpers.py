@@ -11,12 +11,51 @@ from collections import OrderedDict
 from typing import Any, Callable
 from urllib.parse import urlparse
 
+from decimal import Decimal
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
 from app.core.config import settings
 from app.core.perf_cache import invalidate_cache_domains
 from app.core.request_state import ensure_request_state, get_request_state
+
+def split_sql_script(script: str) -> list[str]:
+    statements = []
+    current = []
+    in_dollar = False
+    in_single_quote = False
+    in_double_quote = False
+    
+    i = 0
+    n = len(script)
+    while i < n:
+        char = script[i]
+        
+        if char == '$' and i + 1 < n and script[i+1] == '$':
+            in_dollar = not in_dollar
+            current.append('$$')
+            i += 2
+            continue
+            
+        if not in_dollar:
+            if char == "'" and (i == 0 or script[i-1] != '\\'):
+                in_single_quote = not in_single_quote
+            elif char == '"' and (i == 0 or script[i-1] != '\\'):
+                in_double_quote = not in_double_quote
+                
+        if char == ';' and not in_dollar and not in_single_quote and not in_double_quote:
+            stmt = "".join(current).strip()
+            if stmt:
+                statements.append(stmt)
+            current = []
+        else:
+            current.append(char)
+        i += 1
+        
+    stmt = "".join(current).strip()
+    if stmt:
+        statements.append(stmt)
+    return statements
 
 class CompatRow(dict):
     def __init__(self, *args, **kwargs):
@@ -62,6 +101,25 @@ class CompatCursor:
     def lastrowid(self):
         return getattr(self.cursor, "lastrowid", None)
 
+def _clean_params(params):
+    if not params:
+        return params
+    if not isinstance(params, (tuple, list)):
+        if isinstance(params, dict):
+            return {k: (Decimal(str(v)) if isinstance(v, float) else v) for k, v in params.items()}
+        return params
+    cleaned = []
+    for p in params:
+        if isinstance(p, float):
+            cleaned.append(Decimal(str(p)))
+        elif isinstance(p, list):
+            cleaned.append([Decimal(str(x)) if isinstance(x, float) else x for x in p])
+        elif isinstance(p, tuple):
+            cleaned.append(tuple(Decimal(str(x)) if isinstance(x, float) else x for x in p))
+        else:
+            cleaned.append(p)
+    return tuple(cleaned) if isinstance(params, tuple) else cleaned
+
 class CompatConnection:
     def __init__(
         self,
@@ -78,10 +136,11 @@ class CompatConnection:
 
     def execute(self, query: str, params: tuple = ()):
         retried = False
+        cleaned_params = _clean_params(params)
         while True:
             cur = self.conn.cursor()
             try:
-                cur.execute(query, params)
+                cur.execute(query, cleaned_params)
                 return CompatCursor(cur)
             except Exception as exc:
                 try:
@@ -103,7 +162,6 @@ class CompatConnection:
                 raise
 
     def executescript(self, script: str):
-        from app.core.sql_compat import split_sql_script
         for statement in split_sql_script(script):
             if statement.strip():
                 self.execute(statement)

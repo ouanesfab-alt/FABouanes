@@ -53,26 +53,21 @@ ALL_PERMISSIONS = {
     PERMISSION_API_ACCESS,
 }
 
+MANAGER_PERMISSIONS = {
+    PERMISSION_DASHBOARD_READ,
+    PERMISSION_CONTACTS_READ,
+    PERMISSION_CATALOG_READ,
+    PERMISSION_OPERATIONS_READ,
+    PERMISSION_PRODUCTION_READ,
+    PERMISSION_AUDIT_READ,
+    PERMISSION_TOOLS_READ,
+    PERMISSION_API_ACCESS,
+    PERMISSION_OPERATIONS_WRITE,
+}
+
 ROLE_PERMISSIONS = {
     ROLE_ADMIN: ALL_PERMISSIONS,
-    ROLE_MANAGER: {
-        PERMISSION_DASHBOARD_READ,
-        PERMISSION_CONTACTS_READ,
-        PERMISSION_CONTACTS_WRITE,
-        PERMISSION_CONTACTS_DELETE,
-        PERMISSION_CATALOG_READ,
-        PERMISSION_CATALOG_WRITE,
-        PERMISSION_CATALOG_DELETE,
-        PERMISSION_OPERATIONS_READ,
-        PERMISSION_OPERATIONS_WRITE,
-        PERMISSION_OPERATIONS_DELETE,
-        PERMISSION_PRODUCTION_READ,
-        PERMISSION_PRODUCTION_WRITE,
-        PERMISSION_PRODUCTION_DELETE,
-        PERMISSION_AUDIT_READ,
-        PERMISSION_TOOLS_READ,
-        PERMISSION_API_ACCESS,
-    },
+    ROLE_MANAGER: MANAGER_PERMISSIONS,
     ROLE_OPERATOR: {
         PERMISSION_DASHBOARD_READ,
         PERMISSION_CONTACTS_READ,
@@ -206,6 +201,20 @@ def has_permission(user, permission: str | None) -> bool:
     
     # L'admin a le droit de tout faire, y compris sur les modules dynamiques
     if role == ROLE_ADMIN:
+        return True
+    
+    if role == ROLE_MANAGER:
+        if permission not in MANAGER_PERMISSIONS:
+            return False
+        if permission == PERMISSION_OPERATIONS_WRITE:
+            state_request = get_state_value("request")
+            if state_request:
+                path = state_request.url.path.lower()
+                if "purchase" in path or "achat" in path:
+                    return False
+                query_params = state_request.query_params
+                if query_params.get("type") == "purchase" or query_params.get("mode") == "achat":
+                    return False
         return True
         
     # Les autres rôles doivent avoir la permission explicite ou héritée

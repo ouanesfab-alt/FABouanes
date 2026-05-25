@@ -15,9 +15,10 @@ CREATE TABLE IF NOT EXISTS finished_products (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     default_unit TEXT NOT NULL DEFAULT 'kg',
-    stock_qty NUMERIC(14,2) NOT NULL DEFAULT 0,
-    sale_price NUMERIC(14,2) NOT NULL DEFAULT 0,
-    avg_cost NUMERIC(14,2) NOT NULL DEFAULT 0,
+    stock_qty NUMERIC(15,4) NOT NULL DEFAULT 0,
+    sale_price NUMERIC(15,4) NOT NULL DEFAULT 0,
+    avg_cost NUMERIC(15,4) NOT NULL DEFAULT 0,
+    alert_threshold NUMERIC(15,4) NOT NULL DEFAULT 0,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

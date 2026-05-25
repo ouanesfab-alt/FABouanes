@@ -36,6 +36,73 @@ async def operations_page(request: Request):
     denied = require_permission(request, PERMISSION_OPERATIONS_READ)
     if denied:
         return denied
+    
+    fmt = request.query_params.get("format", "").lower()
+    if fmt in ("csv", "xlsx"):
+        large_args = dict(request.query_params)
+        large_args["page_size"] = 1000000
+        context = transactions_context(
+            filter_type=str(request.query_params.get("type", "all") or "all"),
+            filter_name=str(request.query_params.get("name", "") or ""),
+            filter_date=str(request.query_params.get("date", "") or ""),
+            filter_operation=str(request.query_params.get("operation", "") or ""),
+            args=large_args,
+            path=request.url.path,
+        )
+        data = context["transactions"]
+        
+        if fmt == "csv":
+            import io, csv
+            from datetime import date
+            output = io.StringIO()
+            fieldnames = ["tx_type", "tx_date", "partner_name", "designation", "quantity", "unit", "unit_price", "total", "paid", "due"]
+            writer = csv.DictWriter(output, fieldnames=fieldnames, delimiter=";", extrasaction="ignore")
+            writer.writerow({f: f.upper() for f in fieldnames})
+            for row in data:
+                writer.writerow(row)
+            output.seek(0)
+            filename = f"transactions_{date.today().isoformat()}.csv"
+            return StreamingResponse(
+                iter(["\ufeff" + output.getvalue()]),
+                media_type="text/csv; charset=utf-8",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+            
+        elif fmt == "xlsx":
+            import io, openpyxl
+            from openpyxl.styles import Font
+            from datetime import date
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Transactions"
+            
+            headers = ["TYPE", "DATE", "TIERS", "DÉSIGNATION", "QUANTITÉ", "UNITÉ", "PRIX UNITAIRE", "TOTAL", "PAYÉ", "DU"]
+            ws.append(headers)
+            
+            fieldnames = ["tx_type", "tx_date", "partner_name", "designation", "quantity", "unit", "unit_price", "total", "paid", "due"]
+            for row in data:
+                ws.append([str(row.get(f) or "") if row.get(f) is not None else "" for f in fieldnames])
+                
+            ws.freeze_panes = "A2"
+            bold_font = Font(bold=True)
+            for cell in ws[1]:
+                cell.font = bold_font
+                
+            for col in ws.columns:
+                max_len = max(len(str(cell.value or '')) for cell in col)
+                col_letter = openpyxl.utils.get_column_letter(col[0].column)
+                ws.column_dimensions[col_letter].width = max(max_len + 3, 10)
+                
+            filename = f"transactions_{date.today().isoformat()}.xlsx"
+            out_buf = io.BytesIO()
+            wb.save(out_buf)
+            out_buf.seek(0)
+            return StreamingResponse(
+                out_buf,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+
     context = transactions_context(
         filter_type=str(request.query_params.get("type", "all") or "all"),
         filter_name=str(request.query_params.get("name", "") or ""),

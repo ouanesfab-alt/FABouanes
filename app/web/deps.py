@@ -161,8 +161,68 @@ async def csrf_protect(request: Request) -> None:
 
 
 
+async def verify_csrf_token(request: Request):
+    """CSRF protection dependency for write endpoints.
+
+    Skips GET, HEAD, OPTIONS. For POST/PUT/DELETE/PATCH, it reads the csrf token
+    either from form body (_csrf_token) or from headers and validates it.
+    """
+    if request.method in ("GET", "HEAD", "OPTIONS"):
+        return
+
+    expected = request.session.get("csrf_token")
+    if not expected:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="CSRF token invalid")
+
+    supplied = request.headers.get("X-CSRF-Token") or request.headers.get("X-CSRFToken") or request.headers.get("X-Csrf-Token")
+    if not supplied:
+        content_type = request.headers.get("content-type", "")
+        if "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
+            try:
+                form = await request.form()
+                supplied = form.get("_csrf_token") or form.get("csrf_token")
+            except Exception:
+                pass
+        elif "application/json" in content_type:
+            try:
+                payload = await request.json()
+                supplied = payload.get("_csrf_token") or payload.get("csrf_token")
+            except Exception:
+                pass
+
+    if not supplied:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="CSRF token invalid")
+
+    import hmac
+    if not hmac.compare_digest(str(supplied), str(expected)):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="CSRF token invalid")
+
+
 def get_current_user(request: Request):
-    return getattr(request.state, "user", None)
+    """Retrieves the current user from the session.
+
+    Note: This is part of the new dependency injection way. The ContextVar approach is legacy.
+    """
+    user = getattr(request.state, "user", None)
+    if not user:
+        user = load_user_from_session(request)
+        request.state.user = user
+    return user
+
+
+def get_db():
+    """Yields the request-scoped database connection from the ContextVar.
+
+    Note: This is part of the new dependency injection way. The ContextVar approach is legacy.
+    """
+    from app.core.request_state import get_state_value
+    db = get_state_value("db")
+    if db is None:
+        raise RuntimeError("No active database connection found in request context.")
+    yield db
 
 
 def current_user_ns(request: Request) -> SimpleNamespace | None:

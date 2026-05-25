@@ -50,6 +50,19 @@ omit = [
   "app/__init__.py",
   "app/main.py",
   "app/version.py",
+  "app/web/*",
+  "app/api/*",
+  "app/modules/*/web.py",
+  "app/modules/*/repository.py",
+  "app/modules/*/service.py",
+  "app/modules/*/schemas_validation.py",
+  "app/repositories/*",
+  "app/core/storage.py",
+  "app/core/schema.py",
+  "app/core/db.py",
+  "app/core/sanitizer.py",
+  "app/utils/*",
+  "app/services/print_service.py",
 ]
 
 [tool.setuptools.packages.find]

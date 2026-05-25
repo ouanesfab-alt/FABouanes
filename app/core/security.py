@@ -8,40 +8,20 @@ import threading
 
 from app.core.request_state import get_state_value
 
-_rl_store: dict[str, list[float]] = defaultdict(list)
-_rl_lock = threading.Lock()
-_rl_last_cleanup = 0.0
-_RL_CLEANUP_INTERVAL = 300.0  # Prune stale entries every 5 minutes
+class _RlStoreCompat:
+    def clear(self):
+        from app.core.db_access import execute_db
+        try:
+            execute_db("DELETE FROM rate_limit_events")
+        except Exception:
+            pass
 
-
-def _prune(key: str, window: float) -> list[float]:
-    now = time.time()
-    hits = [hit for hit in _rl_store.get(key, []) if now - hit < window]
-    _rl_store[key] = hits
-    return hits
-
-
-def _cleanup_stale_entries(window: float) -> None:
-    """Remove keys with no recent hits to prevent unbounded memory growth."""
-    global _rl_last_cleanup
-    now = time.time()
-    if now - _rl_last_cleanup < _RL_CLEANUP_INTERVAL:
-        return
-    _rl_last_cleanup = now
-    stale_keys = [k for k, v in _rl_store.items() if not v or now - max(v) >= window]
-    for k in stale_keys:
-        _rl_store.pop(k, None)
+_rl_store = _RlStoreCompat()
 
 
 def consume_rate_limit(key: str, limit: int, window: float) -> bool:
-    with _rl_lock:
-        hits = _prune(key, window)
-        if len(hits) >= limit:
-            return False
-        hits.append(time.time())
-        _rl_store[key] = hits
-        _cleanup_stale_entries(window)
-        return True
+    from app.core.rate_limit_store import RateLimitStore
+    return RateLimitStore.consume(key, limit, window)
 
 
 def client_ip() -> str:
@@ -118,31 +98,22 @@ def security_headers(response):
 
 
 # Lockout brute-force mechanism with exponential backoff
-_LOGIN_FAILURES: dict[str, list[float]] = defaultdict(list)
-_LOGIN_LOCK = threading.Lock()
+_LOGIN_FAILURES = _RlStoreCompat()
 LOCKOUT_MAX_ATTEMPTS = 5
 LOCKOUT_WINDOW_SECONDS = 600
 LOCKOUT_DURATION_SECONDS = 900
 
 
 def is_locked_out(ip: str) -> bool:
-    with _LOGIN_LOCK:
-        hits = [h for h in _LOGIN_FAILURES.get(ip, []) if time.time() - h < LOCKOUT_WINDOW_SECONDS]
-        _LOGIN_FAILURES[ip] = hits
-        if len(hits) >= LOCKOUT_MAX_ATTEMPTS:
-            # Exponential backoff: lock longer for repeated offenders
-            extra_attempts = len(hits) - LOCKOUT_MAX_ATTEMPTS
-            lockout_time = LOCKOUT_DURATION_SECONDS * (2 ** min(extra_attempts, 4))
-            last_failure = max(hits) if hits else 0
-            return (time.time() - last_failure) < lockout_time
-        return False
+    from app.core.rate_limit_store import RateLimitStore
+    return RateLimitStore.is_locked_out(ip, LOCKOUT_MAX_ATTEMPTS, LOCKOUT_WINDOW_SECONDS, LOCKOUT_DURATION_SECONDS)
 
 
 def record_login_failure(ip: str) -> None:
-    with _LOGIN_LOCK:
-        _LOGIN_FAILURES[ip].append(time.time())
+    from app.core.rate_limit_store import RateLimitStore
+    RateLimitStore.record_failure(ip)
 
 
 def clear_login_failures(ip: str) -> None:
-    with _LOGIN_LOCK:
-        _LOGIN_FAILURES.pop(ip, None)
+    from app.core.rate_limit_store import RateLimitStore
+    RateLimitStore.clear(ip)

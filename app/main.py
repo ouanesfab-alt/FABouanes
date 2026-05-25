@@ -57,13 +57,13 @@ async def lifespan(_: FastAPI):
     validate_single_worker_runtime()
     ensure_runtime_dirs()
     configure_logging()
-    bootstrap_and_migrate()
+    await asyncio.to_thread(bootstrap_and_migrate)
 
     # Bootstrap module schemas (CREATE TABLE IF NOT EXISTS)
     for module in get_enabled_modules():
         for sql in module.schema_sql:
             try:
-                execute_db(sql)
+                await asyncio.to_thread(execute_db, sql)
             except Exception:
                 logger.warning("Module schema error for %s: %s", module.name, sql[:80])
 
@@ -75,6 +75,15 @@ async def lifespan(_: FastAPI):
         events_startup()
     except Exception as e:
         logger.warning("Erreur au démarrage du scheduler d'événements: %s", e)
+
+    logger.info(
+        "FABOuanes started | env=%s desktop=%s host=%s port=%s modules=%s",
+        settings.env,
+        settings.desktop_mode,
+        settings.host,
+        settings.port,
+        [m.name for m in get_enabled_modules()],
+    )
 
     try:
         yield
@@ -336,6 +345,16 @@ try:
     mount_api_routes(api_router)
 except Exception as e:
     logger.critical("Erreur critique lors de la decouverte/montage des modules: %s", e, exc_info=True)
+
+
+@app.get("/api/v1/version")
+async def get_version():
+    from app.core.registry import get_enabled_modules
+    return {
+        "app": "FABOuanes",
+        "env": settings.env,
+        "modules": [m.name for m in get_enabled_modules()],
+    }
 
 
 app.mount("/static", CachedStaticFiles(directory=str(paths.static_dir)), name="static")

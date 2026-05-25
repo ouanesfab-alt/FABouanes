@@ -38,3 +38,15 @@ def get_state_value(name: str, default: Any = None) -> Any:
 
 def reset_request_state(token: Token) -> None:
     _request_state.reset(token)
+
+
+def get_current_request():
+    """Reads from the ContextVar and raises a clear error if called outside a request context.
+
+    Note: This is part of the new dependency injection way. The global ContextVar approach is legacy.
+    """
+    from fastapi import Request
+    state = get_request_state()
+    if state is None or not hasattr(state, "request") or state.request is None:
+        raise RuntimeError("No active request context found.")
+    return state.request

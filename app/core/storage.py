@@ -402,7 +402,7 @@ def restore_database_from(path_str: str) -> None:
     verify_backup_file(path, expected_sha256=stored_sha256)
 
     from app.core.db import connect_database
-    from app.core.sql_compat import split_sql_script
+    from app.core.db_helpers import split_sql_script
 
     # Lire le SQL (déchiffrement puis décompression si applicable)
     if path.name.endswith(".enc"):

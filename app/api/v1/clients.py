@@ -12,6 +12,7 @@ from app.api.v1._common import (
     payload_to_form_data,
     raw_material_payload,
     supplier_payload,
+    add_cache_headers,
 )
 from app.repositories.client_repository import list_clients
 from app.repositories.supplier_repository import list_suppliers
@@ -56,7 +57,10 @@ async def api_clients(request: Request):
         page_size=page_size
     )
     meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
-    return json_response(api_success(rows, meta))
+    res_data = api_success(rows, meta)
+    response = json_response(res_data)
+    add_cache_headers(request, response, res_data, max_age=300)
+    return response
 
 @router.api_route("/clients/{client_id}", methods=["GET", "PUT"])
 async def api_client_detail(request: Request, client_id: int):
@@ -70,7 +74,11 @@ async def api_client_detail(request: Request, client_id: int):
         client = await asyncio.to_thread(client_payload, client_id)
     detail = await asyncio.to_thread(client_history_payload, client_id)
     client["summary"] = detail.get("stats", {}) if detail else {}
-    return json_response(api_success(client))
+    res_data = api_success(client)
+    response = json_response(res_data)
+    if request.method == "GET":
+        add_cache_headers(request, response, res_data, max_age=300)
+    return response
 
 def _fetch_client_history(client_id: int, page: int, page_size: int) -> tuple[list, int]:
     # 1. Fetch all rows to calculate the running balance correctly across all pages
@@ -206,14 +214,17 @@ async def api_client_history(
     import math
     total_pages = math.ceil(total / page_size) if page_size > 0 else 1
     
-    return json_response(api_success({
+    res_data = api_success({
         "client_id": client_id,
         "rows": rows,
         "total": total,
         "page": page,
         "page_size": page_size,
         "total_pages": total_pages,
-    }))
+    })
+    response = json_response(res_data)
+    add_cache_headers(request, response, res_data, max_age=30)
+    return response
 
 
 @router.api_route("/suppliers", methods=["GET", "POST"])
@@ -243,7 +254,10 @@ async def api_suppliers(request: Request):
         page_size=page_size
     )
     meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
-    return json_response(api_success(rows, meta))
+    res_data = api_success(rows, meta)
+    response = json_response(res_data)
+    add_cache_headers(request, response, res_data, max_age=300)
+    return response
 
 @router.api_route("/suppliers/{supplier_id}", methods=["GET", "PUT", "DELETE"])
 async def api_supplier_detail(request: Request, supplier_id: int):
@@ -276,7 +290,11 @@ async def api_supplier_detail(request: Request, supplier_id: int):
         await execute_db_async("DELETE FROM suppliers WHERE id = %s", (supplier_id,))
         audit_event("delete_supplier", "supplier", supplier_id, source="api", before=before, after=None)
         return json_response(api_success({"deleted": True}))
-    return json_response(api_success(supplier))
+    res_data = api_success(supplier)
+    response = json_response(res_data)
+    if request.method == "GET":
+        add_cache_headers(request, response, res_data, max_age=300)
+    return response
 
 @router.api_route("/raw-materials", methods=["GET", "POST"])
 async def api_raw_materials(request: Request):
@@ -296,7 +314,10 @@ async def api_raw_materials(request: Request):
         page_size=page_size
     )
     meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
-    return json_response(api_success(rows, meta))
+    res_data = api_success(rows, meta)
+    response = json_response(res_data)
+    add_cache_headers(request, response, res_data, max_age=300)
+    return response
 
 @router.api_route("/raw-materials/{material_id}", methods=["GET", "PUT", "DELETE"])
 async def api_raw_material_detail(request: Request, material_id: int):
@@ -317,7 +338,11 @@ async def api_raw_material_detail(request: Request, material_id: int):
         if not await asyncio.to_thread(delete_raw_material_by_id, material_id):
             api_error("conflict", "Suppression impossible.", 409)
         return json_response(api_success({"deleted": True}))
-    return json_response(api_success(material))
+    res_data = api_success(material)
+    response = json_response(res_data)
+    if request.method == "GET":
+        add_cache_headers(request, response, res_data, max_age=300)
+    return response
 
 @router.api_route("/finished-products", methods=["GET", "POST"])
 async def api_finished_products(request: Request):
@@ -336,7 +361,10 @@ async def api_finished_products(request: Request):
         page_size=page_size
     )
     meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
-    return json_response(api_success(rows, meta))
+    res_data = api_success(rows, meta)
+    response = json_response(res_data)
+    add_cache_headers(request, response, res_data, max_age=300)
+    return response
 
 @router.api_route("/finished-products/{product_id}", methods=["GET", "PUT", "DELETE"])
 async def api_finished_product_detail(request: Request, product_id: int):
@@ -357,7 +385,11 @@ async def api_finished_product_detail(request: Request, product_id: int):
         if not await asyncio.to_thread(delete_product_by_id, product_id):
             api_error("conflict", "Suppression impossible.", 409)
         return json_response(api_success({"deleted": True}))
-    return json_response(api_success(product))
+    res_data = api_success(product)
+    response = json_response(res_data)
+    if request.method == "GET":
+        add_cache_headers(request, response, res_data, max_age=300)
+    return response
 
 
 @router.post("/clients/import-history/bulk")

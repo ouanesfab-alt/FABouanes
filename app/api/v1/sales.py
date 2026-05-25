@@ -17,7 +17,7 @@ from app.api.v1._common import (
     query_list_async,
     sale_document_payload,
     sale_payload,
-
+    add_cache_headers,
 )
 from app.core.permissions import PERMISSION_CATALOG_READ, PERMISSION_OPERATIONS_DELETE, PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
 from app.repositories.operation_repository import (
@@ -42,7 +42,10 @@ router = APIRouter(prefix="/api/v1", tags=["sales"])
 @router.get("/sellable-items")
 async def api_sellable_items(request: Request):
     require_api_user(request, PERMISSION_CATALOG_READ)
-    return json_response(await asyncio.to_thread(filtered_sellable_items, request))
+    res_data = await asyncio.to_thread(filtered_sellable_items, request)
+    response = json_response(res_data)
+    add_cache_headers(request, response, res_data, max_age=30)
+    return response
 
 
 
@@ -92,7 +95,10 @@ async def api_sales(request: Request):
         "returned": len(rows),
         "total": total
     }
-    return json_response(api_success(rows, meta))
+    res_data = api_success(rows, meta)
+    response = json_response(res_data)
+    add_cache_headers(request, response, res_data, max_age=30)
+    return response
 
 
 
@@ -136,7 +142,11 @@ async def api_sale_detail(request: Request, kind: str, row_id: int):
         if not await asyncio.to_thread(delete_sale_by_id, kind, row_id):
             api_error("conflict", "Suppression impossible.", 409)
         return json_response(api_success({"deleted": True}))
-    return json_response(api_success(sale))
+    res_data = api_success(sale)
+    response = json_response(res_data)
+    if request.method == "GET":
+        add_cache_headers(request, response, res_data, max_age=30)
+    return response
 
 
 @router.api_route("/sale-documents/{document_id}", methods=["GET", "PUT"])
@@ -153,7 +163,11 @@ async def api_sale_document_detail(request: Request, document_id: int):
                 api_error("document_has_payments", str(exc), 409, {"document_id": document_id})
             api_error("sale_document_invalid", str(exc), 400)
         document = await asyncio.to_thread(sale_document_payload, document_id)
-    return json_response(api_success(document))
+    res_data = api_success(document)
+    response = json_response(res_data)
+    if request.method == "GET":
+        add_cache_headers(request, response, res_data, max_age=30)
+    return response
 
 
 
@@ -175,5 +189,8 @@ async def api_recent_operations(request: Request):
         "returned": len(rows),
         "total": total
     }
-    return json_response(api_success(rows, meta))
+    res_data = api_success(rows, meta)
+    response = json_response(res_data)
+    add_cache_headers(request, response, res_data, max_age=30)
+    return response
 

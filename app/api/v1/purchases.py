@@ -5,7 +5,7 @@ import asyncio
 
 
 from app.api.deps import api_error, api_success, require_api_user
-from app.api.v1._common import append_date_range, append_text_search, json_response, payload_to_form_data, purchase_document_payload, purchase_payload, query_list, query_list_async
+from app.api.v1._common import append_date_range, append_text_search, json_response, payload_to_form_data, purchase_document_payload, purchase_payload, query_list, query_list_async, add_cache_headers
 from app.repositories.purchase_repository import list_purchases
 
 
@@ -53,7 +53,10 @@ async def api_purchases(request: Request):
         "returned": len(rows),
         "total": total
     }
-    return json_response(api_success(rows, meta))
+    res_data = api_success(rows, meta)
+    response = json_response(res_data)
+    add_cache_headers(request, response, res_data, max_age=30)
+    return response
 
 
 
@@ -95,7 +98,11 @@ async def api_purchase_detail(request: Request, purchase_id: int):
         if not await asyncio.to_thread(delete_purchase_by_id, purchase_id):
             api_error("conflict", "Suppression impossible.", 409)
         return json_response(api_success({"deleted": True}))
-    return json_response(api_success(purchase))
+    res_data = api_success(purchase)
+    response = json_response(res_data)
+    if request.method == "GET":
+        add_cache_headers(request, response, res_data, max_age=30)
+    return response
 
 
 
@@ -111,5 +118,9 @@ async def api_purchase_document_detail(request: Request, document_id: int):
         except ValueError as exc:
             api_error("purchase_document_invalid", str(exc), 400)
         document = await asyncio.to_thread(purchase_document_payload, document_id)
-    return json_response(api_success(document))
+    res_data = api_success(document)
+    response = json_response(res_data)
+    if request.method == "GET":
+        add_cache_headers(request, response, res_data, max_age=30)
+    return response
 
