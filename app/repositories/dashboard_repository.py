@@ -304,11 +304,7 @@ def _dashboard_cumulative_summary() -> dict[str, float]:
         lambda: query_db(
             """
             SELECT
-                COALESCE((SELECT SUM(opening_credit) FROM clients), 0)
-                + COALESCE((SELECT SUM(total) FROM sales WHERE sale_type = 'credit'), 0)
-                + COALESCE((SELECT SUM(total) FROM raw_sales WHERE sale_type = 'credit'), 0)
-                - COALESCE((SELECT SUM(amount) FROM payments WHERE payment_type = 'versement'), 0)
-                + COALESCE((SELECT SUM(amount) FROM payments WHERE payment_type = 'avance'), 0) AS total_receivables,
+                COALESCE((SELECT SUM(balance) FROM mv_client_balances), 0) AS total_receivables,
                 COALESCE((SELECT SUM(profit_amount) FROM sales), 0)
                 + COALESCE((SELECT SUM(profit_amount) FROM raw_sales), 0) AS total_profit,
                 COALESCE((SELECT SUM(total) FROM sales), 0)

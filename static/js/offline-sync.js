@@ -68,9 +68,11 @@ export async function syncPendingOperations() {
 export async function cacheReferenceData() {
   if (!navigator.onLine) return;
   try {
-    const [clientsRes, catalogRes] = await Promise.all([
+    const [clientsRes, catalogRes, suppliersRes, rawMaterialsRes] = await Promise.all([
       fetch('/api/v1/clients?limit=500'),
       fetch('/api/v1/sellable-items'),
+      fetch('/api/v1/suppliers?limit=500'),
+      fetch('/api/v1/raw-materials?limit=500'),
     ]);
     if (clientsRes.ok) {
       const data = await clientsRes.json();
@@ -79,6 +81,14 @@ export async function cacheReferenceData() {
     if (catalogRes.ok) {
       const data = await catalogRes.json();
       await cacheRefData('catalog', data.data || data);
+    }
+    if (suppliersRes.ok) {
+      const data = await suppliersRes.json();
+      await cacheRefData('suppliers', data.data || data);
+    }
+    if (rawMaterialsRes.ok) {
+      const data = await rawMaterialsRes.json();
+      await cacheRefData('raw_materials', data.data || data);
     }
   } catch (e) {
     console.warn('[FAB offline] Impossible de mettre en cache les données de référence :', e);

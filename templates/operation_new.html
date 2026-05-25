@@ -665,7 +665,6 @@ document.addEventListener('DOMContentLoaded', () => {
 import { queueOperation, getRefData } from '/static/js/offline-db.js';
 
 // --- PAYMENT & OFFLINE FORM SYNC ---
-const form = document.getElementById('payment-form');
 const paymentDateInput = document.getElementById('paymentDate');
  
 if (paymentDateInput) {
@@ -673,34 +672,103 @@ if (paymentDateInput) {
   paymentDateInput.max = today;
   if (!paymentDateInput.value) paymentDateInput.value = today;
 }
- 
-async function fillClientsFromCache() {
+
+function serializeForm(form) {
+  const fd = new FormData(form);
+  const data = {};
+  for (const [key, value] of fd.entries()) {
+    if (key.endsWith('[]')) {
+      if (!data[key]) data[key] = [];
+      data[key].push(value);
+    } else {
+      data[key] = value;
+    }
+  }
+  return data;
+}
+
+const formsToIntercept = [
+  { id: 'payment-form', type: 'create_payment', label: 'Paiement enregistré' },
+  { id: 'sale-form', type: 'create_sale', label: 'Facture de vente enregistrée' },
+  { id: 'purchaseDocumentForm', type: 'create_purchase', label: 'Bon d\'achat enregistré' }
+];
+
+formsToIntercept.forEach(({ id, type, label }) => {
+  const f = document.getElementById(id);
+  f?.addEventListener('submit', async (e) => {
+    if (navigator.onLine) return;
+    e.preventDefault();
+    const data = serializeForm(f);
+    await queueOperation(type, data);
+    f.innerHTML = `
+      <div class="alert alert-success text-center p-4">
+        <i class="bi bi-clock-history fs-3 d-block mb-2"></i>
+        <strong>${label} hors-ligne</strong><br>
+        <small class="text-muted">Il sera synchronisé automatiquement à la reconnexion.</small>
+        <div class="mt-3">
+          <a href="/operations" class="btn btn-sm btn-success">Retour aux opérations</a>
+        </div>
+      </div>`;
+  });
+});
+
+async function fillDropdownsFromCache() {
   if (navigator.onLine) return;
+
+  // 1. Populate clients dropdowns
   const clients = await getRefData('clients');
-  const sel = document.getElementById('paymentClientSelect');
-  if (clients && sel) {
-    sel.innerHTML = clients.map(c =>
-      `<option value="${c.id}">${c.name}${c.phone ? ' — ' + c.phone : ''}</option>`
+  if (clients) {
+    const clientsOptions = '<option value="">Comptoir (cash)</option>' + clients.map(c =>
+      `<option value="${c.id}">${c.name}</option>`
     ).join('');
+    
+    const clientSelect = document.getElementById('clientSelect');
+    if (clientSelect) clientSelect.innerHTML = clientsOptions;
+
+    const paymentClientSelect = document.getElementById('paymentClientSelect');
+    if (paymentClientSelect) {
+      paymentClientSelect.innerHTML = clients.map(c =>
+        `<option value="${c.id}">${c.name}${c.phone ? ' — ' + c.phone : ''}</option>`
+      ).join('');
+    }
+  }
+
+  // 2. Populate suppliers dropdown
+  const suppliers = await getRefData('suppliers');
+  if (suppliers) {
+    const supplierSelect = document.getElementById('supplierSelect');
+    if (supplierSelect) {
+      supplierSelect.innerHTML = '<option value="">Sans fournisseur</option>' + suppliers.map(s =>
+        `<option value="${s.id}">${s.name}</option>`
+      ).join('');
+    }
+  }
+
+  // 3. Populate raw materials in purchase template select
+  const rawMaterials = await getRefData('raw_materials');
+  const purchaseTemplate = document.getElementById('purchaseLineTemplate');
+  if (rawMaterials && purchaseTemplate) {
+    const select = purchaseTemplate.content.querySelector('.purchase-material');
+    if (select) {
+      select.innerHTML = rawMaterials.map(r =>
+        `<option value="${r.id}" data-unit="${r.unit || 'kg'}" data-price="${r.avg_cost || 0}" data-stock="${r.stock_qty || 0}" data-force-unit="${r.force_unit || ''}" data-custom-name-required="${r.custom_name_required || ''}">${r.name}</option>`
+      ).join('');
+    }
+  }
+
+  // 4. Populate catalog items in sale template select
+  const catalog = await getRefData('catalog');
+  const saleTemplate = document.getElementById('saleLineTemplate');
+  if (catalog && saleTemplate) {
+    const select = saleTemplate.content.querySelector('.sale-item');
+    if (select) {
+      select.innerHTML = catalog.map(p =>
+        `<option value="${p.key}" data-unit="${p.unit || 'kg'}" data-price="${p.sale_price || 0}" data-stock="${p.stock_qty || 0}" data-cost="${p.avg_cost || 0}" data-force-unit="${p.force_unit || ''}" data-custom-name-required="${p.custom_name_required || ''}">${p.label}</option>`
+      ).join('');
+    }
   }
 }
- 
-form?.addEventListener('submit', async (e) => {
-  if (navigator.onLine) return;
-  e.preventDefault();
-  const data = Object.fromEntries(new FormData(form).entries());
-  await queueOperation('create_payment', data);
-  form.innerHTML = `
-    <div class="alert alert-success text-center p-4">
-      <i class="bi bi-clock-history fs-3 d-block mb-2"></i>
-      <strong>Paiement enregistré hors-ligne</strong><br>
-      <small class="text-muted">Il sera synchronisé automatiquement à la reconnexion.</small>
-      <div class="mt-3">
-        <a href="/operations" class="btn btn-sm btn-success">Retour aux opérations</a>
-      </div>
-    </div>`;
-});
- 
-document.addEventListener('DOMContentLoaded', fillClientsFromCache);
+
+document.addEventListener('DOMContentLoaded', fillDropdownsFromCache);
 </script>
 {% endblock %}

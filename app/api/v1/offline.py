@@ -11,6 +11,7 @@ from app.api.v1._common import payload_to_form_data
 from app.core.permissions import PERMISSION_OPERATIONS_WRITE
 from app.services.sale_service import create_sale_from_form
 from app.services.payment_service import create_payment_from_form
+from app.services.purchase_service import create_purchase_from_form
 
 router = APIRouter(prefix="/api/v1/offline", tags=["offline"])
 
@@ -30,6 +31,10 @@ async def sync_operation(request: Request):
     try:
         if op_type == "create_sale":
             result = await asyncio.to_thread(create_sale_from_form, payload_to_form_data(payload))
+            return JSONResponse({"ok": True, "mode": result.get("mode")})
+
+        elif op_type == "create_purchase":
+            result = await asyncio.to_thread(create_purchase_from_form, payload_to_form_data(payload))
             return JSONResponse({"ok": True, "mode": result.get("mode")})
 
         elif op_type == "create_payment":
