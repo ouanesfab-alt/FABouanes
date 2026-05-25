@@ -54,6 +54,10 @@ class ReportsContextDTO(BaseModel):
     expenses_by_cat_totals: list[float]
     expenses_total: Decimal
     net_profit: Decimal
+    cogs: Decimal
+    gross_margin: Decimal
+    gross_margin_pct: float
+    net_margin_pct: float
     chart_labels: list[str]
     chart_sales: list[float]
     chart_purchases: list[float]
@@ -64,3 +68,6 @@ class ReportsContextDTO(BaseModel):
     daily_profits: list[float]
     date_from: str | None
     date_to: str | None
+    
+    class Config:
+        arbitrary_types_allowed = True

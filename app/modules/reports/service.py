@@ -62,6 +62,15 @@ class ReportsService:
         sales = self.repository.get_credit_sales()
         payments = self.repository.get_payments()
 
+        from collections import defaultdict
+        sales_by_client = defaultdict(list)
+        for s in sales:
+            sales_by_client[s["client_id"]].append(s)
+
+        payments_by_client = defaultdict(list)
+        for p in payments:
+            payments_by_client[p["client_id"]].append(p)
+
         client_debts: list[ClientDebtDTO] = []
         total_under_30 = Decimal("0.0")
         total_30_to_90 = Decimal("0.0")
@@ -69,8 +78,8 @@ class ReportsService:
         total_outstanding = Decimal("0.0")
         
         for client in clients:
-            c_sales = [s for s in sales if s["client_id"] == client["id"]]
-            c_payments = [p for p in payments if p["client_id"] == client["id"]]
+            c_sales = sales_by_client[client["id"]]
+            c_payments = payments_by_client[client["id"]]
             
             total_credit = Decimal(str(client["opening_credit"])) + sum(Decimal(str(s["total"])) for s in c_sales)
             total_paid_versements = sum(Decimal(str(p["amount"])) for p in c_payments if p["payment_type"] == "versement")
@@ -89,51 +98,36 @@ class ReportsService:
                         break
                     unpaid = min(rem, Decimal(str(s["total"])))
                     sale_day = _to_date(s["date"])
-                    days = (today - sale_day).days
-                    if days < 30:
-                        brackets["under_30"] += unpaid
-                    elif days <= 90:
-                        brackets["days_30_to_90"] += unpaid
-                    else:
-                        brackets["over_90"] += unpaid
+                    if sale_day:
+                        age = (today - sale_day).days
+                        if age < 30:
+                            brackets["under_30"] += unpaid
+                        elif age < 90:
+                            brackets["days_30_to_90"] += unpaid
+                        else:
+                            brackets["over_90"] += unpaid
                     rem -= unpaid
-                if rem > 0:
-                    brackets["over_90"] += rem
-                    
-                # Repayment delay FIFO
-                sales_fifo = []
-                if Decimal(str(client["opening_credit"])) > 0:
-                    sales_fifo.append({"date": date(2020, 1, 1), "total": Decimal(str(client["opening_credit"]))})
-                for s in sorted(c_sales, key=lambda x: x["date"]):
-                    sales_fifo.append({"date": s["date"], "total": Decimal(str(s["total"]))})
-                    
-                c_versements = sorted([p for p in c_payments if p["payment_type"] == "versement"], key=lambda x: x["date"])
+                
+                # Avg delay
                 delays = []
                 sale_idx = 0
-                num_sales = len(sales_fifo)
-                for p in c_versements:
-                    p_amount = Decimal(str(p["amount"]))
+                for p in sorted(c_payments, key=lambda x: x["date"]):
                     p_date = _to_date(p["date"])
-                    while p_amount > 0 and sale_idx < num_sales:
-                        sale = sales_fifo[sale_idx]
-                        s_total = sale["total"]
-                        s_date = _to_date(sale["date"]) if sale["date"] != date(2020, 1, 1) else None
-                        
-                        if s_total <= 0:
+                    if not p_date:
+                        continue
+                    if p["payment_type"] not in ("versement", "avance"):
+                        continue
+                    while sale_idx < len(c_sales_desc):
+                        s_date = _to_date(c_sales_desc[sale_idx]["date"])
+                        if s_date and p_date >= s_date:
+                            delay_days = (p_date - s_date).days
+                            if delay_days >= 0:
+                                delays.append(delay_days)
+                                
+                        if sale_idx < len(c_sales_desc) and c_sales_desc[sale_idx]["total"] <= 0:
                             sale_idx += 1
-                            continue
-                            
-                        payment_applied = min(p_amount, s_total)
-                        p_amount -= payment_applied
-                        sale["total"] -= payment_applied
-                        
-                        if s_date:
-                           delay_days = (p_date - s_date).days
-                           if delay_days >= 0:
-                               delays.append(delay_days)
-                               
-                        if sale["total"] <= 0:
-                            sale_idx += 1
+                        else:
+                            break
                 avg_delay = int(round(sum(delays) / len(delays))) if delays else None
                 
                 # Limit check
@@ -257,6 +251,10 @@ class ReportsService:
             expenses_by_cat_totals=expenses_by_cat_totals,
             expenses_total=expenses_total,
             net_profit=net_profit,
+            cogs=cogs,
+            gross_margin=gross_margin,
+            gross_margin_pct=gross_margin_pct,
+            net_margin_pct=net_margin_pct,
             chart_labels=chart_labels,
             chart_sales=chart_sales,
             chart_purchases=chart_purchases,
@@ -268,9 +266,3 @@ class ReportsService:
             date_from=date_from,
             date_to=date_to,
         )
-
-# Rétro-compatibilité pour d'autres modules si nécessaire
-def build_reports_context(date_from: str | None = None, date_to: str | None = None) -> dict:
-    service = ReportsService()
-    dto = service.build_reports_context(date_from, date_to)
-    return dto.dict()
