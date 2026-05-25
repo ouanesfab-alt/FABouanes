@@ -5304,11 +5304,19 @@ html:not([data-theme="light"]) .btn-outline-secondary.active {
 html:not([data-theme="light"]) .record-table tbody tr,
 html:not([data-theme="light"]) .table tbody tr {
   border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
-  transition: background 0.3s var(--mac-spring) !important;
 }
-html:not([data-theme="light"]) .record-table tbody tr:hover, 
-html:not([data-theme="light"]) .table tbody tr:hover {
-  background: rgba(10, 132, 255, 0.04) !important;
+html:not([data-theme="light"]) .record-table tbody tr > td,
+html:not([data-theme="light"]) .record-table tbody tr > th,
+html:not([data-theme="light"]) .table tbody tr > td,
+html:not([data-theme="light"]) .table tbody tr > th {
+  transition: background-color 0.25s var(--mac-spring) !important;
+}
+html:not([data-theme="light"]) .record-table tbody tr:hover > td, 
+html:not([data-theme="light"]) .record-table tbody tr:hover > th,
+html:not([data-theme="light"]) .table tbody tr:hover > td,
+html:not([data-theme="light"]) .table tbody tr:hover > th {
+  background-color: rgba(10, 132, 255, 0.15) !important;
+  box-shadow: none !important;
 }
 html:not([data-theme="light"]) .record-table thead th, 
 html:not([data-theme="light"]) .table thead th {
@@ -5564,11 +5572,19 @@ html[data-theme="light"] .btn-outline-secondary.active {
 html[data-theme="light"] .record-table tbody tr,
 html[data-theme="light"] .table tbody tr {
   border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
-  transition: background 0.3s var(--mac-spring) !important;
 }
-html[data-theme="light"] .record-table tbody tr:hover, 
-html[data-theme="light"] .table tbody tr:hover {
-  background: rgba(0, 122, 255, 0.02) !important;
+html[data-theme="light"] .record-table tbody tr > td,
+html[data-theme="light"] .record-table tbody tr > th,
+html[data-theme="light"] .table tbody tr > td,
+html[data-theme="light"] .table tbody tr > th {
+  transition: background-color 0.25s var(--mac-spring) !important;
+}
+html[data-theme="light"] .record-table tbody tr:hover > td, 
+html[data-theme="light"] .record-table tbody tr:hover > th,
+html[data-theme="light"] .table tbody tr:hover > td,
+html[data-theme="light"] .table tbody tr:hover > th {
+  background-color: rgba(0, 122, 255, 0.08) !important;
+  box-shadow: none !important;
 }
 html[data-theme="light"] .record-table thead th, 
 html[data-theme="light"] .table thead th {

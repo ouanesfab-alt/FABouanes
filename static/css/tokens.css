@@ -501,13 +501,15 @@ h1, h2, h3, h4, h5, h6, .section-title {
 .table-hover tbody tr:hover td,
 .table-row-hover tr:hover td {
   background: rgba(0, 122, 255, 0.08) !important;
+  box-shadow: none !important;
 }
 [data-theme="dark"] .table td {
   border-bottom-color: rgba(255, 255, 255, 0.04) !important;
 }
 [data-theme="dark"] .table-hover tbody tr:hover td,
 [data-theme="dark"] .table-row-hover tr:hover td {
-  background: rgba(10, 132, 255, 0.12) !important;
+  background: rgba(10, 132, 255, 0.15) !important;
+  box-shadow: none !important;
 }
 
 /* ── Modals — macOS sheet ── */
@@ -776,7 +778,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .title-premium, .section-title, .modal-tit
     border: 0.5px solid var(--glass-border) !important;
     border-radius: 12px !important;
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.16) !important;
-    margin-top: calc(var(--nav-h) + 24px) !important;
+    margin-top: 24px !important;
     margin-bottom: 40px !important;
     padding: 30px !important;
     transition: background-color 0.4s var(--ease-smooth) !important;
@@ -961,8 +963,17 @@ html[data-theme="dark"] .table tbody tr:nth-child(even),
 html[data-theme="windows-dark"] .table tbody tr:nth-child(even) {
   background: rgba(255, 255, 255, 0.015) !important;
 }
-.table tbody tr:hover {
-  background: rgba(0, 122, 255, 0.06) !important;
+.table tbody tr:hover > td,
+.table tbody tr:hover > th {
+  background-color: rgba(0, 122, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] .table tbody tr:hover > td,
+html[data-theme="dark"] .table tbody tr:hover > th,
+html[data-theme="windows-dark"] .table tbody tr:hover > td,
+html[data-theme="windows-dark"] .table tbody tr:hover > th {
+  background-color: rgba(10, 132, 255, 0.15) !important;
+  box-shadow: none !important;
 }
 
 /* Thin macOS scrollbars */
