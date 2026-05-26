@@ -147,8 +147,7 @@
       <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardLowStock" aria-controls="dashboardLowStock" aria-pressed="false"><i class="bi bi-exclamation-triangle"></i> Stocks faibles</button>
       <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardRecentSales" aria-controls="dashboardRecentSales" aria-pressed="false"><i class="bi bi-receipt"></i> Ventes récentes</button>
       <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardDailySummary" aria-controls="dashboardDailySummary" aria-pressed="false"><i class="bi bi-calendar3"></i> Résumé journalier</button>
-      <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardRawMaterials" aria-controls="dashboardRawMaterials" aria-pressed="false"><i class="bi bi-flower1"></i> Matières premières</button>
-      <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardFinishedProducts" aria-controls="dashboardFinishedProducts" aria-pressed="false"><i class="bi bi-box-seam"></i> Produits finaux</button>
+      <button type="button" class="fab-switch-btn" data-fab-switch-target="dashboardStock" aria-controls="dashboardStock" aria-pressed="false"><i class="bi bi-box-seam"></i> Matières premières &amp; Produits finaux</button>
     </div>
 
     <div id="dashboardSwitchPlaceholder" class="card fab-switch-placeholder">
@@ -251,50 +250,60 @@
       {% endif %}
     </section>
 
-    <section id="dashboardRawMaterials" class="card p-3 fab-switch-panel" hidden>
-      <h5 class="dashboard-panel-title">Matières premières</h5>
-      <p class="dashboard-panel-subtitle">État du stock, autonomie estimée et coût moyen.</p>
-      {% if stock_materials %}
-      <div class="table-responsive">
-        <table class="table table-sm align-middle">
-          <thead><tr><th>Nom</th><th>Stock</th><th>Jours</th><th>Coût</th></tr></thead>
-          <tbody>
-            {% for s in stock_materials %}
-            <tr><td>{{ s.name }}</td><td class="{{ 'text-danger fw-bold' if s.stock_qty <= s.alert_threshold else '' }}">{{ s.stock_qty }} {{ s.unit }}</td><td>{% if s.days_left is not none %}<span class="badge {{ 'bg-danger' if s.days_left < 7 else ('bg-warning text-dark' if s.days_left < 15 else 'bg-success') }} small">{{ s.days_left }}j</span>{% else %}<span class="text-muted small">-</span>{% endif %}</td><td class="small text-muted">{{ s.avg_cost|money }}</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <div class="empty-state">
-        <i class="bi bi-box empty-state-icon"></i>
-        <div class="empty-state-title">Catalogue vide</div>
-        <div class="empty-state-sub">Vous n'avez pas encore de matières premières.</div>
-      </div>
-      {% endif %}
-    </section>
+    <section id="dashboardStock" class="fab-switch-panel" hidden>
+      <div class="row g-3">
+        <!-- Matières premières -->
+        <div class="col-lg-6">
+          <div class="card p-3 h-100">
+            <h5 class="dashboard-panel-title">Matières premières</h5>
+            <p class="dashboard-panel-subtitle">État du stock, autonomie estimée et coût moyen.</p>
+            {% if stock_materials %}
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead><tr><th>Nom</th><th>Stock</th><th>Jours</th><th>Coût</th></tr></thead>
+                <tbody>
+                  {% for s in stock_materials %}
+                  <tr><td>{{ s.name }}</td><td class="{{ 'text-danger fw-bold' if s.stock_qty <= s.alert_threshold else '' }}">{{ s.stock_qty }} {{ s.unit }}</td><td>{% if s.days_left is not none %}<span class="badge {{ 'bg-danger' if s.days_left < 7 else ('bg-warning text-dark' if s.days_left < 15 else 'bg-success') }} small">{{ s.days_left }}j</span>{% else %}<span class="text-muted small">-</span>{% endif %}</td><td class="small text-muted">{{ s.avg_cost|money }}</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+              <i class="bi bi-box empty-state-icon"></i>
+              <div class="empty-state-title">Catalogue vide</div>
+              <div class="empty-state-sub">Vous n'avez pas encore de matières premières.</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
 
-    <section id="dashboardFinishedProducts" class="card p-3 fab-switch-panel" hidden>
-      <h5 class="dashboard-panel-title">Produits finaux</h5>
-      <p class="dashboard-panel-subtitle">Niveaux de stock, prix de revient et prix de vente.</p>
-      {% if stock_products %}
-      <div class="table-responsive">
-        <table class="table table-sm align-middle no-grid">
-          <thead><tr><th>Nom</th><th>Stock</th><th>Revient</th><th>Vente</th></tr></thead>
-          <tbody>
-            {% for s in stock_products %}
-            <tr><td>{{ s.name }}</td><td class="{{ 'text-danger fw-bold' if s.stock_qty <= 0 else '' }}">{{ s.stock_qty }} {{ s.default_unit }}</td><td class="small text-muted">{{ s.avg_cost|money }}</td><td class="small">{{ s.sale_price|money }}</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <!-- Produits finaux -->
+        <div class="col-lg-6">
+          <div class="card p-3 h-100">
+            <h5 class="dashboard-panel-title">Produits finaux</h5>
+            <p class="dashboard-panel-subtitle">Niveaux de stock, prix de revient et prix de vente.</p>
+            {% if stock_products %}
+            <div class="table-responsive">
+              <table class="table table-sm align-middle no-grid">
+                <thead><tr><th>Nom</th><th>Stock</th><th>Revient</th><th>Vente</th></tr></thead>
+                <tbody>
+                  {% for s in stock_products %}
+                  <tr><td>{{ s.name }}</td><td class="{{ 'text-danger fw-bold' if s.stock_qty <= 0 else '' }}">{{ s.stock_qty }} {{ s.default_unit }}</td><td class="small text-muted">{{ s.avg_cost|money }}</td><td class="small">{{ s.sale_price|money }}</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+              <i class="bi bi-box2 empty-state-icon"></i>
+              <div class="empty-state-title">Aucun produit final</div>
+              <div class="empty-state-sub">Vous n'avez pas encore configuré de produits finaux.</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
       </div>
-      {% else %}
-      <div class="empty-state">
-        <i class="bi bi-box2 empty-state-icon"></i>
-        <div class="empty-state-title">Aucun produit final</div>
-        <div class="empty-state-sub">Vous n'avez pas encore configuré de produits finaux.</div>
-      </div>
-      {% endif %}
     </section>
   </div>
 </div>
