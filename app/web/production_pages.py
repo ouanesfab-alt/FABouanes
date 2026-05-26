@@ -10,7 +10,46 @@ from app.core.helpers import wants_print_after_submit
 from app.services.production_service import create_production_from_form, delete_production_by_id, new_production_context, productions_context
 
 
+from pydantic import ValidationError
+from app.schemas.production import ProductionBatchCreate
+
 router = APIRouter()
+
+
+def parse_production_form(form) -> dict:
+    finished_id_str = form.get("finished_product_id")
+    finished_product_id = int(finished_id_str) if finished_id_str else None
+
+    output_qty_str = form.get("output_quantity")
+    output_quantity = float(output_qty_str) if output_qty_str else None
+
+    production_date = form.get("production_date")
+    notes = form.get("notes")
+
+    raw_ids = form.getlist("raw_material_id[]")
+    quantities = form.getlist("quantity[]")
+
+    items = []
+    for r_id, qty in zip(raw_ids, quantities):
+        if r_id or qty:
+            try:
+                items.append({
+                    "raw_material_id": int(r_id) if r_id else None,
+                    "quantity": float(qty) if qty else None
+                })
+            except ValueError:
+                items.append({
+                    "raw_material_id": r_id,
+                    "quantity": qty
+                })
+
+    return {
+        "finished_product_id": finished_product_id,
+        "output_quantity": output_quantity,
+        "production_date": production_date,
+        "notes": notes,
+        "items": items
+    }
 
 
 @router.get("/production", name="production")
@@ -30,10 +69,17 @@ async def production_submit(request: Request):
     form = await request.form()
     set_state_value("submitted_form", form)
     try:
+        parsed = parse_production_form(form)
+        ProductionBatchCreate.model_validate(parsed)
         create_production_from_form(form)
         flash(request, "Production multi-matières enregistrée avec coût de revient.", "success")
     except Exception as exc:
-        flash(request, str(exc), "danger")
+        errors = (
+            [err["msg"] for err in exc.errors()]
+            if isinstance(exc, ValidationError)
+            else [str(exc)]
+        )
+        flash(request, f"Erreur : {', '.join(errors)}", "danger")
     return RedirectResponse("/production", status_code=303)
 
 
@@ -54,6 +100,8 @@ async def new_production_submit(request: Request):
     form = await request.form()
     set_state_value("submitted_form", form)
     try:
+        parsed = parse_production_form(form)
+        ProductionBatchCreate.model_validate(parsed)
         result = create_production_from_form(form)
         if result["recipe_id"]:
             flash(request, f"Production enregistrée. Recette sauvegardée ({result['recipe_label']}). Reste théorique : {result['remainder']:.2f} kg.", "success")
@@ -63,7 +111,12 @@ async def new_production_submit(request: Request):
             return RedirectResponse(f"/print/production/{result['batch_id']}", status_code=303)
         return RedirectResponse("/production", status_code=303)
     except Exception as exc:
-        flash(request, str(exc), "danger")
+        errors = (
+            [err["msg"] for err in exc.errors()]
+            if isinstance(exc, ValidationError)
+            else [str(exc)]
+        )
+        flash(request, f"Erreur : {', '.join(errors)}", "danger")
         return RedirectResponse("/production/new", status_code=303)
 
 

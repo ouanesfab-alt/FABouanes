@@ -56,7 +56,7 @@ def test_client_balance_and_payment_records():
         (client_id, raw_mat_id)
     )
 
-    # Calculate balance (clients_with_stats view is updated, but if sqlite is used or view needs update, we check get_open_credit_entries)
+    # Calculate balance (clients_with_stats view is updated, but if view needs update, we check get_open_credit_entries)
     open_entries = get_open_credit_entries(client_id)
     assert len(open_entries) == 2
     assert {e["item_kind"] for e in open_entries} == {"finished", "raw"}

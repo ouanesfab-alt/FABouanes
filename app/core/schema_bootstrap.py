@@ -3,6 +3,8 @@ Responsibility: Bootstrap the initial database schema and seed data.
 """
 from __future__ import annotations
 
+import logging
+
 import re
 
 from app.core.config import settings
@@ -70,8 +72,8 @@ def bootstrap_schema() -> None:
                 cols = list_columns(conn, table)
                 if cols and "created_at" not in cols:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP")
-            except Exception:
-                pass
+            except Exception as exc:
+                logging.getLogger("fabouanes").debug("Auto-migration column add skipped for %s", table, exc_info=True)
 
         try:
             cols = list_columns(conn, "purchases")
@@ -80,8 +82,8 @@ def bootstrap_schema() -> None:
             if cols:
                 # PostgreSQL command to drop not null constraint if present
                 conn.execute("ALTER TABLE purchases ALTER COLUMN raw_material_id DROP NOT NULL")
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.getLogger("fabouanes").debug("Auto-migration for purchases.finished_product_id skipped", exc_info=True)
 
         conn.commit()
     finally:

@@ -409,7 +409,7 @@ class DatabaseManager:
                     row = cur.fetchone()
                     last_id = row[0] if row else None
                 except Exception:
-                    pass
+                    logger.debug("Could not fetch RETURNING result", exc_info=True)
             else:
                 last_id = cur.lastrowid
                 

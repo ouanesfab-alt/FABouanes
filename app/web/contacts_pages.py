@@ -53,8 +53,17 @@ async def suppliers_submit(request: Request):
         return denied
     await csrf_protect(request)
     form = await request.form()
-    create_supplier_from_form(form)
-    flash(request, "Fournisseur ajouté avec succès.", "success")
+    try:
+        from app.schemas.supplier_validation import SupplierValidationSchema
+        from pydantic import ValidationError
+        data = {k: v for k, v in form.items()}
+        validated = SupplierValidationSchema(**data)
+        create_supplier_from_form(validated.model_dump())
+        flash(request, "Fournisseur ajouté avec succès.", "success")
+    except Exception as e:
+        errors = [err["msg"] for err in e.errors()] if isinstance(e, ValidationError) else [str(e)]
+        flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
+        return RedirectResponse(NEW_SUPPLIER_URL, status_code=303)
     return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
 
 
@@ -93,8 +102,17 @@ async def new_supplier_submit(request: Request):
         return denied
     await csrf_protect(request)
     form = await request.form()
-    create_supplier_from_form(form)
-    flash(request, "Fournisseur ajouté avec succès.", "success")
+    try:
+        from app.schemas.supplier_validation import SupplierValidationSchema
+        from pydantic import ValidationError
+        data = {k: v for k, v in form.items()}
+        validated = SupplierValidationSchema(**data)
+        create_supplier_from_form(validated.model_dump())
+        flash(request, "Fournisseur ajouté avec succès.", "success")
+    except Exception as e:
+        errors = [err["msg"] for err in e.errors()] if isinstance(e, ValidationError) else [str(e)]
+        flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
+        return RedirectResponse(NEW_SUPPLIER_URL, status_code=303)
     return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
 
 
@@ -150,8 +168,17 @@ async def edit_supplier_submit(request: Request, supplier_id: int):
         flash(request, "Fournisseur introuvable.", "danger")
         return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
     form = await request.form()
-    update_supplier_from_form(supplier_id, form)
-    flash(request, "Fournisseur modifié.", "success")
+    try:
+        from app.schemas.supplier_validation import SupplierValidationSchema
+        from pydantic import ValidationError
+        data = {k: v for k, v in form.items()}
+        validated = SupplierValidationSchema(**data)
+        update_supplier_from_form(supplier_id, validated.model_dump())
+        flash(request, "Fournisseur modifié.", "success")
+    except Exception as e:
+        errors = [err["msg"] for err in e.errors()] if isinstance(e, ValidationError) else [str(e)]
+        flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
+        return RedirectResponse(str(request.url), status_code=303)
     return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
 
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from datetime import date
 
 from app.core.db_access import db_transaction, execute_db, query_db
@@ -93,8 +95,8 @@ def record_stock_movement(
 ) -> None:
     try:
         insert_stock_movement(item_kind, item_id, direction, quantity, unit, stock_before, stock_after, reason, reference_type, reference_id, _actor_username())
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.getLogger("fabouanes").warning("Failed to record stock movement for %s #%s", item_kind, item_id, exc_info=True)
 
 
 def recalc_raw_material_avg_cost(material_id: int) -> None:
@@ -497,7 +499,8 @@ def reverse_production(batch_id: int) -> bool:
 
 def smart_profit_for_sale(item_kind: str, item_id: int, qty_kg: float, total: float) -> tuple[float, float]:
     table = "finished_products" if item_kind == "finished" else "raw_materials"
-    assert table in {"finished_products", "raw_materials"}, f"Table {table} is not allowed"
+    if table not in {"finished_products", "raw_materials"}:
+        raise ValueError(f"Table {table} is not allowed for profit calculation")
     row = query_db(f"SELECT avg_cost FROM {table} WHERE id = %s", (item_id,), one=True)
     cost_snapshot = float(row["avg_cost"]) if row else 0.0
     return cost_snapshot, round(float(total) - float(qty_kg) * cost_snapshot, 2)

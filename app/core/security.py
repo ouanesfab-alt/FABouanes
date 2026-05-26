@@ -24,14 +24,24 @@ def consume_rate_limit(key: str, limit: int, window: float) -> bool:
     return RateLimitStore.consume(key, limit, window)
 
 
+# Trusted proxy IPs: only trust X-Forwarded-For when the direct client is a known proxy.
+# Set FAB_TRUSTED_PROXIES=127.0.0.1,10.0.0.1 to enable proxy trust.
+_TRUSTED_PROXIES: frozenset[str] = frozenset(
+    p.strip() for p in os.environ.get("FAB_TRUSTED_PROXIES", "").split(",") if p.strip()
+)
+
+
 def client_ip() -> str:
     request = get_state_value("request")
     if request is None:
         return "unknown"
-    forwarded = request.headers.get("X-Forwarded-For", "")
-    if forwarded:
-        return forwarded.split(",", 1)[0].strip() or "unknown"
-    return getattr(getattr(request, "client", None), "host", None) or "unknown"
+    direct_ip = getattr(getattr(request, "client", None), "host", None) or "unknown"
+    # Only trust X-Forwarded-For if the direct connection comes from a known proxy
+    if _TRUSTED_PROXIES and direct_ip in _TRUSTED_PROXIES:
+        forwarded = request.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            return forwarded.split(",", 1)[0].strip() or direct_ip
+    return direct_ip
 
 
 # Password strength mode: 'pin' (4 digits) or 'password' (8+ chars with complexity)

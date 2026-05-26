@@ -17,6 +17,28 @@ def test_api_login_success(client: TestClient):
     assert "refresh_token" in res["data"]
     assert res["data"]["user"]["username"] == "admin"
 
+def test_mobile_login_success(client: TestClient):
+    response = client.post("/api/v1/auth/token", json={"username": "admin", "password": "1234"})
+    assert response.status_code == 200
+    res = response.json()
+    assert "access_token" in res
+    assert "refresh_token" in res
+    assert res["user"]["username"] == "admin"
+
+def test_mobile_api_workflow(client: TestClient):
+    # 1. Login via mobile auth/token
+    response = client.post("/api/v1/auth/token", json={"username": "admin", "password": "1234"})
+    assert response.status_code == 200
+    tokens = response.json()
+    token = tokens["access_token"]
+
+    # 2. Access mobile clients list
+    headers = {"Authorization": f"Bearer {token}"}
+    response2 = client.get("/api/v1/mobile/clients", headers=headers)
+    assert response2.status_code == 200
+    data = response2.json()
+    assert "clients" in data
+
 def test_api_login_validation_errors(client: TestClient):
     # Empty username
     response = client.post("/api/v1/auth/login", json={"username": "", "password": "1234"})

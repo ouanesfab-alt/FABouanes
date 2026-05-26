@@ -38,16 +38,49 @@ async def api_ping():
 
 @router.post("/auth/token")
 @limiter.limit("5/minute")
-async def mobile_login(request: Request, body: dict):
+async def mobile_login(request: Request):
     """
-    POST {"username": "...", "password": "..."}
+    POST {"username": "...", "password": "..."} or Form/URL-encoded fields
     → {"access_token": "...", "refresh_token": "...", "token_type": "bearer"}
     """
-    # verify_credentials doit retourner None si échec, user dict si succès
+    username = ""
+    password = ""
+    content_type = request.headers.get("content-type", "")
+    
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                username = body.get("username", "")
+                password = body.get("password", "")
+        except Exception:
+            pass
+    elif "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
+        try:
+            form = await request.form()
+            username = form.get("username", "")
+            password = form.get("password", "")
+        except Exception:
+            pass
+    else:
+        # Fallback: try parsing JSON first, then Form
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                username = body.get("username", "")
+                password = body.get("password", "")
+        except Exception:
+            try:
+                form = await request.form()
+                username = form.get("username", "")
+                password = form.get("password", "")
+            except Exception:
+                pass
+
     user = await asyncio.to_thread(
         verify_credentials,
-        body.get("username", ""),
-        body.get("password", ""),
+        str(username or "").strip(),
+        str(password or ""),
     )
     if not user:
         raise HTTPException(401, "Identifiants invalides")
@@ -62,12 +95,39 @@ async def mobile_login(request: Request, body: dict):
 
 @router.post("/auth/refresh")
 @limiter.limit("10/minute")
-async def mobile_refresh(request: Request, body: dict):
-    """Renouvelle l'access_token depuis un refresh_token valide."""
-    refresh_token = body.get("refresh_token")
+async def mobile_refresh(request: Request):
+    """Renouvelle l'access_token depuis un refresh_token valide (JSON or Form)."""
+    refresh_token = ""
+    content_type = request.headers.get("content-type", "")
+    
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                refresh_token = body.get("refresh_token", "")
+        except Exception:
+            pass
+    elif "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
+        try:
+            form = await request.form()
+            refresh_token = form.get("refresh_token", "")
+        except Exception:
+            pass
+    else:
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                refresh_token = body.get("refresh_token", "")
+        except Exception:
+            try:
+                form = await request.form()
+                refresh_token = form.get("refresh_token", "")
+            except Exception:
+                pass
+
     if not refresh_token:
         raise HTTPException(401, "Refresh token requis")
-    payload = decode_token(refresh_token)
+    payload = decode_token(str(refresh_token))
     if payload.get("type") != "refresh":
         raise HTTPException(401, "Refresh token requis")
     user = await asyncio.to_thread(get_user_by_id, int(payload["sub"]))

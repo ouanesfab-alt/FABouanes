@@ -41,7 +41,7 @@ class Settings:
     app_name: str = APP_NAME
     base_dir: Path = BASE_DIR
     app_data_dir: Path = APP_DATA_DIR
-    env: str = os.getenv("FASTAPI_ENV", os.getenv("FLASK_ENV", "production")).lower()
+    env: str = os.getenv("FASTAPI_ENV", "production").lower()
     desktop_mode: bool = os.getenv("FAB_DESKTOP", "0") == "1"
     secret_key: str = os.getenv("SECRET_KEY", "").strip()
     session_cookie_secure: bool = os.getenv("SESSION_COOKIE_SECURE", "0") == "1"
@@ -85,8 +85,13 @@ class Settings:
             )
 
         # Force secure session cookies in non-desktop production environments by default
+        # BUT respect explicit SESSION_COOKIE_SECURE environment overrides!
         if self.env == "production" and not self.desktop_mode:
-            self.session_cookie_secure = True
+            env_val = os.getenv("SESSION_COOKIE_SECURE", "").strip().lower()
+            if env_val in ("1", "true", "yes", "on"):
+                self.session_cookie_secure = True
+            else:
+                self.session_cookie_secure = False
 
     @property
     def database_url(self) -> str:

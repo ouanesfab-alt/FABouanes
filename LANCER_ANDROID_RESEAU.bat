@@ -30,5 +30,6 @@ if errorlevel 1 (
 )
 
 set FAB_HOST=0.0.0.0
+set SESSION_COOKIE_SECURE=0
 %PY_CMD% launcher.py --server
 pause

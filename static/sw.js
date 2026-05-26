@@ -100,8 +100,15 @@ self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
 
-  // Laisser passer les requêtes API (POST offline sync inclus)
-  if (url.pathname.startsWith("/api/")) return;
+  // Laisser passer les requêtes API et les routes d'authentification
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.pathname === "/login" ||
+    url.pathname === "/logout" ||
+    url.pathname === "/change-password"
+  ) {
+    return;
+  }
 
   const isStaticAsset = url.origin === self.location.origin && (
     url.pathname.startsWith("/static/") ||

@@ -34,6 +34,11 @@ BACKGROUND_LOCK = threading.RLock()
 BACKUP_CREATE_IN_WORKER = "__create_on_worker__"
 
 
+def _shutdown_requested() -> bool:
+    with BACKGROUND_LOCK:
+        return bool(BACKGROUND_STATE.get("shutdown_requested"))
+
+
 def _calculate_sha256(file_path: Path) -> str:
     sha256_hash = hashlib.sha256()
     with open(file_path, "rb") as f:
@@ -380,7 +385,8 @@ def _purge_old_logs() -> None:
         from app.core.db_access import execute_db
         ALLOWED_LOG_TABLES = {"performance_logs", "error_logs", "system_logs"}
         for table in ("performance_logs", "error_logs", "system_logs"):
-            assert table in ALLOWED_LOG_TABLES, f"Table {table} is not allowed for log purge"
+            if table not in ALLOWED_LOG_TABLES:
+                raise ValueError(f"Table {table} is not allowed for log purge")
             execute_db(f"DELETE FROM {table} WHERE created_at < NOW() - INTERVAL '7 days'")
     except Exception:
         logger.debug("Log purge skipped (table may not exist yet)")
@@ -438,7 +444,7 @@ def _background_loop(app) -> None:
     import random
     consecutive_failures = 0
     while True:
-        if BACKGROUND_STATE.get("shutdown_requested"):
+        if _shutdown_requested():
             logger.info("Scheduler: shutdown demandé, arrêt.")
             break
         success = True
@@ -449,8 +455,9 @@ def _background_loop(app) -> None:
         success &= _safe_run("weekly_vacuum", _weekly_vacuum)
         
         # Log pool stats every ~15 minutes (20 loops of 45s)
-        loop_counter = BACKGROUND_STATE.get("loop_counter", 0) + 1
-        BACKGROUND_STATE["loop_counter"] = loop_counter
+        with BACKGROUND_LOCK:
+            loop_counter = BACKGROUND_STATE.get("loop_counter", 0) + 1
+            BACKGROUND_STATE["loop_counter"] = loop_counter
         if loop_counter % 20 == 0:
             from app.core.db import postgres_pool_status
             stats = postgres_pool_status(DATABASE_URL)
@@ -473,12 +480,12 @@ def _background_loop(app) -> None:
             
         # Incremental sleep to check shutdown_requested quickly
         for _ in range(int(sleep_time)):
-            if BACKGROUND_STATE.get("shutdown_requested"):
+            if _shutdown_requested():
                 break
             time.sleep(1.0)
         else:
             fraction = sleep_time - int(sleep_time)
-            if fraction > 0 and not BACKGROUND_STATE.get("shutdown_requested"):
+            if fraction > 0 and not _shutdown_requested():
                 time.sleep(fraction)
 
 
