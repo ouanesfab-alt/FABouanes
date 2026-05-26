@@ -111,111 +111,116 @@ class ClientService:
 
     async def get_client_detail_context(self, client_id: int) -> Optional[Dict[str, Any]]:
         """Build full client detail context with timeline and stats (async)."""
-        client = await self.repo.get_by_id(client_id)
-        if not client:
-            return None
+        from app.core.perf_cache import async_cached_result
 
-        events = await self.repo.get_timeline(client_id)
+        async def _load():
+            client = await self.repo.get_by_id(client_id)
+            if not client:
+                return None
 
-        timeline = []
-        created_at_str = (
-            client.created_at.isoformat()
-            if hasattr(client.created_at, "isoformat")
-            else str(client.created_at or "")
-        )
+            events = await self.repo.get_timeline(client_id)
 
-        if float(client.opening_credit) > 0:
-            timeline.append(
-                {
-                    "row_id": None,
-                    "document_id": None,
-                    "sort_sequence": 0,
-                    "event_date": created_at_str[:10],
-                    "designation": "Credit initial (reprise Excel)",
-                    "purchase_amount": float(client.opening_credit),
-                    "payment_amount": 0.0,
-                    "event_type": "opening",
-                }
+            timeline = []
+            created_at_str = (
+                client.created_at.isoformat()
+                if hasattr(client.created_at, "isoformat")
+                else str(client.created_at or "")
             )
 
-        for row in events:
-            item = dict(row)
-            dt_val = item.get("event_date")
-            if hasattr(dt_val, "strftime"):
-                item["event_date"] = dt_val.strftime("%Y-%m-%d")
-            elif hasattr(dt_val, "isoformat"):
-                item["event_date"] = dt_val.isoformat()[:10]
-            else:
-                item["event_date"] = str(dt_val or "")[:10]
-
-            if item["event_type"] in ("sale_finished", "sale_raw"):
-                suffix = (
-                    " (matière première)" if item["event_type"] == "sale_raw" else ""
+            if float(client.opening_credit) > 0:
+                timeline.append(
+                    {
+                        "row_id": None,
+                        "document_id": None,
+                        "sort_sequence": 0,
+                        "event_date": created_at_str[:10],
+                        "designation": "Credit initial (reprise Excel)",
+                        "purchase_amount": float(client.opening_credit),
+                        "payment_amount": 0.0,
+                        "event_type": "opening",
+                    }
                 )
-                qty = _format_quantity(item["quantity"])
-                unit = item["unit"] or ""
-                item["designation"] = (
-                    f"{item['item_name']}{suffix} - {qty} {unit}".strip()
-                )
-            timeline.append(item)
 
-        timeline.sort(
-            key=lambda item: (
-                item["event_date"],
-                0 if item["event_type"] in ("opening", "sale_finished", "sale_raw") else 1,
-                int(item.get("sort_sequence") or 0),
+            for row in events:
+                item = dict(row)
+                dt_val = item.get("event_date")
+                if hasattr(dt_val, "strftime"):
+                    item["event_date"] = dt_val.strftime("%Y-%m-%d")
+                elif hasattr(dt_val, "isoformat"):
+                    item["event_date"] = dt_val.isoformat()[:10]
+                else:
+                    item["event_date"] = str(dt_val or "")[:10]
+
+                if item["event_type"] in ("sale_finished", "sale_raw"):
+                    suffix = (
+                        " (matière première)" if item["event_type"] == "sale_raw" else ""
+                    )
+                    qty = _format_quantity(item["quantity"])
+                    unit = item["unit"] or ""
+                    item["designation"] = (
+                        f"{item['item_name']}{suffix} - {qty} {unit}".strip()
+                    )
+                timeline.append(item)
+
+            timeline.sort(
+                key=lambda item: (
+                    item["event_date"],
+                    0 if item["event_type"] in ("opening", "sale_finished", "sale_raw") else 1,
+                    int(item.get("sort_sequence") or 0),
+                )
             )
-        )
 
-        running = 0.0
-        for item in timeline:
-            running += float(item.get("purchase_amount", 0) or 0)
-            running -= float(item.get("payment_amount", 0) or 0)
-            item["running_balance"] = running
+            running = 0.0
+            for item in timeline:
+                running += float(item.get("purchase_amount", 0) or 0)
+                running -= float(item.get("payment_amount", 0) or 0)
+                item["running_balance"] = running
 
-        total_sales = sum(
-            float(item["purchase_amount"])
-            for item in timeline
-            if item["event_type"] in ("sale_finished", "sale_raw")
-        )
-        total_advance = sum(
-            float(item["purchase_amount"])
-            for item in timeline
-            if item["event_type"] == "advance"
-        )
-        total_paid = sum(
-            float(item["payment_amount"])
-            for item in timeline
-            if item["event_type"] == "payment"
-        )
+            total_sales = sum(
+                float(item["purchase_amount"])
+                for item in timeline
+                if item["event_type"] in ("sale_finished", "sale_raw")
+            )
+            total_advance = sum(
+                float(item["purchase_amount"])
+                for item in timeline
+                if item["event_type"] == "advance"
+            )
+            total_paid = sum(
+                float(item["payment_amount"])
+                for item in timeline
+                if item["event_type"] == "payment"
+            )
 
-        stats = {
-            "opening_credit": float(client.opening_credit),
-            "total_sales": total_sales,
-            "credit_sales_total": float(client.opening_credit) + total_sales,
-            "total_paid": total_paid,
-            "total_advance": total_advance,
-            "current_balance": running,
-        }
+            stats = {
+                "opening_credit": float(client.opening_credit),
+                "total_sales": total_sales,
+                "credit_sales_total": float(client.opening_credit) + total_sales,
+                "total_paid": total_paid,
+                "total_advance": total_advance,
+                "current_balance": running,
+            }
 
-        # Convert client to dict for template compatibility
-        client_dict = {
-            "id": client.id,
-            "name": client.name,
-            "phone": client.phone,
-            "address": client.address,
-            "notes": client.notes,
-            "opening_credit": client.opening_credit,
-            "created_at": client.created_at,
-            "updated_at": client.updated_at,
-        }
+            # Convert client to dict for template compatibility
+            client_dict = {
+                "id": client.id,
+                "name": client.name,
+                "phone": client.phone,
+                "address": client.address,
+                "notes": client.notes,
+                "opening_credit": client.opening_credit,
+                "created_at": client.created_at,
+                "updated_at": client.updated_at,
+            }
 
-        return {
-            "client": client_dict,
-            "timeline": timeline,
-            "stats": stats,
-            "client_balance": running,
-        }
+            return {
+                "client": client_dict,
+                "timeline": timeline,
+                "stats": stats,
+                "client_balance": running,
+            }
+
+        return await async_cached_result(("client_detail", int(client_id)), _load, ttl_seconds=30.0)
 
     async def get_history_page_context(
         self, client_id: int, page: int = 1, page_size: int = 15

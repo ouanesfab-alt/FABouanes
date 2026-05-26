@@ -5909,3 +5909,21 @@ html[data-theme="windows-dark"] .nav-links a:not(.active):hover {
   transform: scale(0.97) !important;
 }
 
+/* 🍏 macOS Springy Tab Transitions (Sequoia style) */
+@keyframes macPanelFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.985) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.fab-switch-panel:not([hidden]),
+.fab-switch-placeholder:not([hidden]) {
+  animation: macPanelFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+

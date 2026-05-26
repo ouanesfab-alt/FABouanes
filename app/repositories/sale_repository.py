@@ -9,6 +9,8 @@ def _is_other_operation_item(name: str | None) -> bool:
 
 def invalidate_sellable_items_cache() -> None:
     invalidate_cache_domain("sales_sellable_items")
+    from app.core.perf_cache import invalidate_cache_domains
+    invalidate_cache_domains("dashboard", "sales", "client")
 
 def _load_sellable_items():
     items = []

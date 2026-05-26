@@ -280,6 +280,8 @@ def invalidate_client_cache(client_id: int) -> None:
         ("client_detail", client_id),
         ("client_history", client_id),
         ("client_account", client_id),
+        ("client_detail_context", client_id),
+        ("client_history_context", client_id),
     ]
     for key in keys_to_delete:
         try:
@@ -290,7 +292,13 @@ def invalidate_client_cache(client_id: int) -> None:
                 r_key = _BACKEND._redis_key(key)
                 _BACKEND.client.delete(r_key)
             else:
-                _BACKEND.invalidate_domains(f"client_detail:{client_id}", f"client_history:{client_id}", f"client_account:{client_id}")
+                _BACKEND.invalidate_domains(
+                    f"client_detail:{client_id}",
+                    f"client_history:{client_id}",
+                    f"client_account:{client_id}",
+                    f"client_detail_context:{client_id}",
+                    f"client_history_context:{client_id}"
+                )
         except Exception:
             pass
 

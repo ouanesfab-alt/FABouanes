@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from app.core.events import DomainEvent, emit
+from app.core.perf_cache import invalidate_cache_domains
 from app.modules.expenses.repository import (
     EXPENSE_CATEGORIES,
     PAYMENT_METHODS,
@@ -25,6 +26,7 @@ def add_expense(date: str, category: str, description: str, amount: float, metho
     expense_id = _db_create(date, category, description, amount, method)
     created = get_expense_by_id(expense_id)
     emit(DomainEvent("create", "expense", expense_id, f"{category}: {description or '-'} ({amount})", after=created))
+    invalidate_cache_domains("dashboard")
     return expense_id
 
 
@@ -33,6 +35,7 @@ def modify_expense(expense_id: int, date: str, category: str, description: str, 
     _db_update(expense_id, date, category, description, amount, method)
     after = get_expense_by_id(expense_id)
     emit(DomainEvent("update", "expense", expense_id, f"{category}: {description or '-'} ({amount})", before=before, after=after))
+    invalidate_cache_domains("dashboard")
 
 
 def remove_expense(expense_id: int) -> bool:
@@ -41,6 +44,7 @@ def remove_expense(expense_id: int) -> bool:
         return False
     _db_delete(expense_id)
     emit(DomainEvent("delete", "expense", expense_id, f"Suppression dépense #{expense_id}", before=before))
+    invalidate_cache_domains("dashboard")
     return True
 
 

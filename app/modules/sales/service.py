@@ -444,7 +444,7 @@ class SalesService:
             await self.session.commit()
 
             created = await self.sale_repo.get_sale_detail(created_kind, created_sale_id)
-            invalidate_cache_domains("sales_sellable_items", "sales", "client")
+            invalidate_cache_domains("sales_sellable_items", "sales", "client", "dashboard")
             emit(
                 DomainEvent(
                     "create",
@@ -493,7 +493,7 @@ class SalesService:
         await self.session.commit()
 
         created = await self.doc_repo.get_by_id(doc_id)
-        invalidate_cache_domains("sales_sellable_items", "sales", "client")
+        invalidate_cache_domains("sales_sellable_items", "sales", "client", "dashboard")
         emit(
             DomainEvent(
                 "create",
@@ -574,7 +574,7 @@ class SalesService:
         await self.session.commit()
 
         after_context = await self.get_sale_document_context(document_id)
-        invalidate_cache_domains("sales_sellable_items", "sales", "client")
+        invalidate_cache_domains("sales_sellable_items", "sales", "client", "dashboard")
         emit(
             DomainEvent(
                 "update",
@@ -648,7 +648,7 @@ class SalesService:
             await self.session.commit()
 
             created = await self.doc_repo.get_by_id(doc_id)
-            invalidate_cache_domains("sales_sellable_items", "sales", "client")
+            invalidate_cache_domains("sales_sellable_items", "sales", "client", "dashboard")
             emit(
                 DomainEvent(
                     "update",
@@ -697,7 +697,7 @@ class SalesService:
         await self.session.commit()
 
         after = await self.sale_repo.get_sale_detail(new_kind, new_sale_id)
-        invalidate_cache_domains("sales_sellable_items", "sales", "client")
+        invalidate_cache_domains("sales_sellable_items", "sales", "client", "dashboard")
         emit(
             DomainEvent(
                 "update",
@@ -727,7 +727,7 @@ class SalesService:
         ok = await self.reverse_sale(kind, row_id)
         if ok:
             await self.session.commit()
-            invalidate_cache_domains("sales_sellable_items", "sales", "client")
+            invalidate_cache_domains("sales_sellable_items", "sales", "client", "dashboard")
             emit(
                 DomainEvent(
                     "delete",

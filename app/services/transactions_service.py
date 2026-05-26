@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from app.utils.pagination import paginate_sequence
+from app.utils.pagination import (
+    paginate_sequence,
+    parse_pagination,
+    MAX_PAGE_SIZE,
+    paginated_rows,
+    pagination_context,
+)
 from app.core.activity import log_activity
 from app.core.audit import audit_event
 from app.core.db_access import execute_db, query_db
@@ -15,9 +21,32 @@ def transactions_context(
     args=None,
     path: str = "/operations",
 ) -> dict:
-    rows = query_db(
-        """
-        SELECT * FROM (
+    queries = []
+    params = []
+    
+    name_filter = (filter_name or "").strip().lower()
+    date_filter = (filter_date or "").strip()
+    operation_filter = (filter_operation or "").strip().lower()
+    
+    # 1. Purchases query
+    if filter_type in ("all", "purchase"):
+        p_where = []
+        p_params = []
+        if date_filter:
+            p_where.append("p.purchase_date = %s")
+            p_params.append(date_filter)
+        if name_filter:
+            p_where.append("(lower(COALESCE(s.name, '')) LIKE %s OR lower(COALESCE(r.name, '')) LIKE %s OR lower(COALESCE(fp.name, '')) LIKE %s)")
+            like_val = f"%{name_filter}%"
+            p_params.extend([like_val, like_val, like_val])
+        if operation_filter:
+            p_where.append("lower('Achat') LIKE %s")
+            p_params.append(f"%{operation_filter}%")
+            
+        p_where_str = " AND ".join(p_where)
+        p_where_clause = f"WHERE {p_where_str}" if p_where else ""
+        
+        p_query = f"""
             SELECT 'Achat' AS tx_type, 'purchase' AS tx_kind, p.id, p.purchase_date AS tx_date,
                    COALESCE(s.name, '-') AS partner_name, 
                    CASE 
@@ -40,7 +69,30 @@ def transactions_context(
             LEFT JOIN suppliers s ON s.id = p.supplier_id
             LEFT JOIN raw_materials r ON r.id = p.raw_material_id
             LEFT JOIN finished_products fp ON fp.id = p.finished_product_id
-            UNION ALL
+            {p_where_clause}
+        """
+        queries.append(p_query)
+        params.extend(p_params)
+
+    # 2. Sales query (finished + raw)
+    if filter_type in ("all", "sale"):
+        s_where = []
+        s_params = []
+        if date_filter:
+            s_where.append("x.sale_date = %s")
+            s_params.append(date_filter)
+        if name_filter:
+            s_where.append("(lower(COALESCE(x.client_name, '')) LIKE %s OR lower(x.item_name) LIKE %s)")
+            like_val = f"%{name_filter}%"
+            s_params.extend([like_val, like_val])
+        if operation_filter:
+            s_where.append("lower('Vente') LIKE %s")
+            s_params.append(f"%{operation_filter}%")
+            
+        s_where_str = " AND ".join(s_where)
+        s_where_clause = f"WHERE {s_where_str}" if s_where else ""
+        
+        s_query = f"""
             SELECT 'Vente' AS tx_type,
                    CASE WHEN x.row_kind='finished' THEN 'sale_finished' ELSE 'sale_raw' END AS tx_kind,
                    x.id, x.sale_date AS tx_date, COALESCE(x.client_name, '-') AS partner_name, x.item_name AS designation,
@@ -52,7 +104,30 @@ def transactions_context(
                 SELECT rs.id, rs.document_id, 'raw' AS row_kind, rs.sale_date, c.name AS client_name, r.name AS item_name, rs.quantity, rs.unit, rs.unit_price, rs.total, rs.amount_paid, rs.balance_due, rs.created_at
                 FROM raw_sales rs LEFT JOIN clients c ON c.id = rs.client_id JOIN raw_materials r ON r.id = rs.raw_material_id
             ) x
-            UNION ALL
+            {s_where_clause}
+        """
+        queries.append(s_query)
+        params.extend(s_params)
+
+    # 3. Payments query
+    if filter_type in ("all", "payment"):
+        pay_where = []
+        pay_params = []
+        if date_filter:
+            pay_where.append("p.payment_date = %s")
+            pay_params.append(date_filter)
+        if name_filter:
+            pay_where.append("(lower(COALESCE(c.name, '')) LIKE %s OR lower(CASE WHEN p.payment_type='avance' THEN 'Avance client' ELSE 'Versement client' END) LIKE %s)")
+            like_val = f"%{name_filter}%"
+            pay_params.extend([like_val, like_val])
+        if operation_filter:
+            pay_where.append("lower(CASE WHEN p.payment_type='avance' THEN 'Avance' ELSE 'Versement' END) LIKE %s")
+            pay_params.append(f"%{operation_filter}%")
+            
+        pay_where_str = " AND ".join(pay_where)
+        pay_where_clause = f"WHERE {pay_where_str}" if pay_where else ""
+        
+        pay_query = f"""
             SELECT CASE WHEN p.payment_type='avance' THEN 'Avance' ELSE 'Versement' END AS tx_type, 'payment' AS tx_kind, p.id, p.payment_date AS tx_date,
                    c.name AS partner_name,
                    CASE
@@ -62,28 +137,31 @@ def transactions_context(
                    END AS designation,
                    CAST(NULL AS numeric) AS quantity, CAST(NULL AS varchar) AS unit, CAST(NULL AS numeric) AS unit_price, p.amount AS total, p.amount AS paid, CAST(NULL AS numeric) AS due, CAST(NULL AS integer) AS document_id, p.created_at AS tx_created_at
             FROM payments p JOIN clients c ON c.id = p.client_id
+            {pay_where_clause}
+        """
+        queries.append(pay_query)
+        params.extend(pay_params)
+        
+    if not queries:
+        union_query = "SELECT CAST(NULL AS varchar) AS tx_type LIMIT 0"
+    else:
+        union_query = " UNION ALL ".join(queries)
+        
+    full_query = f"""
+        SELECT * FROM (
+            {union_query}
         ) t
         ORDER BY tx_date DESC, tx_created_at DESC, id DESC
-        """
-    )
-    name_filter = (filter_name or "").strip().lower()
-    date_filter = (filter_date or "").strip()
-    operation_filter = (filter_operation or "").strip().lower()
-    filtered = []
+    """
+    
+    requested_size = int((args or {}).get("page_size", 0) or 0)
+    page, page_size, offset = parse_pagination(args)
+    if requested_size > MAX_PAGE_SIZE:
+        page_size = requested_size
+    rows, total = paginated_rows(query_db, full_query, tuple(params), page=page, page_size=page_size, offset=offset)
+    
+    formatted_rows = []
     for row in rows:
-        if filter_type == "purchase" and row["tx_type"] != "Achat":
-            continue
-        if filter_type == "sale" and row["tx_type"] != "Vente":
-            continue
-        if filter_type == "payment" and row["tx_kind"] != "payment":
-            continue
-        if name_filter and name_filter not in f"{row['partner_name']} {row['designation']}".lower():
-            continue
-        if date_filter and str(row["tx_date"]) != date_filter:
-            continue
-        if operation_filter and operation_filter not in str(row["tx_type"]).lower():
-            continue
-        
         row_dict = dict(row)
         tx_created = row_dict.get("tx_created_at")
         if hasattr(tx_created, "strftime"):
@@ -92,11 +170,12 @@ def transactions_context(
             row_dict["tx_time"] = tx_created.split()[1][:5] if " " in tx_created else ""
         else:
             row_dict["tx_time"] = ""
-        filtered.append(row_dict)
+        formatted_rows.append(row_dict)
         
-    page_rows, pagination = paginate_sequence(filtered, args or {}, path)
+    pagination = pagination_context(path, args, total=total, page=page, page_size=page_size)
+    
     return {
-        "transactions": page_rows,
+        "transactions": formatted_rows,
         "filter_type": filter_type,
         "filter_name": filter_name,
         "filter_date": filter_date,
@@ -118,7 +197,8 @@ def update_production_notes(batch_id: int, production_date: str, notes: str) -> 
     
     ALLOWED_KEYS = {"production_date", "notes"}
     for key in updates:
-        assert key in ALLOWED_KEYS, f"Key {key} is not allowed for update"
+        if key not in ALLOWED_KEYS:
+            raise ValueError(f"Key {key} is not allowed for update")
 
     sets = ", ".join(f"{key}=%s" for key in updates)
     values = list(updates.values()) + [batch_id]
