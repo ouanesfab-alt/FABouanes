@@ -83,6 +83,7 @@ if exist ".env" (
     --hidden-import "PIL" ^
     --hidden-import "webview" ^
     --hidden-import "webview.platforms.edgechromium" ^
+    --hidden-import "prometheus_fastapi_instrumentator" ^
     --collect-submodules "webview" ^
     --collect-submodules "fastapi" ^
     --collect-submodules "starlette" ^
@@ -91,6 +92,7 @@ if exist ".env" (
     --collect-submodules "alembic" ^
     --collect-submodules "qrcode" ^
     --collect-submodules "PIL" ^
+    --collect-submodules "prometheus_fastapi_instrumentator" ^
     launcher.py
 
 if errorlevel 1 (
