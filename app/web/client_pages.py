@@ -1,26 +1,19 @@
 from __future__ import annotations
 
-from datetime import datetime
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.core.activity import log_activity
-from app.core.db_access import execute_db, query_db
 from app.core.permissions import PERMISSION_CONTACTS_DELETE, PERMISSION_CONTACTS_READ, PERMISSION_CONTACTS_WRITE
-from app.core.storage import backup_database
-from app.repositories.client_repository import get_client
 from app.services.client_service import (
     create_client_from_form,
-    get_client_detail_context,
     import_clients_from_files,
     import_clients_from_preview,
     preview_clients_from_files,
     update_client_from_form,
 )
-from app.services.print_service import COMPANY_INFO
 from app.schemas.client_validation import ClientValidationSchema
-from app.web.deps import csrf_protect, flash, get_current_user, require_permission, template_context, templates
+from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
 
 
 router = APIRouter()
