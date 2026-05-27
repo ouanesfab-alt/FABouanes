@@ -37,6 +37,3 @@ class ClientValidationSchema(BaseModel):
             raise ValueError("Le crédit initial ne peut pas être négatif.")
         return val
 
-    class Config:
-        json_encoders = {Decimal: str}
-

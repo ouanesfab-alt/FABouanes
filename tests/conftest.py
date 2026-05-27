@@ -35,7 +35,7 @@ DATABASE_URL = (
 os.environ["FAB_DATA_DIR"] = str(TEST_DATA_DIR)
 os.environ["FAB_DISABLE_BACKGROUND_JOBS"] = "1"
 os.environ["FAB_DESKTOP"] = "0"
-os.environ["SECRET_KEY"] = "test-fastapi-secret"
+os.environ["SECRET_KEY"] = "test-fastapi-secret-key-for-pytest-only"
 os.environ["FASTAPI_ENV"] = "test"
 os.environ["DATABASE_URL"] = DATABASE_URL
 

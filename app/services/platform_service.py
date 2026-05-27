@@ -17,10 +17,7 @@ class PlatformService:
         """Strict CSP nonce-based policy should only be applied in server mode when configured."""
         return settings.strict_csp and not settings.desktop_mode
 
-    @staticmethod
-    def should_secure_cookies() -> bool:
-        """Session cookies should be secure in non-desktop production server environments."""
-        return settings.session_cookie_secure
+
 
 # Global helper instance
 platform = PlatformService()

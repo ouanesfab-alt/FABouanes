@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
+import csv
+import io
+from datetime import date, datetime
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
@@ -52,8 +54,6 @@ async def operations_page(request: Request):
         data = context["transactions"]
         
         if fmt == "csv":
-            import io, csv
-            from datetime import date
             output = io.StringIO()
             fieldnames = ["tx_type", "tx_date", "partner_name", "designation", "quantity", "unit", "unit_price", "total", "paid", "due"]
             writer = csv.DictWriter(output, fieldnames=fieldnames, delimiter=";", extrasaction="ignore")
@@ -69,9 +69,8 @@ async def operations_page(request: Request):
             )
             
         elif fmt == "xlsx":
-            import io, openpyxl
+            import openpyxl
             from openpyxl.styles import Font
-            from datetime import date
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Transactions"

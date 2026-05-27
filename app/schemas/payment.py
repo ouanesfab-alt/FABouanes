@@ -23,8 +23,7 @@ class PaymentCreate(BaseModel):
             raise ValueError("Format de date invalide. Attendu: YYYY-MM-DD")
         return v
 
-    class Config:
-        json_encoders = {Decimal: str}
+
 
 
 class PaymentUpdate(BaseModel):
@@ -32,6 +31,5 @@ class PaymentUpdate(BaseModel):
     payment_type: Optional[str] = Field(None, pattern=r'^(versement|avance)$')
     notes: Optional[str] = Field(None, max_length=2000)
 
-    class Config:
-        json_encoders = {Decimal: str}
+
 

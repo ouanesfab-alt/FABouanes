@@ -3,7 +3,6 @@ from __future__ import annotations
 from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List, Union
-
 from app.schemas.auth import LoginRequest as UserLoginSchema
 
 class PaymentCreateSchema(BaseModel):
@@ -37,8 +36,7 @@ class PaymentCreateSchema(BaseModel):
         except Exception:
             raise ValueError("Montant invalide.")
 
-    class Config:
-        json_encoders = {Decimal: str}
+
 
 class ProductionCreateSchema(BaseModel):
     finished_product_id: int = Field(..., description="ID du produit fini")
@@ -50,7 +48,7 @@ class ProductionCreateSchema(BaseModel):
     raw_material_ids: Optional[List[int]] = Field(default=None, alias="raw_material_id[]", description="Liste des IDs de matières premières")
     quantities: Optional[List[Decimal]] = Field(default=None, alias="quantity[]", description="Liste des quantités consommées")
 
-    model_config = ConfigDict(populate_by_name=True, json_encoders={Decimal: str})
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ClientHistoryRowSchema(BaseModel):
@@ -63,8 +61,7 @@ class ClientHistoryRowSchema(BaseModel):
     source: str
     type_operation: str
 
-    class Config:
-        json_encoders = {Decimal: str}
+
 
 
 class ClientHistoryResponseSchema(BaseModel):
@@ -75,7 +72,6 @@ class ClientHistoryResponseSchema(BaseModel):
     page_size: int
     total_pages: int
 
-    class Config:
-        json_encoders = {Decimal: str}
+
 
 

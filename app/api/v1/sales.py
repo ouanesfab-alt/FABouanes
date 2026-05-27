@@ -6,15 +6,10 @@ import asyncio
 
 from app.api.deps import api_error, api_success, require_api_user
 from app.api.v1._common import (
-    append_date_range,
-    append_text_search,
     filtered_sellable_items,
     json_response,
     payload_to_form_data,
     query_db,
-    query_list,
-
-    query_list_async,
     sale_document_payload,
     sale_payload,
     add_cache_headers,

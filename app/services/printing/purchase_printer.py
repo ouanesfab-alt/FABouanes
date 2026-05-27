@@ -6,7 +6,7 @@ from typing import Any
 
 from app.core.db_access import query_db
 
-from .base import _payment_mode_label, _print_defaults
+from .base import _print_defaults
 
 
 def _purchase_line_to_doc_line(row) -> dict[str, Any]:

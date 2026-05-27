@@ -4,13 +4,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.core.permissions import PERMISSION_CONTACTS_DELETE, PERMISSION_CONTACTS_READ, PERMISSION_CONTACTS_WRITE
+from app.core.permissions import PERMISSION_CONTACTS_READ, PERMISSION_CONTACTS_WRITE
 from app.services.client_service import (
     create_client_from_form,
     import_clients_from_files,
     import_clients_from_preview,
     preview_clients_from_files,
-    update_client_from_form,
 )
 from app.schemas.client_validation import ClientValidationSchema
 from app.web.deps import csrf_protect, flash, require_permission, template_context, templates

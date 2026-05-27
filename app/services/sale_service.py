@@ -357,6 +357,19 @@ def edit_sale_document_from_form(document_id: int, form):
         for line in context["sale_lines"]:
             if not reverse_sale(str(line["row_kind"]), int(line["row_id"])):
                 raise ValueError("Impossible de modifier cette facture.")
+
+        # Re-create the header if it was deleted during reverse_sale to preserve the original document ID and number
+        existing = query_db("SELECT id FROM sale_documents WHERE id = %s", (document_id,), one=True)
+        if not existing:
+            doc_number = before["document"]["doc_number"]
+            execute_db(
+                """
+                INSERT INTO sale_documents (id, doc_number, client_id, sale_type, total, amount_paid, balance_due, sale_date, notes)
+                VALUES (%s, %s, %s, %s, 0, 0, 0, %s, %s)
+                """,
+                (int(document_id), doc_number, client_id, sale_type, sale_date, notes),
+            )
+
         created_lines: list[tuple[str, int]] = []
         for line in lines:
             created_lines.append(
@@ -510,5 +523,3 @@ def delete_sale_by_id(kind: str, row_id: int) -> bool:
     return ok
 
 
-def get_sale_or_none(kind: str, row_id: int):
-    return get_sale(kind, row_id)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from app.utils.pagination import (
-    paginate_sequence,
     parse_pagination,
     MAX_PAGE_SIZE,
     paginated_rows,

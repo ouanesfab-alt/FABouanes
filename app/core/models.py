@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional, List
+from typing import Optional
 from sqlalchemy import Column, Numeric
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field
 
 class User(SQLModel, table=True):
     __tablename__ = "users"

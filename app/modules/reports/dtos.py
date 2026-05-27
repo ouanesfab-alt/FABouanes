@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
 from decimal import Decimal
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 class ReportsSummaryDTO(BaseModel):
     total_sales: Decimal
@@ -69,5 +68,4 @@ class ReportsContextDTO(BaseModel):
     date_from: str | None
     date_to: str | None
     
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)

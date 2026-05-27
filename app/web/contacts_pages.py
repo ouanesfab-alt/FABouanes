@@ -55,7 +55,6 @@ async def suppliers_submit(request: Request):
     form = await request.form()
     try:
         from app.schemas.supplier_validation import SupplierValidationSchema
-        from pydantic import ValidationError
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
         create_supplier_from_form(validated.model_dump())
@@ -105,7 +104,6 @@ async def new_supplier_submit(request: Request):
     form = await request.form()
     try:
         from app.schemas.supplier_validation import SupplierValidationSchema
-        from pydantic import ValidationError
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
         create_supplier_from_form(validated.model_dump())
@@ -172,7 +170,6 @@ async def edit_supplier_submit(request: Request, supplier_id: int):
     form = await request.form()
     try:
         from app.schemas.supplier_validation import SupplierValidationSchema
-        from pydantic import ValidationError
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
         update_supplier_from_form(supplier_id, validated.model_dump())

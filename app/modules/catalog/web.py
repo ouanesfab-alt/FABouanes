@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import RedirectResponse
-from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session

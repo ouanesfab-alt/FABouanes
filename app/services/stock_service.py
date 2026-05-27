@@ -32,26 +32,6 @@ def unit_price_to_kg(unit_price: float, unit: str | None) -> float:
     return unit_price
 
 
-def kg_to_display(quantity_kg: float, unit: str | None) -> float:
-    unit_name = (unit or "kg").strip().lower()
-    if unit_name == "sac":
-        return quantity_kg / 50
-    if unit_name in {"qt", "quintal"}:
-        return quantity_kg / 100
-    return quantity_kg
-
-
-def unit_display_factor(unit: str | None) -> float:
-    unit_name = (unit or "kg").strip().lower()
-    if unit_name == "sac":
-        return 50.0
-    if unit_name in {"qt", "quintal"}:
-        return 100.0
-    return 1.0
-
-
-def unit_price_to_display(unit_price_kg: float, unit: str | None) -> float:
-    return float(unit_price_kg or 0) * unit_display_factor(unit)
 
 
 def unit_choices() -> list[str]:
@@ -497,10 +477,3 @@ def reverse_production(batch_id: int) -> bool:
         return True
 
 
-def smart_profit_for_sale(item_kind: str, item_id: int, qty_kg: float, total: float) -> tuple[float, float]:
-    table = "finished_products" if item_kind == "finished" else "raw_materials"
-    if table not in {"finished_products", "raw_materials"}:
-        raise ValueError(f"Table {table} is not allowed for profit calculation")
-    row = query_db(f"SELECT avg_cost FROM {table} WHERE id = %s", (item_id,), one=True)
-    cost_snapshot = float(row["avg_cost"]) if row else 0.0
-    return cost_snapshot, round(float(total) - float(qty_kg) * cost_snapshot, 2)

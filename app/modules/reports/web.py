@@ -5,7 +5,7 @@ import csv
 import io
 
 from fastapi import APIRouter, Request, Depends
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 
 from app.modules.reports.service import ReportsService
 from app.web.deps import require_permission, template_context, templates
@@ -30,7 +30,7 @@ async def reports_page(
     
     ctx = cached_result(
         ("dashboard", "reports", date_from or "", date_to or ""),
-        lambda: reports_service.build_reports_context(date_from or None, date_to or None).dict(),
+        lambda: reports_service.build_reports_context(date_from or None, date_to or None).model_dump(),
         ttl_seconds=300.0,
     )
     
@@ -158,7 +158,7 @@ async def export_csv(
     
     ctx = cached_result(
         ("dashboard", "reports", date_from or "", date_to or ""),
-        lambda: reports_service.build_reports_context(date_from or None, date_to or None).dict(),
+        lambda: reports_service.build_reports_context(date_from or None, date_to or None).model_dump(),
         ttl_seconds=300.0,
     )
 

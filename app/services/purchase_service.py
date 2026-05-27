@@ -33,7 +33,7 @@ def _form_list(form, key: str) -> list[str]:
     return [str(value).strip()]
 
 
-from app.core.exceptions import ValidationError, NotFoundError
+from app.core.exceptions import ValidationError
 
 def _extract_purchase_lines(form) -> list[dict[str, object]]:
     raw_ids = _form_list(form, "raw_material_id[]")
@@ -416,5 +416,3 @@ def delete_purchase_by_id(purchase_id: int) -> bool:
     return ok
 
 
-def get_purchase_or_none(purchase_id: int):
-    return get_purchase(purchase_id)

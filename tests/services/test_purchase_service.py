@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import pytest
-from app.services.purchase_service import create_purchase_from_form, get_purchase_or_none, delete_purchase_by_id
+from app.services.purchase_service import create_purchase_from_form, delete_purchase_by_id
+from app.repositories.purchase_repository import get_purchase
 from app.core.exceptions import ValidationError
 
 def test_create_purchase_validation_errors(first_supplier_id, first_raw_material_id):
@@ -42,10 +43,10 @@ def test_create_and_delete_purchase(first_supplier_id, first_raw_material_id):
     
     purchase_id = result["first_purchase_id"]
     
-    purchase = get_purchase_or_none(purchase_id)
+    purchase = get_purchase(purchase_id)
     assert purchase is not None
-    assert float(purchase["quantity"]) == 20.0
+    assert float(purchase["display_quantity"]) == 20.0
     
     # Clean up
     assert delete_purchase_by_id(purchase_id) is True
-    assert get_purchase_or_none(purchase_id) is None
+    assert get_purchase(purchase_id) is None

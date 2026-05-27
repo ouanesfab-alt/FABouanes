@@ -13,7 +13,7 @@ from jinja2 import pass_context
 from starlette.routing import NoMatchFound
 
 from app.core.auth_cookie import AUTH_COOKIE_NAME, read_auth_cookie_value
-from app.core.config import settings
+
 from app.core.permissions import has_permission
 from app.core.runtime_paths import paths
 from app.repositories.user_repository import get_user_by_id
@@ -42,7 +42,29 @@ class TemplateRequestProxy:
         return getattr(self._request, item)
 
 
-templates = Jinja2Templates(directory=str(paths.templates_dir))
+class _FATemplates(Jinja2Templates):
+    """Thin wrapper that silently upgrades the old-style
+    ``TemplateResponse(name, {"request": ...})`` call signature to the new
+    Starlette 0.46+ ``TemplateResponse(request, name, context)`` form, so that
+    none of the 50+ route-handler call-sites need to be touched.
+    """
+
+    def TemplateResponse(self, *args, **kwargs):  # type: ignore[override]
+        # Detect old-style: first positional arg is a str (template name)
+        if args and isinstance(args[0], str):
+            name = args[0]
+            context: dict = args[1] if len(args) > 1 else kwargs.pop("context", {})
+            # Prefer the real Request stored by template_context(); fall back to
+            # the proxy which also satisfies Starlette's isinstance check when the
+            # underlying _request attribute is accessible.
+            real_request = context.get("raw_request") or context.get("request")
+            # Remaining positional extras (status_code, headers, …)
+            extra = args[2:]
+            return super().TemplateResponse(real_request, name, context, *extra, **kwargs)
+        return super().TemplateResponse(*args, **kwargs)
+
+
+templates = _FATemplates(directory=str(paths.templates_dir))
 
 
 def _money_filter(value: Any) -> str:

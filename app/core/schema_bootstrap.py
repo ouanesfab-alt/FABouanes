@@ -5,8 +5,6 @@ from __future__ import annotations
 
 import logging
 
-import re
-
 from app.core.config import settings
 from app.core.db import connect_database
 from app.core.schema.core import SCHEMA_CORE
@@ -55,7 +53,6 @@ def bootstrap_schema() -> None:
         
         # Then discover and execute module schemas
         try:
-            from pathlib import Path
             from app.core.registry import discover_modules, get_enabled_modules
             discover_modules(settings.base_dir / "app" / "modules")
             for module in get_enabled_modules():

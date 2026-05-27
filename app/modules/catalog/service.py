@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import date, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from collections import defaultdict
 
@@ -17,7 +17,6 @@ from app.modules.catalog.schemas_validation import (
     RawMaterialUpdateSchema,
     FinishedProductCreateSchema,
     FinishedProductUpdateSchema,
-    RecipeCreateSchema,
 )
 
 # Constants

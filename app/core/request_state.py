@@ -45,7 +45,6 @@ def get_current_request():
 
     Note: This is part of the new dependency injection way. The global ContextVar approach is legacy.
     """
-    from fastapi import Request
     state = get_request_state()
     if state is None or not hasattr(state, "request") or state.request is None:
         raise RuntimeError("No active request context found.")

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import pytest
-from app.services.sale_service import create_sale_from_form, get_sale_or_none, delete_sale_by_id
+from app.services.sale_service import create_sale_from_form, delete_sale_by_id
+from app.repositories.sale_repository import get_sale
 from app.core.exceptions import ValidationError
 
 def test_create_sale_validation_errors(first_client_id, first_product_id):
@@ -43,10 +44,10 @@ def test_create_and_delete_sale(first_client_id, first_product_id):
     sale_id = result["first_line_id"]
     kind = result["first_line_kind"]
     
-    sale = get_sale_or_none(kind, sale_id)
+    sale = get_sale(kind, sale_id)
     assert sale is not None
     assert float(sale["quantity"]) == 10.0
     
     # Clean up
     assert delete_sale_by_id(kind, sale_id) is True
-    assert get_sale_or_none(kind, sale_id) is None
+    assert get_sale(kind, sale_id) is None

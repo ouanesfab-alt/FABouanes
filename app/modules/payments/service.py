@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import json
 from datetime import date
-from typing import Any, Dict, List, Optional, Tuple
-from sqlmodel import select, text
+from typing import Any, Optional, Tuple
+from sqlmodel import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events import DomainEvent, emit
-from app.core.exceptions import ValidationError, NotFoundError, ConflictError
+from app.core.exceptions import ValidationError
 from app.core.perf_cache import invalidate_cache_domains
-from app.core.models import Payment, Client
+from app.core.models import Payment
 from app.modules.payments.repository import PaymentRepository
 from app.modules.payments.schemas_validation import PaymentFormSchema
 

@@ -25,7 +25,6 @@ if REPORTLAB_AVAILABLE:
     from reportlab.lib.units import cm
     from reportlab.platypus import (
         HRFlowable,
-        Image as RLImage,
         Paragraph,
         SimpleDocTemplate,
         Spacer,

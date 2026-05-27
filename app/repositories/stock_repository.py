@@ -1,22 +1,6 @@
 from __future__ import annotations
 
-from app.core.db_access import execute_db, query_db
-
-
-def get_raw_material(material_id: int):
-    return query_db("SELECT * FROM raw_materials WHERE id = %s", (material_id,), one=True)
-
-
-def get_finished_product(product_id: int):
-    return query_db("SELECT * FROM finished_products WHERE id = %s", (product_id,), one=True)
-
-
-def update_raw_stock(material_id: int, stock_qty: float) -> None:
-    execute_db("UPDATE raw_materials SET stock_qty = %s WHERE id = %s", (stock_qty, material_id))
-
-
-def update_finished_stock(product_id: int, stock_qty: float) -> None:
-    execute_db("UPDATE finished_products SET stock_qty = %s WHERE id = %s", (stock_qty, product_id))
+from app.core.db_access import execute_db
 
 
 def insert_stock_movement(

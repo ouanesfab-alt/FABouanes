@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
-from sqlmodel import select, or_, func
+from typing import Any, Dict, List, Optional
+from sqlmodel import select, func
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 

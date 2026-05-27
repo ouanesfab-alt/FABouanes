@@ -13,7 +13,7 @@ import os
 
 # Prevent app.core.config from raising "DATABASE_URL required"
 os.environ.setdefault("DATABASE_URL", "postgresql://unit:unit@localhost:5432/unit_test")
-os.environ.setdefault("SECRET_KEY", "unit-test-secret-key-not-real")
+os.environ.setdefault("SECRET_KEY", "unit-test-secret-key-not-real-xx")
 os.environ.setdefault("FASTAPI_ENV", "test")
 os.environ.setdefault("FAB_DISABLE_BACKGROUND_JOBS", "1")
 os.environ.setdefault("FAB_DESKTOP", "0")

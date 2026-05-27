@@ -1,4 +1,3 @@
-import sys
 from pathlib import Path
 
 def _get_version() -> str:

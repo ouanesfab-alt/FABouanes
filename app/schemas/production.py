@@ -10,8 +10,7 @@ class ProductionBatchItemInput(BaseModel):
     raw_material_id: int = Field(..., gt=0)
     quantity: Decimal = Field(..., gt=0, le=Decimal("999999.99"))
 
-    class Config:
-        json_encoders = {Decimal: str}
+
 
 
 class ProductionBatchCreate(BaseModel):
@@ -28,6 +27,5 @@ class ProductionBatchCreate(BaseModel):
             raise ValueError("Format de date invalide. Attendu: YYYY-MM-DD")
         return v
 
-    class Config:
-        json_encoders = {Decimal: str}
+
 

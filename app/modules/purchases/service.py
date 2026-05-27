@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import date
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Optional
 from sqlmodel import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +14,7 @@ from app.core.document_numbering import next_doc_number
 from app.core.perf_cache import invalidate_cache_domains
 from app.core.models import Purchase, PurchaseDocument, StockMovement, FinishedProduct, RawMaterial, Supplier
 from app.modules.purchases.repository import PurchaseRepository, PurchaseDocumentRepository
-from app.modules.purchases.schemas_validation import PurchaseFormSchema, PurchaseLineSchema
+from app.modules.purchases.schemas_validation import PurchaseFormSchema
 
 
 class PurchaseService:

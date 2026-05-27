@@ -151,19 +151,3 @@ def log_server_start() -> None:
     finally:
         conn.close()
     write_text_log("system.log", "INFO | Demarrage du serveur")
-
-
-def log_server_stop() -> None:
-    try:
-        conn = connect_database(DATABASE_URL)
-        try:
-            conn.execute(
-                "INSERT INTO system_logs (level, message, created_at) VALUES (%s, %s, CURRENT_TIMESTAMP)",
-                ("warning", "Arret du serveur"),
-            )
-            conn.commit()
-        finally:
-            conn.close()
-        write_text_log("system.log", "WARNING | Arret du serveur")
-    except Exception:
-        pass

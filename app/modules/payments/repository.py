@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
-from sqlmodel import select, text
+from sqlmodel import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.models import Payment, Client
+from app.core.models import Payment
 from app.repositories.base_repository import AsyncRepository
 
 class PaymentRepository(AsyncRepository[Payment]):

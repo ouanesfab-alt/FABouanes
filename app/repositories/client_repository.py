@@ -1,45 +1,6 @@
 from __future__ import annotations
 
 from app.core.db_access import execute_db, query_db, db_task
-from app.utils.pagination import pagination_context, parse_pagination
-def client_stats_query(where_sql: str = "") -> str:
-    where_clause = f"WHERE {where_sql}" if where_sql else ""
-    return f"SELECT * FROM clients_with_stats {where_clause}"
-
-
-@db_task
-def list_clients_with_stats():
-    return query_db(f"{client_stats_query()} ORDER BY name")
-
-
-@db_task
-def list_clients_page_context(args=None):
-    args = args or {}
-    page, page_size, offset = parse_pagination(args)
-    search = str(args.get("q", "") or "").strip()
-    where_sql = ""
-    params: list[object] = []
-    if search:
-        where_sql = "search_vector @@ plainto_tsquery('french', %s)"
-        params.append(search)
-
-    where_clause = f"WHERE {where_sql}" if where_sql else ""
-    total_row = query_db(f"SELECT COUNT(*) AS c FROM clients_with_stats {where_clause}", tuple(params), one=True)
-    total = int(total_row["c"] if total_row else 0)
-    rows = query_db(
-        f"SELECT * FROM clients_with_stats {where_clause} ORDER BY name LIMIT %s OFFSET %s",
-        tuple(params) + (page_size, offset),
-    )
-    return {
-        "clients": rows,
-        "client_filters": {"q": search},
-        "pagination": pagination_context("clients", args, total=total, page=page, page_size=page_size),
-    }
-
-
-@db_task
-def get_client_with_stats(client_id: int):
-    return query_db(client_stats_query("c.id = %s"), (client_id,), one=True)
 
 
 @db_task

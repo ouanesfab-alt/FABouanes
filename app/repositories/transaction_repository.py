@@ -100,6 +100,7 @@ def list_transactions_context(args=None) -> dict:
     query = """
         SELECT * FROM (
             SELECT 'Achat' AS tx_type, 'purchase' AS tx_kind, p.id, 'purchase:' || p.id AS row_sort_key,
+                   p.id AS sort_id,
                    COALESCE(p.document_id, p.id) AS sort_sequence, p.purchase_date AS tx_date,
                    COALESCE(s.name, '-') AS partner_name, COALESCE(NULLIF(p.custom_item_name, ''), r.name) AS designation,
                    CASE
@@ -120,7 +121,8 @@ def list_transactions_context(args=None) -> dict:
             UNION ALL
             SELECT 'Vente' AS tx_type,
                    CASE WHEN x.row_kind = 'finished' THEN 'sale_finished' ELSE 'sale_raw' END AS tx_kind,
-                   x.id, x.row_sort_key, COALESCE(x.document_id, x.id) AS sort_sequence, x.sale_date AS tx_date, COALESCE(x.client_name, '-') AS partner_name, x.item_name AS designation,
+                   x.id, x.row_sort_key, x.id AS sort_id,
+                   COALESCE(x.document_id, x.id) AS sort_sequence, x.sale_date AS tx_date, COALESCE(x.client_name, '-') AS partner_name, x.item_name AS designation,
                    x.quantity, x.unit, x.unit_price, x.total, x.amount_paid AS paid, x.balance_due AS due, x.document_id AS document_id
             FROM (
                 SELECT s.id, s.document_id, 'finished' AS row_kind, 'sale_finished:' || s.id AS row_sort_key, s.sale_date, c.name AS client_name, f.name AS item_name, s.quantity, s.unit, s.unit_price, s.total, s.amount_paid, s.balance_due
@@ -135,7 +137,8 @@ def list_transactions_context(args=None) -> dict:
             ) x
             UNION ALL
             SELECT CASE WHEN p.payment_type = 'avance' THEN 'Avance' ELSE 'Versement' END AS tx_type, 'payment' AS tx_kind,
-                   p.id, 'payment:' || p.id AS row_sort_key, p.id AS sort_sequence, p.payment_date AS tx_date, c.name AS partner_name,
+                   p.id, 'payment:' || p.id AS row_sort_key, p.id AS sort_id,
+                   p.id AS sort_sequence, p.payment_date AS tx_date, c.name AS partner_name,
                    CASE
                        WHEN p.sale_kind = 'finished' AND p.sale_id IS NOT NULL THEN 'Versement vente #' || CAST(p.sale_id AS VARCHAR)
                        WHEN p.sale_kind = 'raw' AND p.raw_sale_id IS NOT NULL THEN 'Versement vente matière #' || CAST(p.raw_sale_id AS VARCHAR)
@@ -169,7 +172,7 @@ def list_transactions_context(args=None) -> dict:
             cursor_params.extend([cursor[0], cursor[0], cursor_sequence, cursor_sequence, cursor[2]])
         direction_sql = "ASC" if sort_direction == "asc" else "DESC"
         rows_plus = query_db(
-            f"{query}{cursor_where} ORDER BY tx_date {direction_sql}, sort_sequence {direction_sql}, row_sort_key {direction_sql} LIMIT %s",
+            f"{query}{cursor_where} ORDER BY tx_date {direction_sql}, sort_sequence {direction_sql}, sort_id {direction_sql} LIMIT %s",
             tuple(params + cursor_params + [page_size + 1]),
         )
         has_next = len(rows_plus) > page_size

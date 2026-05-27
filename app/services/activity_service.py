@@ -4,7 +4,6 @@ from collections.abc import Mapping
 from datetime import datetime
 
 from app.core.db_access import query_db
-from app.core.activity import log_error
 
 
 ACTION_LABELS = {

@@ -22,7 +22,6 @@ from app.services.backup_service import (
     enqueue_backup_snapshot,
     get_backup_settings,
     list_backup_jobs,
-    run_pending_backup_jobs,
     save_backup_configuration,
 )
 from app.services.activity_service import activity_filter_values, list_activity_actions, list_activity_entity_types, list_admin_activity

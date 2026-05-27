@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from app.core.db_access import query_db, query_db_async
 from app.core.perf_cache import cached_result, invalidate_cache_domain
 

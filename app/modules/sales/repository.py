@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 from typing import Any, Dict, List, Optional, Tuple, Set
-from sqlmodel import select, or_, func
+from sqlmodel import select
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.models import Sale, RawSale, SaleDocument
+from app.core.models import Sale, RawSale, SaleDocument, FinishedProduct
 from app.repositories.base_repository import AsyncRepository
 
 

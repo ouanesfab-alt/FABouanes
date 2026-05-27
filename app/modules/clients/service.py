@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Client
 from app.core.events import DomainEvent, emit
-from app.core.perf_cache import cached_result, invalidate_client_cache
+from app.core.perf_cache import invalidate_client_cache
 from app.modules.clients.repository import ClientRepository
 from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
 

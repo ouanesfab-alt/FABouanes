@@ -7,7 +7,6 @@ from threading import RLock
 from time import monotonic
 from typing import Any, Callable, Hashable
 
-from app.core.config import settings
 
 # TTL Constants (seconds)
 TTL_STABLE = 3600.0       # 1 hour

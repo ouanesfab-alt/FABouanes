@@ -36,24 +36,6 @@ def _current_user_id() -> int | None:
     return None
 
 
-def edit_production_notes_from_form(form) -> bool:
-    batch_id = int(form.get("batch_id", 0) or 0)
-    if not batch_id:
-        raise ValueError("Identifiant de production manquant.")
-    before = query_db("SELECT * FROM production_batches WHERE id = %s", (batch_id,), one=True)
-    if not before:
-        raise ValueError("Production introuvable.")
-    production_date = (form.get("production_date") or before["production_date"] or date.today().isoformat()).strip()
-    notes = (form.get("notes") or "").strip()
-    execute_db(
-        "UPDATE production_batches SET production_date = %s, notes = %s WHERE id = %s",
-        (production_date, notes, batch_id),
-    )
-    after = query_db("SELECT * FROM production_batches WHERE id = %s", (batch_id,), one=True)
-    log_activity("edit_production_notes", "production", batch_id, f"date={production_date}")
-    audit_event("edit_production_notes", "production", batch_id, before=before, after=after)
-    mark_backup_needed("edit_production_notes")
-    return True
 
 
 def create_production_from_form(form):

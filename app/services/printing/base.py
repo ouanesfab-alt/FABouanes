@@ -2,28 +2,18 @@
 
 from __future__ import annotations
 
-from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 from app.core.config import BASE_DIR
 
 try:
-    from reportlab.lib import colors
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import cm
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.platypus import (
-        HRFlowable,
         Image as RLImage,
-        Paragraph,
-        SimpleDocTemplate,
         Spacer,
-        Table,
-        TableStyle,
     )
 
     REPORTLAB_AVAILABLE = True

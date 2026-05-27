@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date, datetime
+from datetime import date
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
