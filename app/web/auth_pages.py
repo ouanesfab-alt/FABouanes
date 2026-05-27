@@ -41,9 +41,10 @@ async def login_submit(request: Request):
         if int(user.get("must_change_password", 0) or 0):
             flash(request, "Changez immédiatement le mot de passe administrateur par défaut.", "warning")
         response = RedirectResponse(target, status_code=303)
+        from app.core.security import get_client_fingerprint
         response.set_cookie(
             AUTH_COOKIE_NAME,
-            build_auth_cookie_value(int(user["id"])),
+            build_auth_cookie_value(int(user["id"]), get_client_fingerprint(request)),
             max_age=settings.session_max_age if request.session.get("remember") else None,
             httponly=True,
             samesite="lax",

@@ -43,6 +43,23 @@ def bootstrap_schema() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_stock_alerts_product ON stock_alerts(product_type, product_id);
         CREATE INDEX IF NOT EXISTS idx_stock_alerts_triggered_at ON stock_alerts(triggered_at);
+
+        CREATE TABLE IF NOT EXISTS idempotent_requests (
+            key VARCHAR(255) PRIMARY KEY,
+            response_json TEXT NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS outbox_events (
+            id BIGSERIAL PRIMARY KEY,
+            event_type VARCHAR(255) NOT NULL,
+            payload TEXT NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            processed_at TIMESTAMPTZ,
+            retry_count INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_outbox_events_processed_at ON outbox_events(processed_at);
         """)
         
         # Then domain schemas
@@ -50,6 +67,26 @@ def bootstrap_schema() -> None:
         conn.executescript(SCHEMA_CATALOG)
         conn.executescript(SCHEMA_OPERATIONS)
         conn.executescript(SCHEMA_PRODUCTION)
+
+        # Then schema updates and indexes for Options J, I, K
+        conn.executescript("""
+        CREATE TABLE IF NOT EXISTS client_keys (
+            client_id BIGINT PRIMARY KEY,
+            encryption_key TEXT NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS dead_letter_events (
+            id BIGSERIAL PRIMARY KEY,
+            event_type VARCHAR(255) NOT NULL,
+            payload TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            failed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_sales_credit_client ON sales(client_id, total) WHERE sale_type = 'credit';
+        CREATE INDEX IF NOT EXISTS idx_raw_sales_credit_client ON raw_sales(client_id, total) WHERE sale_type = 'credit';
+        """)
         
         # Then discover and execute module schemas
         try:
@@ -81,6 +118,16 @@ def bootstrap_schema() -> None:
                 conn.execute("ALTER TABLE purchases ALTER COLUMN raw_material_id DROP NOT NULL")
         except Exception as exc:
             logging.getLogger("fabouanes").debug("Auto-migration for purchases.finished_product_id skipped", exc_info=True)
+
+        try:
+            cols = list_columns(conn, "outbox_events")
+            if cols:
+                if "retry_count" not in cols:
+                    conn.execute("ALTER TABLE outbox_events ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0")
+                if "last_error" not in cols:
+                    conn.execute("ALTER TABLE outbox_events ADD COLUMN last_error TEXT")
+        except Exception as exc:
+            logging.getLogger("fabouanes").debug("Auto-migration for outbox_events retry columns skipped", exc_info=True)
 
         conn.commit()
     finally:

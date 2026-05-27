@@ -46,12 +46,12 @@ async def api_clients(request: Request):
     require_api_user(request, PERMISSION_CONTACTS_WRITE if request.method == "POST" else PERMISSION_CONTACTS_READ)
     if request.method == "POST":
         payload = await request.json()
-        client_id = await asyncio.to_thread(create_client_from_form, payload_to_form_data(payload))
+        client_id = await create_client_from_form(payload_to_form_data(payload))
         return json_response(api_success(await asyncio.to_thread(client_payload, client_id), status_code=201))
 
     page = int(request.query_params.get("page", 1))
     page_size = int(request.query_params.get("page_size", 50))
-    rows, total = await list_clients.async_(
+    rows, total = await list_clients(
         search=request.query_params.get("q"),
         page=page,
         page_size=page_size
@@ -70,7 +70,7 @@ async def api_client_detail(request: Request, client_id: int):
         api_error("not_found", "Client introuvable.", 404)
     if request.method == "PUT":
         payload = await request.json()
-        await asyncio.to_thread(update_client_from_form, client_id, payload_to_form_data(payload))
+        await update_client_from_form(client_id, payload_to_form_data(payload))
         client = await asyncio.to_thread(client_payload, client_id)
     detail = await asyncio.to_thread(client_history_payload, client_id)
     client["summary"] = detail.get("stats", {}) if detail else {}
@@ -79,6 +79,18 @@ async def api_client_detail(request: Request, client_id: int):
     if request.method == "GET":
         add_cache_headers(request, response, res_data, max_age=300)
     return response
+
+@router.post("/clients/{client_id}/shred")
+async def api_shred_client(request: Request, client_id: int):
+    require_api_user(request, PERMISSION_CONTACTS_DELETE)
+    from app.repositories.client_repository import shred_client, get_client
+    client = await get_client(client_id)
+    if not client:
+        api_error("not_found", "Client introuvable.", 404)
+    await shred_client(client_id)
+    log_activity("shred_client", "client", client_id, client.get("name", ""))
+    audit_event("shred_client", "client", client_id, before=client, after=await get_client(client_id))
+    return json_response(api_success({"shredded": True}))
 
 def _fetch_client_history(client_id: int, page: int, page_size: int) -> tuple[list, int]:
     # 1. Fetch all rows to calculate the running balance correctly across all pages
@@ -175,27 +187,24 @@ async def import_client_history(
         temp_path = tmp.name
 
     try:
-        from app.services.client_import_service import import_client_history_from_excel
-        result = await asyncio.to_thread(
-            import_client_history_from_excel,
+        from app.core.worker import enqueue_background_task
+        job_id = await enqueue_background_task(
+            "import_excel_task",
             temp_path,
             client_id,
             force_reimport
         )
-        log_activity(
-            "import_client_history",
-            "client",
-            result["client_id"],
-            f"Import historique client '{result['client_name']}' - {result['nb_lignes']} lignes, solde final: {result['solde_final']}"
-        )
-        return json_response(api_success(result))
+        return json_response(api_success({
+            "task_id": job_id,
+            "status": "enqueued",
+            "message": "L'importation de l'historique a été lancée en arrière-plan."
+        }))
     except Exception as e:
-        api_error("bad_request", f"Erreur lors de l'import : {str(e)}", 400)
-    finally:
         try:
             os.unlink(temp_path)
         except Exception:
             pass
+        api_error("bad_request", f"Erreur lors du lancement de l'import : {str(e)}", 400)
 
 
 @router.get("/clients/{client_id}/history")

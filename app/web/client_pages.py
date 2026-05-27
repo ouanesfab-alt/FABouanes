@@ -56,7 +56,7 @@ async def clients_submit(request: Request):
     try:
         data = {k: v for k, v in form.items()}
         validated = ClientValidationSchema(**data)
-        create_client_from_form(validated.model_dump())
+        await create_client_from_form(validated.model_dump())
         flash(request, "Client ajouté avec succès.", "success")
         return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
     except Exception as e:
@@ -102,7 +102,7 @@ async def import_clients_submit(request: Request):
     form = await request.form()
     action = str(form.get("action", "import") or "import").strip()
     if action == "confirm_preview":
-        result = import_clients_from_preview(str(form.get("preview_token", "") or ""))
+        result = await import_clients_from_preview(str(form.get("preview_token", "") or ""))
         for err in result["errors"][:5]:
             flash(request, err, "danger")
         if result["errors"]:
@@ -124,14 +124,14 @@ async def import_clients_submit(request: Request):
         return RedirectResponse(IMPORT_CLIENTS_URL, status_code=303)
 
     if action == "preview":
-        result = preview_clients_from_files(files)
+        result = await preview_clients_from_files(files)
         for err in result["errors"][:5]:
             flash(request, err, "danger")
         for name in result["duplicates"][:5]:
             flash(request, f"Doublon dans les fichiers: {name}", "warning")
         return templates.TemplateResponse("client_import.html", template_context(request, preview=result))
 
-    result = import_clients_from_files(files)
+    result = await import_clients_from_files(files)
     for err in result["errors"][:5]:
         flash(request, err, "danger")
     level = "success" if (result["created"] or result["updated"]) else "warning"

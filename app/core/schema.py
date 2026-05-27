@@ -89,6 +89,8 @@ def _set_setting(conn, key: str, value: str) -> None:
 
 
 def _rebuild_fts_if_needed(conn, table_name: str, expected_count_sql: str, insert_sql: str, *, force: bool = False) -> None:
+    from app.core.db_helpers import validate_identifier
+    validate_identifier(table_name)
     expected = int(_scalar(conn, expected_count_sql) or 0)
     current = int(_scalar(conn, f"SELECT COUNT(*) FROM {table_name}") or 0)
     if not force and current == expected:

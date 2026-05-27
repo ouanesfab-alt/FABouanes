@@ -1,26 +1,29 @@
 from __future__ import annotations
 
 import json
+import asyncio
 from datetime import date
 
 from app.core.activity import log_activity
 from app.core.audit import audit_event, audit_delete_event
-from app.core.db_access import db_transaction, execute_db, query_db
+from app.core.db_access import db_transaction, execute_db_async, query_db_async
 from app.core.helpers import create_sale_record, reverse_sale, to_float, unit_choices
 from app.core.storage import mark_backup_needed
 from app.core.exceptions import ValidationError, ConflictError, NotFoundError
 from app.repositories.sale_repository import (
-
     build_sellable_items,
     get_sale,
     get_sale_document,
     invalidate_sellable_items_cache,
     list_sale_document_lines,
 )
+from app.repositories.client_repository import async_compat
 
 
-def sale_form_context():
-    return {"sellable_items": build_sellable_items(), "units": unit_choices()}
+@async_compat
+async def sale_form_context():
+    items = await asyncio.to_thread(build_sellable_items)
+    return {"sellable_items": items, "units": unit_choices()}
 
 
 def _form_list(form, key: str) -> list[str]:
@@ -34,7 +37,7 @@ def _form_list(form, key: str) -> list[str]:
     return [str(value).strip()]
 
 
-def _extract_sale_lines(form) -> list[dict[str, object]]:
+async def _extract_sale_lines(form) -> list[dict[str, object]]:
     item_keys = _form_list(form, "item_key[]")
     quantities = _form_list(form, "quantity[]")
     units = _form_list(form, "unit[]")
@@ -64,7 +67,7 @@ def _extract_sale_lines(form) -> list[dict[str, object]]:
         custom_item_name = custom_item_name.strip()
         if item_kind == "raw":
             if item_id not in other_cache:
-                material = query_db("SELECT name FROM raw_materials WHERE id = %s", (item_id,), one=True)
+                material = await query_db_async("SELECT name FROM raw_materials WHERE id = %s", (item_id,), one=True)
                 if not material:
                     raise ValidationError("Matière première introuvable.", field="item_key")
                 other_cache[item_id] = str(material["name"] or "").strip().casefold() == "autre"
@@ -87,16 +90,16 @@ def _extract_sale_lines(form) -> list[dict[str, object]]:
     return lines
 
 
-def _insert_sale_document(document_id, client_id, sale_type: str, sale_date: str, notes: str) -> int:
+async def _insert_sale_document(document_id, client_id, sale_type: str, sale_date: str, notes: str) -> int:
     from app.core.document_numbering import next_doc_number
     try:
         year = int(sale_date.split("-")[0])
     except Exception:
         year = date.today().year
-    doc_number = next_doc_number("BV", year)
+    doc_number = await asyncio.to_thread(next_doc_number, "BV", year)
 
     if document_id:
-        execute_db(
+        await execute_db_async(
             """
             INSERT INTO sale_documents (id, doc_number, client_id, sale_type, total, amount_paid, balance_due, sale_date, notes)
             VALUES (%s, %s, %s, %s, 0, 0, 0, %s, %s)
@@ -104,7 +107,7 @@ def _insert_sale_document(document_id, client_id, sale_type: str, sale_date: str
             (int(document_id), doc_number, client_id, sale_type, sale_date, notes),
         )
         return int(document_id)
-    return execute_db(
+    return await execute_db_async(
         """
         INSERT INTO sale_documents (doc_number, client_id, sale_type, total, amount_paid, balance_due, sale_date, notes)
         VALUES (%s, %s, %s, 0, 0, 0, %s, %s)
@@ -113,12 +116,12 @@ def _insert_sale_document(document_id, client_id, sale_type: str, sale_date: str
     )
 
 
-def _save_sale_document_header(document_id: int, client_id, sale_type: str, sale_date: str, notes: str) -> None:
-    existing = query_db("SELECT id FROM sale_documents WHERE id = %s", (document_id,), one=True)
+async def _save_sale_document_header(document_id: int, client_id, sale_type: str, sale_date: str, notes: str) -> None:
+    existing = await query_db_async("SELECT id FROM sale_documents WHERE id = %s", (document_id,), one=True)
     if not existing:
-        _insert_sale_document(document_id, client_id, sale_type, sale_date, notes)
+        await _insert_sale_document(document_id, client_id, sale_type, sale_date, notes)
         return
-    execute_db(
+    await execute_db_async(
         "UPDATE sale_documents SET client_id = %s, sale_type = %s, sale_date = %s, notes = %s WHERE id = %s",
         (client_id, sale_type, sale_date, notes, document_id),
     )
@@ -173,10 +176,10 @@ def _payment_references_sale(payment_row, sale_refs: set[tuple[str, int]]) -> bo
     return False
 
 
-def _client_payment_rows(client_id: int | None):
+async def _client_payment_rows(client_id: int | None):
     if not client_id:
         return []
-    return query_db(
+    return await query_db_async(
         """
         SELECT id, sale_id, raw_sale_id, allocation_meta
         FROM payments
@@ -186,48 +189,51 @@ def _client_payment_rows(client_id: int | None):
     )
 
 
-def sale_document_has_linked_payments(document_id: int) -> bool:
-    document = get_sale_document(document_id)
+async def sale_document_has_linked_payments(document_id: int) -> bool:
+    document = await asyncio.to_thread(get_sale_document, document_id)
     if not document or not document["client_id"]:
         return False
-    lines = list_sale_document_lines(document_id)
+    lines = await asyncio.to_thread(list_sale_document_lines, document_id)
     refs = _sale_refs(lines)
     if not refs:
         return False
-    for payment in _client_payment_rows(int(document["client_id"])):
+    for payment in await _client_payment_rows(int(document["client_id"])):
         if _payment_references_sale(payment, refs):
             return True
     return False
 
 
-def sale_line_has_linked_payments(kind: str, row_id: int, client_id) -> bool:
+async def sale_line_has_linked_payments(kind: str, row_id: int, client_id) -> bool:
     if not client_id:
         return False
     refs = {(str(kind), int(row_id))}
-    for payment in _client_payment_rows(int(client_id)):
+    for payment in await _client_payment_rows(int(client_id)):
         if _payment_references_sale(payment, refs):
             return True
     return False
 
 
-def get_sale_document_context(document_id: int):
-    document = get_sale_document(document_id)
+@async_compat
+async def get_sale_document_context(document_id: int):
+    document = await asyncio.to_thread(get_sale_document, document_id)
     if not document:
         return None
-    lines = list_sale_document_lines(document_id)
+    lines = await asyncio.to_thread(list_sale_document_lines, document_id)
+    has_linked = await sale_document_has_linked_payments(document_id)
     return {
         "sale_document": dict(document),
         "sale_lines": _serialize_sale_lines(lines),
-        "has_linked_payments": sale_document_has_linked_payments(document_id),
+        "has_linked_payments": has_linked,
     }
 
 
-def get_sale_edit_context(kind: str, row_id: int):
-    sale = get_sale(kind, row_id)
+@async_compat
+async def get_sale_edit_context(kind: str, row_id: int):
+    sale = await asyncio.to_thread(get_sale, kind, row_id)
     if not sale:
         return None
     if sale["document_id"]:
-        context = get_sale_document_context(int(sale["document_id"]))
+        context = await get_sale_document_context(int(sale["document_id"]))
         if context:
             context["redirect_document_id"] = int(sale["document_id"])
         return context
@@ -260,17 +266,18 @@ def get_sale_edit_context(kind: str, row_id: int):
     }
 
 
-def create_sale_from_form(form):
+@async_compat
+async def create_sale_from_form(form):
     client_id = form.get("client_id") or None
     sale_date = form.get("sale_date") or date.today().isoformat()
     notes = form.get("notes", "").strip()
     sale_type = "credit" if client_id else "cash"
-    lines = _extract_sale_lines(form)
+    lines = await _extract_sale_lines(form)
     use_document = len(lines) > 1 or bool(form.getlist("item_key[]"))
 
     if not use_document:
         line = lines[0]
-        created_kind, created_sale_id = create_sale_record(
+        created_kind, created_sale_id = await create_sale_record(
             client_id,
             str(line["item_kind"]),
             int(line["item_id"]),
@@ -283,10 +290,10 @@ def create_sale_from_form(form):
             0 if client_id else float(line["quantity"]) * float(line["unit_price"]),
             custom_item_name=str(line["custom_item_name"]),
         )
-        created = get_sale(created_kind, created_sale_id)
+        created = await asyncio.to_thread(get_sale, created_kind, created_sale_id)
         log_activity("create_sale", "sale", created_sale_id, f"{line['item_kind']} #{line['item_id']} qty={line['quantity']} {line['unit']}")
         audit_event("create_sale", "sale", created_sale_id, after=created, meta={"kind": created_kind})
-        invalidate_sellable_items_cache()
+        await asyncio.to_thread(invalidate_sellable_items_cache)
         mark_backup_needed("create_sale")
         return {
             "mode": "line",
@@ -299,11 +306,11 @@ def create_sale_from_form(form):
         }
 
     with db_transaction():
-        document_id = _insert_sale_document(None, client_id, sale_type, sale_date, notes)
+        document_id = await _insert_sale_document(None, client_id, sale_type, sale_date, notes)
         created_lines: list[tuple[str, int]] = []
         for line in lines:
             created_lines.append(
-                create_sale_record(
+                await create_sale_record(
                     client_id,
                     str(line["item_kind"]),
                     int(line["item_id"]),
@@ -319,10 +326,10 @@ def create_sale_from_form(form):
                 )
             )
 
-    created = query_db("SELECT * FROM sale_documents WHERE id = %s", (document_id,), one=True)
+    created = await query_db_async("SELECT * FROM sale_documents WHERE id = %s", (document_id,), one=True)
     log_activity("create_sale_document", "sale_document", document_id, f"{len(lines)} ligne(s)")
     audit_event("create_sale_document", "sale_document", document_id, after=created, meta={"line_count": len(lines)})
-    invalidate_sellable_items_cache()
+    await asyncio.to_thread(invalidate_sellable_items_cache)
     mark_backup_needed("create_sale_document")
     return {
         "mode": "document",
@@ -335,19 +342,19 @@ def create_sale_from_form(form):
     }
 
 
-def edit_sale_document_from_form(document_id: int, form):
-    context = get_sale_document_context(document_id)
+@async_compat
+async def edit_sale_document_from_form(document_id: int, form):
+    context = await get_sale_document_context(document_id)
     if not context:
         raise NotFoundError("Facture", document_id)
     if context["has_linked_payments"]:
         raise ConflictError("Cette facture est deja liee a des versements.")
 
-
     client_id = form.get("client_id") or None
     sale_date = form.get("sale_date") or date.today().isoformat()
     notes = form.get("notes", "").strip()
     sale_type = "credit" if client_id else "cash"
-    lines = _extract_sale_lines(form)
+    lines = await _extract_sale_lines(form)
     before = {
         "document": dict(context["sale_document"]),
         "lines": [dict(line) for line in context["sale_lines"]],
@@ -355,14 +362,13 @@ def edit_sale_document_from_form(document_id: int, form):
 
     with db_transaction():
         for line in context["sale_lines"]:
-            if not reverse_sale(str(line["row_kind"]), int(line["row_id"])):
+            if not await reverse_sale(str(line["row_kind"]), int(line["row_id"])):
                 raise ValueError("Impossible de modifier cette facture.")
 
-        # Re-create the header if it was deleted during reverse_sale to preserve the original document ID and number
-        existing = query_db("SELECT id FROM sale_documents WHERE id = %s", (document_id,), one=True)
+        existing = await query_db_async("SELECT id FROM sale_documents WHERE id = %s", (document_id,), one=True)
         if not existing:
             doc_number = before["document"]["doc_number"]
-            execute_db(
+            await execute_db_async(
                 """
                 INSERT INTO sale_documents (id, doc_number, client_id, sale_type, total, amount_paid, balance_due, sale_date, notes)
                 VALUES (%s, %s, %s, %s, 0, 0, 0, %s, %s)
@@ -373,7 +379,7 @@ def edit_sale_document_from_form(document_id: int, form):
         created_lines: list[tuple[str, int]] = []
         for line in lines:
             created_lines.append(
-                create_sale_record(
+                await create_sale_record(
                     client_id,
                     str(line["item_kind"]),
                     int(line["item_id"]),
@@ -388,9 +394,9 @@ def edit_sale_document_from_form(document_id: int, form):
                     custom_item_name=str(line["custom_item_name"]),
                 )
             )
-        _save_sale_document_header(document_id, client_id, sale_type, sale_date, notes)
+        await _save_sale_document_header(document_id, client_id, sale_type, sale_date, notes)
 
-    after_context = get_sale_document_context(document_id)
+    after_context = await get_sale_document_context(document_id)
     log_activity("update_sale_document", "sale_document", document_id, f"{len(lines)} ligne(s)")
     audit_event(
         "update_sale_document",
@@ -400,7 +406,7 @@ def edit_sale_document_from_form(document_id: int, form):
         after={"document": after_context["sale_document"], "lines": after_context["sale_lines"]} if after_context else None,
         meta={"line_count": len(lines)},
     )
-    invalidate_sellable_items_cache()
+    await asyncio.to_thread(invalidate_sellable_items_cache)
     mark_backup_needed("update_sale_document")
     return {
         "mode": "document",
@@ -413,32 +419,32 @@ def edit_sale_document_from_form(document_id: int, form):
     }
 
 
-def edit_sale_from_form(kind: str, row_id: int, form):
-    before = get_sale(kind, row_id)
+@async_compat
+async def edit_sale_from_form(kind: str, row_id: int, form):
+    before = await asyncio.to_thread(get_sale, kind, row_id)
     if not before:
         raise NotFoundError("Vente", f"{kind}:{row_id}")
     if before["document_id"]:
         raise ConflictError("Cette ligne appartient deja a une facture multi-lignes.")
 
-
     client_id = form.get("client_id") or None
     sale_date = form.get("sale_date") or date.today().isoformat()
     notes = form.get("notes", "").strip()
     sale_type = "credit" if client_id else "cash"
-    lines = _extract_sale_lines(form)
+    lines = await _extract_sale_lines(form)
 
     if len(lines) > 1:
-        if sale_line_has_linked_payments(kind, row_id, before["client_id"]):
+        if await sale_line_has_linked_payments(kind, row_id, before["client_id"]):
             raise ConflictError("Cette facture est deja liee a des versements.")
 
         with db_transaction():
-            if not reverse_sale(kind, row_id):
+            if not await reverse_sale(kind, row_id):
                 raise ValueError("Impossible de modifier cette vente.")
-            document_id = _insert_sale_document(None, client_id, sale_type, sale_date, notes)
+            document_id = await _insert_sale_document(None, client_id, sale_type, sale_date, notes)
             created_lines: list[tuple[str, int]] = []
             for line in lines:
                 created_lines.append(
-                    create_sale_record(
+                    await create_sale_record(
                         client_id,
                         str(line["item_kind"]),
                         int(line["item_id"]),
@@ -454,7 +460,7 @@ def edit_sale_from_form(kind: str, row_id: int, form):
                     )
                 )
 
-        created = query_db("SELECT * FROM sale_documents WHERE id = %s", (document_id,), one=True)
+        created = await query_db_async("SELECT * FROM sale_documents WHERE id = %s", (document_id,), one=True)
         log_activity("update_sale_document", "sale_document", document_id, f"{len(lines)} ligne(s)")
         audit_event(
             "update_sale_document",
@@ -464,7 +470,7 @@ def edit_sale_from_form(kind: str, row_id: int, form):
             after=created,
             meta={"line_count": len(lines), "promoted_from_row_id": row_id},
         )
-        invalidate_sellable_items_cache()
+        await asyncio.to_thread(invalidate_sellable_items_cache)
         mark_backup_needed("update_sale_document")
         return {
             "mode": "document",
@@ -478,9 +484,9 @@ def edit_sale_from_form(kind: str, row_id: int, form):
 
     line = lines[0]
     with db_transaction():
-        if not reverse_sale(kind, row_id):
+        if not await reverse_sale(kind, row_id):
             raise ValueError("Impossible de modifier cette vente.")
-        new_kind, new_sale_id = create_sale_record(
+        new_kind, new_sale_id = await create_sale_record(
             client_id,
             str(line["item_kind"]),
             int(line["item_id"]),
@@ -494,10 +500,10 @@ def edit_sale_from_form(kind: str, row_id: int, form):
             custom_item_name=str(line["custom_item_name"]),
         )
 
-    after = get_sale(new_kind, new_sale_id)
+    after = await asyncio.to_thread(get_sale, new_kind, new_sale_id)
     log_activity("update_sale", "sale", row_id, f"{line['item_kind']} #{line['item_id']} qty={line['quantity']} {line['unit']}")
     audit_event("update_sale", "sale", row_id, before=before, after=after, meta={"kind": new_kind, "document_id": None})
-    invalidate_sellable_items_cache()
+    await asyncio.to_thread(invalidate_sellable_items_cache)
     mark_backup_needed("update_sale")
     return {
         "mode": "line",
@@ -510,16 +516,15 @@ def edit_sale_from_form(kind: str, row_id: int, form):
     }
 
 
-def delete_sale_by_id(kind: str, row_id: int) -> bool:
-    before = get_sale(kind, row_id)
+@async_compat
+async def delete_sale_by_id(kind: str, row_id: int) -> bool:
+    before = await asyncio.to_thread(get_sale, kind, row_id)
     if before:
         audit_delete_event("sale", row_id, dict(before))
-    ok = reverse_sale(kind, row_id)
+    ok = await reverse_sale(kind, row_id)
     if ok:
         log_activity("delete_sale", "sale", row_id, f"Suppression vente {kind}")
         audit_event("delete_sale", "sale", row_id, before=before, after=None, meta={"kind": kind})
-        invalidate_sellable_items_cache()
+        await asyncio.to_thread(invalidate_sellable_items_cache)
         mark_backup_needed("delete_sale")
     return ok
-
-

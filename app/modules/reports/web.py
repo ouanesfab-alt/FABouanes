@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from app.modules.reports.service import ReportsService
 from app.web.deps import require_permission, template_context, templates
 from app.core.perf_cache import cached_result
+from app.core.rate_limit import limiter
 
 router = APIRouter()
 
@@ -18,6 +19,7 @@ def get_reports_service() -> ReportsService:
 
 
 @router.get("/reports", name="reports_dashboard")
+@limiter.limit("20/minute")
 async def reports_page(
     request: Request,
     reports_service: ReportsService = Depends(get_reports_service)
@@ -146,6 +148,7 @@ async def reports_page(
 
 
 @router.get("/reports/export-csv", name="reports_export_csv")
+@limiter.limit("10/minute")
 async def export_csv(
     request: Request,
     reports_service: ReportsService = Depends(get_reports_service)

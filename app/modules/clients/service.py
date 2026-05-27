@@ -17,38 +17,133 @@ class ClientService:
     def __init__(self, session: AsyncSession):
         self.repo = ClientRepository(session)
 
+    async def _decrypt_client(self, client: Optional[Client]) -> Optional[Client]:
+        if not client:
+            return client
+        from sqlalchemy import text
+        import base64
+        from app.core.security import decrypt_val
+        res = await self.repo.session.execute(
+            text("SELECT encryption_key FROM client_keys WHERE client_id = :client_id"),
+            {"client_id": client.id}
+        )
+        row = res.mappings().first()
+        key = base64.b64decode(row["encryption_key"]) if row and row["encryption_key"] else None
+        
+        client.phone = decrypt_val(client.phone, key)
+        client.address = decrypt_val(client.address, key)
+        return client
+
+    async def _decrypt_clients(self, clients: List[Client]) -> List[Client]:
+        if not clients:
+            return clients
+        client_ids = [c.id for c in clients if c.id]
+        if not client_ids:
+            return clients
+            
+        from sqlalchemy import text, bindparam
+        import base64
+        from app.core.security import decrypt_val
+        
+        res = await self.repo.session.execute(
+            text("SELECT client_id, encryption_key FROM client_keys WHERE client_id IN :ids").bindparams(
+                bindparam("ids", expanding=True)
+            ),
+            {"ids": tuple(client_ids)}
+        )
+        keys_map = {}
+        for row in res.mappings().all():
+            keys_map[row["client_id"]] = base64.b64decode(row["encryption_key"])
+            
+        for client in clients:
+            key = keys_map.get(client.id)
+            client.phone = decrypt_val(client.phone, key)
+            client.address = decrypt_val(client.address, key)
+        return clients
+
+    async def shred_client(self, client_id: int) -> bool:
+        """Shreds a client's sensitive PII."""
+        client = await self.repo.get_by_id(client_id)
+        if not client:
+            return False
+            
+        # Delete key
+        from sqlalchemy import text
+        await self.repo.session.execute(
+            text("DELETE FROM client_keys WHERE client_id = :client_id"),
+            {"client_id": client_id}
+        )
+        
+        # Set phone & address to "[SHREDDED]"
+        client.phone = "[SHREDDED]"
+        client.address = "[SHREDDED]"
+        
+        await self.repo.update(client)
+        invalidate_client_cache(client_id)
+        
+        emit(
+            DomainEvent(
+                "update",
+                "client",
+                client_id,
+                f"Client #{client_id} anonymisé par crypto-shredding",
+                after=client.model_dump(),
+            )
+        )
+        return True
+
     async def get_client(self, client_id: int) -> Optional[Client]:
         """Fetch client by ID."""
-        return await self.repo.get_by_id(client_id)
+        client = await self.repo.get_by_id(client_id)
+        return await self._decrypt_client(client)
 
     async def list_clients(
         self, search: Optional[str] = None, page: int = 1, page_size: int = 50
     ) -> Tuple[List[Client], int]:
         """List paginated clients."""
-        return await self.repo.list_clients(search, page, page_size)
+        clients, total = await self.repo.list_clients(search, page, page_size)
+        return await self._decrypt_clients(clients), total
 
     async def create_client(self, schema: ClientCreateSchema) -> Client:
         """Create and persist a new client."""
         client = Client(
             name=schema.name,
-            phone=schema.phone,
-            address=schema.address,
+            phone="",
+            address="",
             notes=schema.notes,
             opening_credit=schema.opening_credit,
         )
         created = await self.repo.create(client)
+
+        import os
+        import base64
+        key = os.urandom(32)
+        b64_key = base64.b64encode(key).decode("utf-8")
+        from sqlalchemy import text
+        await self.repo.session.execute(
+            text("INSERT INTO client_keys (client_id, encryption_key) VALUES (:client_id, :key)"),
+            {"client_id": created.id, "key": b64_key}
+        )
+        await self.repo.session.commit()
+
+        from app.core.security import encrypt_val
+        created.phone = encrypt_val(schema.phone, key)
+        created.address = encrypt_val(schema.address, key)
+        
+        updated = await self.repo.update(created)
+        decrypted = await self._decrypt_client(updated)
 
         # Publish domain event for auditing/logging
         emit(
             DomainEvent(
                 "create",
                 "client",
-                created.id,
-                f"Nouveau client créé: {created.name}",
-                after=created.model_dump(),
+                decrypted.id,
+                f"Nouveau client créé: {decrypted.name}",
+                after=decrypted.model_dump(),
             )
         )
-        return created
+        return decrypted
 
     async def update_client(
         self, client_id: int, schema: ClientUpdateSchema
@@ -58,10 +153,41 @@ class ClientService:
         if not client:
             return None
 
-        before_dump = client.model_dump()
+        # Fetch key
+        from sqlalchemy import text
+        import base64
+        res = await self.repo.session.execute(
+            text("SELECT encryption_key FROM client_keys WHERE client_id = :client_id"),
+            {"client_id": client.id}
+        )
+        row = res.mappings().first()
+        key = base64.b64decode(row["encryption_key"]) if row and row["encryption_key"] else None
+        if not key:
+            import os
+            key = os.urandom(32)
+            b64_key = base64.b64encode(key).decode("utf-8")
+            await self.repo.session.execute(
+                text("INSERT INTO client_keys (client_id, encryption_key) VALUES (:client_id, :key)"),
+                {"client_id": client.id, "key": b64_key}
+            )
+            await self.repo.session.commit()
+
+        from app.core.security import decrypt_val, encrypt_val
+        decrypted_before = Client(
+            id=client.id,
+            name=client.name,
+            phone=decrypt_val(client.phone, key),
+            address=decrypt_val(client.address, key),
+            notes=client.notes,
+            opening_credit=client.opening_credit,
+            created_at=client.created_at,
+            updated_at=client.updated_at
+        )
+        before_dump = decrypted_before.model_dump()
+
         client.name = schema.name
-        client.phone = schema.phone
-        client.address = schema.address
+        client.phone = encrypt_val(schema.phone, key)
+        client.address = encrypt_val(schema.address, key)
         client.notes = schema.notes
         client.opening_credit = schema.opening_credit
 
@@ -70,18 +196,20 @@ class ClientService:
         # Invalidate cache for this specific client
         invalidate_client_cache(client_id)
 
+        decrypted_after = await self._decrypt_client(updated)
+
         # Publish domain event for auditing/logging
         emit(
             DomainEvent(
                 "update",
                 "client",
-                updated.id,
-                f"Client mis à jour: {updated.name}",
+                decrypted_after.id,
+                f"Client mis à jour: {decrypted_after.name}",
                 before=before_dump,
-                after=updated.model_dump(),
+                after=decrypted_after.model_dump(),
             )
         )
-        return updated
+        return decrypted_after
 
     async def delete_client(self, client_id: int) -> bool:
         """Delete an existing client (only if no operations linked)."""
@@ -114,7 +242,7 @@ class ClientService:
         from app.core.perf_cache import async_cached_result
 
         async def _load():
-            client = await self.repo.get_by_id(client_id)
+            client = await self.get_client(client_id)
             if not client:
                 return None
 
@@ -226,7 +354,7 @@ class ClientService:
         self, client_id: int, page: int = 1, page_size: int = 15
     ) -> Optional[Dict[str, Any]]:
         """Build paginated history context for client history page."""
-        client = await self.repo.get_by_id(client_id)
+        client = await self.get_client(client_id)
         if not client:
             return None
 

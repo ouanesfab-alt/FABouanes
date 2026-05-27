@@ -14,11 +14,29 @@ Usage:
 from __future__ import annotations
 
 import logging
+import os
+import uuid
+import json
+import decimal
+import datetime
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
 logger = logging.getLogger("fabouanes.events")
+
+WORKER_ID = uuid.uuid4().hex
+REDIS_URL = os.environ.get("REDIS_URL", "").strip()
+
+_redis_client = None
+if REDIS_URL:  # pragma: no cover
+    try:
+        import redis
+        _redis_client = redis.from_url(REDIS_URL)
+        _redis_client.ping()
+    except Exception as e:
+        logger.warning("Failed to connect to Redis for Event Bus, falling back to in-memory: %s", e)
+        _redis_client = None
 
 
 @dataclass
@@ -33,6 +51,54 @@ class DomainEvent:
     after: Any = None
     source: str = "web"
     extra: dict = field(default_factory=dict)
+
+
+class EventJSONEncoder(json.JSONEncoder):  # pragma: no cover
+    def default(self, obj):
+        if isinstance(obj, (datetime.date, datetime.datetime)):
+            return obj.isoformat()
+        if isinstance(obj, decimal.Decimal):
+            return float(obj)
+        if isinstance(obj, set):
+            return list(obj)
+        try:
+            return super().default(obj)
+        except TypeError:
+            return str(obj)
+
+
+def _serialize_event(event: DomainEvent, sender_id: str) -> str:  # pragma: no cover
+    data = {
+        "action": event.action,
+        "entity_type": event.entity_type,
+        "entity_id": event.entity_id,
+        "label": event.label,
+        "before": event.before,
+        "after": event.after,
+        "source": event.source,
+        "extra": event.extra,
+        "sender_id": sender_id,
+    }
+    return json.dumps(data, cls=EventJSONEncoder)
+
+
+def _deserialize_event(json_str: str) -> tuple[DomainEvent, str] | None:  # pragma: no cover
+    try:
+        data = json.loads(json_str)
+        event = DomainEvent(
+            action=data["action"],
+            entity_type=data["entity_type"],
+            entity_id=data.get("entity_id"),
+            label=data.get("label", ""),
+            before=data.get("before"),
+            after=data.get("after"),
+            source=data.get("source", "web"),
+            extra=data.get("extra", {}),
+        )
+        return event, data.get("sender_id", "")
+    except Exception as e:
+        logger.warning("Failed to deserialize domain event: %s", e)
+        return None
 
 
 # ── Registre global des listeners ──
@@ -58,16 +124,25 @@ def off(event_pattern: str, handler: Callable) -> None:
         handlers.remove(handler)
 
 
-def emit(event: DomainEvent) -> None:
-    """Publie un événement à tous les listeners concernés."""
+def _trigger_local_handlers(event: DomainEvent, skip_default: bool = False) -> None:
     patterns = [
         "*",
         f"{event.action}.*",
         f"*.{event.entity_type}",
         f"{event.action}.{event.entity_type}",
     ]
+    # Check handler name to avoid duplicate DB operations when distributing events
+    default_names = {
+        "_auto_audit",
+        "_auto_activity",
+        "_auto_backup",
+        "_auto_websocket",
+        "_auto_refresh_balances",
+    }
     for pattern in patterns:
         for handler in _listeners.get(pattern, []):
+            if skip_default and handler.__name__ in default_names:
+                continue
             try:
                 handler(event)
             except Exception:
@@ -78,6 +153,41 @@ def emit(event: DomainEvent) -> None:
                     event.action,
                     event.entity_type,
                 )
+
+
+def emit(event: DomainEvent) -> None:
+    """Publie un événement à tous les listeners concernés (via Outbox si configuré, sinon inline)."""
+    is_testing = bool(
+        os.getenv("PYTEST_CURRENT_TEST")
+        or os.getenv("FAB_TESTING") == "1"
+        or os.getenv("FASTAPI_ENV") == "test"
+    )
+    force_outbox = os.getenv("FAB_FORCE_OUTBOX") == "1"
+    
+    if (REDIS_URL and not is_testing) or force_outbox:
+        try:
+            from app.core.db_access import execute_db
+            payload = _serialize_event(event, WORKER_ID)
+            execute_db(
+                "INSERT INTO outbox_events (event_type, payload) VALUES (%s, %s)",
+                (f"{event.action}.{event.entity_type}", payload)
+            )
+            logger.debug("Event written to outbox table: %s.%s", event.action, event.entity_type)
+            return
+        except Exception as e:
+            logger.error("Failed to write event to outbox table, falling back inline: %s", e)
+
+    # Fallback to legacy inline behavior (run immediately in request thread)
+    # 1. Run local handlers immediately
+    _trigger_local_handlers(event)
+
+    # 2. Publish to Redis if configured
+    if _redis_client:  # pragma: no cover
+        try:
+            payload = _serialize_event(event, WORKER_ID)
+            _redis_client.publish("fabouanes:events", payload)
+        except Exception as e:
+            logger.warning("Failed to publish domain event to Redis: %s", e)
 
 
 # ── Listeners par défaut (remplacent les appels manuels copié-collés) ──
@@ -161,8 +271,45 @@ except ImportError:
     scheduler = None
 
 
+_redis_thread = None
+
+
+def _redis_event_handler(message):  # pragma: no cover
+    try:
+        if message["type"] != "message":
+            return
+        data_str = message["data"]
+        if isinstance(data_str, bytes):
+            data_str = data_str.decode("utf-8")
+        res = _deserialize_event(data_str)
+        if not res:
+            return
+        event, sender_id = res
+        if sender_id == WORKER_ID:
+            return
+        _trigger_local_handlers(event, skip_default=True)
+    except Exception as e:
+        logger.exception("Error in Redis event handler")
+
+
+def _start_redis_listener():  # pragma: no cover
+    global _redis_thread
+    if not _redis_client:
+        return
+    try:
+        pubsub = _redis_client.pubsub()
+        pubsub.subscribe(**{"fabouanes:events": _redis_event_handler})
+        _redis_thread = pubsub.run_in_thread(sleep_time=0.1, daemon=True)
+        logger.info("Redis Event Bus listener started (worker_id=%s)", WORKER_ID)
+    except Exception as e:
+        logger.error("Failed to start Redis Event Bus listener: %s", e)
+
+
 def startup():
-    """Démarre le planificateur de tâches en arrière-plan."""
+    """Démarre le planificateur de tâches en arrière-plan et le listener Redis."""
+    # Démarrage de l'écouteur Redis
+    _start_redis_listener()
+
     if scheduler:
         try:
             if not scheduler.running:
@@ -177,4 +324,21 @@ def startup():
             logger.info("Scheduler APScheduler démarré et tâche d'alertes enregistrée.")
         except Exception as e:
             logger.error("Erreur lors du démarrage du scheduler : %s", e)
+
+
+def shutdown():
+    """Arrête le planificateur et le listener Redis."""
+    global _redis_thread
+    if scheduler and scheduler.running:
+        try:
+            scheduler.shutdown()
+            logger.info("Scheduler APScheduler arrêté.")
+        except Exception as e:
+            logger.error("Erreur lors de l'arrêt du scheduler : %s", e)
+    if _redis_thread:  # pragma: no cover
+        try:
+            _redis_thread.stop()
+            logger.info("Redis Event Bus listener arrêté.")
+        except Exception:
+            pass
 

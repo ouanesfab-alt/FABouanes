@@ -3,16 +3,18 @@ from __future__ import annotations
 from app.core.events import DomainEvent, emit
 from app.core.perf_cache import cached_result
 from app.utils.pagination import paginate_sequence
-from app.core.db_access import execute_db, query_db
+from app.core.connection import execute_db_async, query_db_async
 from app.core.helpers import refresh_sale_profits_for_item, to_float, unit_choices
+from app.repositories.client_repository import async_compat
 
-
-def catalog_context(args=None, path: str = "/catalog") -> dict:
+@async_compat
+async def catalog_context(args=None, path: str = "/catalog") -> dict:
     search = str((args or {}).get("q", "") or "").strip()
     kind_filter = str((args or {}).get("kind", "all") or "all").strip().lower()
     if kind_filter not in {"all", "raw", "finished"}:
         kind_filter = "all"
-    base = cached_result(("catalog_context",), _build_catalog_context, ttl_seconds=6.0)
+    from app.core.perf_cache import async_cached_result
+    base = await async_cached_result(("catalog_context",), _build_catalog_context, ttl_seconds=6.0)
     products = list(base["all_products"])
     if kind_filter == "raw":
         products = [row for row in products if row.get("row_kind") == "raw"]
@@ -31,12 +33,12 @@ def catalog_context(args=None, path: str = "/catalog") -> dict:
     }
 
 
-def _build_catalog_context() -> dict:
+async def _build_catalog_context() -> dict:
     from datetime import date, timedelta
     cutoff_30d = (date.today() - timedelta(days=30)).isoformat()
     
     # Raw materials 30-day velocity
-    raw_velocity_rows = query_db(
+    raw_velocity_rows = await query_db_async(
         """
         WITH consumed AS (
             SELECT raw_material_id, SUM(qty) AS consumed_30d
@@ -66,7 +68,7 @@ def _build_catalog_context() -> dict:
     raw_velocities = {r["id"]: float(r["consumed_30d"]) / 30.0 for r in raw_velocity_rows}
 
     # Finished products 30-day velocity
-    finished_velocity_rows = query_db(
+    finished_velocity_rows = await query_db_async(
         """
         WITH sold AS (
             SELECT finished_product_id, SUM(quantity) AS sold_30d
@@ -82,10 +84,10 @@ def _build_catalog_context() -> dict:
     )
     finished_velocities = {r["id"]: float(r["sold_30d"]) / 30.0 for r in finished_velocity_rows}
 
-    raw_items = query_db(
+    raw_items = await query_db_async(
         "SELECT id, name, unit AS unit, stock_qty, avg_cost, sale_price, alert_threshold, threshold_qty, 'Matière première' AS kind FROM raw_materials ORDER BY name"
     )
-    finished_items = query_db(
+    finished_items = await query_db_async(
         "SELECT id, name, default_unit AS unit, stock_qty, avg_cost, sale_price, 'Produit fini' AS kind FROM finished_products ORDER BY name"
     )
     all_products = []
@@ -220,11 +222,12 @@ def new_catalog_context(kind: str = "raw") -> dict:
     }
 
 
-def create_catalog_item_from_form(form) -> tuple[str, int]:
+@async_compat
+async def create_catalog_item_from_form(form) -> tuple[str, int]:
     kind = str(form.get("kind", "raw")).strip()
     name = _resolve_name_from_form(form, kind)
     if kind == "raw":
-        item_id = execute_db(
+        item_id = await execute_db_async(
             "INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold) VALUES (%s, %s, %s, %s, %s, %s)",
             (
                 name,
@@ -235,10 +238,10 @@ def create_catalog_item_from_form(form) -> tuple[str, int]:
                 to_float(form.get("alert_threshold")),
             ),
         )
-        created = get_raw_material(item_id)
+        created = await get_raw_material(item_id)
         emit(DomainEvent("create", "raw_material", item_id, name, after=created))
         return "raw", item_id
-    item_id = execute_db(
+    item_id = await execute_db_async(
         "INSERT INTO finished_products (name, default_unit, stock_qty, sale_price, avg_cost) VALUES (%s, %s, %s, %s, %s)",
         (
             name,
@@ -248,21 +251,24 @@ def create_catalog_item_from_form(form) -> tuple[str, int]:
             to_float(form.get("avg_cost")),
         ),
     )
-    created = get_product(item_id)
+    created = await get_product(item_id)
     emit(DomainEvent("create", "finished_product", item_id, name, after=created))
     return "finished", item_id
 
 
-def get_raw_material(material_id: int):
-    return query_db("SELECT * FROM raw_materials WHERE id = %s", (material_id,), one=True)
+@async_compat
+async def get_raw_material(material_id: int):
+    return await query_db_async("SELECT * FROM raw_materials WHERE id = %s", (material_id,), one=True)
 
 
-def get_product(product_id: int):
-    return query_db("SELECT * FROM finished_products WHERE id = %s", (product_id,), one=True)
+@async_compat
+async def get_product(product_id: int):
+    return await query_db_async("SELECT * FROM finished_products WHERE id = %s", (product_id,), one=True)
 
 
-def raw_material_edit_context(material_id: int) -> dict | None:
-    material = get_raw_material(material_id)
+@async_compat
+async def raw_material_edit_context(material_id: int) -> dict | None:
+    material = await get_raw_material(material_id)
     if not material:
         return None
     name = material["name"]
@@ -285,8 +291,9 @@ def raw_material_edit_context(material_id: int) -> dict | None:
     }
 
 
-def product_edit_context(product_id: int) -> dict | None:
-    product = get_product(product_id)
+@async_compat
+async def product_edit_context(product_id: int) -> dict | None:
+    product = await get_product(product_id)
     if not product:
         return None
     name = product["name"]
@@ -309,12 +316,13 @@ def product_edit_context(product_id: int) -> dict | None:
     }
 
 
-def update_raw_material_from_form(material_id: int, form) -> None:
-    before = get_raw_material(material_id)
+@async_compat
+async def update_raw_material_from_form(material_id: int, form) -> None:
+    before = await get_raw_material(material_id)
     avg_cost = to_float(form.get("avg_cost"))
     sale_price = to_float(form.get("sale_price"))
     name = _resolve_name_from_form(form)
-    execute_db(
+    await execute_db_async(
         "UPDATE raw_materials SET name = %s, unit = %s, stock_qty = %s, avg_cost = %s, sale_price = %s, alert_threshold = %s WHERE id = %s",
         (
             name,
@@ -327,16 +335,17 @@ def update_raw_material_from_form(material_id: int, form) -> None:
         ),
     )
     refresh_sale_profits_for_item("raw", material_id, avg_cost, sale_price)
-    updated = get_raw_material(material_id)
+    updated = await get_raw_material(material_id)
     emit(DomainEvent("update", "raw_material", material_id, f"{name} | achat={avg_cost} | vente={sale_price}", before=before, after=updated))
 
 
-def update_product_from_form(product_id: int, form) -> None:
-    before = get_product(product_id)
+@async_compat
+async def update_product_from_form(product_id: int, form) -> None:
+    before = await get_product(product_id)
     avg_cost = to_float(form.get("avg_cost"))
     sale_price = to_float(form.get("sale_price"))
     name = _resolve_name_from_form(form)
-    execute_db(
+    await execute_db_async(
         "UPDATE finished_products SET name = %s, default_unit = %s, stock_qty = %s, sale_price = %s, avg_cost = %s WHERE id = %s",
         (
             name,
@@ -348,33 +357,36 @@ def update_product_from_form(product_id: int, form) -> None:
         ),
     )
     refresh_sale_profits_for_item("finished", product_id, avg_cost, sale_price)
-    updated = get_product(product_id)
+    updated = await get_product(product_id)
     emit(DomainEvent("update", "finished_product", product_id, f"{name} | revient={avg_cost} | vente={sale_price}", before=before, after=updated))
 
 
-def delete_raw_material_by_id(material_id: int) -> bool:
-    linked = query_db(
+@async_compat
+async def delete_raw_material_by_id(material_id: int) -> bool:
+    linked = await query_db_async(
         "SELECT 1 FROM purchases WHERE raw_material_id = %s UNION SELECT 1 FROM raw_sales WHERE raw_material_id = %s UNION SELECT 1 FROM production_batch_items WHERE raw_material_id = %s LIMIT 1",
         (material_id, material_id, material_id),
         one=True,
     )
     if linked:
         return False
-    before = get_raw_material(material_id)
-    execute_db("DELETE FROM raw_materials WHERE id = %s", (material_id,))
+    before = await get_raw_material(material_id)
+    await execute_db_async("DELETE FROM raw_materials WHERE id = %s", (material_id,))
     emit(DomainEvent("delete", "raw_material", material_id, "Suppression matière", before=before))
     return True
 
 
-def delete_product_by_id(product_id: int) -> bool:
-    linked = query_db(
+@async_compat
+async def delete_product_by_id(product_id: int) -> bool:
+    linked = await query_db_async(
         "SELECT 1 FROM sales WHERE finished_product_id = %s UNION SELECT 1 FROM production_batches WHERE finished_product_id = %s LIMIT 1",
         (product_id, product_id),
         one=True,
     )
     if linked:
         return False
-    before = get_product(product_id)
-    execute_db("DELETE FROM finished_products WHERE id = %s", (product_id,))
+    before = await get_product(product_id)
+    await execute_db_async("DELETE FROM finished_products WHERE id = %s", (product_id,))
     emit(DomainEvent("delete", "finished_product", product_id, "Suppression produit", before=before))
     return True
+

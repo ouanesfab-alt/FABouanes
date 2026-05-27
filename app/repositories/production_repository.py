@@ -57,13 +57,16 @@ def list_production_page_context(args=None):
     }
 
 
-def production_form_context():
+from app.repositories.client_repository import async_compat
+
+@async_compat
+async def production_form_context():
     raw_materials = query_db('SELECT * FROM raw_materials ORDER BY name')
     return {
         'raw_materials': raw_materials,
         'raw_materials_json': [dict(r) for r in raw_materials],
         'products': query_db('SELECT * FROM finished_products ORDER BY name'),
-        'recipes': load_saved_recipes(),
+        'recipes': await load_saved_recipes(),
     }
 async def list_production_batches(
     search: str | None = None,

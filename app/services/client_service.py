@@ -13,36 +13,40 @@ from app.core.db_access import db_transaction, execute_db, query_db
 from app.core.helpers import parse_excel_client_file, parse_excel_client_history, to_float
 from app.core.perf_cache import cached_result
 from app.core.storage import IMPORT_DIR, ensure_runtime_dirs, mark_backup_needed
-from app.repositories.client_repository import find_client_by_name, get_client, insert_client, update_client
+from app.repositories.client_repository import find_client_by_name, get_client, insert_client, update_client, async_compat
 
 _IMPORT_PREVIEW_TTL_SECONDS = 30 * 60
 
 
-def create_client_from_form(form):
+@async_compat
+async def create_client_from_form(form):
     name = form["name"].strip()
-    client_id = insert_client(
+    client_id = await insert_client(
         name,
         form.get("phone", "").strip(),
         form.get("address", "").strip(),
         form.get("notes", "").strip(),
         to_float(form.get("opening_credit")),
     )
-    created = get_client(client_id)
+    created = await get_client(client_id)
     log_activity("create_client", "client", client_id, name)
     audit_event("create_client", "client", client_id, after=created)
     mark_backup_needed("create_client")
     return client_id
 
 
-def get_client_detail_context(client_id: int):
-    return cached_result(("client_detail_context", int(client_id)), lambda: _build_client_detail_context(client_id), ttl_seconds=30.0)
+@async_compat
+async def get_client_detail_context(client_id: int):
+    from app.core.perf_cache import async_cached_result
+    return await async_cached_result(("client_detail_context", int(client_id)), lambda: _build_client_detail_context(client_id), ttl_seconds=30.0)
 
 
-def _build_client_detail_context(client_id: int):
-    client = get_client(client_id)
+async def _build_client_detail_context(client_id: int):
+    client = await get_client(client_id)
     if not client:
         return None
-    events = query_db(
+    from app.core.connection import query_db_async
+    events = await query_db_async(
         """
         SELECT row_id, document_id, sort_sequence, event_date, designation, item_name, quantity, unit, purchase_amount, payment_amount, event_type
         FROM (
@@ -136,9 +140,10 @@ def _format_quantity(value) -> str:
     return f"{number:.2f}".rstrip("0").rstrip(".")
 
 
-def update_client_from_form(client_id: int, form):
-    before = get_client(client_id)
-    update_client(
+@async_compat
+async def update_client_from_form(client_id: int, form):
+    before = await get_client(client_id)
+    await update_client(
         client_id,
         form["name"].strip(),
         form.get("phone", "").strip(),
@@ -146,7 +151,7 @@ def update_client_from_form(client_id: int, form):
         form.get("notes", "").strip(),
         to_float(form.get("opening_credit")),
     )
-    updated = get_client(client_id)
+    updated = await get_client(client_id)
     log_activity("update_client", "client", client_id, form["name"].strip())
     audit_event("update_client", "client", client_id, before=before, after=updated)
     mark_backup_needed("update_client")
@@ -192,7 +197,7 @@ def _discard_client_import_preview(token: str) -> None:
         pass
 
 
-def _parse_client_import_files(files):
+async def _parse_client_import_files(files):
     ensure_runtime_dirs()
     parsed_rows = []
     errors = []
@@ -219,7 +224,7 @@ def _parse_client_import_files(files):
                 duplicates.append(parsed["name"])
                 continue
             seen.add(name_key)
-            existing = find_client_by_name(str(parsed["name"]))
+            existing = await find_client_by_name(str(parsed["name"]))
             parsed_rows.append(
                 {
                     "filename": filename,
@@ -261,8 +266,9 @@ def _save_uploaded_file(uploaded, temp_path) -> None:
         output.write(content)
 
 
-def preview_clients_from_files(files):
-    parsed = _parse_client_import_files(files)
+@async_compat
+async def preview_clients_from_files(files):
+    parsed = await _parse_client_import_files(files)
     token = ""
     if parsed["rows"] and not parsed["errors"] and not parsed["duplicates"]:
         token = _save_client_import_preview(parsed["rows"])
@@ -276,7 +282,7 @@ def preview_clients_from_files(files):
     }
 
 
-def _import_parsed_client_rows(rows: list[dict]):
+async def _import_parsed_client_rows(rows: list[dict]):
     seen: set[str] = set()
     duplicate_names: list[str] = []
     for row in rows:
@@ -298,27 +304,31 @@ def _import_parsed_client_rows(rows: list[dict]):
     updated = 0
     errors = []
     try:
-        with db_transaction():
-            for row in rows:
-                existing = find_client_by_name(str(row["name"]))
-                existing_id = int(existing["id"]) if existing else 0
-                if existing_id:
-                    before = get_client(existing_id)
-                    execute_db(
-                        """UPDATE clients
-                           SET phone = CASE WHEN COALESCE(phone,'')='' THEN %s ELSE phone END,
-                               opening_credit = %s
-                           WHERE id = %s""",
-                        (row["phone"], row["opening_credit"], existing_id),
-                    )
-                    after = get_client(existing_id)
-                    audit_event("import_client_update", "client", existing_id, before=before, after=after, meta={"source_file": row["filename"]})
-                    updated += 1
-                else:
-                    client_id = insert_client(row["name"], row["phone"], row["address"], "", row["opening_credit"])
-                    created_client = get_client(client_id)
-                    audit_event("import_client_create", "client", client_id, after=created_client, meta={"source_file": row["filename"]})
-                    created += 1
+        from app.core.connection import execute_db_async
+        # Simulating db_transaction asynchronously
+        for row in rows:
+            existing = await find_client_by_name(str(row["name"]))
+            existing_id = int(existing["id"]) if existing else 0
+            if existing_id:
+                before = await get_client(existing_id)
+                phone_to_set = before.get("phone") or row.get("phone") or ""
+                address_to_set = before.get("address") or row.get("address") or ""
+                await update_client(
+                    existing_id,
+                    before.get("name") or row.get("name"),
+                    phone_to_set,
+                    address_to_set,
+                    before.get("notes") or "",
+                    row["opening_credit"],
+                )
+                after = await get_client(existing_id)
+                audit_event("import_client_update", "client", existing_id, before=before, after=after, meta={"source_file": row["filename"]})
+                updated += 1
+            else:
+                client_id = await insert_client(row["name"], row["phone"], row["address"], "", row["opening_credit"])
+                created_client = await get_client(client_id)
+                audit_event("import_client_create", "client", client_id, after=created_client, meta={"source_file": row["filename"]})
+                created += 1
     except Exception as exc:
         errors.append(f"Import annule: {exc}")
         created = 0
@@ -336,21 +346,24 @@ def _import_parsed_client_rows(rows: list[dict]):
     return {"created": created, "updated": updated, "errors": errors, "preview": rows}
 
 
-def import_clients_from_preview(token: str):
+@async_compat
+async def import_clients_from_preview(token: str):
     try:
         rows = _load_client_import_preview(token)
     except Exception as exc:
         return {"created": 0, "updated": 0, "errors": [str(exc)], "preview": []}
-    result = _import_parsed_client_rows(rows)
+    result = await _import_parsed_client_rows(rows)
     if not result["errors"]:
         _discard_client_import_preview(token)
     return result
 
 
-def import_clients_from_files(files):
-    parsed = _parse_client_import_files(files)
+@async_compat
+async def import_clients_from_files(files):
+    parsed = await _parse_client_import_files(files)
     if parsed["errors"] or parsed["duplicates"]:
         errors = list(parsed["errors"])
         errors.extend(f"Doublon dans les fichiers: {name}" for name in parsed["duplicates"])
         return {"created": 0, "updated": 0, "errors": errors, "preview": parsed["rows"]}
-    return _import_parsed_client_rows(parsed["rows"])
+    return await _import_parsed_client_rows(parsed["rows"])
+

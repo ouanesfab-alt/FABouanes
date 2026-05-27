@@ -3,12 +3,12 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from app.core.db_access import db_transaction, execute_db, query_db
-from app.services.stock_service import recalc_sale_document_totals
+from app.core.db_access import db_transaction, execute_db_async, query_db_async
+from app.repositories.client_repository import async_compat
 
-
-def client_balance(client_id: int) -> float:
-    row = query_db(
+@async_compat
+async def client_balance(client_id: int) -> float:
+    row = await query_db_async(
         "SELECT current_debt FROM clients_with_stats WHERE id = %s",
         (client_id,),
         one=True,
@@ -16,7 +16,8 @@ def client_balance(client_id: int) -> float:
     return float(row["current_debt"]) if row else 0.0
 
 
-def get_open_credit_entries(client_id: int | None = None):
+@async_compat
+async def get_open_credit_entries(client_id: int | None = None):
     params: list[Any] = []
     where_sales = "WHERE s.balance_due > 0"
     where_raw = "WHERE rs.balance_due > 0"
@@ -25,7 +26,7 @@ def get_open_credit_entries(client_id: int | None = None):
         where_raw += " AND rs.client_id = %s"
         params.append(client_id)
         params.append(client_id)
-    return query_db(
+    return await query_db_async(
         f"""
         SELECT * FROM (
             SELECT 'finished' AS item_kind, s.id, s.client_id, c.name AS client_name, f.name AS item_name,
@@ -48,27 +49,33 @@ def get_open_credit_entries(client_id: int | None = None):
     )
 
 
-def apply_payment_to_entry(kind: str, row_id: int, amount: float) -> float:
+@async_compat
+async def apply_payment_to_entry(kind: str, row_id: int, amount: float) -> float:
     if amount <= 0:
         return 0.0
+    from app.services.stock_service import recalc_sale_document_totals
     if kind == "finished":
-        sale = query_db("SELECT balance_due, document_id FROM sales WHERE id = %s", (row_id,), one=True)
+        sale = await query_db_async("SELECT balance_due, document_id FROM sales WHERE id = %s", (row_id,), one=True)
         if not sale:
             return 0.0
         paid = min(amount, float(sale["balance_due"]))
-        execute_db("UPDATE sales SET balance_due = balance_due - %s, amount_paid = amount_paid + %s WHERE id = %s", (paid, paid, row_id))
-        recalc_sale_document_totals(int(sale["document_id"])) if sale["document_id"] else None
+        await execute_db_async("UPDATE sales SET balance_due = balance_due - %s, amount_paid = amount_paid + %s WHERE id = %s", (paid, paid, row_id))
+        if sale["document_id"]:
+            await recalc_sale_document_totals(int(sale["document_id"]))
         return paid
-    sale = query_db("SELECT balance_due, document_id FROM raw_sales WHERE id = %s", (row_id,), one=True)
+    sale = await query_db_async("SELECT balance_due, document_id FROM raw_sales WHERE id = %s", (row_id,), one=True)
     if not sale:
         return 0.0
     paid = min(amount, float(sale["balance_due"]))
-    execute_db("UPDATE raw_sales SET balance_due = balance_due - %s, amount_paid = amount_paid + %s WHERE id = %s", (paid, paid, row_id))
-    recalc_sale_document_totals(int(sale["document_id"])) if sale["document_id"] else None
+    await execute_db_async("UPDATE raw_sales SET balance_due = balance_due - %s, amount_paid = amount_paid + %s WHERE id = %s", (paid, paid, row_id))
+    if sale["document_id"]:
+        await recalc_sale_document_totals(int(sale["document_id"]))
     return paid
 
 
-def reverse_payment_allocations(payment_row) -> None:
+@async_compat
+async def reverse_payment_allocations(payment_row) -> None:
+    from app.services.stock_service import recalc_sale_document_totals
     with db_transaction():
         meta_raw = payment_row["allocation_meta"] if "allocation_meta" in payment_row.keys() else None
         if meta_raw:
@@ -83,35 +90,40 @@ def reverse_payment_allocations(payment_row) -> None:
                 if amount <= 0:
                     continue
                 if kind == "finished":
-                    doc_row = query_db("SELECT document_id FROM sales WHERE id = %s", (row_id,), one=True)
-                    execute_db("UPDATE sales SET amount_paid = amount_paid - %s, balance_due = balance_due + %s WHERE id = %s", (amount, amount, row_id))
-                    recalc_sale_document_totals(int(doc_row["document_id"])) if doc_row and doc_row["document_id"] else None
+                    doc_row = await query_db_async("SELECT document_id FROM sales WHERE id = %s", (row_id,), one=True)
+                    await execute_db_async("UPDATE sales SET amount_paid = amount_paid - %s, balance_due = balance_due + %s WHERE id = %s", (amount, amount, row_id))
+                    if doc_row and doc_row["document_id"]:
+                        await recalc_sale_document_totals(int(doc_row["document_id"]))
                 elif kind == "raw":
-                    doc_row = query_db("SELECT document_id FROM raw_sales WHERE id = %s", (row_id,), one=True)
-                    execute_db("UPDATE raw_sales SET amount_paid = amount_paid - %s, balance_due = balance_due + %s WHERE id = %s", (amount, amount, row_id))
-                    recalc_sale_document_totals(int(doc_row["document_id"])) if doc_row and doc_row["document_id"] else None
+                    doc_row = await query_db_async("SELECT document_id FROM raw_sales WHERE id = %s", (row_id,), one=True)
+                    await execute_db_async("UPDATE raw_sales SET amount_paid = amount_paid - %s, balance_due = balance_due + %s WHERE id = %s", (amount, amount, row_id))
+                    if doc_row and doc_row["document_id"]:
+                        await recalc_sale_document_totals(int(doc_row["document_id"]))
             return
         if payment_row["payment_type"] != "versement":
             return
         if payment_row["sale_kind"] == "finished" and payment_row["sale_id"]:
-            doc_row = query_db("SELECT document_id FROM sales WHERE id = %s", (payment_row["sale_id"],), one=True)
-            execute_db("UPDATE sales SET amount_paid = amount_paid - %s, balance_due = balance_due + %s WHERE id = %s", (payment_row["amount"], payment_row["amount"], payment_row["sale_id"]))
-            recalc_sale_document_totals(int(doc_row["document_id"])) if doc_row and doc_row["document_id"] else None
+            doc_row = await query_db_async("SELECT document_id FROM sales WHERE id = %s", (payment_row["sale_id"],), one=True)
+            await execute_db_async("UPDATE sales SET amount_paid = amount_paid - %s, balance_due = balance_due + %s WHERE id = %s", (payment_row["amount"], payment_row["amount"], payment_row["sale_id"]))
+            if doc_row and doc_row["document_id"]:
+                await recalc_sale_document_totals(int(doc_row["document_id"]))
         elif payment_row["sale_kind"] == "raw" and payment_row["raw_sale_id"]:
-            doc_row = query_db("SELECT document_id FROM raw_sales WHERE id = %s", (payment_row["raw_sale_id"],), one=True)
-            execute_db("UPDATE raw_sales SET amount_paid = amount_paid - %s, balance_due = balance_due + %s WHERE id = %s", (payment_row["amount"], payment_row["amount"], payment_row["raw_sale_id"]))
-            recalc_sale_document_totals(int(doc_row["document_id"])) if doc_row and doc_row["document_id"] else None
+            doc_row = await query_db_async("SELECT document_id FROM raw_sales WHERE id = %s", (payment_row["raw_sale_id"],), one=True)
+            await execute_db_async("UPDATE raw_sales SET amount_paid = amount_paid - %s, balance_due = balance_due + %s WHERE id = %s", (payment_row["amount"], payment_row["amount"], payment_row["raw_sale_id"]))
+            if doc_row and doc_row["document_id"]:
+                await recalc_sale_document_totals(int(doc_row["document_id"]))
 
 
-def create_payment_record(client_id: int, amount: float, payment_date: str, notes: str, sale_link: str = "", payment_type: str = "versement") -> int:
+@async_compat
+async def create_payment_record(client_id: int, amount: float, payment_date: str, notes: str, sale_link: str = "", payment_type: str = "versement") -> int:
     if amount <= 0:
         raise ValueError("Le montant doit etre superieur a zero.")
     with db_transaction():
-        client = query_db("SELECT id FROM clients WHERE id = %s", (client_id,), one=True)
+        client = await query_db_async("SELECT id FROM clients WHERE id = %s", (client_id,), one=True)
         if not client:
             raise ValueError("Client introuvable.")
         if payment_type == "avance":
-            return execute_db(
+            return await execute_db_async(
                 """
                 INSERT INTO payments (client_id, sale_id, raw_sale_id, sale_kind, payment_type, allocation_meta, amount, payment_date, notes)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -127,14 +139,14 @@ def create_payment_record(client_id: int, amount: float, payment_date: str, note
         if sale_link and ":" in sale_link:
             sale_kind, id_str = sale_link.split(":", 1)
             row_id = int(id_str)
-            entry = query_db(
+            entry = await query_db_async(
                 "SELECT client_id FROM sales WHERE id = %s" if sale_kind == "finished" else "SELECT client_id FROM raw_sales WHERE id = %s",
                 (row_id,),
                 one=True,
             )
             if entry and int(entry["client_id"] or 0) != client_id:
                 raise ValueError("Cette creance ne correspond pas au client choisi.")
-            applied = apply_payment_to_entry(sale_kind, row_id, amount)
+            applied = await apply_payment_to_entry(sale_kind, row_id, amount)
             if applied <= 0:
                 raise ValueError("Aucune creance ouverte a solder pour ce client.")
             allocations = [{"kind": sale_kind, "id": row_id, "amount": applied}]
@@ -144,18 +156,18 @@ def create_payment_record(client_id: int, amount: float, payment_date: str, note
                 raw_sale_id = row_id
         else:
             remaining = amount
-            for entry in get_open_credit_entries(client_id):
+            for entry in await get_open_credit_entries(client_id):
                 if remaining <= 0:
                     break
-                paid = apply_payment_to_entry(entry["item_kind"], entry["id"], remaining)
+                paid = await apply_payment_to_entry(entry["item_kind"], entry["id"], remaining)
                 if paid > 0:
                     allocations.append({"kind": entry["item_kind"], "id": int(entry["id"]), "amount": paid})
                     applied += paid
                     remaining -= paid
-            if applied <= 0 and client_balance(client_id) <= 0:
+            if applied <= 0 and await client_balance(client_id) <= 0:
                 raise ValueError("Aucune dette ouverte pour ce client.")
 
-        return execute_db(
+        return await execute_db_async(
             """
             INSERT INTO payments (client_id, sale_id, raw_sale_id, sale_kind, payment_type, allocation_meta, amount, payment_date, notes)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)

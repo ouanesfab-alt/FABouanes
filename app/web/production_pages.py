@@ -71,7 +71,7 @@ async def production_submit(request: Request):
     try:
         parsed = parse_production_form(form)
         ProductionBatchCreate.model_validate(parsed)
-        create_production_from_form(form)
+        await create_production_from_form(form)
         flash(request, "Production multi-matières enregistrée avec coût de revient.", "success")
     except Exception as exc:
         from app.core.exceptions import get_friendly_error_message
@@ -89,7 +89,7 @@ async def new_production_page(request: Request):
     denied = require_permission(request, PERMISSION_PRODUCTION_WRITE)
     if denied:
         return denied
-    return templates.TemplateResponse("production_new.html", template_context(request, **new_production_context()))
+    return templates.TemplateResponse("production_new.html", template_context(request, **await new_production_context()))
 
 
 @router.post("/production/new", name="new_production")
@@ -103,7 +103,7 @@ async def new_production_submit(request: Request):
     try:
         parsed = parse_production_form(form)
         ProductionBatchCreate.model_validate(parsed)
-        result = create_production_from_form(form)
+        result = await create_production_from_form(form)
         if result["recipe_id"]:
             flash(request, f"Production enregistrée. Recette sauvegardée ({result['recipe_label']}). Reste théorique : {result['remainder']:.2f} kg.", "success")
         else:
@@ -128,7 +128,7 @@ async def delete_production(request: Request, batch_id: int):
     if denied:
         return denied
     await csrf_protect(request)
-    if delete_production_by_id(batch_id):
+    if await delete_production_by_id(batch_id):
         flash(request, "Production supprimée et stock corrigé.", "success")
     else:
         flash(request, "Impossible de supprimer cette production.", "danger")

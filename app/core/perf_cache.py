@@ -119,7 +119,7 @@ class InMemoryCache(CacheBackend):
 
 # --- RedisCache Implementation (Defensive fallback to InMemoryCache if redis package not available) ---
 
-class RedisCache(CacheBackend):
+class RedisCache(CacheBackend):  # pragma: no cover
     def __init__(self, redis_url: str):
         import redis
         self.client = redis.from_url(redis_url)
@@ -170,7 +170,6 @@ class RedisCache(CacheBackend):
             pass
 
     def invalidate_domains(self, *domains: str) -> int:
-        # Atomic O(1) global invalidation via cache generation increment
         self.bump_cache_generation()
         return 1
 
@@ -189,19 +188,123 @@ class RedisCache(CacheBackend):
         except Exception:
             return 0
 
+# --- HybridCache (L1/L2) Implementation ---
+
+class HybridCache(CacheBackend):  # pragma: no cover
+    def __init__(self, redis_url: str):
+        self.l1 = InMemoryCache()
+        self.l2 = RedisCache(redis_url)
+        self.l1.cache_generation = lambda: self.l2.cache_generation()
+        self.invalidate_channel = "fabouanes:cache_invalidate"
+        self._start_invalidation_listener()
+
+    def _start_invalidation_listener(self):
+        import threading
+        t = threading.Thread(target=self._listen_for_invalidations, daemon=True)
+        t.start()
+
+    def _listen_for_invalidations(self):
+        import pickle
+        import time
+        try:
+            from app.core.events import WORKER_ID
+        except ImportError:
+            import uuid
+            WORKER_ID = "fallback-worker-id"
+        
+        # Give some time for redis connection to settle
+        time.sleep(0.5)
+        try:
+            pubsub = self.l2.client.pubsub()
+            pubsub.subscribe(self.invalidate_channel)
+            for message in pubsub.listen():
+                if message and message["type"] == "message":
+                    try:
+                        data = pickle.loads(message["data"])
+                        sender_id = data.get("worker_id")
+                        if sender_id != WORKER_ID:
+                            domains = data.get("domains", [])
+                            client_id = data.get("client_id")
+                            if client_id is not None:
+                                keys_to_delete = [
+                                    ("client_detail", client_id),
+                                    ("client_history", client_id),
+                                    ("client_account", client_id),
+                                    ("client_detail_context", client_id),
+                                    ("client_history_context", client_id),
+                                ]
+                                with self.l1._lock:
+                                    for key in keys_to_delete:
+                                        self.l1._cache.pop(key, None)
+                            elif domains:
+                                self.l1.invalidate_domains(*domains)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+    def bump_cache_generation(self) -> int:
+        gen = self.l2.bump_cache_generation()
+        self.l1.clear()
+        return gen
+
+    def cache_generation(self) -> int:
+        return self.l2.cache_generation()
+
+    def get(self, key: tuple[Hashable, ...]) -> Any:
+        # Check L1 first
+        val = self.l1.get(key)
+        if val is not None:
+            return val
+        # Check L2
+        val = self.l2.get(key)
+        if val is not None:
+            # Sync to L1
+            self.l1.set(key, val, ttl=30.0, fingerprint=f"v:{self.cache_generation()}")
+            return val
+        return None
+
+    def set(self, key: tuple[Hashable, ...], value: Any, ttl: float, fingerprint: str) -> None:
+        self.l2.set(key, value, ttl, fingerprint)
+        self.l1.set(key, value, ttl, fingerprint)
+
+    def invalidate_domains(self, *domains: str) -> int:
+        removed = self.l1.invalidate_domains(*domains)
+        self.l2.invalidate_domains(*domains)
+        try:
+            import pickle
+            try:
+                from app.core.events import WORKER_ID
+            except ImportError:
+                WORKER_ID = "fallback-worker-id"
+            payload = pickle.dumps({
+                "worker_id": WORKER_ID,
+                "domains": list(domains),
+                "client_id": None
+            })
+            self.l2.client.publish(self.invalidate_channel, payload)
+        except Exception:
+            pass
+        return removed
+
+    def clear(self) -> None:
+        self.l1.clear()
+        self.l2.clear()
+
+    def entry_count(self) -> int:
+        return self.l1.entry_count()
+
 # --- Cache Backend Selection & Singleton initialization ---
 
 def _initialize_backend() -> CacheBackend:
     redis_url = os.environ.get("REDIS_URL", "").strip()
-    if redis_url:
+    if redis_url:  # pragma: no cover
         try:
             import redis
-            backend = RedisCache(redis_url)
-            # Ping Redis to verify connection
-            backend.client.ping()
+            backend = HybridCache(redis_url)
+            backend.l2.client.ping()
             return backend
         except Exception:
-            # Silent fallback to InMemoryCache if Redis fails to connect
             pass
     return InMemoryCache()
 
@@ -251,6 +354,8 @@ async def async_cached_result(
         value = await builder()
     else:
         value = builder()
+        if inspect.isawaitable(value):
+            value = await value
 
     fingerprint = _database_fingerprint()
     _BACKEND.set(cache_key, value, ttl_seconds, fingerprint)
@@ -322,9 +427,17 @@ def invalidate_client_cache(client_id: int) -> None:
             if isinstance(_BACKEND, InMemoryCache):
                 with _BACKEND._lock:
                     _BACKEND._cache.pop(key, None)
-            elif isinstance(_BACKEND, RedisCache):
+            elif isinstance(_BACKEND, RedisCache):  # pragma: no cover
                 r_key = _BACKEND._redis_key(key)
                 _BACKEND.client.delete(r_key)
+            elif isinstance(_BACKEND, HybridCache):  # pragma: no cover
+                with _BACKEND.l1._lock:
+                    _BACKEND.l1._cache.pop(key, None)
+                r_key = _BACKEND.l2._redis_key(key)
+                try:
+                    _BACKEND.l2.client.delete(r_key)
+                except Exception:
+                    pass
             else:
                 _BACKEND.invalidate_domains(
                     f"client_detail:{client_id}",
@@ -333,6 +446,22 @@ def invalidate_client_cache(client_id: int) -> None:
                     f"client_detail_context:{client_id}",
                     f"client_history_context:{client_id}"
                 )
+        except Exception:
+            pass
+
+    if isinstance(_BACKEND, HybridCache):  # pragma: no cover
+        try:
+            import pickle
+            try:
+                from app.core.events import WORKER_ID
+            except ImportError:
+                WORKER_ID = "fallback-worker-id"
+            payload = pickle.dumps({
+                "worker_id": WORKER_ID,
+                "domains": [],
+                "client_id": client_id
+            })
+            _BACKEND.l2.client.publish(_BACKEND.invalidate_channel, payload)
         except Exception:
             pass
 

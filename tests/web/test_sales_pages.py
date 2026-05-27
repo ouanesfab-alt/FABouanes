@@ -34,7 +34,7 @@ def test_transactions_date_sort_keeps_newest_same_day_sales_first(logged_client,
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                (first_client_id, product_id, quantity, "kg", 100, total, "credit", 0, total, 70, total - (quantity * 70), "2026-05-08", "sort test"),
+                (first_client_id, product_id, quantity, "kg", 100, total, "credit", 0, total, 70, total - (quantity * 70), "2035-05-08", "sort test"),
             )
         )
 

@@ -31,6 +31,23 @@ def split_sql_script(script: str) -> list[str]:
     while i < n:
         char = script[i]
         
+        # Parse comments ONLY when we are not inside a string or dollar block
+        if not in_dollar and not in_single_quote and not in_double_quote:
+            # Single-line comment --
+            if char == '-' and i + 1 < n and script[i+1] == '-':
+                # Skip until end of line
+                i += 2
+                while i < n and script[i] != '\n':
+                    i += 1
+                continue
+            # Multi-line comment /* ... */
+            if char == '/' and i + 1 < n and script[i+1] == '*':
+                i += 2
+                while i < n and not (script[i] == '*' and i + 1 < n and script[i+1] == '/'):
+                    i += 1
+                i += 2  # skip closing */
+                continue
+        
         if char == '$' and i + 1 < n and script[i+1] == '$':
             in_dollar = not in_dollar
             current.append('$$')
@@ -56,6 +73,13 @@ def split_sql_script(script: str) -> list[str]:
     if stmt:
         statements.append(stmt)
     return statements
+
+def validate_identifier(name: str) -> None:
+    if not name or not isinstance(name, str):
+        raise ValueError("Invalid database identifier")
+    if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_\.]*$", name):
+        raise ValueError(f"Invalid database identifier: {name}")
+
 
 class CompatRow(dict):
     def __init__(self, *args, **kwargs):
@@ -229,7 +253,7 @@ class DatabaseManager:
 
     def create_database_engine(self, database_url: str) -> Engine:
         engine_url = self.sqlalchemy_database_url(database_url)
-        return create_engine(
+        engine = create_engine(
             engine_url,
             future=True,
             pool_pre_ping=True,
@@ -238,6 +262,12 @@ class DatabaseManager:
             pool_timeout=self._env_int("FAB_PG_POOL_TIMEOUT", 30, 1, 300),
             pool_recycle=self._env_int("FAB_PG_POOL_RECYCLE_SECONDS", 1800, 60, 86400),
         )
+        try:
+            from app.core.observability import instrument_sqlalchemy
+            instrument_sqlalchemy(engine)
+        except Exception:
+            pass
+        return engine
 
     def get_database_engine(self, database_url: str) -> Engine:
         raw_url = str(database_url or "").strip()
@@ -307,6 +337,9 @@ class DatabaseManager:
         return status
 
     def get_db(self) -> CompatConnection:
+        return self.get_write_db()
+
+    def get_write_db(self) -> CompatConnection:
         state = get_request_state()
         if state is not None and getattr(state, "db", None) is not None:
             return state.db
@@ -314,6 +347,20 @@ class DatabaseManager:
         if getattr(state, "db", None) is None:
             state.db = self.connect_database(settings.database_url)
         return state.db
+
+    def get_read_db(self) -> CompatConnection:
+        if self._tx_depth() > 0:
+            return self.get_write_db()
+        read_url = os.environ.get("DATABASE_READ_URL", "").strip()
+        if not read_url:
+            return self.get_write_db()
+        state = get_request_state()
+        if state is not None and getattr(state, "read_db", None) is not None:
+            return state.read_db
+        state = ensure_request_state()
+        if getattr(state, "read_db", None) is None:
+            state.read_db = self.connect_database(read_url)
+        return state.read_db
 
     def _tx_depth(self) -> int:
         state = get_request_state()
@@ -374,7 +421,7 @@ class DatabaseManager:
 
     def query_db(self, query: str, params: tuple = (), one: bool = False):
         started = monotonic()
-        db = self.get_db()
+        db = self.get_read_db()
         try:
             cur = db.execute(query, params)
             if one:
@@ -396,7 +443,7 @@ class DatabaseManager:
         return await asyncio.to_thread(self.query_db, query, params, one)
 
     def execute_db(self, query: str, params: tuple = ()) -> int:
-        db = self.get_db()
+        db = self.get_write_db()
         started = monotonic()
         
         has_returning = bool(re.search(r"\breturning\b", query, flags=re.I))
@@ -462,7 +509,7 @@ class DatabaseManager:
 
     @contextmanager
     def db_transaction(self):
-        db = self.get_db()
+        db = self.get_write_db()
         previous_depth = self._tx_depth()
         self._set_tx_depth(previous_depth + 1)
         savepoint_name = f"sp_depth_{previous_depth}"

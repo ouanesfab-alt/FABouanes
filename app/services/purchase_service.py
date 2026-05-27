@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import date
 
 from app.core.activity import log_activity
 from app.core.audit import audit_event
-from app.core.db_access import db_transaction, execute_db, query_db
+from app.core.db_access import db_transaction, execute_db_async, query_db_async
 from app.core.helpers import create_purchase_record, reverse_purchase, to_float, unit_choices
 from app.core.storage import mark_backup_needed
 from app.repositories.purchase_repository import (
@@ -14,10 +15,13 @@ from app.repositories.purchase_repository import (
     list_purchase_form_context,
 )
 from app.repositories.sale_repository import invalidate_sellable_items_cache
+from app.repositories.client_repository import async_compat
+from app.core.exceptions import ValidationError
 
 
-def purchase_form_context():
-    context = list_purchase_form_context()
+@async_compat
+async def purchase_form_context():
+    context = await asyncio.to_thread(list_purchase_form_context)
     context["units"] = unit_choices()
     return context
 
@@ -33,9 +37,7 @@ def _form_list(form, key: str) -> list[str]:
     return [str(value).strip()]
 
 
-from app.core.exceptions import ValidationError
-
-def _extract_purchase_lines(form) -> list[dict[str, object]]:
+async def _extract_purchase_lines(form) -> list[dict[str, object]]:
     raw_ids = _form_list(form, "raw_material_id[]")
     quantities = _form_list(form, "quantity[]")
     units = _form_list(form, "unit[]")
@@ -67,12 +69,12 @@ def _extract_purchase_lines(form) -> list[dict[str, object]]:
             real_id = int(raw_val) if raw_val.isdigit() else 0
             
         if kind == "raw":
-            material = query_db("SELECT name FROM raw_materials WHERE id = %s", (real_id,), one=True)
+            material = await query_db_async("SELECT name FROM raw_materials WHERE id = %s", (real_id,), one=True)
             if not material:
                 raise ValidationError("Matière première introuvable.", field="raw_material_id")
             is_autre = str(material["name"] or "").strip().casefold() == "autre"
         else:
-            product = query_db("SELECT name FROM finished_products WHERE id = %s", (real_id,), one=True)
+            product = await query_db_async("SELECT name FROM finished_products WHERE id = %s", (real_id,), one=True)
             if not product:
                 raise ValidationError("Produit fini introuvable.", field="raw_material_id")
             is_autre = False
@@ -96,33 +98,32 @@ def _extract_purchase_lines(form) -> list[dict[str, object]]:
     return lines
 
 
-
-def _insert_purchase_document(document_id, supplier_id, purchase_date: str, notes: str) -> int:
+async def _insert_purchase_document(document_id, supplier_id, purchase_date: str, notes: str) -> int:
     from app.core.document_numbering import next_doc_number
     try:
         year = int(purchase_date.split("-")[0])
     except Exception:
         year = date.today().year
-    doc_number = next_doc_number("BA", year)
+    doc_number = await asyncio.to_thread(next_doc_number, "BA", year)
 
     if document_id:
-        execute_db(
+        await execute_db_async(
             "INSERT INTO purchase_documents (id, doc_number, supplier_id, total, purchase_date, notes) VALUES (%s, %s, %s, 0, %s, %s)",
             (int(document_id), doc_number, supplier_id, purchase_date, notes),
         )
         return int(document_id)
-    return execute_db(
+    return await execute_db_async(
         "INSERT INTO purchase_documents (doc_number, supplier_id, total, purchase_date, notes) VALUES (%s, %s, 0, %s, %s)",
         (doc_number, supplier_id, purchase_date, notes),
     )
 
 
-def _save_purchase_document_header(document_id: int, supplier_id, purchase_date: str, notes: str) -> None:
-    existing = query_db("SELECT id FROM purchase_documents WHERE id = %s", (document_id,), one=True)
+async def _save_purchase_document_header(document_id: int, supplier_id, purchase_date: str, notes: str) -> None:
+    existing = await query_db_async("SELECT id FROM purchase_documents WHERE id = %s", (document_id,), one=True)
     if not existing:
-        _insert_purchase_document(document_id, supplier_id, purchase_date, notes)
+        await _insert_purchase_document(document_id, supplier_id, purchase_date, notes)
         return
-    execute_db(
+    await execute_db_async(
         "UPDATE purchase_documents SET supplier_id = %s, purchase_date = %s, notes = %s WHERE id = %s",
         (supplier_id, purchase_date, notes, document_id),
     )
@@ -148,23 +149,25 @@ def _serialize_purchase_lines(lines) -> list[dict[str, object]]:
     return payload
 
 
-def get_purchase_document_context(document_id: int):
-    document = get_purchase_document(document_id)
+@async_compat
+async def get_purchase_document_context(document_id: int):
+    document = await asyncio.to_thread(get_purchase_document, document_id)
     if not document:
         return None
-    lines = list_purchase_document_lines(document_id)
+    lines = await asyncio.to_thread(list_purchase_document_lines, document_id)
     return {
         "purchase_document": dict(document),
         "purchase_lines": _serialize_purchase_lines(lines),
     }
 
 
-def get_purchase_edit_context(purchase_id: int):
-    purchase = get_purchase(purchase_id)
+@async_compat
+async def get_purchase_edit_context(purchase_id: int):
+    purchase = await asyncio.to_thread(get_purchase, purchase_id)
     if not purchase:
         return None
     if purchase["document_id"]:
-        context = get_purchase_document_context(int(purchase["document_id"]))
+        context = await get_purchase_document_context(int(purchase["document_id"]))
         if context:
             context["redirect_document_id"] = int(purchase["document_id"])
         return context
@@ -192,16 +195,17 @@ def get_purchase_edit_context(purchase_id: int):
     }
 
 
-def create_purchase_from_form(form):
+@async_compat
+async def create_purchase_from_form(form):
     supplier_id = form.get("supplier_id") or None
     purchase_date = form.get("purchase_date") or date.today().isoformat()
     notes = form.get("notes", "").strip()
-    lines = _extract_purchase_lines(form)
+    lines = await _extract_purchase_lines(form)
     use_document = len(lines) > 1 or bool(form.getlist("raw_material_id[]"))
 
     if not use_document:
         line = lines[0]
-        purchase_id = create_purchase_record(
+        purchase_id = await create_purchase_record(
             supplier_id,
             line["kind"],
             float(line["quantity"]),
@@ -212,10 +216,10 @@ def create_purchase_from_form(form):
             custom_item_name=str(line["custom_item_name"]),
             item_id=line["real_id"],
         )
-        created = get_purchase(purchase_id)
+        created = await asyncio.to_thread(get_purchase, purchase_id)
         log_activity("create_purchase", "purchase", purchase_id, f"{line['kind']} #{line['real_id']} qty={line['quantity']}")
         audit_event("create_purchase", "purchase", purchase_id, after=created)
-        invalidate_sellable_items_cache()
+        await asyncio.to_thread(invalidate_sellable_items_cache)
         mark_backup_needed("create_purchase")
         return {
             "mode": "line",
@@ -227,11 +231,11 @@ def create_purchase_from_form(form):
         }
 
     with db_transaction():
-        document_id = _insert_purchase_document(None, supplier_id, purchase_date, notes)
+        document_id = await _insert_purchase_document(None, supplier_id, purchase_date, notes)
         created_ids: list[int] = []
         for line in lines:
             created_ids.append(
-                create_purchase_record(
+                await create_purchase_record(
                     supplier_id,
                     line["kind"],
                     float(line["quantity"]),
@@ -245,10 +249,10 @@ def create_purchase_from_form(form):
                 )
             )
 
-    created = query_db("SELECT * FROM purchase_documents WHERE id = %s", (document_id,), one=True)
+    created = await query_db_async("SELECT * FROM purchase_documents WHERE id = %s", (document_id,), one=True)
     log_activity("create_purchase_document", "purchase_document", document_id, f"{len(lines)} ligne(s)")
     audit_event("create_purchase_document", "purchase_document", document_id, after=created, meta={"line_count": len(lines)})
-    invalidate_sellable_items_cache()
+    await asyncio.to_thread(invalidate_sellable_items_cache)
     mark_backup_needed("create_purchase_document")
     return {
         "mode": "document",
@@ -260,15 +264,16 @@ def create_purchase_from_form(form):
     }
 
 
-def edit_purchase_document_from_form(document_id: int, form):
-    context = get_purchase_document_context(document_id)
+@async_compat
+async def edit_purchase_document_from_form(document_id: int, form):
+    context = await get_purchase_document_context(document_id)
     if not context:
         raise ValueError("Bon d'achat introuvable.")
 
     supplier_id = form.get("supplier_id") or None
     purchase_date = form.get("purchase_date") or date.today().isoformat()
     notes = form.get("notes", "").strip()
-    lines = _extract_purchase_lines(form)
+    lines = await _extract_purchase_lines(form)
     before = {
         "document": dict(context["purchase_document"]),
         "lines": [dict(line) for line in context["purchase_lines"]],
@@ -276,13 +281,13 @@ def edit_purchase_document_from_form(document_id: int, form):
 
     with db_transaction():
         for line in context["purchase_lines"]:
-            if not reverse_purchase(int(line["row_id"])):
+            if not await reverse_purchase(int(line["row_id"])):
                 raise ValueError("Impossible de modifier cet achat car le stock ne permet pas de l'annuler.")
-        _insert_purchase_document(document_id, supplier_id, purchase_date, notes)
+        await _insert_purchase_document(document_id, supplier_id, purchase_date, notes)
         created_ids: list[int] = []
         for line in lines:
             created_ids.append(
-                create_purchase_record(
+                await create_purchase_record(
                     supplier_id,
                     line["kind"],
                     float(line["quantity"]),
@@ -295,9 +300,9 @@ def edit_purchase_document_from_form(document_id: int, form):
                     item_id=line["real_id"],
                 )
             )
-        _save_purchase_document_header(document_id, supplier_id, purchase_date, notes)
+        await _save_purchase_document_header(document_id, supplier_id, purchase_date, notes)
 
-    after_context = get_purchase_document_context(document_id)
+    after_context = await get_purchase_document_context(document_id)
     log_activity("update_purchase_document", "purchase_document", document_id, f"{len(lines)} ligne(s)")
     audit_event(
         "update_purchase_document",
@@ -307,7 +312,7 @@ def edit_purchase_document_from_form(document_id: int, form):
         after={"document": after_context["purchase_document"], "lines": after_context["purchase_lines"]} if after_context else None,
         meta={"line_count": len(lines)},
     )
-    invalidate_sellable_items_cache()
+    await asyncio.to_thread(invalidate_sellable_items_cache)
     mark_backup_needed("update_purchase_document")
     return {
         "mode": "document",
@@ -319,8 +324,9 @@ def edit_purchase_document_from_form(document_id: int, form):
     }
 
 
-def edit_purchase_from_form(purchase_id: int, form):
-    before = get_purchase(purchase_id)
+@async_compat
+async def edit_purchase_from_form(purchase_id: int, form):
+    before = await asyncio.to_thread(get_purchase, purchase_id)
     if not before:
         raise ValueError("Achat introuvable.")
     if before["document_id"]:
@@ -329,17 +335,17 @@ def edit_purchase_from_form(purchase_id: int, form):
     supplier_id = form.get("supplier_id") or None
     purchase_date = form.get("purchase_date") or date.today().isoformat()
     notes = form.get("notes", "").strip()
-    lines = _extract_purchase_lines(form)
+    lines = await _extract_purchase_lines(form)
 
     if len(lines) > 1:
         with db_transaction():
-            if not reverse_purchase(purchase_id):
+            if not await reverse_purchase(purchase_id):
                 raise ValueError("Impossible de modifier cet achat car le stock ne permet pas de l'annuler.")
-            document_id = _insert_purchase_document(None, supplier_id, purchase_date, notes)
+            document_id = await _insert_purchase_document(None, supplier_id, purchase_date, notes)
             created_ids: list[int] = []
             for line in lines:
                 created_ids.append(
-                    create_purchase_record(
+                    await create_purchase_record(
                         supplier_id,
                         line["kind"],
                         float(line["quantity"]),
@@ -353,7 +359,7 @@ def edit_purchase_from_form(purchase_id: int, form):
                     )
                 )
 
-        created = query_db("SELECT * FROM purchase_documents WHERE id = %s", (document_id,), one=True)
+        created = await query_db_async("SELECT * FROM purchase_documents WHERE id = %s", (document_id,), one=True)
         log_activity("update_purchase_document", "purchase_document", document_id, f"{len(lines)} ligne(s)")
         audit_event(
             "update_purchase_document",
@@ -363,7 +369,7 @@ def edit_purchase_from_form(purchase_id: int, form):
             after=created,
             meta={"line_count": len(lines), "promoted_from_purchase_id": purchase_id},
         )
-        invalidate_sellable_items_cache()
+        await asyncio.to_thread(invalidate_sellable_items_cache)
         mark_backup_needed("update_purchase_document")
         return {
             "mode": "document",
@@ -376,9 +382,9 @@ def edit_purchase_from_form(purchase_id: int, form):
 
     line = lines[0]
     with db_transaction():
-        if not reverse_purchase(purchase_id):
+        if not await reverse_purchase(purchase_id):
             raise ValueError("Impossible de modifier cet achat car le stock ne permet pas de l'annuler.")
-        new_purchase_id = create_purchase_record(
+        new_purchase_id = await create_purchase_record(
             supplier_id,
             line["kind"],
             float(line["quantity"]),
@@ -390,10 +396,10 @@ def edit_purchase_from_form(purchase_id: int, form):
             item_id=line["real_id"],
         )
 
-    latest = get_purchase(new_purchase_id)
+    latest = await asyncio.to_thread(get_purchase, new_purchase_id)
     log_activity("update_purchase", "purchase", purchase_id, f"{line['kind']} #{line['real_id']} qty={line['quantity']}")
     audit_event("update_purchase", "purchase", purchase_id, before=before, after=latest, meta={"document_id": None})
-    invalidate_sellable_items_cache()
+    await asyncio.to_thread(invalidate_sellable_items_cache)
     mark_backup_needed("update_purchase")
     return {
         "mode": "line",
@@ -405,14 +411,13 @@ def edit_purchase_from_form(purchase_id: int, form):
     }
 
 
-def delete_purchase_by_id(purchase_id: int) -> bool:
-    before = get_purchase(purchase_id)
-    ok = reverse_purchase(purchase_id)
+@async_compat
+async def delete_purchase_by_id(purchase_id: int) -> bool:
+    before = await asyncio.to_thread(get_purchase, purchase_id)
+    ok = await reverse_purchase(purchase_id)
     if ok:
         log_activity("delete_purchase", "purchase", purchase_id, "Suppression achat")
         audit_event("delete_purchase", "purchase", purchase_id, before=before, after=None)
-        invalidate_sellable_items_cache()
+        await asyncio.to_thread(invalidate_sellable_items_cache)
         mark_backup_needed("delete_purchase")
     return ok
-
-

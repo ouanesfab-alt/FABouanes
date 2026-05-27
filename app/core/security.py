@@ -124,3 +124,76 @@ def record_login_failure(ip: str) -> None:
 def clear_login_failures(ip: str) -> None:
     from app.core.rate_limit_store import RateLimitStore
     RateLimitStore.clear(ip)
+
+
+def get_client_fingerprint(request) -> str:
+    import hashlib
+    ip = client_ip()
+    user_agent = request.headers.get("User-Agent", "unknown")
+    fingerprint_input = f"{ip}|{user_agent}"
+    return hashlib.sha256(fingerprint_input.encode("utf-8")).hexdigest()
+
+
+def encrypt_val(val: str | None, key: bytes) -> str | None:
+    if val is None:
+        return None
+    import base64
+    import os
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    val_bytes = val.encode("utf-8")
+    aesgcm = AESGCM(key)
+    nonce = os.urandom(12)
+    ct = aesgcm.encrypt(nonce, val_bytes, None)
+    combined = nonce + ct
+    return "ale:" + base64.b64encode(combined).decode("utf-8")
+
+
+def decrypt_val(enc_val: str | None, key: bytes | None) -> str | None:
+    if enc_val is None:
+        return None
+    if not enc_val:
+        return enc_val
+    if enc_val.startswith("ale:"):
+        if key is None:
+            return "[DONNÉES SUPPRIMÉES]"
+        try:
+            import base64
+            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+            combined = base64.b64decode(enc_val[4:])
+            if len(combined) < 12:
+                return "[DONNÉES SUPPRIMÉES]"
+            nonce = combined[:12]
+            ct = combined[12:]
+            aesgcm = AESGCM(key)
+            decrypted_bytes = aesgcm.decrypt(nonce, ct, None)
+            return decrypted_bytes.decode("utf-8")
+        except Exception:
+            return "[DONNÉES SUPPRIMÉES]"
+    return enc_val
+
+
+def get_client_key_sync(client_id: int) -> bytes | None:
+    from app.core.db_helpers import query_db
+    res = query_db("SELECT encryption_key FROM client_keys WHERE client_id = %s", (client_id,), one=True)
+    if res and res["encryption_key"]:
+        import base64
+        return base64.b64decode(res["encryption_key"])
+    return None
+
+
+def create_client_key_sync(client_id: int) -> bytes:
+    from app.core.db_helpers import execute_db
+    import os
+    import base64
+    key = os.urandom(32)
+    b64_key = base64.b64encode(key).decode("utf-8")
+    execute_db(
+        "INSERT INTO client_keys (client_id, encryption_key) VALUES (%s, %s) ON CONFLICT (client_id) DO UPDATE SET encryption_key = EXCLUDED.encryption_key",
+        (client_id, b64_key)
+    )
+    return key
+
+
+def delete_client_key_sync(client_id: int) -> None:
+    from app.core.db_helpers import execute_db
+    execute_db("DELETE FROM client_keys WHERE client_id = %s", (client_id,))

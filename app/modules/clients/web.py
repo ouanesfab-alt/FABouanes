@@ -270,3 +270,20 @@ async def print_client_history(
             **context,
         ),
     )
+
+
+@router.post("/{client_id}/shred", name="shred_client")
+async def shred_client_route(
+    request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)
+):
+    denied = require_permission(request, "contacts.delete")
+    if denied:
+        return denied
+    await csrf_protect(request)
+    service = ClientService(db)
+    success = await service.shred_client(client_id)
+    if success:
+        flash(request, "Données client détruites (Crypto-Shredding).", "success")
+    else:
+        flash(request, "Client introuvable.", "danger")
+    return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)

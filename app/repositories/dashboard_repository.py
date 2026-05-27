@@ -253,14 +253,44 @@ def _build_debt_by_client() -> list:
     )
 
 
+_LAST_REFRESH_TIME_IN_MEM = 0.0
+
 def refresh_client_balances_view() -> None:
-    """Refresh the mv_client_balances materialized view after financial mutations."""
+    """Refresh the mv_client_balances materialized view after financial mutations, debounced with a 10s Redis lock."""
+    global _LAST_REFRESH_TIME_IN_MEM
     import logging
+    import os
+    import time
+    logger = logging.getLogger("fabouanes")
+    
+    redis_url = os.environ.get("REDIS_URL", "").strip()
+    use_redis = False
+    
+    if redis_url:
+        try:
+            import redis
+            r = redis.from_url(redis_url)
+            lock_acquired = r.set("lock:refresh_client_balances", "1", ex=10, nx=True)
+            if not lock_acquired:
+                logger.debug("Materialized view refresh debounced (Redis lock active)")
+                return
+            use_redis = True
+        except Exception as e:
+            logger.warning("Redis communication failed for view refresh lock, falling back to in-memory: %s", e)
+            
+    if not use_redis:
+        now = time.time()
+        if now - _LAST_REFRESH_TIME_IN_MEM < 10.0:
+            logger.debug("Materialized view refresh debounced (in-memory lock active)")
+            return
+        _LAST_REFRESH_TIME_IN_MEM = now
+        
     try:
         from app.core.db_access import execute_db
         execute_db("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_client_balances")
+        logger.info("Materialized view mv_client_balances refreshed successfully")
     except Exception as e:
-        logging.getLogger("fabouanes").debug("Could not refresh mv_client_balances: %s", e)
+        logger.debug("Could not refresh mv_client_balances: %s", e)
 
 
 def _dashboard_daily_summary(today: str, week_iso: str) -> dict[str, float]:

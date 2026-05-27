@@ -4,17 +4,20 @@ from datetime import date
 
 from app.core.activity import log_activity
 from app.core.audit import audit_event, audit_delete_event
-from app.core.db_access import db_transaction, execute_db, query_db
+from app.core.db_access import db_transaction, execute_db_async, query_db_async
 from app.core.helpers import create_payment_record, get_open_credit_entries, reverse_payment_allocations, to_float
 from app.core.storage import mark_backup_needed
 from app.repositories.payment_repository import get_payment, payment_form_context
+from app.repositories.client_repository import async_compat
 
 
-def new_payment_context():
-    return payment_form_context()
+@async_compat
+async def new_payment_context():
+    return await payment_form_context()
 
 
-def create_payment_from_form(form):
+@async_compat
+async def create_payment_from_form(form):
     client_raw = (form.get("client_id") or "").strip()
     if not client_raw:
         raise ValueError("Choisis un client.")
@@ -24,7 +27,7 @@ def create_payment_from_form(form):
     payment_date = form.get("payment_date") or date.today().isoformat()
     payment_type = (form.get("payment_type") or "versement").strip() or "versement"
     notes = form.get("notes", "").strip()
-    payment_id = create_payment_record(client_id, amount, payment_date, notes, sale_link, payment_type)
+    payment_id = await create_payment_record(client_id, amount, payment_date, notes, sale_link, payment_type)
     created = get_payment(payment_id)
     log_activity("create_payment", "payment", payment_id, f"client #{client_id} {payment_type} montant={amount}")
     audit_event("create_payment", "payment", payment_id, after=created)
@@ -32,7 +35,8 @@ def create_payment_from_form(form):
     return payment_id, payment_type
 
 
-def get_edit_payment_context(payment_id: int):
+@async_compat
+async def get_edit_payment_context(payment_id: int):
     payment = get_payment(payment_id)
     if not payment:
         return None
@@ -41,11 +45,11 @@ def get_edit_payment_context(payment_id: int):
         current_link = f"finished:{payment['sale_id']}"
     elif payment["sale_kind"] == "raw" and payment["raw_sale_id"]:
         current_link = f"raw:{payment['raw_sale_id']}"
-    open_sales = list(get_open_credit_entries())
+    open_sales = list(await get_open_credit_entries())
     existing_keys = [f"{sale['item_kind']}:{sale['id']}" for sale in open_sales]
     if current_link and current_link not in existing_keys:
         if payment["sale_kind"] == "finished" and payment["sale_id"]:
-            sale = query_db(
+            sale = await query_db_async(
                 "SELECT s.id, s.client_id, c.name AS client_name, f.name AS item_name, s.balance_due + %s AS balance_due, s.sale_date, s.total FROM sales s JOIN clients c ON c.id=s.client_id JOIN finished_products f ON f.id=s.finished_product_id WHERE s.id=%s",
                 (payment["amount"], payment["sale_id"]),
                 one=True,
@@ -53,17 +57,19 @@ def get_edit_payment_context(payment_id: int):
             if sale:
                 open_sales.append(dict(item_kind="finished", id=sale["id"], client_id=sale["client_id"], client_name=sale["client_name"], item_name=sale["item_name"], balance_due=sale["balance_due"], sale_date=sale["sale_date"], total=sale["total"]))
         elif payment["sale_kind"] == "raw" and payment["raw_sale_id"]:
-            sale = query_db(
+            sale = await query_db_async(
                 "SELECT rs.id, rs.client_id, c.name AS client_name, COALESCE(NULLIF(rs.custom_item_name, ''), r.name) AS item_name, rs.balance_due + %s AS balance_due, rs.sale_date, rs.total FROM raw_sales rs JOIN clients c ON c.id=rs.client_id JOIN raw_materials r ON r.id=rs.raw_material_id WHERE rs.id=%s",
                 (payment["amount"], payment["raw_sale_id"]),
                 one=True,
             )
             if sale:
                 open_sales.append(dict(item_kind="raw", id=sale["id"], client_id=sale["client_id"], client_name=sale["client_name"], item_name=sale["item_name"], balance_due=sale["balance_due"], sale_date=sale["sale_date"], total=sale["total"]))
-    return {"payment": payment, "current_link": current_link, "clients": query_db("SELECT * FROM clients ORDER BY name"), "open_sales": open_sales}
+    clients = await query_db_async("SELECT * FROM clients ORDER BY name")
+    return {"payment": payment, "current_link": current_link, "clients": clients, "open_sales": open_sales}
 
 
-def edit_payment_from_form(payment_id: int, form):
+@async_compat
+async def edit_payment_from_form(payment_id: int, form):
     payment = get_payment(payment_id)
     if not payment:
         raise ValueError("Versement introuvable.")
@@ -74,9 +80,9 @@ def edit_payment_from_form(payment_id: int, form):
     notes = form.get("notes", "").strip()
     before = dict(payment)
     with db_transaction():
-        reverse_payment_allocations(payment)
-        execute_db("DELETE FROM payments WHERE id = %s", (payment_id,))
-        new_payment_id = create_payment_record(client_id, amount, payment_date, notes, sale_link, form.get("payment_type", "versement"))
+        await reverse_payment_allocations(payment)
+        await execute_db_async("DELETE FROM payments WHERE id = %s", (payment_id,))
+        new_payment_id = await create_payment_record(client_id, amount, payment_date, notes, sale_link, form.get("payment_type", "versement"))
     after = get_payment(new_payment_id)
     log_activity("update_payment", "payment", payment_id, f"client #{client_id} {form.get('payment_type', 'versement')} montant={amount}")
     audit_event("update_payment", "payment", payment_id, before=before, after=after)
@@ -84,34 +90,31 @@ def edit_payment_from_form(payment_id: int, form):
     return new_payment_id
 
 
-def delete_payment_by_id(payment_id: int) -> bool:
+@async_compat
+async def delete_payment_by_id(payment_id: int) -> bool:
     payment = get_payment(payment_id)
     if not payment:
         return False
     before = dict(payment)
-    # Appel avant la suppression physique
     audit_delete_event("payment", payment_id, before)
     with db_transaction():
-        reverse_payment_allocations(payment)
-        execute_db("DELETE FROM payments WHERE id = %s", (payment_id,))
+        await reverse_payment_allocations(payment)
+        await execute_db_async("DELETE FROM payments WHERE id = %s", (payment_id,))
     log_activity("delete_payment", "payment", payment_id, "Suppression transaction client")
     audit_event("delete_payment", "payment", payment_id, before=before, after=None)
     mark_backup_needed("delete_payment")
     return True
 
 
-def create_mobile_payment(
+@async_compat
+async def create_mobile_payment(
     client_id: int,
     amount: float,
     payment_date: str,
     notes: str,
     recorded_by: int | None = None,
 ) -> dict:
-    """
-    Enregistre un versement depuis l'application mobile.
-    Le paiement est enregistré par défaut comme un 'versement' global réparti sur les créances.
-    """
-    payment_id = create_payment_record(
+    payment_id = await create_payment_record(
         client_id=client_id,
         amount=amount,
         payment_date=payment_date or date.today().isoformat(),
@@ -145,4 +148,3 @@ def create_mobile_payment(
     )
     mark_backup_needed("create_mobile_payment")
     return {"ok": True, "payment_id": payment_id, "payment": created}
-

@@ -68,10 +68,13 @@ def attempt_login(username: str, password: str, request: Request | None = None):
         if request and hasattr(request, "session"):
             old_data = dict(request.session)
             request.session.clear()
-            request.session.update(old_data)
+            import secrets
+            from app.core.security import get_client_fingerprint
+            request.session["session_token"] = secrets.token_hex(32)
             request.session["user_id"] = int(user["id"])
             request.session["role"] = user["role"]
             request.session["username"] = normalized
+            request.session["fingerprint"] = get_client_fingerprint(request)
 
         return {"ok": True, "user": user}
 

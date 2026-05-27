@@ -255,9 +255,25 @@ def current_user_ns(request: Request) -> SimpleNamespace | None:
 
 
 def load_user_from_session(request: Request):
+    from app.core.security import get_client_fingerprint
+
+    current_fingerprint = get_client_fingerprint(request)
     user_id = request.session.get("user_id")
-    if not user_id:
-        user_id = read_auth_cookie_value(request.cookies.get(AUTH_COOKIE_NAME))
+
+    if user_id:
+        expected_fingerprint = request.session.get("fingerprint")
+        if expected_fingerprint:
+            if expected_fingerprint != current_fingerprint:
+                request.session.clear()
+                return None
+        else:
+            request.session["fingerprint"] = current_fingerprint
+    else:
+        user_id = read_auth_cookie_value(request.cookies.get(AUTH_COOKIE_NAME), current_fingerprint)
+        if user_id:
+            request.session["user_id"] = int(user_id)
+            request.session["fingerprint"] = current_fingerprint
+
     if not user_id:
         return None
     user = get_user_by_id(int(user_id))

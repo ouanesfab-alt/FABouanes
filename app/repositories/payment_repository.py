@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+from app.repositories.client_repository import async_compat
 from app.core.db_access import query_db
 from app.core.helpers import get_open_credit_entries
 
-
-
-def payment_form_context():
+@async_compat
+async def payment_form_context():
+    from app.core.db_access import query_db_async
     return {
-        "clients": query_db("SELECT * FROM clients ORDER BY name"),
-        "open_sales": get_open_credit_entries(),
+        "clients": await query_db_async("SELECT * FROM clients ORDER BY name"),
+        "open_sales": await get_open_credit_entries(),
     }
 
 

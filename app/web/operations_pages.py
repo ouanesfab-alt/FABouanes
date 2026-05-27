@@ -124,9 +124,9 @@ async def new_operation_page(request: Request):
     from app.services.payment_service import new_payment_context
     from app.core.db_access import query_db
 
-    p_ctx = purchase_form_context()
-    s_ctx = sale_form_context()
-    pay_ctx = new_payment_context()
+    p_ctx = await purchase_form_context()
+    s_ctx = await sale_form_context()
+    pay_ctx = await new_payment_context()
     
     context = {}
     context.update(p_ctx)

@@ -26,6 +26,13 @@ dependencies = [
   "Pillow>=10.0",
   "prometheus-fastapi-instrumentator>=7.0.0",
   "PyJWT>=2.8",
+  "redis>=5.0",
+  "arq>=0.26",
+  "structlog>=24.0",
+  "opentelemetry-api>=1.25",
+  "opentelemetry-sdk>=1.25",
+  "opentelemetry-instrumentation-fastapi>=0.46b0",
+  "opentelemetry-instrumentation-sqlalchemy>=0.46b0",
 ]
 
 [project.optional-dependencies]
@@ -42,6 +49,7 @@ testpaths = [
   "tests/api",
   "tests/services",
   "tests/printing",
+  "tests/unit",
 ]
 python_files = ["test_*.py"]
 addopts = "-q --cov=app --cov-config=pyproject.toml --cov-report=term-missing --cov-fail-under=65"

@@ -302,13 +302,17 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
                 tmp_f.write("BEGIN;\n")
                 tmp_f.write("SET CONSTRAINTS ALL DEFERRED;\n\n")
 
+                from app.core.db_helpers import validate_identifier
+
                 # Deletions in child-to-parent order
                 for table in reversed(ordered_tables):
+                    validate_identifier(table)
                     tmp_f.write(f"DELETE FROM {table};\n")
                 tmp_f.write("\n")
 
                 # Insertions in parent-to-child order
                 for table in ordered_tables:
+                    validate_identifier(table)
                     # Colonnes
                     cur = conn.execute(
                         "SELECT column_name FROM information_schema.columns "

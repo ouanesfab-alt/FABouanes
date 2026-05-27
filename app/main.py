@@ -57,6 +57,15 @@ async def lifespan(_: FastAPI):
     validate_single_worker_runtime()
     ensure_runtime_dirs()
     configure_logging()
+    
+    # Initialize Observability (OpenTelemetry & structlog)
+    try:
+        from app.core.observability import setup_observability, instrument_app
+        setup_observability("fabouanes")
+        instrument_app(_)
+    except Exception as exc:
+        logger.warning("Failed to initialize observability: %s", exc)
+
     await asyncio.to_thread(bootstrap_and_migrate)
 
     # Bootstrap module schemas (CREATE TABLE IF NOT EXISTS)
@@ -74,7 +83,13 @@ async def lifespan(_: FastAPI):
         from app.core.events import startup as events_startup
         events_startup()
     except Exception as e:
-        logger.warning("Erreur au démarrage du scheduler d'événements: %s", e)
+        logger.warning("Erreur au démarrage du service d'événements: %s", e)
+
+    try:
+        from app.core.websockets import startup as ws_startup
+        ws_startup()
+    except Exception as e:
+        logger.warning("Erreur au démarrage du service WebSockets: %s", e)
 
     # Pre-load critical dashboard data so first request is instant
     try:
@@ -95,13 +110,18 @@ async def lifespan(_: FastAPI):
     try:
         yield
     finally:
-        logger.info("Arrêt en cours, attente du scheduler...")
+        logger.info("Arrêt en cours, arrêt des services...")
         try:
-            from app.core.events import scheduler as events_scheduler
-            if events_scheduler and events_scheduler.running:
-                events_scheduler.shutdown()
+            from app.core.events import shutdown as events_shutdown
+            events_shutdown()
         except Exception as e:
-            logger.warning("Erreur à l'arrêt du scheduler d'événements: %s", e)
+            logger.warning("Erreur à l'arrêt du service d'événements: %s", e)
+
+        try:
+            from app.core.websockets import shutdown as ws_shutdown
+            ws_shutdown()
+        except Exception as e:
+            logger.warning("Erreur à l'arrêt du service WebSockets: %s", e)
 
         try:
             from app.services.backup_service import shutdown_background_services
@@ -170,6 +190,14 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         finally:
             try:
                 db.close()
+            except Exception:
+                pass
+            try:
+                from app.core.request_state import get_request_state
+                state = get_request_state()
+                read_db = getattr(state, "read_db", None) if state is not None else None
+                if read_db is not None:
+                    read_db.close()
             except Exception:
                 pass
             reset_request_state(token)

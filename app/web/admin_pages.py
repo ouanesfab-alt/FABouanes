@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse, Response
 
 from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
+from app.core.rate_limit import limiter
 from app.core.audit import export_audit_logs_csv
 from app.core.permissions import PERMISSION_AUDIT_READ, PERMISSION_SETTINGS_MANAGE, PERMISSION_USERS_MANAGE
 from app.services.admin_service import (
@@ -31,6 +32,7 @@ async def admin_panel_page(request: Request):
 
 
 @router.post("/admin", name="admin_panel")
+@limiter.limit("10/minute")
 async def admin_panel_submit(request: Request):
     denied = require_permission(request, PERMISSION_SETTINGS_MANAGE)
     if denied:
@@ -79,6 +81,7 @@ async def admin_audit_page(request: Request):
 
 
 @router.get("/admin/audit/export", name="admin_audit_export")
+@limiter.limit("10/minute")
 async def admin_audit_export(request: Request):
     denied = require_permission(request, PERMISSION_AUDIT_READ)
     if denied:
@@ -100,6 +103,7 @@ async def admin_system_status(request: Request):
 
 
 @router.get("/admin/system-status/export", name="admin_system_status_export")
+@limiter.limit("10/minute")
 async def admin_system_status_export(request: Request):
     denied = require_permission(request, PERMISSION_SETTINGS_MANAGE)
     if denied:

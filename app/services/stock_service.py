@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import logging
-
+import asyncio
 from datetime import date
 
-from app.core.db_access import db_transaction, execute_db, query_db
+from app.core.db_access import db_transaction, execute_db_async, query_db_async
 from app.core.request_state import get_state_value
 from app.repositories.stock_repository import insert_stock_movement
 from app.core.exceptions import ValidationError, NotFoundError
-
+from app.repositories.client_repository import async_compat
 
 OTHER_OPERATION_NAME = "AUTRE"
 OTHER_OPERATION_UNIT = "unite"
@@ -30,8 +30,6 @@ def unit_price_to_kg(unit_price: float, unit: str | None) -> float:
     if unit_name in {"qt", "quintal"}:
         return unit_price / 100
     return unit_price
-
-
 
 
 def unit_choices() -> list[str]:
@@ -61,7 +59,8 @@ def _flash_warning(message: str) -> None:
     flash(state_request, message, "warning")
 
 
-def record_stock_movement(
+@async_compat
+async def record_stock_movement(
     item_kind: str,
     item_id: int,
     direction: str,
@@ -74,17 +73,18 @@ def record_stock_movement(
     reference_id: int | None,
 ) -> None:
     try:
-        insert_stock_movement(item_kind, item_id, direction, quantity, unit, stock_before, stock_after, reason, reference_type, reference_id, _actor_username())
+        await asyncio.to_thread(insert_stock_movement, item_kind, item_id, direction, quantity, unit, stock_before, stock_after, reason, reference_type, reference_id, _actor_username())
     except Exception as exc:
         logging.getLogger("fabouanes").warning("Failed to record stock movement for %s #%s", item_kind, item_id, exc_info=True)
 
 
-def recalc_raw_material_avg_cost(material_id: int) -> None:
-    material = query_db("SELECT id, stock_qty, avg_cost FROM raw_materials WHERE id = %s", (material_id,), one=True)
+@async_compat
+async def recalc_raw_material_avg_cost(material_id: int) -> None:
+    material = await query_db_async("SELECT id, stock_qty, avg_cost FROM raw_materials WHERE id = %s", (material_id,), one=True)
     if not material:
         return
     stock_qty = float(material["stock_qty"])
-    purchases = query_db("SELECT quantity, unit_price FROM purchases WHERE raw_material_id = %s ORDER BY purchase_date, id", (material_id,))
+    purchases = await query_db_async("SELECT quantity, unit_price FROM purchases WHERE raw_material_id = %s ORDER BY purchase_date, id", (material_id,))
     purchased_qty = sum(float(row["quantity"]) for row in purchases)
     base_qty = max(0.0, stock_qty - purchased_qty)
     total_qty = base_qty
@@ -92,15 +92,16 @@ def recalc_raw_material_avg_cost(material_id: int) -> None:
     for row in purchases:
         total_qty += float(row["quantity"])
         total_value += float(row["quantity"]) * float(row["unit_price"])
-    execute_db("UPDATE raw_materials SET avg_cost = %s WHERE id = %s", ((total_value / total_qty) if total_qty > 0 else 0.0, material_id))
+    await execute_db_async("UPDATE raw_materials SET avg_cost = %s WHERE id = %s", ((total_value / total_qty) if total_qty > 0 else 0.0, material_id))
 
 
-def recalc_finished_product_avg_cost(product_id: int) -> None:
-    product = query_db("SELECT id, stock_qty, avg_cost FROM finished_products WHERE id = %s", (product_id,), one=True)
+@async_compat
+async def recalc_finished_product_avg_cost(product_id: int) -> None:
+    product = await query_db_async("SELECT id, stock_qty, avg_cost FROM finished_products WHERE id = %s", (product_id,), one=True)
     if not product:
         return
     stock_qty = float(product["stock_qty"])
-    productions = query_db(
+    productions = await query_db_async(
         "SELECT output_quantity, production_cost FROM production_batches WHERE finished_product_id = %s ORDER BY production_date, id",
         (product_id,),
     )
@@ -111,62 +112,66 @@ def recalc_finished_product_avg_cost(product_id: int) -> None:
     for row in productions:
         total_qty += float(row["output_quantity"])
         total_value += float(row["production_cost"])
-    execute_db("UPDATE finished_products SET avg_cost = %s WHERE id = %s", ((total_value / total_qty) if total_qty > 0 else 0.0, product_id))
+    await execute_db_async("UPDATE finished_products SET avg_cost = %s WHERE id = %s", ((total_value / total_qty) if total_qty > 0 else 0.0, product_id))
 
 
-def recalc_purchase_document_totals(document_id: int | None) -> None:
+@async_compat
+async def recalc_purchase_document_totals(document_id: int | None) -> None:
     if not document_id:
         return
-    totals = query_db(
+    totals = await query_db_async(
         "SELECT COUNT(*) AS line_count, COALESCE(SUM(total), 0) AS total_amount FROM purchases WHERE document_id = %s",
         (document_id,),
         one=True,
     )
     if not totals or int(totals["line_count"] or 0) <= 0:
-        execute_db("DELETE FROM purchase_documents WHERE id = %s", (document_id,))
+        await execute_db_async("DELETE FROM purchase_documents WHERE id = %s", (document_id,))
         return
-    execute_db("UPDATE purchase_documents SET total = %s WHERE id = %s", (float(totals["total_amount"] or 0), document_id))
+    await execute_db_async("UPDATE purchase_documents SET total = %s WHERE id = %s", (float(totals["total_amount"] or 0), document_id))
 
 
-def recalc_sale_document_totals(document_id: int | None) -> None:
+@async_compat
+async def recalc_sale_document_totals(document_id: int | None) -> None:
     if not document_id:
         return
-    finished = query_db(
+    finished = await query_db_async(
         "SELECT COUNT(*) AS line_count, COALESCE(SUM(total), 0) AS total_amount, COALESCE(SUM(amount_paid), 0) AS paid_amount, COALESCE(SUM(balance_due), 0) AS due_amount FROM sales WHERE document_id = %s",
         (document_id,),
         one=True,
     )
-    raw = query_db(
+    raw = await query_db_async(
         "SELECT COUNT(*) AS line_count, COALESCE(SUM(total), 0) AS total_amount, COALESCE(SUM(amount_paid), 0) AS paid_amount, COALESCE(SUM(balance_due), 0) AS due_amount FROM raw_sales WHERE document_id = %s",
         (document_id,),
         one=True,
     )
     line_count = int((finished["line_count"] if finished else 0) or 0) + int((raw["line_count"] if raw else 0) or 0)
     if line_count <= 0:
-        execute_db("DELETE FROM sale_documents WHERE id = %s", (document_id,))
+        await execute_db_async("DELETE FROM sale_documents WHERE id = %s", (document_id,))
         return
     total = float((finished["total_amount"] if finished else 0) or 0) + float((raw["total_amount"] if raw else 0) or 0)
     paid = float((finished["paid_amount"] if finished else 0) or 0) + float((raw["paid_amount"] if raw else 0) or 0)
     due = float((finished["due_amount"] if finished else 0) or 0) + float((raw["due_amount"] if raw else 0) or 0)
-    execute_db("UPDATE sale_documents SET total = %s, amount_paid = %s, balance_due = %s WHERE id = %s", (total, paid, due, document_id))
+    await execute_db_async("UPDATE sale_documents SET total = %s, amount_paid = %s, balance_due = %s WHERE id = %s", (total, paid, due, document_id))
 
 
-def refresh_sale_profits_for_item(item_kind: str, item_id: int, avg_cost: float, sale_price: float | None = None) -> None:
+@async_compat
+async def refresh_sale_profits_for_item(item_kind: str, item_id: int, avg_cost: float, sale_price: float | None = None) -> None:
     if item_kind == "raw":
-        rows = query_db("SELECT id, quantity, unit, unit_price FROM raw_sales WHERE raw_material_id = %s", (item_id,))
+        rows = await query_db_async("SELECT id, quantity, unit, unit_price FROM raw_sales WHERE raw_material_id = %s", (item_id,))
         for row in rows:
             qty_kg = qty_to_kg(float(row["quantity"]), row["unit"])
             total = float(row["quantity"]) * float(row["unit_price"])
-            execute_db("UPDATE raw_sales SET cost_price_snapshot = %s, profit_amount = %s WHERE id = %s", (avg_cost, total - qty_kg * avg_cost, row["id"]))
+            await execute_db_async("UPDATE raw_sales SET cost_price_snapshot = %s, profit_amount = %s WHERE id = %s", (avg_cost, total - qty_kg * avg_cost, row["id"]))
         return
-    rows = query_db("SELECT id, quantity, unit, unit_price FROM sales WHERE finished_product_id = %s", (item_id,))
+    rows = await query_db_async("SELECT id, quantity, unit, unit_price FROM sales WHERE finished_product_id = %s", (item_id,))
     for row in rows:
         qty_kg = qty_to_kg(float(row["quantity"]), row["unit"])
         total = float(row["quantity"]) * float(row["unit_price"])
-        execute_db("UPDATE sales SET cost_price_snapshot = %s, profit_amount = %s WHERE id = %s", (avg_cost, total - qty_kg * avg_cost, row["id"]))
+        await execute_db_async("UPDATE sales SET cost_price_snapshot = %s, profit_amount = %s WHERE id = %s", (avg_cost, total - qty_kg * avg_cost, row["id"]))
 
 
-def create_purchase_record(
+@async_compat
+async def create_purchase_record(
     supplier_id,
     item_kind_or_raw_id,
     qty: float,
@@ -179,7 +184,6 @@ def create_purchase_record(
     item_id: int | None = None,
 ) -> int:
     with db_transaction():
-        # Handle backwards-compatibility
         if isinstance(item_kind_or_raw_id, (int, float)) or (isinstance(item_kind_or_raw_id, str) and item_kind_or_raw_id.isdigit()):
             item_kind = "raw"
             real_item_id = int(item_kind_or_raw_id)
@@ -196,7 +200,7 @@ def create_purchase_record(
         unit_price_kg = unit_price_to_kg(unit_price, unit)
 
         if item_kind == "raw":
-            material = query_db("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (real_item_id,), one=True)
+            material = await query_db_async("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (real_item_id,), one=True)
             if not material:
                 raise NotFoundError("Matière première", real_item_id)
             if is_other_operation_name(material["name"]):
@@ -206,12 +210,12 @@ def create_purchase_record(
             else:
                 custom_item_name = ""
 
-            purchase_id = execute_db(
+            purchase_id = await execute_db_async(
                 """
                 INSERT INTO purchases (supplier_id, document_id, raw_material_id, finished_product_id, quantity, unit, unit_price, total, purchase_date, notes, custom_item_name)
                 VALUES (%s, %s, %s, NULL, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                (supplier_id, document_id, real_item_id, qty_kg, unit, unit_price_kg, total, purchase_date, notes, custom_item_name),
+                (supplier_id, document_id, real_item_id, qty, unit, unit_price, total, purchase_date, notes, custom_item_name),
             )
             stock_before = float(material["stock_qty"])
             stock_after = stock_before + qty_kg
@@ -219,14 +223,14 @@ def create_purchase_record(
             added_value = qty_kg * unit_price_kg
             avg_cost = (current_value + added_value) / stock_after if stock_after > 0 else 0
             sale_price = float(material["sale_price"]) or unit_price
-            execute_db("UPDATE raw_materials SET stock_qty = %s, avg_cost = %s, sale_price = %s WHERE id = %s", (stock_after, avg_cost, sale_price, real_item_id))
-            record_stock_movement("raw", real_item_id, "in", qty_kg, "kg", stock_before, stock_after, "create_purchase", "purchase", purchase_id)
+            await execute_db_async("UPDATE raw_materials SET stock_qty = %s, avg_cost = %s, sale_price = %s WHERE id = %s", (stock_after, avg_cost, sale_price, real_item_id))
+            await record_stock_movement("raw", real_item_id, "in", qty_kg, "kg", stock_before, stock_after, "create_purchase", "purchase", purchase_id)
         else:
-            product = query_db("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (real_item_id,), one=True)
+            product = await query_db_async("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (real_item_id,), one=True)
             if not product:
                 raise NotFoundError("Produit fini", real_item_id)
             
-            purchase_id = execute_db(
+            purchase_id = await execute_db_async(
                 """
                 INSERT INTO purchases (supplier_id, document_id, raw_material_id, finished_product_id, quantity, unit, unit_price, total, purchase_date, notes, custom_item_name)
                 VALUES (%s, %s, NULL, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -239,14 +243,15 @@ def create_purchase_record(
             added_value = qty_kg * unit_price_kg
             avg_cost = (current_value + added_value) / stock_after if stock_after > 0 else 0
             sale_price = float(product["sale_price"]) or unit_price
-            execute_db("UPDATE finished_products SET stock_qty = %s, avg_cost = %s, sale_price = %s WHERE id = %s", (stock_after, avg_cost, sale_price, real_item_id))
-            record_stock_movement("finished", real_item_id, "in", qty_kg, "kg", stock_before, stock_after, "create_purchase", "purchase", purchase_id)
+            await execute_db_async("UPDATE finished_products SET stock_qty = %s, avg_cost = %s, sale_price = %s WHERE id = %s", (stock_after, avg_cost, sale_price, real_item_id))
+            await record_stock_movement("finished", real_item_id, "in", qty_kg, "kg", stock_before, stock_after, "create_purchase", "purchase", purchase_id)
 
-        recalc_purchase_document_totals(document_id)
+        await recalc_purchase_document_totals(document_id)
         return purchase_id
 
 
-def create_sale_record(
+@async_compat
+async def create_sale_record(
     client_id,
     item_kind: str,
     item_id: int,
@@ -273,12 +278,11 @@ def create_sale_record(
     if sale_date and sale_date > date.today().isoformat():
         raise ValidationError("La date de vente ne peut pas être dans le futur.", field="sale_date")
 
-
     with db_transaction():
         if item_kind == "finished":
             qty_kg = qty_to_kg(qty, unit)
             unit_price_kg = unit_price_to_kg(unit_price, unit)
-            item = query_db("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (item_id,), one=True)
+            item = await query_db_async("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (item_id,), one=True)
             if not item:
                 raise NotFoundError("Produit fini", item_id)
             stock_before = float(item["stock_qty"])
@@ -287,7 +291,7 @@ def create_sale_record(
 
             cost_snapshot = float(item["avg_cost"])
             profit_amount = total - qty_kg * cost_snapshot
-            row_id = execute_db(
+            row_id = await execute_db_async(
                 """
                 INSERT INTO sales (client_id, document_id, finished_product_id, quantity, unit, unit_price, total, sale_type, amount_paid, balance_due, cost_price_snapshot, profit_amount, sale_date, notes)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -295,19 +299,19 @@ def create_sale_record(
                 (client_id, document_id, item_id, qty, unit, unit_price, total, requested_sale_type, amount_paid, balance_due, cost_snapshot, profit_amount, sale_date, notes),
             )
             stock_after = stock_before - qty_kg
-            execute_db("UPDATE finished_products SET stock_qty = %s WHERE id = %s", (stock_after, item_id))
-            record_stock_movement("finished", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "sale", row_id)
+            await execute_db_async("UPDATE finished_products SET stock_qty = %s WHERE id = %s", (stock_after, item_id))
+            await record_stock_movement("finished", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "sale", row_id)
             if amount_paid > 0 and client_id:
-                execute_db(
+                await execute_db_async(
                     "INSERT INTO payments (client_id, sale_id, sale_kind, payment_type, amount, payment_date, notes) VALUES (%s, %s, %s, %s, %s, %s, %s)",
                     (client_id, row_id, "finished", "versement", amount_paid, sale_date, "Paiement initial vente"),
                 )
-            recalc_sale_document_totals(document_id)
+            await recalc_sale_document_totals(document_id)
             if unit_price_kg < cost_snapshot * 0.97 and cost_snapshot > 0:
                 _flash_warning(f"Vente sous coût : {unit_price_kg:.2f} DA/kg < coût de revient {cost_snapshot:.2f} DA/kg.")
             return "finished", row_id
 
-        item = query_db("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (item_id,), one=True)
+        item = await query_db_async("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (item_id,), one=True)
         if not item:
             raise NotFoundError("Matière première", item_id)
         custom_item_name = str(custom_item_name or "").strip()
@@ -325,7 +329,7 @@ def create_sale_record(
 
         cost_snapshot = float(item["avg_cost"])
         profit_amount = total - qty_kg * cost_snapshot
-        row_id = execute_db(
+        row_id = await execute_db_async(
             """
             INSERT INTO raw_sales (client_id, document_id, raw_material_id, quantity, unit, unit_price, total, sale_type, amount_paid, balance_due, cost_price_snapshot, profit_amount, sale_date, notes, custom_item_name)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -333,27 +337,28 @@ def create_sale_record(
             (client_id, document_id, item_id, qty, unit, unit_price, total, requested_sale_type, amount_paid, balance_due, cost_snapshot, profit_amount, sale_date, notes, custom_item_name),
         )
         stock_after = stock_before - qty_kg
-        execute_db("UPDATE raw_materials SET stock_qty = %s WHERE id = %s", (stock_after, item_id))
-        record_stock_movement("raw", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "raw_sale", row_id)
+        await execute_db_async("UPDATE raw_materials SET stock_qty = %s WHERE id = %s", (stock_after, item_id))
+        await record_stock_movement("raw", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "raw_sale", row_id)
         if amount_paid > 0 and client_id:
-            execute_db(
+            await execute_db_async(
                 "INSERT INTO payments (client_id, raw_sale_id, sale_kind, payment_type, amount, payment_date, notes) VALUES (%s, %s, %s, %s, %s, %s, %s)",
                 (client_id, row_id, "raw", "versement", amount_paid, sale_date, "Paiement initial vente"),
             )
-        recalc_sale_document_totals(document_id)
+        await recalc_sale_document_totals(document_id)
         if unit_price_kg < cost_snapshot * 0.97 and cost_snapshot > 0:
             _flash_warning(f"Vente sous coût : {unit_price_kg:.2f} DA/kg < coût de revient {cost_snapshot:.2f} DA/kg.")
         return "raw", row_id
 
 
-def reverse_purchase(purchase_id: int) -> bool:
+@async_compat
+async def reverse_purchase(purchase_id: int) -> bool:
     with db_transaction():
-        row = query_db("SELECT * FROM purchases WHERE id = %s", (purchase_id,), one=True)
+        row = await query_db_async("SELECT * FROM purchases WHERE id = %s", (purchase_id,), one=True)
         if not row:
             return False
         
         if row["finished_product_id"]:
-            product = query_db("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (row["finished_product_id"],), one=True)
+            product = await query_db_async("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (row["finished_product_id"],), one=True)
             if not product or float(product["stock_qty"]) < float(row["quantity"]):
                 return False
             stock_before = float(product["stock_qty"])
@@ -364,11 +369,11 @@ def reverse_purchase(purchase_id: int) -> bool:
             restored_value = current_value - removed_value
             avg_cost_restored = restored_value / stock_after if stock_after > 0 else float(product["avg_cost"])
             
-            execute_db("UPDATE finished_products SET stock_qty = %s, avg_cost = %s WHERE id = %s", (stock_after, avg_cost_restored, row["finished_product_id"]))
-            execute_db("DELETE FROM purchases WHERE id = %s", (purchase_id,))
-            record_stock_movement("finished", int(row["finished_product_id"]), "out", float(row["quantity"]), "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id)
+            await execute_db_async("UPDATE finished_products SET stock_qty = %s, avg_cost = %s WHERE id = %s", (stock_after, avg_cost_restored, row["finished_product_id"]))
+            await execute_db_async("DELETE FROM purchases WHERE id = %s", (purchase_id,))
+            await record_stock_movement("finished", int(row["finished_product_id"]), "out", float(row["quantity"]), "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id)
         else:
-            material = query_db("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (row["raw_material_id"],), one=True)
+            material = await query_db_async("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (row["raw_material_id"],), one=True)
             if not material or float(material["stock_qty"]) < float(row["quantity"]):
                 return False
             stock_before = float(material["stock_qty"])
@@ -379,61 +384,67 @@ def reverse_purchase(purchase_id: int) -> bool:
             restored_value = current_value - removed_value
             avg_cost_restored = restored_value / stock_after if stock_after > 0 else float(material["avg_cost"])
             
-            execute_db("UPDATE raw_materials SET stock_qty = %s, avg_cost = %s WHERE id = %s", (stock_after, avg_cost_restored, row["raw_material_id"]))
-            execute_db("DELETE FROM purchases WHERE id = %s", (purchase_id,))
-            record_stock_movement("raw", int(row["raw_material_id"]), "out", float(row["quantity"]), "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id)
+            await execute_db_async("UPDATE raw_materials SET stock_qty = %s, avg_cost = %s WHERE id = %s", (stock_after, avg_cost_restored, row["raw_material_id"]))
+            await execute_db_async("DELETE FROM purchases WHERE id = %s", (purchase_id,))
+            await record_stock_movement("raw", int(row["raw_material_id"]), "out", float(row["quantity"]), "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id)
 
-        recalc_purchase_document_totals(int(row["document_id"])) if row["document_id"] else None
+        if row["document_id"]:
+            await recalc_purchase_document_totals(int(row["document_id"]))
         return True
 
 
-def reverse_sale(kind: str, row_id: int) -> bool:
+@async_compat
+async def reverse_sale(kind: str, row_id: int) -> bool:
     with db_transaction():
         if kind == "finished":
-            row = query_db("SELECT * FROM sales WHERE id = %s", (row_id,), one=True)
+            row = await query_db_async("SELECT * FROM sales WHERE id = %s", (row_id,), one=True)
             if not row:
                 return False
-            product = query_db("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (row["finished_product_id"],), one=True)
+            product = await query_db_async("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (row["finished_product_id"],), one=True)
             stock_before = float(product["stock_qty"] if product else 0)
             restore_qty = qty_to_kg(float(row["quantity"]), row["unit"])
             stock_after = stock_before + restore_qty
-            execute_db("UPDATE finished_products SET stock_qty = %s WHERE id = %s", (stock_after, row["finished_product_id"]))
-            execute_db("DELETE FROM payments WHERE sale_kind = %s AND sale_id = %s", ("finished", row_id))
-            execute_db("DELETE FROM sales WHERE id = %s", (row_id,))
-            record_stock_movement("finished", int(row["finished_product_id"]), "in", restore_qty, "kg", stock_before, stock_after, "reverse_sale", "sale", row_id)
-            recalc_sale_document_totals(int(row["document_id"])) if row["document_id"] else None
+            await execute_db_async("UPDATE finished_products SET stock_qty = %s WHERE id = %s", (stock_after, row["finished_product_id"]))
+            await execute_db_async("DELETE FROM payments WHERE sale_kind = %s AND sale_id = %s", ("finished", row_id))
+            await execute_db_async("DELETE FROM sales WHERE id = %s", (row_id,))
+            await record_stock_movement("finished", int(row["finished_product_id"]), "in", restore_qty, "kg", stock_before, stock_after, "reverse_sale", "sale", row_id)
+            if row["document_id"]:
+                await recalc_sale_document_totals(int(row["document_id"]))
             return True
-        row = query_db("SELECT * FROM raw_sales WHERE id = %s", (row_id,), one=True)
+        row = await query_db_async("SELECT * FROM raw_sales WHERE id = %s", (row_id,), one=True)
         if not row:
             return False
-        material = query_db("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (row["raw_material_id"],), one=True)
+        material = await query_db_async("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (row["raw_material_id"],), one=True)
         stock_before = float(material["stock_qty"] if material else 0)
         restore_qty = qty_to_kg(float(row["quantity"]), row["unit"])
         stock_after = stock_before + restore_qty
-        execute_db("UPDATE raw_materials SET stock_qty = %s WHERE id = %s", (stock_after, row["raw_material_id"]))
-        execute_db("DELETE FROM payments WHERE sale_kind = %s AND raw_sale_id = %s", ("raw", row_id))
-        execute_db("DELETE FROM raw_sales WHERE id = %s", (row_id,))
-        record_stock_movement("raw", int(row["raw_material_id"]), "in", restore_qty, "kg", stock_before, stock_after, "reverse_sale", "raw_sale", row_id)
-        recalc_sale_document_totals(int(row["document_id"])) if row["document_id"] else None
+        await execute_db_async("UPDATE raw_materials SET stock_qty = %s WHERE id = %s", (stock_after, row["raw_material_id"]))
+        await execute_db_async("DELETE FROM payments WHERE sale_kind = %s AND raw_sale_id = %s", ("raw", row_id))
+        await execute_db_async("DELETE FROM raw_sales WHERE id = %s", (row_id,))
+        await record_stock_movement("raw", int(row["raw_material_id"]), "in", restore_qty, "kg", stock_before, stock_after, "reverse_sale", "raw_sale", row_id)
+        if row["document_id"]:
+            await recalc_sale_document_totals(int(row["document_id"]))
         return True
 
 
-def apply_raw_material_consumption(material, qty: float, reference_type: str, reference_id: int, reason: str = "production") -> None:
+@async_compat
+async def apply_raw_material_consumption(material, qty: float, reference_type: str, reference_id: int, reason: str = "production") -> None:
     material_id = int(material["id"])
-    db_material = query_db("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (material_id,), one=True)
+    db_material = await query_db_async("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (material_id,), one=True)
     if not db_material:
         raise ValueError(f"Matière première introuvable: {material_id}")
     stock_before = float(db_material["stock_qty"])
     stock_after = stock_before - float(qty)
     if stock_after < -1e-9:
         raise ValueError(f"Stock insuffisant pour {db_material['name']}.")
-    execute_db("UPDATE raw_materials SET stock_qty = %s WHERE id = %s", (stock_after, material_id))
-    record_stock_movement("raw", material_id, "out", float(qty), "kg", stock_before, stock_after, reason, reference_type, reference_id)
+    await execute_db_async("UPDATE raw_materials SET stock_qty = %s WHERE id = %s", (stock_after, material_id))
+    await record_stock_movement("raw", material_id, "out", float(qty), "kg", stock_before, stock_after, reason, reference_type, reference_id)
 
 
-def apply_finished_production(product, output_qty: float, total_cost: float, reference_id: int) -> None:
+@async_compat
+async def apply_finished_production(product, output_qty: float, total_cost: float, reference_id: int) -> None:
     product_id = int(product["id"])
-    db_product = query_db("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (product_id,), one=True)
+    db_product = await query_db_async("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (product_id,), one=True)
     if not db_product:
         raise ValueError(f"Produit fini introuvable: {product_id}")
     stock_before = float(db_product["stock_qty"])
@@ -442,38 +453,36 @@ def apply_finished_production(product, output_qty: float, total_cost: float, ref
     stock_after = stock_before + float(output_qty)
     new_avg = (new_value / stock_after) if stock_after > 0 else 0
     sale_price = float(db_product["sale_price"]) if float(db_product["sale_price"]) > 0 else new_avg * 1.15
-    execute_db("UPDATE finished_products SET stock_qty = %s, avg_cost = %s, sale_price = %s WHERE id = %s", (stock_after, new_avg, sale_price, product_id))
-    record_stock_movement("finished", product_id, "in", float(output_qty), "kg", stock_before, stock_after, "create_production", "production", reference_id)
+    await execute_db_async("UPDATE finished_products SET stock_qty = %s, avg_cost = %s, sale_price = %s WHERE id = %s", (stock_after, new_avg, sale_price, product_id))
+    await record_stock_movement("finished", product_id, "in", float(output_qty), "kg", stock_before, stock_after, "create_production", "production", reference_id)
 
 
-def reverse_production(batch_id: int) -> bool:
+@async_compat
+async def reverse_production(batch_id: int) -> bool:
     with db_transaction():
-        batch = query_db("SELECT * FROM production_batches WHERE id = %s", (batch_id,), one=True)
+        batch = await query_db_async("SELECT * FROM production_batches WHERE id = %s", (batch_id,), one=True)
         if not batch:
             return False
-        product = query_db("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (batch["finished_product_id"],), one=True)
+        product = await query_db_async("SELECT * FROM finished_products WHERE id = %s FOR UPDATE", (batch["finished_product_id"],), one=True)
         if not product or float(product["stock_qty"]) < float(batch["output_quantity"]):
             return False
-        items = query_db("SELECT * FROM production_batch_items WHERE batch_id = %s", (batch_id,))
+        items = await query_db_async("SELECT * FROM production_batch_items WHERE batch_id = %s", (batch_id,))
         for item in items:
-            material = query_db("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (item["raw_material_id"],), one=True)
+            material = await query_db_async("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (item["raw_material_id"],), one=True)
             stock_before = float(material["stock_qty"] if material else 0)
             stock_after = stock_before + float(item["quantity"])
-            execute_db("UPDATE raw_materials SET stock_qty = %s WHERE id = %s", (stock_after, item["raw_material_id"]))
-            record_stock_movement("raw", int(item["raw_material_id"]), "in", float(item["quantity"]), "kg", stock_before, stock_after, "reverse_production", "production", batch_id)
-            recalc_raw_material_avg_cost(int(item["raw_material_id"]))
+            await execute_db_async("UPDATE raw_materials SET stock_qty = %s WHERE id = %s", (stock_after, item["raw_material_id"]))
+            await record_stock_movement("raw", int(item["raw_material_id"]), "in", float(item["quantity"]), "kg", stock_before, stock_after, "reverse_production", "production", batch_id)
+            await recalc_raw_material_avg_cost(int(item["raw_material_id"]))
         stock_before = float(product["stock_qty"])
         stock_after = stock_before - float(batch["output_quantity"])
         
-        # Formule mathématique pure pour inverser le CMP (Weighted Average Cost)
         current_value = stock_before * float(product["avg_cost"])
         removed_value = float(batch["production_cost"])
         restored_value = current_value - removed_value
         avg_cost_restored = restored_value / stock_after if stock_after > 0 else float(product["avg_cost"])
         
-        execute_db("UPDATE finished_products SET stock_qty = %s, avg_cost = %s WHERE id = %s", (stock_after, avg_cost_restored, batch["finished_product_id"]))
-        record_stock_movement("finished", int(batch["finished_product_id"]), "out", float(batch["output_quantity"]), "kg", stock_before, stock_after, "reverse_production", "production", batch_id)
-        execute_db("DELETE FROM production_batches WHERE id = %s", (batch_id,))
+        await execute_db_async("UPDATE finished_products SET stock_qty = %s, avg_cost = %s WHERE id = %s", (stock_after, avg_cost_restored, batch["finished_product_id"]))
+        await record_stock_movement("finished", int(batch["finished_product_id"]), "out", float(batch["output_quantity"]), "kg", stock_before, stock_after, "reverse_production", "production", batch_id)
+        await execute_db_async("DELETE FROM production_batches WHERE id = %s", (batch_id,))
         return True
-
-

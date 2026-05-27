@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.core.request_state import get_state_value
+from app.repositories.client_repository import async_compat
 
 
 def to_float(value: str | None, default: float = 0.0) -> float:
@@ -21,49 +22,57 @@ def unit_choices() -> list[str]:
     return _unit_choices()
 
 
-def refresh_sale_profits_for_item(item_kind: str, item_id: int, avg_cost: float, sale_price: float | None = None) -> None:
+@async_compat
+async def refresh_sale_profits_for_item(item_kind: str, item_id: int, avg_cost: float, sale_price: float | None = None) -> None:
     from app.services.stock_service import refresh_sale_profits_for_item as _refresh_sale_profits_for_item
 
-    return _refresh_sale_profits_for_item(item_kind, item_id, avg_cost, sale_price)
+    return await _refresh_sale_profits_for_item(item_kind, item_id, avg_cost, sale_price)
 
 
-def get_open_credit_entries(client_id: int | None = None):
+@async_compat
+async def get_open_credit_entries(client_id: int | None = None):
     from app.services.client_account_service import get_open_credit_entries as _get_open_credit_entries
 
-    return _get_open_credit_entries(client_id)
+    return await _get_open_credit_entries(client_id)
 
 
-def load_saved_recipes():
+@async_compat
+async def load_saved_recipes():
     from app.services.recipe_service import load_saved_recipes as _load_saved_recipes
 
-    return _load_saved_recipes()
+    return await _load_saved_recipes()
 
 
-def save_recipe_definition(finished_id: int, recipe_name: str, notes: str, recipe_lines: list, user_id: int | None = None):
+@async_compat
+async def save_recipe_definition(finished_id: int, recipe_name: str, notes: str, recipe_lines: list, user_id: int | None = None):
     from app.services.recipe_service import save_recipe_definition as _save_recipe_definition
 
-    return _save_recipe_definition(finished_id, recipe_name, notes, recipe_lines, user_id)
+    return await _save_recipe_definition(finished_id, recipe_name, notes, recipe_lines, user_id)
 
 
-def reverse_purchase(purchase_id: int) -> bool:
+@async_compat
+async def reverse_purchase(purchase_id: int) -> bool:
     from app.services.stock_service import reverse_purchase as _reverse_purchase
 
-    return _reverse_purchase(purchase_id)
+    return await _reverse_purchase(purchase_id)
 
 
-def reverse_sale(kind: str, row_id: int) -> bool:
+@async_compat
+async def reverse_sale(kind: str, row_id: int) -> bool:
     from app.services.stock_service import reverse_sale as _reverse_sale
 
-    return _reverse_sale(kind, row_id)
+    return await _reverse_sale(kind, row_id)
 
 
-def reverse_production(batch_id: int) -> bool:
+@async_compat
+async def reverse_production(batch_id: int) -> bool:
     from app.services.stock_service import reverse_production as _reverse_production
 
-    return _reverse_production(batch_id)
+    return await _reverse_production(batch_id)
 
 
-def create_purchase_record(
+@async_compat
+async def create_purchase_record(
     supplier_id,
     item_kind_or_raw_id,
     qty: float,
@@ -77,7 +86,7 @@ def create_purchase_record(
 ) -> int:
     from app.services.stock_service import create_purchase_record as _create_purchase_record
 
-    return _create_purchase_record(
+    return await _create_purchase_record(
         supplier_id,
         item_kind_or_raw_id,
         qty,
@@ -91,7 +100,8 @@ def create_purchase_record(
     )
 
 
-def create_sale_record(
+@async_compat
+async def create_sale_record(
     client_id,
     item_kind: str,
     item_id: int,
@@ -107,7 +117,7 @@ def create_sale_record(
 ):
     from app.services.stock_service import create_sale_record as _create_sale_record
 
-    return _create_sale_record(
+    return await _create_sale_record(
         client_id,
         item_kind,
         item_id,
@@ -123,7 +133,8 @@ def create_sale_record(
     )
 
 
-def create_payment_record(
+@async_compat
+async def create_payment_record(
     client_id: int,
     amount: float,
     payment_date: str,
@@ -133,13 +144,14 @@ def create_payment_record(
 ) -> int:
     from app.services.client_account_service import create_payment_record as _create_payment_record
 
-    return _create_payment_record(client_id, amount, payment_date, notes, sale_link, payment_type)
+    return await _create_payment_record(client_id, amount, payment_date, notes, sale_link, payment_type)
 
 
-def reverse_payment_allocations(payment_row) -> None:
+@async_compat
+async def reverse_payment_allocations(payment_row) -> None:
     from app.services.client_account_service import reverse_payment_allocations as _reverse_payment_allocations
 
-    return _reverse_payment_allocations(payment_row)
+    return await _reverse_payment_allocations(payment_row)
 
 
 def parse_excel_client_file(file_path) -> dict:

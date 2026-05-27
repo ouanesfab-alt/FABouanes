@@ -3,13 +3,15 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
-from app.core.db_access import execute_db, query_db
+from app.core.db_access import execute_db_async, query_db_async
+from app.repositories.client_repository import async_compat
 
 
-def load_saved_recipes() -> list[dict[str, Any]]:
+@async_compat
+async def load_saved_recipes() -> list[dict[str, Any]]:
     recipes = [
         dict(row)
-        for row in query_db(
+        for row in await query_db_async(
             """
             SELECT sr.id, sr.finished_product_id, sr.name, COALESCE(sr.notes,'') AS notes,
                    sr.created_at, fp.name AS finished_name
@@ -21,7 +23,7 @@ def load_saved_recipes() -> list[dict[str, Any]]:
     ]
     if not recipes:
         return []
-    item_rows = query_db(
+    item_rows = await query_db_async(
         """
         SELECT sri.recipe_id, sri.raw_material_id, sri.quantity, sri.position,
                rm.name AS material_name, rm.stock_qty, rm.unit
@@ -46,7 +48,8 @@ def load_saved_recipes() -> list[dict[str, Any]]:
     return recipes
 
 
-def save_recipe_definition(
+@async_compat
+async def save_recipe_definition(
     finished_id: int,
     recipe_name: str,
     notes: str,
@@ -56,25 +59,25 @@ def save_recipe_definition(
     clean_name = (recipe_name or "").strip()
     if not clean_name or not recipe_lines:
         return None
-    existing = query_db(
+    existing = await query_db_async(
         "SELECT id FROM saved_recipes WHERE finished_product_id = %s AND lower(name) = lower(%s)",
         (finished_id, clean_name),
         one=True,
     )
     if existing:
         recipe_id = int(existing["id"])
-        execute_db(
+        await execute_db_async(
             "UPDATE saved_recipes SET notes = %s, updated_at = CURRENT_TIMESTAMP, created_by_user_id = COALESCE(created_by_user_id, %s) WHERE id = %s",
             (notes, user_id, recipe_id),
         )
-        execute_db("DELETE FROM saved_recipe_items WHERE recipe_id = %s", (recipe_id,))
+        await execute_db_async("DELETE FROM saved_recipe_items WHERE recipe_id = %s", (recipe_id,))
     else:
-        recipe_id = execute_db(
+        recipe_id = await execute_db_async(
             "INSERT INTO saved_recipes (finished_product_id, name, notes, created_by_user_id) VALUES (%s, %s, %s, %s)",
             (finished_id, clean_name, notes, user_id),
         )
     for position, line in enumerate(recipe_lines, start=1):
-        execute_db(
+        await execute_db_async(
             "INSERT INTO saved_recipe_items (recipe_id, raw_material_id, quantity, position) VALUES (%s, %s, %s, %s)",
             (recipe_id, int(line["material"]["id"]), float(line["qty"]), position),
         )
