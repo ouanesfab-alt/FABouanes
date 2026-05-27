@@ -179,14 +179,13 @@
               <th class="col-right" style="width:130px;">Prix d'achat</th>
               <th class="col-right" style="width:130px;">Versement</th>
               <th class="col-right" style="width:140px;">Reste à payer</th>
-              <th class="text-center" style="width:110px;">Type</th>
             </tr>
           </thead>
           <tbody>
             {% for item in history %}
               {% if item.source == 'app' and loop.changed(item.source) %}
                 <tr class="separator-row" style="border-top:2px dashed var(--line);border-bottom:2px dashed var(--line);">
-                  <td colspan="6" class="text-center py-2">
+                  <td colspan="5" class="text-center py-2">
                     <span class="badge bg-secondary px-3 py-1 text-uppercase fw-semibold" style="font-size:.72rem; border-radius:8px;">
                       <i class="bi bi-cpu me-1"></i> Opérations Appli
                     </span>
@@ -216,25 +215,11 @@
                     {{ item.solde_cumule|money }}
                   </strong>
                 </td>
-                <td class="text-center">
-                  {% if item.type_operation == 'ouverture' %}
-                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1" style="border-radius:6px;">Ouverture</span>
-                  {% elif item.type_operation == 'achat' %}
-                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="border-radius:6px;">Crédit</span>
-                  {% elif item.type_operation == 'versement' %}
-                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="border-radius:6px;">Versement</span>
-                  {% elif item.type_operation == 'immediat' %}
-                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style="border-radius:6px;">Cash</span>
-                  {% elif item.type_operation == 'mixte' %}
-                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1" style="border-radius:6px;">Mixte</span>
-                  {% else %}
-                    <span class="badge bg-secondary-subtle text-secondary px-2 py-1" style="border-radius:6px;">-</span>
-                  {% endif %}
-                </td>
+
               </tr>
             {% else %}
               <tr>
-                <td colspan="6" class="text-center py-5 text-muted">
+                <td colspan="5" class="text-center py-5 text-muted">
                   <i class="bi bi-journal-x fs-2 d-block mb-2"></i>
                   Aucun historique disponible pour ce client.
                 </td>
@@ -254,7 +239,7 @@
                   {% set page_verse = history | map(attribute='montant_verse') | sum %}
                   {% if page_verse > 0 %}{{ page_verse|money }}{% else %}-{% endif %}
                 </td>
-                <td colspan="2" class="py-3"></td>
+                <td class="py-3"></td>
               </tr>
             </tfoot>
           {% endif %}

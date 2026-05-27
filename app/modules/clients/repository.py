@@ -144,27 +144,10 @@ class ClientRepository(AsyncRepository[Client]):
         )
         total = int(count_result.scalar() or 0)
 
-        # Fetch page — compute type_operation from existing columns
+        # Fetch page
         result = await self.session.execute(
             text("""
-                SELECT *,
-                    CASE
-                        WHEN sale_id IS NOT NULL AND montant_verse = 0
-                            THEN 'achat'
-                        WHEN raw_sale_id IS NOT NULL AND montant_verse = 0
-                            THEN 'achat'
-                        WHEN payment_id IS NOT NULL AND montant_achat > 0
-                            THEN 'immediat'
-                        WHEN payment_id IS NOT NULL AND montant_verse > 0
-                            THEN 'versement'
-                        WHEN sale_id IS NULL AND raw_sale_id IS NULL AND payment_id IS NULL
-                             AND montant_achat > 0 AND montant_verse = 0
-                            THEN 'ouverture'
-                        WHEN montant_achat > 0 AND montant_verse > 0
-                            THEN 'mixte'
-                        ELSE NULL
-                    END AS type_operation
-                FROM client_history
+                SELECT * FROM client_history
                 WHERE client_id = :cid
                 ORDER BY operation_date ASC, id ASC
                 LIMIT :lim OFFSET :off
