@@ -194,5 +194,6 @@ async def edit_production_notes(request: Request):
         )
         flash(request, "Notes de production mises à jour.", "success")
     except Exception as exc:
-        flash(request, str(exc), "danger")
+        from app.core.exceptions import get_friendly_error_message
+        flash(request, get_friendly_error_message(exc), "danger")
     return RedirectResponse("/production", status_code=303)

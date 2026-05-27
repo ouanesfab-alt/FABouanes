@@ -95,7 +95,7 @@
             <td class="cell-text col-name"><span class="product-name">{{ i.name }}</span></td>
             <td class="cell-text col-unit">{{ i.unit }}</td>
             <td class="cell-num col-stock">
-              {{ i.stock_qty|qty }}
+              {{ "%.2f"|format(i.stock_qty|float) }}
               {% if i.is_low %}
                 <span class="badge bg-danger ms-1" style="font-size: 0.7rem; padding: 2px 4px;" title="Alerte stock bas !">Alerte</span>
               {% elif i.autonomy_status == 'WARNING' %}

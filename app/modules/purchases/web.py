@@ -46,10 +46,11 @@ async def purchases_submit(
         if wants_print_after_submit():
             return RedirectResponse(f"/print/{created['print_doc_type']}/{created['print_item_id']}", status_code=303)
     except Exception as exc:
+        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
-            else [str(exc)]
+            else [get_friendly_error_message(exc)]
         )
         flash(request, f"Erreur : {', '.join(errors)}", "danger")
     return RedirectResponse(PURCHASES_FILTER_URL, status_code=303)
@@ -92,10 +93,11 @@ async def new_purchase_submit(
             return RedirectResponse(f"/print/{created['print_doc_type']}/{created['print_item_id']}", status_code=303)
         return RedirectResponse(PURCHASES_FILTER_URL, status_code=303)
     except Exception as exc:
+        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
-            else [str(exc)]
+            else [get_friendly_error_message(exc)]
         )
         flash(request, f"Erreur : {', '.join(errors)}", "danger")
         return RedirectResponse(NEW_PURCHASE_URL, status_code=303)
@@ -146,10 +148,11 @@ async def edit_purchase_document_submit(
         await service.edit_purchase_document_from_form(document_id, schema)
         flash(request, "Bon d'achat modifié.", "success")
     except Exception as exc:
+        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
-            else [str(exc)]
+            else [get_friendly_error_message(exc)]
         )
         flash(request, f"Erreur : {', '.join(errors)}", "danger")
         return RedirectResponse(str(request.url), status_code=303)
@@ -203,10 +206,11 @@ async def edit_purchase_submit(
         await service.edit_purchase_from_form(purchase_id, schema)
         flash(request, "Achat modifié.", "success")
     except Exception as exc:
+        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
-            else [str(exc)]
+            else [get_friendly_error_message(exc)]
         )
         flash(request, f"Erreur : {', '.join(errors)}", "danger")
         return RedirectResponse(str(request.url), status_code=303)

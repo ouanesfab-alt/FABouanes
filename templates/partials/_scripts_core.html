@@ -124,11 +124,30 @@
     const results = document.getElementById('searchResults');
     if (!overlay) return;
 
+    let selectedIndex = -1;
     const pageLoadTime = Date.now();
+
+    function getItems() {
+      return Array.from(results.querySelectorAll('.search-result-item'));
+    }
+
+    function updateSelection() {
+      const items = getItems();
+      items.forEach((item, idx) => {
+        if (idx === selectedIndex) {
+          item.classList.add('is-selected');
+          item.scrollIntoView({ block: 'nearest' });
+        } else {
+          item.classList.remove('is-selected');
+        }
+      });
+    }
+
     function openSearch() {
       if (Date.now() - pageLoadTime < 500) return;
       overlay.hidden = false;
       input.value = '';
+      selectedIndex = -1;
       results.innerHTML = '<div class="search-hint">Tapez au moins 2 caractères…</div>';
       setTimeout(() => input.focus(), 50);
     }
@@ -141,7 +160,12 @@
     document.getElementById('globalSearchBtn')?.addEventListener('click', openSearch);
     document.addEventListener('keydown', function (e) {
       const isDesktop = window.innerWidth >= 1024;
-      if (isDesktop && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      const isSearchShortcut = isDesktop && (
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') || 
+        (e.metaKey && e.code === 'Space')
+      );
+      
+      if (isSearchShortcut) {
         e.preventDefault(); openSearch();
       }
       if (e.key === 'Escape' && !overlay.hidden) closeSearch();
@@ -151,9 +175,31 @@
         e.preventDefault(); openSearch();
       }
     });
+
     overlay.addEventListener('click', function (e) {
       if (!e.target.closest('.search-modal')) {
         closeSearch();
+      }
+    });
+
+    // Keyboard navigation inside search results
+    input.addEventListener('keydown', function (e) {
+      const items = getItems();
+      if (!items.length) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIndex = (selectedIndex + 1) % items.length;
+        updateSelection();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+        updateSelection();
+      } else if (e.key === 'Enter') {
+        if (selectedIndex >= 0 && selectedIndex < items.length) {
+          e.preventDefault();
+          items[selectedIndex].click();
+        }
       }
     });
 
@@ -162,6 +208,7 @@
     input.addEventListener('input', function () {
       clearTimeout(timer);
       const q = input.value.trim();
+      selectedIndex = -1;
       if (q.length < 2) {
         results.innerHTML = '<div class="search-hint">Tapez au moins 2 caractères…</div>';
         return;

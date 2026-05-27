@@ -48,10 +48,11 @@ async def payments_submit(
         await service.create_payment_from_form(schema)
         flash(request, "Paiement enregistré.", "success")
     except Exception as exc:
+        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
-            else [str(exc)]
+            else [get_friendly_error_message(exc)]
         )
         flash(request, f"Erreur : {', '.join(errors)}", "danger")
     return RedirectResponse(PAYMENTS_FILTER_URL, status_code=303)
@@ -96,10 +97,11 @@ async def new_payment_submit(
             return RedirectResponse(f"/print/payment/{payment_id}", status_code=303)
         return RedirectResponse(PAYMENTS_FILTER_URL, status_code=303)
     except Exception as exc:
+        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
-            else [str(exc)]
+            else [get_friendly_error_message(exc)]
         )
         flash(request, f"Erreur : {', '.join(errors)}", "danger")
         return RedirectResponse(f"{NEW_PAYMENT_URL}?mode={mode}", status_code=303)
@@ -147,10 +149,11 @@ async def edit_payment_submit(
         await service.edit_payment_from_form(payment_id, schema)
         flash(request, "Transaction client modifiée.", "success")
     except Exception as exc:
+        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
-            else [str(exc)]
+            else [get_friendly_error_message(exc)]
         )
         flash(request, f"Erreur : {', '.join(errors)}", "danger")
         return RedirectResponse(str(request.url), status_code=303)

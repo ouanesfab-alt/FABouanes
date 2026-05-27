@@ -90,8 +90,8 @@
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
-  --shadow-glass: 0 4px 24px rgba(0, 0, 0, 0.06), inset 0 0.5px 0 rgba(255, 255, 255, 0.45);
-  --shadow-glass-hover: 0 8px 32px rgba(0, 0, 0, 0.10), inset 0 0.5px 0 rgba(255, 255, 255, 0.5);
+  --shadow-glass: 0 4px 24px rgba(0, 0, 0, 0.06), inset 0 0.5px 0 rgba(255, 255, 255, 0.45), inset 0 -0.5px 0 rgba(0, 0, 0, 0.04);
+  --shadow-glass-hover: 0 8px 32px rgba(0, 0, 0, 0.10), inset 0 0.5px 0 rgba(255, 255, 255, 0.5), inset 0 -0.5px 0 rgba(0, 0, 0, 0.06);
 
   /* Typography */
   --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
@@ -191,8 +191,8 @@
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.30), 0 1px 4px rgba(0, 0, 0, 0.15);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.20);
   --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.45), 0 8px 20px rgba(0, 0, 0, 0.25);
-  --shadow-glass: 0 4px 24px rgba(0, 0, 0, 0.25), inset 0 0.5px 0 rgba(255, 255, 255, 0.05);
-  --shadow-glass-hover: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
+  --shadow-glass: 0 4px 24px rgba(0, 0, 0, 0.25), inset 0 0.5px 0 rgba(255, 255, 255, 0.05), inset 0 -0.5px 0 rgba(255, 255, 255, 0.02);
+  --shadow-glass-hover: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 0.5px 0 rgba(255, 255, 255, 0.08), inset 0 -0.5px 0 rgba(255, 255, 255, 0.04);
 
   /* Dark Sequoia ambient */
   --sequoia-color-1: rgba(255, 159, 10, 0.12);
@@ -313,39 +313,7 @@ h1, h2, h3, h4, h5, h6, .section-title {
   color: var(--text-primary);
 }
 
-/* ── macOS Window Traffic Lights ── */
-.mac-window-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 4px;
-  user-select: none;
-}
-.mac-dot {
-  width: 12px; height: 12px;
-  border-radius: 50%;
-  position: relative;
-  transition: filter 0.15s ease;
-}
-.mac-dot:hover { filter: brightness(0.85); }
-.mac-dot.red    { background: #FF5F57; border: 0.5px solid rgba(0,0,0,0.12); }
-.mac-dot.yellow { background: #FEBC2E; border: 0.5px solid rgba(0,0,0,0.12); }
-.mac-dot.green  { background: #28C840; border: 0.5px solid rgba(0,0,0,0.12); }
-
-.mac-window-controls:hover .mac-dot::after {
-  position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 9px; font-weight: 700;
-  color: rgba(0, 0, 0, 0.55);
-  line-height: 1;
-}
-.mac-window-controls:hover .mac-dot.red::after    { content: '×'; font-size: 10px; }
-.mac-window-controls:hover .mac-dot.yellow::after { content: '−'; font-size: 7px; }
-.mac-window-controls:hover .mac-dot.green::after  { content: '+'; font-size: 7px; }
-
-@media (max-width: 767px) {
-  .mac-window-controls { display: none !important; }
-}
+/* Traffic lights removed per user request */
 
 /* ── Liquid Glass Panels ── */
 .card, .glass-panel, .table-card, .dashboard-card {
@@ -796,47 +764,56 @@ h1, h2, h3, h4, h5, h6, .brand-title, .title-premium, .section-title, .modal-tit
 
 /* macOS Segmented Switcher Controls */
 .fab-switcher {
-  background: rgba(0, 0, 0, 0.04) !important;
-  border: 1px solid rgba(0, 0, 0, 0.05) !important;
-  border-radius: 8px !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.04) !important;
+  border-radius: 30px !important;
   padding: 2px !important;
   gap: 2px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06) !important;
 }
 html[data-theme="dark"] .fab-switcher,
 html[data-theme="windows-dark"] .fab-switcher {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border-color: rgba(255, 255, 255, 0.05) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(0, 0, 0, 0.2) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2) !important;
 }
 
 .fab-switch-btn {
   font-family: var(--font-title) !important;
   font-size: 13px !important;
   font-weight: 500 !important;
-  border-radius: 6px !important;
+  border-radius: 30px !important;
   border: none !important;
   background: transparent !important;
-  padding: 6px 12px !important;
+  padding: 6px 16px !important;
   color: var(--text-secondary) !important;
-  transition: all 0.15s ease !important;
+  transition: all 0.2s var(--ease-spring) !important;
+  cursor: pointer !important;
 }
 .fab-switch-btn:hover {
-  background: rgba(0, 0, 0, 0.03) !important;
+  color: var(--text-primary) !important;
+  background: rgba(0, 0, 0, 0.02) !important;
 }
 html[data-theme="dark"] .fab-switch-btn:hover,
 html[data-theme="windows-dark"] .fab-switch-btn:hover {
-  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--text-primary) !important;
+  background: rgba(255, 255, 255, 0.03) !important;
 }
 
 .fab-switch-btn.is-active {
   background: #ffffff !important;
   color: #1d1d1f !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 0.5px 1.5px rgba(0, 0, 0, 0.04) !important;
+  font-weight: 600 !important;
 }
 html[data-theme="dark"] .fab-switch-btn.is-active,
 html[data-theme="windows-dark"] .fab-switch-btn.is-active {
-  background: rgba(255, 255, 255, 0.15) !important;
+  background: rgba(255, 255, 255, 0.18) !important;
   color: #ffffff !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35) !important;
+  font-weight: 600 !important;
 }
 
 /* macOS System Inputs & Focus Rings */
@@ -991,9 +968,6 @@ html[data-theme="windows-dark"] .table tbody tr:hover > th {
   background: transparent !important;
 }
 
-/* Explicitly disable traffic lights */
-.mac-window-controls, .mac-dot {
-  display: none !important;
-}
+/* End of tokens.css */
 
 

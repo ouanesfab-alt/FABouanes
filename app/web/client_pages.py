@@ -64,15 +64,14 @@ async def clients_submit(request: Request):
     try:
         data = {k: v for k, v in form.items()}
         validated = ClientValidationSchema(**data)
+        create_client_from_form(validated.model_dump())
+        flash(request, "Client ajouté avec succès.", "success")
+        return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
     except Exception as e:
-        from pydantic import ValidationError
-        errors = [err["msg"] for err in e.errors()] if isinstance(e, ValidationError) else [str(e)]
-        flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
+        from app.core.exceptions import get_friendly_error_message
+        friendly = get_friendly_error_message(e)
+        flash(request, f"Erreur de validation : {friendly}", "danger")
         return RedirectResponse(NEW_CLIENT_URL, status_code=303)
-        
-    create_client_from_form(validated.model_dump())
-    flash(request, "Client ajouté avec succès.", "success")
-    return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
 
 
 @router.get("/clients/new", name="compat_new_client")

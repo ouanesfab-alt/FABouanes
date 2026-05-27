@@ -85,6 +85,24 @@
   close?.addEventListener('click', shut);
   overlay.addEventListener('click', shut);
   document.addEventListener('keydown', function (event) { if (event.key === 'Escape' && drawer.classList.contains('open')) shut(); });
+  
+  // Swipe-to-close gesture on mobile drawer
+  let touchStartX = 0;
+  let touchStartY = 0;
+  drawer.addEventListener('touchstart', function(e) {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+  }, {passive: true});
+  drawer.addEventListener('touchend', function(e) {
+    const touchEndX = e.changedTouches[0].screenX;
+    const touchEndY = e.changedTouches[0].screenY;
+    const diffX = touchStartX - touchEndX;
+    const diffY = Math.abs(touchStartY - touchEndY);
+    if (diffX > 50 && diffY < 80) {
+      shut();
+    }
+  }, {passive: true});
+
   drawer.querySelectorAll('[data-drawer-toggle]').forEach(function (toggle) {
     const group = toggle.closest('.drawer-group');
     if (!group) return;

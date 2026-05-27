@@ -189,7 +189,7 @@
       {% if low_stock %}
       <table class="table table-sm no-grid mb-0">
         {% for item in low_stock[:6] %}
-        <tr><td>{{ item.name }}</td><td class="text-danger small text-end">{{ item.stock_qty|qty }} {{ item.unit }}</td></tr>
+        <tr><td>{{ item.name }}</td><td class="text-danger small text-end">{{ "%.2f"|format(item.stock_qty|float) }} {{ item.unit }}</td></tr>
         {% endfor %}
       </table>
       {% else %}
@@ -263,7 +263,7 @@
                 <thead><tr><th>Nom</th><th>Stock</th><th>Jours</th><th>Coût</th></tr></thead>
                 <tbody>
                   {% for s in stock_materials %}
-                  <tr><td>{{ s.name }}</td><td class="{{ 'text-danger fw-bold' if s.stock_qty <= s.alert_threshold else '' }}">{{ s.stock_qty|qty }} {{ s.unit }}</td><td>{% if s.days_left is not none %}<span class="badge {{ 'bg-danger' if s.days_left < 7 else ('bg-warning text-dark' if s.days_left < 15 else 'bg-success') }} small">{{ s.days_left }}j</span>{% else %}<span class="text-muted small">-</span>{% endif %}</td><td class="small text-muted">{{ s.avg_cost|money }}</td></tr>
+                  <tr><td>{{ s.name }}</td><td class="{{ 'text-danger fw-bold' if s.stock_qty <= s.alert_threshold else '' }}">{{ "%.2f"|format(s.stock_qty|float) }} {{ s.unit }}</td><td>{% if s.days_left is not none %}<span class="badge {{ 'bg-danger' if s.days_left < 7 else ('bg-warning text-dark' if s.days_left < 15 else 'bg-success') }} small">{{ s.days_left }}j</span>{% else %}<span class="text-muted small">-</span>{% endif %}</td><td class="small text-muted">{{ s.avg_cost|money }}</td></tr>
                   {% endfor %}
                 </tbody>
               </table>
@@ -289,7 +289,7 @@
                 <thead><tr><th>Nom</th><th>Stock</th><th>Revient</th><th>Vente</th></tr></thead>
                 <tbody>
                   {% for s in stock_products %}
-                  <tr><td>{{ s.name }}</td><td class="{{ 'text-danger fw-bold' if s.stock_qty <= 0 else '' }}">{{ s.stock_qty|qty }} {{ s.default_unit }}</td><td class="small text-muted">{{ s.avg_cost|money }}</td><td class="small">{{ s.sale_price|money }}</td></tr>
+                  <tr><td>{{ s.name }}</td><td class="{{ 'text-danger fw-bold' if s.stock_qty <= 0 else '' }}">{{ "%.2f"|format(s.stock_qty|float) }} {{ s.default_unit }}</td><td class="small text-muted">{{ s.avg_cost|money }}</td><td class="small">{{ s.sale_price|money }}</td></tr>
                   {% endfor %}
                 </tbody>
               </table>

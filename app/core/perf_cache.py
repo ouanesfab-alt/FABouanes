@@ -270,6 +270,41 @@ def clear_cache() -> None:
     _BACKEND.clear()
 
 
+def get_cached(key: tuple[Hashable, ...]) -> Any:
+    """Direct cache read (mainly for testing)."""
+    return _BACKEND.get(key)
+
+
+def set_cached(key: tuple[Hashable, ...], value: Any, *, ttl: float = 30.0, domain: str = "") -> None:
+    """Direct cache write (mainly for testing)."""
+    fingerprint = _database_fingerprint()
+    _BACKEND.set(key, value, ttl, fingerprint)
+
+
+def warm_cache() -> None:
+    """Pre-load critical dashboard data into cache at startup.
+
+    Eliminates cold-start latency on first request.  Non-critical:
+    if warming fails (e.g. empty DB), the app still works fine.
+    """
+    import logging
+    log = logging.getLogger("fabouanes.cache")
+    log.info("Cache warming started …")
+    try:
+        from app.repositories.dashboard_repository import (
+            get_dashboard_snapshot,
+            get_kpis_for_date,
+        )
+        from datetime import date
+
+        today = date.today().isoformat()
+        get_dashboard_snapshot(today)
+        get_kpis_for_date(today)
+        log.info("Cache warming completed — dashboard snapshot ready (%d entries)", cache_entry_count())
+    except Exception:
+        log.warning("Cache warming failed (non-critical, app will still work)", exc_info=True)
+
+
 def invalidate_client_cache(client_id: int) -> None:
     """
     Invalide uniquement les clés de cache liées à un client précis.

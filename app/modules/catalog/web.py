@@ -113,12 +113,9 @@ async def new_catalog_item_submit(
         return RedirectResponse("/catalog", status_code=303)
 
     except Exception as e:
-        errors = (
-            [err["msg"] for err in e.errors()]
-            if isinstance(e, ValidationError)
-            else [str(e)]
-        )
-        flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
+        from app.core.exceptions import get_friendly_error_message
+        friendly = get_friendly_error_message(e)
+        flash(request, f"Erreur de validation : {friendly}", "danger")
         return templates.TemplateResponse(
             "catalog_new.html",
             template_context(request, **new_catalog_context(kind)),
@@ -175,12 +172,9 @@ async def edit_raw_material_submit(
         flash(request, "Matière première modifiée.", "success")
         return RedirectResponse("/catalog", status_code=303)
     except Exception as e:
-        errors = (
-            [err["msg"] for err in e.errors()]
-            if isinstance(e, ValidationError)
-            else [str(e)]
-        )
-        flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
+        from app.core.exceptions import get_friendly_error_message
+        friendly = get_friendly_error_message(e)
+        flash(request, f"Erreur de validation : {friendly}", "danger")
         context = raw_material_edit_context(material)
         return templates.TemplateResponse(
             "raw_material_edit.html", template_context(request, **context)
@@ -237,12 +231,9 @@ async def edit_product_submit(
         flash(request, "Produit modifié.", "success")
         return RedirectResponse("/catalog", status_code=303)
     except Exception as e:
-        errors = (
-            [err["msg"] for err in e.errors()]
-            if isinstance(e, ValidationError)
-            else [str(e)]
-        )
-        flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
+        from app.core.exceptions import get_friendly_error_message
+        friendly = get_friendly_error_message(e)
+        flash(request, f"Erreur de validation : {friendly}", "danger")
         context = product_edit_context(product)
         return templates.TemplateResponse(
             "product_edit.html", template_context(request, **context)

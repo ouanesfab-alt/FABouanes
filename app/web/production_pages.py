@@ -74,10 +74,11 @@ async def production_submit(request: Request):
         create_production_from_form(form)
         flash(request, "Production multi-matières enregistrée avec coût de revient.", "success")
     except Exception as exc:
+        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
-            else [str(exc)]
+            else [get_friendly_error_message(exc)]
         )
         flash(request, f"Erreur : {', '.join(errors)}", "danger")
     return RedirectResponse("/production", status_code=303)
@@ -111,10 +112,11 @@ async def new_production_submit(request: Request):
             return RedirectResponse(f"/print/production/{result['batch_id']}", status_code=303)
         return RedirectResponse("/production", status_code=303)
     except Exception as exc:
+        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
-            else [str(exc)]
+            else [get_friendly_error_message(exc)]
         )
         flash(request, f"Erreur : {', '.join(errors)}", "danger")
         return RedirectResponse("/production/new", status_code=303)

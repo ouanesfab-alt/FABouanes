@@ -216,8 +216,11 @@ def dispose_async_engine_after_each_test():
 
 @pytest.fixture(autouse=True)
 def reset_rate_limit_store():
+    from app.core.rate_limit_store import RateLimitStore
+    RateLimitStore.clear_all()
     _rl_store.clear()
     yield
+    RateLimitStore.clear_all()
     _rl_store.clear()
 
 

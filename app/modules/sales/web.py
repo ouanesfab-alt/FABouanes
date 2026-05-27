@@ -48,10 +48,11 @@ async def sales_submit(
         if wants_print_after_submit():
             return RedirectResponse(f"/print/{created['print_doc_type']}/{created['print_item_id']}", status_code=303)
     except Exception as exc:
+        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
-            else [str(exc)]
+            else [get_friendly_error_message(exc)]
         )
         flash(request, f"Erreur : {', '.join(errors)}", "danger")
     return RedirectResponse(SALES_FILTER_URL, status_code=303)
@@ -94,10 +95,11 @@ async def new_sale_submit(
             return RedirectResponse(f"/print/{created['print_doc_type']}/{created['print_item_id']}", status_code=303)
         return RedirectResponse(SALES_FILTER_URL, status_code=303)
     except Exception as exc:
+        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
-            else [str(exc)]
+            else [get_friendly_error_message(exc)]
         )
         flash(request, f"Erreur : {', '.join(errors)}", "danger")
         return RedirectResponse(NEW_SALE_URL, status_code=303)
@@ -154,10 +156,11 @@ async def edit_sale_document_submit(
         await service.edit_sale_document_from_form(document_id, schema)
         flash(request, "Facture modifiée.", "success")
     except Exception as exc:
+        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
-            else [str(exc)]
+            else [get_friendly_error_message(exc)]
         )
         flash(request, f"Erreur : {', '.join(errors)}", "danger")
         return RedirectResponse(str(request.url), status_code=303)
@@ -217,10 +220,11 @@ async def edit_sale_submit(
         await service.edit_sale_from_form(kind, row_id, schema)
         flash(request, "Vente modifiée.", "success")
     except Exception as exc:
+        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
-            else [str(exc)]
+            else [get_friendly_error_message(exc)]
         )
         flash(request, f"Erreur : {', '.join(errors)}", "danger")
         return RedirectResponse(str(request.url), status_code=303)

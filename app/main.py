@@ -76,6 +76,13 @@ async def lifespan(_: FastAPI):
     except Exception as e:
         logger.warning("Erreur au démarrage du scheduler d'événements: %s", e)
 
+    # Pre-load critical dashboard data so first request is instant
+    try:
+        from app.core.perf_cache import warm_cache
+        await asyncio.to_thread(warm_cache)
+    except Exception:
+        logger.warning("Cache warming skipped", exc_info=True)
+
     logger.info(
         "FABOuanes started | env=%s desktop=%s host=%s port=%s modules=%s",
         settings.env,
@@ -180,6 +187,10 @@ app.add_middleware(
 )
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+# Request timeout — protect against hung requests
+from app.core.timeout_middleware import RequestTimeoutMiddleware
+app.add_middleware(RequestTimeoutMiddleware)
+
 
 def is_html_request(request: Request) -> bool:
     path = request.url.path
@@ -267,12 +278,12 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
     
-    err_msg = str(exc)
-    if "foreign key" in err_msg.lower() or "violates foreign key constraint" in err_msg.lower():
+    err_msg = str(exc).lower()
+    if "foreign key" in err_msg or "violates foreign key constraint" in err_msg or "clé étrangère" in err_msg or "foreignkey" in err_msg:
         friendly_msg = "Action impossible : cet élément est lié à d'autres opérations enregistrées dans le système et ne peut pas être modifié ou supprimé."
-    elif "unique constraint" in err_msg.lower() or "duplicate key" in err_msg.lower():
+    elif "unique constraint" in err_msg or "duplicate key" in err_msg or "clé dupliquée" in err_msg or "contrainte unique" in err_msg or "uniqueviolation" in err_msg:
         friendly_msg = "Action impossible : cette valeur existe déjà. Veuillez utiliser un nom ou un identifiant unique."
-    elif "numeric value out of range" in err_msg.lower():
+    elif "numeric value out of range" in err_msg or "valeur numérique en dehors des limites" in err_msg or "out of range" in err_msg or "numeric_value_out_of_range" in err_msg:
         friendly_msg = "Action impossible : un des montants ou quantités saisis dépasse les limites numériques autorisées."
     else:
         friendly_msg = f"Une erreur interne inattendue s'est produite ({type(exc).__name__})."

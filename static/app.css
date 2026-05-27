@@ -5809,35 +5809,19 @@ html:not([data-theme="light"]) #saleDocumentTotal,
 /* Global Page Transitions (SPA Feeling) */
 html.js-transitions .app-content {
   opacity: 0;
-  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transform: translateY(8px) scale(0.995);
+  transition: opacity 0.28s var(--ease-spring), transform 0.28s var(--ease-spring) !important;
 }
 html.js-transitions .app-content.page-visible {
   opacity: 1;
+  transform: translateY(0) scale(1);
 }
 html.js-transitions .app-content.page-hidden {
   opacity: 0;
+  transform: translateY(-8px) scale(0.995);
 }
 
-/* 💎 macOS Sequoia Titlebar Window controls (Traffic Lights) 💎 */
-.mac-window-controls {
-  display: flex;
-  gap: 8px;
-  margin-right: 14px;
-  align-items: center;
-  flex-shrink: 0;
-}
-.mac-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.mac-dot.red { background-color: #ff5f56; border: 0.5px solid #e0443e; }
-.mac-dot.yellow { background-color: #ffbd2e; border: 0.5px solid #dfa123; }
-.mac-dot.green { background-color: #27c93f; border: 0.5px solid #1aab29; }
-.mac-window-controls:hover .mac-dot {
-  transform: scale(1.15);
-}
+/* macOS traffic lights styling removed */
 
 /* 🧪 Unified Liquid Glassmorphism Makeover */
 .app-navbar {
@@ -5925,5 +5909,112 @@ html[data-theme="windows-dark"] .nav-links a:not(.active):hover {
 .fab-switch-placeholder:not([hidden]) {
   animation: macPanelFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
+}
+
+/* ── Phase 2: Mobile ergonomics & iOS Safe Areas ── */
+@media (max-width: 767px) {
+  .bot-nav {
+    display: block !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    height: calc(var(--bot-h, 64px) + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  
+  /* Avoid iOS auto-zoom on inputs less than 16px */
+  .form-control, 
+  .form-select, 
+  textarea, 
+  .form-control:focus, 
+  .form-select:focus {
+    font-size: 16px !important;
+  }
+}
+
+/* ── Phase 3 & 4: macOS Sequoia Transitions & Spotlight & Context Menu ── */
+/* Custom macOS style notification banner */
+.toast-container-app .toast {
+  background: var(--glass-thick) !important;
+  backdrop-filter: var(--blur-md) saturate(190%) !important;
+  -webkit-backdrop-filter: var(--blur-md) saturate(190%) !important;
+  border: 0.5px solid var(--glass-border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-xl) !important;
+  transition: transform 0.4s var(--ease-spring), opacity 0.4s var(--ease-spring) !important;
+}
+
+/* macOS Clic-Droit Finder context menu styling */
+.context-menu {
+  background: var(--glass-chrome) !important;
+  backdrop-filter: var(--blur-lg) saturate(180%) !important;
+  -webkit-backdrop-filter: var(--blur-lg) saturate(180%) !important;
+  border: 0.5px solid var(--glass-border) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--shadow-lg) !important;
+  padding: 5px !important;
+  min-width: 180px !important;
+}
+
+.context-menu a, .context-menu button {
+  font-family: var(--font-main) !important;
+  font-size: 13px !important;
+  border-radius: 6px !important;
+  padding: 6px 12px !important;
+  color: var(--text-primary) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+  background: transparent !important;
+  border: none !important;
+  width: 100% !important;
+  text-align: left !important;
+}
+
+.context-menu a:hover, .context-menu button:hover {
+  background: var(--system-blue) !important;
+  color: var(--text-on-accent) !important;
+}
+
+.context-menu .menu-title {
+  font-family: var(--font-title) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--text-secondary) !important;
+  padding: 6px 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.03em !important;
+}
+
+.context-menu .cm-divider {
+  height: 1px !important;
+  background: var(--separator) !important;
+  margin: 4px 6px !important;
+}
+
+/* Spotlight Search enhanced layout */
+.search-modal {
+  border-radius: 12px !important;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.25), inset 0 0.5px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+.search-result-item {
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  transition: all 0.15s var(--ease-spring) !important;
+}
+
+.search-result-item:hover, .search-result-item.is-selected {
+  background: var(--system-blue) !important;
+  color: var(--text-on-accent) !important;
+}
+
+.search-result-item:hover .search-result-title,
+.search-result-item.is-selected .search-result-title,
+.search-result-item:hover .search-result-sub,
+.search-result-item.is-selected .search-result-sub,
+.search-result-item:hover .search-result-icon,
+.search-result-item.is-selected .search-result-icon,
+.search-result-item:hover .search-result-type,
+.search-result-item.is-selected .search-result-type {
+  color: var(--text-on-accent) !important;
 }
 

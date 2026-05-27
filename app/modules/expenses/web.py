@@ -73,15 +73,24 @@ async def new_expense_submit(request: Request):
             payment_methods=get_payment_methods(), title="Nouvelle dépense",
         ))
         
-    add_expense(
-        date=data.date.isoformat(),
-        category=data.category,
-        description=data.description,
-        amount=data.amount,
-        method=data.payment_method,
-    )
-    flash(request, "Dépense ajoutée avec succès.", "success")
-    return RedirectResponse("/expenses", status_code=303)
+    try:
+        add_expense(
+            date=data.date.isoformat(),
+            category=data.category,
+            description=data.description,
+            amount=data.amount,
+            method=data.payment_method,
+        )
+        flash(request, "Dépense ajoutée avec succès.", "success")
+        return RedirectResponse("/expenses", status_code=303)
+    except Exception as e:
+        from app.core.exceptions import get_friendly_error_message
+        friendly = get_friendly_error_message(e)
+        flash(request, f"Erreur : {friendly}", "danger")
+        return templates.TemplateResponse("expense_form.html", template_context(
+            request, expense=form, categories=get_categories(),
+            payment_methods=get_payment_methods(), title="Nouvelle dépense",
+        ))
 
 
 @router.get("/expenses/{expense_id}/edit", name="edit_expense")
@@ -131,16 +140,27 @@ async def edit_expense_submit(request: Request, expense_id: int):
             payment_methods=get_payment_methods(), title="Modifier la dépense",
         ))
         
-    modify_expense(
-        expense_id=expense_id,
-        date=data.date.isoformat(),
-        category=data.category,
-        description=data.description,
-        amount=data.amount,
-        method=data.payment_method,
-    )
-    flash(request, "Dépense modifiée.", "success")
-    return RedirectResponse("/expenses", status_code=303)
+    try:
+        modify_expense(
+            expense_id=expense_id,
+            date=data.date.isoformat(),
+            category=data.category,
+            description=data.description,
+            amount=data.amount,
+            method=data.payment_method,
+        )
+        flash(request, "Dépense modifiée.", "success")
+        return RedirectResponse("/expenses", status_code=303)
+    except Exception as e:
+        from app.core.exceptions import get_friendly_error_message
+        friendly = get_friendly_error_message(e)
+        flash(request, f"Erreur : {friendly}", "danger")
+        form_dict = dict(form)
+        form_dict["id"] = expense_id
+        return templates.TemplateResponse("expense_form.html", template_context(
+            request, expense=form_dict, categories=get_categories(),
+            payment_methods=get_payment_methods(), title="Modifier la dépense",
+        ))
 
 
 @router.post("/expenses/{expense_id}/delete", name="delete_expense")

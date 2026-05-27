@@ -73,22 +73,18 @@ async def new_client_submit(
     try:
         data = {k: v for k, v in form.items()}
         validated = ClientCreateSchema(**data)
+        service = ClientService(db)
+        await service.create_client(validated)
+        flash(request, "Client ajouté avec succès.", "success")
+        return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
     except Exception as e:
-        errors = (
-            [err["msg"] for err in e.errors()]
-            if isinstance(e, ValidationError)
-            else [str(e)]
-        )
-        flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
+        from app.core.exceptions import get_friendly_error_message
+        friendly = get_friendly_error_message(e)
+        flash(request, f"Erreur de validation : {friendly}", "danger")
         return templates.TemplateResponse(
             "contact_new.html",
             template_context(request, client=form, kind="client"),
         )
-
-    service = ClientService(db)
-    await service.create_client(validated)
-    flash(request, "Client ajouté avec succès.", "success")
-    return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
 
 
 # ── DETAIL ────────────────────────────────────────────────────────────────────
@@ -162,25 +158,21 @@ async def edit_client_submit(
     try:
         data = {k: v for k, v in form.items()}
         validated = ClientUpdateSchema(**data)
-    except Exception as e:
-        errors = (
-            [err["msg"] for err in e.errors()]
-            if isinstance(e, ValidationError)
-            else [str(e)]
+        updated = await service.update_client(client_id, validated)
+        flash(request, "Client modifié avec succès.", "success")
+        return RedirectResponse(
+            f"/contacts/clients/{client_id}", status_code=303
         )
-        flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
+    except Exception as e:
+        from app.core.exceptions import get_friendly_error_message
+        friendly = get_friendly_error_message(e)
+        flash(request, f"Erreur de validation : {friendly}", "danger")
         form_dict = dict(form)
         form_dict["id"] = client_id
         return templates.TemplateResponse(
             "client_edit.html",
             template_context(request, client=form_dict),
         )
-
-    updated = await service.update_client(client_id, validated)
-    flash(request, "Client modifié avec succès.", "success")
-    return RedirectResponse(
-        f"/contacts/clients/{client_id}", status_code=303
-    )
 
 
 # ── DELETE ────────────────────────────────────────────────────────────────────

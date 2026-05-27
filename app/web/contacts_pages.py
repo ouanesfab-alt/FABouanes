@@ -61,8 +61,9 @@ async def suppliers_submit(request: Request):
         create_supplier_from_form(validated.model_dump())
         flash(request, "Fournisseur ajouté avec succès.", "success")
     except Exception as e:
-        errors = [err["msg"] for err in e.errors()] if isinstance(e, ValidationError) else [str(e)]
-        flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
+        from app.core.exceptions import get_friendly_error_message
+        friendly = get_friendly_error_message(e)
+        flash(request, f"Erreur de validation : {friendly}", "danger")
         return RedirectResponse(NEW_SUPPLIER_URL, status_code=303)
     return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
 
@@ -110,8 +111,9 @@ async def new_supplier_submit(request: Request):
         create_supplier_from_form(validated.model_dump())
         flash(request, "Fournisseur ajouté avec succès.", "success")
     except Exception as e:
-        errors = [err["msg"] for err in e.errors()] if isinstance(e, ValidationError) else [str(e)]
-        flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
+        from app.core.exceptions import get_friendly_error_message
+        friendly = get_friendly_error_message(e)
+        flash(request, f"Erreur de validation : {friendly}", "danger")
         return RedirectResponse(NEW_SUPPLIER_URL, status_code=303)
     return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
 
@@ -176,8 +178,9 @@ async def edit_supplier_submit(request: Request, supplier_id: int):
         update_supplier_from_form(supplier_id, validated.model_dump())
         flash(request, "Fournisseur modifié.", "success")
     except Exception as e:
-        errors = [err["msg"] for err in e.errors()] if isinstance(e, ValidationError) else [str(e)]
-        flash(request, f"Erreur de validation : {', '.join(errors)}", "danger")
+        from app.core.exceptions import get_friendly_error_message
+        friendly = get_friendly_error_message(e)
+        flash(request, f"Erreur de validation : {friendly}", "danger")
         return RedirectResponse(str(request.url), status_code=303)
     return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
 
