@@ -9,9 +9,7 @@ from werkzeug.utils import secure_filename
 
 from app.core.activity import log_activity
 from app.core.audit import audit_event
-from app.core.db_access import db_transaction, execute_db, query_db
 from app.core.helpers import parse_excel_client_file, parse_excel_client_history, to_float
-from app.core.perf_cache import cached_result
 from app.core.storage import IMPORT_DIR, ensure_runtime_dirs, mark_backup_needed
 from app.repositories.client_repository import find_client_by_name, get_client, insert_client, update_client, async_compat
 
@@ -304,7 +302,6 @@ async def _import_parsed_client_rows(rows: list[dict]):
     updated = 0
     errors = []
     try:
-        from app.core.connection import execute_db_async
         # Simulating db_transaction asynchronously
         for row in rows:
             existing = await find_client_by_name(str(row["name"]))

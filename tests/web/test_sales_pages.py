@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.core.db_access import execute_db, query_db
-from app.repositories.transaction_repository import list_transactions_context
+from app.services.transactions_service import transactions_context
 
 
 def test_sales_page_renders(logged_client):
@@ -38,7 +38,7 @@ def test_transactions_date_sort_keeps_newest_same_day_sales_first(logged_client,
             )
         )
 
-    context = list_transactions_context({"type": "sale", "sort": "date", "direction": "desc", "page_size": "200"})
+    context = transactions_context(filter_type="sale", args={"page_size": "200"})
     ordered_ids = [
         int(row["id"])
         for row in context["transactions"]

@@ -4,7 +4,7 @@ from datetime import date
 
 from app.core.activity import log_activity
 from app.core.audit import audit_event
-from app.core.db_access import db_transaction, execute_db, query_db, execute_db_async, query_db_async
+from app.core.db_access import db_transaction, execute_db_async, query_db_async
 from app.core.helpers import to_float
 from app.core.perf_cache import cached_result
 from app.core.storage import mark_backup_needed

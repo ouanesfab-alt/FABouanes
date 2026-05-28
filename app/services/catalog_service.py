@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from app.core.events import DomainEvent, emit
-from app.core.perf_cache import cached_result
 from app.utils.pagination import paginate_sequence
 from app.core.connection import execute_db_async, query_db_async
 from app.core.helpers import refresh_sale_profits_for_item, to_float, unit_choices

@@ -486,7 +486,7 @@ class DatabaseManager:
         if not match:
             return 0
         table = match.group(1)
-        if table in {"app_settings", "schema_migrations"}:
+        if table in {"app_settings", "schema_migrations", "idempotent_requests", "client_keys", "rate_limit_events"}:
             return 0
         try:
             cur = db.execute("SELECT currval(pg_get_serial_sequence(%s, 'id')) AS id", (table,))

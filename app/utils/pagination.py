@@ -13,15 +13,7 @@ DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
 
 
-def paginate_query(query: str, page: int = 1, page_size: int = DEFAULT_PAGE_SIZE) -> tuple[str, int, int]:
-    """Append ``LIMIT``/``OFFSET`` to a SQL query string.
 
-    Returns ``(paginated_query, safe_page_size, offset)`` with clamped bounds.
-    """
-    page = max(1, int(page or 1))
-    page_size = min(max(1, int(page_size or DEFAULT_PAGE_SIZE)), MAX_PAGE_SIZE)
-    offset = (page - 1) * page_size
-    return f"{query} LIMIT {page_size} OFFSET {offset}", page_size, offset
 
 
 def pagination_meta(total: int, page: int, page_size: int) -> dict[str, Any]:

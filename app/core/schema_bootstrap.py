@@ -86,6 +86,12 @@ def bootstrap_schema() -> None:
 
         CREATE INDEX IF NOT EXISTS idx_sales_credit_client ON sales(client_id, total) WHERE sale_type = 'credit';
         CREATE INDEX IF NOT EXISTS idx_raw_sales_credit_client ON raw_sales(client_id, total) WHERE sale_type = 'credit';
+        
+        -- Option N: Composite and Search Indexes for SQL Query Optimization
+        CREATE INDEX IF NOT EXISTS idx_sales_client_date_type ON sales(client_id, sale_date, sale_type);
+        CREATE INDEX IF NOT EXISTS idx_purchases_supplier_date ON purchases(supplier_id, purchase_date);
+        CREATE INDEX IF NOT EXISTS idx_finished_products_name ON finished_products(name);
+        CREATE INDEX IF NOT EXISTS idx_raw_materials_name ON raw_materials(name);
         """)
         
         # Then discover and execute module schemas

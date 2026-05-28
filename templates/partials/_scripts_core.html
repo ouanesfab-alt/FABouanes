@@ -96,19 +96,6 @@
           icon.className = 'bi ' + (t === 'light' ? 'bi-moon' : 'bi-sun');
         }
       }
-
-      // Met à jour l'option dropdown
-      const dropOpt = document.getElementById('themeDropdownOption');
-      if (dropOpt) {
-        const icon = dropOpt.querySelector('.bi');
-        if (t === 'dark') {
-          dropOpt.setAttribute('data-theme-value', 'light');
-          dropOpt.innerHTML = '<i class="bi bi-sun me-2"></i>Mode Clair';
-        } else {
-          dropOpt.setAttribute('data-theme-value', 'dark');
-          dropOpt.innerHTML = '<i class="bi bi-moon-stars me-2"></i>Mode Sombre';
-        }
-      }
     }
 
     let current = localStorage.getItem(THEME_KEY) || 'light';
@@ -120,16 +107,10 @@
 
     document.addEventListener('click', function (e) {
       const toggleBtn = e.target.closest('#themeToggleBtnNavbar');
-      const dropOpt = e.target.closest('#themeDropdownOption');
       
       if (toggleBtn) {
         e.preventDefault();
         current = current === 'light' ? 'dark' : 'light';
-        applyTheme(current);
-      } else if (dropOpt) {
-        e.preventDefault();
-        const targetTheme = dropOpt.getAttribute('data-theme-value');
-        current = targetTheme;
         applyTheme(current);
       }
     });
