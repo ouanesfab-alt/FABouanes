@@ -167,7 +167,7 @@ def _build_stock_materials(cutoff_30d: str) -> list[dict]:
             FROM (
                 SELECT raw_material_id,
                        CASE
-                           WHEN lower(unit) = 'sac' THEN quantity * 50
+                           WHEN lower(unit) LIKE 'sac%' THEN quantity * COALESCE(NULLIF(regexp_replace(unit, '[^0-9.]', '', 'g'), ''), '50')::numeric
                            WHEN lower(unit) IN ('qt', 'quintal') THEN quantity * 100
                            ELSE quantity
                        END AS qty
@@ -343,7 +343,7 @@ def _dashboard_cumulative_summary() -> dict[str, float]:
                 + COALESCE((
                     SELECT SUM(
                         (CASE
-                            WHEN lower(unit) = 'sac' THEN quantity * 50
+                            WHEN lower(unit) LIKE 'sac%' THEN quantity * COALESCE(NULLIF(regexp_replace(unit, '[^0-9.]', '', 'g'), ''), '50')::numeric
                             WHEN lower(unit) IN ('qt', 'quintal') THEN quantity * 100
                             ELSE quantity
                         END) * cost_price_snapshot

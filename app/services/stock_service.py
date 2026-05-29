@@ -14,10 +14,22 @@ OTHER_OPERATION_NAME = "AUTRE"
 OTHER_OPERATION_UNIT = "unite"
 
 
+import re
+
+def _extract_weight_from_unit(unit: str | None) -> float:
+    if not unit:
+        return 50.0
+    # Search for numbers in the unit string, e.g. "sac (40kg)" -> 40.0
+    match = re.search(r"(\d+(?:\.\d+)?)\s*(?:kg)?", unit.lower())
+    if match:
+        return float(match.group(1))
+    return 50.0
+
+
 def qty_to_kg(quantity: float, unit: str | None) -> float:
     unit_name = (unit or "kg").strip().lower()
-    if unit_name == "sac":
-        return quantity * 50
+    if unit_name.startswith("sac"):
+        return quantity * _extract_weight_from_unit(unit)
     if unit_name in {"qt", "quintal"}:
         return quantity * 100
     return quantity
@@ -25,15 +37,15 @@ def qty_to_kg(quantity: float, unit: str | None) -> float:
 
 def unit_price_to_kg(unit_price: float, unit: str | None) -> float:
     unit_name = (unit or "kg").strip().lower()
-    if unit_name == "sac":
-        return unit_price / 50
+    if unit_name.startswith("sac"):
+        return unit_price / _extract_weight_from_unit(unit)
     if unit_name in {"qt", "quintal"}:
         return unit_price / 100
     return unit_price
 
 
 def unit_choices() -> list[str]:
-    return ["kg", "sac", "Qt", "unite"]
+    return ["kg", "sac (50kg)", "sac (40kg)", "sac (25kg)", "Qt", "unite"]
 
 
 def is_other_operation_name(name: str | None) -> bool:
@@ -84,14 +96,15 @@ async def recalc_raw_material_avg_cost(material_id: int) -> None:
     if not material:
         return
     stock_qty = float(material["stock_qty"])
-    purchases = await query_db_async("SELECT quantity, unit_price FROM purchases WHERE raw_material_id = %s ORDER BY purchase_date, id", (material_id,))
-    purchased_qty = sum(float(row["quantity"]) for row in purchases)
-    base_qty = max(0.0, stock_qty - purchased_qty)
+    purchases = await query_db_async("SELECT quantity, unit, unit_price FROM purchases WHERE raw_material_id = %s ORDER BY purchase_date, id", (material_id,))
+    purchased_qty_kg = sum(qty_to_kg(float(row["quantity"]), row["unit"]) for row in purchases)
+    base_qty = max(0.0, stock_qty - purchased_qty_kg)
     total_qty = base_qty
     total_value = base_qty * float(material["avg_cost"])
     for row in purchases:
-        total_qty += float(row["quantity"])
-        total_value += float(row["quantity"]) * float(row["unit_price"])
+        qty_kg = qty_to_kg(float(row["quantity"]), row["unit"])
+        total_qty += qty_kg
+        total_value += qty_kg * unit_price_to_kg(float(row["unit_price"]), row["unit"])
     await execute_db_async("UPDATE raw_materials SET avg_cost = %s WHERE id = %s", ((total_value / total_qty) if total_qty > 0 else 0.0, material_id))
 
 
@@ -374,10 +387,11 @@ async def reverse_purchase(purchase_id: int) -> bool:
             await record_stock_movement("finished", int(row["finished_product_id"]), "out", float(row["quantity"]), "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id)
         else:
             material = await query_db_async("SELECT * FROM raw_materials WHERE id = %s FOR UPDATE", (row["raw_material_id"],), one=True)
-            if not material or float(material["stock_qty"]) < float(row["quantity"]):
+            qty_kg = qty_to_kg(float(row["quantity"]), row["unit"])
+            if not material or float(material["stock_qty"]) < qty_kg:
                 return False
             stock_before = float(material["stock_qty"])
-            stock_after = stock_before - float(row["quantity"])
+            stock_after = stock_before - qty_kg
             
             current_value = stock_before * float(material["avg_cost"])
             removed_value = float(row["quantity"]) * float(row["unit_price"])
@@ -386,7 +400,7 @@ async def reverse_purchase(purchase_id: int) -> bool:
             
             await execute_db_async("UPDATE raw_materials SET stock_qty = %s, avg_cost = %s WHERE id = %s", (stock_after, avg_cost_restored, row["raw_material_id"]))
             await execute_db_async("DELETE FROM purchases WHERE id = %s", (purchase_id,))
-            await record_stock_movement("raw", int(row["raw_material_id"]), "out", float(row["quantity"]), "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id)
+            await record_stock_movement("raw", int(row["raw_material_id"]), "out", qty_kg, "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id)
 
         if row["document_id"]:
             await recalc_purchase_document_totals(int(row["document_id"]))

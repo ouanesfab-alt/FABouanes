@@ -378,7 +378,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const totalNode = document.getElementById('purchaseDocumentTotal');
   const dateInput = document.getElementById('purchaseDate');
  
-  function unitFactor(unit){ unit=(unit||'kg').toLowerCase(); if(unit==='sac') return 50; if(unit==='qt'||unit==='quintal') return 100; return 1; }
+  function unitFactor(unit){
+    unit = (unit || 'kg').toLowerCase();
+    if (unit.startsWith('sac')) {
+      const match = unit.match(/(\d+(?:\.\d+)?)/);
+      if (match) return parseFloat(match[1]);
+      return 50.0;
+    }
+    if (unit === 'qt' || unit === 'quintal') return 100;
+    return 1;
+  }
   function parseNum(value){ return parseFloat(String(value||'0').replace(',','.').replace(/\s/g,'')) || 0; }
   function fmtMoney(value){ return value.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' DA'; }
  
@@ -413,7 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
       customInput.value = '';
     }
   }
- 
+
   async function syncLine(row, resetPrice){
     const materialSelect = row.querySelector('.purchase-material');
     const unitSelect = row.querySelector('.purchase-unit');
@@ -486,6 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       syncLine(row, true);
     });
+ 
     qtyInput.addEventListener('input', () => updateLineTotal(row));
     priceInput.addEventListener('input', () => updateLineTotal(row));
     removeBtn.addEventListener('click', () => {
@@ -524,7 +534,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const totalNode = document.getElementById('saleDocumentTotal');
   const saleDateInput = document.getElementById('saleDate');
  
-  function unitFactor(unit){ unit=(unit||'kg').toLowerCase(); if(unit==='sac') return 50; if(unit==='qt'||unit==='quintal') return 100; return 1; }
+  function unitFactor(unit){
+    unit = (unit || 'kg').toLowerCase();
+    if (unit.startsWith('sac')) {
+      const match = unit.match(/(\d+(?:\.\d+)?)/);
+      if (match) return parseFloat(match[1]);
+      return 50.0;
+    }
+    if (unit === 'qt' || unit === 'quintal') return 100;
+    return 1;
+  }
   function parseNum(value){ return parseFloat(String(value||'0').replace(',','.').replace(/\s/g,'')) || 0; }
   function fmtMoney(value){ return value.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' DA'; }
  
@@ -559,7 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
       customInput.value = '';
     }
   }
- 
+
   async function syncLine(row, resetPrice){
     const itemSelect = row.querySelector('.sale-item');
     const unitSelect = row.querySelector('.sale-unit');
@@ -632,6 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       syncLine(row, true);
     });
+ 
     qtyInput.addEventListener('input', () => updateLineTotal(row));
     priceInput.addEventListener('input', () => updateLineTotal(row));
     removeBtn.addEventListener('click', () => {

@@ -52,17 +52,17 @@ def transactions_context(
                        WHEN p.finished_product_id IS NOT NULL THEN fp.name
                        ELSE r.name 
                    END AS designation,
-                   CASE
-                       WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) = 'sac' THEN p.quantity / 50.0
-                       WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
-                       ELSE p.quantity
-                   END AS quantity,
-                   COALESCE(p.unit, fp.default_unit, r.unit, 'kg') AS unit,
-                   CASE
-                       WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) = 'sac' THEN p.unit_price * 50.0
-                       WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
-                       ELSE p.unit_price
-                   END AS unit_price,
+                    CASE
+                        WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) LIKE 'sac%' THEN p.quantity / COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, r.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
+                        WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
+                        ELSE p.quantity
+                    END AS quantity,
+                    COALESCE(p.unit, fp.default_unit, r.unit, 'kg') AS unit,
+                    CASE
+                        WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) LIKE 'sac%' THEN p.unit_price * COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, r.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
+                        WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
+                        ELSE p.unit_price
+                    END AS unit_price,
                    p.total, CAST(NULL AS numeric) AS paid, CAST(NULL AS numeric) AS due, p.document_id AS document_id, p.created_at AS tx_created_at
             FROM purchases p
             LEFT JOIN suppliers s ON s.id = p.supplier_id

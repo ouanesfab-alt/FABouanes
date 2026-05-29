@@ -44,7 +44,7 @@ async def _build_catalog_context() -> dict:
             FROM (
                 SELECT raw_material_id,
                        CASE
-                           WHEN lower(unit) = 'sac' THEN quantity * 50
+                           WHEN lower(unit) LIKE 'sac%' THEN quantity * COALESCE(NULLIF(regexp_replace(unit, '[^0-9.]', '', 'g'), ''), '50')::numeric
                            WHEN lower(unit) IN ('qt', 'quintal') THEN quantity * 100
                            ELSE quantity
                        END AS qty

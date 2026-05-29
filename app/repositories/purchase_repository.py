@@ -86,12 +86,12 @@ def get_purchase(purchase_id: int):
                    ELSE COALESCE(p.unit, r.unit, 'kg')
                END AS display_unit,
                CASE
-                   WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) = 'sac' THEN p.quantity / 50.0
+                   WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) LIKE 'sac%' THEN p.quantity / COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, r.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
                    WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
                    ELSE p.quantity
                END AS display_quantity,
                CASE
-                   WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) = 'sac' THEN p.unit_price * 50.0
+                   WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) LIKE 'sac%' THEN p.unit_price * COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, r.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
                    WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
                    ELSE p.unit_price
                END AS display_unit_price
@@ -132,12 +132,12 @@ def list_purchase_document_lines(document_id: int):
                    ELSE COALESCE(p.unit, r.unit, 'kg')
                END AS display_unit,
                CASE
-                   WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) = 'sac' THEN p.quantity / 50.0
+                   WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) LIKE 'sac%' THEN p.quantity / COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, r.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
                    WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
                    ELSE p.quantity
                END AS display_quantity,
                CASE
-                   WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) = 'sac' THEN p.unit_price * 50.0
+                   WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) LIKE 'sac%' THEN p.unit_price * COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, r.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
                    WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
                    ELSE p.unit_price
                END AS display_unit_price,

@@ -144,7 +144,16 @@
   const initialLines = {{ sale_lines|tojson }};
   const editLocked = {{ 'true' if edit_locked else 'false' }};
 
-  function unitFactor(unit){ unit=(unit||'kg').toLowerCase(); if(unit==='sac') return 50; if(unit==='qt'||unit==='quintal') return 100; return 1; }
+  function unitFactor(unit){
+    unit = (unit || 'kg').toLowerCase();
+    if (unit.startsWith('sac')) {
+      const match = unit.match(/(\d+(?:\.\d+)?)/);
+      if (match) return parseFloat(match[1]);
+      return 50.0;
+    }
+    if (unit === 'qt' || unit === 'quintal') return 100;
+    return 1;
+  }
   function parseNum(value){ return parseFloat(String(value||'0').replace(',','.').replace(/\s/g,'')) || 0; }
   function fmtMoney(value){ return value.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' DA'; }
 
@@ -218,14 +227,14 @@
     metaNode.textContent = `Stock: ${(stock / unitFactor(displayUnit)).toFixed(2)} ${displayUnit} | Coût: ${fmtMoney(cost * unitFactor(displayUnit))}/${displayUnit}${forcedUnit ? ' | Unité fixe' : ''}`;
     updateLineTotal(row);
   }
-
+ 
   function updateLineTotal(row){
     const qty = parseNum(row.querySelector('.sale-qty')?.value);
     const price = parseNum(row.querySelector('.sale-price')?.value);
     row.querySelector('.sale-total').value = qty > 0 && price > 0 ? fmtMoney(qty * price) : '';
     updateDocumentTotal();
   }
-
+ 
   function attachLine(row){
     const itemSelect = row.querySelector('.sale-item');
     const unitSelect = row.querySelector('.sale-unit');
@@ -281,9 +290,28 @@
     const unitSelect = row.querySelector('.sale-unit');
     const qtyInput = row.querySelector('.sale-qty');
     const priceInput = row.querySelector('.sale-price');
+    const customInput = row.querySelector('.sale-custom-name');
     if(prefill){
       itemSelect.value = prefill.item_key || itemSelect.value;
       qtyInput.value = prefill.quantity ?? '';
+      
+      // Ensure target val is created in unitSelect options if not present
+      if (prefill.unit && prefill.unit.toLowerCase().startsWith('sac')) {
+        let exists = false;
+        for (let i = 0; i < unitSelect.options.length; i++) {
+          if (unitSelect.options[i].value === prefill.unit) {
+            exists = true;
+            break;
+          }
+        }
+        if (!exists) {
+          const opt = document.createElement('option');
+          opt.value = prefill.unit;
+          opt.textContent = prefill.unit;
+          unitSelect.appendChild(opt);
+        }
+      }
+      
       unitSelect.value = prefill.unit || unitSelect.value;
       priceInput.value = prefill.unit_price ?? '';
       customInput.value = prefill.custom_item_name || '';

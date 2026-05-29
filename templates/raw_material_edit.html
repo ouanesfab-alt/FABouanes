@@ -46,7 +46,7 @@
         </div>
         <div class="span-4">
           <label class="form-label">Unité</label>
-          <select name="unit" class="form-select">
+          <select name="unit" id="unitSelect" class="form-select">
             {% for u in units %}<option value="{{ u }}" {% if material.unit==u %}selected{% endif %}>{{ u }}</option>{% endfor %}
           </select>
         </div>
@@ -70,7 +70,7 @@
           <div class="raw-edit-note">
             Les opérations et le calcul du bénéfice utilisent les prix enregistrés ici.
             Aperçu : 1 kg = <strong><span id="kgPrev">0</span> DA</strong>,
-            1 sac = <strong><span id="sacPrev">0</span> DA</strong>,
+            <span id="sacLabelSpan">1 sac</span> = <strong><span id="sacPrev">0</span> DA</strong>,
             1 Qt = <strong><span id="qtPrev">0</span> DA</strong>.
           </div>
         </div>
@@ -86,9 +86,40 @@
 
 {% block scripts %}
 <script nonce="{{ csp_nonce }}">
-const priceKg=document.getElementById('salePriceKg');
-function syncPricePreview(){const v=parseFloat(priceKg?.value||0); document.getElementById('kgPrev').textContent=v.toFixed(2); document.getElementById('sacPrev').textContent=(v*50).toFixed(2); document.getElementById('qtPrev').textContent=(v*100).toFixed(2);}
-priceKg?.addEventListener('input', syncPricePreview); syncPricePreview();
+(function(){
+  const priceKg = document.getElementById('salePriceKg');
+  const unitSelect = document.getElementById('unitSelect');
+
+  function syncPricePreview(){
+    const v = parseFloat(priceKg?.value || 0); 
+    document.getElementById('kgPrev').textContent = v.toFixed(2); 
+    
+    let weight = 50.0;
+    const unitVal = (unitSelect?.value || '').toLowerCase();
+    if (unitVal.startsWith('sac')) {
+      const match = unitVal.match(/(\d+(?:\.\d+)?)/);
+      if (match) {
+        weight = parseFloat(match[1]);
+      }
+    }
+    document.getElementById('sacPrev').textContent = (v * weight).toFixed(2); 
+    const label = weight !== 50 || unitVal !== 'sac' ? `1 sac (${weight}kg)` : '1 sac';
+    const sacLabelSpan = document.getElementById('sacLabelSpan');
+    if (sacLabelSpan) {
+      sacLabelSpan.textContent = label;
+    }
+
+    document.getElementById('qtPrev').textContent = (v * 100).toFixed(2);
+  }
+
+  priceKg?.addEventListener('input', syncPricePreview);
+  unitSelect?.addEventListener('change', () => {
+    syncPricePreview();
+  });
+
+  // Initialize
+  syncPricePreview();
+})();
 </script>
 <style nonce="{{ csp_nonce }}">
   .preset-badge {
