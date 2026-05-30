@@ -223,3 +223,16 @@ def test_api_production_not_found(client: TestClient, api_headers):
     
     response = client.get("/api/v1/recipes/999999", headers=api_headers)
     assert response.status_code == 404
+
+# ================= CLIENT EXPORT ENDPOINT =================
+
+def test_api_client_export_unauthenticated(client: TestClient):
+    response = client.get("/api/v1/clients/export")
+    assert response.status_code == 401
+
+def test_api_client_export_authenticated(client: TestClient, api_headers):
+    response = client.get("/api/v1/clients/export", headers=api_headers)
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert "attachment; filename=" in response.headers["content-disposition"]
+

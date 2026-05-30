@@ -3,7 +3,6 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-import asyncio
 
 from app.api.deps import require_api_user
 from app.core.permissions import PERMISSION_DASHBOARD_READ

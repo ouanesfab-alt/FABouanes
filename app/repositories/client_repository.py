@@ -4,10 +4,9 @@ import functools
 import asyncio
 from typing import Optional, List, Tuple
 from decimal import Decimal
-from sqlalchemy import text, select
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_sessionmaker
-from app.core.models import Client
 
 def async_compat(func):
     """Allows an async function to be called synchronously if no event loop is running."""

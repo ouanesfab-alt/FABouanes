@@ -8,7 +8,7 @@ from time import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from werkzeug.utils import secure_filename
-from sqlalchemy import text, func
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -18,7 +18,7 @@ from app.core.perf_cache import invalidate_client_cache
 from app.modules.clients.repository import ClientRepository
 from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
 from app.core.storage import IMPORT_DIR, ensure_runtime_dirs
-from app.core.helpers import parse_excel_client_file, parse_excel_client_history, to_float
+from app.core.helpers import parse_excel_client_file, parse_excel_client_history
 from app.services.excel_import_service import parse_client_history_excel
 
 _IMPORT_PREVIEW_TTL_SECONDS = 30 * 60

@@ -67,6 +67,62 @@ async def api_clients(request: Request, db: AsyncSession = Depends(get_async_ses
     add_cache_headers(request, response, res_data, max_age=300)
     return response
 
+@router.get("/clients/export")
+async def export_clients_csv(request: Request):
+    """
+    Exporte tous les clients avec solde, total achats, total versements,
+    dernière opération. Format CSV téléchargeable.
+    """
+    require_api_user(request, PERMISSION_CONTACTS_READ)
+    # Choix importants :
+    # 1. Requête SQL pure optimisée avec agrégations pour éviter les requêtes par lot.
+    # 2. Utilisation de Response de FastAPI pour renvoyer des données binaires (CSV encodé UTF-8 avec BOM pour Excel).
+    import csv, io
+    from datetime import date
+    async def _build_export():
+        rows = await query_db_async("""
+            SELECT
+                c.id, c.name,
+                c.current_balance AS balance,
+                c.total_sales AS total_achats,
+                c.total_payments AS total_verses,
+                (SELECT MAX(d) FROM (
+                    SELECT MAX(sale_date) AS d FROM sales WHERE client_id = c.id
+                    UNION ALL
+                    SELECT MAX(sale_date) AS d FROM raw_sales WHERE client_id = c.id
+                 ) t) AS derniere_vente,
+                (SELECT MAX(payment_date) FROM payments WHERE client_id = c.id) AS dernier_paiement
+            FROM clients_with_stats c
+            ORDER BY c.current_balance DESC
+        """)
+        buf = io.StringIO()
+        writer = csv.DictWriter(buf, fieldnames=[
+            "id", "nom", "solde_actuel",
+            "total_achats", "total_versements",
+            "derniere_vente", "dernier_paiement",
+        ])
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({
+                "id": row["id"],
+                "nom": row["name"],
+                "solde_actuel": row["balance"],
+                "total_achats": row["total_achats"],
+                "total_versements": row["total_verses"],
+                "derniere_vente": row["derniere_vente"] or "",
+                "dernier_paiement": row["dernier_paiement"] or "",
+            })
+        return buf.getvalue()
+
+    csv_content = await _build_export()
+    filename = f"clients_export_{date.today().isoformat()}.csv"
+    return Response(
+        content=csv_content.encode("utf-8-sig"),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.api_route("/clients/{client_id}", methods=["GET", "PUT"])
 async def api_client_detail(request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_CONTACTS_WRITE if request.method == "PUT" else PERMISSION_CONTACTS_READ)
@@ -488,59 +544,5 @@ async def bulk_import_client_history(
     }
 
 
-@router.get("/clients/export")
-async def export_clients_csv():
-    """
-    Exporte tous les clients avec solde, total achats, total versements,
-    dernière opération. Format CSV téléchargeable.
-    """
-    # Choix importants :
-    # 1. Requête SQL pure optimisée avec agrégations pour éviter les requêtes par lot.
-    # 2. Utilisation de Response de FastAPI pour renvoyer des données binaires (CSV encodé UTF-8 avec BOM pour Excel).
-    import csv, io
-    from datetime import date
-    async def _build_export():
-        rows = await query_db_async("""
-            SELECT
-                c.id, c.name,
-                c.balance,
-                (COALESCE((SELECT SUM(s.total) FROM sales s WHERE s.client_id = c.id), 0) +
-                 COALESCE((SELECT SUM(rs.total) FROM raw_sales rs WHERE rs.client_id = c.id), 0)) AS total_achats,
-                COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.client_id = c.id), 0) AS total_verses,
-                (SELECT MAX(d) FROM (
-                    SELECT MAX(sale_date) AS d FROM sales WHERE client_id = c.id
-                    UNION ALL
-                    SELECT MAX(sale_date) AS d FROM raw_sales WHERE client_id = c.id
-                 ) t) AS derniere_vente,
-                (SELECT MAX(payment_date) FROM payments WHERE client_id = c.id) AS dernier_paiement
-            FROM clients c
-            ORDER BY c.balance DESC
-        """)
-        buf = io.StringIO()
-        writer = csv.DictWriter(buf, fieldnames=[
-            "id", "nom", "solde_actuel",
-            "total_achats", "total_versements",
-            "derniere_vente", "dernier_paiement",
-        ])
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({
-                "id": row["id"],
-                "nom": row["name"],
-                "solde_actuel": row["balance"],
-                "total_achats": row["total_achats"],
-                "total_versements": row["total_verses"],
-                "derniere_vente": row["derniere_vente"] or "",
-                "dernier_paiement": row["dernier_paiement"] or "",
-            })
-        return buf.getvalue()
-
-    csv_content = await _build_export()
-    filename = f"clients_export_{date.today().isoformat()}.csv"
-    return Response(
-        content=csv_content.encode("utf-8-sig"),
-        media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
 
 

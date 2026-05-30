@@ -7,7 +7,6 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_api_user, api_error
-from app.api.v1._common import payload_to_form_data
 from app.core.permissions import PERMISSION_OPERATIONS_WRITE
 from app.services.payment_service import create_payment_from_form
 from app.core.db_access import db_transaction

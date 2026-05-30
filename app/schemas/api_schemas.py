@@ -3,7 +3,6 @@ from __future__ import annotations
 from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List, Union
-from app.schemas.auth import LoginRequest as UserLoginSchema
 
 class PaymentCreateSchema(BaseModel):
     client_id: Union[int, str] = Field(..., description="ID du client")

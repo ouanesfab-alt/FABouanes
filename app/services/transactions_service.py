@@ -3,7 +3,6 @@ from __future__ import annotations
 from app.utils.pagination import (
     parse_pagination,
     MAX_PAGE_SIZE,
-    paginated_rows,
     pagination_context,
 )
 from app.core.activity import log_activity
