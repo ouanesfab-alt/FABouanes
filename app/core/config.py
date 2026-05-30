@@ -119,12 +119,24 @@ def configured_worker_count() -> int:
 
 def validate_single_worker_runtime() -> None:
     workers = configured_worker_count()
+    if workers <= 1:
+        return
     allow = os.getenv("FAB_ALLOW_MULTI_WORKER", "0").strip().lower() in {"1", "true", "yes", "on"}
-    if workers > 1 and not allow:
-        raise RuntimeError(
-            "FABOuanes utilise un cache et un scheduler in-process: demarre 1 seul worker "
-            "ou configure un cache/scheduler externe avant FAB_ALLOW_MULTI_WORKER=1."
-        )
+    if allow:
+        return
+    redis_url = os.getenv("REDIS_URL", "").strip()
+    if redis_url:
+        try:
+            import redis
+            client = redis.from_url(redis_url, socket_connect_timeout=2)
+            client.ping()
+            return
+        except Exception:
+            pass
+    raise RuntimeError(
+        "FABOuanes utilise un cache et un scheduler in-process: demarre 1 seul worker "
+        "ou configure un cache/scheduler externe avant FAB_ALLOW_MULTI_WORKER=1."
+    )
 
 
 settings = Settings()

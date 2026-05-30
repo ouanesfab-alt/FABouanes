@@ -4,7 +4,9 @@ import pytest
 import random
 from decimal import Decimal, ROUND_HALF_UP
 from app.core.db_access import execute_db, query_db
-from app.services.sale_service import create_sale_from_form, delete_sale_by_id
+from app.modules.sales.service import SalesService
+from app.modules.sales.schemas_validation import SaleFormSchema
+from app.core.async_db import AsyncSessionLocal
 from app.services.stock_service import record_stock_movement
 from app.core.exceptions import ValidationError
 
@@ -36,41 +38,45 @@ async def test_stress_sales_math_calculations(first_client_id, first_product_id)
     grand_total = Decimal("0.00")
     
     # 2. Perform 1000 randomized transactions
-    for i in range(1000):
-        # Generate random quantity and unit price with varying decimal points
-        qty = round(random.uniform(0.01, 5000.00), 2)
-        price = round(random.uniform(1.00, 1500.00), 2)
-        
-        expected_total = Decimal(str(qty)) * Decimal(str(price))
-        expected_total_rounded = expected_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        grand_total += expected_total_rounded
-        
-        form_data = {
-            "client_id": str(first_client_id),
-            "item_key[]": [f"finished:{first_product_id}"],
-            "quantity[]": [str(qty)],
-            "unit[]": ["kg"],
-            "unit_price[]": [str(price)],
-            "sale_date": "2026-05-18"
-        }
-        
-        result = await create_sale_from_form(FormMock(form_data))
-        if not result or "line_count" not in result:
-            raise RuntimeError(f"Debug: result is {result}")
-        assert result["line_count"] == 1
-        
-        sale_id = result["first_line_id"]
-        kind = result["first_line_kind"]
-        
-        # Verify database stored total matches expected total within standard 1 cent (0.01 DA) float conversion tolerance
-        row = query_db("SELECT quantity, unit_price, total FROM sales WHERE id = %s", (sale_id,), one=True)
-        assert row is not None
-        assert abs(Decimal(str(row["quantity"])) - Decimal(str(qty))) < Decimal("0.001")
-        assert abs(Decimal(str(row["unit_price"])) - Decimal(str(price))) < Decimal("0.001")
-        assert abs(Decimal(str(row["total"])) - expected_total_rounded) <= Decimal("0.01")
-        
-        # Clean up each step
-        assert await delete_sale_by_id(kind, sale_id) is True
+    async with AsyncSessionLocal() as session:
+        service = SalesService(session)
+        for i in range(1000):
+            # Generate random quantity and unit price with varying decimal points
+            qty = round(random.uniform(0.01, 5000.00), 2)
+            price = round(random.uniform(1.00, 1500.00), 2)
+            
+            expected_total = Decimal(str(qty)) * Decimal(str(price))
+            expected_total_rounded = expected_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            grand_total += expected_total_rounded
+            
+            form_data = {
+                "client_id": str(first_client_id),
+                "item_key[]": [f"finished:{first_product_id}"],
+                "quantity[]": [str(qty)],
+                "unit[]": ["kg"],
+                "unit_price[]": [str(price)],
+                "sale_date": "2026-05-18"
+            }
+            
+            schema = SaleFormSchema(**form_data)
+            result = await service.create_sale_from_form(schema)
+            if not result or "line_count" not in result:
+                raise RuntimeError(f"Debug: result is {result}")
+            assert result["line_count"] == 1
+            
+            sale_id = result["first_line_id"]
+            kind = result["first_line_kind"]
+            
+            # Verify database stored total matches expected total within standard 1 cent (0.01 DA) float conversion tolerance
+            row = query_db("SELECT quantity, unit_price, total FROM sales WHERE id = %s", (sale_id,), one=True)
+            assert row is not None
+            assert abs(Decimal(str(row["quantity"])) - Decimal(str(qty))) < Decimal("0.001")
+            assert abs(Decimal(str(row["unit_price"])) - Decimal(str(price))) < Decimal("0.001")
+            assert abs(Decimal(str(row["total"])) - expected_total_rounded) <= Decimal("0.01")
+            
+            # Clean up each step
+            assert await service.delete_sale_by_id(kind, sale_id) is True
+
 
 
 def test_stress_production_cost_rounding(first_raw_material_id):
@@ -147,7 +153,8 @@ async def test_abusive_contact_creation():
     Abusive stress test for clients and suppliers creation/deletion.
     Injects HTML tags, giant strings, special Unicode/Emojis, and typical SQL injection strings.
     """
-    from app.services.client_service import create_client_from_form
+    from app.modules.clients.service import ClientService
+    from app.modules.clients.schemas_validation import ClientCreateSchema
     from app.services.contact_directory_service import create_supplier_from_form
     
     # Clean previous test records
@@ -163,39 +170,43 @@ async def test_abusive_contact_creation():
         "abusive_foreign_chars_漢語 español 123",
     ]
     
-    for payload in abusive_payloads:
-        # Create client
-        client_form = FormMock({
-            "name": payload,
-            "phone": "0555555555",
-            "address": "Abusive Address",
-            "notes": "Abusive Note",
-            "opening_credit": "150.75"
-        })
-        client_id = await create_client_from_form(client_form)
-        assert client_id > 0
-        
-        # Verify db matches
-        row = query_db("SELECT name FROM clients WHERE id = %s", (client_id,), one=True)
-        assert row["name"] == payload.strip()
-        
-        # Create supplier
-        supplier_form = FormMock({
-            "name": payload,
-            "phone": "0555555556",
-            "address": "Abusive Address",
-            "notes": "Abusive Note"
-        })
-        supplier_id = await create_supplier_from_form(supplier_form)
-        assert supplier_id > 0
-        
-        # Verify db matches
-        s_row = query_db("SELECT name FROM suppliers WHERE id = %s", (supplier_id,), one=True)
-        assert s_row["name"] == payload.strip()
-        
-        # Clean up
-        execute_db("DELETE FROM clients WHERE id = %s", (client_id,))
-        execute_db("DELETE FROM suppliers WHERE id = %s", (supplier_id,))
+    async with AsyncSessionLocal() as session:
+        client_service = ClientService(session)
+        for payload in abusive_payloads:
+            # Create client
+            schema = ClientCreateSchema(
+                name=payload,
+                phone="0555555555",
+                address="Abusive Address",
+                notes="Abusive Note",
+                opening_credit=150.75
+            )
+            client = await client_service.create_client(schema)
+            client_id = client.id
+            assert client_id > 0
+            
+            # Verify db matches
+            row = query_db("SELECT name FROM clients WHERE id = %s", (client_id,), one=True)
+            assert row["name"] == payload.strip()
+            
+            # Create supplier
+            supplier_form = FormMock({
+                "name": payload,
+                "phone": "0555555556",
+                "address": "Abusive Address",
+                "notes": "Abusive Note"
+            })
+            supplier_id = await create_supplier_from_form(supplier_form)
+            assert supplier_id > 0
+            
+            # Verify db matches
+            s_row = query_db("SELECT name FROM suppliers WHERE id = %s", (supplier_id,), one=True)
+            assert s_row["name"] == payload.strip()
+            
+            # Clean up
+            await client_service.delete_client(client_id)
+            execute_db("DELETE FROM suppliers WHERE id = %s", (supplier_id,))
+
 
 
 @pytest.mark.asyncio
@@ -281,19 +292,22 @@ async def test_abusive_sales_validation(first_client_id, first_product_id):
     """
     Abusive checks on sale creations.
     """
-    from app.services.sale_service import create_sale_from_form
-    
     # Reset product stock
     execute_db("UPDATE finished_products SET stock_qty = 100.00 WHERE id = %s", (first_product_id,))
     
     # 1. Quantity exceeds stock
-    invalid_sale = FormMock({
+    invalid_sale = {
         "client_id": str(first_client_id),
         "item_key[]": [f"finished:{first_product_id}"],
         "quantity[]": ["150.00"],
         "unit[]": ["kg"],
         "unit_price[]": ["100.00"],
         "sale_date": "2026-05-19"
-    })
-    with pytest.raises(Exception):
-        await create_sale_from_form(invalid_sale)
+    }
+    
+    async with AsyncSessionLocal() as session:
+        service = SalesService(session)
+        with pytest.raises(Exception):
+            schema = SaleFormSchema(**invalid_sale)
+            await service.create_sale_from_form(schema)
+

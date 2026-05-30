@@ -2,19 +2,23 @@
 from __future__ import annotations
 
 import logging
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_api_user, api_error
 from app.api.v1._common import payload_to_form_data
 from app.core.permissions import PERMISSION_OPERATIONS_WRITE
-from app.services.sale_service import create_sale_from_form
 from app.services.payment_service import create_payment_from_form
-from app.services.purchase_service import create_purchase_from_form
 from app.core.db_access import db_transaction
+from app.core.async_db import get_async_session
 from app.core.idempotency import check_idempotency, save_idempotency
 from app.core.exceptions import ValidationError, ConflictError
 from app.core.rate_limit import limiter
+from app.modules.sales.service import SalesService
+from app.modules.sales.schemas_validation import SaleFormSchema
+from app.modules.purchases.service import PurchaseService
+from app.modules.purchases.schemas_validation import PurchaseFormSchema
 
 logger = logging.getLogger("fabouanes.offline")
 router = APIRouter(prefix="/api/v1/offline", tags=["offline"])
@@ -22,7 +26,7 @@ router = APIRouter(prefix="/api/v1/offline", tags=["offline"])
 
 @router.post("/sync")
 @limiter.limit("30/minute")
-async def sync_operation(request: Request):
+async def sync_operation(request: Request, db: AsyncSession = Depends(get_async_session)):
     """
     Reçoit une opération hors-ligne et l'exécute comme si elle venait du formulaire.
     Gère l'idempotence pour éviter les doublons lors des retries réseau.
@@ -42,10 +46,14 @@ async def sync_operation(request: Request):
 
     try:
         if op_type == "create_sale":
-            result = await create_sale_from_form(payload_to_form_data(payload))
+            validated = SaleFormSchema(**payload)
+            service = SalesService(db)
+            result = await service.create_sale_from_form(validated)
             res_payload = {"ok": True, "mode": result.get("mode")}
         elif op_type == "create_purchase":
-            result = await create_purchase_from_form(payload_to_form_data(payload))
+            validated = PurchaseFormSchema(**payload)
+            service = PurchaseService(db)
+            result = await service.create_purchase_from_form(validated)
             res_payload = {"ok": True, "mode": result.get("mode")}
         elif op_type == "create_payment":
             payment_id, payment_type = await create_payment_from_form(payload)
@@ -77,7 +85,7 @@ async def sync_operation(request: Request):
 
 @router.post("/sync/bulk")
 @limiter.limit("30/minute")
-async def sync_operations_bulk(request: Request):
+async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_async_session)):
     """
     Reçoit une liste d'opérations hors-ligne et les exécute séquentiellement.
     Chaque opération est enveloppée dans sa propre transaction de base de données.
@@ -105,28 +113,32 @@ async def sync_operations_bulk(request: Request):
                 })
                 continue
 
-        # 2. Process operation within its own transaction block
+        # 2. Process operation
         try:
-            with db_transaction():
-                if op_type == "create_sale":
-                    result = await create_sale_from_form(payload_to_form_data(payload))
-                    res_payload = {"ok": True, "mode": result.get("mode")}
-                elif op_type == "create_purchase":
-                    result = await create_purchase_from_form(payload_to_form_data(payload))
-                    res_payload = {"ok": True, "mode": result.get("mode")}
-                elif op_type == "create_payment":
+            if op_type == "create_sale":
+                validated = SaleFormSchema(**payload)
+                service = SalesService(db)
+                result = await service.create_sale_from_form(validated)
+                res_payload = {"ok": True, "mode": result.get("mode")}
+            elif op_type == "create_purchase":
+                validated = PurchaseFormSchema(**payload)
+                service = PurchaseService(db)
+                result = await service.create_purchase_from_form(validated)
+                res_payload = {"ok": True, "mode": result.get("mode")}
+            elif op_type == "create_payment":
+                with db_transaction():
                     payment_id, payment_type = await create_payment_from_form(payload)
-                    res_payload = {"ok": True, "id": payment_id, "payment_type": payment_type}
-                else:
-                    res_payload = {"error": f"Type inconnu : {op_type}"}
-                    if idempotency_key:
-                        save_idempotency(idempotency_key, {"content": res_payload, "status_code": 400})
-                    results.append({
-                        "idempotency_key": idempotency_key,
-                        "status_code": 400,
-                        "response": res_payload
-                    })
-                    continue
+                res_payload = {"ok": True, "id": payment_id, "payment_type": payment_type}
+            else:
+                res_payload = {"error": f"Type inconnu : {op_type}"}
+                if idempotency_key:
+                    save_idempotency(idempotency_key, {"content": res_payload, "status_code": 400})
+                results.append({
+                    "idempotency_key": idempotency_key,
+                    "status_code": 400,
+                    "response": res_payload
+                })
+                continue
 
             # Save idempotency on success
             if idempotency_key:

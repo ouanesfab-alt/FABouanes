@@ -195,6 +195,9 @@ def test_dlq_replay():
 
 
 def test_dashboard_refresh_debounce():
+    import app.repositories.dashboard_repository as db_repo
+    db_repo._LAST_REFRESH_TIME_IN_MEM = 0.0
+
     # Mock Redis to simulate lock
     mock_redis = MagicMock()
     

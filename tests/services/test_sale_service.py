@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import pytest
-from app.services.sale_service import create_sale_from_form, delete_sale_by_id
+from app.modules.sales.service import SalesService
+from app.modules.sales.schemas_validation import SaleFormSchema
 from app.repositories.sale_repository import get_sale
 from app.core.exceptions import ValidationError
+from app.core.async_db import AsyncSessionLocal
+from pydantic import ValidationError as PydanticValidationError
 
-def test_create_sale_validation_errors(first_client_id, first_product_id):
+@pytest.mark.asyncio
+async def test_create_sale_validation_errors(first_client_id, first_product_id):
     # Missing quantity
     form = {
         "client_id": str(first_client_id),
@@ -14,16 +18,16 @@ def test_create_sale_validation_errors(first_client_id, first_product_id):
         "unit[]": ["kg"],
         "unit_price[]": ["100"]
     }
-    # Mocking form.getlist behavior
-    class FormMock:
-        def __init__(self, data): self.data = data
-        def get(self, k, default=None): return self.data.get(k, default)
-        def getlist(self, k): return self.data.get(k, [])
     
-    with pytest.raises(ValidationError):
-        create_sale_from_form(FormMock(form))
+    async with AsyncSessionLocal() as session:
+        service = SalesService(session)
+        schema = SaleFormSchema(**form)
+        with pytest.raises(ValidationError):
+            await service.create_sale_from_form(schema)
 
-def test_create_and_delete_sale(first_client_id, first_product_id):
+
+@pytest.mark.asyncio
+async def test_create_and_delete_sale(first_client_id, first_product_id):
     form = {
         "client_id": str(first_client_id),
         "item_key[]": [f"finished:{first_product_id}"],
@@ -33,21 +37,19 @@ def test_create_and_delete_sale(first_client_id, first_product_id):
         "sale_date": "2026-05-16"
     }
     
-    class FormMock:
-        def __init__(self, data): self.data = data
-        def get(self, k, default=None): return self.data.get(k, default)
-        def getlist(self, k): return self.data.get(k, [])
-
-    result = create_sale_from_form(FormMock(form))
-    assert result["line_count"] == 1
-    
-    sale_id = result["first_line_id"]
-    kind = result["first_line_kind"]
-    
-    sale = get_sale(kind, sale_id)
-    assert sale is not None
-    assert float(sale["quantity"]) == 10.0
-    
-    # Clean up
-    assert delete_sale_by_id(kind, sale_id) is True
-    assert get_sale(kind, sale_id) is None
+    async with AsyncSessionLocal() as session:
+        service = SalesService(session)
+        schema = SaleFormSchema(**form)
+        result = await service.create_sale_from_form(schema)
+        assert result["line_count"] == 1
+        
+        sale_id = result["first_line_id"]
+        kind = result["first_line_kind"]
+        
+        sale = get_sale(kind, sale_id)
+        assert sale is not None
+        assert float(sale["quantity"]) == 10.0
+        
+        # Clean up
+        assert await service.delete_sale_by_id(kind, sale_id) is True
+        assert get_sale(kind, sale_id) is None

@@ -19,7 +19,7 @@ def clean_idempotency_keys():
 
 def test_offline_sync_idempotency_caching(client: TestClient, api_headers):
     """Verify that submitting a sync request twice with the same idempotency key returns the cached response on the second call."""
-    with patch("app.api.v1.offline.create_sale_from_form") as mock_create_sale:
+    with patch("app.modules.sales.service.SalesService.create_sale_from_form") as mock_create_sale:
         async def mock_sale(*args, **kwargs):
             return {"mode": "line"}
         mock_create_sale.side_effect = mock_sale
@@ -50,7 +50,7 @@ def test_offline_sync_idempotency_caching(client: TestClient, api_headers):
 
 def test_offline_sync_validation_error_caching(client: TestClient, api_headers):
     """Verify that client-side validation errors are cached under the idempotency key, but server errors (500) are not."""
-    with patch("app.api.v1.offline.create_sale_from_form") as mock_create_sale:
+    with patch("app.modules.sales.service.SalesService.create_sale_from_form") as mock_create_sale:
         async def mock_fail(*args, **kwargs):
             raise ValueError("Solde insuffisant")
         mock_create_sale.side_effect = mock_fail
@@ -74,7 +74,7 @@ def test_offline_sync_validation_error_caching(client: TestClient, api_headers):
 
 def test_offline_sync_bulk(client: TestClient, api_headers):
     """Verify that bulk sync routes all operations, tracks idempotency, and manages individual transactions."""
-    with patch("app.api.v1.offline.create_sale_from_form") as mock_create_sale, \
+    with patch("app.modules.sales.service.SalesService.create_sale_from_form") as mock_create_sale, \
          patch("app.api.v1.offline.create_payment_from_form") as mock_create_payment:
 
         async def mock_sale(*args, **kwargs):

@@ -67,38 +67,63 @@ async def broadcast_overdue_alerts() -> int:
 
 async def check_stock_alerts() -> None:
     """Vérifie le stock de matières premières et de produits finis par rapport au seuil."""
-    
+
+    # Pre-fetch all active (unacknowledged) alerts from the last 24h in one query
+    # to avoid N individual SELECT queries inside the loop.
+    active_rows = await query_db_async(
+        """
+        SELECT product_type, product_id FROM stock_alerts
+        WHERE acknowledged_at IS NULL
+          AND triggered_at > NOW() - INTERVAL '24 hours'
+        """
+    )
+    active_alerts: set[tuple[str, int]] = {
+        (row["product_type"], int(row["product_id"])) for row in active_rows
+    }
+
     # Matières premières
     raws = await query_db_async(
         "SELECT id, name, stock_qty, alert_threshold FROM raw_materials WHERE stock_qty <= alert_threshold AND alert_threshold > 0"
     )
     for row in raws:
-        await _trigger_alert("raw_material", int(row["id"]), row["name"], row["stock_qty"], row["alert_threshold"])
-        
+        await _trigger_alert("raw_material", int(row["id"]), row["name"], row["stock_qty"], row["alert_threshold"], active_alerts)
+
     # Produits finis
     products = await query_db_async(
         "SELECT id, name, stock_qty, alert_threshold FROM finished_products WHERE stock_qty <= alert_threshold AND alert_threshold > 0"
     )
     for row in products:
-        await _trigger_alert("finished_product", int(row["id"]), row["name"], row["stock_qty"], row["alert_threshold"])
+        await _trigger_alert("finished_product", int(row["id"]), row["name"], row["stock_qty"], row["alert_threshold"], active_alerts)
 
 
-async def _trigger_alert(product_type: str, product_id: int, name: str, current_qty: float, threshold_qty: float) -> None:
+async def _trigger_alert(
+    product_type: str,
+    product_id: int,
+    name: str,
+    current_qty: float,
+    threshold_qty: float,
+    active_alerts: set[tuple[str, int]] | None = None,
+) -> None:
     # Éviter les doublons dans les dernières 24h
-    duplicate = await query_db_async(
-        """
-        SELECT id FROM stock_alerts
-        WHERE product_type = %s AND product_id = %s
-          AND acknowledged_at IS NULL
-          AND triggered_at > NOW() - INTERVAL '24 hours'
-        LIMIT 1
-        """,
-        (product_type, product_id),
-        one=True
-    )
-    if duplicate:
-        return
-        
+    if active_alerts is not None:
+        if (product_type, product_id) in active_alerts:
+            return
+    else:
+        # Fallback: query individually (for standalone calls outside check_stock_alerts)
+        duplicate = await query_db_async(
+            """
+            SELECT id FROM stock_alerts
+            WHERE product_type = %s AND product_id = %s
+              AND acknowledged_at IS NULL
+              AND triggered_at > NOW() - INTERVAL '24 hours'
+            LIMIT 1
+            """,
+            (product_type, product_id),
+            one=True
+        )
+        if duplicate:
+            return
+
     await execute_db_async(
         """
         INSERT INTO stock_alerts (product_type, product_id, product_name, current_qty, threshold_qty, triggered_at)
@@ -106,3 +131,6 @@ async def _trigger_alert(product_type: str, product_id: int, name: str, current_
         """,
         (product_type, product_id, name, current_qty, threshold_qty)
     )
+    # Update the cache so subsequent calls in the same batch won't re-trigger
+    if active_alerts is not None:
+        active_alerts.add((product_type, product_id))

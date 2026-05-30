@@ -10,7 +10,8 @@ import pytest
 import pandas as pd
 from unittest.mock import patch
 from app.services.excel_import_service import parse_client_history_excel
-from app.services.client_import_service import import_client_history_from_excel
+from app.modules.clients.service import ClientService
+from app.core.async_db import AsyncSessionLocal
 from app.core.db_access import execute_db, query_db
 
 
@@ -124,8 +125,10 @@ class TestEdgeCases:
             ]
         }
 
-        with patch("app.services.client_import_service.parse_client_history_excel", return_value=mock_data):
-            await import_client_history_from_excel("dummy_reimport.xlsx", client_id=client_id, force_reimport=True)
+        with patch("app.modules.clients.service.parse_client_history_excel", return_value=mock_data):
+            async with AsyncSessionLocal() as session:
+                service = ClientService(session)
+                await service.import_client_history_from_excel("dummy_reimport.xlsx", client_id=client_id, force_reimport=True)
 
         # 4. Vérifier que l'ancien 'import_excel' a été supprimé, le nouveau ajouté, et le 'app' préservé
         rows = query_db("SELECT * FROM client_history WHERE client_id = %s ORDER BY id", (client_id,))

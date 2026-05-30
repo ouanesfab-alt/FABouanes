@@ -1,6 +1,5 @@
-from __future__ import annotations
-
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 import asyncio
 
 
@@ -10,25 +9,24 @@ from app.repositories.purchase_repository import list_purchases
 
 
 from app.core.permissions import PERMISSION_OPERATIONS_DELETE, PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
-from app.services.purchase_service import (
-    create_purchase_from_form,
-    delete_purchase_by_id,
-    edit_purchase_document_from_form,
-    edit_purchase_from_form,
-)
+from app.core.async_db import get_async_session
+from app.modules.purchases.service import PurchaseService
+from app.modules.purchases.schemas_validation import PurchaseFormSchema
 
 
 router = APIRouter(prefix="/api/v1", tags=["purchases"])
 
 
 @router.api_route("/purchases", methods=["GET", "POST"])
-async def api_purchases(request: Request):
+async def api_purchases(request: Request, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_OPERATIONS_WRITE if request.method == "POST" else PERMISSION_OPERATIONS_READ)
     if request.method == "POST":
-        created = await create_purchase_from_form(payload_to_form_data(await request.json()))
+        payload = await request.json()
+        validated = PurchaseFormSchema(**payload)
+        service = PurchaseService(db)
+        created = await service.create_purchase_from_form(validated)
         if created["mode"] == "line":
             payload = {"mode": "line", "purchase": await purchase_payload(int(created["print_item_id"]))}
-
         else:
             payload = {
                 "mode": "document",
@@ -61,7 +59,7 @@ async def api_purchases(request: Request):
 
 
 @router.api_route("/purchases/{purchase_id}", methods=["GET", "PUT", "DELETE"])
-async def api_purchase_detail(request: Request, purchase_id: int):
+async def api_purchase_detail(request: Request, purchase_id: int, db: AsyncSession = Depends(get_async_session)):
     permission = {
         "GET": PERMISSION_OPERATIONS_READ,
         "PUT": PERMISSION_OPERATIONS_WRITE,
@@ -80,8 +78,11 @@ async def api_purchase_detail(request: Request, purchase_id: int):
                 {"document_id": int(purchase["document_id"])},
             )
         try:
-            result = await edit_purchase_from_form(purchase_id, payload_to_form_data(await request.json()))
-        except ValueError as exc:
+            payload = await request.json()
+            validated = PurchaseFormSchema(**payload)
+            service = PurchaseService(db)
+            result = await service.edit_purchase_from_form(purchase_id, validated)
+        except Exception as exc:
             api_error("purchase_update_invalid", str(exc), 400)
         if result["mode"] == "document":
             return json_response(
@@ -95,7 +96,8 @@ async def api_purchase_detail(request: Request, purchase_id: int):
             )
         purchase = await purchase_payload(int(result["print_item_id"]))
     elif request.method == "DELETE":
-        if not await delete_purchase_by_id(purchase_id):
+        service = PurchaseService(db)
+        if not await service.delete_purchase_by_id(purchase_id):
             api_error("conflict", "Suppression impossible.", 409)
         return json_response(api_success({"deleted": True}))
     res_data = api_success(purchase)
@@ -107,15 +109,18 @@ async def api_purchase_detail(request: Request, purchase_id: int):
 
 
 @router.api_route("/purchase-documents/{document_id}", methods=["GET", "PUT"])
-async def api_purchase_document_detail(request: Request, document_id: int):
+async def api_purchase_document_detail(request: Request, document_id: int, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_OPERATIONS_WRITE if request.method == "PUT" else PERMISSION_OPERATIONS_READ)
     document = await purchase_document_payload(document_id)
     if not document:
         api_error("not_found", "Bon d'achat introuvable.", 404)
     if request.method == "PUT":
         try:
-            await edit_purchase_document_from_form(document_id, payload_to_form_data(await request.json()))
-        except ValueError as exc:
+            payload = await request.json()
+            validated = PurchaseFormSchema(**payload)
+            service = PurchaseService(db)
+            await service.edit_purchase_document_from_form(document_id, validated)
+        except Exception as exc:
             api_error("purchase_document_invalid", str(exc), 400)
         document = await purchase_document_payload(document_id)
     res_data = api_success(document)

@@ -87,8 +87,29 @@ def test_launcher_without_database_url_raises_error():
 def test_multi_worker_runtime_is_rejected_without_override(monkeypatch):
     monkeypatch.setenv("WEB_CONCURRENCY", "2")
     monkeypatch.delenv("FAB_ALLOW_MULTI_WORKER", raising=False)
+    monkeypatch.delenv("REDIS_URL", raising=False)
     with pytest.raises(RuntimeError, match="1 seul worker"):
         validate_single_worker_runtime()
+
+
+def test_multi_worker_runtime_is_allowed_with_redis(monkeypatch):
+    from unittest.mock import patch, MagicMock
+    monkeypatch.setenv("WEB_CONCURRENCY", "2")
+    monkeypatch.delenv("FAB_ALLOW_MULTI_WORKER", raising=False)
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379")
+    
+    mock_client = MagicMock()
+    mock_client.ping.return_value = True
+    
+    with patch("redis.from_url", return_value=mock_client):
+        validate_single_worker_runtime()  # should not raise
+
+
+def test_single_worker_runtime_is_allowed(monkeypatch):
+    monkeypatch.setenv("WEB_CONCURRENCY", "1")
+    monkeypatch.delenv("FAB_ALLOW_MULTI_WORKER", raising=False)
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    validate_single_worker_runtime()  # should not raise
 
 
 def test_cache_generation_invalidates_cached_value():

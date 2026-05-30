@@ -88,8 +88,8 @@ async def test_check_stock_alerts_no_alerts() -> None:
     with patch("app.services.alert_service.query_db_async", new_callable=AsyncMock) as mock_query, \
          patch("app.services.alert_service._trigger_alert", new_callable=AsyncMock) as mock_trigger:
         
-        # Return empty list for both raw materials and finished products queries
-        mock_query.side_effect = [[], []]
+        # Return empty list for: active alerts pre-fetch, raw materials, finished products
+        mock_query.side_effect = [[], [], []]
         
         await check_stock_alerts()
         
@@ -105,12 +105,16 @@ async def test_check_stock_alerts_trigger() -> None:
     with patch("app.services.alert_service.query_db_async", new_callable=AsyncMock) as mock_query, \
          patch("app.services.alert_service._trigger_alert", new_callable=AsyncMock) as mock_trigger:
         
-        mock_query.side_effect = [under_raws, under_products]
+        # First query returns active alerts (empty), then raws, then products
+        mock_query.side_effect = [[], under_raws, under_products]
         
         await check_stock_alerts()
         
-        mock_trigger.assert_any_call("raw_material", 1, "Raw X", 5.0, 10.0)
-        mock_trigger.assert_any_call("finished_product", 5, "Prod Y", 2.0, 5.0)
+        # _trigger_alert now receives the active_alerts set as 6th argument
+        assert mock_trigger.call_count == 2
+        call_args_list = mock_trigger.call_args_list
+        assert call_args_list[0][0][:5] == ("raw_material", 1, "Raw X", 5.0, 10.0)
+        assert call_args_list[1][0][:5] == ("finished_product", 5, "Prod Y", 2.0, 5.0)
 
 
 @pytest.mark.asyncio

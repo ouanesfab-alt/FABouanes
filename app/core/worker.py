@@ -57,10 +57,13 @@ async def import_excel_task(ctx: dict[str, Any], file_path: str, client_id: int 
     await update_task_progress(job_id, 10, "Lecture du fichier Excel...")
     await asyncio.sleep(0.5)
 
-    from app.services.client_import_service import import_client_history_from_excel
+    from app.core.async_db import get_async_sessionmaker
+    from app.modules.clients.service import ClientService
     await update_task_progress(job_id, 50, "Insertion et rapprochement en base de données...")
     
-    result = await import_client_history_from_excel(file_path, client_id, force_reimport)
+    async with get_async_sessionmaker()() as session:
+        service = ClientService(session)
+        result = await service.import_client_history_from_excel(file_path, client_id, force_reimport)
     
     await update_task_progress(job_id, 100, f"Import terminé. {result.get('nb_lignes', 0)} lignes insérées.")
     

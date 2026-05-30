@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.async_db import get_async_session
+from app.modules.clients.service import ClientService
+from app.modules.clients.schemas_validation import ClientCreateSchema
 
 from app.core.permissions import PERMISSION_CONTACTS_READ, PERMISSION_CONTACTS_WRITE
-from app.services.client_service import (
-    create_client_from_form,
-    import_clients_from_files,
-    import_clients_from_preview,
-    preview_clients_from_files,
-)
 from app.schemas.client_validation import ClientValidationSchema
 from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
 
@@ -47,7 +44,7 @@ async def clients_page(request: Request):
 
 
 @router.post("/clients", name="clients")
-async def clients_submit(request: Request):
+async def clients_submit(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
     if denied:
         return denied
@@ -55,8 +52,16 @@ async def clients_submit(request: Request):
     form = await request.form()
     try:
         data = {k: v for k, v in form.items()}
-        validated = ClientValidationSchema(**data)
-        await create_client_from_form(validated.model_dump())
+        validated_schema = ClientValidationSchema(**data)
+        schema = ClientCreateSchema(
+            name=validated_schema.name,
+            phone=validated_schema.phone or "",
+            address=validated_schema.address or "",
+            notes=validated_schema.notes or "",
+            opening_credit=validated_schema.opening_credit or 0.0
+        )
+        service = ClientService(db)
+        await service.create_client(schema)
         flash(request, "Client ajouté avec succès.", "success")
         return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
     except Exception as e:
@@ -94,15 +99,17 @@ async def import_clients_page(request: Request):
 
 @router.post("/contacts/clients/import-excel", name="import_clients_excel")
 @router.post("/clients/import-excel", name="compat_import_clients_excel_submit")
-async def import_clients_submit(request: Request):
+async def import_clients_submit(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
     if denied:
         return denied
     await csrf_protect(request)
     form = await request.form()
     action = str(form.get("action", "import") or "import").strip()
+    service = ClientService(db)
+    
     if action == "confirm_preview":
-        result = await import_clients_from_preview(str(form.get("preview_token", "") or ""))
+        result = await service.import_clients_from_preview(str(form.get("preview_token", "") or ""))
         for err in result["errors"][:5]:
             flash(request, err, "danger")
         if result["errors"]:
@@ -124,14 +131,14 @@ async def import_clients_submit(request: Request):
         return RedirectResponse(IMPORT_CLIENTS_URL, status_code=303)
 
     if action == "preview":
-        result = await preview_clients_from_files(files)
+        result = await service.preview_clients_from_files(files)
         for err in result["errors"][:5]:
             flash(request, err, "danger")
         for name in result["duplicates"][:5]:
             flash(request, f"Doublon dans les fichiers: {name}", "warning")
         return templates.TemplateResponse("client_import.html", template_context(request, preview=result))
 
-    result = await import_clients_from_files(files)
+    result = await service.import_clients_from_files(files)
     for err in result["errors"][:5]:
         flash(request, err, "danger")
     level = "success" if (result["created"] or result["updated"]) else "warning"
@@ -165,6 +172,3 @@ async def compat_edit_client_page(request: Request, client_id: int):
     if denied:
         return denied
     return RedirectResponse(f"/contacts/clients/{client_id}/edit", status_code=303)
-
-
-

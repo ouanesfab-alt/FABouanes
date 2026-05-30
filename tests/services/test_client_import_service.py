@@ -3,7 +3,8 @@ from __future__ import annotations
 from unittest.mock import patch
 import pytest
 from app.core.db_access import execute_db, query_db
-from app.services.client_import_service import import_client_history_from_excel
+from app.modules.clients.service import ClientService
+from app.core.async_db import AsyncSessionLocal
 
 
 @pytest.fixture(autouse=True)
@@ -12,6 +13,7 @@ def cleanup_database():
     # Clean up test clients and their history
     execute_db("DELETE FROM client_history WHERE source = 'import_excel'")
     execute_db("DELETE FROM clients WHERE name IN ('Import Client New', 'Import Client Existing')")
+    execute_db("DELETE FROM client_keys")
 
 
 @pytest.mark.asyncio
@@ -21,9 +23,11 @@ async def test_import_client_nonexistent_id():
         "solde_final": 0.0,
         "rows": []
     }
-    with patch("app.services.client_import_service.parse_client_history_excel", return_value=mock_data):
+    with patch("app.modules.clients.service.parse_client_history_excel", return_value=mock_data):
         with pytest.raises(ValueError, match="Le client spécifié.*n'existe pas"):
-            await import_client_history_from_excel("dummy.xlsx", client_id=999999)
+            async with AsyncSessionLocal() as session:
+                service = ClientService(session)
+                await service.import_client_history_from_excel("dummy.xlsx", client_id=999999)
 
 
 @pytest.mark.asyncio
@@ -43,8 +47,10 @@ async def test_import_client_new_client():
         ]
     }
 
-    with patch("app.services.client_import_service.parse_client_history_excel", return_value=mock_data):
-        result = await import_client_history_from_excel("dummy.xlsx", client_id=None)
+    with patch("app.modules.clients.service.parse_client_history_excel", return_value=mock_data):
+        async with AsyncSessionLocal() as session:
+            service = ClientService(session)
+            result = await service.import_client_history_from_excel("dummy.xlsx", client_id=None)
         
         # Verify returned data
         assert result["client_name"] == "Import Client New"
@@ -98,9 +104,11 @@ async def test_import_client_existing_client_force_reimport():
         ]
     }
 
-    with patch("app.services.client_import_service.parse_client_history_excel", return_value=mock_data):
+    with patch("app.modules.clients.service.parse_client_history_excel", return_value=mock_data):
         # Run with force_reimport=True
-        result = await import_client_history_from_excel("dummy.xlsx", client_id=client_id, force_reimport=True)
+        async with AsyncSessionLocal() as session:
+            service = ClientService(session)
+            result = await service.import_client_history_from_excel("dummy.xlsx", client_id=client_id, force_reimport=True)
         
         assert result["client_id"] == client_id
         assert result["solde_final"] == 2000.0
@@ -139,7 +147,9 @@ async def test_import_client_existing_client_no_reimport_error():
         "rows": []
     }
 
-    with patch("app.services.client_import_service.parse_client_history_excel", return_value=mock_data):
+    with patch("app.modules.clients.service.parse_client_history_excel", return_value=mock_data):
         # Run with force_reimport=False -> should raise ValueError
         with pytest.raises(ValueError, match="Un historique Excel importé existe déjà"):
-            await import_client_history_from_excel("dummy.xlsx", client_id=client_id, force_reimport=False)
+            async with AsyncSessionLocal() as session:
+                service = ClientService(session)
+                await service.import_client_history_from_excel("dummy.xlsx", client_id=client_id, force_reimport=False)

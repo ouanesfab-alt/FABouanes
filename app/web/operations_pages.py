@@ -4,8 +4,10 @@ import csv
 import io
 from datetime import date, datetime
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.async_db import get_async_session
 
 from app.services.print_service import COMPANY_INFO, PRINT_LAYOUT, build_print_payload, generate_invoice_pdf
 from app.services.transactions_service import transactions_context, update_production_notes
@@ -114,18 +116,18 @@ async def operations_page(request: Request):
 
 
 @router.get("/operations/new", name="new_operation")
-async def new_operation_page(request: Request):
+async def new_operation_page(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
     
-    from app.services.purchase_service import purchase_form_context
-    from app.services.sale_service import sale_form_context
+    from app.modules.purchases.service import PurchaseService
+    from app.modules.sales.service import SalesService
     from app.services.payment_service import new_payment_context
     from app.core.db_access import query_db
-
-    p_ctx = await purchase_form_context()
-    s_ctx = await sale_form_context()
+ 
+    p_ctx = await PurchaseService(db).purchase_form_context()
+    s_ctx = await SalesService(db).sale_form_context()
     pay_ctx = await new_payment_context()
     
     context = {}

@@ -1,14 +1,28 @@
 from __future__ import annotations
 
 import math
+import json
+import shutil
+import secrets
+from time import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from werkzeug.utils import secure_filename
+from sqlalchemy import text, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from app.core.models import Client
 from app.core.events import DomainEvent, emit
 from app.core.perf_cache import invalidate_client_cache
 from app.modules.clients.repository import ClientRepository
 from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
+from app.core.storage import IMPORT_DIR, ensure_runtime_dirs
+from app.core.helpers import parse_excel_client_file, parse_excel_client_history, to_float
+from app.services.excel_import_service import parse_client_history_excel
+
+_IMPORT_PREVIEW_TTL_SECONDS = 30 * 60
+
 
 
 class ClientService:
@@ -103,6 +117,55 @@ class ClientService:
         """List paginated clients."""
         clients, total = await self.repo.list_clients(search, page, page_size)
         return await self._decrypt_clients(clients), total
+
+    async def list_clients_with_stats(
+        self, search: Optional[str] = None, page: int = 1, page_size: int = 50
+    ) -> Tuple[List[dict], int]:
+        """Lists clients with calculated statistics and balance from the database view."""
+        where: List[str] = []
+        params: dict = {}
+        
+        if search:
+            where.append("search_vector @@ plainto_tsquery('french', :search)")
+            params["search"] = search
+            
+        base_query = "SELECT * FROM clients_with_stats"
+        if where:
+            base_query += " WHERE " + " AND ".join(where)
+        
+        offset = (page - 1) * page_size
+        params["limit"] = page_size
+        params["offset"] = offset
+        
+        wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY name LIMIT :limit OFFSET :offset"
+        
+        res = await self.repo.session.execute(text(wrapped), params)
+        rows = [dict(r) for r in res.mappings().all()]
+        
+        if rows:
+            client_ids = [c["id"] for c in rows if c.get("id")]
+            if client_ids:
+                from sqlalchemy import bindparam
+                import base64
+                from app.core.security import decrypt_val
+                
+                res_keys = await self.repo.session.execute(
+                    text("SELECT client_id, encryption_key FROM client_keys WHERE client_id IN :ids").bindparams(
+                        bindparam("ids", expanding=True)
+                    ),
+                    {"ids": tuple(client_ids)}
+                )
+                keys_map = {}
+                for row in res_keys.mappings().all():
+                    keys_map[row["client_id"]] = base64.b64decode(row["encryption_key"])
+                    
+                for client in rows:
+                    key = keys_map.get(client["id"])
+                    client["phone"] = decrypt_val(client["phone"], key)
+                    client["address"] = decrypt_val(client["address"], key)
+                    
+        total = int(rows[0]["_total_count"]) if rows else 0
+        return rows, total
 
     async def create_client(self, schema: ClientCreateSchema) -> Client:
         """Create and persist a new client."""
@@ -385,6 +448,336 @@ class ClientService:
             "total_pages": total_pages,
             "total": total,
         }
+
+    # --- EXCEL IMPORT LOGIC ---
+
+    def _preview_path(self, token: str):
+        clean = "".join(ch for ch in str(token or "") if ch.isalnum() or ch in {"-", "_"})
+        if not clean:
+            raise ValueError("Jeton de previsualisation invalide")
+        return IMPORT_DIR / f"client_import_preview_{clean}.json"
+
+    def _save_client_import_preview(self, rows: list[dict]) -> str:
+        ensure_runtime_dirs()
+        token = secrets.token_urlsafe(24)
+        payload = {"created_at": time(), "rows": rows}
+        self._preview_path(token).write_text(json.dumps(payload, ensure_ascii=True), encoding="utf-8")
+        return token
+
+    def _load_client_import_preview(self, token: str) -> list[dict]:
+        path = self._preview_path(token)
+        if not path.exists():
+            raise ValueError("Previsualisation expiree ou introuvable")
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        created_at = float(payload.get("created_at") or 0)
+        if created_at <= 0 or (time() - created_at) > _IMPORT_PREVIEW_TTL_SECONDS:
+            try:
+                path.unlink()
+            except Exception:
+                pass
+            raise ValueError("Previsualisation expiree")
+        rows = payload.get("rows") or []
+        if not isinstance(rows, list):
+            raise ValueError("Previsualisation invalide")
+        return rows
+
+    def _discard_client_import_preview(self, token: str) -> None:
+        try:
+            self._preview_path(token).unlink()
+        except Exception:
+            pass
+
+    async def _parse_client_import_files(self, files):
+        ensure_runtime_dirs()
+        parsed_rows = []
+        errors = []
+        seen: set[str] = set()
+        duplicates: list[str] = []
+        for index, uploaded in enumerate(files):
+            if not uploaded or not uploaded.filename:
+                continue
+            filename = secure_filename(uploaded.filename)
+            if not filename.lower().endswith((".xlsx", ".xlsm")):
+                errors.append(f"{filename}: format non supporte")
+                continue
+            temp_path = IMPORT_DIR / f"{index}_{filename}"
+            try:
+                self._save_uploaded_file(uploaded, temp_path)
+                parsed = parse_excel_client_file(temp_path)
+                last = parse_excel_client_history(temp_path)
+                opening = last["last_balance"] if last["last_balance"] > 0 else parsed["opening_credit"]
+                name_key = str(parsed["name"]).strip().casefold()
+                if not name_key:
+                    errors.append(f"{filename}: nom client introuvable")
+                    continue
+                if name_key in seen:
+                    duplicates.append(parsed["name"])
+                    continue
+                seen.add(name_key)
+                
+                existing = await self.repo.find_by_name(str(parsed["name"]))
+                parsed_rows.append(
+                    {
+                        "filename": filename,
+                        "name": parsed["name"],
+                        "phone": parsed["phone"],
+                        "address": parsed["address"],
+                        "opening_credit": opening,
+                        "history_count": int(last.get("history_count", 0) or 0),
+                        "status": "update" if existing else "create",
+                        "existing_id": int(existing.id) if existing else None,
+                    }
+                )
+            except Exception as exc:
+                errors.append(f"{filename}: {exc}")
+            finally:
+                try:
+                    if temp_path.exists():
+                        temp_path.unlink()
+                except Exception:
+                    pass
+        return {"rows": parsed_rows, "errors": errors, "duplicates": duplicates}
+
+    def _save_uploaded_file(self, uploaded, temp_path) -> None:
+        if hasattr(uploaded, "save"):
+            uploaded.save(temp_path)
+            return
+        file_obj = getattr(uploaded, "file", None)
+        if file_obj is not None:
+            try:
+                file_obj.seek(0)
+            except Exception:
+                pass
+            with open(temp_path, "wb") as output:
+                shutil.copyfileobj(file_obj, output)
+            return
+        content = uploaded if isinstance(uploaded, (bytes, bytearray)) else bytes(uploaded)
+        with open(temp_path, "wb") as output:
+            output.write(content)
+
+    async def preview_clients_from_files(self, files):
+        parsed = await self._parse_client_import_files(files)
+        token = ""
+        if parsed["rows"] and not parsed["errors"] and not parsed["duplicates"]:
+            token = self._save_client_import_preview(parsed["rows"])
+        return {
+            "rows": parsed["rows"],
+            "errors": parsed["errors"],
+            "duplicates": parsed["duplicates"],
+            "created": sum(1 for row in parsed["rows"] if row["status"] == "create"),
+            "updated": sum(1 for row in parsed["rows"] if row["status"] == "update"),
+            "token": token,
+        }
+
+    async def _import_parsed_client_rows(self, rows: list[dict]):
+        seen: set[str] = set()
+        duplicate_names: list[str] = []
+        for row in rows:
+            name_key = str(row.get("name") or "").strip().casefold()
+            if not name_key:
+                duplicate_names.append(str(row.get("filename") or "ligne sans nom"))
+            elif name_key in seen:
+                duplicate_names.append(str(row.get("name") or name_key))
+            seen.add(name_key)
+        if duplicate_names:
+            return {
+                "created": 0,
+                "updated": 0,
+                "errors": [f"Doublon dans les fichiers: {name}" for name in duplicate_names],
+                "preview": rows,
+            }
+
+        created = 0
+        updated = 0
+        errors = []
+        try:
+            # Pre-load all existing clients in one query to avoid N calls.
+            stmt = select(Client)
+            res = await self.repo.session.execute(stmt)
+            all_clients = res.scalars().all()
+            
+            # Decrypt existing clients to compare phone and address
+            clients_list = list(all_clients)
+            await self._decrypt_clients(clients_list)
+
+            # Build lookup by normalized name
+            clients_by_name: dict[str, Client] = {}
+            for c in clients_list:
+                key = str(c.name).strip().casefold()
+                clients_by_name[key] = c
+
+            for row in rows:
+                name_key = str(row["name"]).strip().casefold()
+                existing = clients_by_name.get(name_key)
+                if existing:
+                    existing_id = int(existing.id)
+                    phone_to_set = existing.phone or row.get("phone") or ""
+                    address_to_set = existing.address or row.get("address") or ""
+                    schema = ClientUpdateSchema(
+                        name=existing.name or row.get("name"),
+                        phone=phone_to_set,
+                        address=address_to_set,
+                        notes=existing.notes or "",
+                        opening_credit=row["opening_credit"]
+                    )
+                    await self.update_client(existing_id, schema)
+                    updated += 1
+                else:
+                    schema = ClientCreateSchema(
+                        name=row["name"],
+                        phone=row["phone"] or "",
+                        address=row["address"] or "",
+                        notes="",
+                        opening_credit=row["opening_credit"]
+                    )
+                    await self.create_client(schema)
+                    created += 1
+        except Exception as exc:
+            errors.append(f"Import annule: {exc}")
+            created = 0
+            updated = 0
+        
+        if not errors:
+            from app.core.storage import mark_backup_needed
+            mark_backup_needed("import_excel")
+        return {"created": created, "updated": updated, "errors": errors, "preview": rows}
+
+    async def import_clients_from_preview(self, token: str):
+        try:
+            rows = self._load_client_import_preview(token)
+        except Exception as exc:
+            return {"created": 0, "updated": 0, "errors": [str(exc)], "preview": []}
+        result = await self._import_parsed_client_rows(rows)
+        if not result["errors"]:
+            self._discard_client_import_preview(token)
+        return result
+
+    async def import_clients_from_files(self, files):
+        parsed = await self._parse_client_import_files(files)
+        if parsed["errors"] or parsed["duplicates"]:
+            errors = list(parsed["errors"])
+            errors.extend(f"Doublon dans les fichiers: {name}" for name in parsed["duplicates"])
+            return {"created": 0, "updated": 0, "errors": errors, "preview": parsed["rows"]}
+        return await self._import_parsed_client_rows(parsed["rows"])
+
+    # --- CLIENT HISTORY EXCEL IMPORT ---
+
+    async def import_client_history_from_excel(
+        self,
+        file_path: str,
+        client_id: int | None = None,
+        force_reimport: bool = True
+    ) -> dict:
+        """
+        Importe l'historique complet d'un client à partir de son fichier Excel.
+        """
+        # 1. Parser le fichier Excel
+        data = parse_client_history_excel(file_path)
+        client_name = data["client_name"]
+        solde_final = data["solde_final"]
+        rows = data["rows"]
+
+        # 2. Résoudre ou créer le client
+        if client_id is not None:
+            # Vérifier que le client existe
+            client = await self.repo.get_by_id(client_id)
+            if not client:
+                raise ValueError(f"Le client spécifié (ID {client_id}) n'existe pas.")
+        else:
+            # Recherche par nom (insensible à la casse, espaces nettoyés)
+            client = await self.repo.find_by_name(client_name)
+            if client:
+                client_id = client.id
+            else:
+                # Créer le client avec le solde final comme opening_credit
+                schema = ClientCreateSchema(
+                    name=client_name,
+                    phone="",
+                    address="",
+                    notes="",
+                    opening_credit=solde_final
+                )
+                created = await self.create_client(schema)
+                client_id = created.id
+
+        # 3. Vérifier s'il y a déjà un historique importé
+        existing_history_stmt = text(
+            "SELECT 1 FROM client_history WHERE client_id = :cid AND source = 'import_excel' LIMIT 1"
+        )
+        res_hist = await self.repo.session.execute(existing_history_stmt, {"cid": client_id})
+        existing_history = res_hist.first() is not None
+
+        if existing_history:
+            if not force_reimport:
+                raise ValueError(
+                    f"Un historique Excel importé existe déjà pour le client '{client_name}' "
+                    "et force_reimport est désactivé."
+                )
+            # Supprimer l'ancien historique Excel importé
+            await self.repo.session.execute(
+                text("DELETE FROM client_history WHERE client_id = :cid AND source = 'import_excel'"),
+                {"cid": client_id}
+            )
+
+        # 4. Mettre à jour le solde (opening_credit) du client
+        client_to_update = await self.repo.get_by_id(client_id)
+        if client_to_update:
+            client_to_update.opening_credit = solde_final
+            self.repo.session.add(client_to_update)
+
+        # 5. Insérer en lot les nouvelles lignes dans client_history (batch INSERT)
+        if rows:
+            query = text("""
+                INSERT INTO client_history (
+                    client_id, operation_date, designation,
+                    montant_achat, montant_verse, solde_cumule,
+                    ordre_import, source, created_at
+                ) VALUES (
+                    :client_id, :operation_date, :designation,
+                    :montant_achat, :montant_verse, :solde_cumule,
+                    :ordre_import, 'import_excel', CURRENT_TIMESTAMP
+                )
+            """)
+            from datetime import date, datetime
+            params = []
+            for r in rows:
+                dt_val = r["date"]
+                if isinstance(dt_val, str):
+                    try:
+                        op_date = date.fromisoformat(dt_val.strip())
+                    except ValueError:
+                        try:
+                            op_date = datetime.strptime(dt_val.strip(), "%Y-%m-%d").date()
+                        except Exception:
+                            op_date = date.today()
+                elif isinstance(dt_val, datetime):
+                    op_date = dt_val.date()
+                elif isinstance(dt_val, date):
+                    op_date = dt_val
+                else:
+                    op_date = date.today()
+
+                params.append({
+                    "client_id": client_id,
+                    "operation_date": op_date,
+                    "designation": r["designation"],
+                    "montant_achat": r["montant_achat"],
+                    "montant_verse": r["montant_verse"],
+                    "solde_cumule": r["solde_cumule"],
+                    "ordre_import": r["ordre_import"]
+                })
+            await self.repo.session.execute(query, params)
+
+        # Commit to persist
+        await self.repo.session.commit()
+
+        return {
+            "client_id": client_id,
+            "client_name": client_name,
+            "nb_lignes": len(rows),
+            "solde_final": solde_final,
+        }
+
 
 
 def _format_quantity(value) -> str:

@@ -30,14 +30,14 @@ async def get_open_credit_entries(client_id: int | None = None):
         f"""
         SELECT * FROM (
             SELECT 'finished' AS item_kind, s.id, s.client_id, c.name AS client_name, f.name AS item_name,
-                   s.balance_due, s.sale_date, s.total
+                   s.balance_due, s.sale_date, s.total, s.document_id
             FROM sales s
             JOIN clients c ON c.id = s.client_id
             JOIN finished_products f ON f.id = s.finished_product_id
             {where_sales}
             UNION ALL
             SELECT 'raw' AS item_kind, rs.id, rs.client_id, c.name AS client_name, COALESCE(NULLIF(rs.custom_item_name, ''), r.name) AS item_name,
-                   rs.balance_due, rs.sale_date, rs.total
+                   rs.balance_due, rs.sale_date, rs.total, rs.document_id
             FROM raw_sales rs
             JOIN clients c ON c.id = rs.client_id
             JOIN raw_materials r ON r.id = rs.raw_material_id
@@ -50,12 +50,15 @@ async def get_open_credit_entries(client_id: int | None = None):
 
 
 @async_compat
-async def apply_payment_to_entry(kind: str, row_id: int, amount: float) -> float:
+async def apply_payment_to_entry(kind: str, row_id: int, amount: float, entry: dict | None = None) -> float:
     if amount <= 0:
         return 0.0
     from app.services.stock_service import recalc_sale_document_totals
     if kind == "finished":
-        sale = await query_db_async("SELECT balance_due, document_id FROM sales WHERE id = %s", (row_id,), one=True)
+        if entry is not None:
+            sale = entry
+        else:
+            sale = await query_db_async("SELECT balance_due, document_id FROM sales WHERE id = %s", (row_id,), one=True)
         if not sale:
             return 0.0
         paid = min(amount, float(sale["balance_due"]))
@@ -63,7 +66,11 @@ async def apply_payment_to_entry(kind: str, row_id: int, amount: float) -> float
         if sale["document_id"]:
             await recalc_sale_document_totals(int(sale["document_id"]))
         return paid
-    sale = await query_db_async("SELECT balance_due, document_id FROM raw_sales WHERE id = %s", (row_id,), one=True)
+    
+    if entry is not None:
+        sale = entry
+    else:
+        sale = await query_db_async("SELECT balance_due, document_id FROM raw_sales WHERE id = %s", (row_id,), one=True)
     if not sale:
         return 0.0
     paid = min(amount, float(sale["balance_due"]))
@@ -159,7 +166,7 @@ async def create_payment_record(client_id: int, amount: float, payment_date: str
             for entry in await get_open_credit_entries(client_id):
                 if remaining <= 0:
                     break
-                paid = await apply_payment_to_entry(entry["item_kind"], entry["id"], remaining)
+                paid = await apply_payment_to_entry(entry["item_kind"], entry["id"], remaining, entry=entry)
                 if paid > 0:
                     allocations.append({"kind": entry["item_kind"], "id": int(entry["id"]), "amount": paid})
                     applied += paid

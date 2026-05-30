@@ -1,8 +1,6 @@
-from __future__ import annotations
-
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 import asyncio
-
 
 from app.api.deps import api_error, api_success, require_api_user
 from app.api.v1._common import (
@@ -19,16 +17,12 @@ from app.repositories.operation_repository import (
     list_recent_operations,
 )
 from app.repositories.sale_repository import (
-
     list_sales,
 )
-from app.services.sale_service import (
+from app.core.async_db import get_async_session
+from app.modules.sales.service import SalesService
+from app.modules.sales.schemas_validation import SaleFormSchema
 
-    create_sale_from_form,
-    delete_sale_by_id,
-    edit_sale_document_from_form,
-    edit_sale_from_form,
-)
 
 
 router = APIRouter(prefix="/api/v1", tags=["sales"])
@@ -45,17 +39,20 @@ async def api_sellable_items(request: Request):
 
 
 @router.api_route("/sales", methods=["GET", "POST"])
-async def api_sales(request: Request):
+async def api_sales(request: Request, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_OPERATIONS_WRITE if request.method == "POST" else PERMISSION_OPERATIONS_READ)
     if request.method == "POST":
         payload = await request.json()
         client_id = payload.get("client_id")
         if client_id:
+            from app.core.db_access import query_db_async
             client_exists = await query_db_async("SELECT id FROM clients WHERE id = %s", (client_id,), one=True)
             if not client_exists:
                 api_error("not_found", f"Client introuvable (ID: {client_id})", 404)
         
-        created = await create_sale_from_form(payload_to_form_data(payload))
+        validated = SaleFormSchema(**payload)
+        service = SalesService(db)
+        created = await service.create_sale_from_form(validated)
 
         if created["mode"] == "line":
             payload = {
@@ -97,7 +94,7 @@ async def api_sales(request: Request):
 
 
 @router.api_route("/sales/{kind}/{row_id}", methods=["GET", "PUT", "DELETE"])
-async def api_sale_detail(request: Request, kind: str, row_id: int):
+async def api_sale_detail(request: Request, kind: str, row_id: int, db: AsyncSession = Depends(get_async_session)):
     permission = {
         "GET": PERMISSION_OPERATIONS_READ,
         "PUT": PERMISSION_OPERATIONS_WRITE,
@@ -116,11 +113,15 @@ async def api_sale_detail(request: Request, kind: str, row_id: int):
                 {"document_id": int(sale["document_id"])},
             )
         try:
-            result = await edit_sale_from_form(kind, row_id, payload_to_form_data(await request.json()))
-        except ValueError as exc:
-            if "versements" in str(exc).lower():
-                api_error("document_has_payments", str(exc), 409)
-            api_error("sale_update_invalid", str(exc), 400)
+            payload = await request.json()
+            validated = SaleFormSchema(**payload)
+            service = SalesService(db)
+            result = await service.edit_sale_from_form(kind, row_id, validated)
+        except Exception as exc:
+            msg = str(exc)
+            if "versements" in msg.lower():
+                api_error("document_has_payments", msg, 409)
+            api_error("sale_update_invalid", msg, 400)
         if result["mode"] == "document":
             return json_response(
                 api_success(
@@ -133,7 +134,8 @@ async def api_sale_detail(request: Request, kind: str, row_id: int):
             )
         sale = (await sale_payload(result["first_line_kind"], int(result["first_line_id"]))) or sale
     elif request.method == "DELETE":
-        if not await delete_sale_by_id(kind, row_id):
+        service = SalesService(db)
+        if not await service.delete_sale_by_id(kind, row_id):
             api_error("conflict", "Suppression impossible.", 409)
         return json_response(api_success({"deleted": True}))
     res_data = api_success(sale)
@@ -144,18 +146,22 @@ async def api_sale_detail(request: Request, kind: str, row_id: int):
 
 
 @router.api_route("/sale-documents/{document_id}", methods=["GET", "PUT"])
-async def api_sale_document_detail(request: Request, document_id: int):
+async def api_sale_document_detail(request: Request, document_id: int, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_OPERATIONS_WRITE if request.method == "PUT" else PERMISSION_OPERATIONS_READ)
     document = await sale_document_payload(document_id)
     if not document:
         api_error("not_found", "Facture introuvable.", 404)
     if request.method == "PUT":
         try:
-            await edit_sale_document_from_form(document_id, payload_to_form_data(await request.json()))
-        except ValueError as exc:
-            if "versements" in str(exc).lower():
-                api_error("document_has_payments", str(exc), 409, {"document_id": document_id})
-            api_error("sale_document_invalid", str(exc), 400)
+            payload = await request.json()
+            validated = SaleFormSchema(**payload)
+            service = SalesService(db)
+            await service.edit_sale_document_from_form(document_id, validated)
+        except Exception as exc:
+            msg = str(exc)
+            if "versements" in msg.lower():
+                api_error("document_has_payments", msg, 409, {"document_id": document_id})
+            api_error("sale_document_invalid", msg, 400)
         document = await sale_document_payload(document_id)
     res_data = api_success(document)
     response = json_response(res_data)

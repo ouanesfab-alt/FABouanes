@@ -9,9 +9,7 @@ from fastapi.encoders import jsonable_encoder
 from app.api.deps import api_success
 from app.core.db_access import query_db_async
 from app.repositories.sale_repository import build_sellable_items
-from app.services.client_service import get_client_detail_context
-from app.services.purchase_service import get_purchase_document_context
-from app.services.sale_service import get_sale_document_context
+from sqlalchemy.ext.asyncio import AsyncSession
 
 def json_response(payload: dict[str, Any]) -> JSONResponse:
     status_code = int(payload.pop("_status_code", 200))
@@ -111,8 +109,9 @@ async def sale_payload(kind: str, row_id: int):
         )
     return dict(row) if row else None
 
-async def purchase_document_payload(document_id: int):
-    context = await get_purchase_document_context(document_id)
+async def purchase_document_payload(document_id: int, db: AsyncSession):
+    from app.modules.purchases.service import PurchaseService
+    context = await PurchaseService(db).get_purchase_document_context(document_id)
     if not context:
         return None
     return {
@@ -121,8 +120,9 @@ async def purchase_document_payload(document_id: int):
         "line_count": len(context["purchase_lines"]),
     }
 
-async def sale_document_payload(document_id: int):
-    context = await get_sale_document_context(document_id)
+async def sale_document_payload(document_id: int, db: AsyncSession):
+    from app.modules.sales.service import SalesService
+    context = await SalesService(db).get_sale_document_context(document_id)
     if not context:
         return None
     return {
@@ -155,8 +155,9 @@ async def payment_payload(payment_id: int):
     )
     return dict(row) if row else None
 
-async def client_history_payload(client_id: int):
-    detail_context = await get_client_detail_context(client_id)
+async def client_history_payload(client_id: int, db: AsyncSession):
+    from app.modules.clients.service import ClientService
+    detail_context = await ClientService(db).get_client_detail_context(client_id)
     if not detail_context:
         return None
     return {
