@@ -92,6 +92,15 @@ def bootstrap_schema() -> None:
         CREATE INDEX IF NOT EXISTS idx_purchases_supplier_date ON purchases(supplier_id, purchase_date);
         CREATE INDEX IF NOT EXISTS idx_finished_products_name ON finished_products(name);
         CREATE INDEX IF NOT EXISTS idx_raw_materials_name ON raw_materials(name);
+
+        -- Additional Missing Foreign Key & Search Indexes
+        CREATE INDEX IF NOT EXISTS idx_purchases_finished_product_id ON purchases(finished_product_id);
+        CREATE INDEX IF NOT EXISTS idx_prod_items_material_id ON production_batch_items(raw_material_id);
+        CREATE INDEX IF NOT EXISTS idx_saved_recipe_items_material_id ON saved_recipe_items(raw_material_id);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_user_id ON audit_logs(actor_user_id);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_status ON audit_logs(status);
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_entity ON activity_logs(entity_type, entity_id);
         """)
         
         # Then discover and execute module schemas

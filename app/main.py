@@ -282,18 +282,45 @@ async def auth_required_handler(request: Request, exc: AuthenticationRequiredErr
     from app.core.permissions import permission_denied_response
     return permission_denied_response(None)
 
-@app.exception_handler(Exception)
-async def unhandled_exception_handler(request: Request, exc: Exception):
-    if isinstance(exc, HTTPException):
-        if not is_html_request(request):
-            return JSONResponse({"success": False, "error": {"code": "http_error", "message": exc.detail}}, status_code=exc.status_code)
-        from app.web.deps import template_context, templates
-        return templates.TemplateResponse(
-            "error.html",
-            template_context(request, status_code=exc.status_code, error_message=exc.detail),
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    is_api = request.url.path.startswith("/api/") or not is_html_request(request)
+    
+    if is_api:
+        detail = exc.detail
+        if isinstance(detail, dict):
+            code = detail.get("code") or "http_error"
+            message = detail.get("message") or "HTTP Exception occurred"
+            details = detail.get("details")
+        else:
+            code = "http_error"
+            message = str(detail)
+            details = None
+            
+        return JSONResponse(
+            {
+                "success": False,
+                "error": {
+                    "code": code,
+                    "message": message,
+                    "details": details
+                }
+            },
             status_code=exc.status_code
         )
         
+    from app.web.deps import template_context, templates
+    detail_msg = exc.detail
+    if isinstance(detail_msg, dict):
+        detail_msg = detail_msg.get("message") or str(detail_msg)
+    return templates.TemplateResponse(
+        "error.html",
+        template_context(request, status_code=exc.status_code, error_message=detail_msg),
+        status_code=exc.status_code
+    )
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
     if isinstance(exc, ValueError):
         if not is_html_request(request):
             return JSONResponse({"success": False, "error": {"code": "invalid_value", "message": str(exc)}}, status_code=400)

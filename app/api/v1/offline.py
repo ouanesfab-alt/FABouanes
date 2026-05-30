@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from app.api.deps import require_api_user
+from app.api.deps import require_api_user, api_error
 from app.api.v1._common import payload_to_form_data
 from app.core.permissions import PERMISSION_OPERATIONS_WRITE
 from app.services.sale_service import create_sale_from_form
@@ -51,23 +51,28 @@ async def sync_operation(request: Request):
             payment_id, payment_type = await create_payment_from_form(payload)
             res_payload = {"ok": True, "id": payment_id, "payment_type": payment_type}
         else:
-            res_payload = {"error": f"Type inconnu : {op_type}"}
+            err_res = {"success": False, "error": {"code": "unknown_type", "message": f"Type inconnu : {op_type}", "details": None}}
             if idempotency_key:
-                save_idempotency(idempotency_key, {"content": res_payload, "status_code": 400})
-            return JSONResponse(res_payload, status_code=400)
+                save_idempotency(idempotency_key, {"content": err_res, "status_code": 400})
+            api_error("unknown_type", f"Type inconnu : {op_type}", 400)
 
         if idempotency_key:
             save_idempotency(idempotency_key, {"content": res_payload, "status_code": 200})
         return JSONResponse(res_payload)
 
     except (ValueError, ValidationError, ConflictError) as exc:
-        res_payload = {"error": str(exc)}
+        code = getattr(exc, "code", "validation_error")
+        message = getattr(exc, "message", str(exc))
+        err_res = {"success": False, "error": {"code": code, "message": message, "details": None}}
         if idempotency_key:
-            save_idempotency(idempotency_key, {"content": res_payload, "status_code": 422})
-        return JSONResponse(res_payload, status_code=422)
+            save_idempotency(idempotency_key, {"content": err_res, "status_code": 422})
+        api_error(code, message, 422)
     except Exception as exc:
         logger.exception("Offline sync operation failed")
-        return JSONResponse({"error": "Erreur serveur", "details": str(exc)}, status_code=500)
+        err_res = {"success": False, "error": {"code": "internal_error", "message": "Erreur serveur", "details": str(exc)}}
+        if idempotency_key:
+            save_idempotency(idempotency_key, {"content": err_res, "status_code": 500})
+        api_error("internal_error", "Erreur serveur", 500, details=str(exc))
 
 
 @router.post("/sync/bulk")

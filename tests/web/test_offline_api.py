@@ -64,12 +64,12 @@ def test_offline_sync_validation_error_caching(client: TestClient, api_headers):
         # 1. Call sync resulting in ValueError (422)
         response1 = client.post("/api/v1/offline/sync", json=payload, headers=headers)
         assert response1.status_code == 422
-        assert "Solde insuffisant" in response1.json()["error"]
+        assert response1.json()["error"]["message"] == "Solde insuffisant"
 
         # 2. Call again with same key (should return cached 422 error immediately)
         response2 = client.post("/api/v1/offline/sync", json=payload, headers=headers)
         assert response2.status_code == 422
-        assert "Solde insuffisant" in response2.json()["error"]
+        assert response2.json()["error"]["message"] == "Solde insuffisant"
 
 
 def test_offline_sync_bulk(client: TestClient, api_headers):

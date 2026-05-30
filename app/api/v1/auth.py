@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from app.api.deps import (
     ACCESS_TOKEN_TTL_SECONDS,
     api_success,
+    api_error,
     create_access_token,
     create_refresh_token,
     require_api_user,
@@ -34,7 +35,7 @@ def _response(payload: dict):
 async def api_auth_login(request: Request, payload: UserLoginSchema):
     result = await asyncio.to_thread(attempt_login, payload.username, payload.password)
     if not result["ok"]:
-        return JSONResponse({"error": {"code": "login_failed", "message": result["message"], "details": None}}, status_code=int(result.get("status") or 401))
+        api_error("login_failed", result["message"], int(result.get("status") or 401))
     user = result["user"]
     access_token = create_access_token(user)
     refresh_token = await asyncio.to_thread(create_refresh_token, request, user)
@@ -63,7 +64,7 @@ async def api_auth_refresh(request: Request):
     raw_refresh = str(payload.get("refresh_token", "") or "").strip()
     user = await asyncio.to_thread(validate_refresh_token, raw_refresh)
     if not user:
-        return JSONResponse({"error": {"code": "refresh_token_invalid", "message": "Jeton de renouvellement invalide.", "details": None}}, status_code=401)
+        api_error("refresh_token_invalid", "Jeton de renouvellement invalide.", 401)
     access_token = create_access_token(user)
     await asyncio.to_thread(audit_event, "api_refresh", "user", user["id"], source="api", after={"username": user["username"]})
     return _response(api_success({"access_token": access_token, "token_type": "Bearer", "expires_in": ACCESS_TOKEN_TTL_SECONDS}))
