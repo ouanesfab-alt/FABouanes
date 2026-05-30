@@ -20,7 +20,9 @@ class FormMock:
     def __contains__(self, key):
         return key in self.data
 
-def test_stress_sales_math_calculations(first_client_id, first_product_id):
+
+@pytest.mark.asyncio
+async def test_stress_sales_math_calculations(first_client_id, first_product_id):
     """
     Stress test 1000 randomized sale pricing and quantity calculations.
     We test decimal precision, massive multiplications, and correct addition of total costs.
@@ -52,7 +54,7 @@ def test_stress_sales_math_calculations(first_client_id, first_product_id):
             "sale_date": "2026-05-18"
         }
         
-        result = create_sale_from_form(FormMock(form_data))
+        result = await create_sale_from_form(FormMock(form_data))
         if not result or "line_count" not in result:
             raise RuntimeError(f"Debug: result is {result}")
         assert result["line_count"] == 1
@@ -68,7 +70,8 @@ def test_stress_sales_math_calculations(first_client_id, first_product_id):
         assert abs(Decimal(str(row["total"])) - expected_total_rounded) <= Decimal("0.01")
         
         # Clean up each step
-        assert delete_sale_by_id(kind, sale_id) is True
+        assert await delete_sale_by_id(kind, sale_id) is True
+
 
 def test_stress_production_cost_rounding(first_raw_material_id):
     """
@@ -87,7 +90,9 @@ def test_stress_production_cost_rounding(first_raw_material_id):
         # Test average cost updates
         assert expected_cost >= Decimal("0.00")
 
-def test_stress_stock_adjustments(first_product_id, first_raw_material_id):
+
+@pytest.mark.asyncio
+async def test_stress_stock_adjustments(first_product_id, first_raw_material_id):
     """
     Stress test 1000 randomized stock increments and decrements to ensure stock consistency.
     """
@@ -114,11 +119,12 @@ def test_stress_stock_adjustments(first_product_id, first_raw_material_id):
         execute_db("UPDATE finished_products SET stock_qty = %s WHERE id = %s", (stock_after, first_product_id))
         
         # Record movement
-        record_stock_movement("finished", first_product_id, "in" if delta >= 0 else "out", abs(delta), "kg", stock_before, stock_after, "stress_test", "finished", None)
+        await record_stock_movement("finished", first_product_id, "in" if delta >= 0 else "out", abs(delta), "kg", stock_before, stock_after, "stress_test", "finished", None)
         
         # Verify db stock matches exactly
         row = query_db("SELECT stock_qty FROM finished_products WHERE id = %s", (first_product_id,), one=True)
         assert abs(Decimal(str(row["stock_qty"])) - current_stock) < Decimal("0.001")
+
 
 def test_stress_floating_point_extreme_inputs(first_product_id):
     """
@@ -134,7 +140,9 @@ def test_stress_floating_point_extreme_inputs(first_product_id):
     row = query_db("SELECT stock_qty FROM finished_products WHERE id = %s", (first_product_id,), one=True)
     assert row is not None
 
-def test_abusive_contact_creation():
+
+@pytest.mark.asyncio
+async def test_abusive_contact_creation():
     """
     Abusive stress test for clients and suppliers creation/deletion.
     Injects HTML tags, giant strings, special Unicode/Emojis, and typical SQL injection strings.
@@ -164,7 +172,7 @@ def test_abusive_contact_creation():
             "notes": "Abusive Note",
             "opening_credit": "150.75"
         })
-        client_id = create_client_from_form(client_form)
+        client_id = await create_client_from_form(client_form)
         assert client_id > 0
         
         # Verify db matches
@@ -178,7 +186,7 @@ def test_abusive_contact_creation():
             "address": "Abusive Address",
             "notes": "Abusive Note"
         })
-        supplier_id = create_supplier_from_form(supplier_form)
+        supplier_id = await create_supplier_from_form(supplier_form)
         assert supplier_id > 0
         
         # Verify db matches
@@ -189,7 +197,9 @@ def test_abusive_contact_creation():
         execute_db("DELETE FROM clients WHERE id = %s", (client_id,))
         execute_db("DELETE FROM suppliers WHERE id = %s", (supplier_id,))
 
-def test_abusive_production_creation(first_product_id, first_raw_material_id):
+
+@pytest.mark.asyncio
+async def test_abusive_production_creation(first_product_id, first_raw_material_id):
     """
     Verify production validation rejects invalid/abusive data without leaving orphaned db rows.
     """
@@ -207,7 +217,7 @@ def test_abusive_production_creation(first_product_id, first_raw_material_id):
         "save_recipe": "0"
     })
     with pytest.raises(ValueError, match="La quantite produite doit etre superieure a zero"):
-        create_production_from_form(invalid_form_1)
+        await create_production_from_form(invalid_form_1)
         
     # 2. Empty raw materials list (Should raise ValueError)
     invalid_form_2 = FormMock({
@@ -218,7 +228,7 @@ def test_abusive_production_creation(first_product_id, first_raw_material_id):
         "save_recipe": "0"
     })
     with pytest.raises(ValueError, match="Ajoute au moins une matière première"):
-        create_production_from_form(invalid_form_2)
+        await create_production_from_form(invalid_form_2)
         
     # 3. Request quantity exceeding raw material stock limit
     invalid_form_3 = FormMock({
@@ -229,7 +239,7 @@ def test_abusive_production_creation(first_product_id, first_raw_material_id):
         "save_recipe": "0"
     })
     with pytest.raises(ValueError, match="Stock insuffisant"):
-        create_production_from_form(invalid_form_3)
+        await create_production_from_form(invalid_form_3)
         
     # 4. Valid simulation - create and reverse immediately
     valid_form = FormMock({
@@ -244,7 +254,7 @@ def test_abusive_production_creation(first_product_id, first_raw_material_id):
     p_before = query_db("SELECT stock_qty FROM finished_products WHERE id = %s", (first_product_id,), one=True)
     m_before = query_db("SELECT stock_qty FROM raw_materials WHERE id = %s", (first_raw_material_id,), one=True)
     
-    result = create_production_from_form(valid_form)
+    result = await create_production_from_form(valid_form)
     batch_id = result["batch_id"]
     assert batch_id > 0
     
@@ -257,7 +267,7 @@ def test_abusive_production_creation(first_product_id, first_raw_material_id):
     
     # Reverse production and verify stock restored
     from app.services.stock_service import reverse_production
-    assert reverse_production(batch_id) is True
+    assert await reverse_production(batch_id) is True
     
     p_restored = query_db("SELECT stock_qty FROM finished_products WHERE id = %s", (first_product_id,), one=True)
     m_restored = query_db("SELECT stock_qty FROM raw_materials WHERE id = %s", (first_raw_material_id,), one=True)
@@ -265,7 +275,9 @@ def test_abusive_production_creation(first_product_id, first_raw_material_id):
     assert abs(float(p_restored["stock_qty"]) - float(p_before["stock_qty"])) < 0.001
     assert abs(float(m_restored["stock_qty"]) - float(m_before["stock_qty"])) < 0.001
 
-def test_abusive_sales_validation(first_client_id, first_product_id):
+
+@pytest.mark.asyncio
+async def test_abusive_sales_validation(first_client_id, first_product_id):
     """
     Abusive checks on sale creations.
     """
@@ -284,5 +296,4 @@ def test_abusive_sales_validation(first_client_id, first_product_id):
         "sale_date": "2026-05-19"
     })
     with pytest.raises(Exception):
-        create_sale_from_form(invalid_sale)
-
+        await create_sale_from_form(invalid_sale)

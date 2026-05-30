@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException, Response
 import asyncio
 
 from app.api.deps import api_error, api_success, require_api_user
@@ -26,7 +26,7 @@ from app.services.catalog_service import (
 )
 from app.core.activity import log_activity
 from app.core.audit import audit_event
-from app.core.db_access import execute_db_async, query_db
+from app.core.db_access import execute_db_async, query_db_async
 
 
 from app.core.permissions import (
@@ -47,7 +47,7 @@ async def api_clients(request: Request):
     if request.method == "POST":
         payload = await request.json()
         client_id = await create_client_from_form(payload_to_form_data(payload))
-        return json_response(api_success(await asyncio.to_thread(client_payload, client_id), status_code=201))
+        return json_response(api_success(await client_payload(client_id), status_code=201))
 
     page = int(request.query_params.get("page", 1))
     page_size = int(request.query_params.get("page_size", 50))
@@ -65,14 +65,14 @@ async def api_clients(request: Request):
 @router.api_route("/clients/{client_id}", methods=["GET", "PUT"])
 async def api_client_detail(request: Request, client_id: int):
     require_api_user(request, PERMISSION_CONTACTS_WRITE if request.method == "PUT" else PERMISSION_CONTACTS_READ)
-    client = await asyncio.to_thread(client_payload, client_id)
+    client = await client_payload(client_id)
     if not client:
         api_error("not_found", "Client introuvable.", 404)
     if request.method == "PUT":
         payload = await request.json()
         await update_client_from_form(client_id, payload_to_form_data(payload))
-        client = await asyncio.to_thread(client_payload, client_id)
-    detail = await asyncio.to_thread(client_history_payload, client_id)
+        client = await client_payload(client_id)
+    detail = await client_history_payload(client_id)
     client["summary"] = detail.get("stats", {}) if detail else {}
     res_data = api_success(client)
     response = json_response(res_data)
@@ -92,9 +92,9 @@ async def api_shred_client(request: Request, client_id: int):
     audit_event("shred_client", "client", client_id, before=client, after=await get_client(client_id))
     return json_response(api_success({"shredded": True}))
 
-def _fetch_client_history(client_id: int, page: int, page_size: int) -> tuple[list, int]:
+async def _fetch_client_history(client_id: int, page: int, page_size: int) -> tuple[list, int]:
     # 1. Fetch all rows to calculate the running balance correctly across all pages
-    rows = query_db(
+    rows = await query_db_async(
         """
         SELECT
             id,
@@ -215,11 +215,11 @@ async def api_client_history(
     page_size: int = 50,
 ):
     require_api_user(request, PERMISSION_CONTACTS_READ)
-    client_exists = await asyncio.to_thread(query_db, "SELECT 1 FROM clients WHERE id = %s", (client_id,), True)
+    client_exists = await query_db_async("SELECT 1 FROM clients WHERE id = %s", (client_id,), one=True)
     if not client_exists:
         api_error("not_found", "Client introuvable.", 404)
         
-    rows, total = await asyncio.to_thread(_fetch_client_history, client_id, page, page_size)
+    rows, total = await _fetch_client_history(client_id, page, page_size)
     import math
     total_pages = math.ceil(total / page_size) if page_size > 0 else 1
     
@@ -250,7 +250,7 @@ async def api_suppliers(request: Request):
                 str(payload.get("notes", "")).strip(),
             ),
         )
-        supplier = await asyncio.to_thread(supplier_payload, supplier_id)
+        supplier = await supplier_payload(supplier_id)
         audit_event("create_supplier", "supplier", supplier_id, source="api", after=supplier)
         log_activity("create_supplier", "supplier", supplier_id, str(payload.get("name", "")).strip())
         return json_response(api_success(supplier, status_code=201))
@@ -276,7 +276,7 @@ async def api_supplier_detail(request: Request, supplier_id: int):
         "DELETE": PERMISSION_CONTACTS_DELETE,
     }[request.method]
     require_api_user(request, permission)
-    supplier = await asyncio.to_thread(supplier_payload, supplier_id)
+    supplier = await supplier_payload(supplier_id)
     if not supplier:
         api_error("not_found", "Fournisseur introuvable.", 404)
     if request.method == "PUT":
@@ -292,7 +292,7 @@ async def api_supplier_detail(request: Request, supplier_id: int):
                 supplier_id,
             ),
         )
-        supplier = await asyncio.to_thread(supplier_payload, supplier_id)
+        supplier = await supplier_payload(supplier_id)
         audit_event("update_supplier", "supplier", supplier_id, source="api", before=before, after=supplier)
     elif request.method == "DELETE":
         before = dict(supplier)
@@ -311,8 +311,8 @@ async def api_raw_materials(request: Request):
     if request.method == "POST":
         payload = dict(await request.json())
         payload["kind"] = "raw"
-        _kind, material_id = await asyncio.to_thread(create_catalog_item_from_form, payload_to_form_data(payload))
-        return json_response(api_success(await asyncio.to_thread(raw_material_payload, material_id), status_code=201))
+        _kind, material_id = await create_catalog_item_from_form(payload_to_form_data(payload))
+        return json_response(api_success(await raw_material_payload(material_id), status_code=201))
 
     page = int(request.query_params.get("page", 1))
     page_size = int(request.query_params.get("page_size", 50))
@@ -336,15 +336,15 @@ async def api_raw_material_detail(request: Request, material_id: int):
         "DELETE": PERMISSION_CATALOG_DELETE,
     }[request.method]
     require_api_user(request, permission)
-    material = await asyncio.to_thread(raw_material_payload, material_id)
+    material = await raw_material_payload(material_id)
     if not material:
         api_error("not_found", "Matiere premiere introuvable.", 404)
     if request.method == "PUT":
         payload = dict(await request.json())
-        await asyncio.to_thread(update_raw_material_from_form, material_id, payload_to_form_data(payload))
-        material = await asyncio.to_thread(raw_material_payload, material_id)
+        await update_raw_material_from_form(material_id, payload_to_form_data(payload))
+        material = await raw_material_payload(material_id)
     elif request.method == "DELETE":
-        if not await asyncio.to_thread(delete_raw_material_by_id, material_id):
+        if not await delete_raw_material_by_id(material_id):
             api_error("conflict", "Suppression impossible.", 409)
         return json_response(api_success({"deleted": True}))
     res_data = api_success(material)
@@ -359,8 +359,8 @@ async def api_finished_products(request: Request):
     if request.method == "POST":
         payload = dict(await request.json())
         payload["kind"] = "finished"
-        _kind, product_id = await asyncio.to_thread(create_catalog_item_from_form, payload_to_form_data(payload))
-        return json_response(api_success(await asyncio.to_thread(finished_product_payload, product_id), status_code=201))
+        _kind, product_id = await create_catalog_item_from_form(payload_to_form_data(payload))
+        return json_response(api_success(await finished_product_payload(product_id), status_code=201))
 
     page = int(request.query_params.get("page", 1))
     page_size = int(request.query_params.get("page_size", 50))
@@ -383,15 +383,15 @@ async def api_finished_product_detail(request: Request, product_id: int):
         "DELETE": PERMISSION_CATALOG_DELETE,
     }[request.method]
     require_api_user(request, permission)
-    product = await asyncio.to_thread(finished_product_payload, product_id)
+    product = await finished_product_payload(product_id)
     if not product:
         api_error("not_found", "Produit fini introuvable.", 404)
     if request.method == "PUT":
         payload = dict(await request.json())
-        await asyncio.to_thread(update_product_from_form, product_id, payload_to_form_data(payload))
-        product = await asyncio.to_thread(finished_product_payload, product_id)
+        await update_product_from_form(product_id, payload_to_form_data(payload))
+        product = await finished_product_payload(product_id)
     elif request.method == "DELETE":
-        if not await asyncio.to_thread(delete_product_by_id, product_id):
+        if not await delete_product_by_id(product_id):
             api_error("conflict", "Suppression impossible.", 409)
         return json_response(api_success({"deleted": True}))
     res_data = api_success(product)
@@ -450,8 +450,7 @@ async def bulk_import_client_history(
                     extracted = os.path.join(tmpdir, xlsx_name)
                     zf.extract(xlsx_name, tmpdir)
                     try:
-                        rapport = await asyncio.to_thread(
-                            import_client_history_from_excel,
+                        rapport = await import_client_history_from_excel(
                             extracted, None, True
                         )
                         results.append(rapport)
@@ -483,10 +482,8 @@ async def export_clients_csv():
     # 2. Utilisation de Response de FastAPI pour renvoyer des données binaires (CSV encodé UTF-8 avec BOM pour Excel).
     import csv, io
     from datetime import date
-    from fastapi import Response
-
-    def _build_export():
-        rows = query_db("""
+    async def _build_export():
+        rows = await query_db_async("""
             SELECT
                 c.id, c.name,
                 c.balance,
@@ -521,11 +518,12 @@ async def export_clients_csv():
             })
         return buf.getvalue()
 
-    csv_content = await asyncio.to_thread(_build_export)
+    csv_content = await _build_export()
     filename = f"clients_export_{date.today().isoformat()}.csv"
     return Response(
         content=csv_content.encode("utf-8-sig"),
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from urllib.parse import quote
 
-from app.core.db_access import query_db
+from app.core.db_access import query_db_async
 from app.utils.tool_pages import list_pdf_reader_files
 
 DEFAULT_LIMIT = 80
@@ -62,8 +62,8 @@ def _print_doc(doc_type: str, item_id: int, **payload) -> dict:
     )
 
 
-def _append_purchase_documents(documents: list[dict], limit: int) -> None:
-    rows = query_db(
+async def _append_purchase_documents(documents: list[dict], limit: int) -> None:
+    rows = await query_db_async(
         """
         SELECT pd.id, pd.purchase_date, pd.total, pd.notes,
                COALESCE(s.name, 'Non renseigne') AS partner_name
@@ -91,7 +91,7 @@ def _append_purchase_documents(documents: list[dict], limit: int) -> None:
             )
         )
 
-    rows = query_db(
+    rows = await query_db_async(
         """
         SELECT p.id, p.purchase_date, p.total, p.notes,
                COALESCE(s.name, 'Non renseigne') AS partner_name,
@@ -123,8 +123,8 @@ def _append_purchase_documents(documents: list[dict], limit: int) -> None:
         )
 
 
-def _append_sale_documents(documents: list[dict], limit: int) -> None:
-    rows = query_db(
+async def _append_sale_documents(documents: list[dict], limit: int) -> None:
+    rows = await query_db_async(
         """
         SELECT sd.id, sd.sale_date, sd.total, sd.sale_type, sd.notes,
                COALESCE(c.name, 'Comptoir') AS partner_name
@@ -152,7 +152,7 @@ def _append_sale_documents(documents: list[dict], limit: int) -> None:
             )
         )
 
-    rows = query_db(
+    rows = await query_db_async(
         """
         SELECT s.id, s.sale_date, s.total, s.sale_type, s.notes,
                COALESCE(c.name, 'Comptoir') AS partner_name,
@@ -183,7 +183,7 @@ def _append_sale_documents(documents: list[dict], limit: int) -> None:
             )
         )
 
-    rows = query_db(
+    rows = await query_db_async(
         """
         SELECT rs.id, rs.sale_date, rs.total, rs.sale_type, rs.notes,
                COALESCE(c.name, 'Comptoir') AS partner_name,
@@ -215,8 +215,8 @@ def _append_sale_documents(documents: list[dict], limit: int) -> None:
         )
 
 
-def _append_payment_documents(documents: list[dict], limit: int) -> None:
-    rows = query_db(
+async def _append_payment_documents(documents: list[dict], limit: int) -> None:
+    rows = await query_db_async(
         """
         SELECT p.id, p.payment_date, p.amount, p.payment_type, p.notes,
                c.name AS partner_name
@@ -246,8 +246,8 @@ def _append_payment_documents(documents: list[dict], limit: int) -> None:
         )
 
 
-def _append_production_documents(documents: list[dict], limit: int) -> None:
-    rows = query_db(
+async def _append_production_documents(documents: list[dict], limit: int) -> None:
+    rows = await query_db_async(
         """
         SELECT pb.id, pb.production_date, pb.production_cost, pb.output_quantity, pb.notes,
                fp.name AS product_name
@@ -279,8 +279,8 @@ def _append_production_documents(documents: list[dict], limit: int) -> None:
         )
 
 
-def _append_client_history_documents(documents: list[dict], limit: int) -> None:
-    rows = query_db(
+async def _append_client_history_documents(documents: list[dict], limit: int) -> None:
+    rows = await query_db_async(
         """
         SELECT c.id, c.name, c.phone, c.address, c.created_at,
                COUNT(ich.id) AS imported_rows
@@ -337,15 +337,15 @@ def _append_external_pdfs(documents: list[dict]) -> None:
         )
 
 
-def list_bon_space_documents(q: str = "", kind: str = "", limit: int = DEFAULT_LIMIT) -> list[dict]:
+async def list_bon_space_documents(q: str = "", kind: str = "", limit: int = DEFAULT_LIMIT) -> list[dict]:
     limit = max(20, min(int(limit or DEFAULT_LIMIT), 200))
     source_limit = max(limit, 80)
     documents: list[dict] = []
-    _append_purchase_documents(documents, source_limit)
-    _append_sale_documents(documents, source_limit)
-    _append_payment_documents(documents, source_limit)
-    _append_production_documents(documents, source_limit)
-    _append_client_history_documents(documents, source_limit)
+    await _append_purchase_documents(documents, source_limit)
+    await _append_sale_documents(documents, source_limit)
+    await _append_payment_documents(documents, source_limit)
+    await _append_production_documents(documents, source_limit)
+    await _append_client_history_documents(documents, source_limit)
     _append_external_pdfs(documents)
 
     normalized_kind = str(kind or "").strip().lower()

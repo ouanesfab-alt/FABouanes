@@ -47,17 +47,17 @@ async def api_create_production_batch(request: Request, payload: ProductionCreat
     form_data = payload_to_form_data(data_dict)
     
     try:
-        result = await asyncio.to_thread(create_production_from_form, form_data)
+        result = await create_production_from_form(form_data)
     except ValueError as e:
         api_error("invalid_value", str(e), 400)
         
-    batch = await asyncio.to_thread(production_payload, result["batch_id"])
+    batch = await production_payload(result["batch_id"])
     return json_response(api_success({"batch": batch, "recipe_id": result["recipe_id"]}, status_code=201))
 
 @router.get("/production-batches/{batch_id}")
 async def api_get_production_batch_detail(request: Request, batch_id: int):
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_READ)
-    batch = await asyncio.to_thread(production_payload, batch_id)
+    batch = await production_payload(batch_id)
     if not batch:
         api_error("not_found", "Production introuvable.", 404)
     items = await query_db_async("SELECT * FROM production_batch_items WHERE batch_id = %s ORDER BY id", (batch_id,))
@@ -71,10 +71,10 @@ async def api_get_production_batch_detail(request: Request, batch_id: int):
 @router.delete("/production-batches/{batch_id}")
 async def api_delete_production_batch(request: Request, batch_id: int):
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_DELETE)
-    batch = await asyncio.to_thread(production_payload, batch_id)
+    batch = await production_payload(batch_id)
     if not batch:
         api_error("not_found", "Production introuvable.", 404)
-    success = await asyncio.to_thread(delete_production_by_id, batch_id)
+    success = await delete_production_by_id(batch_id)
     if not success:
         api_error("conflict", "Suppression impossible.", 409)
     return json_response(api_success({"deleted": True}))

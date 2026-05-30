@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from app.core.db_access import execute_db, query_db
 from app.services.transactions_service import transactions_context
 
@@ -17,7 +18,8 @@ def test_sale_form_renders(logged_client):
     assert "Lignes de vente" in response.text or "Ajouter une ligne" in response.text
 
 
-def test_transactions_date_sort_keeps_newest_same_day_sales_first(logged_client, first_client_id):
+@pytest.mark.asyncio
+async def test_transactions_date_sort_keeps_newest_same_day_sales_first(logged_client, first_client_id):
     product = query_db("SELECT id FROM finished_products ORDER BY id LIMIT 1", one=True)
     assert product is not None
     product_id = int(product["id"])
@@ -38,7 +40,7 @@ def test_transactions_date_sort_keeps_newest_same_day_sales_first(logged_client,
             )
         )
 
-    context = transactions_context(filter_type="sale", args={"page_size": "200"})
+    context = await transactions_context(filter_type="sale", args={"page_size": "200"})
     ordered_ids = [
         int(row["id"])
         for row in context["transactions"]

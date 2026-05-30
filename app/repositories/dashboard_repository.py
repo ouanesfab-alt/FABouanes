@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from app.core.db_access import query_db
+from app.core.db_access import db_task, execute_db, query_db
 from app.core.perf_cache import cached_result, TTL_FREQUENT, TTL_SEMI_STABLE
 
 
+@db_task
 def get_dashboard_snapshot(target_date: str | None = None) -> dict:
     resolved_date = target_date or date.today().isoformat()
     return cached_result(
@@ -15,6 +16,7 @@ def get_dashboard_snapshot(target_date: str | None = None) -> dict:
     )
 
 
+@db_task
 def get_kpis_for_date(target_date: str) -> dict[str, float | str]:
     return cached_result(
         ("dashboard_kpis", target_date),
@@ -255,6 +257,7 @@ def _build_debt_by_client() -> list:
 
 _LAST_REFRESH_TIME_IN_MEM = 0.0
 
+@db_task
 def refresh_client_balances_view() -> None:
     """Refresh the mv_client_balances materialized view after financial mutations, debounced with a 10s Redis lock."""
     global _LAST_REFRESH_TIME_IN_MEM
@@ -286,7 +289,6 @@ def refresh_client_balances_view() -> None:
         _LAST_REFRESH_TIME_IN_MEM = now
         
     try:
-        from app.core.db_access import execute_db
         execute_db("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_client_balances")
         logger.info("Materialized view mv_client_balances refreshed successfully")
     except Exception as e:

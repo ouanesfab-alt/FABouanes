@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.core.db_access import query_db
+from app.core.db_access import db_task, query_db
 
 
 def _raw_material_choices():
@@ -66,6 +66,7 @@ def _raw_material_choices():
     return choices
 
 
+@db_task
 def list_purchase_form_context():
     return {
         "suppliers": query_db("SELECT * FROM suppliers ORDER BY name"),
@@ -73,6 +74,7 @@ def list_purchase_form_context():
     }
 
 
+@db_task
 def get_purchase(purchase_id: int):
     return query_db(
         """
@@ -106,6 +108,7 @@ def get_purchase(purchase_id: int):
     )
 
 
+@db_task
 def get_purchase_document(document_id: int):
     return query_db(
         """
@@ -119,6 +122,7 @@ def get_purchase_document(document_id: int):
     )
 
 
+@db_task
 def list_purchase_document_lines(document_id: int):
     return query_db(
         """

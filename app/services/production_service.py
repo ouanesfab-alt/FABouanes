@@ -60,21 +60,40 @@ async def create_production_from_form(form):
     recipe_lines = []
     total_cost = 0.0
     total_recipe_qty = 0.0
+    # Filter valid raw IDs and quantities first
+    valid_inputs = []
     for raw_id, qty_str in zip(raw_ids, quantities):
         if not raw_id:
             continue
         qty = to_float(qty_str)
         if qty <= 0:
             continue
-        material = await query_db_async("SELECT * FROM raw_materials WHERE id = %s", (int(raw_id),), one=True)
-        if not material:
-            raise ValueError("Une matière première selectionnee est introuvable.")
-        if qty > float(material["stock_qty"]):
-            raise ValueError(f"Stock insuffisant pour {material['name']}.")
-        line_cost = qty * float(material["avg_cost"])
-        recipe_lines.append({"material": material, "qty": qty, "unit_cost": float(material["avg_cost"]), "line_cost": line_cost})
-        total_cost += line_cost
-        total_recipe_qty += qty
+        valid_inputs.append((int(raw_id), qty))
+    
+    recipe_lines = []
+    total_cost = 0.0
+    total_recipe_qty = 0.0
+    
+    if valid_inputs:
+        ids_to_query = [x[0] for x in valid_inputs]
+        # Query all materials in a single batch
+        materials_rows = await query_db_async(
+            "SELECT * FROM raw_materials WHERE id IN (" + ", ".join(["%s"] * len(ids_to_query)) + ")",
+            tuple(ids_to_query)
+        )
+        materials_map = {m["id"]: m for m in materials_rows}
+        
+        for raw_id, qty in valid_inputs:
+            material = materials_map.get(raw_id)
+            if not material:
+                raise ValueError("Une matière première selectionnee est introuvable.")
+            if qty > float(material["stock_qty"]):
+                raise ValueError(f"Stock insuffisant pour {material['name']}.")
+            line_cost = qty * float(material["avg_cost"])
+            recipe_lines.append({"material": material, "qty": qty, "unit_cost": float(material["avg_cost"]), "line_cost": line_cost})
+            total_cost += line_cost
+            total_recipe_qty += qty
+            
     if not recipe_lines:
         raise ValueError("Ajoute au moins une matière première dans la recette.")
 

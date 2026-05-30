@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.repositories.client_repository import async_compat
-from app.core.db_access import query_db
+from app.core.db_access import query_db, db_task
 from app.core.helpers import get_open_credit_entries
 
 @async_compat
@@ -13,6 +13,7 @@ async def payment_form_context():
     }
 
 
+@db_task
 def get_payment(payment_id: int):
     return query_db("SELECT * FROM payments WHERE id = %s", (payment_id,), one=True)
 async def list_payments(

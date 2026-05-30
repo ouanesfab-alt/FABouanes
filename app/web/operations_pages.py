@@ -43,7 +43,7 @@ async def operations_page(request: Request):
     if fmt in ("csv", "xlsx"):
         large_args = dict(request.query_params)
         large_args["page_size"] = 1000000
-        context = transactions_context(
+        context = await transactions_context(
             filter_type=str(request.query_params.get("type", "all") or "all"),
             filter_name=str(request.query_params.get("name", "") or ""),
             filter_date=str(request.query_params.get("date", "") or ""),
@@ -102,7 +102,7 @@ async def operations_page(request: Request):
                 headers={"Content-Disposition": f'attachment; filename="{filename}"'},
             )
 
-    context = transactions_context(
+    context = await transactions_context(
         filter_type=str(request.query_params.get("type", "all") or "all"),
         filter_name=str(request.query_params.get("name", "") or ""),
         filter_date=str(request.query_params.get("date", "") or ""),
@@ -186,7 +186,7 @@ async def edit_production_notes(request: Request):
     except ValueError:
         batch_id = 0
     try:
-        update_production_notes(
+        await update_production_notes(
             batch_id=batch_id,
             production_date=str(form.get("production_date", "") or "").strip(),
             notes=str(form.get("notes", "") or "").strip(),

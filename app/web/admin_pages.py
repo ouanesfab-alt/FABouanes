@@ -27,7 +27,7 @@ async def admin_panel_page(request: Request):
     denied = require_permission(request, PERMISSION_SETTINGS_MANAGE)
     if denied:
         return denied
-    context = get_admin_view_data(dict(request.query_params))
+    context = await get_admin_view_data(dict(request.query_params))
     return templates.TemplateResponse("admin.html", template_context(request, **context))
 
 
@@ -41,20 +41,20 @@ async def admin_panel_submit(request: Request):
     form = await request.form()
     action = form.get("action", "create_user")
     if action == "create_user":
-        result = create_user_account(form.get("username", ""), form.get("password", ""), form.get("role", "operator"))
+        result = await create_user_account(form.get("username", ""), form.get("password", ""), form.get("role", "operator"))
     elif action == "update_user":
-        result = update_user_account(
+        result = await update_user_account(
             int(form.get("user_id", "0") or 0),
             form.get("role", "operator"),
             form.get("is_active") == "1",
             form.get("new_password", ""),
         )
     elif action == "save_backup_settings":
-        result = save_backup_settings_from_form(dict(form))
+        result = await save_backup_settings_from_form(dict(form))
     elif action == "backup_now":
-        result = create_manual_backup()
+        result = await create_manual_backup()
     elif action == "restore_backup":
-        result = restore_backup_by_value(form.get("backup_name", ""))
+        result = await restore_backup_by_value(form.get("backup_name", ""))
     elif action == "database_maintenance":
         result = run_database_maintenance()
     else:
@@ -76,7 +76,7 @@ async def admin_audit_page(request: Request):
     denied = require_permission(request, PERMISSION_AUDIT_READ)
     if denied:
         return denied
-    context = get_admin_view_data(dict(request.query_params))
+    context = await get_admin_view_data(dict(request.query_params))
     return templates.TemplateResponse("admin.html", template_context(request, focus_section="audit", **context))
 
 
@@ -99,7 +99,7 @@ async def admin_system_status(request: Request):
     denied = require_permission(request, PERMISSION_SETTINGS_MANAGE)
     if denied:
         return denied
-    return templates.TemplateResponse("system_status.html", template_context(request, system_status=get_system_status()))
+    return templates.TemplateResponse("system_status.html", template_context(request, system_status=await get_system_status()))
 
 
 @router.get("/admin/system-status/export", name="admin_system_status_export")
@@ -109,7 +109,7 @@ async def admin_system_status_export(request: Request):
     if denied:
         return denied
     return Response(
-        content=export_diagnostic_report(),
+        content=await export_diagnostic_report(),
         media_type="application/json; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=diagnostic_report.json"},
     )

@@ -14,7 +14,8 @@ def cleanup_database():
     execute_db("DELETE FROM clients WHERE name IN ('Import Client New', 'Import Client Existing')")
 
 
-def test_import_client_nonexistent_id():
+@pytest.mark.asyncio
+async def test_import_client_nonexistent_id():
     mock_data = {
         "client_name": "Nonexistent Client",
         "solde_final": 0.0,
@@ -22,10 +23,11 @@ def test_import_client_nonexistent_id():
     }
     with patch("app.services.client_import_service.parse_client_history_excel", return_value=mock_data):
         with pytest.raises(ValueError, match="Le client spécifié.*n'existe pas"):
-            import_client_history_from_excel("dummy.xlsx", client_id=999999)
+            await import_client_history_from_excel("dummy.xlsx", client_id=999999)
 
 
-def test_import_client_new_client():
+@pytest.mark.asyncio
+async def test_import_client_new_client():
     mock_data = {
         "client_name": "Import Client New",
         "solde_final": 5000.0,
@@ -42,7 +44,7 @@ def test_import_client_new_client():
     }
 
     with patch("app.services.client_import_service.parse_client_history_excel", return_value=mock_data):
-        result = import_client_history_from_excel("dummy.xlsx", client_id=None)
+        result = await import_client_history_from_excel("dummy.xlsx", client_id=None)
         
         # Verify returned data
         assert result["client_name"] == "Import Client New"
@@ -64,7 +66,8 @@ def test_import_client_new_client():
         assert history[0]["source"] == "import_excel"
 
 
-def test_import_client_existing_client_force_reimport():
+@pytest.mark.asyncio
+async def test_import_client_existing_client_force_reimport():
     # 1. Manually insert client
     client_id = execute_db(
         "INSERT INTO clients (name, opening_credit) VALUES (%s, %s)",
@@ -97,7 +100,7 @@ def test_import_client_existing_client_force_reimport():
 
     with patch("app.services.client_import_service.parse_client_history_excel", return_value=mock_data):
         # Run with force_reimport=True
-        result = import_client_history_from_excel("dummy.xlsx", client_id=client_id, force_reimport=True)
+        result = await import_client_history_from_excel("dummy.xlsx", client_id=client_id, force_reimport=True)
         
         assert result["client_id"] == client_id
         assert result["solde_final"] == 2000.0
@@ -113,7 +116,8 @@ def test_import_client_existing_client_force_reimport():
         assert float(client["opening_credit"]) == 2000.0
 
 
-def test_import_client_existing_client_no_reimport_error():
+@pytest.mark.asyncio
+async def test_import_client_existing_client_no_reimport_error():
     # 1. Manually insert client
     client_id = execute_db(
         "INSERT INTO clients (name, opening_credit) VALUES (%s, %s)",
@@ -138,4 +142,4 @@ def test_import_client_existing_client_no_reimport_error():
     with patch("app.services.client_import_service.parse_client_history_excel", return_value=mock_data):
         # Run with force_reimport=False -> should raise ValueError
         with pytest.raises(ValueError, match="Un historique Excel importé existe déjà"):
-            import_client_history_from_excel("dummy.xlsx", client_id=client_id, force_reimport=False)
+            await import_client_history_from_excel("dummy.xlsx", client_id=client_id, force_reimport=False)

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from app.core.db_access import query_db
+from app.core.db_access import query_db, query_db_async, db_task
 from app.utils.pagination import paginated_rows, pagination_context, parse_pagination
 from app.services.recipe_service import load_saved_recipes
 
 
+@db_task
 def list_production_page_context(args=None):
     args = args or {}
     page, page_size, offset = parse_pagination(args)
@@ -61,11 +62,11 @@ from app.repositories.client_repository import async_compat
 
 @async_compat
 async def production_form_context():
-    raw_materials = query_db('SELECT * FROM raw_materials ORDER BY name')
+    raw_materials = await query_db_async('SELECT * FROM raw_materials ORDER BY name')
     return {
         'raw_materials': raw_materials,
         'raw_materials_json': [dict(r) for r in raw_materials],
-        'products': query_db('SELECT * FROM finished_products ORDER BY name'),
+        'products': await query_db_async('SELECT * FROM finished_products ORDER BY name'),
         'recipes': await load_saved_recipes(),
     }
 async def list_production_batches(

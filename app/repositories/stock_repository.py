@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from app.core.db_access import execute_db
+from app.core.db_access import execute_db, db_task
 
 
+@db_task
 def insert_stock_movement(
     item_kind: str,
     item_id: int,

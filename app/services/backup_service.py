@@ -13,7 +13,8 @@ import hashlib
 
 from app.core.config import APP_DATA_DIR, DATABASE_URL
 from app.core.audit import audit_event
-from app.core.db_access import execute_db, get_setting, query_db, set_setting
+import asyncio
+from app.core.db_access import execute_db_async, get_setting, query_db_async, set_setting
 from app.core.db import connect_database
 
 
@@ -56,17 +57,22 @@ def _event_backup_interval_seconds() -> int:
         return 600
 
 
-def get_backup_settings() -> dict[str, Any]:
+async def get_backup_settings() -> dict[str, Any]:
+    gdrive = await asyncio.to_thread(get_setting, "gdrive_backup_dir", "")
+    snapshot = await asyncio.to_thread(get_setting, "backup_snapshot_time", "02:00")
+    local_ret = await asyncio.to_thread(get_setting, "backup_local_retention", "30")
+    event_ret = await asyncio.to_thread(get_setting, "backup_event_retention", "100")
+    last_nightly = await asyncio.to_thread(get_setting, "backup_last_nightly_date", "")
     return {
-        "gdrive_backup_dir": get_setting("gdrive_backup_dir", ""),
-        "backup_snapshot_time": get_setting("backup_snapshot_time", "02:00"),
-        "backup_local_retention": int(get_setting("backup_local_retention", "30") or 30),
-        "backup_event_retention": int(get_setting("backup_event_retention", "100") or 100),
-        "backup_last_nightly_date": get_setting("backup_last_nightly_date", ""),
+        "gdrive_backup_dir": gdrive,
+        "backup_snapshot_time": snapshot,
+        "backup_local_retention": int(local_ret or 30),
+        "backup_event_retention": int(event_ret or 100),
+        "backup_last_nightly_date": last_nightly,
     }
 
 
-def save_backup_configuration(payload: dict[str, Any]) -> None:
+async def save_backup_configuration(payload: dict[str, Any]) -> None:
     fields = {
         "gdrive_backup_dir": str(payload.get("gdrive_backup_dir", "") or "").strip(),
         "backup_snapshot_time": str(payload.get("backup_snapshot_time", "02:00") or "02:00").strip(),
@@ -74,10 +80,10 @@ def save_backup_configuration(payload: dict[str, Any]) -> None:
         "backup_event_retention": str(payload.get("backup_event_retention", 100) or 100).strip(),
     }
     for key, value in fields.items():
-        set_setting(key, value)
+        await asyncio.to_thread(set_setting, key, value)
 
 
-def enqueue_backup_upload(
+async def enqueue_backup_upload(
     reason: str,
     backup_type: str,
     local_path: str | Path,
@@ -85,7 +91,7 @@ def enqueue_backup_upload(
     requested_by_user_id: int | None = None,
     meta: dict[str, Any] | None = None,
 ) -> int:
-    return execute_db(
+    return await execute_db_async(
         """
         INSERT INTO backup_jobs (
             reason,
@@ -107,14 +113,14 @@ def enqueue_backup_upload(
     )
 
 
-def enqueue_backup_snapshot(
+async def enqueue_backup_snapshot(
     reason: str,
     backup_type: str = "manual",
     *,
     requested_by_user_id: int | None = None,
     meta: dict[str, Any] | None = None,
 ) -> int:
-    return enqueue_backup_upload(
+    return await enqueue_backup_upload(
         reason,
         backup_type,
         BACKUP_CREATE_IN_WORKER,
@@ -123,8 +129,8 @@ def enqueue_backup_snapshot(
     )
 
 
-def list_backup_jobs(limit: int = 40):
-    return query_db(
+async def list_backup_jobs(limit: int = 40):
+    return await query_db_async(
         """
         SELECT bj.*,
                u.username AS requested_by_username
@@ -137,8 +143,8 @@ def list_backup_jobs(limit: int = 40):
     )
 
 
-def _record_backup_run(job_id: int, status: str, *, cloud_file_name: str = "", details: str = "") -> None:
-    execute_db(
+async def _record_backup_run(job_id: int, status: str, *, cloud_file_name: str = "", details: str = "") -> None:
+    await execute_db_async(
         """
         INSERT INTO backup_runs (job_id, status, cloud_file_id, cloud_file_name, details_json, started_at, finished_at)
         VALUES (%s, %s, '', %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -147,18 +153,18 @@ def _record_backup_run(job_id: int, status: str, *, cloud_file_name: str = "", d
     )
 
 
-def _retention_limit_for_type(backup_type: str) -> int:
-    settings = get_backup_settings()
+async def _retention_limit_for_type(backup_type: str) -> int:
+    settings = await get_backup_settings()
     return settings["backup_local_retention"] if backup_type == "nightly" else settings["backup_event_retention"]
 
 
-def _apply_retention_to_directory(directory: Path, backup_type: str) -> None:
+async def _apply_retention_to_directory(directory: Path, backup_type: str) -> None:
     # Gestion des extensions de sauvegarde (.sql.gz.enc, .sql.gz, .sql)
     all_files = []
     for pattern in ("*.sql.gz.enc", "*.sql.gz", "*.sql"):
         all_files.extend(directory.glob(pattern))
     files = sorted(set(all_files), key=lambda p: p.stat().st_mtime, reverse=True)
-    limit = _retention_limit_for_type(backup_type)
+    limit = await _retention_limit_for_type(backup_type)
     for old_file in files[limit:]:
         try:
             old_file.unlink()
@@ -166,19 +172,19 @@ def _apply_retention_to_directory(directory: Path, backup_type: str) -> None:
             pass
 
 
-def _apply_local_retention(backup_type: str) -> None:
+async def _apply_local_retention(backup_type: str) -> None:
     local_dir = APP_DATA_DIR / "backups" / "local"
-    _apply_retention_to_directory(local_dir, backup_type)
+    await _apply_retention_to_directory(local_dir, backup_type)
 
 
-def _mirror_backup_to_sync_folder(local_path: Path) -> tuple[str, str]:
+async def _mirror_backup_to_sync_folder(local_path: Path) -> tuple[str, str]:
     """
     Copie la sauvegarde dans le dossier Google Drive local (synchronisé).
     Note : ceci est une copie vers un dossier local synchronisé par le client
     Google Drive — ce n'est pas un upload direct vers l'API Google Drive.
     La disponibilité cloud dépend du client Drive étant installé et connecté.
     """
-    sync_folder_raw = get_backup_settings()["gdrive_backup_dir"]
+    sync_folder_raw = (await get_backup_settings())["gdrive_backup_dir"]
     if not sync_folder_raw:
         return "", "local-only"
     target_dir = Path(sync_folder_raw)
@@ -192,30 +198,30 @@ def _mirror_backup_to_sync_folder(local_path: Path) -> tuple[str, str]:
         ) as tmp:
             tmp_path = Path(tmp.name)
         try:
-            shutil.copy2(local_path, tmp_path)
-            tmp_path.replace(target)
+            await asyncio.to_thread(shutil.copy2, local_path, tmp_path)
+            await asyncio.to_thread(tmp_path.replace, target)
         except Exception:
             tmp_path.unlink(missing_ok=True)
             raise
     return local_path.name, "google-drive-folder"
 
 
-def _apply_sync_folder_retention(backup_type: str) -> None:
-    sync_folder_raw = get_backup_settings()["gdrive_backup_dir"]
+async def _apply_sync_folder_retention(backup_type: str) -> None:
+    sync_folder_raw = (await get_backup_settings())["gdrive_backup_dir"]
     if not sync_folder_raw:
         return
     target_dir = Path(sync_folder_raw)
     if not target_dir.exists():
         return
-    _apply_retention_to_directory(target_dir, backup_type)
+    await _apply_retention_to_directory(target_dir, backup_type)
 
 
-def run_pending_backup_jobs(limit: int = 3) -> int:
+async def run_pending_backup_jobs(limit: int = 3) -> int:
     with BACKGROUND_LOCK:
         BACKGROUND_STATE["last_run_ts"] = time.time()
     processed = 0
 
-    jobs = query_db(
+    jobs = await query_db_async(
         """
         SELECT *
         FROM backup_jobs
@@ -227,7 +233,7 @@ def run_pending_backup_jobs(limit: int = 3) -> int:
     )
     for job in jobs:
         processed += 1
-        execute_db("UPDATE backup_jobs SET status = 'running', started_at = CURRENT_TIMESTAMP WHERE id = %s", (job["id"],))
+        await execute_db_async("UPDATE backup_jobs SET status = 'running', started_at = CURRENT_TIMESTAMP WHERE id = %s", (job["id"],))
         sync_file_name = ""
         details = "local-only"
         try:
@@ -235,12 +241,12 @@ def run_pending_backup_jobs(limit: int = 3) -> int:
             if str(job["local_path"]) == BACKUP_CREATE_IN_WORKER:
                 from app.core.storage import capture_local_backup_snapshot
  
-                local_path = capture_local_backup_snapshot(str(job["reason"] or "manual"))
-                execute_db("UPDATE backup_jobs SET local_path = %s WHERE id = %s", (str(local_path), job["id"]))
+                local_path = await asyncio.to_thread(capture_local_backup_snapshot, str(job["reason"] or "manual"))
+                await execute_db_async("UPDATE backup_jobs SET local_path = %s WHERE id = %s", (str(local_path), job["id"]))
             if not local_path.exists():
                 raise FileNotFoundError(f"Sauvegarde locale introuvable: {local_path}")
-            checksum = _calculate_sha256(local_path)
-            sync_file_name, details = _mirror_backup_to_sync_folder(local_path)
+            checksum = await asyncio.to_thread(_calculate_sha256, local_path)
+            sync_file_name, details = await _mirror_backup_to_sync_folder(local_path)
             
             job_details = {
                 "sync_details": details,
@@ -249,7 +255,7 @@ def run_pending_backup_jobs(limit: int = 3) -> int:
                 "backup_type": str(job["backup_type"] or "event")
             }
             
-            execute_db(
+            await execute_db_async(
                 """
                 UPDATE backup_jobs
                 SET status = 'success',
@@ -262,15 +268,15 @@ def run_pending_backup_jobs(limit: int = 3) -> int:
                 """,
                 (sync_file_name, json.dumps(job_details), job["id"]),
             )
-            _record_backup_run(job["id"], "success", cloud_file_name=sync_file_name, details=json.dumps(job_details))
+            await _record_backup_run(job["id"], "success", cloud_file_name=sync_file_name, details=json.dumps(job_details))
             with BACKGROUND_LOCK:
                 BACKGROUND_STATE["last_backup_ts"] = time.time()
-            _apply_local_retention(str(job["backup_type"] or "event"))
+            await _apply_local_retention(str(job["backup_type"] or "event"))
 
-            _apply_sync_folder_retention(str(job["backup_type"] or "event"))
+            await _apply_sync_folder_retention(str(job["backup_type"] or "event"))
 
         except Exception as exc:
-            execute_db(
+            await execute_db_async(
                 """
                 UPDATE backup_jobs
                 SET status = 'failed',
@@ -280,19 +286,19 @@ def run_pending_backup_jobs(limit: int = 3) -> int:
                 """,
                 (str(exc), job["id"]),
             )
-            _record_backup_run(job["id"], "failed", details=str(exc))
+            await _record_backup_run(job["id"], "failed", details=str(exc))
             logger.exception("Backup job %s failed", job["id"])
     return processed
 
 
-def run_deferred_event_backup(*, force: bool = False, reason: str = "deferred_event") -> Path | None:
+async def run_deferred_event_backup(*, force: bool = False, reason: str = "deferred_event") -> Path | None:
     from app.core.storage import (
         capture_local_backup_snapshot,
         clear_backup_needed,
         get_pending_backup_marker,
     )
 
-    marker = get_pending_backup_marker()
+    marker = await asyncio.to_thread(get_pending_backup_marker)
     if not marker:
         return None
     marked_at_raw = str(marker.get("marked_at") or "")
@@ -307,8 +313,8 @@ def run_deferred_event_backup(*, force: bool = False, reason: str = "deferred_ev
         if age_seconds < _event_backup_interval_seconds():
             return None
 
-    backup_path = capture_local_backup_snapshot(reason)
-    enqueue_backup_upload(
+    backup_path = await asyncio.to_thread(capture_local_backup_snapshot, reason)
+    await enqueue_backup_upload(
         reason,
         "event",
         backup_path,
@@ -318,7 +324,7 @@ def run_deferred_event_backup(*, force: bool = False, reason: str = "deferred_ev
             "marked_at": marked_at_raw,
         },
     )
-    clear_backup_needed()
+    await asyncio.to_thread(clear_backup_needed)
     audit_event(
         action="backup_deferred_event",
         entity_type="backup",
@@ -348,8 +354,8 @@ def _acquire_postgres_scheduler_lock():
     return False
 
 
-def trigger_nightly_snapshot_if_due() -> bool:
-    settings = get_backup_settings()
+async def trigger_nightly_snapshot_if_due() -> bool:
+    settings = await get_backup_settings()
     snapshot_time = str(settings["backup_snapshot_time"] or "02:00")
     try:
         hour, minute = [int(part) for part in snapshot_time.split(":", 1)]
@@ -363,12 +369,12 @@ def trigger_nightly_snapshot_if_due() -> bool:
         return False
     from app.core.storage import capture_local_backup_snapshot
 
-    backup_path = capture_local_backup_snapshot("nightly_snapshot")
-    enqueue_backup_upload("nightly_snapshot", "nightly", backup_path, meta={"scheduled": True})
+    backup_path = await asyncio.to_thread(capture_local_backup_snapshot, "nightly_snapshot")
+    await enqueue_backup_upload("nightly_snapshot", "nightly", backup_path, meta={"scheduled": True})
     from app.core.storage import clear_backup_needed
 
-    clear_backup_needed()
-    set_setting("backup_last_nightly_date", today)
+    await asyncio.to_thread(clear_backup_needed)
+    await asyncio.to_thread(set_setting, "backup_last_nightly_date", today)
     audit_event(
         action="backup_schedule_run",
         entity_type="backup",
@@ -379,26 +385,27 @@ def trigger_nightly_snapshot_if_due() -> bool:
     return True
 
 
-def _purge_old_logs() -> None:
+async def _purge_old_logs() -> None:
     """Purge performance/error/system logs older than 7 days to prevent table bloat."""
     try:
-        from app.core.db_access import execute_db
+        from app.core.db_access import execute_db_async
         ALLOWED_LOG_TABLES = {"performance_logs", "error_logs", "system_logs"}
         for table in ("performance_logs", "error_logs", "system_logs"):
             if table not in ALLOWED_LOG_TABLES:
                 raise ValueError(f"Table {table} is not allowed for log purge")
-            execute_db(f"DELETE FROM {table} WHERE created_at < NOW() - INTERVAL '7 days'")
+            await execute_db_async(f"DELETE FROM {table} WHERE created_at < NOW() - INTERVAL '7 days'")
     except Exception:
         logger.debug("Log purge skipped (table may not exist yet)")
 
 
-def _weekly_vacuum() -> None:
+async def _weekly_vacuum() -> None:
     """Run VACUUM ANALYZE weekly to reclaim space and update statistics."""
     now = datetime.now()
     if now.weekday() != 6:  # Only run on Sunday
         return
     today = now.strftime("%Y-%m-%d")
-    if get_setting("last_vacuum_date", "") == today:
+    last_vacuum = await asyncio.to_thread(get_setting, "last_vacuum_date", "")
+    if last_vacuum == today:
         return
     if now.hour < 3: # Run after 3 AM
         return
@@ -414,12 +421,14 @@ def _weekly_vacuum() -> None:
         elif url.startswith("postgres://"):
             url = "postgresql+pg8000://" + url[len("postgres://"):]
             
-        engine = create_engine(url, isolation_level="AUTOCOMMIT")
-        with engine.connect() as conn:
-            conn.execute(text("VACUUM ANALYZE"))
-        engine.dispose()
-        
-        set_setting("last_vacuum_date", today)
+        def run_vacuum():
+            engine = create_engine(url, isolation_level="AUTOCOMMIT")
+            with engine.connect() as conn:
+                conn.execute(text("VACUUM ANALYZE"))
+            engine.dispose()
+            
+        await asyncio.to_thread(run_vacuum)
+        await asyncio.to_thread(set_setting, "last_vacuum_date", today)
         logger.info("Weekly VACUUM ANALYZE completed successfully.")
     except Exception as e:
         logger.warning("Weekly VACUUM ANALYZE failed: %s", e)
@@ -440,53 +449,77 @@ def _safe_run(task_name: str, func, *args, **kwargs) -> bool:
         return False
 
 
+async def _safe_run_async(task_name: str, func, *args, **kwargs) -> bool:
+    """Run an async background task, rolling back on error so PostgreSQL stays healthy."""
+    try:
+        await func(*args, **kwargs)
+        return True
+    except Exception:
+        logger.exception("Background task '%s' failed", task_name)
+        try:
+            from app.core.db_access import get_db
+            get_db().rollback()
+        except Exception:
+            pass
+        return False
+
+
 def _background_loop(app) -> None:
-    import random
-    consecutive_failures = 0
-    while True:
-        if _shutdown_requested():
-            logger.info("Scheduler: shutdown demandé, arrêt.")
-            break
-        success = True
-        success &= _safe_run("run_deferred_event_backup", run_deferred_event_backup)
-        success &= _safe_run("run_pending_backup_jobs", run_pending_backup_jobs, limit=4)
-        success &= _safe_run("trigger_nightly_snapshot_if_due", trigger_nightly_snapshot_if_due)
-        success &= _safe_run("purge_old_logs", _purge_old_logs)
-        success &= _safe_run("weekly_vacuum", _weekly_vacuum)
-        
-        # Log pool stats every ~15 minutes (20 loops of 45s)
-        with BACKGROUND_LOCK:
-            loop_counter = BACKGROUND_STATE.get("loop_counter", 0) + 1
-            BACKGROUND_STATE["loop_counter"] = loop_counter
-        if loop_counter % 20 == 0:
-            from app.core.db import postgres_pool_status
-            stats = postgres_pool_status(DATABASE_URL)
-            logger.debug("PG Pool status: %s", stats)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
-        # Call check_stock_alerts every 30 minutes (40 loops of 45s)
-        if loop_counter == 1 or loop_counter % 40 == 0:
-            from app.services.alert_service import check_stock_alerts
-            _safe_run("check_stock_alerts", check_stock_alerts)
-
-        with BACKGROUND_LOCK:
-            BACKGROUND_STATE["last_run_ts"] = time.time()
-        
-        if not success:
-            consecutive_failures += 1
-            sleep_time = min(300.0, 45.0 * (1.5 ** consecutive_failures) + random.uniform(0.0, 10.0))
-        else:
-            consecutive_failures = 0
-            sleep_time = 45.0
-            
-        # Incremental sleep to check shutdown_requested quickly
-        for _ in range(int(sleep_time)):
+    async def main_loop():
+        import random
+        consecutive_failures = 0
+        while True:
             if _shutdown_requested():
+                logger.info("Scheduler: shutdown demandé, arrêt.")
                 break
-            time.sleep(1.0)
-        else:
-            fraction = sleep_time - int(sleep_time)
-            if fraction > 0 and not _shutdown_requested():
-                time.sleep(fraction)
+            success = True
+            success &= await _safe_run_async("run_deferred_event_backup", run_deferred_event_backup)
+            success &= await _safe_run_async("run_pending_backup_jobs", run_pending_backup_jobs, limit=4)
+            success &= await _safe_run_async("trigger_nightly_snapshot_if_due", trigger_nightly_snapshot_if_due)
+            success &= await _safe_run_async("purge_old_logs", _purge_old_logs)
+            success &= await _safe_run_async("weekly_vacuum", _weekly_vacuum)
+            
+            # Log pool stats every ~15 minutes (20 loops of 45s)
+            with BACKGROUND_LOCK:
+                loop_counter = BACKGROUND_STATE.get("loop_counter", 0) + 1
+                BACKGROUND_STATE["loop_counter"] = loop_counter
+            if loop_counter % 20 == 0:
+                from app.core.db import postgres_pool_status
+                stats = postgres_pool_status(DATABASE_URL)
+                logger.debug("PG Pool status: %s", stats)
+
+            # Call check_stock_alerts every 30 minutes (40 loops of 45s)
+            if loop_counter == 1 or loop_counter % 40 == 0:
+                from app.services.alert_service import check_stock_alerts
+                _safe_run("check_stock_alerts", check_stock_alerts)
+
+            with BACKGROUND_LOCK:
+                BACKGROUND_STATE["last_run_ts"] = time.time()
+            
+            if not success:
+                consecutive_failures += 1
+                sleep_time = min(300.0, 45.0 * (1.5 ** consecutive_failures) + random.uniform(0.0, 10.0))
+            else:
+                consecutive_failures = 0
+                sleep_time = 45.0
+                
+            # Incremental sleep to check shutdown_requested quickly
+            for _ in range(int(sleep_time)):
+                if _shutdown_requested():
+                    break
+                await asyncio.sleep(1.0)
+            else:
+                fraction = sleep_time - int(sleep_time)
+                if fraction > 0 and not _shutdown_requested():
+                    await asyncio.sleep(fraction)
+
+    try:
+        loop.run_until_complete(main_loop())
+    finally:
+        loop.close()
 
 
 def start_background_services(app=None) -> None:

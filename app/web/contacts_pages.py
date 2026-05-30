@@ -34,7 +34,7 @@ async def contacts_page(request: Request):
     filter_name = request.query_params.get("name", "")
     return templates.TemplateResponse(
         "contacts.html",
-        template_context(request, **contacts_context(filter_type, filter_name, request.query_params, request.url.path)),
+        template_context(request, **await contacts_context(filter_type, filter_name, request.query_params, request.url.path)),
     )
 
 
@@ -57,7 +57,7 @@ async def suppliers_submit(request: Request):
         from app.schemas.supplier_validation import SupplierValidationSchema
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
-        create_supplier_from_form(validated.model_dump())
+        await create_supplier_from_form(validated.model_dump())
         flash(request, "Fournisseur ajouté avec succès.", "success")
     except Exception as e:
         from app.core.exceptions import get_friendly_error_message
@@ -106,7 +106,7 @@ async def new_supplier_submit(request: Request):
         from app.schemas.supplier_validation import SupplierValidationSchema
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
-        create_supplier_from_form(validated.model_dump())
+        await create_supplier_from_form(validated.model_dump())
         flash(request, "Fournisseur ajouté avec succès.", "success")
     except Exception as e:
         from app.core.exceptions import get_friendly_error_message
@@ -129,7 +129,7 @@ async def supplier_detail(request: Request, supplier_id: int):
     denied = require_permission(request, PERMISSION_CONTACTS_READ)
     if denied:
         return denied
-    context = get_supplier_detail_context(supplier_id, request.query_params, request.url.path)
+    context = await get_supplier_detail_context(supplier_id, request.query_params, request.url.path)
     if not context:
         flash(request, "Fournisseur introuvable.", "danger")
         return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
@@ -149,7 +149,7 @@ async def edit_supplier_page(request: Request, supplier_id: int):
     denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
     if denied:
         return denied
-    supplier = get_supplier(supplier_id)
+    supplier = await get_supplier(supplier_id)
     if not supplier:
         flash(request, "Fournisseur introuvable.", "danger")
         return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
@@ -163,7 +163,7 @@ async def edit_supplier_submit(request: Request, supplier_id: int):
     if denied:
         return denied
     await csrf_protect(request)
-    supplier = get_supplier(supplier_id)
+    supplier = await get_supplier(supplier_id)
     if not supplier:
         flash(request, "Fournisseur introuvable.", "danger")
         return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
@@ -172,7 +172,7 @@ async def edit_supplier_submit(request: Request, supplier_id: int):
         from app.schemas.supplier_validation import SupplierValidationSchema
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
-        update_supplier_from_form(supplier_id, validated.model_dump())
+        await update_supplier_from_form(supplier_id, validated.model_dump())
         flash(request, "Fournisseur modifié.", "success")
     except Exception as e:
         from app.core.exceptions import get_friendly_error_message
@@ -189,10 +189,10 @@ async def delete_supplier(request: Request, supplier_id: int):
     if denied:
         return denied
     await csrf_protect(request)
-    supplier = get_supplier(supplier_id)
+    supplier = await get_supplier(supplier_id)
     if not supplier:
         flash(request, "Fournisseur introuvable.", "danger")
         return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
-    delete_supplier_by_id(supplier_id)
+    await delete_supplier_by_id(supplier_id)
     flash(request, "Fournisseur supprimé.", "success")
     return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)

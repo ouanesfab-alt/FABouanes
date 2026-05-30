@@ -5,7 +5,8 @@ from fastapi.testclient import TestClient
 from app.core.db_access import execute_db
 
 
-def test_alerts_api_endpoints(client: TestClient, api_headers):
+@pytest.mark.asyncio
+async def test_alerts_api_endpoints(client: TestClient, api_headers):
     # 1. Clean alerts and products
     execute_db("DELETE FROM stock_alerts")
     execute_db("DELETE FROM raw_materials WHERE name = %s", ("API Alert RM",))
@@ -18,7 +19,7 @@ def test_alerts_api_endpoints(client: TestClient, api_headers):
     
     # Run alert checks
     from app.services.alert_service import check_stock_alerts
-    check_stock_alerts()
+    await check_stock_alerts()
     
     # 3. Retrieve alerts via API
     response = client.get("/api/v1/alerts", headers=api_headers)

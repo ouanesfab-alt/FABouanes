@@ -1,6 +1,6 @@
-from __future__ import annotations
-from app.core.db_access import get_db
+from app.core.db_access import get_db, db_task
 
+@db_task
 def next_doc_number(doc_type: str, year: int) -> str:
     """
     doc_type : 'BV' (bon de vente) | 'BA' (bon d'achat)

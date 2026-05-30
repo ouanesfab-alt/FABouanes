@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 from app.utils.pagination import paginate_sequence
-from app.core.perf_cache import cached_result
+from app.core.perf_cache import async_cached_result
 from app.core.activity import log_activity
 from app.core.audit import audit_event
-from app.core.db_access import execute_db, query_db
+from app.core.db_access import execute_db_async, query_db_async
 from app.core.storage import backup_database
 
 
-def contacts_context(filter_type: str = "all", filter_name: str = "", args=None, path: str = "/contacts") -> dict:
+async def contacts_context(filter_type: str = "all", filter_name: str = "", args=None, path: str = "/contacts") -> dict:
     normalized_type = (filter_type or "all").strip().lower() or "all"
     normalized_name = (filter_name or "").strip().lower()
-    base = cached_result(
+    base = await async_cached_result(
         ("contacts_context", normalized_type, normalized_name),
         lambda: _build_contacts_context(normalized_type, normalized_name, filter_name or ""),
         ttl_seconds=6.0,
@@ -24,8 +24,8 @@ def contacts_context(filter_type: str = "all", filter_name: str = "", args=None,
     }
 
 
-def _build_contacts_context(filter_type: str, filter_name: str, raw_filter_name: str) -> dict:
-    rows = query_db(
+async def _build_contacts_context(filter_type: str, filter_name: str, raw_filter_name: str) -> dict:
+    rows = await query_db_async(
         """
         SELECT * FROM (
             SELECT 'Client' AS contact_type, c.id, c.name, c.phone, c.address, c.notes,
@@ -66,9 +66,9 @@ def _build_contacts_context(filter_type: str, filter_name: str, raw_filter_name:
     }
 
 
-def create_supplier_from_form(form) -> int:
+async def create_supplier_from_form(form) -> int:
     name = str(form["name"]).strip()
-    supplier_id = execute_db(
+    supplier_id = await execute_db_async(
         "INSERT INTO suppliers (name, phone, address, notes) VALUES (%s, %s, %s, %s)",
         (
             name,
@@ -77,20 +77,20 @@ def create_supplier_from_form(form) -> int:
             str(form.get("notes", "")).strip(),
         ),
     )
-    created = get_supplier(supplier_id)
+    created = await get_supplier(supplier_id)
     log_activity("create_supplier", "supplier", supplier_id, name)
     audit_event("create_supplier", "supplier", supplier_id, after=created)
     backup_database("create_supplier")
     return supplier_id
 
 
-def get_supplier(supplier_id: int):
-    return query_db("SELECT * FROM suppliers WHERE id = %s", (supplier_id,), one=True)
+async def get_supplier(supplier_id: int):
+    return await query_db_async("SELECT * FROM suppliers WHERE id = %s", (supplier_id,), one=True)
 
 
-def update_supplier_from_form(supplier_id: int, form) -> None:
-    before = get_supplier(supplier_id)
-    execute_db(
+async def update_supplier_from_form(supplier_id: int, form) -> None:
+    before = await get_supplier(supplier_id)
+    await execute_db_async(
         "UPDATE suppliers SET name = %s, phone = %s, address = %s, notes = %s WHERE id = %s",
         (
             str(form["name"]).strip(),
@@ -100,22 +100,22 @@ def update_supplier_from_form(supplier_id: int, form) -> None:
             supplier_id,
         ),
     )
-    updated = get_supplier(supplier_id)
+    updated = await get_supplier(supplier_id)
     log_activity("update_supplier", "supplier", supplier_id, str(form["name"]).strip())
     audit_event("update_supplier", "supplier", supplier_id, before=before, after=updated)
     backup_database("update_supplier")
 
 
-def delete_supplier_by_id(supplier_id: int) -> None:
-    before = get_supplier(supplier_id)
-    execute_db("DELETE FROM suppliers WHERE id = %s", (supplier_id,))
+async def delete_supplier_by_id(supplier_id: int) -> None:
+    before = await get_supplier(supplier_id)
+    await execute_db_async("DELETE FROM suppliers WHERE id = %s", (supplier_id,))
     log_activity("delete_supplier", "supplier", supplier_id, "Suppression fournisseur")
     audit_event("delete_supplier", "supplier", supplier_id, before=before, after=None)
     backup_database("delete_supplier")
 
 
-def get_supplier_detail_context(supplier_id: int, args=None, path: str | None = None) -> dict | None:
-    base = cached_result(("supplier_detail_context", int(supplier_id)), lambda: _build_supplier_detail_context(supplier_id), ttl_seconds=6.0)
+async def get_supplier_detail_context(supplier_id: int, args=None, path: str | None = None) -> dict | None:
+    base = await async_cached_result(("supplier_detail_context", int(supplier_id)), lambda: _build_supplier_detail_context(supplier_id), ttl_seconds=6.0)
     if not base:
         return None
     purchases, pagination = paginate_sequence(list(base["purchases"]), args or {}, path or f"/contacts/suppliers/{supplier_id}")
@@ -126,11 +126,11 @@ def get_supplier_detail_context(supplier_id: int, args=None, path: str | None = 
     }
 
 
-def _build_supplier_detail_context(supplier_id: int) -> dict | None:
-    supplier = get_supplier(supplier_id)
+async def _build_supplier_detail_context(supplier_id: int) -> dict | None:
+    supplier = await get_supplier(supplier_id)
     if not supplier:
         return None
-    purchases_rows = query_db(
+    purchases_rows = await query_db_async(
         """
         SELECT p.id, p.document_id, p.purchase_date AS event_date,
                COALESCE(NULLIF(p.custom_item_name, ''), r.name) AS designation,

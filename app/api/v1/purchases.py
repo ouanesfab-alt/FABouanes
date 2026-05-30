@@ -25,9 +25,9 @@ router = APIRouter(prefix="/api/v1", tags=["purchases"])
 async def api_purchases(request: Request):
     require_api_user(request, PERMISSION_OPERATIONS_WRITE if request.method == "POST" else PERMISSION_OPERATIONS_READ)
     if request.method == "POST":
-        created = await asyncio.to_thread(create_purchase_from_form, payload_to_form_data(await request.json()))
+        created = await create_purchase_from_form(payload_to_form_data(await request.json()))
         if created["mode"] == "line":
-            payload = {"mode": "line", "purchase": await asyncio.to_thread(purchase_payload, int(created["print_item_id"]))}
+            payload = {"mode": "line", "purchase": await purchase_payload(int(created["print_item_id"]))}
 
         else:
             payload = {
@@ -68,7 +68,7 @@ async def api_purchase_detail(request: Request, purchase_id: int):
         "DELETE": PERMISSION_OPERATIONS_DELETE,
     }[request.method]
     require_api_user(request, permission)
-    purchase = await asyncio.to_thread(purchase_payload, purchase_id)
+    purchase = await purchase_payload(purchase_id)
     if not purchase:
         api_error("not_found", "Achat introuvable.", 404)
     if request.method == "PUT":
@@ -80,7 +80,7 @@ async def api_purchase_detail(request: Request, purchase_id: int):
                 {"document_id": int(purchase["document_id"])},
             )
         try:
-            result = await asyncio.to_thread(edit_purchase_from_form, purchase_id, payload_to_form_data(await request.json()))
+            result = await edit_purchase_from_form(purchase_id, payload_to_form_data(await request.json()))
         except ValueError as exc:
             api_error("purchase_update_invalid", str(exc), 400)
         if result["mode"] == "document":
@@ -89,13 +89,13 @@ async def api_purchase_detail(request: Request, purchase_id: int):
                     {
                         "mode": "document",
                         "document_id": int(result["document_id"]),
-                        "document": await asyncio.to_thread(purchase_document_payload, int(result["document_id"])),
+                        "document": await purchase_document_payload(int(result["document_id"])),
                     }
                 )
             )
-        purchase = await asyncio.to_thread(purchase_payload, int(result["print_item_id"]))
+        purchase = await purchase_payload(int(result["print_item_id"]))
     elif request.method == "DELETE":
-        if not await asyncio.to_thread(delete_purchase_by_id, purchase_id):
+        if not await delete_purchase_by_id(purchase_id):
             api_error("conflict", "Suppression impossible.", 409)
         return json_response(api_success({"deleted": True}))
     res_data = api_success(purchase)
@@ -109,15 +109,15 @@ async def api_purchase_detail(request: Request, purchase_id: int):
 @router.api_route("/purchase-documents/{document_id}", methods=["GET", "PUT"])
 async def api_purchase_document_detail(request: Request, document_id: int):
     require_api_user(request, PERMISSION_OPERATIONS_WRITE if request.method == "PUT" else PERMISSION_OPERATIONS_READ)
-    document = await asyncio.to_thread(purchase_document_payload, document_id)
+    document = await purchase_document_payload(document_id)
     if not document:
         api_error("not_found", "Bon d'achat introuvable.", 404)
     if request.method == "PUT":
         try:
-            await asyncio.to_thread(edit_purchase_document_from_form, document_id, payload_to_form_data(await request.json()))
+            await edit_purchase_document_from_form(document_id, payload_to_form_data(await request.json()))
         except ValueError as exc:
             api_error("purchase_document_invalid", str(exc), 400)
-        document = await asyncio.to_thread(purchase_document_payload, document_id)
+        document = await purchase_document_payload(document_id)
     res_data = api_success(document)
     response = json_response(res_data)
     if request.method == "GET":

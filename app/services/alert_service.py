@@ -1,14 +1,6 @@
-"""
-Service d'alertes clients — détecte les clients en retard de paiement.
-Lancé quotidiennement par APScheduler via app/core/events.py.
-"""
-# Choix importants :
-# 1. Utilisation d'une requête SQL PostgreSQL pure avec DATE_PART pour calculer l'inactivité en jours.
-# 2. Diffusion instantanée des alertes en mode synchrone via manager.broadcast_sync pour intégration avec APScheduler.
-
 from __future__ import annotations
 from datetime import date, timedelta
-from app.core.db_access import query_db, db_transaction
+from app.core.db_access import query_db_async, execute_db_async, db_transaction
 from app.core.websockets import manager
 import json, logging
 
@@ -17,13 +9,13 @@ logger = logging.getLogger("fabouanes.alerts")
 DEFAULT_OVERDUE_DAYS = 30
 
 
-def check_overdue_clients(overdue_days: int = DEFAULT_OVERDUE_DAYS) -> list[dict]:
+async def check_overdue_clients(overdue_days: int = DEFAULT_OVERDUE_DAYS) -> list[dict]:
     """
     Retourne les clients avec balance > 0 et aucune opération
     depuis plus de `overdue_days` jours.
     """
     cutoff = (date.today() - timedelta(days=overdue_days)).isoformat()
-    return query_db(
+    return await query_db_async(
         """
         SELECT
             c.id, c.name, c.current_balance AS balance,
@@ -42,7 +34,7 @@ def check_overdue_clients(overdue_days: int = DEFAULT_OVERDUE_DAYS) -> list[dict
     )
 
 
-def broadcast_overdue_alerts() -> int:
+async def broadcast_overdue_alerts() -> int:
     """
     Vérifie les clients en retard et diffuse une alerte WebSocket.
     Retourne le nombre de clients en retard détectés.
@@ -51,12 +43,12 @@ def broadcast_overdue_alerts() -> int:
     with db_transaction():
         # Essaye d'obtenir un verrou consultatif transactionnel (advisory lock)
         # pour éviter les exécutions multiples concurrentes (par exemple avec plusieurs workers Gunicorn)
-        locked_row = query_db("SELECT pg_try_advisory_xact_lock(48216732) AS locked", one=True)
+        locked_row = await query_db_async("SELECT pg_try_advisory_xact_lock(48216732) AS locked", one=True)
         if not locked_row or not locked_row["locked"]:
             logger.info("Verrou consultatif déjà détenu par un autre worker. Tâche ignorée.")
             return 0
 
-        overdue = check_overdue_clients()
+        overdue = await check_overdue_clients()
         if overdue:
             payload = json.dumps({
                 "type": "overdue_alert",
@@ -73,29 +65,27 @@ def broadcast_overdue_alerts() -> int:
         return len(overdue)
 
 
-def check_stock_alerts() -> None:
+async def check_stock_alerts() -> None:
     """Vérifie le stock de matières premières et de produits finis par rapport au seuil."""
-    from app.core.db_access import query_db
     
     # Matières premières
-    raws = query_db(
+    raws = await query_db_async(
         "SELECT id, name, stock_qty, alert_threshold FROM raw_materials WHERE stock_qty <= alert_threshold AND alert_threshold > 0"
     )
     for row in raws:
-        _trigger_alert("raw_material", int(row["id"]), row["name"], row["stock_qty"], row["alert_threshold"])
+        await _trigger_alert("raw_material", int(row["id"]), row["name"], row["stock_qty"], row["alert_threshold"])
         
     # Produits finis
-    products = query_db(
+    products = await query_db_async(
         "SELECT id, name, stock_qty, alert_threshold FROM finished_products WHERE stock_qty <= alert_threshold AND alert_threshold > 0"
     )
     for row in products:
-        _trigger_alert("finished_product", int(row["id"]), row["name"], row["stock_qty"], row["alert_threshold"])
+        await _trigger_alert("finished_product", int(row["id"]), row["name"], row["stock_qty"], row["alert_threshold"])
 
 
-def _trigger_alert(product_type: str, product_id: int, name: str, current_qty: float, threshold_qty: float) -> None:
-    from app.core.db_access import query_db, execute_db
+async def _trigger_alert(product_type: str, product_id: int, name: str, current_qty: float, threshold_qty: float) -> None:
     # Éviter les doublons dans les dernières 24h
-    duplicate = query_db(
+    duplicate = await query_db_async(
         """
         SELECT id FROM stock_alerts
         WHERE product_type = %s AND product_id = %s
@@ -109,7 +99,7 @@ def _trigger_alert(product_type: str, product_id: int, name: str, current_qty: f
     if duplicate:
         return
         
-    execute_db(
+    await execute_db_async(
         """
         INSERT INTO stock_alerts (product_type, product_id, product_name, current_qty, threshold_qty, triggered_at)
         VALUES (%s, %s, %s, %s, %s, NOW())

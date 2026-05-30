@@ -7,7 +7,8 @@ from pathlib import Path
 from app.core.config import APP_DATA_DIR, DATABASE_URL
 from app.core.db import connect_database, postgres_pool_status
 from app.core.activity import write_text_log
-from app.core.db_access import execute_db, explain_query_plan, get_db, query_db
+import asyncio
+from app.core.db_access import execute_db_async, explain_query_plan, get_db, query_db_async
 from app.core.storage import LOCAL_BACKUP_DIR, LOG_DIR, get_pending_backup_marker, list_restore_backups
 from app.version import VERSION_LABEL
 
@@ -16,28 +17,29 @@ def _ok_status(ok: bool) -> str:
     return "OK" if ok else "Attention"
 
 
-def get_system_status() -> dict:
+async def get_system_status() -> dict:
     db_ok = False
     db_message = ""
     try:
-        query_db("SELECT 1", (), one=True)
+        await query_db_async("SELECT 1", (), one=True)
         db_ok = True
         db_message = "Connexion base disponible"
     except Exception as exc:
         db_message = str(exc)
 
     backups = list_restore_backups()
-    latest_job = query_db("SELECT * FROM backup_jobs ORDER BY id DESC LIMIT 1", (), one=True)
+    latest_job = await query_db_async("SELECT * FROM backup_jobs ORDER BY id DESC LIMIT 1", (), one=True)
     index_count = 0
     plan_lines: list[str] = []
     try:
-        index_row = query_db(
+        index_row = await query_db_async(
             "SELECT COUNT(*) AS c FROM pg_indexes WHERE schemaname = current_schema() AND indexname LIKE 'idx_%'",
             (),
             one=True,
         )
         index_count = int(index_row["c"] if index_row else 0)
-        for row in explain_query_plan("SELECT id, name FROM clients ORDER BY name LIMIT 50"):
+        query_plan = await asyncio.to_thread(explain_query_plan, "SELECT id, name FROM clients ORDER BY name LIMIT 50")
+        for row in query_plan:
             row_dict = dict(row) if hasattr(row, "keys") else {}
             detail = row_dict.get("detail") or row_dict.get("plan") or next(iter(row_dict.values()), "") or str(row)
             plan_lines.append(str(detail))
@@ -50,7 +52,7 @@ def get_system_status() -> dict:
     log_dir = Path(LOG_DIR)
     latest_backup_file = next(iter(sorted(backup_dir.glob("*.sql"), reverse=True)), None) if backup_dir.exists() else None
     from app.services.backup_service import BACKGROUND_STATE
-    write_status = _probe_db_write()
+    write_status = await _probe_db_write()
     backup_write_status = _probe_dir_write(backup_dir)
     return {
         "version": VERSION_LABEL,
@@ -109,9 +111,9 @@ def _probe_dir_write(path: Path) -> dict:
         return {"ok": False, "status": "Erreur", "message": str(exc)}
 
 
-def _probe_db_write() -> dict:
+async def _probe_db_write() -> dict:
     try:
-        execute_db(
+        await execute_db_async(
             """
             INSERT INTO app_settings (key, value, updated_at)
             VALUES (%s, %s, CURRENT_TIMESTAMP)
@@ -132,8 +134,8 @@ def _rollback_current_db() -> None:
         pass
 
 
-def export_diagnostic_report() -> str:
-    status = get_system_status()
+async def export_diagnostic_report() -> str:
+    status = await get_system_status()
     return json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True)
 
 

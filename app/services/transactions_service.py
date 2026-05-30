@@ -8,11 +8,11 @@ from app.utils.pagination import (
 )
 from app.core.activity import log_activity
 from app.core.audit import audit_event
-from app.core.db_access import execute_db, query_db
+from app.core.db_access import execute_db_async, query_db_async
 from app.core.storage import backup_database
 
 
-def transactions_context(
+async def transactions_context(
     filter_type: str = "all",
     filter_name: str = "",
     filter_date: str = "",
@@ -157,7 +157,9 @@ def transactions_context(
     page, page_size, offset = parse_pagination(args)
     if requested_size > MAX_PAGE_SIZE:
         page_size = requested_size
-    rows, total = paginated_rows(query_db, full_query, tuple(params), page=page, page_size=page_size, offset=offset)
+    count_row = await query_db_async(f"SELECT COUNT(*) AS c FROM ({full_query}) paginated_query", tuple(params), one=True)
+    total = int(count_row["c"] if count_row else 0)
+    rows = await query_db_async(f"{full_query} LIMIT %s OFFSET %s", tuple(params) + (page_size, offset))
     
     formatted_rows = []
     for row in rows:
@@ -183,10 +185,10 @@ def transactions_context(
     }
 
 
-def update_production_notes(batch_id: int, production_date: str, notes: str) -> None:
+async def update_production_notes(batch_id: int, production_date: str, notes: str) -> None:
     if not batch_id:
         raise ValueError("Identifiant manquant.")
-    before = query_db("SELECT * FROM production_batches WHERE id = %s", (batch_id,), one=True)
+    before = await query_db_async("SELECT * FROM production_batches WHERE id = %s", (batch_id,), one=True)
     if not before:
         raise ValueError("Production introuvable.")
     updates = {}
@@ -201,8 +203,8 @@ def update_production_notes(batch_id: int, production_date: str, notes: str) -> 
 
     sets = ", ".join(f"{key}=%s" for key in updates)
     values = list(updates.values()) + [batch_id]
-    execute_db(f"UPDATE production_batches SET {sets} WHERE id = %s", tuple(values))
-    after = query_db("SELECT * FROM production_batches WHERE id = %s", (batch_id,), one=True)
+    await execute_db_async(f"UPDATE production_batches SET {sets} WHERE id = %s", tuple(values))
+    after = await query_db_async("SELECT * FROM production_batches WHERE id = %s", (batch_id,), one=True)
     log_activity("edit_production_notes", "production", batch_id, f"date={production_date}")
     audit_event("edit_production_notes", "production", batch_id, before=before, after=after)
     backup_database("edit_production_notes")

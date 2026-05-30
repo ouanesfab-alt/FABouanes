@@ -203,7 +203,7 @@ def test_dashboard_refresh_debounce():
     mock_redis.set.side_effect = [True, None, None]
     
     with patch("redis.from_url", return_value=mock_redis), \
-         patch("app.core.db_access.execute_db") as mock_execute:
+         patch("app.repositories.dashboard_repository.execute_db") as mock_execute:
          
          # Call 1
          refresh_client_balances_view()

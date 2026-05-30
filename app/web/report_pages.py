@@ -87,7 +87,7 @@ async def pdf_reader(request: Request):
     legacy_file = str(request.query_params.get("file", "") or "").strip()
     if legacy_file and not selected_key:
         selected_key = f"pdf:{legacy_file}"
-    documents = list_bon_space_documents(q=q, kind=kind)
+    documents = await list_bon_space_documents(q=q, kind=kind)
     selected = find_bon_space_document(documents, selected_key)
     missing_doc_key = selected_key if selected_key and selected is None else ""
     return templates.TemplateResponse(

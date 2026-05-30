@@ -12,7 +12,6 @@ from app.api.v1.form_parsers import (
 
 from app.api.v1.query_builders import (
     pagination_meta,
-    query_list,
     query_list_async,
     like_value,
     append_text_search,

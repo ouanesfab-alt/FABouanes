@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import datetime
 
-from app.core.db_access import query_db
+from app.core.db_access import query_db_async
+
 
 
 ACTION_LABELS = {
@@ -118,7 +119,7 @@ def _filters(filters: Mapping[str, str] | None) -> dict[str, str]:
     }
 
 
-def list_admin_activity(filters: Mapping[str, str] | None = None, *, limit: int = 80) -> list[dict]:
+async def list_admin_activity(filters: Mapping[str, str] | None = None, *, limit: int = 80) -> list[dict]:
     normalized = _filters(filters)
     where: list[str] = []
     params: list[object] = []
@@ -149,7 +150,7 @@ def list_admin_activity(filters: Mapping[str, str] | None = None, *, limit: int 
     if where:
         query += " WHERE " + " AND ".join(where)
     query += " ORDER BY id DESC LIMIT %s"
-    rows = query_db(query, tuple(params + [max(1, int(limit))]))
+    rows = await query_db_async(query, tuple(params + [max(1, int(limit))]))
     return [_decorate_activity(row) for row in rows]
 
 
@@ -157,11 +158,11 @@ def activity_filter_values(filters: Mapping[str, str] | None = None) -> dict[str
     return _filters(filters)
 
 
-def list_activity_actions() -> list[str]:
-    rows = query_db("SELECT DISTINCT action FROM activity_logs ORDER BY action")
+async def list_activity_actions() -> list[str]:
+    rows = await query_db_async("SELECT DISTINCT action FROM activity_logs ORDER BY action")
     return [str(row["action"]) for row in rows if row["action"]]
 
 
-def list_activity_entity_types() -> list[str]:
-    rows = query_db("SELECT DISTINCT entity_type FROM activity_logs WHERE COALESCE(entity_type, '') <> '' ORDER BY entity_type")
+async def list_activity_entity_types() -> list[str]:
+    rows = await query_db_async("SELECT DISTINCT entity_type FROM activity_logs WHERE COALESCE(entity_type, '') <> '' ORDER BY entity_type")
     return [str(row["entity_type"]) for row in rows if row["entity_type"]]

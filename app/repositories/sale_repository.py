@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.core.db_access import query_db, query_db_async
+from app.core.db_access import db_task, query_db, query_db_async
 from app.core.perf_cache import cached_result, invalidate_cache_domain
 
 def _is_other_operation_item(name: str | None) -> bool:
@@ -42,6 +42,7 @@ def _load_sellable_items():
         })
     return items
 
+@db_task
 def build_sellable_items():
     from app.core.perf_cache import TTL_SEMI_STABLE
     return cached_result(("sales_sellable_items",), _load_sellable_items, ttl_seconds=TTL_SEMI_STABLE)
@@ -110,6 +111,7 @@ async def list_sales(
     return [dict(r) for r in rows], total
 
 
+@db_task
 def get_sale(kind: str, row_id: int):
     if kind == "finished":
         return query_db("""
@@ -128,10 +130,12 @@ def get_sale(kind: str, row_id: int):
         JOIN raw_materials r ON r.id = rs.raw_material_id
         WHERE rs.id = %s
     """, (row_id,), one=True)
+@db_task
 def get_sale_document(document_id: int):
     return query_db("SELECT * FROM sale_documents WHERE id = %s", (document_id,), one=True)
 
 
+@db_task
 def list_sale_document_lines(document_id: int):
     return query_db(
         """

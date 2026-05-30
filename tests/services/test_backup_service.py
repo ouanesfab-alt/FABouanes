@@ -5,6 +5,7 @@ import time
 import os
 from pathlib import Path
 from unittest.mock import patch
+import pytest
 
 from app.services.backup_service import (
     _calculate_sha256,
@@ -33,23 +34,25 @@ def test_calculate_sha256():
         temp_path.unlink()
 
 
-def test_backup_configuration():
+@pytest.mark.asyncio
+async def test_backup_configuration():
     payload = {
         "gdrive_backup_dir": "/tmp/test_gdrive",
         "backup_snapshot_time": "04:30",
         "backup_local_retention": 15,
         "backup_event_retention": 45,
     }
-    save_backup_configuration(payload)
+    await save_backup_configuration(payload)
     
-    settings = get_backup_settings()
+    settings = await get_backup_settings()
     assert settings["gdrive_backup_dir"] == "/tmp/test_gdrive"
     assert settings["backup_snapshot_time"] == "04:30"
     assert settings["backup_local_retention"] == 15
     assert settings["backup_event_retention"] == 45
 
 
-def test_apply_retention_to_directory():
+@pytest.mark.asyncio
+async def test_apply_retention_to_directory():
     with tempfile.TemporaryDirectory() as tmpdir:
         dir_path = Path(tmpdir)
         files = []
@@ -60,7 +63,7 @@ def test_apply_retention_to_directory():
             files.append(p)
         
         with patch("app.services.backup_service._retention_limit_for_type", return_value=3):
-            _apply_retention_to_directory(dir_path, "event")
+            await _apply_retention_to_directory(dir_path, "event")
             
         remaining = list(dir_path.glob("*.sql.gz"))
         assert len(remaining) == 3
@@ -72,7 +75,8 @@ def test_apply_retention_to_directory():
         assert "backup_4.sql.gz" in remaining_names
 
 
-def test_backup_jobs_queuing_and_execution():
+@pytest.mark.asyncio
+async def test_backup_jobs_queuing_and_execution():
     execute_db("DELETE FROM backup_jobs")
     execute_db("DELETE FROM backup_runs")
     
@@ -81,17 +85,17 @@ def test_backup_jobs_queuing_and_execution():
         tmp_path = Path(tmp.name)
         
     try:
-        job_id = enqueue_backup_upload(
+        job_id = await enqueue_backup_upload(
             reason="test manually",
             backup_type="manual",
             local_path=tmp_path
         )
         assert job_id > 0
         
-        jobs_list = list_backup_jobs(limit=10)
+        jobs_list = await list_backup_jobs(limit=10)
         assert len(jobs_list) >= 1
         
-        processed = run_pending_backup_jobs(limit=1)
+        processed = await run_pending_backup_jobs(limit=1)
         assert processed == 1
         
         rows = query_db("SELECT status, cloud_file_name FROM backup_jobs WHERE id = %s", (job_id,))
@@ -105,9 +109,10 @@ def test_backup_jobs_queuing_and_execution():
         tmp_path.unlink()
 
 
-def test_enqueue_backup_snapshot():
+@pytest.mark.asyncio
+async def test_enqueue_backup_snapshot():
     execute_db("DELETE FROM backup_jobs")
-    job_id = enqueue_backup_snapshot("Nightly Auto", "nightly")
+    job_id = await enqueue_backup_snapshot("Nightly Auto", "nightly")
     assert job_id > 0
     job = query_db("SELECT * FROM backup_jobs WHERE id = %s", (job_id,), one=True)
     assert job["reason"] == "Nightly Auto"
@@ -115,5 +120,6 @@ def test_enqueue_backup_snapshot():
     assert job["status"] == "pending"
 
 
-def test_purge_old_logs():
-    _purge_old_logs()
+@pytest.mark.asyncio
+async def test_purge_old_logs():
+    await _purge_old_logs()

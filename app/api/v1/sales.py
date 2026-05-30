@@ -37,7 +37,7 @@ router = APIRouter(prefix="/api/v1", tags=["sales"])
 @router.get("/sellable-items")
 async def api_sellable_items(request: Request):
     require_api_user(request, PERMISSION_CATALOG_READ)
-    res_data = await asyncio.to_thread(filtered_sellable_items, request)
+    res_data = await filtered_sellable_items(request)
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=30)
     return response
@@ -51,18 +51,17 @@ async def api_sales(request: Request):
         payload = await request.json()
         client_id = payload.get("client_id")
         if client_id:
-            client_exists = await asyncio.to_thread(query_db, "SELECT id FROM clients WHERE id = %s", (client_id,), one=True)
+            client_exists = await query_db_async("SELECT id FROM clients WHERE id = %s", (client_id,), one=True)
             if not client_exists:
                 api_error("not_found", f"Client introuvable (ID: {client_id})", 404)
         
-        created = await asyncio.to_thread(create_sale_from_form, payload_to_form_data(payload))
+        created = await create_sale_from_form(payload_to_form_data(payload))
 
         if created["mode"] == "line":
             payload = {
                 "mode": "line",
                 "kind": created["first_line_kind"],
-                "sale": await asyncio.to_thread(sale_payload, created["first_line_kind"], int(created["first_line_id"])),
-
+                "sale": await sale_payload(created["first_line_kind"], int(created["first_line_id"])),
             }
         else:
             payload = {
@@ -105,7 +104,7 @@ async def api_sale_detail(request: Request, kind: str, row_id: int):
         "DELETE": PERMISSION_OPERATIONS_DELETE,
     }[request.method]
     require_api_user(request, permission)
-    sale = await asyncio.to_thread(sale_payload, kind, row_id)
+    sale = await sale_payload(kind, row_id)
     if not sale:
         api_error("not_found", "Vente introuvable.", 404)
     if request.method == "PUT":
@@ -117,7 +116,7 @@ async def api_sale_detail(request: Request, kind: str, row_id: int):
                 {"document_id": int(sale["document_id"])},
             )
         try:
-            result = await asyncio.to_thread(edit_sale_from_form, kind, row_id, payload_to_form_data(await request.json()))
+            result = await edit_sale_from_form(kind, row_id, payload_to_form_data(await request.json()))
         except ValueError as exc:
             if "versements" in str(exc).lower():
                 api_error("document_has_payments", str(exc), 409)
@@ -128,13 +127,13 @@ async def api_sale_detail(request: Request, kind: str, row_id: int):
                     {
                         "mode": "document",
                         "document_id": int(result["document_id"]),
-                        "document": await asyncio.to_thread(sale_document_payload, int(result["document_id"])),
+                        "document": await sale_document_payload(int(result["document_id"])),
                     }
                 )
             )
-        sale = (await asyncio.to_thread(sale_payload, result["first_line_kind"], int(result["first_line_id"]))) or sale
+        sale = (await sale_payload(result["first_line_kind"], int(result["first_line_id"]))) or sale
     elif request.method == "DELETE":
-        if not await asyncio.to_thread(delete_sale_by_id, kind, row_id):
+        if not await delete_sale_by_id(kind, row_id):
             api_error("conflict", "Suppression impossible.", 409)
         return json_response(api_success({"deleted": True}))
     res_data = api_success(sale)
@@ -147,17 +146,17 @@ async def api_sale_detail(request: Request, kind: str, row_id: int):
 @router.api_route("/sale-documents/{document_id}", methods=["GET", "PUT"])
 async def api_sale_document_detail(request: Request, document_id: int):
     require_api_user(request, PERMISSION_OPERATIONS_WRITE if request.method == "PUT" else PERMISSION_OPERATIONS_READ)
-    document = await asyncio.to_thread(sale_document_payload, document_id)
+    document = await sale_document_payload(document_id)
     if not document:
         api_error("not_found", "Facture introuvable.", 404)
     if request.method == "PUT":
         try:
-            await asyncio.to_thread(edit_sale_document_from_form, document_id, payload_to_form_data(await request.json()))
+            await edit_sale_document_from_form(document_id, payload_to_form_data(await request.json()))
         except ValueError as exc:
             if "versements" in str(exc).lower():
                 api_error("document_has_payments", str(exc), 409, {"document_id": document_id})
             api_error("sale_document_invalid", str(exc), 400)
-        document = await asyncio.to_thread(sale_document_payload, document_id)
+        document = await sale_document_payload(document_id)
     res_data = api_success(document)
     response = json_response(res_data)
     if request.method == "GET":

@@ -22,7 +22,7 @@ from app.repositories.client_repository import async_compat
 
 @async_compat
 async def sale_form_context():
-    items = await asyncio.to_thread(build_sellable_items)
+    items = await build_sellable_items.async_()
     return {"sellable_items": items, "units": unit_choices()}
 
 
@@ -96,7 +96,7 @@ async def _insert_sale_document(document_id, client_id, sale_type: str, sale_dat
         year = int(sale_date.split("-")[0])
     except Exception:
         year = date.today().year
-    doc_number = await asyncio.to_thread(next_doc_number, "BV", year)
+    doc_number = await next_doc_number.async_("BV", year)
 
     if document_id:
         await execute_db_async(
@@ -190,10 +190,10 @@ async def _client_payment_rows(client_id: int | None):
 
 
 async def sale_document_has_linked_payments(document_id: int) -> bool:
-    document = await asyncio.to_thread(get_sale_document, document_id)
+    document = await get_sale_document.async_(document_id)
     if not document or not document["client_id"]:
         return False
-    lines = await asyncio.to_thread(list_sale_document_lines, document_id)
+    lines = await list_sale_document_lines.async_(document_id)
     refs = _sale_refs(lines)
     if not refs:
         return False
@@ -215,10 +215,10 @@ async def sale_line_has_linked_payments(kind: str, row_id: int, client_id) -> bo
 
 @async_compat
 async def get_sale_document_context(document_id: int):
-    document = await asyncio.to_thread(get_sale_document, document_id)
+    document = await get_sale_document.async_(document_id)
     if not document:
         return None
-    lines = await asyncio.to_thread(list_sale_document_lines, document_id)
+    lines = await list_sale_document_lines.async_(document_id)
     has_linked = await sale_document_has_linked_payments(document_id)
     return {
         "sale_document": dict(document),
@@ -229,7 +229,7 @@ async def get_sale_document_context(document_id: int):
 
 @async_compat
 async def get_sale_edit_context(kind: str, row_id: int):
-    sale = await asyncio.to_thread(get_sale, kind, row_id)
+    sale = await get_sale.async_(kind, row_id)
     if not sale:
         return None
     if sale["document_id"]:
@@ -290,10 +290,10 @@ async def create_sale_from_form(form):
             0 if client_id else float(line["quantity"]) * float(line["unit_price"]),
             custom_item_name=str(line["custom_item_name"]),
         )
-        created = await asyncio.to_thread(get_sale, created_kind, created_sale_id)
+        created = await get_sale.async_(created_kind, created_sale_id)
         log_activity("create_sale", "sale", created_sale_id, f"{line['item_kind']} #{line['item_id']} qty={line['quantity']} {line['unit']}")
         audit_event("create_sale", "sale", created_sale_id, after=created, meta={"kind": created_kind})
-        await asyncio.to_thread(invalidate_sellable_items_cache)
+        invalidate_sellable_items_cache()
         mark_backup_needed("create_sale")
         return {
             "mode": "line",
@@ -329,7 +329,7 @@ async def create_sale_from_form(form):
     created = await query_db_async("SELECT * FROM sale_documents WHERE id = %s", (document_id,), one=True)
     log_activity("create_sale_document", "sale_document", document_id, f"{len(lines)} ligne(s)")
     audit_event("create_sale_document", "sale_document", document_id, after=created, meta={"line_count": len(lines)})
-    await asyncio.to_thread(invalidate_sellable_items_cache)
+    invalidate_sellable_items_cache()
     mark_backup_needed("create_sale_document")
     return {
         "mode": "document",
@@ -406,7 +406,7 @@ async def edit_sale_document_from_form(document_id: int, form):
         after={"document": after_context["sale_document"], "lines": after_context["sale_lines"]} if after_context else None,
         meta={"line_count": len(lines)},
     )
-    await asyncio.to_thread(invalidate_sellable_items_cache)
+    invalidate_sellable_items_cache()
     mark_backup_needed("update_sale_document")
     return {
         "mode": "document",
@@ -421,7 +421,7 @@ async def edit_sale_document_from_form(document_id: int, form):
 
 @async_compat
 async def edit_sale_from_form(kind: str, row_id: int, form):
-    before = await asyncio.to_thread(get_sale, kind, row_id)
+    before = await get_sale.async_(kind, row_id)
     if not before:
         raise NotFoundError("Vente", f"{kind}:{row_id}")
     if before["document_id"]:
@@ -470,7 +470,7 @@ async def edit_sale_from_form(kind: str, row_id: int, form):
             after=created,
             meta={"line_count": len(lines), "promoted_from_row_id": row_id},
         )
-        await asyncio.to_thread(invalidate_sellable_items_cache)
+        invalidate_sellable_items_cache()
         mark_backup_needed("update_sale_document")
         return {
             "mode": "document",
@@ -500,10 +500,10 @@ async def edit_sale_from_form(kind: str, row_id: int, form):
             custom_item_name=str(line["custom_item_name"]),
         )
 
-    after = await asyncio.to_thread(get_sale, new_kind, new_sale_id)
+    after = await get_sale.async_(new_kind, new_sale_id)
     log_activity("update_sale", "sale", row_id, f"{line['item_kind']} #{line['item_id']} qty={line['quantity']} {line['unit']}")
     audit_event("update_sale", "sale", row_id, before=before, after=after, meta={"kind": new_kind, "document_id": None})
-    await asyncio.to_thread(invalidate_sellable_items_cache)
+    invalidate_sellable_items_cache()
     mark_backup_needed("update_sale")
     return {
         "mode": "line",
@@ -518,13 +518,13 @@ async def edit_sale_from_form(kind: str, row_id: int, form):
 
 @async_compat
 async def delete_sale_by_id(kind: str, row_id: int) -> bool:
-    before = await asyncio.to_thread(get_sale, kind, row_id)
+    before = await get_sale.async_(kind, row_id)
     if before:
         audit_delete_event("sale", row_id, dict(before))
     ok = await reverse_sale(kind, row_id)
     if ok:
         log_activity("delete_sale", "sale", row_id, f"Suppression vente {kind}")
         audit_event("delete_sale", "sale", row_id, before=before, after=None, meta={"kind": kind})
-        await asyncio.to_thread(invalidate_sellable_items_cache)
+        invalidate_sellable_items_cache()
         mark_backup_needed("delete_sale")
     return ok

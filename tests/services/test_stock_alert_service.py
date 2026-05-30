@@ -9,7 +9,8 @@ from app.services.alert_service import (
 from app.core.db_access import execute_db, query_db
 
 
-def test_stock_alerts_behavior():
+@pytest.mark.asyncio
+async def test_stock_alerts_behavior():
     # Clean existing stock_alerts
     execute_db("DELETE FROM stock_alerts")
     execute_db("DELETE FROM raw_materials WHERE name = %s", ("Alert Test RM",))
@@ -34,7 +35,7 @@ def test_stock_alerts_behavior():
     )
     
     # Run alert checking service
-    check_stock_alerts()
+    await check_stock_alerts()
     
     # Query generated alerts
     alerts = query_db("SELECT * FROM stock_alerts ORDER BY triggered_at DESC")
@@ -52,7 +53,7 @@ def test_stock_alerts_behavior():
     assert float(fp_alert["threshold_qty"]) == 5.0
     
     # 4. Check duplicate prevention: running it again within 24h should NOT add new unacknowledged alert for the same product
-    check_stock_alerts()
+    await check_stock_alerts()
     alerts_after = query_db("SELECT * FROM stock_alerts")
     assert len(alerts_after) == 2
     
@@ -62,7 +63,8 @@ def test_stock_alerts_behavior():
     execute_db("DELETE FROM finished_products WHERE name = %s", ("Alert Test FP",))
 
 
-def test_overdue_clients_behavior():
+@pytest.mark.asyncio
+async def test_overdue_clients_behavior():
     execute_db("DELETE FROM clients WHERE name = %s", ("Overdue Client Test",))
     
     # Insert client with positive balance
@@ -71,11 +73,11 @@ def test_overdue_clients_behavior():
         ("Overdue Client Test", "0550000000", "", "", 100.0)
     )
     
-    overdue = check_overdue_clients(overdue_days=-1)
+    overdue = await check_overdue_clients(overdue_days=-1)
     assert len(overdue) >= 1
     
     # broadcast
-    count = broadcast_overdue_alerts()
+    count = await broadcast_overdue_alerts()
     assert count >= 0
     
     # Clean up

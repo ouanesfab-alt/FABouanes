@@ -60,8 +60,7 @@ async def import_excel_task(ctx: dict[str, Any], file_path: str, client_id: int 
     from app.services.client_import_service import import_client_history_from_excel
     await update_task_progress(job_id, 50, "Insertion et rapprochement en base de données...")
     
-    # Run blocking file import in threadpool
-    result = await asyncio.to_thread(import_client_history_from_excel, file_path, client_id, force_reimport)
+    result = await import_client_history_from_excel(file_path, client_id, force_reimport)
     
     await update_task_progress(job_id, 100, f"Import terminé. {result.get('nb_lignes', 0)} lignes insérées.")
     

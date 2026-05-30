@@ -130,7 +130,7 @@ async def mobile_refresh(request: Request):
     payload = decode_token(str(refresh_token))
     if payload.get("type") != "refresh":
         raise HTTPException(401, "Refresh token requis")
-    user = await asyncio.to_thread(get_user_by_id, int(payload["sub"]))
+    user = await get_user_by_id.async_(int(payload["sub"]))
     if not user:
         raise HTTPException(401, "Utilisateur introuvable")
     return {
@@ -149,9 +149,7 @@ async def mobile_list_clients(
     user_id: int = Depends(get_current_user_id),
 ):
     """Liste les clients avec leur solde actuel. Paginé."""
-    clients, total = await asyncio.to_thread(
-        list_clients_with_balance, q, page, page_size
-    )
+    clients, total = await list_clients_with_balance(q, page, page_size)
     res_data = {"clients": clients, "total": total,
             "page": page, "page_size": page_size}
     add_cache_headers(request, response, res_data, max_age=300)
@@ -168,9 +166,7 @@ async def mobile_client_history(
     user_id: int = Depends(get_current_user_id),
 ):
     """Historique complet d'un client (Zone 1 + Zone 2), paginé."""
-    rows, total = await asyncio.to_thread(
-        _fetch_client_history, client_id, page, page_size
-    )
+    rows, total = await _fetch_client_history(client_id, page, page_size)
     res_data = {"rows": rows, "total": total, "page": page}
     add_cache_headers(request, response, res_data, max_age=30)
     return res_data
@@ -208,9 +204,7 @@ async def mobile_dashboard_summary(
     user_id: int = Depends(get_current_user_id),
 ):
     """Résumé du jour : ventes, encaissements, créances totales."""
-    snapshot = await asyncio.to_thread(
-        get_dashboard_snapshot, date.today().isoformat()
-    )
+    snapshot = await get_dashboard_snapshot.async_(date.today().isoformat())
     res_data = {
         "sales_today": snapshot["sales_today"],
         "cash_today": snapshot["cash_today"],

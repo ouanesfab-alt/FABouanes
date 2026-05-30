@@ -83,7 +83,8 @@ class TestEdgeCases:
             assert rows[1]["montant_achat"] == 4000.0
             assert rows[1]["montant_verse"] == 4000.0
 
-    def test_reimport_deletes_old_import_excel_rows(self, client):
+    @pytest.mark.asyncio
+    async def test_reimport_deletes_old_import_excel_rows(self, client):
         """
         force_reimport=True supprime les anciennes lignes source='import_excel'
         mais PRESERVE les lignes source='app'.
@@ -124,7 +125,7 @@ class TestEdgeCases:
         }
 
         with patch("app.services.client_import_service.parse_client_history_excel", return_value=mock_data):
-            import_client_history_from_excel("dummy_reimport.xlsx", client_id=client_id, force_reimport=True)
+            await import_client_history_from_excel("dummy_reimport.xlsx", client_id=client_id, force_reimport=True)
 
         # 4. Vérifier que l'ancien 'import_excel' a été supprimé, le nouveau ajouté, et le 'app' préservé
         rows = query_db("SELECT * FROM client_history WHERE client_id = %s ORDER BY id", (client_id,))
