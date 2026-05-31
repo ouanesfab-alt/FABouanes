@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException, Response, Depends
 import asyncio
+from sqlalchemy import select, union_all, func, case, literal_column, text, table
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_error, api_success, require_api_user
@@ -21,6 +22,7 @@ from app.core.activity import log_activity
 from app.core.audit import audit_event
 from app.core.db_access import execute_db_async, query_db_async
 from app.core.async_db import get_async_session
+from app.core.models import Client, ClientHistory, Sale, RawSale, Payment
 
 from app.modules.clients.service import ClientService
 from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
@@ -70,33 +72,35 @@ async def api_create_client(request: Request, db: AsyncSession = Depends(get_asy
     return json_response(api_success(await client_payload(client.id), status_code=201))
 
 @router.get("/clients/export")
-async def export_clients_csv(request: Request):
+async def export_clients_csv(request: Request, db: AsyncSession = Depends(get_async_session)):
     """
     Exporte tous les clients avec solde, total achats, total versements,
     dernière opération. Format CSV téléchargeable.
     """
     require_api_user(request, PERMISSION_CONTACTS_READ)
-    # Choix importants :
-    # 1. Requête SQL pure optimisée avec agrégations pour éviter les requêtes par lot.
-    # 2. Utilisation de Response de FastAPI pour renvoyer des données binaires (CSV encodé UTF-8 avec BOM pour Excel).
     import csv, io
     from datetime import date
     async def _build_export():
-        rows = await query_db_async("""
-            SELECT
-                c.id, c.name,
-                c.current_balance AS balance,
-                c.total_sales AS total_achats,
-                c.total_payments AS total_verses,
-                (SELECT MAX(d) FROM (
-                    SELECT MAX(sale_date) AS d FROM sales WHERE client_id = c.id
-                    UNION ALL
-                    SELECT MAX(sale_date) AS d FROM raw_sales WHERE client_id = c.id
-                 ) t) AS derniere_vente,
-                (SELECT MAX(payment_date) FROM payments WHERE client_id = c.id) AS dernier_paiement
-            FROM clients_with_stats c
-            ORDER BY c.current_balance DESC
-        """)
+        sub_sales = select(func.max(Sale.sale_date).label("d")).where(Sale.client_id == Client.id)
+        sub_raw_sales = select(func.max(RawSale.sale_date).label("d")).where(RawSale.client_id == Client.id)
+        union_sales = union_all(sub_sales, sub_raw_sales).subquery()
+        derniere_vente_expr = select(func.max(union_sales.c.d)).scalar_subquery()
+
+        dernier_paiement_expr = select(func.max(Payment.payment_date)).where(Payment.client_id == Client.id).scalar_subquery()
+
+        stmt = select(
+            literal_column("id"),
+            literal_column("name"),
+            literal_column("current_balance").label("balance"),
+            literal_column("total_sales").label("total_achats"),
+            literal_column("total_payments").label("total_verses"),
+            derniere_vente_expr.label("derniere_vente"),
+            dernier_paiement_expr.label("dernier_paiement")
+        ).select_from(table("clients_with_stats").alias("c")).order_by(literal_column("current_balance").desc())
+        
+        res = await db.execute(stmt)
+        rows = [dict(row._mapping) for row in res.fetchall()]
+        
         buf = io.StringIO()
         writer = csv.DictWriter(buf, fieldnames=[
             "id", "nom", "solde_actuel",
@@ -169,54 +173,36 @@ async def api_shred_client(request: Request, client_id: int, db: AsyncSession = 
     audit_event("shred_client", "client", client_id, before=before_dump, after=after_client.model_dump() if after_client else None)
     return json_response(api_success({"shredded": True}))
 
-async def _fetch_client_history(client_id: int, page: int, page_size: int) -> tuple[list, int]:
+async def _fetch_client_history(client_id: int, page: int, page_size: int, db: AsyncSession) -> tuple[list, int]:
     # 1. Fetch total count first
-    count_row = await query_db_async(
-        "SELECT COUNT(*) AS cnt FROM client_history WHERE client_id = %s",
-        (client_id,),
-        one=True,
-    )
-    total = int(count_row["cnt"] if count_row else 0)
+    count_stmt = select(func.count(ClientHistory.id)).where(ClientHistory.client_id == client_id)
+    total = (await db.execute(count_stmt)).scalar_one()
     if total == 0:
         return [], 0
 
     # 2. Fetch only the paginated slice
     offset = (page - 1) * page_size
-    rows = await query_db_async(
-        """
-        SELECT
-            id,
-            operation_date,
-            designation,
-            montant_achat,
-            montant_verse,
-            solde_cumule,
-            ordre_import,
-            source,
-            created_at
-        FROM client_history
-        WHERE client_id = %s
-        ORDER BY
-            CASE WHEN source = 'import_excel' THEN 0 ELSE 1 END,
-            CASE WHEN source = 'import_excel' THEN ordre_import ELSE NULL END,
-            CASE WHEN source = 'app'          THEN operation_date ELSE NULL END,
-            CASE WHEN source = 'app'          THEN id             ELSE NULL END
-        LIMIT %s OFFSET %s
-        """,
-        (client_id, page_size, offset),
-    )
+    stmt = select(ClientHistory).where(ClientHistory.client_id == client_id).order_by(
+        case((ClientHistory.source == 'import_excel', 0), else_=1),
+        case((ClientHistory.source == 'import_excel', ClientHistory.ordre_import), else_=None),
+        case((ClientHistory.source == 'app', ClientHistory.operation_date), else_=None),
+        case((ClientHistory.source == 'app', ClientHistory.id), else_=None)
+    ).offset(offset).limit(page_size)
+    
+    res = await db.execute(stmt)
+    rows = res.scalars().all()
     
     # 3. Process only the paginated rows
     processed_rows = []
     
     for r in rows:
-        m_achat = float(r["montant_achat"] or 0)
-        m_verse = float(r["montant_verse"] or 0)
-        solde = float(r["solde_cumule"] or 0)
+        m_achat = float(r.montant_achat or 0)
+        m_verse = float(r.montant_verse or 0)
+        solde = float(r.solde_cumule or 0)
             
-        designation = r["designation"] or ""
-        ordre = r["ordre_import"] or 0
-        if r["source"] == "import_excel" and ordre == 0 and "ancien" in designation.lower():
+        designation = r.designation or ""
+        ordre = r.ordre_import or 0
+        if r.source == "import_excel" and ordre == 0 and "ancien" in designation.lower():
             type_op = "ouverture"
         elif m_achat > 0 and m_verse == 0:
             type_op = "achat"
@@ -231,15 +217,15 @@ async def _fetch_client_history(client_id: int, page: int, page_size: int) -> tu
             type_op = "achat"
             
         processed_rows.append({
-            "operation_date": str(r["operation_date"]),
+            "operation_date": str(r.operation_date),
             "designation": designation,
             "montant_achat": m_achat,
             "montant_verse": m_verse,
             "solde_cumule": round(solde, 2),
             "ordre_import": int(ordre),
-            "source": r["source"],
+            "source": r.source,
             "type_operation": type_op,
-            "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
         })
         
     return processed_rows, total
@@ -289,15 +275,16 @@ async def api_client_history(
     client_id: int,
     page: int = 1,
     page_size: int = 50,
+    db: AsyncSession = Depends(get_async_session)
 ):
     require_api_user(request, PERMISSION_CONTACTS_READ)
-    client_exists = await query_db_async("SELECT 1 FROM clients WHERE id = %s", (client_id,), one=True)
+    client_exists = (await db.execute(select(1).select_from(Client).where(Client.id == client_id))).scalar()
     if not client_exists:
         api_error("not_found", "Client introuvable.", 404)
 
     page = max(page, 1)
     page_size = min(max(page_size, 1), 100)
-    rows, total = await _fetch_client_history(client_id, page, page_size)
+    rows, total = await _fetch_client_history(client_id, page, page_size, db)
     import math
     total_pages = math.ceil(total / page_size) if page_size > 0 else 1
     

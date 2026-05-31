@@ -981,38 +981,6 @@ class TestModuleBase:
 
 
 # =============================================================================
-# 14. app.services.platform_service
-# =============================================================================
-
-class TestPlatformService:
-    def test_is_desktop(self):
-        from app.services.platform_service import PlatformService
-        with patch("app.services.platform_service.settings") as s:
-            s.desktop_mode = True
-            assert PlatformService.is_desktop() is True
-            s.desktop_mode = False
-            assert PlatformService.is_desktop() is False
-
-    def test_is_server(self):
-        from app.services.platform_service import PlatformService
-        with patch("app.services.platform_service.settings") as s:
-            s.desktop_mode = False
-            assert PlatformService.is_server() is True
-            s.desktop_mode = True
-            assert PlatformService.is_server() is False
-
-    def test_should_apply_strict_csp(self):
-        from app.services.platform_service import PlatformService
-        with patch("app.services.platform_service.settings") as s:
-            s.strict_csp = True; s.desktop_mode = False
-            assert PlatformService.should_apply_strict_csp() is True
-            s.desktop_mode = True
-            assert PlatformService.should_apply_strict_csp() is False
-            s.strict_csp = False; s.desktop_mode = False
-            assert PlatformService.should_apply_strict_csp() is False
-
-
-# =============================================================================
 # 15. app.core.events
 # =============================================================================
 

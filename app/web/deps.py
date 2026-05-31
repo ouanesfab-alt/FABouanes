@@ -304,19 +304,18 @@ def require_permission(request: Request, permission: str):
     return None
 
 
-from app.services.platform_service import platform
-
 def template_context(request: Request, **context: Any) -> dict[str, Any]:
     csrf_token = ensure_csrf_token(request)
     proxy = TemplateRequestProxy(request)
     user = current_user_ns(request)
     from app.core.request_state import get_state_value
+    from app.core.config import settings
     csp_nonce = get_state_value("csp_nonce") or ""
     return {
         "request": proxy,
         "raw_request": request,
         "csrf_token": csrf_token,
-        "is_desktop_app": platform.is_desktop(),
+        "is_desktop_app": settings.desktop_mode,
         "g": SimpleNamespace(user=user),
         "csp_nonce": csp_nonce,
         **context,

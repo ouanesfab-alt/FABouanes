@@ -8,7 +8,7 @@ from time import time
 from typing import Any, Dict, List, Optional, Tuple
 from werkzeug.utils import secure_filename
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select, delete, func, literal, literal_column, or_
+from sqlmodel import select, delete, func, literal, literal_column
 
 from app.core.models import Client, ClientKey, ClientHistory
 from app.core.events import DomainEvent, emit

@@ -282,4 +282,18 @@ class ClientKey(SQLModel, table=True):
     encryption_key: str
 
 
+class StockAlert(SQLModel, table=True):
+    __tablename__ = "stock_alerts"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    product_type: str
+    product_id: int
+    product_name: str
+    current_qty: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    threshold_qty: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    triggered_at: datetime = Field(default_factory=datetime.utcnow)
+    acknowledged_at: Optional[datetime] = Field(default=None)
+
+
+
 

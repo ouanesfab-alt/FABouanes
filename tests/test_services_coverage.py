@@ -282,7 +282,7 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = ()):
 
 
     # 10. Open credit entries / Union / client history
-    if "item_kind" in q or "union all" in q or "client_history" in q:
+    if "union all" in q or "client_history" in q:
         cols = [("item_kind",), ("id",), ("client_id",), ("client_name",), ("item_name",), ("balance_due",), ("sale_date",), ("total",), ("document_id",), ("c",)]
         rows = [("finished", 1, 1, "Client Dupont", "Product X", 100.0, "2026-05-31", 100.0, 1, 1)]
         return cols, rows
@@ -291,6 +291,26 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = ()):
     if "users" in q or "user" in q:
         cols = [("id",), ("username",), ("password_hash",), ("role",), ("must_change_password",), ("is_active",), ("last_login_at",), ("last_password_change_at",), ("created_at",)]
         rows = [(1, "admin", generate_password_hash("pin"), "admin", 0, 1, datetime.now(), datetime.now(), datetime.now())]
+        return cols, rows
+
+    # 14. Sales / Purchases
+    if ("sale" in q and "sale_price" not in q) or "purchase" in q or "document" in q:
+        cols = [
+            ("id",), ("client_id",), ("supplier_id",), ("amount",), ("sale_date",), 
+            ("purchase_date",), ("notes",), ("client_name",), ("supplier_name",), 
+            ("doc_number",), ("total",), ("amount_paid",), ("balance_due",), ("qty",), 
+            ("unit",), ("unit_price",), ("total_price",), ("item_kind",), ("item_id",), 
+            ("sale_type",), ("sale_kind",), ("total_amount",), ("document_id",),
+            ("row_kind",), ("item_name",), ("item_key",), ("material_name",), ("material_unit",)
+        ]
+        rows = [(
+            1, 1, 1, 300.0, "2026-05-31", 
+            "2026-05-31", "", "Client Dupont", "Fournisseur A", 
+            "V-2026-0001", 300.0, 100.0, 200.0, 10.0, 
+            "kg", 30.0, 300.0, "finished", 1, 
+            "credit", "finished", 300.0, 1,
+            "finished", "Product X", "finished:1", "Raw Mat Y", "kg"
+        )]
         return cols, rows
 
     # 12. Clients / client
@@ -309,12 +329,6 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = ()):
     if "product" in q or "finished_products" in q or "raw_materials" in q or "materials" in q:
         cols = [("id",), ("name",), ("stock_qty",), ("alert_threshold",), ("threshold_qty",), ("avg_cost",), ("sale_price",), ("default_unit",), ("unit",)]
         rows = [(1, "Product X", 50.0, 10.0, 5.0, 15.0, 25.0, "sac (50kg)", "sac (50kg)")]
-        return cols, rows
-
-    # 14. Sales / Purchases
-    if "sale" in q or "purchase" in q or "document" in q:
-        cols = [("id",), ("client_id",), ("supplier_id",), ("amount",), ("sale_date",), ("purchase_date",), ("notes",), ("client_name",), ("supplier_name",), ("doc_number",), ("total",), ("amount_paid",), ("balance_due",), ("qty",), ("unit",), ("unit_price",), ("total_price",), ("item_kind",), ("item_id",), ("sale_type",), ("sale_kind",), ("total_amount",), ("document_id",)]
-        rows = [(1, 1, 1, 300.0, "2026-05-31", "2026-05-31", "", "Client Dupont", "Fournisseur A", "V-2026-0001", 300.0, 100.0, 200.0, 10.0, "kg", 30.0, 300.0, "finished", 1, "credit", "finished", 300.0, 1)]
         return cols, rows
 
     if "pg_indexes" in q:
@@ -393,7 +407,7 @@ app.core.database.run_alembic_upgrade = MagicMock()
 
 # ── 5. Patching de la session SQLAlchemy ORM pour les modules ────────────────
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.models import FinishedProduct, RawMaterial, Client, User, Sale, RawSale, Payment, ProductionBatch, SavedRecipe, Expense
+from app.core.models import FinishedProduct, RawMaterial, Client, User, Sale, RawSale, Payment, ProductionBatch, SavedRecipe, Expense, StockAlert, Purchase
 
 def mock_sqlmodel_instance(model_class, ident=1):
     if model_class == Expense:
@@ -447,20 +461,77 @@ def mock_sqlmodel_instance(model_class, ident=1):
             cost_price_snapshot=Decimal("15.0"),
             profit_amount=Decimal("150.0")
         )
+    if model_class == ProductionBatch:
+        return ProductionBatch(
+            id=ident,
+            finished_product_id=1,
+            output_quantity=Decimal("10.0"),
+            production_cost=Decimal("100.0"),
+            unit_cost=Decimal("10.0"),
+            production_date="2026-05-31",
+            notes="Batch note"
+        )
+    if model_class == Purchase:
+        return Purchase(
+            id=ident,
+            supplier_id=1,
+            document_id=1,
+            raw_material_id=1,
+            finished_product_id=1,
+            quantity=Decimal("10.0"),
+            unit="kg",
+            unit_price=Decimal("30.0"),
+            total=Decimal("300.0"),
+            purchase_date=date.today(),
+            notes=""
+        )
+    if model_class == Payment:
+        return Payment(
+            id=ident,
+            client_id=1,
+            amount=Decimal("100.0"),
+            payment_date=date.today(),
+            notes=""
+        )
+    if model_class == StockAlert:
+        return StockAlert(
+            id=ident,
+            product_type="finished",
+            product_id=1,
+            product_name="Product X",
+            current_qty=Decimal("5.0"),
+            threshold_qty=Decimal("10.0"),
+            triggered_at=datetime.utcnow()
+        )
     try:
         return model_class(id=ident)
     except Exception:
         return MagicMock()
 
 class MockRow:
-    def __init__(self, dct):
+    def __init__(self, dct, statement=None):
         self._dct = dct
+        self.statement = statement
 
     @property
     def _mapping(self):
         return self._dct
 
     def __getitem__(self, key):
+        if key == 0 and self.statement:
+            stmt = self.statement.lower()
+            if "production_batch" in stmt:
+                return mock_sqlmodel_instance(ProductionBatch)
+            if "purchase" in stmt:
+                return mock_sqlmodel_instance(Purchase)
+            if "raw_sale" in stmt:
+                return mock_sqlmodel_instance(RawSale)
+            if "sale" in stmt:
+                return mock_sqlmodel_instance(Sale)
+            if "payment" in stmt:
+                return mock_sqlmodel_instance(Payment)
+            if "client" in stmt:
+                return mock_sqlmodel_instance(Client)
         if isinstance(key, int):
             return list(self._dct.values())[key]
         return self._dct[key]
@@ -527,15 +598,15 @@ class MockResult:
 
     def first(self):
         rows = mock_orm_rows_for_sql(self.statement)
-        return MockRow(rows[0]) if rows else None
+        return MockRow(rows[0], self.statement) if rows else None
 
     def all(self):
         rows = mock_orm_rows_for_sql(self.statement)
-        return [MockRow(r) for r in rows]
+        return [MockRow(r, self.statement) for r in rows]
 
     def fetchall(self):
         rows = mock_orm_rows_for_sql(self.statement)
-        return [MockRow(r) for r in rows]
+        return [MockRow(r, self.statement) for r in rows]
 
     def scalars(self):
         if "from sales" in self.statement:

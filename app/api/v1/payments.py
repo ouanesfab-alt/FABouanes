@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import asyncio
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_error, api_success, require_api_user
 from app.api.v1._common import json_response, payment_payload, payload_to_form_data, add_cache_headers
 from app.repositories.payment_repository import list_payments
 
-from app.core.db_access import query_db_async
+from app.core.async_db import get_async_session
+from app.core.models import Payment
 from app.core.permissions import PERMISSION_OPERATIONS_DELETE, PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
 from app.services.payment_service import create_payment_from_form, delete_payment_by_id, edit_payment_from_form
 from app.schemas.api_schemas import PaymentCreateSchema
@@ -63,7 +66,7 @@ async def api_get_payment_detail(request: Request, payment_id: int):
     return response
 
 @router.put("/payments/{payment_id}")
-async def api_update_payment(request: Request, payment_id: int, payload: PaymentCreateSchema):
+async def api_update_payment(request: Request, payment_id: int, payload: PaymentCreateSchema, db: AsyncSession = Depends(get_async_session)):
     await asyncio.to_thread(require_api_user, request, PERMISSION_OPERATIONS_WRITE)
     payment = await payment_payload(payment_id)
     if not payment:
@@ -75,8 +78,10 @@ async def api_update_payment(request: Request, payment_id: int, payload: Payment
     except ValueError as e:
         api_error("invalid_value", str(e), 400)
     
-    latest = await query_db_async("SELECT id FROM payments ORDER BY id DESC", one=True)
-    updated_payment = await payment_payload(int(latest["id"])) if latest else None
+    stmt = select(Payment.id).order_by(Payment.id.desc()).limit(1)
+    res = await db.execute(stmt)
+    latest_id = res.scalar()
+    updated_payment = await payment_payload(latest_id) if latest_id else None
     return json_response(api_success(updated_payment))
 
 @router.delete("/payments/{payment_id}")

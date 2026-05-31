@@ -62,6 +62,10 @@ columns_to_fix = [
 ]
 
 def upgrade() -> None:
+    # Drop views if they exist to prevent ALTER COLUMN TYPE errors due to dependencies
+    op.execute("DROP VIEW IF EXISTS clients_with_stats CASCADE")
+    op.execute("DROP MATERIALIZED VIEW IF EXISTS mv_client_balances CASCADE")
+
     # 1. Convert production_batches.production_date to DATE
     op.execute("ALTER TABLE production_batches ALTER COLUMN production_date TYPE DATE USING production_date::DATE")
 
@@ -84,6 +88,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Drop views if they exist to prevent ALTER COLUMN TYPE errors due to dependencies
+    op.execute("DROP VIEW IF EXISTS clients_with_stats CASCADE")
+    op.execute("DROP MATERIALIZED VIEW IF EXISTS mv_client_balances CASCADE")
+
     # 1. Revert production_batches.production_date to TEXT
     op.execute("ALTER TABLE production_batches ALTER COLUMN production_date TYPE TEXT USING production_date::TEXT")
 
