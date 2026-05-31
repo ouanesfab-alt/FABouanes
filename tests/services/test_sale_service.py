@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from app.modules.sales.service import SalesService
 from app.modules.sales.schemas_validation import SaleFormSchema
-from app.repositories.sale_repository import get_sale
+from app.modules.sales.repository import SaleRepository
 from app.core.exceptions import ValidationError
 from app.core.async_db import AsyncSessionLocal
 from pydantic import ValidationError as PydanticValidationError
@@ -46,10 +46,11 @@ async def test_create_and_delete_sale(first_client_id, first_product_id):
         sale_id = result["first_line_id"]
         kind = result["first_line_kind"]
         
-        sale = get_sale(kind, sale_id)
+        repo = service.sale_repo
+        sale = await repo.get_sale_detail(kind, sale_id)
         assert sale is not None
         assert float(sale["quantity"]) == 10.0
         
         # Clean up
         assert await service.delete_sale_by_id(kind, sale_id) is True
-        assert get_sale(kind, sale_id) is None
+        assert await repo.get_sale_detail(kind, sale_id) is None

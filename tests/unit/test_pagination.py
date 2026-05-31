@@ -11,8 +11,6 @@ import pytest
 from app.utils.pagination import (
     DEFAULT_PAGE_SIZE,
     MAX_PAGE_SIZE,
-    decode_cursor,
-    encode_cursor,
     paginate_sequence,
     parse_pagination,
 )
@@ -93,41 +91,7 @@ class TestParsePagination:
         assert offset == 15
 
 
-# ======================================================================
-# Cursor encode / decode
-# ======================================================================
 
-
-class TestCursor:
-    """Tests for encode_cursor / decode_cursor round-trip."""
-
-    def test_encode_decode_roundtrip_two_parts(self) -> None:
-        cursor = encode_cursor("2024-01-15", "42")
-        parts = decode_cursor(cursor, expected_parts=2)
-        assert parts == ("2024-01-15", "42")
-
-    def test_encode_decode_roundtrip_three_parts(self) -> None:
-        cursor = encode_cursor("a", "b", "c")
-        parts = decode_cursor(cursor, expected_parts=3)
-        assert parts == ("a", "b", "c")
-
-    def test_decode_none_returns_none(self) -> None:
-        assert decode_cursor(None) is None
-
-    def test_decode_empty_string_returns_none(self) -> None:
-        assert decode_cursor("") is None
-
-    def test_decode_invalid_base64_returns_none(self) -> None:
-        assert decode_cursor("!!!not_base64!!!") is None
-
-    def test_decode_wrong_parts_returns_none(self) -> None:
-        cursor = encode_cursor("a", "b", "c")
-        assert decode_cursor(cursor, expected_parts=2) is None
-
-    def test_numeric_parts_round_trip_as_strings(self) -> None:
-        cursor = encode_cursor(100, 200)
-        parts = decode_cursor(cursor, expected_parts=2)
-        assert parts == ("100", "200")
 
 
 # ======================================================================

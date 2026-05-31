@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import date
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from sqlmodel import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +25,26 @@ class SalesService:
         self.sale_repo = SaleRepository(session)
         self.raw_sale_repo = RawSaleRepository(session)
         self.doc_repo = SaleDocumentRepository(session)
+
+    async def list_sales(
+        self,
+        search: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        kind: Optional[str] = None,
+        status: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        return await self.sale_repo.list_sales_paginated(
+            search=search,
+            date_from=date_from,
+            date_to=date_to,
+            kind=kind,
+            status=status,
+            page=page,
+            page_size=page_size,
+        )
 
     async def sale_form_context(self) -> dict:
         sellable = await self.sale_repo.list_sellable_items()
@@ -413,6 +433,12 @@ class SalesService:
 
     async def create_sale_from_form(self, schema: SaleFormSchema) -> dict:
         client_id = schema.client_id
+        if client_id:
+            from app.core.models import Client
+            client_exists = await self.session.get(Client, client_id)
+            if not client_exists:
+                raise NotFoundError("Client", client_id)
+
         sale_date = schema.sale_date
         notes = schema.notes
         sale_type = "credit" if client_id else "cash"

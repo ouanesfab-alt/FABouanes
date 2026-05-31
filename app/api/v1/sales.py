@@ -13,9 +13,7 @@ from app.core.permissions import PERMISSION_CATALOG_READ, PERMISSION_OPERATIONS_
 from app.repositories.operation_repository import (
     list_recent_operations,
 )
-from app.repositories.sale_repository import (
-    list_sales,
-)
+# list_sales is now handled via SalesService
 from app.core.async_db import get_async_session
 from app.modules.sales.service import SalesService
 from app.modules.sales.schemas_validation import SaleFormSchema
@@ -40,13 +38,6 @@ async def api_sales(request: Request, db: AsyncSession = Depends(get_async_sessi
     require_api_user(request, PERMISSION_OPERATIONS_WRITE if request.method == "POST" else PERMISSION_OPERATIONS_READ)
     if request.method == "POST":
         payload = await request.json()
-        client_id = payload.get("client_id")
-        if client_id:
-            from app.core.db_access import query_db_async
-            client_exists = await query_db_async("SELECT id FROM clients WHERE id = %s", (client_id,), one=True)
-            if not client_exists:
-                api_error("not_found", f"Client introuvable (ID: {client_id})", 404)
-        
         validated = SaleFormSchema(**payload)
         service = SalesService(db)
         created = await service.create_sale_from_form(validated)
@@ -67,7 +58,8 @@ async def api_sales(request: Request, db: AsyncSession = Depends(get_async_sessi
             }
         return json_response(api_success(payload, status_code=201))
 
-    rows, total = await list_sales(
+    service = SalesService(db)
+    rows, total = await service.list_sales(
         search=request.query_params.get("q"),
         date_from=request.query_params.get("date_from"),
         date_to=request.query_params.get("date_to"),

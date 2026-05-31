@@ -19,18 +19,34 @@ except Exception:  # pragma: no cover - optional integration dependency
 
 TEST_ROOT = Path(__file__).resolve().parent / "_runtime_fastapi"
 TEST_DATA_DIR = TEST_ROOT / "data"
+from urllib.parse import urlparse
+
 USE_POSTGRES = True
-PG_PORT = int(os.environ.get("FAB_TEST_PG_PORT", "54321"))
-PG_DB = os.environ.get("FAB_TEST_PG_DB", "fabouanes_test")
-PG_USER = os.environ.get("FAB_TEST_PG_USER", "fabouanes")
-PG_PASSWORD = os.environ.get("FAB_TEST_PG_PASSWORD", "")
+DATABASE_URL_ENV = os.environ.get("DATABASE_URL")
+if DATABASE_URL_ENV:
+    DATABASE_URL = DATABASE_URL_ENV
+    url = urlparse(DATABASE_URL)
+    PG_HOST = url.hostname or "127.0.0.1"
+    PG_PORT = url.port or 5432
+    PG_USER = url.username or "postgres"
+    PG_PASSWORD = url.password or ""
+    PG_DB = url.path.lstrip('/')
+    SPAWN_LOCAL_CLUSTER = False
+else:
+    PG_HOST = "127.0.0.1"
+    PG_PORT = int(os.environ.get("FAB_TEST_PG_PORT", "54321"))
+    PG_DB = os.environ.get("FAB_TEST_PG_DB", "fabouanes_test")
+    PG_USER = os.environ.get("FAB_TEST_PG_USER", "fabouanes")
+    PG_PASSWORD = os.environ.get("FAB_TEST_PG_PASSWORD", "")
+    DATABASE_URL = (
+        f"postgresql://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG_DB}"
+        if PG_PASSWORD
+        else f"postgresql://{PG_USER}@{PG_HOST}:{PG_PORT}/{PG_DB}"
+    )
+    SPAWN_LOCAL_CLUSTER = True
+
 PGDATA_DIR = TEST_ROOT / "pgdata"
 PG_LOG = TEST_ROOT / "postgres.log"
-DATABASE_URL = (
-    f"postgresql://{PG_USER}:{PG_PASSWORD}@127.0.0.1:{PG_PORT}/{PG_DB}"
-    if PG_PASSWORD
-    else f"postgresql://{PG_USER}@127.0.0.1:{PG_PORT}/{PG_DB}"
-)
 
 os.environ["FAB_DATA_DIR"] = str(TEST_DATA_DIR)
 os.environ["FAB_DISABLE_BACKGROUND_JOBS"] = "1"
@@ -64,7 +80,7 @@ def _pg8000_connect(database: str):
     attempts = 5
     for attempt in range(attempts):
         try:
-            return pg8000.connect(user=PG_USER, password=PG_PASSWORD or None, host="127.0.0.1", port=PG_PORT, database=database)
+            return pg8000.connect(user=PG_USER, password=PG_PASSWORD or None, host=PG_HOST, port=PG_PORT, database=database)
         except Exception as e:
             if attempt == attempts - 1:
                 raise
@@ -72,6 +88,8 @@ def _pg8000_connect(database: str):
 
 
 def _ensure_postgres_cluster() -> None:
+    if not SPAWN_LOCAL_CLUSTER:
+        return
     initdb = _find_pg_binary("initdb.exe")
     pg_ctl = _find_pg_binary("pg_ctl.exe")
     TEST_ROOT.mkdir(parents=True, exist_ok=True)
@@ -80,7 +98,7 @@ def _ensure_postgres_cluster() -> None:
     if not PGDATA_DIR.exists():
         _run([initdb, "-D", str(PGDATA_DIR), "-U", PG_USER, "-A", "trust", "-E", "UTF8"])
     subprocess.Popen(
-        [pg_ctl, "-D", str(PGDATA_DIR), "-l", str(PG_LOG), "-o", f"-p {PG_PORT} -h 127.0.0.1", "start"],
+        [pg_ctl, "-D", str(PGDATA_DIR), "-l", str(PG_LOG), "-o", f"-p {PG_PORT} -h {PG_HOST}", "start"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -107,7 +125,7 @@ def _ensure_postgres_cluster() -> None:
 
 
 def _stop_postgres_cluster() -> None:
-    if not PGDATA_DIR.exists():
+    if not SPAWN_LOCAL_CLUSTER or not PGDATA_DIR.exists():
         return
     try:
         pg_ctl = _find_pg_binary("pg_ctl.exe")

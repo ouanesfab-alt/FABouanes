@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, NoReturn
 
 from fastapi import HTTPException, Request, status
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
@@ -75,7 +75,7 @@ def api_success(data: Any, meta: dict[str, Any] | None = None, status_code: int 
     return {"data": data, "meta": meta or {}, "_status_code": status_code}
 
 
-def api_error(code: str, message: str, status_code: int, details: Any = None):
+def api_error(code: str, message: str, status_code: int, details: Any = None) -> NoReturn:
     raise HTTPException(status_code=status_code, detail={"code": code, "message": message, "details": details})
 
 

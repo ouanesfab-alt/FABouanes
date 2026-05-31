@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import date
-from typing import Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 from sqlmodel import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +24,22 @@ class PurchaseService:
         self.session = session
         self.purchase_repo = PurchaseRepository(session)
         self.doc_repo = PurchaseDocumentRepository(session)
+
+    async def list_purchases(
+        self,
+        search: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        return await self.purchase_repo.list_purchases_paginated(
+            search=search,
+            date_from=date_from,
+            date_to=date_to,
+            page=page,
+            page_size=page_size,
+        )
 
     async def purchase_form_context(self) -> dict:
         raw_choices = await self.purchase_repo.list_raw_material_choices()

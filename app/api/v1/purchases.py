@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_error, api_success, require_api_user
 from app.api.v1._common import json_response, purchase_document_payload, purchase_payload, add_cache_headers
-from app.repositories.purchase_repository import list_purchases
+# list_purchases is now handled via PurchaseService
 
 
 from app.core.permissions import PERMISSION_OPERATIONS_DELETE, PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
@@ -36,7 +36,8 @@ async def api_purchases(request: Request, db: AsyncSession = Depends(get_async_s
             }
         return json_response(api_success(payload, status_code=201))
 
-    rows, total = await list_purchases(
+    service = PurchaseService(db)
+    rows, total = await service.list_purchases(
         search=request.query_params.get("q"),
         date_from=request.query_params.get("date_from"),
         date_to=request.query_params.get("date_to"),
