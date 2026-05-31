@@ -18,7 +18,7 @@ async def new_payment_context():
 
 @async_compat
 async def create_payment_from_form(form):
-    client_raw = (form.get("client_id") or "").strip()
+    client_raw = str(form.get("client_id") or "").strip()
     if not client_raw:
         raise ValueError("Choisis un client.")
     client_id = int(client_raw)

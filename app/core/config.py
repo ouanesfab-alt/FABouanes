@@ -124,18 +124,9 @@ def validate_single_worker_runtime() -> None:
     allow = os.getenv("FAB_ALLOW_MULTI_WORKER", "0").strip().lower() in {"1", "true", "yes", "on"}
     if allow:
         return
-    redis_url = os.getenv("REDIS_URL", "").strip()
-    if redis_url:
-        try:
-            import redis
-            client = redis.from_url(redis_url, socket_connect_timeout=2)
-            client.ping()
-            return
-        except Exception:
-            pass
     raise RuntimeError(
         "FABOuanes utilise un cache et un scheduler in-process: demarre 1 seul worker "
-        "ou configure un cache/scheduler externe avant FAB_ALLOW_MULTI_WORKER=1."
+        "car Redis n'est pas implemente dans cette application."
     )
 
 

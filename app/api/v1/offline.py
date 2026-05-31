@@ -36,7 +36,7 @@ async def sync_operation(request: Request, db: AsyncSession = Depends(get_async_
 
     idempotency_key = request.headers.get("X-Idempotency-Key") or body.get("idempotency_key") or body.get("key")
     if idempotency_key:
-        cached_res = check_idempotency(idempotency_key)
+        cached_res = await check_idempotency(idempotency_key)
         if cached_res is not None:
             return JSONResponse(cached_res["content"], status_code=cached_res["status_code"])
 
@@ -60,11 +60,11 @@ async def sync_operation(request: Request, db: AsyncSession = Depends(get_async_
         else:
             err_res = {"success": False, "error": {"code": "unknown_type", "message": f"Type inconnu : {op_type}", "details": None}}
             if idempotency_key:
-                save_idempotency(idempotency_key, {"content": err_res, "status_code": 400})
+                await save_idempotency(idempotency_key, {"content": err_res, "status_code": 400})
             api_error("unknown_type", f"Type inconnu : {op_type}", 400)
 
         if idempotency_key:
-            save_idempotency(idempotency_key, {"content": res_payload, "status_code": 200})
+            await save_idempotency(idempotency_key, {"content": res_payload, "status_code": 200})
         return JSONResponse(res_payload)
 
     except (ValueError, ValidationError, ConflictError) as exc:
@@ -72,13 +72,13 @@ async def sync_operation(request: Request, db: AsyncSession = Depends(get_async_
         message = getattr(exc, "message", str(exc))
         err_res = {"success": False, "error": {"code": code, "message": message, "details": None}}
         if idempotency_key:
-            save_idempotency(idempotency_key, {"content": err_res, "status_code": 422})
+            await save_idempotency(idempotency_key, {"content": err_res, "status_code": 422})
         api_error(code, message, 422)
     except Exception as exc:
         logger.exception("Offline sync operation failed")
         err_res = {"success": False, "error": {"code": "internal_error", "message": "Erreur serveur", "details": str(exc)}}
         if idempotency_key:
-            save_idempotency(idempotency_key, {"content": err_res, "status_code": 500})
+            await save_idempotency(idempotency_key, {"content": err_res, "status_code": 500})
         api_error("internal_error", "Erreur serveur", 500, details=str(exc))
 
 
@@ -103,7 +103,7 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
 
         # 1. Check idempotency
         if idempotency_key:
-            cached_res = check_idempotency(idempotency_key)
+            cached_res = await check_idempotency(idempotency_key)
             if cached_res is not None:
                 results.append({
                     "idempotency_key": idempotency_key,
@@ -131,7 +131,7 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
             else:
                 res_payload = {"error": f"Type inconnu : {op_type}"}
                 if idempotency_key:
-                    save_idempotency(idempotency_key, {"content": res_payload, "status_code": 400})
+                    await save_idempotency(idempotency_key, {"content": res_payload, "status_code": 400})
                 results.append({
                     "idempotency_key": idempotency_key,
                     "status_code": 400,
@@ -141,7 +141,7 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
 
             # Save idempotency on success
             if idempotency_key:
-                save_idempotency(idempotency_key, {"content": res_payload, "status_code": 200})
+                await save_idempotency(idempotency_key, {"content": res_payload, "status_code": 200})
 
             results.append({
                 "idempotency_key": idempotency_key,
@@ -152,7 +152,7 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
         except (ValueError, ValidationError, ConflictError) as exc:
             res_payload = {"error": str(exc)}
             if idempotency_key:
-                save_idempotency(idempotency_key, {"content": res_payload, "status_code": 422})
+                await save_idempotency(idempotency_key, {"content": res_payload, "status_code": 422})
             results.append({
                 "idempotency_key": idempotency_key,
                 "status_code": 422,

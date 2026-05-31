@@ -25,7 +25,7 @@
     button.setAttribute('data-original-html', originalHTML);
     
     // Prepend a beautiful spinner to the existing content
-    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + originalHTML;
+    button.innerHTML = '<span class="mac-spinner" role="status" aria-hidden="true"></span>' + originalHTML;
     
     // Disable click events after a tiny delay so the submit event finishes executing
     setTimeout(() => {

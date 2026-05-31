@@ -53,8 +53,8 @@ async def api_clients(request: Request, db: AsyncSession = Depends(get_async_ses
         client = await service.create_client(validated)
         return json_response(api_success(await client_payload(client.id), status_code=201))
 
-    page = int(request.query_params.get("page", 1))
-    page_size = int(request.query_params.get("page_size", 50))
+    page = max(int(request.query_params.get("page", 1)), 1)
+    page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     service = ClientService(db)
     rows, total = await service.list_clients_with_stats(
         search=request.query_params.get("q"),
@@ -160,7 +160,18 @@ async def api_shred_client(request: Request, client_id: int, db: AsyncSession = 
     return json_response(api_success({"shredded": True}))
 
 async def _fetch_client_history(client_id: int, page: int, page_size: int) -> tuple[list, int]:
-    # 1. Fetch all rows to calculate the running balance correctly across all pages
+    # 1. Fetch total count first
+    count_row = await query_db_async(
+        "SELECT COUNT(*) AS cnt FROM client_history WHERE client_id = %s",
+        (client_id,),
+        one=True,
+    )
+    total = int(count_row["cnt"] if count_row else 0)
+    if total == 0:
+        return [], 0
+
+    # 2. Fetch only the paginated slice
+    offset = (page - 1) * page_size
     rows = await query_db_async(
         """
         SELECT
@@ -180,26 +191,18 @@ async def _fetch_client_history(client_id: int, page: int, page_size: int) -> tu
             CASE WHEN source = 'import_excel' THEN ordre_import ELSE NULL END,
             CASE WHEN source = 'app'          THEN operation_date ELSE NULL END,
             CASE WHEN source = 'app'          THEN id             ELSE NULL END
+        LIMIT %s OFFSET %s
         """,
-        (client_id,),
+        (client_id, page_size, offset),
     )
     
-    total = len(rows)
-    
-    # 2. Calculate the running balance
-    current_balance = 0.0
+    # 3. Process only the paginated rows
     processed_rows = []
     
     for r in rows:
         m_achat = float(r["montant_achat"] or 0)
         m_verse = float(r["montant_verse"] or 0)
-        
-        if r["source"] == "import_excel":
-            current_balance = float(r["solde_cumule"] or 0)
-            solde = current_balance
-        else:
-            current_balance = current_balance + m_achat - m_verse
-            solde = current_balance
+        solde = float(r["solde_cumule"] or 0)
             
         designation = r["designation"] or ""
         ordre = r["ordre_import"] or 0
@@ -229,11 +232,7 @@ async def _fetch_client_history(client_id: int, page: int, page_size: int) -> tu
             "created_at": r["created_at"].isoformat() if r["created_at"] else None,
         })
         
-    # 3. Apply pagination in memory
-    offset = (page - 1) * page_size
-    paginated = processed_rows[offset : offset + page_size]
-    
-    return paginated, total
+    return processed_rows, total
 
 
 @router.post("/clients/import-history")
@@ -285,7 +284,9 @@ async def api_client_history(
     client_exists = await query_db_async("SELECT 1 FROM clients WHERE id = %s", (client_id,), one=True)
     if not client_exists:
         api_error("not_found", "Client introuvable.", 404)
-        
+
+    page = max(page, 1)
+    page_size = min(max(page_size, 1), 100)
     rows, total = await _fetch_client_history(client_id, page, page_size)
     import math
     total_pages = math.ceil(total / page_size) if page_size > 0 else 1
@@ -322,8 +323,8 @@ async def api_suppliers(request: Request):
         log_activity("create_supplier", "supplier", supplier_id, str(payload.get("name", "")).strip())
         return json_response(api_success(supplier, status_code=201))
 
-    page = int(request.query_params.get("page", 1))
-    page_size = int(request.query_params.get("page_size", 50))
+    page = max(int(request.query_params.get("page", 1)), 1)
+    page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     rows, total = await list_suppliers(
         search=request.query_params.get("q"),
         page=page,
@@ -382,8 +383,8 @@ async def api_raw_materials(request: Request, db: AsyncSession = Depends(get_asy
         material = await service.create_raw_material(validated)
         return json_response(api_success(await raw_material_payload(material.id), status_code=201))
 
-    page = int(request.query_params.get("page", 1))
-    page_size = int(request.query_params.get("page_size", 50))
+    page = max(int(request.query_params.get("page", 1)), 1)
+    page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     rows, total = await list_raw_materials(
         search=request.query_params.get("q"),
         status=request.query_params.get("status"),
@@ -434,8 +435,8 @@ async def api_finished_products(request: Request, db: AsyncSession = Depends(get
         product = await service.create_finished_product(validated)
         return json_response(api_success(await finished_product_payload(product.id), status_code=201))
 
-    page = int(request.query_params.get("page", 1))
-    page_size = int(request.query_params.get("page_size", 50))
+    page = max(int(request.query_params.get("page", 1)), 1)
+    page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     rows, total = await list_finished_products(
         search=request.query_params.get("q"),
         page=page,

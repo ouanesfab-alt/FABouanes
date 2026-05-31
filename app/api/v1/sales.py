@@ -58,6 +58,8 @@ async def api_sales(request: Request, db: AsyncSession = Depends(get_async_sessi
             }
         return json_response(api_success(payload, status_code=201))
 
+    page = max(int(request.query_params.get("page", 1)), 1)
+    page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     service = SalesService(db)
     rows, total = await service.list_sales(
         search=request.query_params.get("q"),
@@ -65,13 +67,13 @@ async def api_sales(request: Request, db: AsyncSession = Depends(get_async_sessi
         date_to=request.query_params.get("date_to"),
         kind=request.query_params.get("kind"),
         status=request.query_params.get("status"),
-        page=int(request.query_params.get("page", 1)),
-        page_size=int(request.query_params.get("page_size", 50))
+        page=page,
+        page_size=page_size
     )
     
     meta = {
-        "page": int(request.query_params.get("page", 1)),
-        "page_size": int(request.query_params.get("page_size", 50)),
+        "page": page,
+        "page_size": page_size,
         "returned": len(rows),
         "total": total
     }
@@ -163,18 +165,20 @@ async def api_sale_document_detail(request: Request, document_id: int, db: Async
 @router.get("/recent-operations")
 async def api_recent_operations(request: Request):
     require_api_user(request, PERMISSION_OPERATIONS_READ)
+    page = max(int(request.query_params.get("page", 1)), 1)
+    page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     rows, total = await list_recent_operations(
         search=request.query_params.get("q"),
         date_from=request.query_params.get("date_from"),
         date_to=request.query_params.get("date_to"),
         kind=request.query_params.get("kind"),
-        page=int(request.query_params.get("page", 1)),
-        page_size=int(request.query_params.get("page_size", 50))
+        page=page,
+        page_size=page_size
     )
     
     meta = {
-        "page": int(request.query_params.get("page", 1)),
-        "page_size": int(request.query_params.get("page_size", 50)),
+        "page": page,
+        "page_size": page_size,
         "returned": len(rows),
         "total": total
     }

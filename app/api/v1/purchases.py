@@ -36,18 +36,20 @@ async def api_purchases(request: Request, db: AsyncSession = Depends(get_async_s
             }
         return json_response(api_success(payload, status_code=201))
 
+    page = max(int(request.query_params.get("page", 1)), 1)
+    page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     service = PurchaseService(db)
     rows, total = await service.list_purchases(
         search=request.query_params.get("q"),
         date_from=request.query_params.get("date_from"),
         date_to=request.query_params.get("date_to"),
-        page=int(request.query_params.get("page", 1)),
-        page_size=int(request.query_params.get("page_size", 50))
+        page=page,
+        page_size=page_size
     )
     
     meta = {
-        "page": int(request.query_params.get("page", 1)),
-        "page_size": int(request.query_params.get("page_size", 50)),
+        "page": page,
+        "page_size": page_size,
         "returned": len(rows),
         "total": total
     }

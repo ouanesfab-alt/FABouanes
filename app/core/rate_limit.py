@@ -6,8 +6,25 @@ from app.services.platform_service import platform
 
 import os
 
+import os
+import logging
+
+logger = logging.getLogger("fabouanes.rate_limit")
+
 redis_url = os.environ.get("REDIS_URL", "").strip()
-storage_uri = redis_url if redis_url else None
+storage_uri = "memory://"
+
+if redis_url:
+    try:
+        import redis
+        # Verify if Redis is reachable with a short timeout
+        client = redis.from_url(redis_url, socket_connect_timeout=1.0, socket_timeout=1.0)
+        client.ping()
+        storage_uri = redis_url
+        logger.info("Rate limiter successfully connected to Redis storage.")
+    except Exception as e:
+        logger.warning("Rate limiter failed to connect to Redis (%s): %s. Falling back to memory:// storage.", redis_url, e)
+        storage_uri = "memory://"
 
 # Create the limiter
 limiter = Limiter(

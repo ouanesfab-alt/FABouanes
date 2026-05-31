@@ -16,8 +16,8 @@ router = APIRouter(prefix="/api/v1", tags=["production"])
 @router.get("/production-batches")
 async def api_get_production_batches(request: Request):
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_READ)
-    page = int(request.query_params.get("page", 1))
-    page_size = int(request.query_params.get("page_size", 50))
+    page = max(int(request.query_params.get("page", 1)), 1)
+    page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     rows, total = await list_production_batches(
         search=request.query_params.get("q"),
         date_from=request.query_params.get("date_from"),
@@ -82,8 +82,8 @@ async def api_delete_production_batch(request: Request, batch_id: int):
 @router.get("/recipes")
 async def api_recipes(request: Request):
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_READ)
-    page = int(request.query_params.get("page", 1))
-    page_size = int(request.query_params.get("page_size", 50))
+    page = max(int(request.query_params.get("page", 1)), 1)
+    page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     rows, total = await list_recipes(page=page, page_size=page_size)
     meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
     res_data = api_success(rows, meta)

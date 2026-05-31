@@ -11,7 +11,8 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from app.core.config import settings
 from app.core.permissions import PERMISSION_API_ACCESS, has_permission
 from app.core.audit import audit_event
-from app.core.db_access import execute_db, query_db
+import asyncio
+from app.core.db_access import execute_db, query_db, execute_db_async, query_db_async
 from app.repositories.user_repository import get_user_by_id
 
 
@@ -31,10 +32,10 @@ def refresh_token_hash(token: str) -> str:
     return hashlib.sha256((token or "").encode("utf-8")).hexdigest()
 
 
-def create_refresh_token(request: Request, user) -> str:
+async def create_refresh_token(request: Request, user) -> str:
     raw_token = secrets.token_urlsafe(48)
     expires_at = (datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_TTL_DAYS)).strftime("%Y-%m-%d %H:%M:%S")
-    execute_db(
+    await execute_db_async(
         """
         INSERT INTO api_refresh_tokens (user_id, token_hash, token_hint, created_ip, user_agent, expires_at)
         VALUES (%s, %s, %s, %s, %s, %s)
@@ -99,22 +100,22 @@ def require_api_user(request: Request, permission: str | None = None):
     return user
 
 
-def revoke_refresh_token(raw_token: str) -> None:
-    execute_db(
+async def revoke_refresh_token(raw_token: str) -> None:
+    await execute_db_async(
         "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE token_hash = %s AND revoked_at IS NULL",
         (refresh_token_hash(raw_token),),
     )
 
 
-def revoke_all_user_tokens(user_id: int) -> None:
-    execute_db(
+async def revoke_all_user_tokens(user_id: int) -> None:
+    await execute_db_async(
         "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = %s AND revoked_at IS NULL",
         (int(user_id),),
     )
 
 
-def validate_refresh_token(raw_token: str):
-    row = query_db(
+async def validate_refresh_token(raw_token: str):
+    row = await query_db_async(
         """
         SELECT id, user_id, expires_at
         FROM api_refresh_tokens
@@ -127,9 +128,9 @@ def validate_refresh_token(raw_token: str):
     )
     if not row:
         return None
-    user = get_user_by_id(int(row["user_id"]))
+    user = await asyncio.to_thread(get_user_by_id, int(row["user_id"]))
     if not user or not int(user.get("is_active", 1) or 0):
-        revoke_refresh_token(raw_token)
+        await revoke_refresh_token(raw_token)
         return None
-    execute_db("UPDATE api_refresh_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = %s", (int(row["id"]),))
+    await execute_db_async("UPDATE api_refresh_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = %s", (int(row["id"]),))
     return user

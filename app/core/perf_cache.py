@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import os
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from threading import RLock
 from time import monotonic
 from typing import Any, Callable, Hashable
+
+logger = logging.getLogger("fabouanes.cache.redis")
 
 
 # TTL Constants (seconds)
@@ -16,7 +19,7 @@ TTL_REALTIME = 2.0        # 2 seconds
 
 try:
     _MAX_ENTRIES = max(32, min(10000, int(os.environ.get("FAB_CACHE_MAX_ENTRIES", "512") or "512")))
-except Exception:
+except (ValueError, TypeError):
     _MAX_ENTRIES = 512
 
 # --- Cache Backend Abstraction ---
@@ -184,26 +187,30 @@ class RedisCache(CacheBackend):  # pragma: no cover
             vg = _safe_int(vg_val)
             vd = _safe_int(vd_val)
             return vg + vd
-        except Exception:
+        except Exception as e:
+            logger.warning("Redis failed to get domain version for %s: %s", domain, e)
             return 0
 
     def _increment_domain_version(self, domain: str) -> int:
         try:
             return self.client.hincrby(self.domain_hash_key, domain, 1)
-        except Exception:
+        except Exception as e:
+            logger.warning("Redis failed to increment domain version for %s: %s", domain, e)
             return 1
 
     def bump_cache_generation(self) -> int:
         try:
             return self.client.incr(self.gen_key)
-        except Exception:
+        except Exception as e:
+            logger.warning("Redis failed to increment cache generation: %s", e)
             return 1
 
     def cache_generation(self) -> int:
         try:
             val = self.client.get(self.gen_key)
             return _safe_int(val)
-        except Exception:
+        except Exception as e:
+            logger.warning("Redis failed to get cache generation: %s", e)
             return 0
 
     def get(self, key: tuple[Hashable, ...]) -> Any:
@@ -218,7 +225,8 @@ class RedisCache(CacheBackend):  # pragma: no cover
                 if entry.get("fingerprint") == f"v:{gen}":
                     return entry.get("value")
             return None
-        except Exception:
+        except Exception as e:
+            logger.warning("Redis failed to get cache entry for %s: %s", key, e)
             return None
 
     def set(self, key: tuple[Hashable, ...], value: Any, ttl: float, fingerprint: str) -> None:
@@ -248,8 +256,8 @@ class RedisCache(CacheBackend):  # pragma: no cover
             }
             data = pickle.dumps(entry)
             self.client.setex(r_key, max(1, int(ttl)), data)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Redis failed to set cache entry for %s: %s", key, e)
 
     def invalidate_domains(self, *domains: str) -> int:
         for domain in domains:
@@ -265,13 +273,14 @@ class RedisCache(CacheBackend):  # pragma: no cover
                 self.client.delete(*keys)
             self.client.delete(self.gen_key)
             self.client.delete(self.domain_hash_key)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Redis failed to clear cache: %s", e)
 
     def entry_count(self) -> int:
         try:
             return len(self.client.keys(self.prefix + "*"))
-        except Exception:
+        except Exception as e:
+            logger.warning("Redis failed to get entry count: %s", e)
             return 0
 
 # --- HybridCache (L1/L2) Implementation ---
@@ -332,10 +341,10 @@ class HybridCache(CacheBackend):  # pragma: no cover
                                         ]
                                         for key in keys_to_remove:
                                             self.l1._cache.pop(key, None)
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+                    except Exception as e:
+                        logger.warning("Failed to process invalidation message: %s", e)
+        except Exception as e:
+            logger.warning("Redis pubsub listener exception: %s", e)
 
     def bump_cache_generation(self) -> int:
         gen = self.l2.bump_cache_generation()
@@ -388,8 +397,8 @@ class HybridCache(CacheBackend):  # pragma: no cover
                 "client_id": None
             })
             self.l2.client.publish(self.invalidate_channel, payload)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Redis failed to publish domain invalidation: %s", e)
         return removed
 
     def clear(self) -> None:
@@ -416,16 +425,22 @@ class LazyCacheBackend(CacheBackend):
     def _connect_loop(self):
         import time
         import logging
+        import redis
         log = logging.getLogger("fabouanes.cache.lazy")
         redis_url = os.environ.get("REDIS_URL", "").strip()
         if not redis_url:
             log.info("No REDIS_URL configured. Remaining on InMemoryCache.")
             return
 
+        has_logged_failure = False
         while True:
             try:
+                # Test ping using a temporary client with short timeout before building the full HybridCache
+                client = redis.from_url(redis_url, socket_connect_timeout=2.0, socket_timeout=2.0)
+                client.ping()
+                
+                # Connection success! Now instantiate HybridCache
                 backend = HybridCache(redis_url)
-                backend.l2.client.ping()
                 
                 with self._lock:
                     if isinstance(self._backend, InMemoryCache):
@@ -438,7 +453,11 @@ class LazyCacheBackend(CacheBackend):
                 log.info("Successfully connected to Redis. Swapped cache backend to HybridCache.")
                 break
             except Exception as e:
-                log.warning(f"Failed to connect to Redis ({redis_url}): {e}. Retrying in 5 seconds...")
+                if not has_logged_failure:
+                    log.warning(f"Failed to connect to Redis ({redis_url}): {e}. Remaining on InMemoryCache and retrying silently in background...")
+                    has_logged_failure = True
+                else:
+                    log.debug(f"Redis connection retry failed: {e}")
                 time.sleep(5)
 
     def bump_cache_generation(self) -> int:
@@ -602,8 +621,8 @@ def invalidate_client_cache(client_id: int) -> None:
                 r_key = active_backend.l2._redis_key(key)
                 try:
                     active_backend.l2.client.delete(r_key)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logging.getLogger("fabouanes.cache").warning("Redis failed to delete client key: %s", e)
             else:
                 active_backend.invalidate_domains(
                     f"client_detail:{client_id}",
@@ -612,8 +631,8 @@ def invalidate_client_cache(client_id: int) -> None:
                     f"client_detail_context:{client_id}",
                     f"client_history_context:{client_id}"
                 )
-        except Exception:
-            pass
+        except Exception as e:
+            logging.getLogger("fabouanes.cache").warning("Failed to invalidate client cache: %s", e)
 
     if isinstance(active_backend, HybridCache):  # pragma: no cover
         try:
@@ -628,6 +647,6 @@ def invalidate_client_cache(client_id: int) -> None:
                 "client_id": client_id
             })
             active_backend.l2.client.publish(active_backend.invalidate_channel, payload)
-        except Exception:
-            pass
+        except Exception as e:
+            logging.getLogger("fabouanes.cache").warning("Redis failed to publish client invalidation: %s", e)
 

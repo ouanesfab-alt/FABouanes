@@ -181,6 +181,7 @@ class PaymentsService:
         sale_link: str = "",
         payment_type: str = "versement"
     ) -> int:
+        amount = float(amount)
         if amount <= 0:
             raise ValidationError("Le montant doit être supérieur à zéro.")
         
@@ -480,7 +481,7 @@ class PaymentsService:
                 payment_id,
                 f"Mobile: client #{client_id} montant={amount} par user #{recorded_by}",
                 after=created,
-                actor=actor_data,
+                extra={"actor": actor_data},
                 source="mobile_api"
             )
         )

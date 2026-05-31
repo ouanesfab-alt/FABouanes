@@ -20,7 +20,7 @@
     gap: 20px; flex-wrap: wrap; padding: 22px 28px 18px; border-bottom: 1px solid var(--line);
   }
   .detail-kicker { font-size: .72rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
-  .detail-name { margin: 2px 0 0; font-size: 1.6rem; font-weight: 900; letter-spacing: -.03em; color: var(--text); line-height: 1.1; }
+  .detail-name { margin: 2px 0 0; font-size: 2.2rem; font-weight: 900; letter-spacing: -.03em; color: var(--text); line-height: 1.1; display: flex !important; width: 100% !important; }
   .detail-meta { margin: 4px 0 0; font-size: .86rem; color: var(--muted); }
 
   /* Reference card */
@@ -102,12 +102,34 @@
 </style>
 
 <div class="detail-shell">
-  <section class="mac-surface">
+  <section class="mac-surface" id="clientDetailContainer"
+           data-client-id="{{ client.id }}"
+           data-client-name="{{ client.name }}"
+           data-client-phone="{{ client.phone or '' }}"
+           data-client-address="{{ client.address or '' }}"
+           data-client-notes="{{ client.notes or '' }}"
+           data-client-opening-credit="{{ client.opening_credit or 0.0 }}">
     <header class="detail-header">
       <div style="min-width:0; flex:1;">
         <div class="detail-kicker">Client</div>
-        <h1 class="detail-name">{{ client.name }}</h1>
-        <p class="detail-meta">{{ client.phone or '-' }} · {{ client.address or '-' }}</p>
+        <h1 class="detail-name editable-hover" data-inline-edit="name" data-value="{{ client.name }}" data-label="Nom complet">
+          <span>{{ client.name }}</span>
+        </h1>
+        {% if client.phone or client.address %}
+        <p class="detail-meta">
+          {% if client.phone %}
+          <span class="editable-hover" data-inline-edit="phone" data-value="{{ client.phone }}" data-label="Téléphone">
+            <span>{{ client.phone }}</span>
+          </span>
+          {% endif %}
+          {% if client.phone and client.address %}&nbsp;·&nbsp;{% endif %}
+          {% if client.address %}
+          <span class="editable-hover" data-inline-edit="address" data-value="{{ client.address }}" data-label="Adresse">
+            <span>{{ client.address }}</span>
+          </span>
+          {% endif %}
+        </p>
+        {% endif %}
       </div>
       <div class="detail-ref">
         <div class="detail-ref-row"><span class="detail-ref-label">Client</span><span class="detail-ref-value">#{{ client.id }}</span></div>

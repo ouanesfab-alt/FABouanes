@@ -7,8 +7,16 @@ import asyncio
 from typing import Any, Callable
 
 import structlog
-from arq.connections import RedisSettings, ArqRedis
-from arq import create_pool, cron
+try:
+    from arq.connections import RedisSettings, ArqRedis
+    from arq import create_pool, cron
+    HAS_ARQ = True
+except ImportError:
+    RedisSettings = None
+    ArqRedis = None
+    create_pool = None
+    cron = None
+    HAS_ARQ = False
 
 from app.core.websockets import manager
 
@@ -235,13 +243,15 @@ TASK_MAPPING: dict[str, Callable[..., Any]] = {
     "replay_dead_letter_events_task": replay_dead_letter_events_task,
 }
 
-_arq_pool: ArqRedis | None = None
+_arq_pool: Any = None
 _pool_lock = asyncio.Lock()
 
 
-async def get_arq_pool() -> ArqRedis | None:
+async def get_arq_pool() -> Any:
     """Returns the ArqRedis pool singleton, initializing if necessary."""
     global _arq_pool
+    if not HAS_ARQ:
+        return None
     async with _pool_lock:
         if _arq_pool is not None:
             return _arq_pool
@@ -286,9 +296,10 @@ async def enqueue_background_task(task_name: str, *args: Any, **kwargs: Any) -> 
 
 # --- Worker Configuration class for Arq CLI CLI Settings ---
 
-class WorkerSettings:
-    functions = list(TASK_MAPPING.values())
-    redis_settings = RedisSettings.from_dsn(os.environ.get("REDIS_URL", "redis://localhost:6379"))
-    cron_jobs = [
-        cron(dispatch_outbox_events_task, second=None, unique=True)
-    ]
+if HAS_ARQ:
+    class WorkerSettings:
+        functions = list(TASK_MAPPING.values())
+        redis_settings = RedisSettings.from_dsn(os.environ.get("REDIS_URL", "redis://localhost:6379"))
+        cron_jobs = [
+            cron(dispatch_outbox_events_task, second=None, unique=True)
+        ]

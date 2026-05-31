@@ -17,18 +17,20 @@ router = APIRouter(prefix="/api/v1", tags=["payments"])
 @router.get("/payments")
 async def api_get_payments(request: Request):
     await asyncio.to_thread(require_api_user, request, PERMISSION_OPERATIONS_READ)
+    page = max(int(request.query_params.get("page", 1)), 1)
+    page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     rows, total = await list_payments(
         search=request.query_params.get("q"),
         date_from=request.query_params.get("date_from"),
         date_to=request.query_params.get("date_to"),
         kind=request.query_params.get("kind"),
-        page=int(request.query_params.get("page", 1)),
-        page_size=int(request.query_params.get("page_size", 50))
+        page=page,
+        page_size=page_size
     )
     
     meta = {
-        "page": int(request.query_params.get("page", 1)),
-        "page_size": int(request.query_params.get("page_size", 50)),
+        "page": page,
+        "page_size": page_size,
         "returned": len(rows),
         "total": total
     }

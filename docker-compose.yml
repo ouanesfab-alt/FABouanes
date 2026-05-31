@@ -19,18 +19,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: fabouanes_redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   web:
     build: .
     container_name: fabouanes_web
@@ -39,7 +27,6 @@ services:
       - "5000:5000"
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://fabouanes:password123@db:5432/fabouanes_dev}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - SECRET_KEY=${SECRET_KEY:-prod-secret-key-change-me-in-production-env}
       - FASTAPI_ENV=${FASTAPI_ENV:-production}
       - FAB_HOST=0.0.0.0
@@ -47,24 +34,6 @@ services:
       - WEB_CONCURRENCY=1
     depends_on:
       db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  worker:
-    build: .
-    container_name: fabouanes_worker
-    restart: unless-stopped
-    command: arq app.core.worker.WorkerSettings
-    environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://fabouanes:password123@db:5432/fabouanes_dev}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - SECRET_KEY=${SECRET_KEY:-prod-secret-key-change-me-in-production-env}
-      - FASTAPI_ENV=${FASTAPI_ENV:-production}
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
         condition: service_healthy
 
   pgadmin:

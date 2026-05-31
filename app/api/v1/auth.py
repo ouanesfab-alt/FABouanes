@@ -38,7 +38,7 @@ async def api_auth_login(request: Request, payload: UserLoginSchema):
         api_error("login_failed", result["message"], int(result.get("status") or 401))
     user = result["user"]
     access_token = create_access_token(user)
-    refresh_token = await asyncio.to_thread(create_refresh_token, request, user)
+    refresh_token = await create_refresh_token(request, user)
     await asyncio.to_thread(audit_event, "api_login", "user", user["id"], source="api", after={"username": user["username"]})
     return _response(
         api_success(
@@ -62,7 +62,7 @@ async def api_auth_login(request: Request, payload: UserLoginSchema):
 async def api_auth_refresh(request: Request):
     payload = await request.json()
     raw_refresh = str(payload.get("refresh_token", "") or "").strip()
-    user = await asyncio.to_thread(validate_refresh_token, raw_refresh)
+    user = await validate_refresh_token(raw_refresh)
     if not user:
         api_error("refresh_token_invalid", "Jeton de renouvellement invalide.", 401)
     access_token = create_access_token(user)
@@ -76,9 +76,9 @@ async def api_auth_logout(request: Request):
     payload = await request.json()
     raw_refresh = str(payload.get("refresh_token", "") or "").strip()
     if raw_refresh:
-        await asyncio.to_thread(revoke_refresh_token, raw_refresh)
+        await revoke_refresh_token(raw_refresh)
     else:
-        await asyncio.to_thread(revoke_all_user_tokens, int(user["id"]))
+        await revoke_all_user_tokens(int(user["id"]))
     await asyncio.to_thread(log_activity, "api_logout", "user", user["id"], f"API logout {user['username']}")
     await asyncio.to_thread(audit_event, "api_logout", "user", user["id"], source="api", after={"username": user["username"]})
     return _response(api_success({"revoked": True}))

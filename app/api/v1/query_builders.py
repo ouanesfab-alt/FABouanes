@@ -4,7 +4,7 @@ from app.core.db_access import query_db_async
 
 def pagination_meta(request: Request) -> tuple[int, int, int]:
     page = max(int(request.query_params.get("page", "1") or "1"), 1)
-    page_size = min(max(int(request.query_params.get("page_size", "50") or "50"), 1), 200)
+    page_size = min(max(int(request.query_params.get("page_size", "50") or "50"), 1), 100)
     offset = (page - 1) * page_size
     return page, page_size, offset
 

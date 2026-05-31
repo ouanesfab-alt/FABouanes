@@ -9,6 +9,7 @@ Toutes les routes sont protégées sauf /ping et /auth/token.
 
 from __future__ import annotations
 import asyncio
+import logging
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
@@ -27,6 +28,8 @@ from app.modules.payments.service import PaymentsService
 from app.repositories.dashboard_repository import get_dashboard_snapshot
 from app.schemas.payment import PaymentCreate
 from app.core.rate_limit import limiter
+
+logger = logging.getLogger("fabouanes.mobile_api")
 
 router = APIRouter(prefix="/api/v1", tags=["mobile"])
 
@@ -53,15 +56,15 @@ async def mobile_login(request: Request):
             if isinstance(body, dict):
                 username = body.get("username", "")
                 password = body.get("password", "")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to parse JSON body for mobile login: %s", e)
     elif "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
         try:
             form = await request.form()
             username = form.get("username", "")
             password = form.get("password", "")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to parse Form data for mobile login: %s", e)
     else:
         # Fallback: try parsing JSON first, then Form
         try:
@@ -69,13 +72,14 @@ async def mobile_login(request: Request):
             if isinstance(body, dict):
                 username = body.get("username", "")
                 password = body.get("password", "")
-        except Exception:
+        except Exception as e1:
+            logger.debug("Fallback JSON parse failed for mobile login: %s", e1)
             try:
                 form = await request.form()
                 username = form.get("username", "")
                 password = form.get("password", "")
-            except Exception:
-                pass
+            except Exception as e2:
+                logger.debug("Fallback Form parse failed for mobile login: %s", e2)
 
     user = await asyncio.to_thread(
         verify_credentials,
@@ -105,25 +109,26 @@ async def mobile_refresh(request: Request):
             body = await request.json()
             if isinstance(body, dict):
                 refresh_token = body.get("refresh_token", "")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to parse JSON body for mobile refresh: %s", e)
     elif "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
         try:
             form = await request.form()
             refresh_token = form.get("refresh_token", "")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to parse Form data for mobile refresh: %s", e)
     else:
         try:
             body = await request.json()
             if isinstance(body, dict):
                 refresh_token = body.get("refresh_token", "")
-        except Exception:
+        except Exception as e1:
+            logger.debug("Fallback JSON parse failed for mobile refresh: %s", e1)
             try:
                 form = await request.form()
                 refresh_token = form.get("refresh_token", "")
-            except Exception:
-                pass
+            except Exception as e2:
+                logger.debug("Fallback Form parse failed for mobile refresh: %s", e2)
 
     if not refresh_token:
         raise HTTPException(401, "Refresh token requis")
@@ -149,6 +154,8 @@ async def mobile_list_clients(
     user_id: int = Depends(get_current_user_id),
 ):
     """Liste les clients avec leur solde actuel. Paginé."""
+    page = max(page, 1)
+    page_size = min(max(page_size, 1), 100)
     clients, total = await list_clients_with_balance(q, page, page_size)
     res_data = {"clients": clients, "total": total,
             "page": page, "page_size": page_size}
@@ -166,6 +173,8 @@ async def mobile_client_history(
     user_id: int = Depends(get_current_user_id),
 ):
     """Historique complet d'un client (Zone 1 + Zone 2), paginé."""
+    page = max(page, 1)
+    page_size = min(max(page_size, 1), 100)
     rows, total = await _fetch_client_history(client_id, page, page_size)
     res_data = {"rows": rows, "total": total, "page": page}
     add_cache_headers(request, response, res_data, max_age=30)

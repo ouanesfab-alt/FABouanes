@@ -125,6 +125,8 @@
 
     let selectedIndex = -1;
     const pageLoadTime = Date.now();
+    let currentSearchResults = [];
+    let selectedCategory = 'all';
 
     function getItems() {
       return Array.from(results.querySelectorAll('.search-result-item'));
@@ -147,16 +149,22 @@
       overlay.hidden = false;
       input.value = '';
       selectedIndex = -1;
+      currentSearchResults = [];
+      selectedCategory = 'all';
+      updateTabsUI();
       results.innerHTML = '<div class="search-hint">Tapez au moins 2 caractères…</div>';
       setTimeout(() => input.focus(), 50);
     }
     window.openSearch = openSearch;
+
     function closeSearch() {
       overlay.hidden = true;
     }
 
     // Ouvrir
     document.getElementById('globalSearchBtn')?.addEventListener('click', openSearch);
+    
+    // Keyboard listeners
     document.addEventListener('keydown', function (e) {
       const isDesktop = window.innerWidth >= 1024;
       const isSearchShortcut = isDesktop && (
@@ -165,13 +173,17 @@
       );
       
       if (isSearchShortcut) {
-        e.preventDefault(); openSearch();
+        e.preventDefault(); 
+        openSearch();
       }
-      if (e.key === 'Escape' && !overlay.hidden) closeSearch();
+      if (e.key === 'Escape' && !overlay.hidden) {
+        closeSearch();
+      }
       if (isDesktop && e.key === '/' && overlay.hidden === true
           && document.activeElement.tagName !== 'INPUT'
           && document.activeElement.tagName !== 'TEXTAREA') {
-        e.preventDefault(); openSearch();
+        e.preventDefault(); 
+        openSearch();
       }
     });
 
@@ -184,6 +196,19 @@
     // Keyboard navigation inside search results
     input.addEventListener('keydown', function (e) {
       const items = getItems();
+
+      // Tab switching with Alt + Left/Right
+      if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        const tabs = Array.from(overlay.querySelectorAll('.search-tab'));
+        const activeIdx = tabs.findIndex(t => t.classList.contains('active'));
+        let nextIdx = activeIdx + (e.key === 'ArrowLeft' ? -1 : 1);
+        if (nextIdx < 0) nextIdx = tabs.length - 1;
+        if (nextIdx >= tabs.length) nextIdx = 0;
+        tabs[nextIdx].click();
+        return;
+      }
+
       if (!items.length) return;
 
       if (e.key === 'ArrowDown') {
@@ -202,17 +227,30 @@
       }
     });
 
-    // Recherche
+    // Handle search input typing
     let timer;
     input.addEventListener('input', function () {
       clearTimeout(timer);
       const q = input.value.trim();
       selectedIndex = -1;
       if (q.length < 2) {
+        currentSearchResults = [];
         results.innerHTML = '<div class="search-hint">Tapez au moins 2 caractères…</div>';
         return;
       }
-      results.innerHTML = '<div class="search-hint">Recherche…</div>';
+      
+      // Render beautiful Apple-like Loading Skeletons
+      results.innerHTML = Array(3).fill(0).map(() => `
+        <div class="search-skeleton-item">
+          <div class="skeleton-shimmer" style="width: 44px; height: 44px; border-radius: 10px;"></div>
+          <div style="flex: 1; min-width: 0;">
+            <div class="skeleton-shimmer" style="width: 50%; height: 16px; margin-bottom: 6px;"></div>
+            <div class="skeleton-shimmer" style="width: 30%; height: 12px;"></div>
+          </div>
+          <div class="skeleton-shimmer" style="width: 60px; height: 18px; border-radius: 6px;"></div>
+        </div>
+      `).join('');
+
       timer = setTimeout(() => doSearch(q), 250);
     });
 
@@ -224,29 +262,89 @@
           return;
         }
         const json = await res.json();
-        const items = json.data || [];
-
-        if (items.length === 0) {
-          results.innerHTML = '<div class="search-hint">Aucun résultat pour "' +
-            q.replace(/</g, '&lt;') + '"</div>';
-          return;
-        }
-
-        results.innerHTML = items.map(item => `
-          <a class="search-result-item" href="${item.href}" onclick="document.getElementById('searchOverlay').hidden=true">
-            <div class="search-result-icon"><i class="bi ${item.icon}"></i></div>
-            <div>
-              <div class="search-result-title">${item.title.replace(/</g,'&lt;')}</div>
-              ${item.sub ? '<div class="search-result-sub">' + item.sub.replace(/</g,'&lt;') + '</div>' : ''}
-            </div>
-            <span class="search-result-type">${item.type}</span>
-          </a>
-        `).join('');
-
+        currentSearchResults = json.data || [];
+        renderResults(q);
       } catch (e) {
         results.innerHTML = '<div class="search-hint">Erreur lors de la recherche.</div>';
       }
     }
+
+    function renderResults(q = '') {
+      if (!currentSearchResults.length) {
+        results.innerHTML = '<div class="search-hint">Aucun résultat pour "' +
+          (q || input.value).replace(/</g, '&lt;') + '"</div>';
+        return;
+      }
+
+      // Filter by category selection
+      let filtered = currentSearchResults;
+      if (selectedCategory === 'contacts') {
+        filtered = currentSearchResults.filter(item => ['Client', 'Fournisseur'].includes(item.type));
+      } else if (selectedCategory === 'products') {
+        filtered = currentSearchResults.filter(item => ['Produit', 'Matière'].includes(item.type));
+      } else if (selectedCategory === 'operations') {
+        filtered = currentSearchResults.filter(item => ['Vente', 'Achat', 'Paiement'].includes(item.type));
+      }
+
+      if (!filtered.length) {
+        results.innerHTML = '<div class="search-hint">Aucun résultat dans cette catégorie.</div>';
+        return;
+      }
+
+      // Group results
+      const groups = {};
+      filtered.forEach(item => {
+        let grpName = 'Autres';
+        if (['Client', 'Fournisseur'].includes(item.type)) grpName = 'Contacts';
+        else if (['Produit', 'Matière'].includes(item.type)) grpName = 'Catalogue & Stocks';
+        else if (['Vente', 'Achat', 'Paiement'].includes(item.type)) grpName = 'Opérations';
+
+        if (!groups[grpName]) groups[grpName] = [];
+        groups[grpName].push(item);
+      });
+
+      // HTML Render
+      let html = '';
+      const order = ['Contacts', 'Catalogue & Stocks', 'Opérations', 'Autres'];
+      order.forEach(grp => {
+        if (groups[grp] && groups[grp].length) {
+          html += `<div class="search-group-header">${grp}</div>`;
+          groups[grp].forEach(item => {
+            html += `
+              <a class="search-result-item" href="${item.href}" onclick="document.getElementById('searchOverlay').hidden=true">
+                <div class="search-result-icon"><i class="bi ${item.icon}"></i></div>
+                <div style="flex: 1; min-width: 0;">
+                  <div class="search-result-title">${item.title.replace(/</g,'&lt;')}</div>
+                  ${item.sub ? '<div class="search-result-sub">' + item.sub.replace(/</g,'&lt;') + '</div>' : ''}
+                </div>
+                <span class="search-result-type">${item.type}</span>
+              </a>
+            `;
+          });
+        }
+      });
+
+      results.innerHTML = html;
+      selectedIndex = -1;
+      updateSelection();
+    }
+
+    function updateTabsUI() {
+      overlay.querySelectorAll('.search-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-type') === selectedCategory);
+      });
+    }
+
+    // Bind Category Tabs Clicks
+    overlay.querySelectorAll('.search-tab').forEach(btn => {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        selectedCategory = btn.getAttribute('data-type');
+        updateTabsUI();
+        renderResults();
+        input.focus();
+      });
+    });
   })();
 </script>
 <script nonce="{{ csp_nonce }}">

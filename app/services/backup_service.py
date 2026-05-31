@@ -494,7 +494,7 @@ def _background_loop(app) -> None:
             # Call check_stock_alerts every 30 minutes (40 loops of 45s)
             if loop_counter == 1 or loop_counter % 40 == 0:
                 from app.services.alert_service import check_stock_alerts
-                _safe_run("check_stock_alerts", check_stock_alerts)
+                await _safe_run_async("check_stock_alerts", check_stock_alerts)
 
             with BACKGROUND_LOCK:
                 BACKGROUND_STATE["last_run_ts"] = time.time()

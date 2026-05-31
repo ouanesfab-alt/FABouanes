@@ -5,7 +5,7 @@ import json
 import logging
 from typing import Any
 
-from app.core.db_access import query_db, execute_db
+from app.core.db_access import query_db_async, execute_db_async
 
 logger = logging.getLogger("fabouanes.idempotency")
 
@@ -21,13 +21,11 @@ def _get_redis_client() -> Any:
     redis_url = os.environ.get("REDIS_URL", "").strip()
     if redis_url:
         try:
-            import redis
-            client = redis.from_url(redis_url)
-            client.ping()
-            _redis_client = client
-            logger.info("Redis initialized successfully for idempotency tracking.")
+            import redis.asyncio as aioredis
+            _redis_client = aioredis.from_url(redis_url)
+            logger.info("Async Redis client initialized for idempotency tracking.")
         except Exception as exc:
-            logger.warning("Failed to connect to Redis for idempotency tracking, using DB fallback: %s", exc)
+            logger.warning("Failed to initialize Async Redis for idempotency tracking: %s", exc)
             _redis_client = None
     else:
         _redis_client = None
@@ -36,7 +34,7 @@ def _get_redis_client() -> Any:
     return _redis_client
 
 
-def check_idempotency(key: str | None) -> dict[str, Any] | None:
+async def check_idempotency(key: str | None) -> dict[str, Any] | None:
     """
     Checks if a request with the given idempotency key has already been processed.
     Returns the cached response dict if found, otherwise None.
@@ -51,7 +49,7 @@ def check_idempotency(key: str | None) -> dict[str, Any] | None:
     if redis_client is not None:
         try:
             redis_key = f"fabouanes:idempotency:{key}"
-            val = redis_client.get(redis_key)
+            val = await redis_client.get(redis_key)
             if val:
                 logger.info("Idempotency key hit in Redis: %s", key)
                 return json.loads(val)
@@ -60,7 +58,7 @@ def check_idempotency(key: str | None) -> dict[str, Any] | None:
 
     # 2. Fall back to PostgreSQL DB
     try:
-        row = query_db(
+        row = await query_db_async(
             "SELECT response_json FROM idempotent_requests WHERE key = %s",
             (key,),
             one=True,
@@ -74,7 +72,7 @@ def check_idempotency(key: str | None) -> dict[str, Any] | None:
     return None
 
 
-def save_idempotency(key: str | None, response: dict[str, Any]) -> None:
+async def save_idempotency(key: str | None, response: dict[str, Any]) -> None:
     """
     Saves the processed response for the given idempotency key to prevent double execution.
     """
@@ -91,7 +89,7 @@ def save_idempotency(key: str | None, response: dict[str, Any]) -> None:
     if redis_client is not None:
         try:
             redis_key = f"fabouanes:idempotency:{key}"
-            redis_client.setex(redis_key, 86400, response_json)
+            await redis_client.setex(redis_key, 86400, response_json)
             logger.info("Saved idempotency key in Redis: %s", key)
             saved_in_redis = True
         except Exception as exc:
@@ -100,7 +98,7 @@ def save_idempotency(key: str | None, response: dict[str, Any]) -> None:
     # 2. If Redis is down or not configured, persist in the database table
     if not saved_in_redis:
         try:
-            execute_db(
+            await execute_db_async(
                 """
                 INSERT INTO idempotent_requests (key, response_json, created_at)
                 VALUES (%s, %s, CURRENT_TIMESTAMP)
@@ -111,4 +109,3 @@ def save_idempotency(key: str | None, response: dict[str, Any]) -> None:
             logger.info("Saved idempotency key in database: %s", key)
         except Exception as exc:
             logger.error("Failed to save idempotency key in database: %s", exc)
-

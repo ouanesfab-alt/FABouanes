@@ -34,6 +34,9 @@ if REDIS_URL:  # pragma: no cover
         import redis
         _redis_client = redis.from_url(REDIS_URL)
         _redis_client.ping()
+    except ImportError:
+        logger.warning("redis library not installed. Falling back to in-memory event bus.")
+        _redis_client = None
     except Exception as e:
         logger.warning("Failed to connect to Redis for Event Bus, falling back to in-memory: %s", e)
         _redis_client = None

@@ -114,6 +114,126 @@
     });
   });
   drawer.querySelectorAll('a').forEach(function (link) { link.addEventListener('click', shut); });
+
+  // 🎛️ Inline Editing Controller (Finder style)
+  document.addEventListener('click', function (event) {
+    const editable = event.target.closest('[data-inline-edit]');
+    if (!editable || event.target.closest('input, button')) return;
+
+    // Trigger editing state
+    if (editable.classList.contains('is-editing')) return;
+    
+    event.preventDefault();
+    event.stopPropagation();
+
+    const fieldName = editable.getAttribute('data-inline-edit');
+    const currentValue = editable.getAttribute('data-value') || '';
+    const label = editable.getAttribute('data-label') || 'Valeur';
+    const container = document.getElementById('clientDetailContainer');
+    if (!container) return;
+
+    editable.classList.add('is-editing');
+    const originalHTML = editable.innerHTML;
+
+    // Build edit form inside the editable element
+    editable.innerHTML = `
+      <form class="inline-edit-form" onsubmit="return false;">
+        <input type="text" class="inline-edit-input" value="${currentValue.replace(/"/g, '&quot;')}" placeholder="${label}...">
+        <div class="inline-edit-actions">
+          <button type="button" class="inline-edit-btn inline-edit-save" title="Enregistrer"><i class="bi bi-check-lg"></i></button>
+          <button type="button" class="inline-edit-btn inline-edit-cancel" title="Annuler"><i class="bi bi-x-lg"></i></button>
+        </div>
+      </form>
+    `;
+
+    const input = editable.querySelector('.inline-edit-input');
+    input.focus();
+    input.select();
+
+    function restore() {
+      editable.classList.remove('is-editing');
+      editable.innerHTML = originalHTML;
+    }
+
+    async function save() {
+      const newValue = input.value.trim();
+      if (newValue === currentValue) {
+        restore();
+        return;
+      }
+      if (fieldName === 'name' && !newValue) {
+        alert('Le nom est obligatoire.');
+        input.focus();
+        return;
+      }
+
+      // Collect values from client details container
+      const clientId = container.getAttribute('data-client-id');
+      const payload = {
+        name: container.getAttribute('data-client-name'),
+        phone: container.getAttribute('data-client-phone'),
+        address: container.getAttribute('data-client-address'),
+        notes: container.getAttribute('data-client-notes'),
+        opening_credit: container.getAttribute('data-client-opening-credit') || '0.0',
+        csrf_token: window.fabCsrfToken || ''
+      };
+
+      // Update the edited field
+      payload[fieldName] = newValue;
+
+      // Submit POST via fetch
+      const saveBtn = editable.querySelector('.inline-edit-save');
+      saveBtn.innerHTML = '<span class="mac-spinner" style="margin-right:0;"></span>';
+      saveBtn.disabled = true;
+
+      try {
+        const bodyParams = new URLSearchParams(payload);
+        const response = await fetch(`/contacts/clients/${clientId}/edit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: bodyParams.toString()
+        });
+
+        if (response.ok) {
+          window.location.reload();
+        } else {
+          alert("Erreur lors de la modification du client.");
+          restore();
+        }
+      } catch (err) {
+        alert("Erreur réseau.");
+        restore();
+      }
+    }
+
+    // Bind actions
+    editable.querySelector('.inline-edit-cancel').addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      restore();
+    });
+
+    editable.querySelector('.inline-edit-save').addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      save();
+    });
+
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        save();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        restore();
+      }
+    });
+  });
 })();
 
 window.openInvoice = window.openInvoice || function (event, url) {
