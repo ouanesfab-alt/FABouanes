@@ -552,6 +552,14 @@ def shutdown_background_services(app=None) -> None:
     global BACKGROUND_STATE
     with BACKGROUND_LOCK:
         BACKGROUND_STATE["shutdown_requested"] = True
+        conn = BACKGROUND_STATE.get("leader_conn")
+        if conn is not None:
+            try:
+                conn.execute("SELECT pg_advisory_unlock(%s)", (SCHEDULER_LOCK_ID,))
+                conn.close()
+            except Exception:
+                pass
+            BACKGROUND_STATE["leader_conn"] = None
     thread = BACKGROUND_STATE.get("thread")
     if thread and thread.is_alive():
         thread.join(timeout=10)

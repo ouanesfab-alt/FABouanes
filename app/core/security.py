@@ -73,6 +73,8 @@ def validate_password_strength(password: str, mode: str | None = None) -> tuple[
 def security_headers(response):
     from app.core.config import settings
     from app.services.platform_service import platform
+    from app.version import APP_VERSION
+    response.headers.setdefault("X-App-Version", APP_VERSION)
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-XSS-Protection", "1; mode=block")

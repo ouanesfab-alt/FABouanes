@@ -14,68 +14,82 @@ from app.core.request_state import get_state_value
 import time
 from app.core.db_access import execute_db, query_db
 
-_AUDIT_QUEUE: deque[tuple] = deque(maxlen=50000)
-_last_warned_ts = 0.0
+import asyncio
+from app.core.db_access import query_db, execute_db_async
+
+_AUDIT_QUEUE: asyncio.Queue | None = None
+_AUDIT_TASK: asyncio.Task | None = None
 _AUDIT_DROPPED = 0
-_AUDIT_LOCK = threading.Lock()
-_AUDIT_EVENT = threading.Event()
-_AUDIT_WORKER_STARTED = False
-_AUDIT_WORKER_LOCK = threading.Lock()
+_last_warned_ts = 0.0
 
+def _get_audit_queue() -> asyncio.Queue:
+    global _AUDIT_QUEUE
+    if _AUDIT_QUEUE is None:
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        _AUDIT_QUEUE = asyncio.Queue(maxsize=50000)
+    return _AUDIT_QUEUE
 
-def _ensure_audit_worker() -> None:
-    global _AUDIT_WORKER_STARTED
-    if _AUDIT_WORKER_STARTED:
+def start_audit_worker() -> None:
+    global _AUDIT_TASK
+    if _AUDIT_TASK is not None:
         return
-    with _AUDIT_WORKER_LOCK:
-        if _AUDIT_WORKER_STARTED:
-            return
-        thread = threading.Thread(target=_audit_worker, name="fab-audit-log-writer", daemon=True)
-        thread.start()
-        _AUDIT_WORKER_STARTED = True
+    try:
+        loop = asyncio.get_running_loop()
+        _AUDIT_TASK = loop.create_task(_audit_flusher_task())
+    except RuntimeError:
+        pass
 
+async def stop_audit_worker() -> None:
+    global _AUDIT_TASK
+    if _AUDIT_TASK is None:
+        return
+    _AUDIT_TASK.cancel()
+    try:
+        await _AUDIT_TASK
+    except asyncio.CancelledError:
+        pass
+    _AUDIT_TASK = None
 
-def _audit_worker() -> None:
+async def _audit_flusher_task() -> None:
     import logging
-    from app.core.db import connect_database
-    from app.core.config import settings
-
     logger = logging.getLogger("fabouanes.audit")
-
+    queue = _get_audit_queue()
     while True:
-        _AUDIT_EVENT.wait(timeout=2.0)
-        _AUDIT_EVENT.clear()
-
-        while True:
-            batch = []
-            with _AUDIT_LOCK:
-                while _AUDIT_QUEUE and len(batch) < 50:
-                    batch.append(_AUDIT_QUEUE.popleft())
-
-            if not batch:
-                break
-
-            try:
-                conn = connect_database(settings.database_url)
+        try:
+            item = await queue.get()
+            batch = [item]
+            while not queue.empty() and len(batch) < 50:
                 try:
-                    for row in batch:
-                        cur = conn.execute(
-                            """
-                            INSERT INTO audit_logs (
-                                actor_user_id, actor_username, actor_role, source,
-                                action, entity_type, entity_id, status,
-                                ip_address, user_agent, request_id,
-                                before_json, after_json, meta_json, created_at
-                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-                            """,
-                            row
-                        )
-                        cur.close()
-                    conn.commit()
+                    batch.append(queue.get_nowait())
+                except asyncio.QueueEmpty:
+                    break
+            
+            for row in batch:
+                try:
+                    await execute_db_async(
+                        """
+                        INSERT INTO audit_logs (
+                            actor_user_id, actor_username, actor_role, source,
+                            action, entity_type, entity_id, status,
+                            ip_address, user_agent, request_id,
+                            before_json, after_json, meta_json, created_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                        """,
+                        row
+                    )
+                except Exception:
+                    logger.exception("Unable to persist audit log row")
                 finally:
-                    conn.close()
-            except Exception:
-                logger.exception("Unable to persist audit log batch")
+                    queue.task_done()
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            logger.exception("Error in audit flusher task")
+            await asyncio.sleep(2.0)
+
 
 
 SENSITIVE_TOKENS = {
@@ -223,17 +237,22 @@ def audit_event(
         _json_dump(meta),
     )
     global _last_warned_ts, _AUDIT_DROPPED
-    with _AUDIT_LOCK:
-        if len(_AUDIT_QUEUE) >= 50000:
-            _AUDIT_DROPPED += 1
-            import logging
-            logging.getLogger("fabouanes.audit").error(
-                "Audit log queue is full! Dropped event. Total dropped = %d", _AUDIT_DROPPED
-            )
-        else:
-            _AUDIT_QUEUE.append(params)
+    global _last_warned_ts, _AUDIT_DROPPED
+    queue = _get_audit_queue()
+    if queue.full():
+        _AUDIT_DROPPED += 1
+        import logging
+        logging.getLogger("fabouanes.audit").error(
+            "Audit log queue is full! Dropped event. Total dropped = %d", _AUDIT_DROPPED
+        )
+    else:
+        try:
+            loop = asyncio.get_running_loop()
+            loop.call_soon_threadsafe(queue.put_nowait, params)
+        except RuntimeError:
+            queue.put_nowait(params)
 
-        q_len = len(_AUDIT_QUEUE)
+        q_len = queue.qsize()
         if q_len > 5000:
             now = time.time()
             if now - _last_warned_ts > 60.0:
@@ -243,8 +262,6 @@ def audit_event(
                     "Audit queue high-watermark exceeded: current size is %d. The database writer is falling behind.",
                     q_len
                 )
-    _ensure_audit_worker()
-    _AUDIT_EVENT.set()
 
 
 def list_audit_logs(filters: Mapping[str, Any] | None = None, *, limit: int = 200):
@@ -333,22 +350,10 @@ def audit_delete_event(
     snapshot = état de l'entité AVANT suppression.
     """
     resolved_user_id, actor_username, actor_role = _resolve_actor(user_id=user_id)
-    source = get_state_value("audit_source") or "web"
-
-    execute_db(
-        """
-        INSERT INTO audit_logs
-            (action, entity_type, entity_id,
-             before_json, actor_user_id, actor_username, actor_role, source, status, created_at)
-        VALUES ('delete', %s, %s, %s, %s, %s, %s, %s, 'success', NOW())
-        """,
-        (
-            entity_type,
-            str(entity_id),
-            json.dumps(snapshot, default=str),
-            resolved_user_id,
-            actor_username,
-            actor_role,
-            source,
-        ),
+    audit_event(
+        action="delete",
+        entity_type=entity_type,
+        entity_id=entity_id,
+        before=snapshot,
+        actor={"id": resolved_user_id, "username": actor_username, "role": actor_role} if resolved_user_id else None,
     )

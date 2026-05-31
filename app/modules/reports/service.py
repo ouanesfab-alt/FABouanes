@@ -4,6 +4,10 @@ from __future__ import annotations
 import re
 from datetime import date
 from decimal import Decimal
+from typing import Any
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.modules.reports.repository import ReportsRepository
 from app.modules.reports.dtos import (
     ReportsContextDTO,
@@ -24,13 +28,14 @@ def _to_date(val) -> date | None:
     return val
 
 class ReportsService:
-    def __init__(self, repository: ReportsRepository | None = None) -> None:
-        self.repository = repository or ReportsRepository()
+    def __init__(self, session: AsyncSession, repository: ReportsRepository | None = None) -> None:
+        self.session = session
+        self.repository = repository or ReportsRepository(session)
 
-    def build_reports_context(self, date_from: str | None = None, date_to: str | None = None) -> ReportsContextDTO:
+    async def build_reports_context(self, date_from: str | None = None, date_to: str | None = None) -> ReportsContextDTO:
         """Construit toutes les données nécessaires pour la page de rapports via DTOs typés."""
         
-        summary_raw = self.repository.get_period_summary(date_from, date_to)
+        summary_raw = await self.repository.get_period_summary(date_from, date_to)
         summary = ReportsSummaryDTO(
             total_sales=Decimal(str(summary_raw.get("total_sales", 0.0))),
             total_profit=Decimal(str(summary_raw.get("total_profit", 0.0))),
@@ -41,8 +46,8 @@ class ReportsService:
             nb_payments=int(summary_raw.get("nb_payments", 0)),
         )
         
-        expenses_total = Decimal(str(self.repository.get_expenses_total(date_from, date_to)))
-        cogs = Decimal(str(self.repository.get_cost_of_goods(date_from, date_to)))
+        expenses_total = Decimal(str(await self.repository.get_expenses_total(date_from, date_to)))
+        cogs = Decimal(str(await self.repository.get_cost_of_goods(date_from, date_to)))
         
         revenue = summary.total_sales
         gross_margin = revenue - cogs
@@ -53,14 +58,14 @@ class ReportsService:
         gross_margin_pct = round(float(gross_margin / revenue) * 100.0, 1) if revenue > 0 else 0.0
 
         # Dépenses par catégorie
-        expenses_by_cat_raw = self.repository.get_expenses_by_category()
+        expenses_by_cat_raw = await self.repository.get_expenses_by_category()
         expenses_by_cat_labels = [str(e["category"]) for e in expenses_by_cat_raw]
         expenses_by_cat_totals = [float(e["total"]) for e in expenses_by_cat_raw]
 
         # ── RETARD DE PAIEMENT CLIENTS & ÂGE DES DETTES ──
-        clients = self.repository.get_clients()
-        sales = self.repository.get_credit_sales()
-        payments = self.repository.get_payments()
+        clients = await self.repository.get_clients()
+        sales = await self.repository.get_credit_sales()
+        payments = await self.repository.get_payments()
 
         from collections import defaultdict
         sales_by_client = defaultdict(list)
@@ -170,9 +175,9 @@ class ReportsService:
             outstanding=total_outstanding,
         )
         # Tendances mensuelles
-        monthly_sales = self.repository.get_sales_by_month(12)
-        monthly_purchases = self.repository.get_purchases_by_month(12)
-        monthly_expenses = self.repository.get_expenses_by_month(12)
+        monthly_sales = await self.repository.get_sales_by_month(12)
+        monthly_purchases = await self.repository.get_purchases_by_month(12)
+        monthly_expenses = await self.repository.get_expenses_by_month(12)
 
         all_months = sorted(set(
             [r["month"] for r in monthly_sales]
@@ -202,7 +207,7 @@ class ReportsService:
                 chart_labels.append(m)
 
         # Graphique quotidien (30 jours)
-        daily_sales_raw = self.repository.get_daily_sales(30)
+        daily_sales_raw = await self.repository.get_daily_sales(30)
         daily_labels = []
         daily_totals = []
         daily_profits = []
@@ -221,7 +226,7 @@ class ReportsService:
             daily_profits.append(float(r["profit"] or 0))
 
         # Top produits et clients
-        top_products_raw = self.repository.get_top_products_by_revenue(10, date_from, date_to)
+        top_products_raw = await self.repository.get_top_products_by_revenue(10, date_from, date_to)
         top_products = [
             TopProductDTO(
                 name=p["name"],
@@ -231,7 +236,7 @@ class ReportsService:
             ) for p in top_products_raw
         ]
 
-        top_clients_raw = self.repository.get_top_clients_by_revenue(10, date_from, date_to)
+        top_clients_raw = await self.repository.get_top_clients_by_revenue(10, date_from, date_to)
         top_clients = [
             TopClientDTO(
                 name=c["name"],

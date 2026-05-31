@@ -26,20 +26,7 @@ from typing import Any, Callable
 logger = logging.getLogger("fabouanes.events")
 
 WORKER_ID = uuid.uuid4().hex
-REDIS_URL = os.environ.get("REDIS_URL", "").strip()
-
 _redis_client = None
-if REDIS_URL:  # pragma: no cover
-    try:
-        import redis
-        _redis_client = redis.from_url(REDIS_URL)
-        _redis_client.ping()
-    except ImportError:
-        logger.warning("redis library not installed. Falling back to in-memory event bus.")
-        _redis_client = None
-    except Exception as e:
-        logger.warning("Failed to connect to Redis for Event Bus, falling back to in-memory: %s", e)
-        _redis_client = None
 
 
 @dataclass
@@ -165,9 +152,9 @@ def emit(event: DomainEvent) -> None:
         or os.getenv("FAB_TESTING") == "1"
         or os.getenv("FASTAPI_ENV") == "test"
     )
+    redis_url = os.environ.get("REDIS_URL", "").strip()
     force_outbox = os.getenv("FAB_FORCE_OUTBOX") == "1"
-    
-    if (REDIS_URL and not is_testing) or force_outbox:
+    if (redis_url and not is_testing) or force_outbox:
         try:
             from app.core.db_access import execute_db
             payload = _serialize_event(event, WORKER_ID)

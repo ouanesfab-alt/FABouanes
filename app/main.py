@@ -49,6 +49,8 @@ from app.services.backup_service import start_background_services
 from app.web.deps import ensure_csrf_token, load_user_from_session
 from app.web.router import router as web_router
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
+from app.core.audit import start_audit_worker, stop_audit_worker
+from app.core.async_db import close_async_engine
 
 
 
@@ -57,6 +59,7 @@ async def lifespan(_: FastAPI):
     validate_single_worker_runtime()
     ensure_runtime_dirs()
     configure_logging()
+    start_audit_worker()
     
     # Initialize Observability (OpenTelemetry & structlog)
     try:
@@ -112,6 +115,11 @@ async def lifespan(_: FastAPI):
     finally:
         logger.info("Arrêt en cours, arrêt des services...")
         try:
+            await stop_audit_worker()
+        except Exception as e:
+            logger.warning("Erreur à l'arrêt du worker d'audit: %s", e)
+
+        try:
             from app.core.events import shutdown as events_shutdown
             events_shutdown()
         except Exception as e:
@@ -128,6 +136,11 @@ async def lifespan(_: FastAPI):
             shutdown_background_services(app)
         except Exception as e:
             logger.warning("Erreur pendant le shutdown: %s", e)
+
+        try:
+            await close_async_engine()
+        except Exception as e:
+            logger.warning("Erreur lors de la fermeture du moteur asynchrone: %s", e)
         logger.info("Shutdown terminé.")
 
 
@@ -360,13 +373,15 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 @app.get("/health")
+@app.get("/readiness")
 async def health_check():
     import shutil
     import time
     from app.core.database import healthcheck
     from app.services.backup_service import BACKGROUND_STATE
+    from app.version import APP_VERSION
 
-    checks: dict[str, str] = {"db": "ok", "scheduler": "ok", "disk": "ok"}
+    checks: dict[str, str] = {"db": "ok", "scheduler": "ok", "disk": "ok", "version": APP_VERSION}
     now = time.time()
 
     # Database connectivity
@@ -401,7 +416,7 @@ async def health_check():
     except Exception:
         checks["disk"] = "unknown"
 
-    status = "ok" if all(v == "ok" for k, v in checks.items() if k not in ["disk_free_mb", "last_run_age_s", "last_backup_age_h"]) else "degraded"
+    status = "ok" if all(v == "ok" for k, v in checks.items() if k not in ["disk_free_mb", "last_run_age_s", "last_backup_age_h", "version"]) else "degraded"
     code = 200 if status == "ok" else 503
     return JSONResponse({"status": status, **checks}, status_code=code)
 
@@ -417,10 +432,13 @@ except Exception as e:
     logger.critical("Erreur critique lors de la decouverte/montage des modules: %s", e, exc_info=True)
 
 
+@app.get("/api/version")
 @app.get("/api/v1/version")
 async def get_version():
     from app.core.registry import get_enabled_modules
+    from app.version import APP_VERSION
     return {
+        "version": APP_VERSION,
         "app": "FABOuanes",
         "env": settings.env,
         "modules": [m.name for m in get_enabled_modules()],

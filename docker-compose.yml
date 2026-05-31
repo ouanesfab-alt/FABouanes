@@ -6,15 +6,15 @@ services:
     container_name: fabouanes_dev_db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-fabouanes}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password123}
-      POSTGRES_DB: ${POSTGRES_DB:-fabouanes_dev}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
       - pgdata_dev:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-fabouanes} -d $${POSTGRES_DB:-fabouanes_dev}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,8 +26,8 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://fabouanes:password123@db:5432/fabouanes_dev}
-      - SECRET_KEY=${SECRET_KEY:-prod-secret-key-change-me-in-production-env}
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY=${SECRET_KEY}
       - FASTAPI_ENV=${FASTAPI_ENV:-production}
       - FAB_HOST=0.0.0.0
       - FAB_PORT=5000
@@ -41,8 +41,8 @@ services:
     container_name: fabouanes_pgadmin
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
     ports:
       - "5050:80"
     depends_on:
@@ -50,3 +50,4 @@ services:
 
 volumes:
   pgdata_dev:
+

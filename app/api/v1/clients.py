@@ -43,16 +43,9 @@ from app.core.permissions import (
 
 router = APIRouter(prefix="/api/v1", tags=["contacts"])
 
-@router.api_route("/clients", methods=["GET", "POST"])
-async def api_clients(request: Request, db: AsyncSession = Depends(get_async_session)):
-    require_api_user(request, PERMISSION_CONTACTS_WRITE if request.method == "POST" else PERMISSION_CONTACTS_READ)
-    if request.method == "POST":
-        payload = await request.json()
-        validated = ClientCreateSchema(**payload)
-        service = ClientService(db)
-        client = await service.create_client(validated)
-        return json_response(api_success(await client_payload(client.id), status_code=201))
-
+@router.get("/clients")
+async def api_get_clients(request: Request, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_CONTACTS_READ)
     page = max(int(request.query_params.get("page", 1)), 1)
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     service = ClientService(db)
@@ -66,6 +59,15 @@ async def api_clients(request: Request, db: AsyncSession = Depends(get_async_ses
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=300)
     return response
+
+@router.post("/clients")
+async def api_create_client(request: Request, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_CONTACTS_WRITE)
+    payload = await request.json()
+    validated = ClientCreateSchema(**payload)
+    service = ClientService(db)
+    client = await service.create_client(validated)
+    return json_response(api_success(await client_payload(client.id), status_code=201))
 
 @router.get("/clients/export")
 async def export_clients_csv(request: Request):
@@ -123,25 +125,33 @@ async def export_clients_csv(request: Request):
     )
 
 
-@router.api_route("/clients/{client_id}", methods=["GET", "PUT"])
-async def api_client_detail(request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)):
-    require_api_user(request, PERMISSION_CONTACTS_WRITE if request.method == "PUT" else PERMISSION_CONTACTS_READ)
+@router.get("/clients/{client_id}")
+async def api_get_client_detail(request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_CONTACTS_READ)
     client = await client_payload(client_id)
     if not client:
         api_error("not_found", "Client introuvable.", 404)
-    if request.method == "PUT":
-        payload = await request.json()
-        validated = ClientUpdateSchema(**payload)
-        service = ClientService(db)
-        await service.update_client(client_id, validated)
-        client = await client_payload(client_id)
     detail = await client_history_payload(client_id, db)
     client["summary"] = detail.get("stats", {}) if detail else {}
     res_data = api_success(client)
     response = json_response(res_data)
-    if request.method == "GET":
-        add_cache_headers(request, response, res_data, max_age=300)
+    add_cache_headers(request, response, res_data, max_age=300)
     return response
+
+@router.put("/clients/{client_id}")
+async def api_update_client(request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_CONTACTS_WRITE)
+    client = await client_payload(client_id)
+    if not client:
+        api_error("not_found", "Client introuvable.", 404)
+    payload = await request.json()
+    validated = ClientUpdateSchema(**payload)
+    service = ClientService(db)
+    await service.update_client(client_id, validated)
+    client = await client_payload(client_id)
+    detail = await client_history_payload(client_id, db)
+    client["summary"] = detail.get("stats", {}) if detail else {}
+    return json_response(api_success(client))
 
 @router.post("/clients/{client_id}/shred")
 async def api_shred_client(request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)):
@@ -304,25 +314,9 @@ async def api_client_history(
     return response
 
 
-@router.api_route("/suppliers", methods=["GET", "POST"])
-async def api_suppliers(request: Request):
-    require_api_user(request, PERMISSION_CONTACTS_WRITE if request.method == "POST" else PERMISSION_CONTACTS_READ)
-    if request.method == "POST":
-        payload = await request.json()
-        supplier_id = await execute_db_async(
-            "INSERT INTO suppliers (name, phone, address, notes) VALUES (%s, %s, %s, %s)",
-            (
-                str(payload.get("name", "")).strip(),
-                str(payload.get("phone", "")).strip(),
-                str(payload.get("address", "")).strip(),
-                str(payload.get("notes", "")).strip(),
-            ),
-        )
-        supplier = await supplier_payload(supplier_id)
-        audit_event("create_supplier", "supplier", supplier_id, source="api", after=supplier)
-        log_activity("create_supplier", "supplier", supplier_id, str(payload.get("name", "")).strip())
-        return json_response(api_success(supplier, status_code=201))
-
+@router.get("/suppliers")
+async def api_get_suppliers(request: Request):
+    require_api_user(request, PERMISSION_CONTACTS_READ)
     page = max(int(request.query_params.get("page", 1)), 1)
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     rows, total = await list_suppliers(
@@ -336,53 +330,71 @@ async def api_suppliers(request: Request):
     add_cache_headers(request, response, res_data, max_age=300)
     return response
 
-@router.api_route("/suppliers/{supplier_id}", methods=["GET", "PUT", "DELETE"])
-async def api_supplier_detail(request: Request, supplier_id: int):
-    permission = {
-        "GET": PERMISSION_CONTACTS_READ,
-        "PUT": PERMISSION_CONTACTS_WRITE,
-        "DELETE": PERMISSION_CONTACTS_DELETE,
-    }[request.method]
-    require_api_user(request, permission)
+@router.post("/suppliers")
+async def api_create_supplier(request: Request):
+    require_api_user(request, PERMISSION_CONTACTS_WRITE)
+    payload = await request.json()
+    supplier_id = await execute_db_async(
+        "INSERT INTO suppliers (name, phone, address, notes) VALUES (%s, %s, %s, %s)",
+        (
+            str(payload.get("name", "")).strip(),
+            str(payload.get("phone", "")).strip(),
+            str(payload.get("address", "")).strip(),
+            str(payload.get("notes", "")).strip(),
+        ),
+    )
+    supplier = await supplier_payload(supplier_id)
+    audit_event("create_supplier", "supplier", supplier_id, source="api", after=supplier)
+    log_activity("create_supplier", "supplier", supplier_id, str(payload.get("name", "")).strip())
+    return json_response(api_success(supplier, status_code=201))
+
+@router.get("/suppliers/{supplier_id}")
+async def api_get_supplier_detail(request: Request, supplier_id: int):
+    require_api_user(request, PERMISSION_CONTACTS_READ)
     supplier = await supplier_payload(supplier_id)
     if not supplier:
         api_error("not_found", "Fournisseur introuvable.", 404)
-    if request.method == "PUT":
-        payload = await request.json()
-        before = dict(supplier)
-        await execute_db_async(
-            "UPDATE suppliers SET name = %s, phone = %s, address = %s, notes = %s WHERE id = %s",
-            (
-                payload.get("name", supplier["name"]),
-                payload.get("phone", supplier["phone"]),
-                payload.get("address", supplier["address"]),
-                payload.get("notes", supplier["notes"]),
-                supplier_id,
-            ),
-        )
-        supplier = await supplier_payload(supplier_id)
-        audit_event("update_supplier", "supplier", supplier_id, source="api", before=before, after=supplier)
-    elif request.method == "DELETE":
-        before = dict(supplier)
-        await execute_db_async("DELETE FROM suppliers WHERE id = %s", (supplier_id,))
-        audit_event("delete_supplier", "supplier", supplier_id, source="api", before=before, after=None)
-        return json_response(api_success({"deleted": True}))
     res_data = api_success(supplier)
     response = json_response(res_data)
-    if request.method == "GET":
-        add_cache_headers(request, response, res_data, max_age=300)
+    add_cache_headers(request, response, res_data, max_age=300)
     return response
 
-@router.api_route("/raw-materials", methods=["GET", "POST"])
-async def api_raw_materials(request: Request, db: AsyncSession = Depends(get_async_session)):
-    require_api_user(request, PERMISSION_CATALOG_WRITE if request.method == "POST" else PERMISSION_CATALOG_READ)
-    if request.method == "POST":
-        payload = dict(await request.json())
-        validated = RawMaterialCreateSchema(**payload)
-        service = CatalogService(db)
-        material = await service.create_raw_material(validated)
-        return json_response(api_success(await raw_material_payload(material.id), status_code=201))
+@router.put("/suppliers/{supplier_id}")
+async def api_update_supplier(request: Request, supplier_id: int):
+    require_api_user(request, PERMISSION_CONTACTS_WRITE)
+    supplier = await supplier_payload(supplier_id)
+    if not supplier:
+        api_error("not_found", "Fournisseur introuvable.", 404)
+    payload = await request.json()
+    before = dict(supplier)
+    await execute_db_async(
+        "UPDATE suppliers SET name = %s, phone = %s, address = %s, notes = %s WHERE id = %s",
+        (
+            payload.get("name", supplier["name"]),
+            payload.get("phone", supplier["phone"]),
+            payload.get("address", supplier["address"]),
+            payload.get("notes", supplier["notes"]),
+            supplier_id,
+        ),
+    )
+    supplier = await supplier_payload(supplier_id)
+    audit_event("update_supplier", "supplier", supplier_id, source="api", before=before, after=supplier)
+    return json_response(api_success(supplier))
 
+@router.delete("/suppliers/{supplier_id}")
+async def api_delete_supplier(request: Request, supplier_id: int):
+    require_api_user(request, PERMISSION_CONTACTS_DELETE)
+    supplier = await supplier_payload(supplier_id)
+    if not supplier:
+        api_error("not_found", "Fournisseur introuvable.", 404)
+    before = dict(supplier)
+    await execute_db_async("DELETE FROM suppliers WHERE id = %s", (supplier_id,))
+    audit_event("delete_supplier", "supplier", supplier_id, source="api", before=before, after=None)
+    return json_response(api_success({"deleted": True}))
+
+@router.get("/raw-materials")
+async def api_get_raw_materials(request: Request, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_CATALOG_READ)
     page = max(int(request.query_params.get("page", 1)), 1)
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     rows, total = await list_raw_materials(
@@ -397,44 +409,53 @@ async def api_raw_materials(request: Request, db: AsyncSession = Depends(get_asy
     add_cache_headers(request, response, res_data, max_age=300)
     return response
 
-@router.api_route("/raw-materials/{material_id}", methods=["GET", "PUT", "DELETE"])
-async def api_raw_material_detail(request: Request, material_id: int, db: AsyncSession = Depends(get_async_session)):
-    permission = {
-        "GET": PERMISSION_CATALOG_READ,
-        "PUT": PERMISSION_CATALOG_WRITE,
-        "DELETE": PERMISSION_CATALOG_DELETE,
-    }[request.method]
-    require_api_user(request, permission)
+@router.post("/raw-materials")
+async def api_create_raw_material(request: Request, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_CATALOG_WRITE)
+    payload = dict(await request.json())
+    validated = RawMaterialCreateSchema(**payload)
+    service = CatalogService(db)
+    material = await service.create_raw_material(validated)
+    return json_response(api_success(await raw_material_payload(material.id), status_code=201))
+
+@router.get("/raw-materials/{material_id}")
+async def api_get_raw_material_detail(request: Request, material_id: int, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_CATALOG_READ)
     material = await raw_material_payload(material_id)
     if not material:
         api_error("not_found", "Matiere premiere introuvable.", 404)
-    if request.method == "PUT":
-        payload = dict(await request.json())
-        validated = RawMaterialUpdateSchema(**payload)
-        service = CatalogService(db)
-        await service.update_raw_material(material_id, validated)
-        material = await raw_material_payload(material_id)
-    elif request.method == "DELETE":
-        service = CatalogService(db)
-        if not await service.delete_raw_material(material_id):
-            api_error("conflict", "Suppression impossible.", 409)
-        return json_response(api_success({"deleted": True}))
     res_data = api_success(material)
     response = json_response(res_data)
-    if request.method == "GET":
-        add_cache_headers(request, response, res_data, max_age=300)
+    add_cache_headers(request, response, res_data, max_age=300)
     return response
 
-@router.api_route("/finished-products", methods=["GET", "POST"])
-async def api_finished_products(request: Request, db: AsyncSession = Depends(get_async_session)):
-    require_api_user(request, PERMISSION_CATALOG_WRITE if request.method == "POST" else PERMISSION_CATALOG_READ)
-    if request.method == "POST":
-        payload = dict(await request.json())
-        validated = FinishedProductCreateSchema(**payload)
-        service = CatalogService(db)
-        product = await service.create_finished_product(validated)
-        return json_response(api_success(await finished_product_payload(product.id), status_code=201))
+@router.put("/raw-materials/{material_id}")
+async def api_update_raw_material(request: Request, material_id: int, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_CATALOG_WRITE)
+    material = await raw_material_payload(material_id)
+    if not material:
+        api_error("not_found", "Matiere premiere introuvable.", 404)
+    payload = dict(await request.json())
+    validated = RawMaterialUpdateSchema(**payload)
+    service = CatalogService(db)
+    await service.update_raw_material(material_id, validated)
+    material = await raw_material_payload(material_id)
+    return json_response(api_success(material))
 
+@router.delete("/raw-materials/{material_id}")
+async def api_delete_raw_material(request: Request, material_id: int, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_CATALOG_DELETE)
+    material = await raw_material_payload(material_id)
+    if not material:
+        api_error("not_found", "Matiere premiere introuvable.", 404)
+    service = CatalogService(db)
+    if not await service.delete_raw_material(material_id):
+        api_error("conflict", "Suppression impossible.", 409)
+    return json_response(api_success({"deleted": True}))
+
+@router.get("/finished-products")
+async def api_get_finished_products(request: Request, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_CATALOG_READ)
     page = max(int(request.query_params.get("page", 1)), 1)
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     rows, total = await list_finished_products(
@@ -448,33 +469,49 @@ async def api_finished_products(request: Request, db: AsyncSession = Depends(get
     add_cache_headers(request, response, res_data, max_age=300)
     return response
 
-@router.api_route("/finished-products/{product_id}", methods=["GET", "PUT", "DELETE"])
-async def api_finished_product_detail(request: Request, product_id: int, db: AsyncSession = Depends(get_async_session)):
-    permission = {
-        "GET": PERMISSION_CATALOG_READ,
-        "PUT": PERMISSION_CATALOG_WRITE,
-        "DELETE": PERMISSION_CATALOG_DELETE,
-    }[request.method]
-    require_api_user(request, permission)
+@router.post("/finished-products")
+async def api_create_finished_product(request: Request, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_CATALOG_WRITE)
+    payload = dict(await request.json())
+    validated = FinishedProductCreateSchema(**payload)
+    service = CatalogService(db)
+    product = await service.create_finished_product(validated)
+    return json_response(api_success(await finished_product_payload(product.id), status_code=201))
+
+@router.get("/finished-products/{product_id}")
+async def api_get_finished_product_detail(request: Request, product_id: int, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_CATALOG_READ)
     product = await finished_product_payload(product_id)
     if not product:
         api_error("not_found", "Produit fini introuvable.", 404)
-    if request.method == "PUT":
-        payload = dict(await request.json())
-        validated = FinishedProductUpdateSchema(**payload)
-        service = CatalogService(db)
-        await service.update_finished_product(product_id, validated)
-        product = await finished_product_payload(product_id)
-    elif request.method == "DELETE":
-        service = CatalogService(db)
-        if not await service.delete_finished_product(product_id):
-            api_error("conflict", "Suppression impossible.", 409)
-        return json_response(api_success({"deleted": True}))
     res_data = api_success(product)
     response = json_response(res_data)
-    if request.method == "GET":
-        add_cache_headers(request, response, res_data, max_age=300)
+    add_cache_headers(request, response, res_data, max_age=300)
     return response
+
+@router.put("/finished-products/{product_id}")
+async def api_update_finished_product(request: Request, product_id: int, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_CATALOG_WRITE)
+    product = await finished_product_payload(product_id)
+    if not product:
+        api_error("not_found", "Produit fini introuvable.", 404)
+    payload = dict(await request.json())
+    validated = FinishedProductUpdateSchema(**payload)
+    service = CatalogService(db)
+    await service.update_finished_product(product_id, validated)
+    product = await finished_product_payload(product_id)
+    return json_response(api_success(product))
+
+@router.delete("/finished-products/{product_id}")
+async def api_delete_finished_product(request: Request, product_id: int, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_CATALOG_DELETE)
+    product = await finished_product_payload(product_id)
+    if not product:
+        api_error("not_found", "Produit fini introuvable.", 404)
+    service = CatalogService(db)
+    if not await service.delete_finished_product(product_id):
+        api_error("conflict", "Suppression impossible.", 409)
+    return json_response(api_success({"deleted": True}))
 
 
 @router.post("/clients/import-history/bulk")

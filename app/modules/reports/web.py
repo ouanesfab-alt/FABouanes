@@ -6,16 +6,18 @@ import io
 
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.async_db import get_async_session
 from app.modules.reports.service import ReportsService
 from app.web.deps import require_permission, template_context, templates
-from app.core.perf_cache import cached_result
+from app.core.perf_cache import async_cached_result
 from app.core.rate_limit import limiter
 
 router = APIRouter()
 
-def get_reports_service() -> ReportsService:
-    return ReportsService()
+def get_reports_service(db: AsyncSession = Depends(get_async_session)) -> ReportsService:
+    return ReportsService(db)
 
 
 @router.get("/reports", name="reports_dashboard")
@@ -30,9 +32,13 @@ async def reports_page(
     date_from = request.query_params.get("date_from", "")
     date_to = request.query_params.get("date_to", "")
     
-    ctx = cached_result(
+    async def _load_context():
+        dto = await reports_service.build_reports_context(date_from or None, date_to or None)
+        return dto.model_dump()
+        
+    ctx = await async_cached_result(
         ("dashboard", "reports", date_from or "", date_to or ""),
-        lambda: reports_service.build_reports_context(date_from or None, date_to or None).model_dump(),
+        _load_context,
         ttl_seconds=300.0,
     )
     
@@ -159,9 +165,13 @@ async def export_csv(
     date_from = request.query_params.get("date_from", "")
     date_to = request.query_params.get("date_to", "")
     
-    ctx = cached_result(
+    async def _load_context():
+        dto = await reports_service.build_reports_context(date_from or None, date_to or None)
+        return dto.model_dump()
+        
+    ctx = await async_cached_result(
         ("dashboard", "reports", date_from or "", date_to or ""),
-        lambda: reports_service.build_reports_context(date_from or None, date_to or None).model_dump(),
+        _load_context,
         ttl_seconds=300.0,
     )
 

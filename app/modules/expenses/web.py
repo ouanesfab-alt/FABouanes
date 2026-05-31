@@ -1,10 +1,12 @@
 """Routes web du module Dépenses & Charges, avec validation Pydantic."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.async_db import get_async_session
 from app.modules.expenses.service import (
     add_expense, get_categories, get_expense, get_payment_methods,
     list_expenses, modify_expense, remove_expense,
@@ -17,7 +19,7 @@ router = APIRouter()
 
 
 @router.get("/expenses", name="expenses")
-async def expenses_page(request: Request):
+async def expenses_page(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "expenses.read")
     if denied:
         return denied
@@ -27,9 +29,9 @@ async def expenses_page(request: Request):
         "date_from": request.query_params.get("date_from", ""),
         "date_to": request.query_params.get("date_to", ""),
     }
-    expenses = list_expenses(filters)
-    total = sum(e.get("amount", 0) for e in expenses)
-    by_category = expenses_by_category(filters.get("date_from"), filters.get("date_to"))
+    expenses = await list_expenses(db, filters)
+    total = sum(e.amount for e in expenses)
+    by_category = await expenses_by_category(db, filters.get("date_from"), filters.get("date_to"))
     return templates.TemplateResponse("expenses.html", template_context(
         request, expenses=expenses, categories=get_categories(),
         payment_methods=get_payment_methods(), filters=filters,
@@ -49,7 +51,7 @@ async def new_expense_page(request: Request):
 
 
 @router.post("/expenses/new", name="new_expense")
-async def new_expense_submit(request: Request):
+async def new_expense_submit(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "expenses.write")
     if denied:
         return denied
@@ -74,7 +76,8 @@ async def new_expense_submit(request: Request):
         ))
         
     try:
-        add_expense(
+        await add_expense(
+            db=db,
             date=data.date.isoformat(),
             category=data.category,
             description=data.description,
@@ -94,11 +97,11 @@ async def new_expense_submit(request: Request):
 
 
 @router.get("/expenses/{expense_id}/edit", name="edit_expense")
-async def edit_expense_page(request: Request, expense_id: int):
+async def edit_expense_page(request: Request, expense_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "expenses.write")
     if denied:
         return denied
-    expense = get_expense(expense_id)
+    expense = await get_expense(db, expense_id)
     if not expense:
         flash(request, "Dépense introuvable.", "danger")
         return RedirectResponse("/expenses", status_code=303)
@@ -109,13 +112,13 @@ async def edit_expense_page(request: Request, expense_id: int):
 
 
 @router.post("/expenses/{expense_id}/edit", name="edit_expense")
-async def edit_expense_submit(request: Request, expense_id: int):
+async def edit_expense_submit(request: Request, expense_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "expenses.write")
     if denied:
         return denied
     await csrf_protect(request)
     
-    expense = get_expense(expense_id)
+    expense = await get_expense(db, expense_id)
     if not expense:
         flash(request, "Dépense introuvable.", "danger")
         return RedirectResponse("/expenses", status_code=303)
@@ -141,7 +144,8 @@ async def edit_expense_submit(request: Request, expense_id: int):
         ))
         
     try:
-        modify_expense(
+        await modify_expense(
+            db=db,
             expense_id=expense_id,
             date=data.date.isoformat(),
             category=data.category,
@@ -164,12 +168,12 @@ async def edit_expense_submit(request: Request, expense_id: int):
 
 
 @router.post("/expenses/{expense_id}/delete", name="delete_expense")
-async def delete_expense_route(request: Request, expense_id: int):
+async def delete_expense_route(request: Request, expense_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "expenses.delete")
     if denied:
         return denied
     await csrf_protect(request)
-    if remove_expense(expense_id):
+    if await remove_expense(db, expense_id):
         flash(request, "Dépense supprimée.", "success")
     else:
         flash(request, "Dépense introuvable.", "danger")

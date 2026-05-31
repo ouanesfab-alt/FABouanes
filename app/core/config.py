@@ -48,7 +48,7 @@ class Settings:
     host: str = os.getenv("FAB_HOST", "0.0.0.0").strip() or "0.0.0.0"
     port: int = int(os.getenv("FAB_PORT", "5000") or "5000")
     session_max_age: int = int(os.getenv("SESSION_MAX_AGE", str(60 * 60 * 12)))
-    strict_csp: bool = os.getenv("FAB_STRICT_CSP", "0") == "1"
+    strict_csp: bool = os.getenv("FAB_STRICT_CSP", "1") == "1"
 
     def __post_init__(self) -> None:
         if not self.secret_key:

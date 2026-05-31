@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
-from sqlmodel import text
+from sqlmodel import select, func, case, cast, Numeric, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.models import Purchase, PurchaseDocument
+from app.core.models import Purchase, PurchaseDocument, Supplier, RawMaterial, FinishedProduct
 from app.repositories.base_repository import AsyncRepository
 
 class PurchaseRepository(AsyncRepository[Purchase]):
@@ -14,35 +14,48 @@ class PurchaseRepository(AsyncRepository[Purchase]):
         super().__init__(session, Purchase)
 
     async def get_by_id(self, purchase_id: int) -> Optional[Dict[str, Any]]:
-        result = await self.session.execute(
-            text("""
-                SELECT p.*, s.name AS supplier_name,
-                       CASE 
-                           WHEN p.finished_product_id IS NOT NULL THEN fp.name
-                           ELSE COALESCE(NULLIF(p.custom_item_name, ''), r.name)
-                       END AS material_name,
-                       CASE 
-                           WHEN p.finished_product_id IS NOT NULL THEN COALESCE(p.unit, fp.default_unit, 'kg')
-                           ELSE COALESCE(p.unit, r.unit, 'kg')
-                       END AS display_unit,
-                        CASE
-                            WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) LIKE 'sac%' THEN p.quantity / COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, r.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
-                            WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
-                            ELSE p.quantity
-                        END AS display_quantity,
-                        CASE
-                            WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) LIKE 'sac%' THEN p.unit_price * COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, r.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
-                            WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
-                            ELSE p.unit_price
-                        END AS display_unit_price
-                FROM purchases p
-                LEFT JOIN suppliers s ON s.id = p.supplier_id
-                LEFT JOIN raw_materials r ON r.id = p.raw_material_id
-                LEFT JOIN finished_products fp ON fp.id = p.finished_product_id
-                WHERE p.id = :purchase_id
-            """),
-            {"purchase_id": purchase_id}
+        unit_expr = func.coalesce(Purchase.unit, FinishedProduct.default_unit, RawMaterial.unit, 'kg')
+        
+        material_name_expr = case(
+            (Purchase.finished_product_id != None, FinishedProduct.name),
+            else_=func.coalesce(func.nullif(Purchase.custom_item_name, ''), RawMaterial.name)
         )
+        
+        display_unit_expr = case(
+            (Purchase.finished_product_id != None, func.coalesce(Purchase.unit, FinishedProduct.default_unit, 'kg')),
+            else_=func.coalesce(Purchase.unit, RawMaterial.unit, 'kg')
+        )
+        
+        sac_capacity_num = cast(func.coalesce(func.nullif(func.regexp_replace(unit_expr, '[^0-9.]', '', 'g'), ''), '50'), Numeric)
+        
+        display_quantity_expr = case(
+            (func.lower(unit_expr).like('sac%'), Purchase.quantity / sac_capacity_num),
+            (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.quantity / 100.0),
+            else_=Purchase.quantity
+        )
+        
+        display_unit_price_expr = case(
+            (func.lower(unit_expr).like('sac%'), Purchase.unit_price * sac_capacity_num),
+            (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.unit_price * 100.0),
+            else_=Purchase.unit_price
+        )
+
+        stmt = (
+            select(
+                *Purchase.__table__.columns,
+                Supplier.name.label("supplier_name"),
+                material_name_expr.label("material_name"),
+                display_unit_expr.label("display_unit"),
+                display_quantity_expr.label("display_quantity"),
+                display_unit_price_expr.label("display_unit_price")
+            )
+            .select_from(Purchase)
+            .join(Supplier, Supplier.id == Purchase.supplier_id, isouter=True)
+            .join(RawMaterial, RawMaterial.id == Purchase.raw_material_id, isouter=True)
+            .join(FinishedProduct, FinishedProduct.id == Purchase.finished_product_id, isouter=True)
+            .where(Purchase.id == purchase_id)
+        )
+        result = await self.session.execute(stmt)
         row = result.first()
         return dict(row._mapping) if row else None
 
@@ -54,59 +67,90 @@ class PurchaseRepository(AsyncRepository[Purchase]):
         page: int = 1,
         page_size: int = 50,
     ) -> Tuple[List[Dict[str, Any]], int]:
-        where: list[str] = []
-        bind_params: dict[str, Any] = {}
+        unit_expr = func.coalesce(Purchase.unit, FinishedProduct.default_unit, RawMaterial.unit, 'kg')
+        
+        material_name_expr = case(
+            (Purchase.finished_product_id != None, FinishedProduct.name),
+            else_=func.coalesce(func.nullif(Purchase.custom_item_name, ''), RawMaterial.name)
+        )
+        
+        material_unit_expr = case(
+            (Purchase.finished_product_id != None, func.coalesce(Purchase.unit, FinishedProduct.default_unit, 'kg')),
+            else_=func.coalesce(Purchase.unit, RawMaterial.unit, 'kg')
+        )
+        
+        sac_capacity_num = cast(func.coalesce(func.nullif(func.regexp_replace(unit_expr, '[^0-9.]', '', 'g'), ''), '50'), Numeric)
+        
+        display_quantity_expr = case(
+            (func.lower(unit_expr).like('sac%'), Purchase.quantity / sac_capacity_num),
+            (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.quantity / 100.0),
+            else_=Purchase.quantity
+        )
+        
+        display_unit_price_expr = case(
+            (func.lower(unit_expr).like('sac%'), Purchase.unit_price * sac_capacity_num),
+            (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.unit_price * 100.0),
+            else_=Purchase.unit_price
+        )
+
+        subquery_cols = [
+            Purchase.id,
+            Purchase.purchase_date,
+            Purchase.supplier_id,
+            Purchase.document_id,
+            Purchase.raw_material_id,
+            Purchase.finished_product_id,
+            Purchase.quantity,
+            Purchase.unit,
+            Purchase.unit_price,
+            Purchase.total,
+            Purchase.notes,
+            Purchase.custom_item_name,
+            Purchase.created_at,
+            Purchase.updated_at,
+            Supplier.name.label("supplier_name"),
+            material_name_expr.label("material_name"),
+            material_unit_expr.label("material_unit"),
+            display_quantity_expr.label("display_quantity"),
+            display_unit_price_expr.label("display_unit_price")
+        ]
+
+        subq = (
+            select(*subquery_cols)
+            .select_from(Purchase)
+            .join(Supplier, Supplier.id == Purchase.supplier_id, isouter=True)
+            .join(RawMaterial, RawMaterial.id == Purchase.raw_material_id, isouter=True)
+            .join(FinishedProduct, FinishedProduct.id == Purchase.finished_product_id, isouter=True)
+        ).subquery("x")
+
+        stmt = select(subq)
 
         if search:
-            where.append("(LOWER(COALESCE(supplier_name, '')) LIKE LOWER(:search) OR LOWER(COALESCE(material_name, '')) LIKE LOWER(:search) OR LOWER(COALESCE(notes, '')) LIKE LOWER(:search))")
-            bind_params["search"] = f"%{search}%"
+            search_pattern = f"%{search}%"
+            stmt = stmt.where(
+                func.or_(
+                    func.coalesce(subq.c.supplier_name, '').ilike(search_pattern),
+                    func.coalesce(subq.c.material_name, '').ilike(search_pattern),
+                    func.coalesce(subq.c.notes, '').ilike(search_pattern)
+                )
+            )
 
         if date_from:
-            where.append("purchase_date >= :date_from")
-            bind_params["date_from"] = date_from
+            stmt = stmt.where(subq.c.purchase_date >= date_from)
         if date_to:
-            where.append("purchase_date <= :date_to")
-            bind_params["date_to"] = date_to
+            stmt = stmt.where(subq.c.purchase_date <= date_to)
 
-        base_query = """
-            SELECT * FROM (
-                SELECT p.id, p.purchase_date, p.supplier_id, p.document_id, p.raw_material_id, p.finished_product_id,
-                       p.quantity, p.unit, p.unit_price, p.total, p.notes, p.created_at, p.updated_at,
-                       s.name AS supplier_name,
-                       CASE 
-                           WHEN p.finished_product_id IS NOT NULL THEN fp.name
-                           ELSE COALESCE(NULLIF(p.custom_item_name, ''), r.name)
-                       END AS material_name, 
-                       CASE 
-                           WHEN p.finished_product_id IS NOT NULL THEN COALESCE(p.unit, fp.default_unit, 'kg')
-                           ELSE COALESCE(p.unit, r.unit, 'kg')
-                       END AS material_unit,
-                       CASE
-                           WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) LIKE 'sac%' THEN p.quantity / COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, r.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
-                           WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
-                           ELSE p.quantity
-                       END AS display_quantity,
-                       CASE
-                           WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) LIKE 'sac%' THEN p.unit_price * COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, r.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
-                           WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
-                           ELSE p.unit_price
-                       END AS display_unit_price
-                FROM purchases p
-                LEFT JOIN suppliers s ON s.id = p.supplier_id
-                LEFT JOIN raw_materials r ON r.id = p.raw_material_id
-                LEFT JOIN finished_products fp ON fp.id = p.finished_product_id
-            ) x
-        """
+        # Add total count column using window function
+        stmt = stmt.add_columns(func.count().over().label("_total_count"))
 
-        if where:
-            base_query += " WHERE " + " AND ".join(where)
+        # Order and paginate
+        stmt = (
+            stmt.order_by(subq.c.purchase_date.desc(), subq.c.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
 
-        offset = (page - 1) * page_size
-        bind_params["limit"] = page_size
-        bind_params["offset"] = offset
-
-        wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY purchase_date DESC, id DESC LIMIT :limit OFFSET :offset"
-        result = await self.session.execute(text(wrapped), bind_params)
+        result = await self.session.execute(stmt)
         rows = [dict(row._mapping) for row in result.fetchall()]
         total = int(rows[0]["_total_count"]) if rows else 0
         return rows, total
@@ -114,19 +158,27 @@ class PurchaseRepository(AsyncRepository[Purchase]):
     async def list_raw_material_choices(self) -> List[Dict[str, Any]]:
         # Fetch raw materials
         res_raw = await self.session.execute(
-            text("""
-                SELECT id, name, unit, stock_qty, avg_cost, sale_price
-                FROM raw_materials
-            """)
+            select(
+                RawMaterial.id,
+                RawMaterial.name,
+                RawMaterial.unit,
+                RawMaterial.stock_qty,
+                RawMaterial.avg_cost,
+                RawMaterial.sale_price
+            )
         )
         raws = res_raw.fetchall()
 
         # Fetch finished products
         res_finished = await self.session.execute(
-            text("""
-                SELECT id, name, default_unit AS unit, stock_qty, avg_cost, sale_price
-                FROM finished_products
-            """)
+            select(
+                FinishedProduct.id,
+                FinishedProduct.name,
+                FinishedProduct.default_unit.label("unit"),
+                FinishedProduct.stock_qty,
+                FinishedProduct.avg_cost,
+                FinishedProduct.sale_price
+            )
         )
         finished = res_finished.fetchall()
 
@@ -172,47 +224,67 @@ class PurchaseDocumentRepository(AsyncRepository[PurchaseDocument]):
         super().__init__(session, PurchaseDocument)
 
     async def get_by_id(self, doc_id: int) -> Optional[Dict[str, Any]]:
-        result = await self.session.execute(
-            text("""
-                SELECT pd.*, COALESCE(s.name, 'Sans fournisseur') AS supplier_name
-                FROM purchase_documents pd
-                LEFT JOIN suppliers s ON s.id = pd.supplier_id
-                WHERE pd.id = :doc_id
-            """),
-            {"doc_id": doc_id}
+        stmt = (
+            select(
+                *PurchaseDocument.__table__.columns,
+                func.coalesce(Supplier.name, 'Sans fournisseur').label("supplier_name")
+            )
+            .select_from(PurchaseDocument)
+            .join(Supplier, Supplier.id == PurchaseDocument.supplier_id, isouter=True)
+            .where(PurchaseDocument.id == doc_id)
         )
+        result = await self.session.execute(stmt)
         row = result.first()
         return dict(row._mapping) if row else None
 
     async def list_lines(self, doc_id: int) -> List[Dict[str, Any]]:
-        result = await self.session.execute(
-            text("""
-                SELECT p.id AS row_id, p.document_id, p.supplier_id, p.purchase_date, p.notes, p.raw_material_id, p.finished_product_id,
-                       CASE 
-                           WHEN p.finished_product_id IS NOT NULL THEN fp.name
-                           ELSE COALESCE(NULLIF(p.custom_item_name, ''), r.name)
-                       END AS material_name, p.custom_item_name,
-                       CASE 
-                           WHEN p.finished_product_id IS NOT NULL THEN COALESCE(p.unit, fp.default_unit, 'kg')
-                           ELSE COALESCE(p.unit, r.unit, 'kg')
-                       END AS display_unit,
-                       CASE
-                           WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) LIKE 'sac%' THEN p.quantity / COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, r.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
-                           WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
-                           ELSE p.quantity
-                       END AS display_quantity,
-                       CASE
-                           WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) LIKE 'sac%' THEN p.unit_price * COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, r.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
-                           WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
-                           ELSE p.unit_price
-                       END AS display_unit_price,
-                       p.total
-                FROM purchases p
-                LEFT JOIN raw_materials r ON r.id = p.raw_material_id
-                LEFT JOIN finished_products fp ON fp.id = p.finished_product_id
-                WHERE p.document_id = :doc_id
-                ORDER BY p.id ASC
-            """),
-            {"doc_id": doc_id}
+        unit_expr = func.coalesce(Purchase.unit, FinishedProduct.default_unit, RawMaterial.unit, 'kg')
+        
+        material_name_expr = case(
+            (Purchase.finished_product_id != None, FinishedProduct.name),
+            else_=func.coalesce(func.nullif(Purchase.custom_item_name, ''), RawMaterial.name)
         )
+        
+        display_unit_expr = case(
+            (Purchase.finished_product_id != None, func.coalesce(Purchase.unit, FinishedProduct.default_unit, 'kg')),
+            else_=func.coalesce(Purchase.unit, RawMaterial.unit, 'kg')
+        )
+        
+        sac_capacity_num = cast(func.coalesce(func.nullif(func.regexp_replace(unit_expr, '[^0-9.]', '', 'g'), ''), '50'), Numeric)
+        
+        display_quantity_expr = case(
+            (func.lower(unit_expr).like('sac%'), Purchase.quantity / sac_capacity_num),
+            (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.quantity / 100.0),
+            else_=Purchase.quantity
+        )
+        
+        display_unit_price_expr = case(
+            (func.lower(unit_expr).like('sac%'), Purchase.unit_price * sac_capacity_num),
+            (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.unit_price * 100.0),
+            else_=Purchase.unit_price
+        )
+
+        stmt = (
+            select(
+                Purchase.id.label("row_id"),
+                Purchase.document_id,
+                Purchase.supplier_id,
+                Purchase.purchase_date,
+                Purchase.notes,
+                Purchase.raw_material_id,
+                Purchase.finished_product_id,
+                material_name_expr.label("material_name"),
+                Purchase.custom_item_name,
+                display_unit_expr.label("display_unit"),
+                display_quantity_expr.label("display_quantity"),
+                display_unit_price_expr.label("display_unit_price"),
+                Purchase.total
+            )
+            .select_from(Purchase)
+            .join(RawMaterial, RawMaterial.id == Purchase.raw_material_id, isouter=True)
+            .join(FinishedProduct, FinishedProduct.id == Purchase.finished_product_id, isouter=True)
+            .where(Purchase.document_id == doc_id)
+            .order_by(Purchase.id.asc())
+        )
+        result = await self.session.execute(stmt)
         return [dict(row._mapping) for row in result.fetchall()]

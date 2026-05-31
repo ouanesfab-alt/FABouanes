@@ -5,14 +5,12 @@ import json
 import shutil
 import secrets
 from time import time
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from werkzeug.utils import secure_filename
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, delete, func, literal, literal_column, or_
 
-from app.core.models import Client
+from app.core.models import Client, ClientKey, ClientHistory
 from app.core.events import DomainEvent, emit
 from app.core.perf_cache import invalidate_client_cache
 from app.modules.clients.repository import ClientRepository
@@ -34,15 +32,12 @@ class ClientService:
     async def _decrypt_client(self, client: Optional[Client]) -> Optional[Client]:
         if not client:
             return client
-        from sqlalchemy import text
         import base64
         from app.core.security import decrypt_val
-        res = await self.repo.session.execute(
-            text("SELECT encryption_key FROM client_keys WHERE client_id = :client_id"),
-            {"client_id": client.id}
-        )
+        stmt = select(ClientKey.client_id, ClientKey.encryption_key).where(ClientKey.client_id == client.id)
+        res = await self.repo.session.execute(stmt)
         row = res.mappings().first()
-        key = base64.b64decode(row["encryption_key"]) if row and row["encryption_key"] else None
+        key = base64.b64decode(row["encryption_key"]) if row and row.get("encryption_key") else None
         
         client.phone = decrypt_val(client.phone, key)
         client.address = decrypt_val(client.address, key)
@@ -55,19 +50,14 @@ class ClientService:
         if not client_ids:
             return clients
             
-        from sqlalchemy import text, bindparam
         import base64
         from app.core.security import decrypt_val
         
-        res = await self.repo.session.execute(
-            text("SELECT client_id, encryption_key FROM client_keys WHERE client_id IN :ids").bindparams(
-                bindparam("ids", expanding=True)
-            ),
-            {"ids": tuple(client_ids)}
-        )
+        stmt = select(ClientKey.client_id, ClientKey.encryption_key).where(ClientKey.client_id.in_(client_ids))
+        res = await self.repo.session.execute(stmt)
         keys_map = {}
-        for row in res.mappings().all():
-            keys_map[row["client_id"]] = base64.b64decode(row["encryption_key"])
+        for row in res.all():
+            keys_map[row[0]] = base64.b64decode(row[1])
             
         for client in clients:
             key = keys_map.get(client.id)
@@ -82,10 +72,8 @@ class ClientService:
             return False
             
         # Delete key
-        from sqlalchemy import text
         await self.repo.session.execute(
-            text("DELETE FROM client_keys WHERE client_id = :client_id"),
-            {"client_id": client_id}
+            delete(ClientKey).where(ClientKey.client_id == client_id)
         )
         
         # Set phone & address to "[SHREDDED]"
@@ -122,42 +110,40 @@ class ClientService:
         self, search: Optional[str] = None, page: int = 1, page_size: int = 50
     ) -> Tuple[List[dict], int]:
         """Lists clients with calculated statistics and balance from the database view."""
-        where: List[str] = []
-        params: dict = {}
+        from sqlalchemy import text
+        stmt = select(
+            *Client.__table__.columns,
+            literal_column("current_balance"),
+            literal_column("total_sales"),
+            literal_column("total_payments")
+        ).select_from(text("clients_with_stats"))
         
         if search:
-            where.append("search_vector @@ plainto_tsquery('french', :search)")
-            params["search"] = search
+            stmt = stmt.where(literal_column("search_vector").op("@@")(func.plainto_tsquery('french', search)))
             
-        base_query = "SELECT * FROM clients_with_stats"
-        if where:
-            base_query += " WHERE " + " AND ".join(where)
+        stmt = stmt.add_columns(func.count().over().label("_total_count"))
         
         offset = (page - 1) * page_size
-        params["limit"] = page_size
-        params["offset"] = offset
+        stmt = (
+            stmt.order_by(literal_column("name"))
+            .offset(offset)
+            .limit(page_size)
+        )
         
-        wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY name LIMIT :limit OFFSET :offset"
-        
-        res = await self.repo.session.execute(text(wrapped), params)
-        rows = [dict(r) for r in res.mappings().all()]
+        res = await self.repo.session.execute(stmt)
+        rows = [dict(row._mapping) for row in res.fetchall()]
         
         if rows:
             client_ids = [c["id"] for c in rows if c.get("id")]
             if client_ids:
-                from sqlalchemy import bindparam
                 import base64
                 from app.core.security import decrypt_val
                 
-                res_keys = await self.repo.session.execute(
-                    text("SELECT client_id, encryption_key FROM client_keys WHERE client_id IN :ids").bindparams(
-                        bindparam("ids", expanding=True)
-                    ),
-                    {"ids": tuple(client_ids)}
-                )
+                stmt_keys = select(ClientKey.client_id, ClientKey.encryption_key).where(ClientKey.client_id.in_(client_ids))
+                res_keys = await self.repo.session.execute(stmt_keys)
                 keys_map = {}
-                for row in res_keys.mappings().all():
-                    keys_map[row["client_id"]] = base64.b64decode(row["encryption_key"])
+                for row in res_keys.all():
+                    keys_map[row[0]] = base64.b64decode(row[1])
                     
                 for client in rows:
                     key = keys_map.get(client["id"])
@@ -182,11 +168,9 @@ class ClientService:
         import base64
         key = os.urandom(32)
         b64_key = base64.b64encode(key).decode("utf-8")
-        from sqlalchemy import text
-        await self.repo.session.execute(
-            text("INSERT INTO client_keys (client_id, encryption_key) VALUES (:client_id, :key)"),
-            {"client_id": created.id, "key": b64_key}
-        )
+        
+        ck = ClientKey(client_id=created.id, encryption_key=b64_key)
+        self.repo.session.add(ck)
         await self.repo.session.commit()
 
         from app.core.security import encrypt_val
@@ -217,22 +201,17 @@ class ClientService:
             return None
 
         # Fetch key
-        from sqlalchemy import text
         import base64
-        res = await self.repo.session.execute(
-            text("SELECT encryption_key FROM client_keys WHERE client_id = :client_id"),
-            {"client_id": client.id}
-        )
+        stmt_key = select(ClientKey.client_id, ClientKey.encryption_key).where(ClientKey.client_id == client.id)
+        res = await self.repo.session.execute(stmt_key)
         row = res.mappings().first()
-        key = base64.b64decode(row["encryption_key"]) if row and row["encryption_key"] else None
+        key = base64.b64decode(row["encryption_key"]) if row and row.get("encryption_key") else None
         if not key:
             import os
             key = os.urandom(32)
             b64_key = base64.b64encode(key).decode("utf-8")
-            await self.repo.session.execute(
-                text("INSERT INTO client_keys (client_id, encryption_key) VALUES (:client_id, :key)"),
-                {"client_id": client.id, "key": b64_key}
-            )
+            ck = ClientKey(client_id=client.id, encryption_key=b64_key)
+            self.repo.session.add(ck)
             await self.repo.session.commit()
 
         from app.core.security import decrypt_val, encrypt_val
@@ -701,10 +680,13 @@ class ClientService:
                 client_id = created.id
 
         # 3. Vérifier s'il y a déjà un historique importé
-        existing_history_stmt = text(
-            "SELECT 1 FROM client_history WHERE client_id = :cid AND source = 'import_excel' LIMIT 1"
+        stmt_hist = (
+            select(literal(1))
+            .where(ClientHistory.client_id == client_id)
+            .where(ClientHistory.source == 'import_excel')
+            .limit(1)
         )
-        res_hist = await self.repo.session.execute(existing_history_stmt, {"cid": client_id})
+        res_hist = await self.repo.session.execute(stmt_hist)
         existing_history = res_hist.first() is not None
 
         if existing_history:
@@ -714,10 +696,11 @@ class ClientService:
                     "et force_reimport est désactivé."
                 )
             # Supprimer l'ancien historique Excel importé
-            await self.repo.session.execute(
-                text("DELETE FROM client_history WHERE client_id = :cid AND source = 'import_excel'"),
-                {"cid": client_id}
+            stmt_del = delete(ClientHistory).where(
+                ClientHistory.client_id == client_id,
+                ClientHistory.source == 'import_excel'
             )
+            await self.repo.session.execute(stmt_del)
 
         # 4. Mettre à jour le solde (opening_credit) du client
         client_to_update = await self.repo.get_by_id(client_id)
@@ -727,19 +710,8 @@ class ClientService:
 
         # 5. Insérer en lot les nouvelles lignes dans client_history (batch INSERT)
         if rows:
-            query = text("""
-                INSERT INTO client_history (
-                    client_id, operation_date, designation,
-                    montant_achat, montant_verse, solde_cumule,
-                    ordre_import, source, created_at
-                ) VALUES (
-                    :client_id, :operation_date, :designation,
-                    :montant_achat, :montant_verse, :solde_cumule,
-                    :ordre_import, 'import_excel', CURRENT_TIMESTAMP
-                )
-            """)
             from datetime import date, datetime
-            params = []
+            history_objs = []
             for r in rows:
                 dt_val = r["date"]
                 if isinstance(dt_val, str):
@@ -757,16 +729,19 @@ class ClientService:
                 else:
                     op_date = date.today()
 
-                params.append({
-                    "client_id": client_id,
-                    "operation_date": op_date,
-                    "designation": r["designation"],
-                    "montant_achat": r["montant_achat"],
-                    "montant_verse": r["montant_verse"],
-                    "solde_cumule": r["solde_cumule"],
-                    "ordre_import": r["ordre_import"]
-                })
-            await self.repo.session.execute(query, params)
+                history_objs.append(
+                    ClientHistory(
+                        client_id=client_id,
+                        operation_date=op_date,
+                        designation=r["designation"],
+                        montant_achat=r["montant_achat"],
+                        montant_verse=r["montant_verse"],
+                        solde_cumule=r["solde_cumule"],
+                        ordre_import=r["ordre_import"],
+                        source='import_excel'
+                    )
+                )
+            self.repo.session.add_all(history_objs)
 
         # Commit to persist
         await self.repo.session.commit()

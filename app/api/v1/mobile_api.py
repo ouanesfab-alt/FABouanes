@@ -31,7 +31,7 @@ from app.core.rate_limit import limiter
 
 logger = logging.getLogger("fabouanes.mobile_api")
 
-router = APIRouter(prefix="/api/v1", tags=["mobile"])
+router = APIRouter(prefix="/api/mobile/v1", tags=["mobile"])
 
 
 @router.get("/ping")
@@ -144,7 +144,7 @@ async def mobile_refresh(request: Request):
     }
 
 
-@router.get("/mobile/clients")
+@router.get("/clients")
 async def mobile_list_clients(
     request: Request,
     response: Response,
@@ -163,7 +163,7 @@ async def mobile_list_clients(
     return res_data
 
 
-@router.get("/mobile/clients/{client_id}/history")
+@router.get("/clients/{client_id}/history")
 async def mobile_client_history(
     request: Request,
     response: Response,
@@ -181,7 +181,7 @@ async def mobile_client_history(
     return res_data
 
 
-@router.post("/mobile/payments")
+@router.post("/payments")
 async def mobile_record_payment(
     payload: PaymentCreate,
     user_id: int = Depends(get_current_user_id),
@@ -206,7 +206,7 @@ async def mobile_record_payment(
         raise HTTPException(400, detail=str(e))
 
 
-@router.get("/mobile/dashboard")
+@router.get("/dashboard")
 async def mobile_dashboard_summary(
     request: Request,
     response: Response,

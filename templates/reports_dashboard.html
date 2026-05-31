@@ -1,121 +1,15 @@
 {% extends 'base.html' %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
+  /* Page specific overrides */
   .reports-page{display:flex;flex-direction:column;gap:20px;}
   .reports-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
   .reports-filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
   .reports-filter-bar input[type="date"]{max-width:170px;}
-  /* ── KPI Summary Cards ── */
-  .rpt-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;}
-  .rpt-kpi{
-    padding:20px;
-    border-radius:var(--radius-lg);
-    border:1px solid var(--glass-border);
-    background:var(--glass-bg);
-    backdrop-filter:var(--backdrop-blur);
-    -webkit-backdrop-filter:var(--backdrop-blur);
-    box-shadow:var(--glass-shadow);
-    display:flex;
-    flex-direction:column;
-    gap:4px;
-    transition:var(--transition-smooth);
-  }
-  .rpt-kpi:hover{
-    border-color:rgba(99, 102, 241, 0.25);
-    box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.08);
-    transform:translateY(-2px);
-  }
-  .rpt-kpi-label{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}
-  .rpt-kpi-value{font-size:1.5rem;font-weight:900;line-height:1.2;font-family:var(--font-title);}
-  .rpt-kpi-value.green{color:#16a34a;}
-  .rpt-kpi-value.red{color:#dc2626;}
-  .rpt-kpi-value.blue{color:#2563eb;}
-  .rpt-kpi-value.orange{color:#d97706;}
-  .rpt-kpi-value.purple{color:#7c3aed;}
-  [data-theme="dark"] .rpt-kpi-value.green, [data-theme="windows-dark"] .rpt-kpi-value.green{color:#4ade80;}
-  [data-theme="dark"] .rpt-kpi-value.red, [data-theme="windows-dark"] .rpt-kpi-value.red{color:#f87171;}
-  [data-theme="dark"] .rpt-kpi-value.blue, [data-theme="windows-dark"] .rpt-kpi-value.blue{color:#60a5fa;}
-  [data-theme="dark"] .rpt-kpi-value.orange, [data-theme="windows-dark"] .rpt-kpi-value.orange{color:#fbbf24;}
-  [data-theme="dark"] .rpt-kpi-value.purple, [data-theme="windows-dark"] .rpt-kpi-value.purple{color:#a78bfa;}
-  .rpt-kpi-sub{font-size:.78rem;color:var(--muted);}
-
-  /* ── Chart containers ── */
-  .rpt-chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
-  .rpt-chart-card{
-    padding:22px;
-    border-radius:var(--radius-lg);
-    border:1px solid var(--glass-border);
-    background:var(--glass-bg);
-    backdrop-filter:var(--backdrop-blur);
-    -webkit-backdrop-filter:var(--backdrop-blur);
-    box-shadow:var(--glass-shadow);
-    transition:var(--transition-smooth);
-  }
-  .rpt-chart-card:hover{
-    border-color:rgba(99, 102, 241, 0.25);
-    box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.08);
-    transform:translateY(-2px);
-  }
-  .rpt-chart-title{font-size:.92rem;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
-  .rpt-chart-wrap{position:relative;height:280px;}
-
-  /* ── Top tables ── */
-  .rpt-top-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
-  .rpt-top-card{
-    padding:20px;
-    border-radius:var(--radius-lg);
-    border:1px solid var(--glass-border);
-    background:var(--glass-bg);
-    backdrop-filter:var(--backdrop-blur);
-    -webkit-backdrop-filter:var(--backdrop-blur);
-    box-shadow:var(--glass-shadow);
-    transition:var(--transition-smooth);
-  }
-  .rpt-top-card:hover{
-    border-color:rgba(99, 102, 241, 0.25);
-    box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.08);
-    transform:translateY(-2px);
-  }
-  .rpt-top-title{font-size:.92rem;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
-  .rpt-rank{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:.72rem;font-weight:900;background:rgba(37,99,235,.08);color:#2563eb;border:1px solid rgba(37,99,235,.15);}
-  .rpt-rank.gold{background:rgba(234,179,8,.12);color:#a16207;border-color:rgba(234,179,8,.2);}
-  .rpt-rank.silver{background:rgba(107,114,128,.1);color:#6b7280;border-color:rgba(107,114,128,.15);}
-  .rpt-rank.bronze{background:rgba(217,119,6,.1);color:#b45309;border-color:rgba(217,119,6,.15);}
-  [data-theme="dark"] .rpt-rank, [data-theme="windows-dark"] .rpt-rank{background:rgba(96,165,250,.12);color:#93c5fd;border-color:rgba(96,165,250,.2);}
-  [data-theme="dark"] .rpt-rank.gold, [data-theme="windows-dark"] .rpt-rank.gold{background:rgba(250,204,21,.12);color:#fde047;border-color:rgba(250,204,21,.2);}
-
-  /* Aging table custom theme-dependent colors */
-  .rpt-debt-value { color: #2563eb !important; }
-  .rpt-debt-success { color: #16a34a !important; }
-  .rpt-debt-warning { color: #d97706 !important; }
-  .rpt-debt-danger { color: #dc2626 !important; }
-  .rpt-badge-delay {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-size: 0.78rem;
-    font-weight: 600;
-    background: rgba(107, 114, 128, 0.08);
-    color: #5b6270;
-    border: 1px solid rgba(107, 114, 128, 0.15);
-  }
-  
-  [data-theme="dark"] .rpt-debt-value, [data-theme="windows-dark"] .rpt-debt-value { color: #60a5fa !important; }
-  [data-theme="dark"] .rpt-debt-success, [data-theme="windows-dark"] .rpt-debt-success { color: #4ade80 !important; }
-  [data-theme="dark"] .rpt-debt-warning, [data-theme="windows-dark"] .rpt-debt-warning { color: #fbbf24 !important; }
-  [data-theme="dark"] .rpt-debt-danger, [data-theme="windows-dark"] .rpt-debt-danger { color: #f87171 !important; }
-  [data-theme="dark"] .rpt-badge-delay, [data-theme="windows-dark"] .rpt-badge-delay {
-    background: rgba(156, 163, 175, 0.12);
-    color: #cbd5e1;
-    border-color: rgba(156, 163, 175, 0.2);
-  }
-
   @media(max-width:991px){
     .rpt-chart-grid,.rpt-top-grid{grid-template-columns:1fr;}
   }
   @media(max-width:767px){
-    .rpt-kpis{grid-template-columns:1fr 1fr;}
-    .rpt-kpi-value{font-size:1.2rem;}
     .reports-filter-bar{flex-direction:column;align-items:stretch;}
     .reports-filter-bar input[type="date"]{max-width:none;}
   }

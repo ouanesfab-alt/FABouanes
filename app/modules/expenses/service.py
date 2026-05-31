@@ -1,8 +1,11 @@
 """Logique métier du module Dépenses — utilise l'Event Bus."""
 from __future__ import annotations
 
+from typing import Any
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.events import DomainEvent, emit
 from app.core.perf_cache import invalidate_cache_domains
+from app.core.models import Expense
 from app.modules.expenses.repository import (
     EXPENSE_CATEGORIES,
     PAYMENT_METHODS,
@@ -14,36 +17,40 @@ from app.modules.expenses.repository import (
 )
 
 
-def list_expenses(filters=None) -> list[dict]:
-    return get_all_expenses(filters)
+async def list_expenses(db: AsyncSession, filters=None) -> list[Expense]:
+    return await get_all_expenses(db, filters)
 
 
-def get_expense(expense_id: int) -> dict | None:
-    return get_expense_by_id(expense_id)
+async def get_expense(db: AsyncSession, expense_id: int) -> Expense | None:
+    return await get_expense_by_id(db, expense_id)
 
 
-def add_expense(date: str, category: str, description: str, amount: float, method: str = "cash") -> int:
-    expense_id = _db_create(date, category, description, amount, method)
-    created = get_expense_by_id(expense_id)
-    emit(DomainEvent("create", "expense", expense_id, f"{category}: {description or '-'} ({amount})", after=created))
+async def add_expense(db: AsyncSession, date: Any, category: str, description: str, amount: float, method: str = "cash") -> int:
+    expense_id = await _db_create(db, date, category, description, amount, method)
+    created = await get_expense_by_id(db, expense_id)
+    created_dict = created.model_dump() if created else None
+    emit(DomainEvent("create", "expense", expense_id, f"{category}: {description or '-'} ({amount})", after=created_dict))
     invalidate_cache_domains("dashboard")
     return expense_id
 
 
-def modify_expense(expense_id: int, date: str, category: str, description: str, amount: float, method: str = "cash") -> None:
-    before = get_expense_by_id(expense_id)
-    _db_update(expense_id, date, category, description, amount, method)
-    after = get_expense_by_id(expense_id)
-    emit(DomainEvent("update", "expense", expense_id, f"{category}: {description or '-'} ({amount})", before=before, after=after))
+async def modify_expense(db: AsyncSession, expense_id: int, date: Any, category: str, description: str, amount: float, method: str = "cash") -> None:
+    before = await get_expense_by_id(db, expense_id)
+    before_dict = before.model_dump() if before else None
+    await _db_update(db, expense_id, date, category, description, amount, method)
+    after = await get_expense_by_id(db, expense_id)
+    after_dict = after.model_dump() if after else None
+    emit(DomainEvent("update", "expense", expense_id, f"{category}: {description or '-'} ({amount})", before=before_dict, after=after_dict))
     invalidate_cache_domains("dashboard")
 
 
-def remove_expense(expense_id: int) -> bool:
-    before = get_expense_by_id(expense_id)
+async def remove_expense(db: AsyncSession, expense_id: int) -> bool:
+    before = await get_expense_by_id(db, expense_id)
+    before_dict = before.model_dump() if before else None
     if not before:
         return False
-    _db_delete(expense_id)
-    emit(DomainEvent("delete", "expense", expense_id, f"Suppression dépense #{expense_id}", before=before))
+    await _db_delete(db, expense_id)
+    emit(DomainEvent("delete", "expense", expense_id, f"Suppression dépense #{expense_id}", before=before_dict))
     invalidate_cache_domains("dashboard")
     return True
 

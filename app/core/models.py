@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
-from sqlalchemy import Column, Numeric
+from sqlalchemy import Column, Numeric, BigInteger
 from sqlmodel import SQLModel, Field
 
 class User(SQLModel, table=True):
@@ -139,6 +139,7 @@ class Purchase(SQLModel, table=True):
     total: Decimal = Field(sa_column=Column(Numeric(15, 4)))
     purchase_date: date
     notes: Optional[str] = Field(default=None)
+    custom_item_name: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -181,6 +182,7 @@ class RawSale(SQLModel, table=True):
     profit_amount: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     sale_date: date
     notes: Optional[str] = Field(default=None)
+    custom_item_name: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -240,4 +242,44 @@ class SavedRecipeItem(SQLModel, table=True):
     raw_material_id: int = Field(foreign_key="raw_materials.id")
     quantity: Decimal = Field(sa_column=Column(Numeric(15, 4)))
     position: int = Field(default=0)
+
+
+class Expense(SQLModel, table=True):
+    __tablename__ = "expenses"
+    
+    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    date: date
+    category: str = Field(default="general", index=True)
+    description: Optional[str] = Field(default=None)
+    amount: float = Field(default=0.0)
+    payment_method: str = Field(default="cash")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ClientHistory(SQLModel, table=True):
+    __tablename__ = "client_history"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    client_id: int = Field(foreign_key="clients.id")
+    operation_date: date
+    designation: str = Field(default="")
+    montant_achat: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    montant_verse: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    solde_cumule: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    ordre_import: int = Field(default=0)
+    source: str = Field(default="import_excel")
+    sale_id: Optional[int] = Field(default=None)
+    raw_sale_id: Optional[int] = Field(default=None)
+    payment_id: Optional[int] = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ClientKey(SQLModel, table=True):
+    __tablename__ = "client_keys"
+    
+    client_id: int = Field(primary_key=True)
+    encryption_key: str
+
+
 

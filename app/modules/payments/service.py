@@ -3,13 +3,13 @@ from __future__ import annotations
 import json
 from datetime import date
 from typing import Any, Optional, Tuple
-from sqlmodel import text
+from sqlmodel import select, func, case, literal, union_all, literal_column, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events import DomainEvent, emit
 from app.core.exceptions import ValidationError
 from app.core.perf_cache import invalidate_cache_domains
-from app.core.models import Payment
+from app.core.models import Payment, Sale, RawSale, Client, FinishedProduct, RawMaterial, User
 from app.modules.payments.repository import PaymentRepository
 from app.modules.payments.schemas_validation import PaymentFormSchema
 
@@ -22,43 +22,60 @@ class PaymentsService:
         self.payment_repo = PaymentRepository(session)
 
     async def get_client_balance(self, client_id: int) -> float:
-        res = await self.session.execute(
-            text("SELECT current_debt FROM clients_with_stats WHERE id = :client_id"),
-            {"client_id": client_id}
+        stmt = (
+            select(literal_column("current_debt"))
+            .select_from(text("clients_with_stats"))
+            .where(literal_column("id") == client_id)
         )
+        res = await self.session.execute(stmt)
         row = res.first()
-        return float(row.current_debt) if row else 0.0
+        return float(row._mapping["current_debt"]) if row else 0.0
 
     async def get_open_credit_entries(self, client_id: int | None = None) -> list[dict]:
-        params: dict[str, Any] = {}
-        where_sales = "WHERE s.balance_due > 0"
-        where_raw = "WHERE rs.balance_due > 0"
-        if client_id is not None:
-            where_sales += " AND s.client_id = :client_id"
-            where_raw += " AND rs.client_id = :client_id"
-            params["client_id"] = client_id
-
-        res = await self.session.execute(
-            text(f"""
-                SELECT * FROM (
-                    SELECT 'finished' AS item_kind, s.id, s.client_id, c.name AS client_name, f.name AS item_name,
-                           s.balance_due, s.sale_date, s.total
-                    FROM sales s
-                    JOIN clients c ON c.id = s.client_id
-                    JOIN finished_products f ON f.id = s.finished_product_id
-                    {where_sales}
-                    UNION ALL
-                    SELECT 'raw' AS item_kind, rs.id, rs.client_id, c.name AS client_name, COALESCE(NULLIF(rs.custom_item_name, ''), r.name) AS item_name,
-                           rs.balance_due, rs.sale_date, rs.total
-                    FROM raw_sales rs
-                    JOIN clients c ON c.id = rs.client_id
-                    JOIN raw_materials r ON r.id = rs.raw_material_id
-                    {where_raw}
-                ) x
-                ORDER BY sale_date ASC, id ASC
-            """),
-            params
+        stmt_finished = (
+            select(
+                literal("finished").label("item_kind"),
+                Sale.id,
+                Sale.client_id,
+                Client.name.label("client_name"),
+                FinishedProduct.name.label("item_name"),
+                Sale.balance_due,
+                Sale.sale_date,
+                Sale.total
+            )
+            .select_from(Sale)
+            .join(Client, Client.id == Sale.client_id)
+            .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
+            .where(Sale.balance_due > 0)
         )
+        if client_id is not None:
+            stmt_finished = stmt_finished.where(Sale.client_id == client_id)
+
+        stmt_raw = (
+            select(
+                literal("raw").label("item_kind"),
+                RawSale.id,
+                RawSale.client_id,
+                Client.name.label("client_name"),
+                func.coalesce(func.nullif(RawSale.custom_item_name, ''), RawMaterial.name).label("item_name"),
+                RawSale.balance_due,
+                RawSale.sale_date,
+                RawSale.total
+            )
+            .select_from(RawSale)
+            .join(Client, Client.id == RawSale.client_id)
+            .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
+            .where(RawSale.balance_due > 0)
+        )
+        if client_id is not None:
+            stmt_raw = stmt_raw.where(RawSale.client_id == client_id)
+
+        union_stmt = union_all(stmt_finished, stmt_raw).subquery("x")
+        stmt = (
+            select(union_stmt)
+            .order_by(union_stmt.c.sale_date.asc(), union_stmt.c.id.asc())
+        )
+        res = await self.session.execute(stmt)
         return [dict(row._mapping) for row in res.fetchall()]
 
     async def apply_payment_to_entry(self, kind: str, row_id: int, amount: float) -> float:
@@ -67,34 +84,30 @@ class PaymentsService:
         from app.modules.sales.service import SalesService
         sales_service = SalesService(self.session)
         if kind == "finished":
-            res = await self.session.execute(
-                text("SELECT balance_due, document_id FROM sales WHERE id = :id FOR UPDATE"),
-                {"id": row_id}
-            )
-            sale = res.first()
+            stmt = select(Sale).where(Sale.id == row_id).with_for_update()
+            res = await self.session.execute(stmt)
+            sale = res.scalar_one_or_none()
             if not sale:
                 return 0.0
             paid = min(amount, float(sale.balance_due))
-            await self.session.execute(
-                text("UPDATE sales SET balance_due = balance_due - :paid, amount_paid = amount_paid + :paid WHERE id = :id"),
-                {"paid": paid, "id": row_id}
-            )
+            sale.balance_due = float(sale.balance_due) - paid
+            sale.amount_paid = float(sale.amount_paid) + paid
+            self.session.add(sale)
+            await self.session.flush()
             if sale.document_id:
                 await sales_service.recalc_sale_document_totals(int(sale.document_id))
             return paid
         else:
-            res = await self.session.execute(
-                text("SELECT balance_due, document_id FROM raw_sales WHERE id = :id FOR UPDATE"),
-                {"id": row_id}
-            )
-            sale = res.first()
+            stmt = select(RawSale).where(RawSale.id == row_id).with_for_update()
+            res = await self.session.execute(stmt)
+            sale = res.scalar_one_or_none()
             if not sale:
                 return 0.0
             paid = min(amount, float(sale.balance_due))
-            await self.session.execute(
-                text("UPDATE raw_sales SET balance_due = balance_due - :paid, amount_paid = amount_paid + :paid WHERE id = :id"),
-                {"paid": paid, "id": row_id}
-            )
+            sale.balance_due = float(sale.balance_due) - paid
+            sale.amount_paid = float(sale.amount_paid) + paid
+            self.session.add(sale)
+            await self.session.flush()
             if sale.document_id:
                 await sales_service.recalc_sale_document_totals(int(sale.document_id))
             return paid
@@ -115,29 +128,27 @@ class PaymentsService:
                 if amount <= 0:
                     continue
                 if kind == "finished":
-                    res = await self.session.execute(
-                        text("SELECT document_id FROM sales WHERE id = :id FOR UPDATE"),
-                        {"id": row_id}
-                    )
-                    doc_row = res.first()
-                    await self.session.execute(
-                        text("UPDATE sales SET amount_paid = amount_paid - :amount, balance_due = balance_due + :amount WHERE id = :id"),
-                        {"amount": amount, "id": row_id}
-                    )
-                    if doc_row and doc_row.document_id:
-                        await sales_service.recalc_sale_document_totals(int(doc_row.document_id))
+                    stmt = select(Sale).where(Sale.id == row_id).with_for_update()
+                    res = await self.session.execute(stmt)
+                    doc_row = res.scalar_one_or_none()
+                    if doc_row:
+                        doc_row.amount_paid = float(doc_row.amount_paid) - amount
+                        doc_row.balance_due = float(doc_row.balance_due) + amount
+                        self.session.add(doc_row)
+                        await self.session.flush()
+                        if doc_row.document_id:
+                            await sales_service.recalc_sale_document_totals(int(doc_row.document_id))
                 elif kind == "raw":
-                    res = await self.session.execute(
-                        text("SELECT document_id FROM raw_sales WHERE id = :id FOR UPDATE"),
-                        {"id": row_id}
-                    )
-                    doc_row = res.first()
-                    await self.session.execute(
-                        text("UPDATE raw_sales SET amount_paid = amount_paid - :amount, balance_due = balance_due + :amount WHERE id = :id"),
-                        {"amount": amount, "id": row_id}
-                    )
-                    if doc_row and doc_row.document_id:
-                        await sales_service.recalc_sale_document_totals(int(doc_row.document_id))
+                    stmt = select(RawSale).where(RawSale.id == row_id).with_for_update()
+                    res = await self.session.execute(stmt)
+                    doc_row = res.scalar_one_or_none()
+                    if doc_row:
+                        doc_row.amount_paid = float(doc_row.amount_paid) - amount
+                        doc_row.balance_due = float(doc_row.balance_due) + amount
+                        self.session.add(doc_row)
+                        await self.session.flush()
+                        if doc_row.document_id:
+                            await sales_service.recalc_sale_document_totals(int(doc_row.document_id))
             return
 
         if payment_row.get("payment_type") != "versement":
@@ -146,31 +157,29 @@ class PaymentsService:
         if payment_row.get("sale_kind") == "finished" and payment_row.get("sale_id"):
             sale_id = int(payment_row["sale_id"])
             amount = float(payment_row["amount"])
-            res = await self.session.execute(
-                text("SELECT document_id FROM sales WHERE id = :id FOR UPDATE"),
-                {"id": sale_id}
-            )
-            doc_row = res.first()
-            await self.session.execute(
-                text("UPDATE sales SET amount_paid = amount_paid - :amount, balance_due = balance_due + :amount WHERE id = :id"),
-                {"amount": amount, "id": sale_id}
-            )
-            if doc_row and doc_row.document_id:
-                await sales_service.recalc_sale_document_totals(int(doc_row.document_id))
+            stmt = select(Sale).where(Sale.id == sale_id).with_for_update()
+            res = await self.session.execute(stmt)
+            doc_row = res.scalar_one_or_none()
+            if doc_row:
+                doc_row.amount_paid = float(doc_row.amount_paid) - amount
+                doc_row.balance_due = float(doc_row.balance_due) + amount
+                self.session.add(doc_row)
+                await self.session.flush()
+                if doc_row.document_id:
+                    await sales_service.recalc_sale_document_totals(int(doc_row.document_id))
         elif payment_row.get("sale_kind") == "raw" and payment_row.get("raw_sale_id"):
             raw_sale_id = int(payment_row["raw_sale_id"])
             amount = float(payment_row["amount"])
-            res = await self.session.execute(
-                text("SELECT document_id FROM raw_sales WHERE id = :id FOR UPDATE"),
-                {"id": raw_sale_id}
-            )
-            doc_row = res.first()
-            await self.session.execute(
-                text("UPDATE raw_sales SET amount_paid = amount_paid - :amount, balance_due = balance_due + :amount WHERE id = :id"),
-                {"amount": amount, "id": raw_sale_id}
-            )
-            if doc_row and doc_row.document_id:
-                await sales_service.recalc_sale_document_totals(int(doc_row.document_id))
+            stmt = select(RawSale).where(RawSale.id == raw_sale_id).with_for_update()
+            res = await self.session.execute(stmt)
+            doc_row = res.scalar_one_or_none()
+            if doc_row:
+                doc_row.amount_paid = float(doc_row.amount_paid) - amount
+                doc_row.balance_due = float(doc_row.balance_due) + amount
+                self.session.add(doc_row)
+                await self.session.flush()
+                if doc_row.document_id:
+                    await sales_service.recalc_sale_document_totals(int(doc_row.document_id))
 
     async def create_payment_record(
         self,
@@ -187,8 +196,7 @@ class PaymentsService:
         
         # Verify client
         res_client = await self.session.execute(
-            text("SELECT id FROM clients WHERE id = :client_id"),
-            {"client_id": client_id}
+            select(Client.id).where(Client.id == client_id)
         )
         if not res_client.first():
             raise ValidationError("Client introuvable.")
@@ -219,10 +227,10 @@ class PaymentsService:
             sale_kind, id_str = sale_link.split(":", 1)
             row_id = int(id_str)
             if sale_kind == "finished":
-                stmt = text("SELECT client_id FROM sales WHERE id = :id")
+                stmt = select(Sale.client_id).where(Sale.id == row_id)
             else:
-                stmt = text("SELECT client_id FROM raw_sales WHERE id = :id")
-            res_entry = await self.session.execute(stmt, {"id": row_id})
+                stmt = select(RawSale.client_id).where(RawSale.id == row_id)
+            res_entry = await self.session.execute(stmt)
             entry = res_entry.first()
             if entry and int(entry.client_id or 0) != client_id:
                 raise ValidationError("Cette créance ne correspond pas au client choisi.")
@@ -312,40 +320,49 @@ class PaymentsService:
         existing_keys = [f"{sale['item_kind']}:{sale['id']}" for sale in open_sales]
         if current_link and current_link not in existing_keys:
             if payment["sale_kind"] == "finished" and payment["sale_id"]:
-                res_sale = await self.session.execute(
-                    text("""
-                        SELECT s.id, s.client_id, c.name AS client_name, f.name AS item_name, 
-                               s.balance_due + :amount AS balance_due, s.sale_date, s.total 
-                        FROM sales s 
-                        JOIN clients c ON c.id=s.client_id 
-                        JOIN finished_products f ON f.id=s.finished_product_id 
-                        WHERE s.id=:sale_id
-                    """),
-                    {"amount": payment["amount"], "sale_id": payment["sale_id"]}
+                stmt = (
+                    select(
+                        Sale.id,
+                        Sale.client_id,
+                        Client.name.label("client_name"),
+                        FinishedProduct.name.label("item_name"),
+                        (Sale.balance_due + payment["amount"]).label("balance_due"),
+                        Sale.sale_date,
+                        Sale.total
+                    )
+                    .select_from(Sale)
+                    .join(Client, Client.id == Sale.client_id)
+                    .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
+                    .where(Sale.id == payment["sale_id"])
                 )
+                res_sale = await self.session.execute(stmt)
                 sale = res_sale.first()
                 if sale:
                     open_sales.append(dict(sale._mapping))
             elif payment["sale_kind"] == "raw" and payment["raw_sale_id"]:
-                res_sale = await self.session.execute(
-                    text("""
-                        SELECT rs.id, rs.client_id, c.name AS client_name, 
-                               COALESCE(NULLIF(rs.custom_item_name, ''), r.name) AS item_name, 
-                               rs.balance_due + :amount AS balance_due, rs.sale_date, rs.total 
-                        FROM raw_sales rs 
-                        JOIN clients c ON c.id=rs.client_id 
-                        JOIN raw_materials r ON r.id=rs.raw_material_id 
-                        WHERE rs.id=:raw_sale_id
-                    """),
-                    {"amount": payment["amount"], "raw_sale_id": payment["raw_sale_id"]}
+                stmt = (
+                    select(
+                        RawSale.id,
+                        RawSale.client_id,
+                        Client.name.label("client_name"),
+                        func.coalesce(func.nullif(RawSale.custom_item_name, ''), RawMaterial.name).label("item_name"),
+                        (RawSale.balance_due + payment["amount"]).label("balance_due"),
+                        RawSale.sale_date,
+                        RawSale.total
+                    )
+                    .select_from(RawSale)
+                    .join(Client, Client.id == RawSale.client_id)
+                    .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
+                    .where(RawSale.id == payment["raw_sale_id"])
                 )
+                res_sale = await self.session.execute(stmt)
                 sale = res_sale.first()
                 if sale:
                     open_sales.append(dict(sale._mapping))
 
         # Fetch clients
         res_clients = await self.session.execute(
-            text("SELECT * FROM clients ORDER BY name")
+            select(*Client.__table__.columns).order_by(Client.name)
         )
         clients = [dict(c._mapping) for c in res_clients.fetchall()]
 
@@ -463,8 +480,7 @@ class PaymentsService:
         if recorded_by:
             try:
                 res_user = await self.session.execute(
-                    text("SELECT username, role FROM users WHERE id = :id"),
-                    {"id": recorded_by}
+                    select(User.username, User.role).where(User.id == recorded_by)
                 )
                 user_info = res_user.first()
                 if user_info:

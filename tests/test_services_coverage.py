@@ -108,6 +108,37 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = ()):
         dummy_b64_key = base64.b64encode(b"01234567890123456789012345678912").decode("utf-8")
         return cols, [(1, dummy_b64_key)]
 
+    # 0_reports. Specific report queries (placed above count rule to prevent interception)
+    if "sale_date as date" in q:
+        cols = [("client_id",), ("date",), ("total",), ("sale_type",)]
+        rows = [(1, "2026-05-31", 300.0, "credit")]
+        return cols, rows
+
+    if "payment_date as date" in q:
+        cols = [("client_id",), ("date",), ("amount",), ("payment_type",)]
+        rows = [(1, "2026-05-31", 200.0, "versement")]
+        return cols, rows
+
+    if "finished_product_id" in q and "qty" in q and "revenue" in q:
+        cols = [("name",), ("revenue",), ("profit",), ("qty",)]
+        rows = [("Product X", 300.0, 150.0, 10.0)]
+        return cols, rows
+
+    if "client_id" in q and "revenue" in q and "profit" in q and "nb" in q:
+        cols = [("name",), ("revenue",), ("profit",), ("count",)]
+        rows = [("Client Dupont", 300.0, 150.0, 5)]
+        return cols, rows
+
+    if "expenses" in q and "category" in q:
+        cols = [("category",), ("total",), ("count",)]
+        rows = [("Office", 100.0, 2), ("Travel", 50.0, 1)]
+        return cols, rows
+
+    if "group by day" in q or "group by month" in q or "order by month" in q or "as month" in q or "as day" in q or "anon_1.month" in q or "anon_1.day" in q:
+        cols = [("month",), ("day",), ("total",), ("profit",), ("count",)]
+        rows = [("2026-05", "2026-05-31", 300.0, 150.0, 1)]
+        return cols, rows
+
     # 0_count. Count queries check first to prevent intercepting specific page list queries
     if ("count(" in q or "exists" in q or "line_count" in q) and not any(x in q for x in ["total_amount", "total_purchases", "total_sales", "contact_type"]):
         return [("c",), ("line_count",), ("count",)], [(1, 1, 1)]
@@ -116,6 +147,11 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = ()):
     if "sales_today" in q or "sales_week_ago" in q or "cash_today" in q or "profit_today" in q:
         cols = [("sales_today",), ("sales_week_ago",), ("cash_today",), ("profit_today",), ("total_receivables",)]
         return cols, [(100.0, 80.0, 50.0, 20.0, 150.0)]
+
+    # 4c. Top debtors / client balances list (check before general mv_client_balances)
+    if "mv_client_balances" in q and ("id" in q or "name" in q):
+        cols = [("id",), ("name",), ("balance",)]
+        return cols, [(1, "Client Dupont", 150.0)]
 
     # 4b. Cumulative summary / dashboard (moved to top to avoid intercepting by cost_of_goods reports rule)
     if "total_receivables" in q or "mv_client_balances" in q or "revenue" in q:
@@ -132,11 +168,7 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = ()):
         rows = [(150.0,)]
         return cols, rows
 
-    # 0ag. Reports page monthly / daily / expenses queries
-    if "month" in q or "day" in q:
-        cols = [("month",), ("day",), ("total",), ("profit",), ("count",)]
-        rows = [("2026-05", "2026-05-31", 300.0, 150.0, 1)]
-        return cols, rows
+
 
     # 0aa. Dashboard sales summary (must check first to avoid intercepting by count() or union all)
     if "union all" in q and "nb_sales" in q:
@@ -197,10 +229,7 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = ()):
             val = datetime.now().isoformat()
         return [("key",), ("value",)], [(param_val, val)]
 
-    # 4c. Top debtors / client balances list (check before general mv_client_balances)
-    if "mv_client_balances" in q and ("id" in q or "name" in q):
-        cols = [("id",), ("name",), ("balance",)]
-        return cols, [(1, "Client Dupont", 150.0)]
+
 
 
 
@@ -222,6 +251,27 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = ()):
     if "activity" in q or "audit" in q or "action" in q:
         cols = [("action",), ("id",), ("created_at",), ("level",), ("message",), ("entity_type",), ("entity_id",), ("user_id",), ("details_json",)]
         rows = [("login", 1, datetime.now(), "info", "Connexion de admin", "user", 1, 1, "{}")]
+        return cols, rows
+
+    # 8b. Performance logs, error logs, system logs, stock movements
+    if "performance_logs" in q:
+        cols = [("id",), ("created_at",), ("kind",), ("elapsed_ms",), ("name",), ("route",), ("details",)]
+        rows = [(1, datetime.now(), "sql", 150.0, "SELECT *", "/admin", "params=0")]
+        return cols, rows
+
+    if "stock_movements" in q:
+        cols = [("id",), ("created_at",), ("item_kind",), ("item_id",), ("direction",), ("quantity",), ("unit",), ("stock_before",), ("stock_after",), ("reference_type",), ("reference_id",)]
+        rows = [(1, datetime.now(), "finished", 1, "out", 10.0, "kg", 100.0, 90.0, "sale", 1)]
+        return cols, rows
+
+    if "error_logs" in q:
+        cols = [("id",), ("created_at",), ("message",), ("traceback",), ("request_uri",)]
+        rows = [(1, datetime.now(), "Error message", "Traceback", "/admin")]
+        return cols, rows
+
+    if "system_logs" in q:
+        cols = [("id",), ("created_at",), ("level",), ("message",)]
+        rows = [(1, datetime.now(), "info", "System initialized")]
         return cols, rows
 
     # 9. Payments (check before client to avoid matches on client_id etc in joins)
@@ -247,6 +297,12 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = ()):
     if "clients" in q or "client" in q:
         cols = [("id",), ("name",), ("current_balance",), ("phone",), ("address",), ("notes",), ("opening_credit",), ("client_kind",), ("status",), ("current_debt",), ("total_sales",), ("total_payments",)]
         rows = [(1, "Client Dupont", 150.0, "0606060606", "Paris", "", 50.0, "regular", "active", 150.0, 300.0, 150.0)]
+        return cols, rows
+
+    # 12b. Suppliers / supplier
+    if "suppliers" in q or "supplier" in q:
+        cols = [("id",), ("name",), ("phone",), ("address",), ("notes",), ("current_balance",), ("status",)]
+        rows = [(1, "Fournisseur A", "0707070707", "Lyon", "", 0.0, "active")]
         return cols, rows
 
     # 13. Products
@@ -337,9 +393,18 @@ app.core.database.run_alembic_upgrade = MagicMock()
 
 # ── 5. Patching de la session SQLAlchemy ORM pour les modules ────────────────
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.models import FinishedProduct, RawMaterial, Client, User, Sale, RawSale, Payment, ProductionBatch, SavedRecipe
+from app.core.models import FinishedProduct, RawMaterial, Client, User, Sale, RawSale, Payment, ProductionBatch, SavedRecipe, Expense
 
 def mock_sqlmodel_instance(model_class, ident=1):
+    if model_class == Expense:
+        return Expense(
+            id=ident,
+            date=date.today(),
+            category="general",
+            description="Test expense",
+            amount=100.0,
+            payment_method="cash"
+        )
     if model_class == FinishedProduct:
         return FinishedProduct(id=ident, name="Finished Product X", default_unit="kg", stock_qty=Decimal("100.0"), sale_price=Decimal("10.0"), avg_cost=Decimal("5.0"), alert_threshold=Decimal("10.0"))
     if model_class == RawMaterial:
@@ -396,6 +461,8 @@ class MockRow:
         return self._dct
 
     def __getitem__(self, key):
+        if isinstance(key, int):
+            return list(self._dct.values())[key]
         return self._dct[key]
 
     def keys(self):
@@ -442,10 +509,21 @@ class MockResult:
             return mock_sqlmodel_instance(Client)
         if "from users" in self.statement or "user" in self.statement:
             return mock_sqlmodel_instance(User)
+        if "from expenses" in self.statement or "expense" in self.statement:
+            return mock_sqlmodel_instance(Expense)
         return MagicMock()
 
     def scalar_one(self):
         return 1
+
+    def scalar(self):
+        row = self.first()
+        if row:
+            if hasattr(row, "_dct") and row._dct:
+                return list(row._dct.values())[0]
+            if isinstance(row, dict) and row:
+                return list(row.values())[0]
+        return None
 
     def first(self):
         rows = mock_orm_rows_for_sql(self.statement)
@@ -472,6 +550,8 @@ class MockResult:
             items = [mock_sqlmodel_instance(Client)]
         elif "from users" in self.statement or "user" in self.statement:
             items = [mock_sqlmodel_instance(User)]
+        elif "from expenses" in self.statement or "expense" in self.statement:
+            items = [mock_sqlmodel_instance(Expense)]
         else:
             items = [MagicMock()]
         return MockScalars(items)
@@ -528,9 +608,14 @@ import app.web.operations_pages
 import app.web.production_pages
 import app.web.report_pages
 import app.web.search_pages
+import app.modules.expenses.web
+import app.api.v1.expenses
 
 # ── 6. Mock de l'authentification et CSRF pour le TestClient ─────────────────
 mock_user = {"id": 1, "username": "admin", "role": "admin", "is_active": 1}
+
+async def async_noop(*args, **kwargs):
+    pass
 
 # Apply patches dynamically to all imported app modules in sys.modules
 for name, module in list(sys.modules.items()):
@@ -543,12 +628,12 @@ for name, module in list(sys.modules.items()):
             setattr(module, "get_current_user", MagicMock(return_value=mock_user))
         if hasattr(module, "require_user"):
             setattr(module, "require_user", MagicMock(return_value=None))
-        if hasattr(module, "require_permission"):
+        if hasattr(module, "require_permission") and name != "app.core.permissions":
             setattr(module, "require_permission", MagicMock(return_value=None))
-        if hasattr(module, "verify_csrf_token"):
-            setattr(module, "verify_csrf_token", MagicMock(return_value=None))
         if hasattr(module, "ensure_csrf_token"):
             setattr(module, "ensure_csrf_token", MagicMock(return_value=None))
+        if hasattr(module, "csrf_protect"):
+            setattr(module, "csrf_protect", async_noop)
         if hasattr(module, "get_async_sessionmaker"):
             setattr(module, "get_async_sessionmaker", MagicMock(return_value=MockAsyncSession))
 
@@ -628,13 +713,13 @@ class TestHTTPRoutes:
         assert client.get("/api/v1/recent-operations").status_code == 200
 
     def test_mobile_and_offline(self):
-        assert client.post("/api/v1/auth/token", json={"username": "admin", "password": "pin"}).status_code == 200
-        assert client.get("/api/v1/mobile/clients").status_code == 200
-        assert client.post("/api/v1/mobile/payments", json={"client_id": 1, "amount": 100.0, "payment_date": "2026-05-31", "notes": ""}).status_code == 200
-        assert client.post("/api/v1/offline/sync", json={"type": "create_payment", "payload": {"client_id": 1, "amount": 100.0, "payment_date": "2026-05-31"}}).status_code == 200
+        assert client.post("/api/mobile/v1/auth/token", json={"username": "admin", "password": "pin"}).status_code == 200
+        assert client.get("/api/mobile/v1/clients").status_code == 200
+        assert client.post("/api/mobile/v1/payments", json={"client_id": 1, "amount": 100.0, "payment_date": "2026-05-31", "notes": ""}).status_code == 200
+        assert client.post("/api/mobile/v1/offline/sync", json={"type": "create_payment", "payload": {"client_id": 1, "amount": 100.0, "payment_date": "2026-05-31"}}).status_code == 200
 
     def test_web_html_pages(self):
-        for route in ["/", "/login", "/dashboard", "/clients", "/contacts", "/operations", "/production", "/admin", "/reports", "/search", "/change-password"]:
+        for route in ["/", "/login", "/dashboard", "/clients", "/contacts", "/operations", "/production", "/admin", "/reports", "/api/search?q=test", "/change-password"]:
             response = client.get(route)
             assert response.status_code in (200, 303)
 

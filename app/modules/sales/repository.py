@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import json
 from typing import Any, Dict, List, Optional, Tuple, Set
-from sqlmodel import select
-from sqlalchemy import text
+from sqlmodel import select, func, case, literal, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.models import Sale, RawSale, SaleDocument, FinishedProduct
+from app.core.models import Sale, RawSale, SaleDocument, FinishedProduct, Client, RawMaterial, Payment
 from app.repositories.base_repository import AsyncRepository
 
 
@@ -43,29 +42,36 @@ class SaleRepository(AsyncRepository[Sale]):
 
     async def get_sale_detail(self, kind: str, row_id: int) -> Optional[Dict[str, Any]]:
         if kind == "finished":
-            result = await self.session.execute(
-                text("""
-                    SELECT s.*, COALESCE(c.name, 'Comptoir') AS client_name, f.name AS item_name,
-                           '' AS custom_item_name, 'finished' AS row_kind, 'finished:' || s.finished_product_id AS item_key
-                    FROM sales s
-                    LEFT JOIN clients c ON c.id = s.client_id
-                    JOIN finished_products f ON f.id = s.finished_product_id
-                    WHERE s.id = :row_id
-                """),
-                {"row_id": row_id}
+            stmt = (
+                select(
+                    *Sale.__table__.columns,
+                    func.coalesce(Client.name, 'Comptoir').label("client_name"),
+                    FinishedProduct.name.label("item_name"),
+                    literal("").label("custom_item_name"),
+                    literal("finished").label("row_kind"),
+                    func.concat("finished:", Sale.finished_product_id).label("item_key")
+                )
+                .select_from(Sale)
+                .join(Client, Client.id == Sale.client_id, isouter=True)
+                .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
+                .where(Sale.id == row_id)
             )
         else:
-            result = await self.session.execute(
-                text("""
-                    SELECT rs.*, COALESCE(c.name, 'Comptoir') AS client_name, COALESCE(NULLIF(rs.custom_item_name, ''), r.name) AS item_name,
-                           rs.custom_item_name, 'raw' AS row_kind, 'raw:' || rs.raw_material_id AS item_key
-                    FROM raw_sales rs
-                    LEFT JOIN clients c ON c.id = rs.client_id
-                    JOIN raw_materials r ON r.id = rs.raw_material_id
-                    WHERE rs.id = :row_id
-                """),
-                {"row_id": row_id}
+            stmt = (
+                select(
+                    *RawSale.__table__.columns,
+                    func.coalesce(Client.name, 'Comptoir').label("client_name"),
+                    func.coalesce(func.nullif(RawSale.custom_item_name, ''), RawMaterial.name).label("item_name"),
+                    RawSale.custom_item_name,
+                    literal("raw").label("row_kind"),
+                    func.concat("raw:", RawSale.raw_material_id).label("item_key")
+                )
+                .select_from(RawSale)
+                .join(Client, Client.id == RawSale.client_id, isouter=True)
+                .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
+                .where(RawSale.id == row_id)
             )
+        result = await self.session.execute(stmt)
         row = result.first()
         return dict(row._mapping) if row else None
 
@@ -80,59 +86,95 @@ class SaleRepository(AsyncRepository[Sale]):
         page_size: int = 50,
     ) -> Tuple[List[Dict[str, Any]], int]:
         """Fetch unified sales (finished + raw) paginated with count."""
-        where: list[str] = []
-        bind_params: dict[str, Any] = {}
+        stmt_finished = (
+            select(
+                Sale.id,
+                Sale.sale_date,
+                func.coalesce(Client.name, 'Comptoir').label("client_name"),
+                FinishedProduct.name.label("item_name"),
+                Sale.document_id,
+                Sale.quantity,
+                Sale.unit,
+                Sale.unit_price,
+                Sale.total,
+                Sale.amount_paid,
+                Sale.balance_due,
+                Sale.profit_amount,
+                Sale.sale_type,
+                Sale.notes,
+                Sale.created_at,
+                literal("Produit fini").label("item_kind"),
+                literal("finished").label("row_kind")
+            )
+            .select_from(Sale)
+            .join(Client, Client.id == Sale.client_id, isouter=True)
+            .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
+        )
+        
+        stmt_raw = (
+            select(
+                RawSale.id,
+                RawSale.sale_date,
+                func.coalesce(Client.name, 'Comptoir').label("client_name"),
+                RawMaterial.name.label("item_name"),
+                RawSale.document_id,
+                RawSale.quantity,
+                RawSale.unit,
+                RawSale.unit_price,
+                RawSale.total,
+                RawSale.amount_paid,
+                RawSale.balance_due,
+                RawSale.profit_amount,
+                RawSale.sale_type,
+                RawSale.notes,
+                RawSale.created_at,
+                literal("Matiere premiere").label("item_kind"),
+                literal("raw").label("row_kind")
+            )
+            .select_from(RawSale)
+            .join(Client, Client.id == RawSale.client_id, isouter=True)
+            .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
+        )
+        
+        union_stmt = union_all(stmt_finished, stmt_raw).subquery("x")
+        stmt = select(union_stmt)
 
         if search:
-            where.append("(LOWER(COALESCE(client_name, '')) LIKE LOWER(:search) OR LOWER(COALESCE(item_name, '')) LIKE LOWER(:search) OR LOWER(COALESCE(notes, '')) LIKE LOWER(:search))")
-            bind_params["search"] = f"%{search}%"
+            search_pattern = f"%{search}%"
+            stmt = stmt.where(
+                func.or_(
+                    func.coalesce(union_stmt.c.client_name, '').ilike(search_pattern),
+                    func.coalesce(union_stmt.c.item_name, '').ilike(search_pattern),
+                    func.coalesce(union_stmt.c.notes, '').ilike(search_pattern)
+                )
+            )
 
         if date_from:
-            where.append("sale_date >= :date_from")
-            bind_params["date_from"] = date_from
+            stmt = stmt.where(union_stmt.c.sale_date >= date_from)
         if date_to:
-            where.append("sale_date <= :date_to")
-            bind_params["date_to"] = date_to
+            stmt = stmt.where(union_stmt.c.sale_date <= date_to)
 
         if kind in {"finished", "raw"}:
-            where.append("row_kind = :row_kind")
-            bind_params["row_kind"] = kind
+            stmt = stmt.where(union_stmt.c.row_kind == kind)
 
         if status == "paid":
-            where.append("balance_due <= 0")
+            stmt = stmt.where(union_stmt.c.balance_due <= 0)
         elif status == "due":
-            where.append("balance_due > 0")
+            stmt = stmt.where(union_stmt.c.balance_due > 0)
         elif status in {"cash", "credit"}:
-            where.append("sale_type = :sale_type")
-            bind_params["sale_type"] = status
+            stmt = stmt.where(union_stmt.c.sale_type == status)
 
-        base_query = """
-            SELECT * FROM (
-                SELECT s.id, s.sale_date, COALESCE(c.name, 'Comptoir') AS client_name, f.name AS item_name,
-                       s.document_id, s.quantity, s.unit, s.unit_price, s.total, s.amount_paid, s.balance_due, s.profit_amount, s.sale_type, s.notes,
-                       s.created_at, 'Produit fini' AS item_kind, 'finished' AS row_kind
-                FROM sales s
-                LEFT JOIN clients c ON c.id = s.client_id
-                JOIN finished_products f ON f.id = s.finished_product_id
-                UNION ALL
-                SELECT rs.id, rs.sale_date, COALESCE(c.name, 'Comptoir') AS client_name, r.name AS item_name,
-                       rs.document_id, rs.quantity, rs.unit, rs.unit_price, rs.total, rs.amount_paid, rs.balance_due, rs.profit_amount, rs.sale_type, rs.notes,
-                       rs.created_at, 'Matiere premiere' AS item_kind, 'raw' AS row_kind
-                FROM raw_sales rs
-                LEFT JOIN clients c ON c.id = rs.client_id
-                JOIN raw_materials r ON r.id = rs.raw_material_id
-            ) x
-        """
+        # Add total count column using window function
+        stmt = stmt.add_columns(func.count().over().label("_total_count"))
 
-        if where:
-            base_query += " WHERE " + " AND ".join(where)
+        # Order and paginate
+        stmt = (
+            stmt.order_by(union_stmt.c.sale_date.desc(), union_stmt.c.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
 
-        offset = (page - 1) * page_size
-        bind_params["limit"] = page_size
-        bind_params["offset"] = offset
-
-        wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({base_query}) _q ORDER BY sale_date DESC, id DESC LIMIT :limit OFFSET :offset"
-        result = await self.session.execute(text(wrapped), bind_params)
+        result = await self.session.execute(stmt)
         rows = [dict(row._mapping) for row in result.fetchall()]
         total = int(rows[0]["_total_count"]) if rows else 0
         return rows, total
@@ -149,17 +191,26 @@ class SaleRepository(AsyncRepository[Sale]):
                 FinishedProduct.avg_cost
             ).order_by(FinishedProduct.name)
         )
-        products = res_prod.all()
+        products = res_prod.fetchall()
 
         # Fetch raw materials
         res_raw = await self.session.execute(
-            text("""
-                SELECT id, name, unit, stock_qty, sale_price, avg_cost
-                FROM raw_materials
-                ORDER BY CASE WHEN upper(trim(name)) = 'AUTRE' THEN 1 ELSE 0 END, name
-            """)
+            select(
+                RawMaterial.id,
+                RawMaterial.name,
+                RawMaterial.unit,
+                RawMaterial.stock_qty,
+                RawMaterial.sale_price,
+                RawMaterial.avg_cost
+            ).order_by(
+                case(
+                    (func.upper(func.trim(RawMaterial.name)) == 'AUTRE', 1),
+                    else_=0
+                ),
+                RawMaterial.name
+            )
         )
-        raw_materials = res_raw.all()
+        raw_materials = res_raw.fetchall()
 
         items = []
         for p in products:
@@ -189,14 +240,17 @@ class SaleRepository(AsyncRepository[Sale]):
         return items
 
     async def line_has_linked_payments(self, kind: str, row_id: int, client_id: int) -> bool:
-        result = await self.session.execute(
-            text("""
-                SELECT id, sale_id, raw_sale_id, allocation_meta
-                FROM payments
-                WHERE client_id = :client_id AND payment_type = 'versement'
-            """),
-            {"client_id": client_id}
+        stmt = (
+            select(
+                Payment.id,
+                Payment.sale_id,
+                Payment.raw_sale_id,
+                Payment.allocation_meta
+            )
+            .where(Payment.client_id == client_id)
+            .where(Payment.payment_type == 'versement')
         )
+        result = await self.session.execute(stmt)
         payments = [dict(row._mapping) for row in result.fetchall()]
         refs = {(kind, row_id)}
         for p in payments:
@@ -222,37 +276,71 @@ class SaleDocumentRepository(AsyncRepository[SaleDocument]):
         return await self.get(doc_id)
 
     async def list_lines(self, doc_id: int) -> List[Dict[str, Any]]:
-        result = await self.session.execute(
-            text("""
-                SELECT * FROM (
-                    SELECT s.id AS row_id, s.document_id, s.sale_date, s.quantity, s.unit, s.unit_price, s.total, s.amount_paid, s.balance_due,
-                           f.name AS item_name, 'finished' AS row_kind, 'finished:' || s.finished_product_id AS item_key,
-                           'Produit fini' AS item_kind, '' AS custom_item_name
-                    FROM sales s
-                    JOIN finished_products f ON f.id = s.finished_product_id
-                    WHERE s.document_id = :doc_id
-                    UNION ALL
-                    SELECT rs.id AS row_id, rs.document_id, rs.sale_date, rs.quantity, rs.unit, rs.unit_price, rs.total, rs.amount_paid, rs.balance_due,
-                           r.name AS item_name, 'raw' AS row_kind, 'raw:' || rs.raw_material_id AS item_key,
-                           'Matiere premiere' AS item_kind, rs.custom_item_name
-                    FROM raw_sales rs
-                    JOIN raw_materials r ON r.id = rs.raw_material_id
-                    WHERE rs.document_id = :doc_id
-                ) x ORDER BY row_id
-            """),
-            {"doc_id": doc_id}
+        stmt_finished = (
+            select(
+                Sale.id.label("row_id"),
+                Sale.document_id,
+                Sale.sale_date,
+                Sale.quantity,
+                Sale.unit,
+                Sale.unit_price,
+                Sale.total,
+                Sale.amount_paid,
+                Sale.balance_due,
+                FinishedProduct.name.label("item_name"),
+                literal("finished").label("row_kind"),
+                func.concat("finished:", Sale.finished_product_id).label("item_key"),
+                literal("Produit fini").label("item_kind"),
+                literal("").label("custom_item_name")
+            )
+            .select_from(Sale)
+            .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
+            .where(Sale.document_id == doc_id)
         )
+        
+        stmt_raw = (
+            select(
+                RawSale.id.label("row_id"),
+                RawSale.document_id,
+                RawSale.sale_date,
+                RawSale.quantity,
+                RawSale.unit,
+                RawSale.unit_price,
+                RawSale.total,
+                RawSale.amount_paid,
+                RawSale.balance_due,
+                RawMaterial.name.label("item_name"),
+                literal("raw").label("row_kind"),
+                func.concat("raw:", RawSale.raw_material_id).label("item_key"),
+                literal("Matiere premiere").label("item_kind"),
+                RawSale.custom_item_name
+            )
+            .select_from(RawSale)
+            .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
+            .where(RawSale.document_id == doc_id)
+        )
+        
+        union_stmt = union_all(stmt_finished, stmt_raw).subquery("x")
+        
+        stmt = (
+            select(union_stmt)
+            .order_by(union_stmt.c.row_id.asc())
+        )
+        result = await self.session.execute(stmt)
         return [dict(row._mapping) for row in result.fetchall()]
 
     async def document_has_linked_payments(self, doc_id: int, client_id: int, refs: Set[Tuple[str, int]]) -> bool:
-        result = await self.session.execute(
-            text("""
-                SELECT id, sale_id, raw_sale_id, allocation_meta
-                FROM payments
-                WHERE client_id = :client_id AND payment_type = 'versement'
-            """),
-            {"client_id": client_id}
+        stmt = (
+            select(
+                Payment.id,
+                Payment.sale_id,
+                Payment.raw_sale_id,
+                Payment.allocation_meta
+            )
+            .where(Payment.client_id == client_id)
+            .where(Payment.payment_type == 'versement')
         )
+        result = await self.session.execute(stmt)
         payments = [dict(row._mapping) for row in result.fetchall()]
         for p in payments:
             if _payment_references_sale(p, refs):

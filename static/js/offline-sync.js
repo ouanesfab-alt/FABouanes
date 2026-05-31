@@ -8,7 +8,7 @@ import {
   cacheRefData,
 } from './offline-db.js';
 
-const SYNC_ENDPOINT = '/api/v1/offline/sync';
+const SYNC_ENDPOINT = '/api/mobile/v1/offline/sync';
 
 /** Met à jour le badge dans la navbar */
 async function updatePendingBadge() {

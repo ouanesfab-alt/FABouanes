@@ -20,29 +20,33 @@ def get_async_database_url(database_url: str) -> str:
 
 async_database_url = get_async_database_url(settings.database_url)
 
-_ENGINES: dict[int, AsyncEngine] = {}
+_async_engine: AsyncEngine | None = None
 _ENGINES_LOCK = threading.Lock()
 
 def get_async_engine() -> AsyncEngine:
-    """Returns a thread-safe and loop-safe AsyncEngine instance."""
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-        
-    loop_id = id(loop) if loop is not None else 0
-    
-    with _ENGINES_LOCK:
-        if loop_id not in _ENGINES:
-            _ENGINES[loop_id] = create_async_engine(
-                async_database_url,
-                echo=False,
-                future=True,
-                pool_pre_ping=True,
-                pool_size=int(os.environ.get("FAB_PG_POOL_SIZE", "10")),
-                max_overflow=int(os.environ.get("FAB_PG_POOL_MAX_OVERFLOW", "10")),
-            )
-        return _ENGINES[loop_id]
+    """Returns a thread-safe global AsyncEngine instance."""
+    global _async_engine
+    if _async_engine is None:
+        with _ENGINES_LOCK:
+            if _async_engine is None:
+                _async_engine = create_async_engine(
+                    async_database_url,
+                    echo=False,
+                    future=True,
+                    pool_pre_ping=True,
+                    pool_size=int(os.environ.get("FAB_PG_POOL_SIZE", "10")),
+                    max_overflow=int(os.environ.get("FAB_PG_POOL_MAX_OVERFLOW", "10")),
+                )
+    return _async_engine
+
+async def close_async_engine() -> None:
+    """Properly closes and disposes of the global AsyncEngine."""
+    global _async_engine
+    if _async_engine is not None:
+        with _ENGINES_LOCK:
+            if _async_engine is not None:
+                await _async_engine.dispose()
+                _async_engine = None
 
 def get_async_sessionmaker():
     """Returns a sessionmaker bound to the loop-safe AsyncEngine."""

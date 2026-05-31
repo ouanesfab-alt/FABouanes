@@ -20,7 +20,7 @@ from app.modules.purchases.service import PurchaseService
 from app.modules.purchases.schemas_validation import PurchaseFormSchema
 
 logger = logging.getLogger("fabouanes.offline")
-router = APIRouter(prefix="/api/v1/offline", tags=["offline"])
+router = APIRouter(prefix="/api/mobile/v1/offline", tags=["offline"])
 
 
 @router.post("/sync")

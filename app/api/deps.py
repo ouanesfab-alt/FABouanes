@@ -73,7 +73,7 @@ def bearer_token(request: Request) -> str:
 
 
 def api_success(data: Any, meta: dict[str, Any] | None = None, status_code: int = 200):
-    return {"data": data, "meta": meta or {}, "_status_code": status_code}
+    return {"success": True, "data": data, "meta": meta or {}, "_status_code": status_code}
 
 
 def api_error(code: str, message: str, status_code: int, details: Any = None) -> NoReturn:

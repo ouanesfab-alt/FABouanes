@@ -1,13 +1,13 @@
-"""Requêtes SQL du module Dépenses & Charges, implémentées avec SQLAlchemy Core 2.0."""
+"""Requêtes SQL du module Dépenses & Charges, implémentées avec SQLAlchemy ORM et AsyncSession."""
 from __future__ import annotations
 
+from datetime import datetime, date as d_cls
 from typing import Any
-from sqlalchemy import (
-    Table, MetaData, Column, BigInteger, Date, String, Double, DateTime,
-    select, insert, update, delete, and_, or_, func
-)
+from sqlalchemy import select, and_, or_, func
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.db_access import execute_sa, query_sa
+from app.repositories.base_repository import AsyncRepository
+from app.core.models import Expense
 
 # ── Catégories ──
 
@@ -31,117 +31,119 @@ PAYMENT_METHODS = [
     ("autre", "Autre"),
 ]
 
-# ── Table Metadata (SQLAlchemy 2.0) ──
 
-metadata = MetaData()
-expenses = Table(
-    "expenses",
-    metadata,
-    Column("id", BigInteger, primary_key=True),
-    Column("date", Date, nullable=False),
-    Column("category", String, nullable=False, default="general"),
-    Column("description", String),
-    Column("amount", Double, nullable=False, default=0.0),
-    Column("payment_method", String, default="cash"),
-    Column("created_at", DateTime(timezone=True), server_default=func.now()),
-    Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
-)
+class ExpenseRepository(AsyncRepository[Expense]):
+    def __init__(self, session: AsyncSession):
+        super().__init__(session, Expense)
+
 
 # ── CRUD ──
 
-def get_all_expenses(filters: dict[str, Any] | None = None) -> list[dict]:
-    stmt = select(expenses)
+async def get_all_expenses(db: AsyncSession, filters: dict[str, Any] | None = None) -> list[Expense]:
+    stmt = select(Expense)
     conditions = []
     if filters:
         if filters.get("category"):
-            conditions.append(expenses.c.category == filters["category"])
+            conditions.append(Expense.category == filters["category"])
         if filters.get("date_from") and str(filters["date_from"]).strip():
-            conditions.append(expenses.c.date >= filters["date_from"])
+            conditions.append(Expense.date >= filters["date_from"])
         if filters.get("date_to") and str(filters["date_to"]).strip():
-            conditions.append(expenses.c.date <= filters["date_to"])
+            conditions.append(Expense.date <= filters["date_to"])
         if filters.get("q") and str(filters["q"]).strip():
             needle = f"%{filters['q']}%"
             conditions.append(or_(
-                expenses.c.description.ilike(needle),
-                expenses.c.category.ilike(needle)
+                Expense.description.ilike(needle),
+                Expense.category.ilike(needle)
             ))
     if conditions:
         stmt = stmt.where(and_(*conditions))
-    stmt = stmt.order_by(expenses.c.date.desc(), expenses.c.id.desc())
-    return [dict(row) for row in query_sa(stmt)]
+    stmt = stmt.order_by(Expense.date.desc(), Expense.id.desc())
+    results = await db.execute(stmt)
+    return list(results.scalars().all())
 
 
-def get_expense_by_id(expense_id: int) -> dict | None:
-    stmt = select(expenses).where(expenses.c.id == expense_id)
-    row = query_sa(stmt, one=True)
-    return dict(row) if row else None
+async def get_expense_by_id(db: AsyncSession, expense_id: int) -> Expense | None:
+    repo = ExpenseRepository(db)
+    return await repo.get(expense_id)
 
 
-def create_expense(date: str, category: str, description: str, amount: float, method: str = "cash") -> int:
-    stmt = insert(expenses).values(
-        date=date,
+async def create_expense(db: AsyncSession, date: Any, category: str, description: str, amount: float, method: str = "cash") -> int:
+    if isinstance(date, str):
+        parsed_date = d_cls.fromisoformat(date)
+    else:
+        parsed_date = date
+    entity = Expense(
+        date=parsed_date,
         category=category,
         description=description,
         amount=amount,
         payment_method=method
     )
-    return execute_sa(stmt)
+    repo = ExpenseRepository(db)
+    created = await repo.create(entity)
+    return created.id
 
 
-def update_expense(expense_id: int, date: str, category: str, description: str, amount: float, method: str = "cash") -> None:
-    stmt = update(expenses).where(expenses.c.id == expense_id).values(
-        date=date,
-        category=category,
-        description=description,
-        amount=amount,
-        payment_method=method,
-        updated_at=func.now()
-    )
-    execute_sa(stmt)
+async def update_expense(db: AsyncSession, expense_id: int, date: Any, category: str, description: str, amount: float, method: str = "cash") -> None:
+    repo = ExpenseRepository(db)
+    entity = await repo.get(expense_id)
+    if entity:
+        if isinstance(date, str):
+            entity.date = d_cls.fromisoformat(date)
+        else:
+            entity.date = date
+        entity.category = category
+        entity.description = description
+        entity.amount = amount
+        entity.payment_method = method
+        entity.updated_at = datetime.utcnow()
+        await repo.update(entity)
 
 
-def delete_expense(expense_id: int) -> None:
-    stmt = delete(expenses).where(expenses.c.id == expense_id)
-    execute_sa(stmt)
+async def delete_expense(db: AsyncSession, expense_id: int) -> None:
+    repo = ExpenseRepository(db)
+    await repo.delete(expense_id)
 
 
 # ── Agrégations ──
 
-def expenses_total(date_from: str | None = None, date_to: str | None = None) -> float:
-    stmt = select(func.coalesce(func.sum(expenses.c.amount), 0.0).label("total"))
+async def expenses_total(db: AsyncSession, date_from: str | None = None, date_to: str | None = None) -> float:
+    stmt = select(func.coalesce(func.sum(Expense.amount), 0.0).label("total"))
     conditions = []
     if date_from and str(date_from).strip():
-        conditions.append(expenses.c.date >= date_from)
+        conditions.append(Expense.date >= date_from)
     if date_to and str(date_to).strip():
-        conditions.append(expenses.c.date <= date_to)
+        conditions.append(Expense.date <= date_to)
     if conditions:
         stmt = stmt.where(and_(*conditions))
-    row = query_sa(stmt, one=True)
-    return float(row["total"]) if row else 0.0
+    results = await db.execute(stmt)
+    return float(results.scalar() or 0.0)
 
 
-def expenses_by_category(date_from: str | None = None, date_to: str | None = None) -> list[dict]:
+async def expenses_by_category(db: AsyncSession, date_from: str | None = None, date_to: str | None = None) -> list[dict]:
     stmt = select(
-        expenses.c.category,
-        func.coalesce(func.sum(expenses.c.amount), 0.0).label("total"),
+        Expense.category,
+        func.coalesce(func.sum(Expense.amount), 0.0).label("total"),
         func.count().label("count")
     )
     conditions = []
     if date_from and str(date_from).strip():
-        conditions.append(expenses.c.date >= date_from)
+        conditions.append(Expense.date >= date_from)
     if date_to and str(date_to).strip():
-        conditions.append(expenses.c.date <= date_to)
+        conditions.append(Expense.date <= date_to)
     if conditions:
         stmt = stmt.where(and_(*conditions))
-    stmt = stmt.group_by(expenses.c.category).order_by(func.sum(expenses.c.amount).desc())
-    return [dict(row) for row in query_sa(stmt)]
+    stmt = stmt.group_by(Expense.category).order_by(func.sum(Expense.amount).desc())
+    results = await db.execute(stmt)
+    return [{"category": r[0], "total": r[1], "count": r[2]} for r in results.all()]
 
 
-def expenses_by_month(limit: int = 12) -> list[dict]:
-    month_expr = func.to_char(expenses.c.date, "YYYY-MM").label("month")
+async def expenses_by_month(db: AsyncSession, limit: int = 12) -> list[dict]:
+    month_expr = func.to_char(Expense.date, "YYYY-MM").label("month")
     stmt = select(
         month_expr,
-        func.coalesce(func.sum(expenses.c.amount), 0.0).label("total"),
+        func.coalesce(func.sum(Expense.amount), 0.0).label("total"),
         func.count().label("count")
     ).group_by(month_expr).order_by(month_expr.desc()).limit(limit)
-    return [dict(row) for row in query_sa(stmt)]
+    results = await db.execute(stmt)
+    return [{"month": r[0], "total": r[1], "count": r[2]} for r in results.all()]
