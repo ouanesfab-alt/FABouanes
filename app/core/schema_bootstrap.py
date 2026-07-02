@@ -154,5 +154,12 @@ def bootstrap_schema() -> None:
             logging.getLogger("fabouanes").debug("Auto-migration for outbox_events retry columns skipped", exc_info=True)
 
         conn.commit()
+
+        # ── Seeds (absorbé depuis schema.py) ─────────────────────────────────
+        from app.core.schema import _seed_default_admin, _seed_default_settings, _seed_other_operation
+        _seed_default_admin(conn)
+        _seed_default_settings(conn)
+        _seed_other_operation(conn)
+        conn.commit()
     finally:
         conn.close()

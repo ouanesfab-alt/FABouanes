@@ -8,7 +8,7 @@ from typing import Any
 import structlog
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor, ConsoleSpanExporter
 from opentelemetry.sdk.resources import Resource
 
 
@@ -43,14 +43,19 @@ def setup_observability(service_name: str = "fabouanes") -> None:
 
     # 2. Add Exporter
     otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip()
+    is_production = os.environ.get("FASTAPI_ENV", "development").lower() == "production"
+    is_test = "pytest" in sys.modules
+
     if otlp_endpoint and OTLPSpanExporter:  # pragma: no cover
         try:
             otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
             provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
         except Exception:
             logging.getLogger("observability").warning("Failed to initialize OTLP Span Exporter.")
-    elif os.environ.get("OTEL_EXPORT_CONSOLE", "").strip().lower() in ("true", "1") and "pytest" not in sys.modules:
-        provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
+    elif not is_test:
+        # En production sans OTLP, ou en dev avec OTEL_EXPORT_CONSOLE=true : console exporter
+        if is_production or os.environ.get("OTEL_EXPORT_CONSOLE", "").strip().lower() in ("true", "1"):
+            provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
 
     trace.set_tracer_provider(provider)
     _TRACER_INITIALIZED = True

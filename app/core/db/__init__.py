@@ -1,36 +1,43 @@
 """
-Point d'entrée unique pour la couche base de données.
-Réexporte les fonctions publiques depuis les sous-modules.
-Tous les imports existants du type :
-    from app.core.db_access import query_db, execute_db
-continuent de fonctionner (db_access.py reste en place comme alias).
+Point d'entrée unifié pour la couche base de données.
+Réexporte les fonctions publiques depuis db_helpers.py (la source unique de vérité).
 """
-# Choix importants :
-# 1. Exposition simplifiée de l'interface DB via un module db unifié.
-# 2. Conservation de la compatibilité descendante totale sans déplacer les fichiers physiques existants.
-
-from app.core.db_access import (
+from app.core.db_helpers import (  # noqa: F401
+    # Query & Execute
     query_db,
     query_db_async,
     execute_db,
+    execute_db_async,
     get_db,
     get_setting,
     set_setting,
-)
-from app.core.db_helpers import (
-    DatabaseManager,
+    # Transactions
     db_transaction,
+    db_task,
+    # SQLAlchemy
+    execute_sa,
+    query_sa,
+    # Connection management
+    DatabaseManager,
     db_manager,
-)
-from app.core.connection import (
+    ConnectionPoolManager,
+    pool_manager,
     connect_database,
     postgres_pool_status,
     list_columns,
-    pool_manager,
+    explain_query_plan,
+    # Performance
+    pending_performance_event_count,
+    drain_performance_events_once,
+    # Low-level
+    CompatRow,
+    CompatCursor,
+    CompatConnection,
 )
 
-# Alias pour correspondre aux variations d'interface possibles
+# Alias
 update_setting = set_setting
+
 
 def sqlalchemy_database_url(database_url: str) -> str:
     return pool_manager.sqlalchemy_database_url(database_url)
@@ -40,11 +47,3 @@ def create_database_engine(database_url: str):
 
 def get_database_engine(database_url: str):
     return pool_manager.get_database_engine(database_url)
-
-__all__ = [
-    "query_db", "query_db_async", "execute_db",
-    "get_db", "get_setting", "set_setting", "update_setting",
-    "DatabaseManager", "db_transaction", "db_manager",
-    "connect_database", "postgres_pool_status", "list_columns", "pool_manager",
-    "sqlalchemy_database_url", "create_database_engine", "get_database_engine",
-]

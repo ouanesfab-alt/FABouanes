@@ -179,6 +179,11 @@ def emit(event: DomainEvent) -> None:
                 "INSERT INTO pubsub_events (channel, payload, sender_worker_id) VALUES (%s, %s, %s)",
                 ("fabouanes:events", payload, WORKER_ID)
             )
+            # Notifier les autres workers via PostgreSQL LISTEN/NOTIFY
+            try:
+                execute_db("NOTIFY fabouanes_events")
+            except Exception:
+                pass  # NOTIFY est un best-effort
         except Exception as e:
             logger.debug("Failed to publish domain event to DB pubsub: %s", e)
 
@@ -324,8 +329,9 @@ _last_seen_pubsub_id = 0
 def _db_event_listener_loop():
     global _db_listener_running, _last_seen_pubsub_id
     import time
+    import select
     from app.core.db_access import execute_db, query_db
-    
+
     # Initialize last seen ID to current max
     try:
         max_row = query_db("SELECT MAX(id) as max_id FROM pubsub_events", one=True)
@@ -334,8 +340,47 @@ def _db_event_listener_loop():
     except Exception:
         pass
 
+    # Try to set up a dedicated LISTEN connection
+    listen_conn = None
+    listen_fileno = None
+    try:
+        from app.core.config import DATABASE_URL
+        from app.core.db_helpers import pool_manager
+        listen_conn = pool_manager.connect_database(DATABASE_URL)
+        listen_conn.execute("LISTEN fabouanes_events")
+        listen_conn.commit()
+        # pg8000 CompatConnection wraps a pg8000 connection; get the raw socket fd
+        raw = getattr(listen_conn, '_conn', listen_conn)
+        sock = getattr(raw, '_sock', None) or getattr(raw, 'sock', None)
+        if sock:
+            listen_fileno = sock.fileno()
+            logger.info("LISTEN/NOTIFY active on fabouanes_events (fd=%d)", listen_fileno)
+        else:
+            logger.info("LISTEN/NOTIFY setup: no socket found, falling back to polling")
+    except Exception as e:
+        logger.info("LISTEN/NOTIFY setup failed (%s), falling back to polling", e)
+        listen_conn = None
+        listen_fileno = None
+
     while _db_listener_running:
         try:
+            # Wait for notification (or timeout after 5s as fallback)
+            if listen_fileno is not None:
+                try:
+                    readable, _, _ = select.select([listen_fileno], [], [], 5.0)
+                    if readable:
+                        # Drain notifications from pg8000
+                        try:
+                            listen_conn.commit()  # pg8000 reads notifications on commit/execute
+                        except Exception:
+                            pass
+                except (OSError, ValueError):
+                    # Socket closed, fall back to plain sleep
+                    listen_fileno = None
+                    time.sleep(5.0)
+            else:
+                time.sleep(5.0)
+
             # Poll for new events from other workers
             rows = query_db(
                 """
@@ -367,15 +412,22 @@ def _db_event_listener_loop():
                     if res:
                         event, sender_id = res
                         _trigger_local_handlers(event, skip_default=True)
-            
+
             # Prune events older than 10 minutes
             execute_db(
                 "DELETE FROM pubsub_events WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'"
             )
         except Exception as e:
             logger.debug("Failed to poll/prune pubsub_events: %s", e)
-        
-        time.sleep(5.0)  # Polling toutes les 5s au lieu de 1s (5x moins de requêtes idle)
+            time.sleep(5.0)  # Rate-limit en cas d'erreur
+
+    # Cleanup LISTEN connection
+    if listen_conn:
+        try:
+            listen_conn.close()
+        except Exception:
+            pass
+
 
 
 def startup():
@@ -394,7 +446,7 @@ def startup():
         _db_listener_running = True
         _db_listener_thread = threading.Thread(target=_db_event_listener_loop, daemon=True)
         _db_listener_thread.start()
-        logger.info("DB Pub/Sub Event Bus listener started (worker_id=%s, poll_interval=5s)", WORKER_ID)
+        logger.info("DB Pub/Sub Event Bus listener started (worker_id=%s, mode=LISTEN/NOTIFY+fallback)", WORKER_ID)
 
     if scheduler:
         try:

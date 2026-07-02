@@ -419,8 +419,24 @@ class DatabaseManager:
         if domains:
             invalidate_cache_domains(*domains)
 
+    # ── Pagination Guard ────────────────────────────────────────────────────
+    MAX_UNPAGINATED_ROWS = 10_000
+
+    def _guard_pagination(self, query: str) -> str:
+        """Ajoute un LIMIT de sécurité aux SELECT sans LIMIT pour prévenir les OOM."""
+        q = query.strip().lower()
+        if not q.startswith("select"):
+            return query
+        # Ne pas toucher les agrégations, sous-requêtes, COUNT, EXISTS, unions
+        if any(kw in q for kw in ("count(", "exists(", "limit ", "limit\n", "for update", "for share")):
+            return query
+        logger.debug("[PAGINATION GUARD] Auto-LIMIT %d appliqué à: %s", self.MAX_UNPAGINATED_ROWS, query[:120])
+        return f"{query.rstrip().rstrip(';')} LIMIT {self.MAX_UNPAGINATED_ROWS}"
+
     def query_db(self, query: str, params: tuple = (), one: bool = False):
         """Exécute une requête SELECT. Retente une fois sur erreur transitoire de connexion."""
+        if not one:
+            query = self._guard_pagination(query)
         started = monotonic()
         for attempt in range(2):
             db = self.get_read_db()
