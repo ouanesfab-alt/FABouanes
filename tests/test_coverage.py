@@ -678,12 +678,13 @@ class TestHybridCache:
         assert cache.l1.get(key) == "val"
 
     def test_l2_fallback(self):
+        import json
         cache, mc = self._make()
         key = ("l2k",)
         ver = cache.cache_generation()
         cache.set(key, "from_l2", ttl=60, fingerprint=f"v:{ver}")
         cache.l1.clear()
-        mc.get.return_value = pickle.dumps({"value": "from_l2", "fingerprint": f"v:{ver}"})
+        mc.get.return_value = json.dumps({"value": "from_l2", "fingerprint": f"v:{ver}"}).encode("utf-8")
         with patch.object(cache.l2, "cache_generation", return_value=ver):
             assert cache.get(key) == "from_l2"
 

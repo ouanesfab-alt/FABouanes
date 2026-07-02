@@ -375,7 +375,7 @@ def _db_event_listener_loop():
         except Exception as e:
             logger.debug("Failed to poll/prune pubsub_events: %s", e)
         
-        time.sleep(1.0)
+        time.sleep(5.0)  # Polling toutes les 5s au lieu de 1s (5x moins de requêtes idle)
 
 
 def startup():
@@ -385,10 +385,16 @@ def startup():
     
     # Start DB Pub/Sub listener
     if not _db_listener_running:
+        # Nettoyer les anciens événements au démarrage pour garder la table légère
+        try:
+            from app.core.db_access import execute_db
+            execute_db("DELETE FROM pubsub_events WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'")
+        except Exception:
+            pass
         _db_listener_running = True
         _db_listener_thread = threading.Thread(target=_db_event_listener_loop, daemon=True)
         _db_listener_thread.start()
-        logger.info("DB Pub/Sub Event Bus listener started (worker_id=%s)", WORKER_ID)
+        logger.info("DB Pub/Sub Event Bus listener started (worker_id=%s, poll_interval=5s)", WORKER_ID)
 
     if scheduler:
         try:

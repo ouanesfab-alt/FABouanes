@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-import pickle
 from collections import OrderedDict
 from threading import RLock
 from time import monotonic
@@ -162,10 +161,12 @@ class RedisCache(CacheBackend):
 
     def get(self, key: tuple[Hashable, ...]) -> Any:
         try:
+            import json
             r_key = self._redis_key(key)
             data = self.client.get(r_key)
             if data:
-                entry = pickle.loads(data)
+                raw = data.decode("utf-8") if isinstance(data, bytes) else data
+                entry = json.loads(raw)
                 domain = str(key[0]) if key else ""
                 gen = self._get_domain_version(domain)
                 if entry.get("fingerprint") == f"v:{gen}":
@@ -176,6 +177,7 @@ class RedisCache(CacheBackend):
 
     def set(self, key: tuple[Hashable, ...], value: Any, ttl: float, fingerprint: str) -> None:
         try:
+            import json
             r_key = self._redis_key(key)
             domain = str(key[0]) if key else ""
             vg = self.cache_generation()
@@ -191,7 +193,7 @@ class RedisCache(CacheBackend):
                 gen = self._get_domain_version(domain)
                 target_fingerprint = f"v:{gen}"
             entry = {"fingerprint": target_fingerprint, "value": value}
-            self.client.setex(r_key, max(1, int(ttl)), pickle.dumps(entry))
+            self.client.setex(r_key, max(1, int(ttl)), json.dumps(entry))
         except Exception:
             pass
 

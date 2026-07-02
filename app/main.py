@@ -226,7 +226,7 @@ app.add_middleware(
     https_only=settings.session_cookie_secure,
     max_age=settings.session_max_age,
 )
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # Request timeout — protect against hung requests
 from app.core.timeout_middleware import RequestTimeoutMiddleware

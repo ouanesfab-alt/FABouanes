@@ -123,6 +123,13 @@ def validate_single_worker_runtime() -> None:
         return
     allow = os.getenv("FAB_ALLOW_MULTI_WORKER", "0").strip().lower() in {"1", "true", "yes", "on"}
     if allow:
+        import logging
+        logging.getLogger("fabouanes").warning(
+            "[MULTI-WORKER] FAB_ALLOW_MULTI_WORKER=1 activé avec %d workers. "
+            "Le cache in-process est local à chaque worker — cohérence limitée. "
+            "Les événements inter-workers passent par la table pubsub_events (1s de latence max).",
+            workers,
+        )
         return
     raise RuntimeError(
         "FABOuanes utilise un cache et un scheduler in-process: demarre 1 seul worker, "

@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Optional
 from sqlalchemy import Column, Numeric, BigInteger
 from sqlmodel import SQLModel, Field
+
+
+def _now() -> datetime:
+    """Retourne l'heure courante UTC avec timezone (remplace datetime.utcnow déprecié)."""
+    return datetime.now(timezone.utc)
 
 class User(SQLModel, table=True):
     __tablename__ = "users"
@@ -17,7 +22,7 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=True)
     last_login_at: Optional[datetime] = Field(default=None)
     last_password_change_at: Optional[datetime] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_now)
     xp: int = Field(default=0)
     level: int = Field(default=1)
 
@@ -30,7 +35,7 @@ class UserBadge(SQLModel, table=True):
     badge_name: str = Field(index=True)
     badge_title: str
     badge_description: str
-    unlocked_at: datetime = Field(default_factory=datetime.utcnow)
+    unlocked_at: datetime = Field(default_factory=_now)
 
 class Client(SQLModel, table=True):
     __tablename__ = "clients"
@@ -41,8 +46,8 @@ class Client(SQLModel, table=True):
     address: Optional[str] = Field(default=None)
     notes: Optional[str] = Field(default=None)
     opening_credit: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
 
 class Supplier(SQLModel, table=True):
     __tablename__ = "suppliers"
@@ -52,8 +57,8 @@ class Supplier(SQLModel, table=True):
     phone: Optional[str] = Field(default=None, index=True)
     address: Optional[str] = Field(default=None)
     notes: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
 
 class ImportedClientHistory(SQLModel, table=True):
     __tablename__ = "imported_client_history"
@@ -61,13 +66,13 @@ class ImportedClientHistory(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     client_id: int = Field(foreign_key="clients.id")
     source_file: Optional[str] = Field(default=None)
-    entry_date: str
+    entry_date: date  # Migré TEXT→DATE (migration 0035)
     designation: Optional[str] = Field(default=None)
     debit_amount: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     credit_amount: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     running_balance: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     imported_by_user_id: Optional[int] = Field(default=None, foreign_key="users.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_now)
 
 class RawMaterial(SQLModel, table=True):
     __tablename__ = "raw_materials"
@@ -80,7 +85,7 @@ class RawMaterial(SQLModel, table=True):
     sale_price: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     alert_threshold: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     threshold_qty: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=_now)
 
 class FinishedProduct(SQLModel, table=True):
     __tablename__ = "finished_products"
@@ -92,7 +97,7 @@ class FinishedProduct(SQLModel, table=True):
     sale_price: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     avg_cost: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     alert_threshold: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=_now)
 
 class StockMovement(SQLModel, table=True):
     __tablename__ = "stock_movements"
@@ -109,7 +114,7 @@ class StockMovement(SQLModel, table=True):
     reference_type: Optional[str] = Field(default=None)
     reference_id: Optional[int] = Field(default=None)
     created_by_username: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_now)
 
 class PurchaseDocument(SQLModel, table=True):
     __tablename__ = "purchase_documents"
@@ -120,8 +125,8 @@ class PurchaseDocument(SQLModel, table=True):
     total: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     purchase_date: date
     notes: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
 
 class SaleDocument(SQLModel, table=True):
     __tablename__ = "sale_documents"
@@ -135,8 +140,8 @@ class SaleDocument(SQLModel, table=True):
     balance_due: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     sale_date: date
     notes: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
 
 class Purchase(SQLModel, table=True):
     __tablename__ = "purchases"
@@ -153,8 +158,8 @@ class Purchase(SQLModel, table=True):
     purchase_date: date
     notes: Optional[str] = Field(default=None)
     custom_item_name: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
 
 class Sale(SQLModel, table=True):
     __tablename__ = "sales"
@@ -174,8 +179,8 @@ class Sale(SQLModel, table=True):
     profit_amount: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     sale_date: date
     notes: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
 
 class RawSale(SQLModel, table=True):
     __tablename__ = "raw_sales"
@@ -196,8 +201,8 @@ class RawSale(SQLModel, table=True):
     sale_date: date
     notes: Optional[str] = Field(default=None)
     custom_item_name: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
 
 class Payment(SQLModel, table=True):
     __tablename__ = "payments"
@@ -212,8 +217,8 @@ class Payment(SQLModel, table=True):
     amount: Decimal = Field(sa_column=Column(Numeric(15, 4)))
     payment_date: date
     notes: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
 
 class ProductionBatch(SQLModel, table=True):
     __tablename__ = "production_batches"
@@ -244,8 +249,8 @@ class SavedRecipe(SQLModel, table=True):
     name: str
     notes: Optional[str] = Field(default=None)
     created_by_user_id: Optional[int] = Field(default=None, foreign_key="users.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
 
 class SavedRecipeItem(SQLModel, table=True):
     __tablename__ = "saved_recipe_items"
@@ -264,10 +269,10 @@ class Expense(SQLModel, table=True):
     date: date
     category: str = Field(default="general", index=True)
     description: Optional[str] = Field(default=None)
-    amount: float = Field(default=0.0)
+    amount: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))  # Migré float→Decimal (migration 0035)
     payment_method: str = Field(default="cash")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
 
 
 class ClientHistory(SQLModel, table=True):
@@ -285,7 +290,7 @@ class ClientHistory(SQLModel, table=True):
     sale_id: Optional[int] = Field(default=None)
     raw_sale_id: Optional[int] = Field(default=None)
     payment_id: Optional[int] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_now)
 
 
 class ClientKey(SQLModel, table=True):
@@ -304,7 +309,7 @@ class StockAlert(SQLModel, table=True):
     product_name: str
     current_qty: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     threshold_qty: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
-    triggered_at: datetime = Field(default_factory=datetime.utcnow)
+    triggered_at: datetime = Field(default_factory=_now)
     acknowledged_at: Optional[datetime] = Field(default=None)
 
 

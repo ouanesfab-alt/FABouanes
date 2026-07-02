@@ -420,62 +420,100 @@ class DatabaseManager:
             invalidate_cache_domains(*domains)
 
     def query_db(self, query: str, params: tuple = (), one: bool = False):
+        """Exécute une requête SELECT. Retente une fois sur erreur transitoire de connexion."""
         started = monotonic()
-        db = self.get_read_db()
-        try:
-            cur = db.execute(query, params)
-            if one:
-                result = cur.fetchone()
-            else:
-                result = cur.fetchall()
-            cur.close()
-            self._record_sql_timing(query, params, (monotonic() - started) * 1000.0)
-            return result
-        except Exception:
-            if self._tx_depth() == 0:
-                try:
-                    db.rollback()
-                except Exception as e2:
-                    logger.debug("Ignored error: %s", e2, exc_info=False)
-            raise
+        for attempt in range(2):
+            db = self.get_read_db()
+            try:
+                cur = db.execute(query, params)
+                if one:
+                    result = cur.fetchone()
+                else:
+                    result = cur.fetchall()
+                cur.close()
+                self._record_sql_timing(query, params, (monotonic() - started) * 1000.0)
+                return result
+            except Exception as exc:
+                exc_msg = str(exc).lower()
+                is_transient = (
+                    "connection" in exc_msg
+                    or "57p01" in exc_msg  # admin_shutdown
+                    or "08006" in exc_msg  # connection_failure
+                    or "08001" in exc_msg  # connection_rejected
+                )
+                if self._tx_depth() == 0:
+                    try:
+                        db.rollback()
+                    except Exception as e2:
+                        logger.debug("Ignored error: %s", e2, exc_info=False)
+                if is_transient and attempt == 0 and self._tx_depth() == 0:
+                    logger.warning("Transient DB error on query_db (attempt %d), retrying: %s", attempt + 1, exc)
+                    # Forcer une nouvelle connexion au prochain appel
+                    state = get_request_state()
+                    if state is not None and getattr(state, "read_db", None) is not None:
+                        try:
+                            state.read_db.close()
+                        except Exception:
+                            pass
+                        state.read_db = None
+                    continue
+                raise
 
     async def query_db_async(self, query: str, params: tuple = (), one: bool = False):
         return await asyncio.to_thread(self.query_db, query, params, one)
 
     def execute_db(self, query: str, params: tuple = ()) -> int:
-        db = self.get_write_db()
-        started = monotonic()
-        
-        has_returning = bool(re.search(r"\breturning\b", query, flags=re.I))
-        
-        try:
-            cur = db.execute(query, params)
-            last_id = None
-            if has_returning:
-                try:
-                    row = cur.fetchone()
-                    last_id = row[0] if row else None
-                except Exception:
-                    logger.debug("Could not fetch RETURNING result", exc_info=True)
+        """Exécute une requête DML. Retente une fois sur erreur transitoire de connexion."""
+        for attempt in range(2):
+            db = self.get_write_db()
+            started = monotonic()
+            has_returning = bool(re.search(r"\breturning\b", query, flags=re.I))
+            try:
+                cur = db.execute(query, params)
+                last_id = None
+                if has_returning:
+                    try:
+                        row = cur.fetchone()
+                        last_id = row[0] if row else None
+                    except Exception:
+                        logger.debug("Could not fetch RETURNING result", exc_info=True)
+                else:
+                    last_id = cur.lastrowid
+                if self._tx_depth() == 0:
+                    db.commit()
+                cur.close()
+            except Exception as exc:
+                exc_msg = str(exc).lower()
+                is_transient = (
+                    "connection" in exc_msg
+                    or "57p01" in exc_msg
+                    or "08006" in exc_msg
+                    or "08001" in exc_msg
+                )
+                if self._tx_depth() == 0:
+                    try:
+                        db.rollback()
+                    except Exception as e2:
+                        logger.debug("Ignored error: %s", e2, exc_info=False)
+                if is_transient and attempt == 0 and self._tx_depth() == 0:
+                    logger.warning("Transient DB error on execute_db (attempt %d), retrying: %s", attempt + 1, exc)
+                    # Forcer une nouvelle connexion au prochain appel
+                    state = get_request_state()
+                    if state is not None and getattr(state, "db", None) is not None:
+                        try:
+                            state.db.close()
+                        except Exception:
+                            pass
+                        state.db = None
+                    continue
+                raise
             else:
-                last_id = cur.lastrowid
-                
-            if self._tx_depth() == 0:
-                db.commit()
-            cur.close()
-        except Exception:
-            if self._tx_depth() == 0:
-                try:
-                    db.rollback()
-                except Exception as e2:
-                    logger.debug("Ignored error: %s", e2, exc_info=False)
-            raise
-
-        if not last_id:
-            last_id = self._postgres_last_insert_id(db, query)
-        self._record_sql_timing(query, params, (monotonic() - started) * 1000.0)
-        self._invalidate_after_write(query)
-        return int(last_id or 0)
+                if not last_id:
+                    last_id = self._postgres_last_insert_id(db, query)
+                self._record_sql_timing(query, params, (monotonic() - started) * 1000.0)
+                self._invalidate_after_write(query)
+                return int(last_id or 0)
+        return 0  # ne devrait jamais être atteint
 
 
     async def execute_db_async(self, query: str, params: tuple = ()) -> int:

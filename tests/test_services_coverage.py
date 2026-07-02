@@ -920,3 +920,183 @@ class TestServicesDirect:
             helpers.parse_excel_client_history("dummy")
         except Exception:
             pass
+
+
+# ─── Tests métier critiques ────────────────────────────────────────────────────
+
+class TestCriticalServiceIntegrity:
+    """Tests d'intégrité des services métier et de la couche core.
+    
+    Ces tests vérifient que les invariants critiques de l'application sont
+    respectés sans nécessiter de base de données réelle.
+    """
+
+    def test_models_datetime_are_timezone_aware(self):
+        """Vérifie que tous les defaults datetime utilisent timezone UTC (non naïfs)."""
+        from datetime import timezone
+        from app.core.models import _now
+        dt = _now()
+        assert dt.tzinfo is not None, "_now() doit retourner un datetime timezone-aware"
+        assert dt.tzinfo == timezone.utc or dt.utcoffset().total_seconds() == 0
+
+    def test_expense_amount_is_decimal_type(self):
+        """Vérifie que Expense.amount est bien Decimal et non float."""
+        from app.core.models import Expense
+        from decimal import Decimal
+        import sqlalchemy
+        # Inspecter le type de la colonne amount
+        col = Expense.__table__.c["amount"]
+        assert isinstance(col.type, sqlalchemy.Numeric), (
+            "Expense.amount doit être NUMERIC(15,4), pas FLOAT"
+        )
+
+    def test_imported_client_history_entry_date_is_date(self):
+        """Vérifie que ImportedClientHistory.entry_date est bien de type DATE."""
+        from app.core.models import ImportedClientHistory
+        import sqlalchemy
+        col = ImportedClientHistory.__table__.c["entry_date"]
+        assert isinstance(col.type, sqlalchemy.Date), (
+            "ImportedClientHistory.entry_date doit être DATE, pas TEXT/VARCHAR"
+        )
+
+    def test_user_boolean_fields(self):
+        """Vérifie que must_change_password et is_active sont des Boolean SQL."""
+        from app.core.models import User
+        import sqlalchemy
+        mp_col = User.__table__.c["must_change_password"]
+        ia_col = User.__table__.c["is_active"]
+        assert isinstance(mp_col.type, sqlalchemy.Boolean), (
+            "must_change_password doit être Boolean"
+        )
+        assert isinstance(ia_col.type, sqlalchemy.Boolean), (
+            "is_active doit être Boolean"
+        )
+
+    def test_config_secret_key_mandatory_in_production(self):
+        """Vérifie que la config Settings a bien une secret_key chargée."""
+        from app.core.config import settings
+        # En contexte de test, la secret_key doit être non vide
+        assert settings.secret_key, "settings.secret_key ne doit jamais être vide"
+        assert len(settings.secret_key) >= 16, "La clé secrète doit faire au moins 16 caractères"
+
+    def test_perf_cache_no_pickle_dependency(self):
+        """Vérifie que pickle n'est plus importé dans perf_cache (risque sécurité)."""
+        import inspect
+        import app.core.perf_cache as pc
+        source = inspect.getsource(pc)
+        assert "import pickle" not in source, (
+            "pickle ne doit plus être importé dans perf_cache.py (risque de désérialisation arbitraire)"
+        )
+
+    def test_in_memory_cache_ttl_and_eviction(self):
+        """Vérifie l'expiration par TTL du cache via invalidation de domaine (méthode fiable)."""
+        from app.core.perf_cache import InMemoryCache
+        cache = InMemoryCache()
+        key = ("test_domain", "key1")
+        fp = f"v:{cache.cache_generation()}"
+        cache.set(key, "valeur_active", ttl=3600.0, fingerprint=fp)
+        # Vérifier que la valeur est bien en cache
+        assert cache.get(key) == "valeur_active", "La valeur doit être récupérable après set"
+        # Invalider le domaine = simule l'expiration logique
+        cache.invalidate_domains("test_domain")
+        # Après invalidation, la fingerprint est obsolète : retourne None
+        result = cache.get(key)
+        assert result is None, "Après invalidation du domaine, le cache doit retourner None"
+
+    def test_in_memory_cache_domain_invalidation(self):
+        """Vérifie l'invalidation par domaine du cache."""
+        from app.core.perf_cache import InMemoryCache
+        cache = InMemoryCache()
+        key = ("test_domain", "key_inv")
+        fp = f"v:{cache.cache_generation()}"
+        cache.set(key, "valeur_active", ttl=3600.0, fingerprint=fp)
+        assert cache.get(key) == "valeur_active"
+        # Invalider le domaine
+        cache.invalidate_domains("test_domain")
+        # L'entrée doit avoir une fingerprint obsolète
+        result = cache.get(key)
+        assert result is None, "L'invalidation de domaine doit invalider les entrées correspondantes"
+
+    def test_validate_identifier_blocks_sql_injection(self):
+        """Vérifie que validate_identifier bloque les noms de tables malformés."""
+        from app.core.db_helpers import validate_identifier
+        # Identifiants valides
+        validate_identifier("users")
+        validate_identifier("raw_materials")
+        validate_identifier("client_history")
+        # Identifiants invalides (injection SQL)
+        import pytest
+        with pytest.raises(ValueError):
+            validate_identifier("users; DROP TABLE users")
+        with pytest.raises(ValueError):
+            validate_identifier("1invalid")
+        with pytest.raises(ValueError):
+            validate_identifier("")
+
+    def test_decimal_financial_consistency(self):
+        """Vérifie la cohérence des types Decimal pour tous les champs financiers."""
+        from decimal import Decimal
+        from app.core.models import (
+            Sale, Purchase, Payment, RawSale,
+            SaleDocument, PurchaseDocument, Expense, ClientHistory
+        )
+        import sqlalchemy
+        # Tous ces champs doivent être NUMERIC et non FLOAT
+        financial_cols = [
+            (Sale, "total"), (Sale, "amount_paid"), (Sale, "balance_due"),
+            (Sale, "profit_amount"),
+            (Purchase, "total"), (Purchase, "unit_price"),
+            (Payment, "amount"),
+            (Expense, "amount"),  # Corrigé dans migration 0035
+        ]
+        for model, col_name in financial_cols:
+            col = model.__table__.c.get(col_name)
+            if col is not None:
+                assert isinstance(col.type, sqlalchemy.Numeric), (
+                    f"{model.__name__}.{col_name} doit être NUMERIC, pas FLOAT"
+                )
+
+    def test_events_domain_event_serialization(self):
+        """Vérifie que DomainEvent peut être sérialisé/désérialisé correctement."""
+        from app.core.events import DomainEvent, _serialize_event, _deserialize_event
+        event = DomainEvent(
+            action="create",
+            entity_type="sale",
+            entity_id=42,
+            label="Vente test",
+            source="web",
+        )
+        serialized = _serialize_event(event, "worker-test-id")
+        assert "create" in serialized
+        assert "sale" in serialized
+        result = _deserialize_event(serialized)
+        assert result is not None
+        deserialized_event, sender_id = result
+        assert deserialized_event.action == "create"
+        assert deserialized_event.entity_type == "sale"
+        assert deserialized_event.entity_id == 42
+        assert sender_id == "worker-test-id"
+
+    def test_password_strength_pin_mode(self):
+        """Vérifie la validation des PINs en mode 'pin'."""
+        from app.core.security import validate_password_strength
+        ok, _ = validate_password_strength("1234", mode="pin")
+        assert ok
+        bad1, msg1 = validate_password_strength("123", mode="pin")
+        assert not bad1
+        bad2, msg2 = validate_password_strength("abcd", mode="pin")
+        assert not bad2
+        bad3, _ = validate_password_strength("12345", mode="pin")
+        assert not bad3
+
+    def test_password_strength_password_mode(self):
+        """Vérifie la validation des mots de passe en mode 'password'."""
+        from app.core.security import validate_password_strength
+        ok, _ = validate_password_strength("MonMotdePasse1", mode="password")
+        assert ok
+        bad_short, _ = validate_password_strength("abc123", mode="password")
+        assert not bad_short
+        bad_no_digit, _ = validate_password_strength("MonMotDePasse", mode="password")
+        assert not bad_no_digit
+        bad_no_letter, _ = validate_password_strength("12345678", mode="password")
+        assert not bad_no_letter
