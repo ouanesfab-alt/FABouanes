@@ -132,16 +132,6 @@ def _seed_default_admin(conn) -> None:
             """,
             (DEFAULT_ADMIN_USERNAME, generate_password_hash(initial_admin_password())),
         )
-        return
-    try:
-        insecure_hash = check_password_hash(str(admin["password_hash"]), "1234")
-    except Exception:
-        insecure_hash = False
-    if insecure_hash and os.environ.get("FAB_ALLOW_INSECURE_DEFAULT_ADMIN", "0").strip() != "1":
-        conn.execute(
-            "UPDATE users SET password_hash = %s, must_change_password = 1, last_password_change_at = CURRENT_TIMESTAMP WHERE id = %s",
-            (generate_password_hash(initial_admin_password()), int(admin["id"])),
-        )
 
 
 def _seed_other_operation(conn) -> None:

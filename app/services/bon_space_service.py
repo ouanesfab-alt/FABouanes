@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from urllib.parse import quote
-
-from app.core.db_access import query_db_async
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.async_db import get_async_sessionmaker
+from app.core.helpers import async_compat
 from app.utils.tool_pages import list_pdf_reader_files
 
 DEFAULT_LIMIT = 80
@@ -62,37 +64,37 @@ def _print_doc(doc_type: str, item_id: int, **payload) -> dict:
     )
 
 
-async def _append_purchase_documents(documents: list[dict], limit: int) -> None:
-    rows = await query_db_async(
-        """
+async def _append_purchase_documents(documents: list[dict], limit: int, db: AsyncSession) -> None:
+    res1 = await db.execute(
+        text("""
         SELECT pd.id, pd.purchase_date, pd.total, pd.notes,
                COALESCE(s.name, 'Non renseigne') AS partner_name
         FROM purchase_documents pd
         LEFT JOIN suppliers s ON s.id = pd.supplier_id
         ORDER BY pd.purchase_date DESC, pd.id DESC
-        LIMIT %s
-        """,
-        (limit,),
+        LIMIT :limit
+        """),
+        {"limit": limit},
     )
-    for row in rows:
+    for row in res1.all():
         documents.append(
             _print_doc(
                 "purchase_document",
-                int(row["id"]),
+                int(row.id),
                 kind="purchase",
                 category="Achats",
                 title="Bon d'achat",
-                number=f"ACH-{int(row['id']):06d}",
-                doc_date=row["purchase_date"],
-                partner_name=row["partner_name"],
-                detail=row["notes"] or "Achat multi-produits",
-                amount=_as_float(row["total"]),
+                number=f"ACH-{int(row.id):06d}",
+                doc_date=row.purchase_date,
+                partner_name=row.partner_name,
+                detail=row.notes or "Achat multi-produits",
+                amount=_as_float(row.total),
                 source_url="/operations?type=purchase",
             )
         )
 
-    rows = await query_db_async(
-        """
+    res2 = await db.execute(
+        text("""
         SELECT p.id, p.purchase_date, p.total, p.notes,
                COALESCE(s.name, 'Non renseigne') AS partner_name,
                COALESCE(NULLIF(p.custom_item_name, ''), rm.name) AS item_name
@@ -101,59 +103,59 @@ async def _append_purchase_documents(documents: list[dict], limit: int) -> None:
         LEFT JOIN suppliers s ON s.id = p.supplier_id
         WHERE p.document_id IS NULL
         ORDER BY p.purchase_date DESC, p.id DESC
-        LIMIT %s
-        """,
-        (limit,),
+        LIMIT :limit
+        """),
+        {"limit": limit},
     )
-    for row in rows:
+    for row in res2.all():
         documents.append(
             _print_doc(
                 "purchase",
-                int(row["id"]),
+                int(row.id),
                 kind="purchase",
                 category="Achats",
                 title="Bon d'achat",
-                number=f"ACH-{int(row['id']):06d}",
-                doc_date=row["purchase_date"],
-                partner_name=row["partner_name"],
-                detail=row["item_name"] or row["notes"] or "",
-                amount=_as_float(row["total"]),
+                number=f"ACH-{int(row.id):06d}",
+                doc_date=row.purchase_date,
+                partner_name=row.partner_name,
+                detail=row.item_name or row.notes or "",
+                amount=_as_float(row.total),
                 source_url="/operations?type=purchase",
             )
         )
 
 
-async def _append_sale_documents(documents: list[dict], limit: int) -> None:
-    rows = await query_db_async(
-        """
+async def _append_sale_documents(documents: list[dict], limit: int, db: AsyncSession) -> None:
+    res1 = await db.execute(
+        text("""
         SELECT sd.id, sd.sale_date, sd.total, sd.sale_type, sd.notes,
                COALESCE(c.name, 'Comptoir') AS partner_name
         FROM sale_documents sd
         LEFT JOIN clients c ON c.id = sd.client_id
         ORDER BY sd.sale_date DESC, sd.id DESC
-        LIMIT %s
-        """,
-        (limit,),
+        LIMIT :limit
+        """),
+        {"limit": limit},
     )
-    for row in rows:
+    for row in res1.all():
         documents.append(
             _print_doc(
                 "sale_document",
-                int(row["id"]),
+                int(row.id),
                 kind="sale",
                 category="Ventes",
                 title="Bon de vente",
-                number=f"FAC-{int(row['id']):06d}",
-                doc_date=row["sale_date"],
-                partner_name=row["partner_name"],
-                detail="Credit" if row["sale_type"] == "credit" else "Comptant",
-                amount=_as_float(row["total"]),
+                number=f"FAC-{int(row.id):06d}",
+                doc_date=row.sale_date,
+                partner_name=row.partner_name,
+                detail="Credit" if row.sale_type == "credit" else "Comptant",
+                amount=_as_float(row.total),
                 source_url="/operations?type=sale",
             )
         )
 
-    rows = await query_db_async(
-        """
+    res2 = await db.execute(
+        text("""
         SELECT s.id, s.sale_date, s.total, s.sale_type, s.notes,
                COALESCE(c.name, 'Comptoir') AS partner_name,
                fp.name AS item_name
@@ -162,29 +164,29 @@ async def _append_sale_documents(documents: list[dict], limit: int) -> None:
         LEFT JOIN clients c ON c.id = s.client_id
         WHERE s.document_id IS NULL
         ORDER BY s.sale_date DESC, s.id DESC
-        LIMIT %s
-        """,
-        (limit,),
+        LIMIT :limit
+        """),
+        {"limit": limit},
     )
-    for row in rows:
+    for row in res2.all():
         documents.append(
             _print_doc(
                 "sale_finished",
-                int(row["id"]),
+                int(row.id),
                 kind="sale",
                 category="Ventes",
                 title="Bon de vente",
-                number=f"VPF-{int(row['id']):06d}",
-                doc_date=row["sale_date"],
-                partner_name=row["partner_name"],
-                detail=row["item_name"] or "",
-                amount=_as_float(row["total"]),
+                number=f"VPF-{int(row.id):06d}",
+                doc_date=row.sale_date,
+                partner_name=row.partner_name,
+                detail=row.item_name or "",
+                amount=_as_float(row.total),
                 source_url="/operations?type=sale",
             )
         )
 
-    rows = await query_db_async(
-        """
+    res3 = await db.execute(
+        text("""
         SELECT rs.id, rs.sale_date, rs.total, rs.sale_type, rs.notes,
                COALESCE(c.name, 'Comptoir') AS partner_name,
                COALESCE(NULLIF(rs.custom_item_name, ''), rm.name) AS item_name
@@ -193,109 +195,109 @@ async def _append_sale_documents(documents: list[dict], limit: int) -> None:
         LEFT JOIN clients c ON c.id = rs.client_id
         WHERE rs.document_id IS NULL
         ORDER BY rs.sale_date DESC, rs.id DESC
-        LIMIT %s
-        """,
-        (limit,),
+        LIMIT :limit
+        """),
+        {"limit": limit},
     )
-    for row in rows:
+    for row in res3.all():
         documents.append(
             _print_doc(
                 "sale_raw",
-                int(row["id"]),
+                int(row.id),
                 kind="sale",
                 category="Ventes",
                 title="Bon de vente matiere",
-                number=f"VMP-{int(row['id']):06d}",
-                doc_date=row["sale_date"],
-                partner_name=row["partner_name"],
-                detail=row["item_name"] or "",
-                amount=_as_float(row["total"]),
+                number=f"VMP-{int(row.id):06d}",
+                doc_date=row.sale_date,
+                partner_name=row.partner_name,
+                detail=row.item_name or "",
+                amount=_as_float(row.total),
                 source_url="/operations?type=sale",
             )
         )
 
 
-async def _append_payment_documents(documents: list[dict], limit: int) -> None:
-    rows = await query_db_async(
-        """
+async def _append_payment_documents(documents: list[dict], limit: int, db: AsyncSession) -> None:
+    res = await db.execute(
+        text("""
         SELECT p.id, p.payment_date, p.amount, p.payment_type, p.notes,
                c.name AS partner_name
         FROM payments p
         JOIN clients c ON c.id = p.client_id
         ORDER BY p.payment_date DESC, p.id DESC
-        LIMIT %s
-        """,
-        (limit,),
+        LIMIT :limit
+        """),
+        {"limit": limit},
     )
-    for row in rows:
-        is_advance = str(row["payment_type"] or "").lower() == "avance"
+    for row in res.all():
+        is_advance = str(row.payment_type or "").lower() == "avance"
         documents.append(
             _print_doc(
                 "payment",
-                int(row["id"]),
+                int(row.id),
                 kind="advance" if is_advance else "payment",
                 category="Avances" if is_advance else "Versements",
                 title="Bon d'avance" if is_advance else "Bon de versement",
-                number=f"PAY-{int(row['id']):06d}",
-                doc_date=row["payment_date"],
-                partner_name=row["partner_name"],
-                detail=row["notes"] or ("Avance client" if is_advance else "Versement client"),
-                amount=_as_float(row["amount"]),
+                number=f"PAY-{int(row.id):06d}",
+                doc_date=row.payment_date,
+                partner_name=row.partner_name,
+                detail=row.notes or ("Avance client" if is_advance else "Versement client"),
+                amount=_as_float(row.amount),
                 source_url="/operations?type=payment",
             )
         )
 
 
-async def _append_production_documents(documents: list[dict], limit: int) -> None:
-    rows = await query_db_async(
-        """
+async def _append_production_documents(documents: list[dict], limit: int, db: AsyncSession) -> None:
+    res = await db.execute(
+        text("""
         SELECT pb.id, pb.production_date, pb.production_cost, pb.output_quantity, pb.notes,
                fp.name AS product_name
         FROM production_batches pb
         JOIN finished_products fp ON fp.id = pb.finished_product_id
         ORDER BY pb.production_date DESC, pb.id DESC
-        LIMIT %s
-        """,
-        (limit,),
+        LIMIT :limit
+        """),
+        {"limit": limit},
     )
-    for row in rows:
-        detail = f"{row['output_quantity']} kg"
-        if row["notes"]:
-            detail = f"{detail} - {row['notes']}"
+    for row in res.all():
+        detail = f"{row.output_quantity} kg"
+        if row.notes:
+            detail = f"{detail} - {row.notes}"
         documents.append(
             _print_doc(
                 "production",
-                int(row["id"]),
+                int(row.id),
                 kind="production",
                 category="Production",
                 title="Bon de production",
-                number=f"PROD-{int(row['id']):06d}",
-                doc_date=row["production_date"],
-                partner_name=row["product_name"],
+                number=f"PROD-{int(row.id):06d}",
+                doc_date=row.production_date,
+                partner_name=row.product_name,
                 detail=detail,
-                amount=_as_float(row["production_cost"]),
+                amount=_as_float(row.production_cost),
                 source_url="/production",
             )
         )
 
 
-async def _append_client_history_documents(documents: list[dict], limit: int) -> None:
-    rows = await query_db_async(
-        """
+async def _append_client_history_documents(documents: list[dict], limit: int, db: AsyncSession) -> None:
+    res = await db.execute(
+        text("""
         SELECT c.id, c.name, c.phone, c.address, c.created_at,
                COUNT(ich.id) AS imported_rows
         FROM clients c
         LEFT JOIN imported_client_history ich ON ich.client_id = c.id
         GROUP BY c.id, c.name, c.phone, c.address, c.created_at
         ORDER BY c.name ASC
-        LIMIT %s
-        """,
-        (limit,),
+        LIMIT :limit
+        """),
+        {"limit": limit},
     )
-    for row in rows:
-        client_id = int(row["id"])
-        imported_rows = int(row["imported_rows"] or 0)
-        detail = row["phone"] or row["address"] or ""
+    for row in res.all():
+        client_id = int(row.id)
+        imported_rows = int(row.imported_rows or 0)
+        detail = row.phone or row.address or ""
         if imported_rows:
             detail = f"{detail} - {imported_rows} ligne(s) importee(s)" if detail else f"{imported_rows} ligne(s) importee(s)"
         documents.append(
@@ -305,8 +307,8 @@ async def _append_client_history_documents(documents: list[dict], limit: int) ->
                 category="Clients",
                 title="Historique client",
                 number=f"HIS-{client_id}",
-                doc_date=row["created_at"],
-                partner_name=row["name"],
+                doc_date=row.created_at,
+                partner_name=row.name,
                 detail=detail,
                 amount=None,
                 view_url=f"/contacts/clients/{client_id}/print-history",
@@ -337,15 +339,34 @@ def _append_external_pdfs(documents: list[dict]) -> None:
         )
 
 
-async def list_bon_space_documents(q: str = "", kind: str = "", limit: int = DEFAULT_LIMIT) -> list[dict]:
+@async_compat
+async def list_bon_space_documents(
+    q: str = "",
+    kind: str = "",
+    limit: int = DEFAULT_LIMIT,
+    db: AsyncSession | None = None,
+) -> list[dict]:
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            return await _list_bon_space_documents_impl(q, kind, limit, session)
+    return await _list_bon_space_documents_impl(q, kind, limit, db)
+
+
+async def _list_bon_space_documents_impl(
+    q: str,
+    kind: str,
+    limit: int,
+    db: AsyncSession,
+) -> list[dict]:
     limit = max(20, min(int(limit or DEFAULT_LIMIT), 200))
     source_limit = max(limit, 80)
     documents: list[dict] = []
-    await _append_purchase_documents(documents, source_limit)
-    await _append_sale_documents(documents, source_limit)
-    await _append_payment_documents(documents, source_limit)
-    await _append_production_documents(documents, source_limit)
-    await _append_client_history_documents(documents, source_limit)
+    
+    await _append_purchase_documents(documents, source_limit, db)
+    await _append_sale_documents(documents, source_limit, db)
+    await _append_payment_documents(documents, source_limit, db)
+    await _append_production_documents(documents, source_limit, db)
+    await _append_client_history_documents(documents, source_limit, db)
     _append_external_pdfs(documents)
 
     normalized_kind = str(kind or "").strip().lower()

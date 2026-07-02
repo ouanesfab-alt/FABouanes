@@ -86,7 +86,7 @@ async def admin_audit_export(request: Request):
     denied = require_permission(request, PERMISSION_AUDIT_READ)
     if denied:
         return denied
-    payload = export_audit_logs_csv(dict(request.query_params), limit=1000)
+    payload = await export_audit_logs_csv(dict(request.query_params), limit=1000)
     return Response(
         content=payload,
         media_type="text/csv; charset=utf-8",

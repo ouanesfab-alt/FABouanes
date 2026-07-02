@@ -16,13 +16,12 @@ from app.api.v1._common import (
     supplier_payload,
     add_cache_headers,
 )
-from app.repositories.supplier_repository import list_suppliers
-from app.repositories.stock_repository import list_raw_materials, list_finished_products
+from app.modules.catalog.repository import list_suppliers, list_raw_materials, list_finished_products
 from app.core.activity import log_activity
 from app.core.audit import audit_event
 from app.core.db_access import execute_db_async, query_db_async
 from app.core.async_db import get_async_session
-from app.core.models import Client, ClientHistory, Sale, RawSale, Payment
+from app.core.models import Client, ClientHistory, Sale, RawSale, Payment, Supplier
 
 from app.modules.clients.service import ClientService
 from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
@@ -302,14 +301,15 @@ async def api_client_history(
 
 
 @router.get("/suppliers")
-async def api_get_suppliers(request: Request):
+async def api_get_suppliers(request: Request, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_CONTACTS_READ)
     page = max(int(request.query_params.get("page", 1)), 1)
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     rows, total = await list_suppliers(
         search=request.query_params.get("q"),
         page=page,
-        page_size=page_size
+        page_size=page_size,
+        db=db
     )
     meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
     res_data = api_success(rows, meta)
@@ -318,27 +318,28 @@ async def api_get_suppliers(request: Request):
     return response
 
 @router.post("/suppliers")
-async def api_create_supplier(request: Request):
+async def api_create_supplier(request: Request, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_CONTACTS_WRITE)
     payload = await request.json()
-    supplier_id = await execute_db_async(
-        "INSERT INTO suppliers (name, phone, address, notes) VALUES (%s, %s, %s, %s)",
-        (
-            str(payload.get("name", "")).strip(),
-            str(payload.get("phone", "")).strip(),
-            str(payload.get("address", "")).strip(),
-            str(payload.get("notes", "")).strip(),
-        ),
+    supplier = Supplier(
+        name=str(payload.get("name", "")).strip(),
+        phone=str(payload.get("phone", "")).strip(),
+        address=str(payload.get("address", "")).strip(),
+        notes=str(payload.get("notes", "")).strip(),
     )
-    supplier = await supplier_payload(supplier_id)
-    audit_event("create_supplier", "supplier", supplier_id, source="api", after=supplier)
-    log_activity("create_supplier", "supplier", supplier_id, str(payload.get("name", "")).strip())
-    return json_response(api_success(supplier, status_code=201))
+    db.add(supplier)
+    await db.commit()
+    await db.refresh(supplier)
+    supplier_id = supplier.id
+    supplier_dict = await supplier_payload(supplier_id, db=db)
+    audit_event("create_supplier", "supplier", supplier_id, source="api", after=supplier_dict)
+    log_activity("create_supplier", "supplier", supplier_id, supplier.name)
+    return json_response(api_success(supplier_dict, status_code=201))
 
 @router.get("/suppliers/{supplier_id}")
-async def api_get_supplier_detail(request: Request, supplier_id: int):
+async def api_get_supplier_detail(request: Request, supplier_id: int, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_CONTACTS_READ)
-    supplier = await supplier_payload(supplier_id)
+    supplier = await supplier_payload(supplier_id, db=db)
     if not supplier:
         api_error("not_found", "Fournisseur introuvable.", 404)
     res_data = api_success(supplier)
@@ -347,35 +348,42 @@ async def api_get_supplier_detail(request: Request, supplier_id: int):
     return response
 
 @router.put("/suppliers/{supplier_id}")
-async def api_update_supplier(request: Request, supplier_id: int):
+async def api_update_supplier(request: Request, supplier_id: int, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_CONTACTS_WRITE)
-    supplier = await supplier_payload(supplier_id)
-    if not supplier:
+    supplier_dict = await supplier_payload(supplier_id, db=db)
+    if not supplier_dict:
         api_error("not_found", "Fournisseur introuvable.", 404)
     payload = await request.json()
-    before = dict(supplier)
-    await execute_db_async(
-        "UPDATE suppliers SET name = %s, phone = %s, address = %s, notes = %s WHERE id = %s",
-        (
-            payload.get("name", supplier["name"]),
-            payload.get("phone", supplier["phone"]),
-            payload.get("address", supplier["address"]),
-            payload.get("notes", supplier["notes"]),
-            supplier_id,
-        ),
-    )
-    supplier = await supplier_payload(supplier_id)
-    audit_event("update_supplier", "supplier", supplier_id, source="api", before=before, after=supplier)
-    return json_response(api_success(supplier))
-
-@router.delete("/suppliers/{supplier_id}")
-async def api_delete_supplier(request: Request, supplier_id: int):
-    require_api_user(request, PERMISSION_CONTACTS_DELETE)
-    supplier = await supplier_payload(supplier_id)
+    supplier = await db.get(Supplier, supplier_id)
     if not supplier:
         api_error("not_found", "Fournisseur introuvable.", 404)
-    before = dict(supplier)
-    await execute_db_async("DELETE FROM suppliers WHERE id = %s", (supplier_id,))
+    before = dict(supplier_dict)
+    if "name" in payload:
+        supplier.name = str(payload["name"]).strip()
+    if "phone" in payload:
+        supplier.phone = str(payload["phone"]).strip()
+    if "address" in payload:
+        supplier.address = str(payload["address"]).strip()
+    if "notes" in payload:
+        supplier.notes = str(payload["notes"]).strip()
+    db.add(supplier)
+    await db.commit()
+    supplier_dict = await supplier_payload(supplier_id, db=db)
+    audit_event("update_supplier", "supplier", supplier_id, source="api", before=before, after=supplier_dict)
+    return json_response(api_success(supplier_dict))
+
+@router.delete("/suppliers/{supplier_id}")
+async def api_delete_supplier(request: Request, supplier_id: int, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_CONTACTS_DELETE)
+    supplier_dict = await supplier_payload(supplier_id, db=db)
+    if not supplier_dict:
+        api_error("not_found", "Fournisseur introuvable.", 404)
+    supplier = await db.get(Supplier, supplier_id)
+    if not supplier:
+        api_error("not_found", "Fournisseur introuvable.", 404)
+    before = dict(supplier_dict)
+    await db.delete(supplier)
+    await db.commit()
     audit_event("delete_supplier", "supplier", supplier_id, source="api", before=before, after=None)
     return json_response(api_success({"deleted": True}))
 

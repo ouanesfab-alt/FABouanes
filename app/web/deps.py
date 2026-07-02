@@ -16,7 +16,7 @@ from app.core.auth_cookie import AUTH_COOKIE_NAME, read_auth_cookie_value
 
 from app.core.permissions import has_permission
 from app.core.runtime_paths import paths
-from app.repositories.user_repository import get_user_by_id
+from app.modules.users.repository import get_user_by_id
 
 
 from app.web.compat import COMPAT_ROUTE_MAP
@@ -276,7 +276,12 @@ def load_user_from_session(request: Request):
 
     if not user_id:
         return None
-    user = get_user_by_id(int(user_id))
+    from app.core.db_access import query_db
+    try:
+        user_row = query_db("SELECT id, username, password_hash, role, must_change_password, is_active FROM users WHERE id = %s", (int(user_id),), one=True)
+        user = dict(user_row) if user_row else None
+    except Exception:
+        user = None
     if not user or not int(user.get("is_active", 1) or 0):
         request.session.clear()
         return None

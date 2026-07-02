@@ -54,7 +54,7 @@ async def suppliers_submit(request: Request):
     await csrf_protect(request)
     form = await request.form()
     try:
-        from app.schemas.supplier_validation import SupplierValidationSchema
+        from app.core.schema.supplier_validation import SupplierValidationSchema
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
         await create_supplier_from_form(validated.model_dump())
@@ -103,7 +103,7 @@ async def new_supplier_submit(request: Request):
     await csrf_protect(request)
     form = await request.form()
     try:
-        from app.schemas.supplier_validation import SupplierValidationSchema
+        from app.core.schema.supplier_validation import SupplierValidationSchema
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
         await create_supplier_from_form(validated.model_dump())
@@ -169,7 +169,7 @@ async def edit_supplier_submit(request: Request, supplier_id: int):
         return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
     form = await request.form()
     try:
-        from app.schemas.supplier_validation import SupplierValidationSchema
+        from app.core.schema.supplier_validation import SupplierValidationSchema
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
         await update_supplier_from_form(supplier_id, validated.model_dump())

@@ -20,12 +20,15 @@ if not defined PY_CMD (
     pause & exit /b 1
 )
 
-echo  Installation / verification des dependances...
-%PY_CMD% -m pip install -r requirements.txt --quiet
+echo  Verification des dependances...
+%PY_CMD% -c "import fastapi, uvicorn, sqlalchemy, alembic, pg8000" >nul 2>&1
 if errorlevel 1 (
-    echo.
-    echo  ERREUR: impossible d'installer les dependances de requirements.txt.
-    pause & exit /b 1
+    echo  Installation/verification des dependances - connexion requise...
+    %PY_CMD% -m pip install -r requirements.txt --quiet
+    if errorlevel 1 (
+        echo  ATTENTION: impossible d'installer les dependances de requirements.txt.
+        echo  Tentative de lancement de l'application quand meme...
+    )
 )
 
 set FAB_HOST=0.0.0.0

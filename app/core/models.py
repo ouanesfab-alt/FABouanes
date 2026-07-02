@@ -13,11 +13,24 @@ class User(SQLModel, table=True):
     username: str = Field(unique=True, index=True)
     password_hash: str
     role: str = Field(default="operator")
-    must_change_password: int = Field(default=0)
-    is_active: int = Field(default=1)
+    must_change_password: bool = Field(default=False)
+    is_active: bool = Field(default=True)
     last_login_at: Optional[datetime] = Field(default=None)
     last_password_change_at: Optional[datetime] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    xp: int = Field(default=0)
+    level: int = Field(default=1)
+
+
+class UserBadge(SQLModel, table=True):
+    __tablename__ = "user_badges"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    badge_name: str = Field(index=True)
+    badge_title: str
+    badge_description: str
+    unlocked_at: datetime = Field(default_factory=datetime.utcnow)
 
 class Client(SQLModel, table=True):
     __tablename__ = "clients"
@@ -210,7 +223,7 @@ class ProductionBatch(SQLModel, table=True):
     output_quantity: Decimal = Field(sa_column=Column(Numeric(15, 4)))
     production_cost: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
     unit_cost: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
-    production_date: str
+    production_date: date
     notes: Optional[str] = Field(default=None)
 
 class ProductionBatchItem(SQLModel, table=True):

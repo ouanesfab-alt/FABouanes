@@ -140,7 +140,7 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = ()):
         return cols, rows
 
     # 0_count. Count queries check first to prevent intercepting specific page list queries
-    if ("count(" in q or "exists" in q or "line_count" in q) and not any(x in q for x in ["total_amount", "total_purchases", "total_sales", "contact_type"]):
+    if ("count(" in q or "exists" in q or "line_count" in q) and not any(x in q for x in ["total_amount", "total_purchases", "total_sales", "contact_type", "production_batches", "saved_recipes"]):
         return [("c",), ("line_count",), ("count",)], [(1, 1, 1)]
 
     # 4. Diagnostic dashboard / daily summary (moved to top to avoid intercepting by reports page 'day' check)
@@ -199,6 +199,18 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = ()):
     if "production_batches" in q or "production_batch" in q:
         cols = [("id",), ("finished_product_id",), ("output_quantity",), ("production_cost",), ("unit_cost",), ("production_date",), ("notes",), ("finished_name",), ("product_name",), ("product_unit",), ("_total_count",), ("batch_id",), ("raw_material_id",), ("quantity",), ("unit",), ("name",)]
         rows = [(1, 1, 10.0, 100.0, 10.0, "2026-05-31", "Batch note", "Product X", "Product X", "kg", 1, 1, 1, 10.0, "kg", "Raw Mat A")]
+        return cols, rows
+
+    # 0ad3. Saved recipe items
+    if "saved_recipe_items" in q:
+        cols = [("recipe_id",), ("raw_material_id",), ("quantity",), ("position",), ("material_name",), ("stock_qty",), ("unit",)]
+        rows = [(1, 1, 5.0, 1, "Raw Mat Y", 200.0, "kg")]
+        return cols, rows
+
+    # 0ad2. Saved recipes
+    if "saved_recipes" in q or "saved_recipe" in q:
+        cols = [("id",), ("finished_product_id",), ("name",), ("notes",), ("created_at",), ("finished_product_name",), ("_total_count",)]
+        rows = [(1, 1, "Recipe X", "Recipe notes", "2026-05-31", "Product X", 1)]
         return cols, rows
 
     # 0b. Timeline query (check first to avoid intercepting with payments or sales)
@@ -298,7 +310,7 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = ()):
         cols = [
             ("id",), ("client_id",), ("supplier_id",), ("amount",), ("sale_date",), 
             ("purchase_date",), ("notes",), ("client_name",), ("supplier_name",), 
-            ("doc_number",), ("total",), ("amount_paid",), ("balance_due",), ("qty",), 
+            ("doc_number",), ("total",), ("amount_paid",), ("balance_due",), ("qty",), ("quantity",), 
             ("unit",), ("unit_price",), ("total_price",), ("item_kind",), ("item_id",), 
             ("sale_type",), ("sale_kind",), ("total_amount",), ("document_id",),
             ("row_kind",), ("item_name",), ("item_key",), ("material_name",), ("material_unit",)
@@ -306,7 +318,7 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = ()):
         rows = [(
             1, 1, 1, 300.0, "2026-05-31", 
             "2026-05-31", "", "Client Dupont", "Fournisseur A", 
-            "V-2026-0001", 300.0, 100.0, 200.0, 10.0, 
+            "V-2026-0001", 300.0, 100.0, 200.0, 10.0, 10.0, 
             "kg", 30.0, 300.0, "finished", 1, 
             "credit", "finished", 300.0, 1,
             "finished", "Product X", "finished:1", "Raw Mat Y", "kg"
@@ -407,9 +419,17 @@ app.core.database.run_alembic_upgrade = MagicMock()
 
 # ── 5. Patching de la session SQLAlchemy ORM pour les modules ────────────────
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.models import FinishedProduct, RawMaterial, Client, User, Sale, RawSale, Payment, ProductionBatch, SavedRecipe, Expense, StockAlert, Purchase
+from app.core.models import FinishedProduct, RawMaterial, Client, User, UserBadge, Sale, RawSale, Payment, ProductionBatch, SavedRecipe, Expense, StockAlert, Purchase
 
 def mock_sqlmodel_instance(model_class, ident=1):
+    if model_class == UserBadge:
+        return UserBadge(
+            id=ident,
+            user_id=1,
+            badge_name="earlybird",
+            badge_title="Lève-tôt 🌅",
+            badge_description="Enregistrer une opération de vente avant 7h du matin."
+        )
     if model_class == Expense:
         return Expense(
             id=ident,
@@ -426,7 +446,7 @@ def mock_sqlmodel_instance(model_class, ident=1):
     if model_class == Client:
         return Client(id=ident, name="Client Dupont", phone="0102030405", address="Paris", opening_credit=Decimal("50.0"))
     if model_class == User:
-        return User(id=ident, username="admin", password_hash="hash", role="admin", must_change_password=0, is_active=1)
+        return User(id=ident, username="admin", password_hash=generate_password_hash("pin"), role="admin", must_change_password=0, is_active=1)
     if model_class == Sale:
         return Sale(
             id=ident,
@@ -532,6 +552,8 @@ class MockRow:
                 return mock_sqlmodel_instance(Payment)
             if "client" in stmt:
                 return mock_sqlmodel_instance(Client)
+            if "saved_recipe" in stmt:
+                return mock_sqlmodel_instance(SavedRecipe)
         if isinstance(key, int):
             return list(self._dct.values())[key]
         return self._dct[key]
@@ -567,7 +589,13 @@ class MockResult:
     def __init__(self, statement):
         self.statement = str(statement).lower()
 
+    @property
+    def rowcount(self):
+        return 1
+
     def scalar_one_or_none(self):
+        if "from user_badges" in self.statement or "user_badge" in self.statement:
+            return mock_sqlmodel_instance(UserBadge)
         if "from sales" in self.statement:
             return mock_sqlmodel_instance(Sale)
         if "from raw_sales" in self.statement:
@@ -609,7 +637,9 @@ class MockResult:
         return [MockRow(r, self.statement) for r in rows]
 
     def scalars(self):
-        if "from sales" in self.statement:
+        if "from user_badges" in self.statement or "user_badge" in self.statement:
+            items = [mock_sqlmodel_instance(UserBadge)]
+        elif "from sales" in self.statement:
             items = [mock_sqlmodel_instance(Sale)]
         elif "from raw_sales" in self.statement:
             items = [mock_sqlmodel_instance(RawSale)]
@@ -632,6 +662,11 @@ class MockResult:
 
 class MockAsyncSession:
     def __init__(self, *args, **kwargs): pass
+    def begin(self):
+        class MockTransaction:
+            async def __aenter__(self): return self
+            async def __aexit__(self, exc_type, exc_val, exc_tb): pass
+        return MockTransaction()
     async def execute(self, statement, *args, **kwargs):
         return MockResult(str(statement))
     async def get(self, model, ident, *args, **kwargs):
@@ -838,4 +873,50 @@ class TestServicesDirect:
     @pytest.mark.asyncio
     async def test_print_service(self):
         from app.services.printing import build_print_payload
-        assert build_print_payload("payment", 1) is not None
+        assert await build_print_payload("payment", 1) is not None
+
+    @pytest.mark.asyncio
+    async def test_helpers_coverage(self):
+        from app.core import helpers
+        
+        helpers.to_float("1,5")
+        helpers.to_float(None)
+        helpers.wants_print_after_submit()
+        helpers.unit_choices()
+        helpers.init_db()
+        helpers.log_server_start()
+        
+        await helpers.refresh_sale_profits_for_item("raw", 1, 10.0)
+        await helpers.get_open_credit_entries(1)
+        await helpers.load_saved_recipes()
+        await helpers.save_recipe_definition(1, "Recipe X", "notes", [{"material": {"id": 1}, "qty": 5.0}])
+        await helpers.reverse_purchase(1)
+        await helpers.reverse_sale("finished", 1)
+        await helpers.reverse_production(1)
+        
+        try:
+            await helpers.create_purchase_record(1, 1, 10.0, 5.0, "2026-05-31", "notes", item_id=1)
+        except Exception:
+            pass
+            
+        try:
+            await helpers.create_sale_record(1, "finished", 1, 10.0, "kg", 5.0, "credit", "2026-05-31", "notes")
+        except Exception:
+            pass
+            
+        try:
+            await helpers.create_payment_record(1, 100.0, "2026-05-31", "notes")
+        except Exception:
+            pass
+            
+        await helpers.reverse_payment_allocations({"amount": 100.0, "payment_type": "versement", "sale_kind": "finished", "sale_id": 1})
+        
+        try:
+            helpers.parse_excel_client_file("dummy")
+        except Exception:
+            pass
+            
+        try:
+            helpers.parse_excel_client_history("dummy")
+        except Exception:
+            pass

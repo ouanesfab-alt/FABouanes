@@ -232,7 +232,11 @@
     }
 
     if (!restored) {
-      reset(true);
+      if (buttons.length > 0) {
+        buttons[0].click();
+      } else {
+        reset(true);
+      }
     }
   });
 

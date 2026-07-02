@@ -12,10 +12,12 @@ from typing import Any
 from app.core.request_state import get_state_value
 
 import time
-from app.core.db_access import execute_db, query_db
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.async_db import get_async_sessionmaker
+from app.core.helpers import async_compat
 
 import asyncio
-from app.core.db_access import query_db, execute_db_async
 
 _AUDIT_QUEUE: asyncio.Queue | None = None
 _AUDIT_TASK: asyncio.Task | None = None
@@ -69,17 +71,37 @@ async def _audit_flusher_task() -> None:
             
             for row in batch:
                 try:
-                    await execute_db_async(
-                        """
-                        INSERT INTO audit_logs (
-                            actor_user_id, actor_username, actor_role, source,
-                            action, entity_type, entity_id, status,
-                            ip_address, user_agent, request_id,
-                            before_json, after_json, meta_json, created_at
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-                        """,
-                        row
-                    )
+                    async with get_async_sessionmaker()() as session:
+                        await session.execute(
+                            text("""
+                            INSERT INTO audit_logs (
+                                actor_user_id, actor_username, actor_role, source,
+                                action, entity_type, entity_id, status,
+                                ip_address, user_agent, request_id,
+                                before_json, after_json, meta_json, created_at
+                            ) VALUES (:actor_user_id, :actor_username, :actor_role, :source,
+                                     :action, :entity_type, :entity_id, :status,
+                                     :ip_address, :user_agent, :request_id,
+                                     :before_json, :after_json, :meta_json, CURRENT_TIMESTAMP)
+                            """),
+                            {
+                                "actor_user_id": row[0],
+                                "actor_username": row[1],
+                                "actor_role": row[2],
+                                "source": row[3],
+                                "action": row[4],
+                                "entity_type": row[5],
+                                "entity_id": row[6],
+                                "status": row[7],
+                                "ip_address": row[8],
+                                "user_agent": row[9],
+                                "request_id": row[10],
+                                "before_json": row[11],
+                                "after_json": row[12],
+                                "meta_json": row[13],
+                            }
+                        )
+                        await session.commit()
                 except Exception:
                     logger.exception("Unable to persist audit log row")
                 finally:
@@ -89,7 +111,6 @@ async def _audit_flusher_task() -> None:
         except Exception:
             logger.exception("Error in audit flusher task")
             await asyncio.sleep(2.0)
-
 
 
 SENSITIVE_TOKENS = {
@@ -183,11 +204,11 @@ def _resolve_actor(user_id: int | None = None, actor: Any = None) -> tuple[int |
 
     if resolved_id and (not resolved_username or not resolved_role):
         try:
-            from app.repositories.user_repository import get_user_by_id
-            user = get_user_by_id(resolved_id)
-            if user:
-                resolved_username = resolved_username or user.get("username")
-                resolved_role = resolved_role or user.get("role")
+            from app.core.db_access import query_db
+            user_row = query_db("SELECT username, role FROM users WHERE id = %s", (int(resolved_id),), one=True)
+            if user_row:
+                resolved_username = resolved_username or user_row.get("username")
+                resolved_role = resolved_role or user_row.get("role")
         except Exception as e:
             import logging
             logging.getLogger("fabouanes.audit").warning("Impossible de charger l'utilisateur pour l'audit: %s", e)
@@ -237,7 +258,6 @@ def audit_event(
         _json_dump(meta),
     )
     global _last_warned_ts, _AUDIT_DROPPED
-    global _last_warned_ts, _AUDIT_DROPPED
     queue = _get_audit_queue()
     if queue.full():
         _AUDIT_DROPPED += 1
@@ -264,41 +284,59 @@ def audit_event(
                 )
 
 
-def list_audit_logs(filters: Mapping[str, Any] | None = None, *, limit: int = 200):
+@async_compat
+async def list_audit_logs(
+    filters: Mapping[str, Any] | None = None,
+    *,
+    limit: int = 200,
+    db: AsyncSession | None = None,
+):
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            return await _list_audit_logs_impl(filters, limit, session)
+    return await _list_audit_logs_impl(filters, limit, db)
+
+
+async def _list_audit_logs_impl(
+    filters: Mapping[str, Any] | None,
+    limit: int,
+    db: AsyncSession,
+):
     filters = filters or {}
     where: list[str] = []
-    params: list[Any] = []
+    params: dict[str, Any] = {}
     if filters.get("date_from"):
-        where.append("CAST(created_at AS DATE) >= CAST(%s AS DATE)")
-        params.append(str(filters["date_from"]))
+        where.append("CAST(created_at AS DATE) >= CAST(:date_from AS DATE)")
+        params["date_from"] = str(filters["date_from"])
     if filters.get("date_to"):
-        where.append("CAST(created_at AS DATE) <= CAST(%s AS DATE)")
-        params.append(str(filters["date_to"]))
+        where.append("CAST(created_at AS DATE) <= CAST(:date_to AS DATE)")
+        params["date_to"] = str(filters["date_to"])
     if filters.get("actor"):
-        where.append("lower(actor_username) LIKE lower(%s)")
-        params.append(f"%{filters['actor']}%")
+        where.append("lower(actor_username) LIKE lower(:actor)")
+        params["actor"] = f"%{filters['actor']}%"
     if filters.get("action"):
-        where.append("lower(action) LIKE lower(%s)")
-        params.append(f"%{filters['action']}%")
+        where.append("lower(action) LIKE lower(:action)")
+        params["action"] = f"%{filters['action']}%"
     if filters.get("entity_type"):
-        where.append("lower(entity_type) LIKE lower(%s)")
-        params.append(f"%{filters['entity_type']}%")
+        where.append("lower(entity_type) LIKE lower(:entity_type)")
+        params["entity_type"] = f"%{filters['entity_type']}%"
     if filters.get("status"):
-        where.append("status = %s")
-        params.append(str(filters["status"]))
+        where.append("status = :status")
+        params["status"] = str(filters["status"])
     query = """
         SELECT *
         FROM audit_logs
     """
     if where:
         query += " WHERE " + " AND ".join(where)
-    query += " ORDER BY id DESC LIMIT %s"
-    params.append(int(limit))
-    return [dict(row) for row in query_db(query, tuple(params))]
+    query += " ORDER BY id DESC LIMIT :limit"
+    params["limit"] = int(limit)
+    res = await db.execute(text(query), params)
+    return [dict(row._mapping) for row in res.all()]
 
 
-def export_audit_logs_csv(filters: Mapping[str, Any] | None = None, *, limit: int = 1000) -> bytes:
-    rows = list_audit_logs(filters, limit=limit)
+async def export_audit_logs_csv(filters: Mapping[str, Any] | None = None, *, limit: int = 1000) -> bytes:
+    rows = await list_audit_logs(filters, limit=limit)
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(

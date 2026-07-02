@@ -4,8 +4,6 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 
 import os
-
-import os
 import logging
 
 logger = logging.getLogger("fabouanes.rate_limit")

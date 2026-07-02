@@ -6,7 +6,9 @@ from sqlmodel import select, func, case, literal, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Sale, RawSale, SaleDocument, FinishedProduct, Client, RawMaterial, Payment
-from app.repositories.base_repository import AsyncRepository
+from app.core.base_repository import AsyncRepository
+from app.core.helpers import db_task_compat
+from app.core.async_db import get_async_sessionmaker
 
 
 def _payment_references_sale(payment_row: Dict[str, Any], sale_refs: Set[Tuple[str, int]]) -> bool:
@@ -346,3 +348,29 @@ class SaleDocumentRepository(AsyncRepository[SaleDocument]):
             if _payment_references_sale(p, refs):
                 return True
         return False
+
+
+# --- Legacy compatibility wrappers ---
+
+def invalidate_sellable_items_cache() -> None:
+    from app.core.perf_cache import invalidate_cache_domain
+    invalidate_cache_domain("sales_sellable_items")
+    from app.core.perf_cache import invalidate_cache_domains
+    invalidate_cache_domains("dashboard", "sales", "client")
+
+
+@db_task_compat
+async def build_sellable_items(db: AsyncSession | None = None):
+    from app.core.perf_cache import TTL_SEMI_STABLE
+    
+    async def load():
+        if db is None:
+            async with get_async_sessionmaker()() as session:
+                repo = SaleRepository(session)
+                return await repo.list_sellable_items()
+        repo = SaleRepository(db)
+        return await repo.list_sellable_items()
+
+    from app.core.perf_cache import async_cached_result
+    return await async_cached_result(("sales_sellable_items",), load, ttl_seconds=TTL_SEMI_STABLE)
+

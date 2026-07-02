@@ -97,7 +97,7 @@ async def lifespan(_: FastAPI):
     # Pre-load critical dashboard data so first request is instant
     try:
         from app.core.perf_cache import warm_cache
-        await asyncio.to_thread(warm_cache)
+        await warm_cache()
     except Exception:
         logger.warning("Cache warming skipped", exc_info=True)
 

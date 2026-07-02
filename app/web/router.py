@@ -12,6 +12,7 @@ from app.web.report_pages import router as report_router
 from app.web.search_pages import router as search_router
 
 
+
 router = APIRouter()
 router.include_router(auth_router, dependencies=[Depends(verify_csrf_token)])
 router.include_router(dashboard_router)
@@ -22,3 +23,4 @@ router.include_router(production_router, dependencies=[Depends(verify_csrf_token
 router.include_router(admin_router, dependencies=[Depends(verify_csrf_token)])
 router.include_router(report_router, dependencies=[Depends(verify_csrf_token)])
 router.include_router(search_router)
+

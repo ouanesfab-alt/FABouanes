@@ -13,7 +13,7 @@ from app.core.permissions import PERMISSION_API_ACCESS, has_permission
 from app.core.audit import audit_event
 import asyncio
 from app.core.db_access import execute_db, query_db, execute_db_async, query_db_async
-from app.repositories.user_repository import get_user_by_id
+from app.modules.users.repository import get_user_by_id
 
 
 ACCESS_TOKEN_TTL_SECONDS = 15 * 60

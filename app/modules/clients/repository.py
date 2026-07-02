@@ -5,7 +5,7 @@ from sqlmodel import select, or_, func, case, literal, union_all, literal_column
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Client, Sale, RawSale, FinishedProduct, RawMaterial, Payment, ClientHistory
-from app.repositories.base_repository import AsyncRepository
+from app.core.base_repository import AsyncRepository
 
 
 class ClientRepository(AsyncRepository[Client]):

@@ -19,7 +19,7 @@ from app.core.activity import log_activity
 from app.core.audit import audit_event
 from app.services.auth_service import attempt_login
 from app.core.rate_limit import limiter
-from app.schemas.auth import LoginRequest as UserLoginSchema
+from app.core.schema.auth_validation import LoginRequest as UserLoginSchema
 
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -33,13 +33,13 @@ def _response(payload: dict):
 @router.post("/login")
 @limiter.limit("10/minute")
 async def api_auth_login(request: Request, payload: UserLoginSchema):
-    result = await asyncio.to_thread(attempt_login, payload.username, payload.password)
+    result = await attempt_login(payload.username, payload.password)
     if not result["ok"]:
         api_error("login_failed", result["message"], int(result.get("status") or 401))
     user = result["user"]
     access_token = create_access_token(user)
     refresh_token = await create_refresh_token(request, user)
-    await asyncio.to_thread(audit_event, "api_login", "user", user["id"], source="api", after={"username": user["username"]})
+    audit_event("api_login", "user", user["id"], source="api", after={"username": user["username"]})
     return _response(
         api_success(
             {

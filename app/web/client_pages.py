@@ -8,7 +8,7 @@ from app.modules.clients.service import ClientService
 from app.modules.clients.schemas_validation import ClientCreateSchema
 
 from app.core.permissions import PERMISSION_CONTACTS_READ, PERMISSION_CONTACTS_WRITE
-from app.schemas.client_validation import ClientValidationSchema
+from app.core.schema.client_validation import ClientValidationSchema
 from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
 
 

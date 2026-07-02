@@ -30,6 +30,3 @@ class PaymentUpdate(BaseModel):
     amount: Optional[Decimal] = Field(None, gt=0, le=Decimal("99999999.99"))
     payment_type: Optional[str] = Field(None, pattern=r'^(versement|avance)$')
     notes: Optional[str] = Field(None, max_length=2000)
-
-
-

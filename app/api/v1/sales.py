@@ -10,9 +10,7 @@ from app.api.v1._common import (
     add_cache_headers,
 )
 from app.core.permissions import PERMISSION_CATALOG_READ, PERMISSION_OPERATIONS_DELETE, PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
-from app.repositories.operation_repository import (
-    list_recent_operations,
-)
+from app.modules.reports.repository import list_recent_operations
 # list_sales is now handled via SalesService
 from app.core.async_db import get_async_session
 from app.modules.sales.service import SalesService

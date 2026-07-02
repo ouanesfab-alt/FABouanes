@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.utils.mobile_connect import build_mobile_connect_context
 from app.web.deps import get_current_user, template_context, templates
-from app.repositories.dashboard_repository import get_dashboard_snapshot, get_kpis_for_date
+from app.modules.reports.repository import get_dashboard_snapshot, get_kpis_for_date
 
 
 router = APIRouter()
@@ -25,7 +25,7 @@ def _money(value):
 async def index(request: Request):
     if not get_current_user(request):
         return RedirectResponse("/login", status_code=303)
-    context = get_dashboard_snapshot()
+    context = await get_dashboard_snapshot()
     context.update(build_mobile_connect_context(request))
     return templates.TemplateResponse("dashboard.html", template_context(request, **context))
 
@@ -34,7 +34,7 @@ async def index(request: Request):
 async def dashboard(request: Request):
     if not get_current_user(request):
         return RedirectResponse("/login", status_code=303)
-    context = get_dashboard_snapshot()
+    context = await get_dashboard_snapshot()
     context.update(build_mobile_connect_context(request))
     return templates.TemplateResponse("dashboard.html", template_context(request, **context))
 
@@ -54,7 +54,7 @@ async def api_kpi_date(request: Request):
         return JSONResponse({"error": "Authentification requise."}, status_code=401)
     target_date = request.query_params.get("date", date.today().isoformat())
     try:
-        return JSONResponse(get_kpis_for_date(target_date))
+        return JSONResponse(await get_kpis_for_date(target_date))
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception:
@@ -74,7 +74,7 @@ async def api_kpi_at_date(request: Request):
         "receivables": "Créances",
     }
     try:
-        values = get_kpis_for_date(target_date)
+        values = await get_kpis_for_date(target_date)
         value = values.get(metric)
         if value is None:
             return JSONResponse({"error": "Indicateur inconnu"}, status_code=400)

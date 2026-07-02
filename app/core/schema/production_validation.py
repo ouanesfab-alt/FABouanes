@@ -26,6 +26,3 @@ class ProductionBatchCreate(BaseModel):
         if not re.match(r'^\d{4}-\d{2}-\d{2}$', v):
             raise ValueError("Format de date invalide. Attendu: YYYY-MM-DD")
         return v
-
-
-

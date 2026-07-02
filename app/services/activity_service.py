@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime
-
-from app.core.db_access import query_db_async
-
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.async_db import get_async_sessionmaker
 
 
 ACTION_LABELS = {
@@ -119,50 +119,84 @@ def _filters(filters: Mapping[str, str] | None) -> dict[str, str]:
     }
 
 
-async def list_admin_activity(filters: Mapping[str, str] | None = None, *, limit: int = 80) -> list[dict]:
+async def list_admin_activity(
+    filters: Mapping[str, str] | None = None,
+    *,
+    limit: int = 80,
+    db: AsyncSession | None = None,
+) -> list[dict]:
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            return await _list_admin_activity_impl(filters, limit, session)
+    return await _list_admin_activity_impl(filters, limit, db)
+
+
+async def _list_admin_activity_impl(
+    filters: Mapping[str, str] | None,
+    limit: int,
+    db: AsyncSession,
+) -> list[dict]:
     normalized = _filters(filters)
     where: list[str] = []
-    params: list[object] = []
+    params: dict[str, Any] = {}
+    
     if normalized["activity_user"]:
-        where.append("LOWER(username) LIKE LOWER(%s)")
-        params.append(f"%{normalized['activity_user']}%")
+        where.append("LOWER(username) LIKE LOWER(:activity_user)")
+        params["activity_user"] = f"%{normalized['activity_user']}%"
     if normalized["activity_action"]:
-        where.append("LOWER(action) = LOWER(%s)")
-        params.append(normalized["activity_action"])
+        where.append("LOWER(action) = LOWER(:activity_action)")
+        params["activity_action"] = normalized["activity_action"]
     if normalized["activity_date"]:
-        where.append("CAST(created_at AS DATE) = CAST(%s AS DATE)")
-        params.append(normalized["activity_date"])
+        where.append("CAST(created_at AS DATE) = CAST(:activity_date AS DATE)")
+        params["activity_date"] = normalized["activity_date"]
     if normalized["activity_type"]:
-        where.append("LOWER(COALESCE(entity_type, '')) = LOWER(%s)")
-        params.append(normalized["activity_type"])
+        where.append("LOWER(COALESCE(entity_type, '')) = LOWER(:activity_type)")
+        params["activity_type"] = normalized["activity_type"]
     if normalized["activity_q"]:
         where.append(
             "("
-            "LOWER(COALESCE(username, '')) LIKE LOWER(%s) OR "
-            "LOWER(COALESCE(action, '')) LIKE LOWER(%s) OR "
-            "LOWER(COALESCE(entity_type, '')) LIKE LOWER(%s) OR "
-            "LOWER(COALESCE(details, '')) LIKE LOWER(%s)"
+            "LOWER(COALESCE(username, '')) LIKE LOWER(:activity_q) OR "
+            "LOWER(COALESCE(action, '')) LIKE LOWER(:activity_q) OR "
+            "LOWER(COALESCE(entity_type, '')) LIKE LOWER(:activity_q) OR "
+            "LOWER(COALESCE(details, '')) LIKE LOWER(:activity_q)"
             ")"
         )
-        like = f"%{normalized['activity_q']}%"
-        params.extend([like, like, like, like])
+        params["activity_q"] = f"%{normalized['activity_q']}%"
+        
     query = "SELECT * FROM activity_logs"
     if where:
         query += " WHERE " + " AND ".join(where)
-    query += " ORDER BY id DESC LIMIT %s"
-    rows = await query_db_async(query, tuple(params + [max(1, int(limit))]))
-    return [_decorate_activity(row) for row in rows]
+    query += " ORDER BY id DESC LIMIT :limit"
+    params["limit"] = max(1, int(limit))
+    
+    res = await db.execute(text(query), params)
+    rows = res.all()
+    return [_decorate_activity(dict(row._mapping)) for row in rows]
 
 
 def activity_filter_values(filters: Mapping[str, str] | None = None) -> dict[str, str]:
     return _filters(filters)
 
 
-async def list_activity_actions() -> list[str]:
-    rows = await query_db_async("SELECT DISTINCT action FROM activity_logs ORDER BY action")
-    return [str(row["action"]) for row in rows if row["action"]]
+async def list_activity_actions(db: AsyncSession | None = None) -> list[str]:
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            return await _list_activity_actions_impl(session)
+    return await _list_activity_actions_impl(db)
 
 
-async def list_activity_entity_types() -> list[str]:
-    rows = await query_db_async("SELECT DISTINCT entity_type FROM activity_logs WHERE COALESCE(entity_type, '') <> '' ORDER BY entity_type")
-    return [str(row["entity_type"]) for row in rows if row["entity_type"]]
+async def _list_activity_actions_impl(db: AsyncSession) -> list[str]:
+    res = await db.execute(text("SELECT DISTINCT action FROM activity_logs ORDER BY action"))
+    return [str(row.action) for row in res.all() if row.action]
+
+
+async def list_activity_entity_types(db: AsyncSession | None = None) -> list[str]:
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            return await _list_activity_entity_types_impl(session)
+    return await _list_activity_entity_types_impl(db)
+
+
+async def _list_activity_entity_types_impl(db: AsyncSession) -> list[str]:
+    res = await db.execute(text("SELECT DISTINCT entity_type FROM activity_logs WHERE COALESCE(entity_type, '') <> '' ORDER BY entity_type"))
+    return [str(row.entity_type) for row in res.all() if row.entity_type]

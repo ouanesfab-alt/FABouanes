@@ -9,7 +9,7 @@ from sqlalchemy import select, func, case, literal_column, text, table
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_success
-from app.repositories.sale_repository import build_sellable_items
+from app.modules.sales.repository import build_sellable_items
 from app.core.models import Client, Supplier, RawMaterial, FinishedProduct, ProductionBatch, Purchase, Sale, RawSale, Payment
 
 def json_response(payload: dict[str, Any]) -> JSONResponse:

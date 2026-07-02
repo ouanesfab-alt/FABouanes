@@ -152,9 +152,8 @@ def emit(event: DomainEvent) -> None:
         or os.getenv("FAB_TESTING") == "1"
         or os.getenv("FASTAPI_ENV") == "test"
     )
-    redis_url = os.environ.get("REDIS_URL", "").strip()
     force_outbox = os.getenv("FAB_FORCE_OUTBOX") == "1"
-    if (redis_url and not is_testing) or force_outbox:
+    if force_outbox:
         try:
             from app.core.db_access import execute_db
             payload = _serialize_event(event, WORKER_ID)
@@ -171,13 +170,17 @@ def emit(event: DomainEvent) -> None:
     # 1. Run local handlers immediately
     _trigger_local_handlers(event)
 
-    # 2. Publish to Redis if configured
-    if _redis_client:  # pragma: no cover
+    # 2. Publish to DB Pub/Sub
+    if not is_testing:
         try:
+            from app.core.db_access import execute_db
             payload = _serialize_event(event, WORKER_ID)
-            _redis_client.publish("fabouanes:events", payload)
+            execute_db(
+                "INSERT INTO pubsub_events (channel, payload, sender_worker_id) VALUES (%s, %s, %s)",
+                ("fabouanes:events", payload, WORKER_ID)
+            )
         except Exception as e:
-            logger.warning("Failed to publish domain event to Redis: %s", e)
+            logger.debug("Failed to publish domain event to DB pubsub: %s", e)
 
 
 # ── Listeners par défaut (remplacent les appels manuels copié-collés) ──
@@ -228,13 +231,65 @@ def _auto_refresh_balances(event: DomainEvent) -> None:
     """Refresh the mv_client_balances materialized view after financial mutations."""
     if event.entity_type in ("sale", "payment", "client", "sale_document"):
         try:
-            from app.repositories.dashboard_repository import refresh_client_balances_view
-            refresh_client_balances_view()
+            from app.modules.reports.repository import refresh_client_balances_view
+            import asyncio
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+            if loop is not None and loop.is_running():
+                coro = refresh_client_balances_view()
+                loop.create_task(coro)
+            else:
+                refresh_client_balances_view()
         except Exception:
             logger.debug("Could not refresh client balances view after %s.%s", event.action, event.entity_type)
 
 
+def _auto_invalidate_cache(event: DomainEvent) -> None:
+    if event.action == "invalidate" and event.entity_type == "cache":
+        domains = event.extra.get("domains") or []
+        if domains:
+            try:
+                from app.core.perf_cache import _BACKEND
+                _BACKEND.invalidate_domains(*domains)
+            except Exception as e:
+                logger.debug("Failed to handle remote cache invalidation: %s", e)
+
+
+def _auto_invalidate_client_cache(event: DomainEvent) -> None:
+    if event.action == "invalidate" and event.entity_type == "client_cache":
+        client_id = event.extra.get("client_id")
+        if client_id is not None:
+            try:
+                from app.core.perf_cache import _BACKEND
+                keys_to_delete = [
+                    ("client_detail", client_id),
+                    ("client_history", client_id),
+                    ("client_account", client_id),
+                    ("client_detail_context", client_id),
+                    ("client_history_context", client_id),
+                ]
+                with _BACKEND._lock:
+                    for key in keys_to_delete:
+                        _BACKEND._cache.pop(key, None)
+            except Exception as e:
+                logger.debug("Failed to handle remote client cache invalidation: %s", e)
+
+
+def _auto_invalidate_all_cache(event: DomainEvent) -> None:
+    if event.action == "invalidate" and event.entity_type == "all_cache":
+        try:
+            from app.core.perf_cache import _BACKEND
+            _BACKEND.clear()
+        except Exception as e:
+            logger.debug("Failed to clear remote cache: %s", e)
+
+
 # ── Enregistrement des listeners par défaut au chargement du module ──
+on("invalidate.cache", _auto_invalidate_cache)
+on("invalidate.client_cache", _auto_invalidate_client_cache)
+on("invalidate.all_cache", _auto_invalidate_all_cache)
 on("*", _auto_audit)
 on("*", _auto_activity)
 on("create.*", _auto_backup)
@@ -261,44 +316,79 @@ except ImportError:
     scheduler = None
 
 
-_redis_thread = None
+_db_listener_thread = None
+_db_listener_running = False
+_last_seen_pubsub_id = 0
 
 
-def _redis_event_handler(message):  # pragma: no cover
+def _db_event_listener_loop():
+    global _db_listener_running, _last_seen_pubsub_id
+    import time
+    from app.core.db_access import execute_db, query_db
+    
+    # Initialize last seen ID to current max
     try:
-        if message["type"] != "message":
-            return
-        data_str = message["data"]
-        if isinstance(data_str, bytes):
-            data_str = data_str.decode("utf-8")
-        res = _deserialize_event(data_str)
-        if not res:
-            return
-        event, sender_id = res
-        if sender_id == WORKER_ID:
-            return
-        _trigger_local_handlers(event, skip_default=True)
-    except Exception as e:
-        logger.exception("Error in Redis event handler")
+        max_row = query_db("SELECT MAX(id) as max_id FROM pubsub_events", one=True)
+        if max_row and max_row.get("max_id"):
+            _last_seen_pubsub_id = int(max_row["max_id"])
+    except Exception:
+        pass
 
-
-def _start_redis_listener():  # pragma: no cover
-    global _redis_thread
-    if not _redis_client:
-        return
-    try:
-        pubsub = _redis_client.pubsub()
-        pubsub.subscribe(**{"fabouanes:events": _redis_event_handler})
-        _redis_thread = pubsub.run_in_thread(sleep_time=0.1, daemon=True)
-        logger.info("Redis Event Bus listener started (worker_id=%s)", WORKER_ID)
-    except Exception as e:
-        logger.error("Failed to start Redis Event Bus listener: %s", e)
+    while _db_listener_running:
+        try:
+            # Poll for new events from other workers
+            rows = query_db(
+                """
+                SELECT id, channel, payload
+                FROM pubsub_events
+                WHERE sender_worker_id != %s AND id > %s
+                ORDER BY id ASC
+                """,
+                (WORKER_ID, _last_seen_pubsub_id),
+            )
+            for row in rows or []:
+                _last_seen_pubsub_id = max(_last_seen_pubsub_id, int(row["id"]))
+                if row["channel"] == "fabouanes:ws_broadcast":
+                    try:
+                        from app.core.websockets import manager
+                        data = json.loads(row["payload"])
+                        msg_type = data.get("type")
+                        msg = data.get("message")
+                        if msg_type == "global":
+                            manager._local_broadcast_global(msg)
+                        elif msg_type == "user":
+                            user_id = data.get("user_id")
+                            if user_id is not None:
+                                manager._local_broadcast_user(int(user_id), msg)
+                    except Exception as e:
+                        logger.warning("Failed to process remote websocket broadcast: %s", e)
+                else:
+                    res = _deserialize_event(row["payload"])
+                    if res:
+                        event, sender_id = res
+                        _trigger_local_handlers(event, skip_default=True)
+            
+            # Prune events older than 10 minutes
+            execute_db(
+                "DELETE FROM pubsub_events WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'"
+            )
+        except Exception as e:
+            logger.debug("Failed to poll/prune pubsub_events: %s", e)
+        
+        time.sleep(1.0)
 
 
 def startup():
-    """Démarre le planificateur de tâches en arrière-plan et le listener Redis."""
-    # Démarrage de l'écouteur Redis
-    _start_redis_listener()
+    """Démarre le planificateur de tâches en arrière-plan et le listener de base de données Pub/Sub."""
+    global _db_listener_thread, _db_listener_running
+    import threading
+    
+    # Start DB Pub/Sub listener
+    if not _db_listener_running:
+        _db_listener_running = True
+        _db_listener_thread = threading.Thread(target=_db_event_listener_loop, daemon=True)
+        _db_listener_thread.start()
+        logger.info("DB Pub/Sub Event Bus listener started (worker_id=%s)", WORKER_ID)
 
     if scheduler:
         try:
@@ -317,18 +407,16 @@ def startup():
 
 
 def shutdown():
-    """Arrête le planificateur et le listener Redis."""
-    global _redis_thread
+    """Arrête le planificateur et le listener DB Pub/Sub."""
+    global _db_listener_running, _db_listener_thread
     if scheduler and scheduler.running:
         try:
             scheduler.shutdown()
             logger.info("Scheduler APScheduler arrêté.")
         except Exception as e:
             logger.error("Erreur lors de l'arrêt du scheduler : %s", e)
-    if _redis_thread:  # pragma: no cover
-        try:
-            _redis_thread.stop()
-            logger.info("Redis Event Bus listener arrêté.")
-        except Exception:
-            pass
+            
+    if _db_listener_running:
+        _db_listener_running = False
+        logger.info("DB Pub/Sub Event Bus listener arrêté.")
 

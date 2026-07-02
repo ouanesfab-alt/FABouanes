@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request
 
 from app.api.deps import require_api_user, api_success
 from app.core.permissions import PERMISSION_DASHBOARD_READ
-from app.repositories.dashboard_repository import get_dashboard_snapshot
+from app.modules.reports.repository import get_dashboard_snapshot
 
 from app.api.v1._common import add_cache_headers, json_response
 

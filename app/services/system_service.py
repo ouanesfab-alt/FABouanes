@@ -8,7 +8,10 @@ from app.core.config import APP_DATA_DIR, DATABASE_URL
 from app.core.db import connect_database, postgres_pool_status
 from app.core.activity import write_text_log
 import asyncio
-from app.core.db_access import execute_db_async, explain_query_plan, get_db, query_db_async
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.async_db import get_async_sessionmaker
+from app.core.helpers import async_compat
 from app.core.storage import LOCAL_BACKUP_DIR, LOG_DIR, get_pending_backup_marker, list_restore_backups
 from app.version import VERSION_LABEL
 
@@ -17,43 +20,61 @@ def _ok_status(ok: bool) -> str:
     return "OK" if ok else "Attention"
 
 
-async def get_system_status() -> dict:
+@async_compat
+async def get_system_status(db: AsyncSession | None = None) -> dict:
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            return await _get_system_status_impl(session)
+    return await _get_system_status_impl(db)
+
+
+async def _get_system_status_impl(db: AsyncSession) -> dict:
     db_ok = False
     db_message = ""
     try:
-        await query_db_async("SELECT 1", (), one=True)
+        await db.execute(text("SELECT 1"))
         db_ok = True
         db_message = "Connexion base disponible"
     except Exception as exc:
         db_message = str(exc)
 
     backups = list_restore_backups()
-    latest_job = await query_db_async("SELECT * FROM backup_jobs ORDER BY id DESC LIMIT 1", (), one=True)
+    
+    latest_job = None
+    try:
+        latest_job_res = await db.execute(text("SELECT * FROM backup_jobs ORDER BY id DESC LIMIT 1"))
+        latest_job_row = latest_job_res.first()
+        latest_job = dict(latest_job_row._mapping) if latest_job_row else None
+    except Exception:
+        pass
+
     index_count = 0
     plan_lines: list[str] = []
     try:
-        index_row = await query_db_async(
-            "SELECT COUNT(*) AS c FROM pg_indexes WHERE schemaname = current_schema() AND indexname LIKE 'idx_%'",
-            (),
-            one=True,
+        index_row_res = await db.execute(
+            text("SELECT COUNT(*) AS c FROM pg_indexes WHERE schemaname = current_schema() AND indexname LIKE 'idx_%'")
         )
-        index_count = int(index_row["c"] if index_row else 0)
-        query_plan = await asyncio.to_thread(explain_query_plan, "SELECT id, name FROM clients ORDER BY name LIMIT 50")
-        for row in query_plan:
-            row_dict = dict(row) if hasattr(row, "keys") else {}
+        index_row = index_row_res.first()
+        index_count = int(index_row.c if index_row else 0)
+        
+        # explain query plan: we can execute it via text explain on the session!
+        query_plan_res = await db.execute(text("EXPLAIN SELECT id, name FROM clients ORDER BY name LIMIT 50"))
+        for row in query_plan_res.all():
+            row_dict = dict(row._mapping)
             detail = row_dict.get("detail") or row_dict.get("plan") or next(iter(row_dict.values()), "") or str(row)
             plan_lines.append(str(detail))
     except Exception:
-        _rollback_current_db()
         pass
+        
     pending_marker = get_pending_backup_marker()
     data_dir = Path(APP_DATA_DIR)
     backup_dir = Path(LOCAL_BACKUP_DIR)
     log_dir = Path(LOG_DIR)
     latest_backup_file = next(iter(sorted(backup_dir.glob("*.sql"), reverse=True)), None) if backup_dir.exists() else None
     from app.services.backup_service import BACKGROUND_STATE
-    write_status = await _probe_db_write()
+    write_status = await _probe_db_write(db)
     backup_write_status = _probe_dir_write(backup_dir)
+    
     return {
         "version": VERSION_LABEL,
         "background_jobs": {
@@ -62,7 +83,6 @@ async def get_system_status() -> dict:
             "last_backup_at": datetime.fromtimestamp(BACKGROUND_STATE.get("last_backup_ts", 0)).isoformat() if BACKGROUND_STATE.get("last_backup_ts") else None,
         },
         "database": {
-
             "ok": db_ok,
             "status": _ok_status(db_ok),
             "message": db_message,
@@ -111,31 +131,25 @@ def _probe_dir_write(path: Path) -> dict:
         return {"ok": False, "status": "Erreur", "message": str(exc)}
 
 
-async def _probe_db_write() -> dict:
+async def _probe_db_write(db: AsyncSession) -> dict:
     try:
-        await execute_db_async(
-            """
+        await db.execute(
+            text("""
             INSERT INTO app_settings (key, value, updated_at)
-            VALUES (%s, %s, CURRENT_TIMESTAMP)
+            VALUES (:key, :value, CURRENT_TIMESTAMP)
             ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP
-            """,
-            ("diagnostic_last_write", datetime.now().isoformat(timespec="seconds")),
+            """),
+            {"key": "diagnostic_last_write", "value": datetime.now().isoformat(timespec="seconds")},
         )
+        await db.commit()
         return {"ok": True, "status": "OK", "message": "Ecriture base disponible"}
     except Exception as exc:
-        _rollback_current_db()
         return {"ok": False, "status": "Erreur", "message": str(exc)}
 
 
-def _rollback_current_db() -> None:
-    try:
-        get_db().rollback()
-    except Exception:
-        pass
-
-
-async def export_diagnostic_report() -> str:
-    status = await get_system_status()
+@async_compat
+async def export_diagnostic_report(db: AsyncSession | None = None) -> str:
+    status = await get_system_status(db=db)
     return json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True)
 
 

@@ -212,7 +212,7 @@ def get_window_icon() -> Path | None:
     return None
 
 
-def show_startup_splash(port: int, timeout: float = 15.0) -> bool:
+def show_startup_splash(port: int, timeout: float = 45.0) -> bool:
     try:
         import tkinter as tk
     except Exception:

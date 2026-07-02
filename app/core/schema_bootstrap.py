@@ -50,6 +50,15 @@ def bootstrap_schema() -> None:
             created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS pubsub_events (
+            id BIGSERIAL PRIMARY KEY,
+            channel VARCHAR(255) NOT NULL,
+            payload TEXT NOT NULL,
+            sender_worker_id VARCHAR(255) NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_pubsub_events_created_at ON pubsub_events(created_at);
+
         CREATE TABLE IF NOT EXISTS outbox_events (
             id BIGSERIAL PRIMARY KEY,
             event_type VARCHAR(255) NOT NULL,

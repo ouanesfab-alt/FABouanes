@@ -125,8 +125,8 @@ def validate_single_worker_runtime() -> None:
     if allow:
         return
     raise RuntimeError(
-        "FABOuanes utilise un cache et un scheduler in-process: demarre 1 seul worker "
-        "car Redis n'est pas implemente dans cette application."
+        "FABOuanes utilise un cache et un scheduler in-process: demarre 1 seul worker, "
+        "ou activez explicitement FAB_ALLOW_MULTI_WORKER=1 (le multi-worker est gere par le Pub/Sub base de donnees)."
     )
 
 

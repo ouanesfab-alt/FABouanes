@@ -117,10 +117,3 @@ def paginate_sequence(rows: list[Any], args: Any, path: str) -> tuple[list[Any],
     total = len(rows)
     return rows[offset : offset + page_size], pagination_context(path, args, total=total, page=page, page_size=page_size)
 
-
-def paginated_rows(query_func, query: str, params: tuple[Any, ...], *, page: int, page_size: int, offset: int):
-    count_row = query_func(f"SELECT COUNT(*) AS c FROM ({query}) paginated_query", params, one=True)
-    total = int(count_row["c"] if count_row else 0)
-    rows = query_func(f"{query} LIMIT %s OFFSET %s", params + (page_size, offset))
-    return rows, total
-

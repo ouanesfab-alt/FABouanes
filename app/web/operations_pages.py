@@ -144,11 +144,11 @@ async def new_operation_page(request: Request, db: AsyncSession = Depends(get_as
 
 
 @router.get("/print/{doc_type}/{item_id}", name="print_document")
-async def print_document_page(request: Request, doc_type: str, item_id: int):
+async def print_document_page(request: Request, doc_type: str, item_id: int, db: AsyncSession = Depends(get_async_session)):
     user = get_current_user(request)
     if not user:
         return login_redirect()
-    payload = build_print_payload(doc_type, item_id)
+    payload = await build_print_payload(doc_type, item_id, db=db)
     if not payload:
         return _print_not_found_response("Document introuvable pour impression.")
     printed_at = datetime.now()

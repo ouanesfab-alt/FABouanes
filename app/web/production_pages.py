@@ -11,7 +11,7 @@ from app.services.production_service import create_production_from_form, delete_
 
 
 from pydantic import ValidationError
-from app.schemas.production import ProductionBatchCreate
+from app.core.schema.production_validation import ProductionBatchCreate
 
 router = APIRouter()
 
@@ -57,7 +57,7 @@ async def production_page(request: Request):
     denied = require_permission(request, PERMISSION_PRODUCTION_READ)
     if denied:
         return denied
-    return templates.TemplateResponse("production.html", template_context(request, **productions_context(request.query_params)))
+    return templates.TemplateResponse("production.html", template_context(request, **await productions_context(request.query_params)))
 
 
 @router.post("/production", name="production")

@@ -30,7 +30,7 @@ async def login_submit(request: Request):
         return RedirectResponse("/", status_code=303)
     await csrf_protect(request)
     form = await request.form()
-    result = attempt_login(form.get("username", ""), form.get("password", ""), request)
+    result = await attempt_login(form.get("username", ""), form.get("password", ""), request)
     if result["ok"]:
         user = result["user"]
         # request.session.clear() est déjà géré par la rotation dans attempt_login, on garde les attributs restants
@@ -72,7 +72,7 @@ async def change_password_submit(request: Request):
         return login_redirect()
     await csrf_protect(request)
     form = await request.form()
-    result = change_user_password(
+    result = await change_user_password(
         user["id"],
         form.get("current_password", ""),
         form.get("new_password", ""),

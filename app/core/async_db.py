@@ -20,33 +20,37 @@ def get_async_database_url(database_url: str) -> str:
 
 async_database_url = get_async_database_url(settings.database_url)
 
-_async_engine: AsyncEngine | None = None
+_async_engines: dict[asyncio.AbstractEventLoop | str, AsyncEngine] = {}
 _ENGINES_LOCK = threading.Lock()
 
 def get_async_engine() -> AsyncEngine:
-    """Returns a thread-safe global AsyncEngine instance."""
-    global _async_engine
-    if _async_engine is None:
-        with _ENGINES_LOCK:
-            if _async_engine is None:
-                _async_engine = create_async_engine(
-                    async_database_url,
-                    echo=False,
-                    future=True,
-                    pool_pre_ping=True,
-                    pool_size=int(os.environ.get("FAB_PG_POOL_SIZE", "10")),
-                    max_overflow=int(os.environ.get("FAB_PG_POOL_MAX_OVERFLOW", "10")),
-                )
-    return _async_engine
+    """Returns an AsyncEngine instance specific to the current event loop."""
+    global _async_engines
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = "default"
+
+    with _ENGINES_LOCK:
+        if loop not in _async_engines:
+            _async_engines[loop] = create_async_engine(
+                async_database_url,
+                echo=False,
+                future=True,
+                pool_pre_ping=True,
+                pool_size=int(os.environ.get("FAB_PG_POOL_SIZE", "10")),
+                max_overflow=int(os.environ.get("FAB_PG_POOL_MAX_OVERFLOW", "10")),
+            )
+        return _async_engines[loop]
 
 async def close_async_engine() -> None:
-    """Properly closes and disposes of the global AsyncEngine."""
-    global _async_engine
-    if _async_engine is not None:
-        with _ENGINES_LOCK:
-            if _async_engine is not None:
-                await _async_engine.dispose()
-                _async_engine = None
+    """Properly closes and disposes of all global AsyncEngines."""
+    global _async_engines
+    with _ENGINES_LOCK:
+        for engine in _async_engines.values():
+            await engine.dispose()
+        _async_engines.clear()
+
 
 def get_async_sessionmaker():
     """Returns a sessionmaker bound to the loop-safe AsyncEngine."""

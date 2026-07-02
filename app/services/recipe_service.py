@@ -2,36 +2,57 @@ from __future__ import annotations
 
 from collections import defaultdict
 from typing import Any
-
-from app.core.db_access import execute_db_async, query_db_async
-from app.repositories.client_repository import async_compat
+from sqlalchemy import select, delete, func, update
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.async_db import get_async_sessionmaker
+from app.core.helpers import async_compat
+from app.core.models import SavedRecipe, SavedRecipeItem, FinishedProduct, RawMaterial
 
 
 @async_compat
-async def load_saved_recipes() -> list[dict[str, Any]]:
-    recipes = [
-        dict(row)
-        for row in await query_db_async(
-            """
-            SELECT sr.id, sr.finished_product_id, sr.name, COALESCE(sr.notes,'') AS notes,
-                   sr.created_at, fp.name AS finished_name
-            FROM saved_recipes sr
-            JOIN finished_products fp ON fp.id = sr.finished_product_id
-            ORDER BY fp.name, sr.name
-            """
+async def load_saved_recipes(db: AsyncSession | None = None) -> list[dict[str, Any]]:
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            return await _load_saved_recipes_impl(session)
+    return await _load_saved_recipes_impl(db)
+
+
+async def _load_saved_recipes_impl(db: AsyncSession) -> list[dict[str, Any]]:
+    stmt = (
+        select(
+            SavedRecipe.id,
+            SavedRecipe.finished_product_id,
+            SavedRecipe.name,
+            func.coalesce(SavedRecipe.notes, "").label("notes"),
+            SavedRecipe.created_at,
+            FinishedProduct.name.label("finished_name"),
         )
-    ]
+        .select_from(SavedRecipe)
+        .join(FinishedProduct, FinishedProduct.id == SavedRecipe.finished_product_id)
+        .order_by(FinishedProduct.name, SavedRecipe.name)
+    )
+    res = await db.execute(stmt)
+    recipes = [dict(row._mapping) for row in res.fetchall()]
     if not recipes:
         return []
-    item_rows = await query_db_async(
-        """
-        SELECT sri.recipe_id, sri.raw_material_id, sri.quantity, sri.position,
-               rm.name AS material_name, rm.stock_qty, rm.unit
-        FROM saved_recipe_items sri
-        JOIN raw_materials rm ON rm.id = sri.raw_material_id
-        ORDER BY sri.recipe_id, sri.position, sri.id
-        """
+
+    item_stmt = (
+        select(
+            SavedRecipeItem.recipe_id,
+            SavedRecipeItem.raw_material_id,
+            SavedRecipeItem.quantity,
+            SavedRecipeItem.position,
+            RawMaterial.name.label("material_name"),
+            RawMaterial.stock_qty,
+            RawMaterial.unit,
+        )
+        .select_from(SavedRecipeItem)
+        .join(RawMaterial, RawMaterial.id == SavedRecipeItem.raw_material_id)
+        .order_by(SavedRecipeItem.recipe_id, SavedRecipeItem.position, SavedRecipeItem.id)
     )
+    item_res = await db.execute(item_stmt)
+    item_rows = [dict(row._mapping) for row in item_res.fetchall()]
+
     grouped: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for row in item_rows:
         grouped[int(row["recipe_id"])].append(
@@ -55,30 +76,62 @@ async def save_recipe_definition(
     notes: str,
     recipe_lines: list[dict[str, Any]],
     user_id: int | None = None,
+    db: AsyncSession | None = None,
+) -> int | None:
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            async with session.begin():
+                return await _save_recipe_definition_impl(finished_id, recipe_name, notes, recipe_lines, user_id, session)
+    return await _save_recipe_definition_impl(finished_id, recipe_name, notes, recipe_lines, user_id, db)
+
+
+async def _save_recipe_definition_impl(
+    finished_id: int,
+    recipe_name: str,
+    notes: str,
+    recipe_lines: list[dict[str, Any]],
+    user_id: int | None,
+    db: AsyncSession,
 ) -> int | None:
     clean_name = (recipe_name or "").strip()
     if not clean_name or not recipe_lines:
         return None
-    existing = await query_db_async(
-        "SELECT id FROM saved_recipes WHERE finished_product_id = %s AND lower(name) = lower(%s)",
-        (finished_id, clean_name),
-        one=True,
+    stmt = select(SavedRecipe).where(
+        SavedRecipe.finished_product_id == finished_id,
+        func.lower(SavedRecipe.name) == func.lower(clean_name),
     )
+    res = await db.execute(stmt)
+    existing = res.scalars().first()
     if existing:
-        recipe_id = int(existing["id"])
-        await execute_db_async(
-            "UPDATE saved_recipes SET notes = %s, updated_at = CURRENT_TIMESTAMP, created_by_user_id = COALESCE(created_by_user_id, %s) WHERE id = %s",
-            (notes, user_id, recipe_id),
+        recipe_id = existing.id
+        await db.execute(
+            update(SavedRecipe)
+            .where(SavedRecipe.id == recipe_id)
+            .values(
+                notes=notes,
+                updated_at=func.current_timestamp(),
+                created_by_user_id=func.coalesce(SavedRecipe.created_by_user_id, user_id),
+            )
         )
-        await execute_db_async("DELETE FROM saved_recipe_items WHERE recipe_id = %s", (recipe_id,))
+        await db.execute(delete(SavedRecipeItem).where(SavedRecipeItem.recipe_id == recipe_id))
     else:
-        recipe_id = await execute_db_async(
-            "INSERT INTO saved_recipes (finished_product_id, name, notes, created_by_user_id) VALUES (%s, %s, %s, %s)",
-            (finished_id, clean_name, notes, user_id),
+        new_recipe = SavedRecipe(
+            finished_product_id=finished_id,
+            name=clean_name,
+            notes=notes,
+            created_by_user_id=user_id,
         )
+        db.add(new_recipe)
+        await db.flush()
+        recipe_id = new_recipe.id
+
     for position, line in enumerate(recipe_lines, start=1):
-        await execute_db_async(
-            "INSERT INTO saved_recipe_items (recipe_id, raw_material_id, quantity, position) VALUES (%s, %s, %s, %s)",
-            (recipe_id, int(line["material"]["id"]), float(line["qty"]), position),
+        item = SavedRecipeItem(
+            recipe_id=recipe_id,
+            raw_material_id=int(line["material"]["id"]),
+            quantity=float(line["qty"]),
+            position=position,
         )
+        db.add(item)
+    await db.flush()
     return recipe_id

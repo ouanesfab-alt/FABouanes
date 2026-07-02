@@ -446,6 +446,11 @@ class SalesService:
 
         use_document = len(lines) > 1
 
+        from app.core.request_state import get_state_value
+        actor = get_state_value("user")
+        user_id = int(actor["id"]) if actor else None
+        newly_unlocked = []
+
         if not use_document:
             line = lines[0]
             parts = line.item_key.split(":")
@@ -466,6 +471,9 @@ class SalesService:
                 0.0 if client_id else line.quantity * line.unit_price,
                 custom_item_name=line.custom_item_name,
             )
+
+
+
             await self.session.commit()
 
             created = await self.sale_repo.get_sale_detail(created_kind, created_sale_id)
@@ -480,6 +488,11 @@ class SalesService:
                 )
             )
 
+            # Store unlocked badges in session if request is present
+            request = get_state_value("request")
+            if request and hasattr(request, "session") and newly_unlocked:
+                request.session["unlocked_badges"] = newly_unlocked
+
             return {
                 "mode": "line",
                 "document_id": None,
@@ -488,6 +501,7 @@ class SalesService:
                 "line_count": 1,
                 "first_line_kind": created_kind,
                 "first_line_id": created_sale_id,
+                "unlocked_badges": newly_unlocked,
             }
 
         # Create multi-line document
@@ -515,6 +529,8 @@ class SalesService:
                 )
             )
 
+
+
         await self.session.commit()
 
         created = await self.doc_repo.get_by_id(doc_id)
@@ -529,6 +545,11 @@ class SalesService:
             )
         )
 
+        # Store unlocked badges in session if request is present
+        request = get_state_value("request")
+        if request and hasattr(request, "session") and newly_unlocked:
+            request.session["unlocked_badges"] = newly_unlocked
+
         return {
             "mode": "document",
             "document_id": doc_id,
@@ -537,6 +558,7 @@ class SalesService:
             "line_count": len(lines),
             "first_line_kind": created_lines[0][0],
             "first_line_id": created_lines[0][1],
+            "unlocked_badges": newly_unlocked,
         }
 
     async def edit_sale_document_from_form(self, document_id: int, schema: SaleFormSchema) -> dict:

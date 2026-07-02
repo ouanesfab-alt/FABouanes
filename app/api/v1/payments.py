@@ -7,22 +7,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_error, api_success, require_api_user
 from app.api.v1._common import json_response, payment_payload, payload_to_form_data, add_cache_headers
-from app.repositories.payment_repository import list_payments
-
 from app.core.async_db import get_async_session
 from app.core.models import Payment
 from app.core.permissions import PERMISSION_OPERATIONS_DELETE, PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
 from app.services.payment_service import create_payment_from_form, delete_payment_by_id, edit_payment_from_form
-from app.schemas.api_schemas import PaymentCreateSchema
+from app.core.schema.api_validation import PaymentCreateSchema
 
 router = APIRouter(prefix="/api/v1", tags=["payments"])
 
 @router.get("/payments")
-async def api_get_payments(request: Request):
+async def api_get_payments(request: Request, db: AsyncSession = Depends(get_async_session)):
     await asyncio.to_thread(require_api_user, request, PERMISSION_OPERATIONS_READ)
     page = max(int(request.query_params.get("page", 1)), 1)
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
-    rows, total = await list_payments(
+    from app.modules.payments.repository import PaymentRepository
+    repo = PaymentRepository(db)
+    rows, total = await repo.list_payments_paginated(
         search=request.query_params.get("q"),
         date_from=request.query_params.get("date_from"),
         date_to=request.query_params.get("date_to"),

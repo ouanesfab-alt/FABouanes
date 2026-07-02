@@ -36,4 +36,3 @@ class ClientValidationSchema(BaseModel):
         if val < 0:
             raise ValueError("Le crédit initial ne peut pas être négatif.")
         return val
-

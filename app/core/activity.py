@@ -4,14 +4,16 @@ import json
 import traceback
 from datetime import datetime
 
-from app.core.db_access import execute_db
 from app.core.config import APP_DATA_DIR
+from app.core.db import execute_db
 from app.core.request_state import get_state_value
 
 LOG_DIR = APP_DATA_DIR / 'logs'
 
+
 def now_str() -> str:
     return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
 
 def write_text_log(filename: str, message: str) -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -32,6 +34,7 @@ def safe_username() -> str:
     except Exception:
         pass
     return 'system'
+
 
 def _request_ip() -> str:
     state_request = get_state_value("request")

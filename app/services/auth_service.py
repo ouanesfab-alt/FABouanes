@@ -9,7 +9,7 @@ from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_USERNAME
 from app.core.activity import log_activity
 from app.core.audit import audit_event
 from app.core.permissions import ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR, normalize_role
-from app.repositories.user_repository import (
+from app.modules.users.repository import (
     get_user_by_id,
     get_user_by_username,
     touch_login,
@@ -27,7 +27,7 @@ from app.core.security import (
 VALID_ROLES = {ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR}
 
 
-def attempt_login(username: str, password: str, request: Request | None = None):
+async def attempt_login(username: str, password: str, request: Request | None = None):
     normalized = (username or "").strip()
     ip = client_ip()
     
@@ -56,11 +56,11 @@ def attempt_login(username: str, password: str, request: Request | None = None):
         )
         return {"ok": False, "status": 429, "message": "Trop de tentatives de connexion. Réessayez dans 5 minutes."}
         
-    user = get_user_by_username(normalized)
+    user = await get_user_by_username(normalized)
     if user and int(user.get("is_active", 1) or 0) and check_password_hash(user["password_hash"], password or ""):
         clear_login_failures(ip)  # Clear failures on success
-        touch_login(int(user["id"]))
-        user = get_user_by_username(normalized)
+        await touch_login(int(user["id"]))
+        user = await get_user_by_username(normalized)
         log_activity("login", "user", user["id"], f"Connexion de {normalized}")
         audit_event("login", "user", user["id"], after={"username": normalized, "role": user["role"]})
         
@@ -93,8 +93,8 @@ def attempt_login(username: str, password: str, request: Request | None = None):
     return {"ok": False, "status": 401, "message": "Nom d'utilisateur ou mot de passe incorrect."}
 
 
-def change_user_password(user_id: int, current_password: str, new_password: str, confirm_password: str):
-    user = get_user_by_id(user_id)
+async def change_user_password(user_id: int, current_password: str, new_password: str, confirm_password: str):
+    user = await get_user_by_id(user_id)
     if not user or not check_password_hash(user["password_hash"], current_password or ""):
         audit_event(
             action="change_password",
@@ -110,13 +110,13 @@ def change_user_password(user_id: int, current_password: str, new_password: str,
     if (new_password or "") != (confirm_password or ""):
         return {"ok": False, "message": "La confirmation du mot de passe ne correspond pas."}
     before = {"must_change_password": int(user["must_change_password"] or 0)}
-    update_password(user_id, generate_password_hash(new_password), 0)
+    await update_password(user_id, generate_password_hash(new_password), 0)
     if str(user["username"]) == DEFAULT_ADMIN_USERNAME:
         try:
             (APP_DATA_DIR / "first_admin_password.txt").unlink(missing_ok=True)
         except Exception:
             pass
-    updated_user = get_user_by_id(user_id)
+    updated_user = await get_user_by_id(user_id)
     log_activity("change_password", "user", user_id, f"Changement du mot de passe pour {user['username']}")
     audit_event(
         "change_password",
@@ -143,12 +143,12 @@ def validate_new_user_payload(username: str, password: str, role: str):
     return {"ok": True, "username": normalized, "role": role_value}
 
 
-def verify_credentials(username: str, password: str) -> dict | None:
+async def verify_credentials(username: str, password: str) -> dict | None:
     """
     Vérifie les identifiants d'un utilisateur et retourne ses informations s'ils sont valides.
     Utilisé par l'API mobile.
     """
-    res = attempt_login(username, password)
+    res = await attempt_login(username, password)
     if res.get("ok") and "user" in res:
         return res["user"]
     return None

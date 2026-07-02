@@ -7,16 +7,6 @@ import asyncio
 from typing import Any, Callable
 
 import structlog
-try:
-    from arq.connections import RedisSettings, ArqRedis
-    from arq import create_pool, cron
-    HAS_ARQ = True
-except ImportError:
-    RedisSettings = None
-    ArqRedis = None
-    create_pool = None
-    cron = None
-    HAS_ARQ = False
 
 from app.core.websockets import manager
 
@@ -24,9 +14,8 @@ logger = structlog.get_logger("fabouanes.worker")
 
 
 async def update_task_progress(job_id: str, percent: int, message: str) -> None:
-    """Updates job progress in Redis and broadcasts it over WebSockets."""
+    """Updates job progress and broadcasts it over WebSockets."""
     logger.info("Task progress update", job_id=job_id, percent=percent, message=message)
-    # Broadcast through our WebSocket connection manager
     try:
         payload = json.dumps({
             "type": "task_progress",
@@ -50,7 +39,6 @@ async def generate_invoice_pdf_task(ctx: dict[str, Any], payload: dict[str, Any]
     from app.services.print_service import generate_invoice_pdf
     await update_task_progress(job_id, 40, "Génération des layouts de facturation...")
     
-    # Run CPU intensive PDF generation in threadpool to avoid blocking event loop
     pdf_buf = await asyncio.to_thread(generate_invoice_pdf, payload, username)
     
     await update_task_progress(job_id, 90, "Finalisation de l'écriture du flux PDF...")
@@ -75,7 +63,6 @@ async def import_excel_task(ctx: dict[str, Any], file_path: str, client_id: int 
     
     await update_task_progress(job_id, 100, f"Import terminé. {result.get('nb_lignes', 0)} lignes insérées.")
     
-    # Clean up the temp file after background processing is finished
     try:
          if os.path.exists(file_path):
              os.unlink(file_path)
@@ -94,7 +81,6 @@ async def run_database_backup_task(ctx: dict[str, Any], reason: str) -> str:
     from app.core.storage import capture_local_backup_snapshot
     await update_task_progress(job_id, 60, "Écriture du dump PostgreSQL...")
     
-    # Run blocking shell backup command in threadpool
     await asyncio.to_thread(capture_local_backup_snapshot, reason)
     
     await update_task_progress(job_id, 100, "Sauvegarde de la base de données terminée.")
@@ -103,9 +89,8 @@ async def run_database_backup_task(ctx: dict[str, Any], reason: str) -> str:
 
 async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
     """
-    Polls the outbox_events table for unprocessed events, publishes them to Redis Pub/Sub,
+    Polls the outbox_events table for unprocessed events, publishes them to DB Pub/Sub,
     runs the default local handlers, and marks them as processed.
-    Redirects failing events to dead_letter_events after 5 retries.
     """
     from app.core.db_access import db_transaction
     
@@ -121,7 +106,7 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
             if not rows:
                 return 0
                 
-            from app.core.events import _deserialize_event, _trigger_local_handlers, _redis_client
+            from app.core.events import _deserialize_event, _trigger_local_handlers
             
             for row in rows:
                 event_id = row["id"]
@@ -136,7 +121,7 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
                 if res:
                     event, sender_id = res
                     
-                    # 1. Run local default handlers in this worker process
+                    # 1. Run local default handlers
                     try:
                         _trigger_local_handlers(event, skip_default=False)
                     except Exception as e:
@@ -144,19 +129,21 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
                         error_msg = str(e)
                         logger.error("Failed to run local handlers for outbox event", event_id=event_id, error=error_msg)
                     
-                    # 2. Publish to Redis Pub/Sub for other worker nodes to receive and update state/websockets
-                    if success and _redis_client:
+                    # 2. Publish to DB Pub/Sub for other worker nodes
+                    if success:
                         try:
-                            _redis_client.publish("fabouanes:events", payload_str)
+                            conn.execute(
+                                "INSERT INTO pubsub_events (channel, payload, sender_worker_id) VALUES (%s, %s, %s)",
+                                ("fabouanes:events", payload_str, "outbox_dispatcher")
+                            )
                         except Exception as e:
-                            logger.warning("Failed to publish outbox event to Redis Pub/Sub", event_id=event_id, error=str(e))
+                            logger.warning("Failed to publish outbox event to DB Pub/Sub", event_id=event_id, error=str(e))
                 else:
                     success = False
                     error_msg = "Deserialization failed"
                     logger.error("Failed to deserialize event payload", event_id=event_id)
                             
                 if success:
-                    # Mark as processed
                     conn.execute(
                         "UPDATE outbox_events SET processed_at = CURRENT_TIMESTAMP WHERE id = %s",
                         (event_id,)
@@ -165,18 +152,15 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
                 else:
                     new_retry_cnt = retry_cnt + 1
                     if new_retry_cnt >= 5:
-                        # Move to dead letter queue
                         conn.execute(
                             "INSERT INTO dead_letter_events (event_type, payload, reason) VALUES (%s, %s, %s)",
                             (event_type, payload_str, error_msg)
                         )
-                        # Remove from outbox
                         conn.execute(
                             "DELETE FROM outbox_events WHERE id = %s",
                             (event_id,)
                         )
                     else:
-                        # Update retry count and last error
                         conn.execute(
                             "UPDATE outbox_events SET retry_count = %s, last_error = %s WHERE id = %s",
                             (new_retry_cnt, error_msg, event_id)
@@ -190,10 +174,7 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
 
 
 async def replay_dead_letter_events_task(ctx: dict[str, Any]) -> int:
-    """
-    Replays all events from dead_letter_events table by inserting them back
-    into outbox_events (with retry_count=0, last_error=NULL) and deleting them from DLQ.
-    """
+    """Replays all events from dead_letter_events table."""
     from app.core.db_access import db_transaction
     
     events_replayed = 0
@@ -213,13 +194,10 @@ async def replay_dead_letter_events_task(ctx: dict[str, Any]) -> int:
                 event_type = row["event_type"]
                 payload = row["payload"]
                 
-                # Insert back into outbox_events
                 conn.execute(
                     "INSERT INTO outbox_events (event_type, payload, retry_count, last_error) VALUES (%s, %s, 0, NULL)",
                     (event_type, payload)
                 )
-                
-                # Delete from DLQ
                 conn.execute(
                     "DELETE FROM dead_letter_events WHERE id = %s",
                     (dlq_id,)
@@ -233,8 +211,6 @@ async def replay_dead_letter_events_task(ctx: dict[str, Any]) -> int:
     return events_replayed
 
 
-# --- Client & Fallback Enqueue Helpers ---
-
 TASK_MAPPING: dict[str, Callable[..., Any]] = {
     "generate_invoice_pdf_task": generate_invoice_pdf_task,
     "import_excel_task": import_excel_task,
@@ -243,63 +219,15 @@ TASK_MAPPING: dict[str, Callable[..., Any]] = {
     "replay_dead_letter_events_task": replay_dead_letter_events_task,
 }
 
-_arq_pool: Any = None
-_pool_lock = asyncio.Lock()
-
-
-async def get_arq_pool() -> Any:
-    """Returns the ArqRedis pool singleton, initializing if necessary."""
-    global _arq_pool
-    if not HAS_ARQ:
-        return None
-    async with _pool_lock:
-        if _arq_pool is not None:
-            return _arq_pool
-        redis_url = os.environ.get("REDIS_URL", "").strip()
-        if not redis_url:
-            return None
-        try:
-            settings = RedisSettings.from_dsn(redis_url)
-            _arq_pool = await create_pool(settings)
-            return _arq_pool
-        except Exception as exc:
-            logger.warning("Could not initialize ArqRedis pool, falling back to inline threads", error=str(exc))
-            return None
-
 
 async def enqueue_background_task(task_name: str, *args: Any, **kwargs: Any) -> str:
-    """
-    Enqueues a task to the background worker pool if available.
-    Falls back to inline/threaded execution if Redis is not active.
-    """
-    pool = await get_arq_pool()
-    if pool is not None:
-        try:
-            job = await pool.enqueue_job(task_name, *args, **kwargs)
-            logger.info("Enqueued task to Arq worker pool", task=task_name, job_id=job.job_id)
-            return str(job.job_id)
-        except Exception as exc:
-            logger.warning("Arq enqueuing failed, falling back inline", task=task_name, error=str(exc))
-
-    # Clean fallback execution
-    fallback_job_id = f"fallback-{os.urandom(4).hex()}"
+    """Runs a task asynchronously using inline asyncio.create_task."""
+    fallback_job_id = f"job-{os.urandom(4).hex()}"
     func = TASK_MAPPING.get(task_name)
     if func:
         ctx = {"job_id": fallback_job_id}
-        logger.info("Running background task in fallback inline mode", task=task_name, job_id=fallback_job_id)
-        # Spin task in background task without blocking the main request thread
+        logger.info("Running background task inline", task=task_name, job_id=fallback_job_id)
         asyncio.create_task(func(ctx, *args, **kwargs))
     else:
         logger.error("Requested background task name not found in mapping", task=task_name)
     return fallback_job_id
-
-
-# --- Worker Configuration class for Arq CLI CLI Settings ---
-
-if HAS_ARQ:
-    class WorkerSettings:
-        functions = list(TASK_MAPPING.values())
-        redis_settings = RedisSettings.from_dsn(os.environ.get("REDIS_URL", "redis://localhost:6379"))
-        cron_jobs = [
-            cron(dispatch_outbox_events_task, second=None, unique=True)
-        ]

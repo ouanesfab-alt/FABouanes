@@ -57,3 +57,28 @@ async def save_idempotency(key: str | None, response: dict[str, Any]) -> None:
         logger.info("Saved idempotency key in database: %s", key)
     except Exception as exc:
         logger.error("Failed to save idempotency key in database: %s", exc)
+
+
+async def cleanup_expired_idempotency_keys(max_age_days: int = 7) -> int:
+    """
+    Supprime les entrées d'idempotence plus vieilles que `max_age_days` jours.
+    Doit être appelée périodiquement (ex. scheduler quotidien) pour éviter
+    que la table `idempotent_requests` ne grossisse indéfiniment.
+
+    Retourne le nombre de lignes supprimées.
+    """
+    try:
+        result = await execute_db_async(
+            "DELETE FROM idempotent_requests WHERE created_at < NOW() - (%s * INTERVAL '1 day')",
+            (max_age_days,),
+        )
+        deleted = result.rowcount if hasattr(result, "rowcount") else 0
+        logger.info(
+            "Idempotency cleanup: deleted %d expired entries (older than %d days)",
+            deleted,
+            max_age_days,
+        )
+        return deleted
+    except Exception as exc:
+        logger.error("Failed to cleanup expired idempotency keys: %s", exc)
+        return 0

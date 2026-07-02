@@ -20,6 +20,7 @@
       <a href="{{ url_for('operations') }}" class="{{ 'active' if operations_nav_active else '' }}"><i
           class="bi bi-arrow-left-right me-1"></i>Opérations<span id="offline-pending-badge" class="badge bg-warning text-dark ms-1" hidden title="Opérations en attente de synchronisation"></span><span id="network-status-icon" class="ms-1" title="Statut réseau"><i class="bi bi-wifi" id="icon-online" style="color:#4ade80;font-size:.75rem"></i><i class="bi bi-wifi-off d-none" id="icon-offline" style="color:#fb923c;font-size:.75rem"></i></span></a>
 
+
       <div class="dropdown">
         <button type="button" class="nav-link-menu {{ 'active' if tools_nav_active else '' }}"
           data-bs-toggle="dropdown" aria-expanded="false">

@@ -2,6 +2,20 @@
 <html lang="fr">
 
 <head>
+  <script nonce="{{ csp_nonce }}">
+    (function() {
+      try {
+        const theme = localStorage.getItem('fab_theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        const font = localStorage.getItem('fab_font') || 'system';
+        document.documentElement.setAttribute('data-font', font);
+        const nav = localStorage.getItem('fab_nav_layout') || 'horizontal';
+        document.documentElement.setAttribute('data-nav', nav);
+        const navHidden = localStorage.getItem('fab_nav_hidden') || '0';
+        document.documentElement.setAttribute('data-nav-hidden', navHidden);
+      } catch (e) {}
+    })();
+  </script>
   {% include 'partials/_head.html' %}
 </head>
 {% set is_print_view = request.path.startswith('/print/') or request.endpoint in ['print_client_history'] %}
@@ -93,6 +107,8 @@
 
   {% include 'partials/_search_overlay.html' %}
   {% endif %}
+
+
 
   {% include 'partials/_scripts_core.html' %}
   {% include 'partials/_websocket.html' %}

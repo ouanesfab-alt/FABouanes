@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from typing import Any
-
-from app.core.db_access import query_db
-
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.async_db import get_async_sessionmaker
 from .base import _print_defaults
 
 
@@ -20,17 +20,38 @@ def _purchase_line_to_doc_line(row) -> dict[str, Any]:
     }
 
 
-def _build_purchase_payload(item_id: int, *, _build_print_payload) -> dict[str, Any] | None:
+async def _build_purchase_payload(
+    item_id: int,
+    *,
+    _build_print_payload,
+    db: AsyncSession | None = None,
+) -> dict[str, Any] | None:
     """Build payload for a single purchase row.
 
     ``_build_print_payload`` is injected to avoid circular imports (the top-level
     dispatcher lives in ``__init__``).
     """
-    pointer = query_db("SELECT id, document_id FROM purchases WHERE id = %s", (item_id,), one=True)
-    if pointer and pointer["document_id"]:
-        return _build_print_payload("purchase_document", int(pointer["document_id"]))
-    row = query_db(
-        """
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            return await _build_purchase_payload_impl(item_id, _build_print_payload, session)
+    return await _build_purchase_payload_impl(item_id, _build_print_payload, db)
+
+
+async def _build_purchase_payload_impl(
+    item_id: int,
+    _build_print_payload,
+    db: AsyncSession,
+) -> dict[str, Any] | None:
+    pointer_res = await db.execute(
+        text("SELECT id, document_id FROM purchases WHERE id = :item_id"),
+        {"item_id": item_id},
+    )
+    pointer = pointer_res.first()
+    if pointer and pointer.document_id:
+        return await _build_print_payload("purchase_document", int(pointer.document_id), db=db)
+        
+    row_res = await db.execute(
+        text("""
         SELECT p.*, 
                CASE 
                    WHEN p.finished_product_id IS NOT NULL THEN fp.name
@@ -55,56 +76,73 @@ def _build_purchase_payload(item_id: int, *, _build_print_payload) -> dict[str, 
                    ELSE p.unit_price
                END AS display_unit_price,
                s.name AS partner_name, s.phone AS partner_phone, s.address AS partner_address
-        FROM purchases p
-        LEFT JOIN raw_materials rm ON rm.id = p.raw_material_id
-        LEFT JOIN finished_products fp ON fp.id = p.finished_product_id
-        LEFT JOIN suppliers s ON s.id = p.supplier_id
-        WHERE p.id = %s
-        """,
-        (item_id,),
-        one=True,
+         FROM purchases p
+         LEFT JOIN raw_materials rm ON rm.id = p.raw_material_id
+         LEFT JOIN finished_products fp ON fp.id = p.finished_product_id
+         LEFT JOIN suppliers s ON s.id = p.supplier_id
+         WHERE p.id = :item_id
+        """),
+        {"item_id": item_id},
     )
+    row = row_res.first()
     if not row:
         return None
-    lines = [_purchase_line_to_doc_line(row)]
+        
+    row_dict = dict(row._mapping)
+    lines = [_purchase_line_to_doc_line(row_dict)]
     return _print_defaults({
         "title": "Bon d'achat",
         "subtitle": "Achat matière première",
-        "number": f"ACH-{row['id']:06d}",
-        "date": row["purchase_date"],
+        "number": f"ACH-{row_dict['id']:06d}",
+        "date": row_dict["purchase_date"],
         "partner_label": "Fournisseur",
-        "partner_name": row["partner_name"] or "Non renseigné",
-        "partner_phone": row["partner_phone"] or "",
-        "partner_address": row["partner_address"] or "",
+        "partner_name": row_dict["partner_name"] or "Non renseigné",
+        "partner_phone": row_dict["partner_phone"] or "",
+        "partner_address": row_dict["partner_address"] or "",
         "item_label": "Matière",
-        "item_name": row["item_name"],
-        "quantity": row["display_quantity"],
-        "unit": row["display_unit"],
-        "unit_price": row["display_unit_price"],
-        "total": row["total"],
+        "item_name": row_dict["item_name"],
+        "quantity": row_dict["display_quantity"],
+        "unit": row_dict["display_unit"],
+        "unit_price": row_dict["display_unit_price"],
+        "total": row_dict["total"],
         "paid": None,
         "due": None,
-        "notes": row["notes"] or "",
+        "notes": row_dict["notes"] or "",
         "lines": lines,
     })
 
 
-def _build_purchase_document_payload(item_id: int) -> dict[str, Any] | None:
+async def _build_purchase_document_payload(
+    item_id: int,
+    db: AsyncSession | None = None,
+) -> dict[str, Any] | None:
     """Build payload for a grouped purchase document."""
-    doc = query_db(
-        """
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            return await _build_purchase_document_payload_impl(item_id, session)
+    return await _build_purchase_document_payload_impl(item_id, db)
+
+
+async def _build_purchase_document_payload_impl(
+    item_id: int,
+    db: AsyncSession,
+) -> dict[str, Any] | None:
+    doc_res = await db.execute(
+        text("""
         SELECT pd.*, s.name AS partner_name, s.phone AS partner_phone, s.address AS partner_address
         FROM purchase_documents pd
         LEFT JOIN suppliers s ON s.id = pd.supplier_id
-        WHERE pd.id = %s
-        """,
-        (item_id,),
-        one=True,
+        WHERE pd.id = :item_id
+        """),
+        {"item_id": item_id},
     )
+    doc = doc_res.first()
     if not doc:
         return None
-    line_rows = query_db(
-        """
+    
+    doc_dict = dict(doc._mapping)
+    line_rows_res = await db.execute(
+        text("""
         SELECT p.*, 
                CASE 
                    WHEN p.finished_product_id IS NOT NULL THEN fp.name
@@ -131,31 +169,32 @@ def _build_purchase_document_payload(item_id: int) -> dict[str, Any] | None:
         FROM purchases p
         LEFT JOIN raw_materials rm ON rm.id = p.raw_material_id
         LEFT JOIN finished_products fp ON fp.id = p.finished_product_id
-        WHERE p.document_id = %s
+        WHERE p.document_id = :item_id
         ORDER BY p.id ASC
-        """,
-        (item_id,),
+        """),
+        {"item_id": item_id},
     )
+    line_rows = line_rows_res.all()
     if not line_rows:
         return None
-    lines = [_purchase_line_to_doc_line(row) for row in line_rows]
+    lines = [_purchase_line_to_doc_line(dict(row._mapping)) for row in line_rows]
     return _print_defaults({
         "title": "Bon d'achat",
         "subtitle": "Achat multi-produits",
-        "number": f"ACH-{doc['id']:06d}",
-        "date": doc["purchase_date"],
+        "number": f"ACH-{doc_dict['id']:06d}",
+        "date": doc_dict["purchase_date"],
         "partner_label": "Fournisseur",
-        "partner_name": doc["partner_name"] or "Non renseigné",
-        "partner_phone": doc["partner_phone"] or "",
-        "partner_address": doc["partner_address"] or "",
+        "partner_name": doc_dict["partner_name"] or "Non renseigné",
+        "partner_phone": doc_dict["partner_phone"] or "",
+        "partner_address": doc_dict["partner_address"] or "",
         "item_label": "Matière",
         "item_name": f"{len(lines)} ligne(s)",
         "quantity": None,
         "unit": "",
         "unit_price": None,
-        "total": doc["total"],
+        "total": doc_dict["total"],
         "paid": None,
         "due": None,
-        "notes": doc["notes"] or "",
+        "notes": doc_dict["notes"] or "",
         "lines": lines,
     })

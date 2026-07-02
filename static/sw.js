@@ -1,4 +1,4 @@
-const VERSION = "fabouanes-v36-offline";
+const VERSION = "fabouanes-v37-offline";
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const OFFLINE_URL = "/static/offline.html";
@@ -32,7 +32,6 @@ const PRECACHE = [
   "/static/js/theme.js",
   "/static/js/layout.js",
   "/static/js/tables.js",
-  "/static/js/notifications.js",
   "/static/js/offline-db.js",
   "/static/js/offline-sync.js",
   "/static/css/bootstrap.min.css",

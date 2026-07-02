@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.repositories.base_repository import AsyncRepository
+from app.core.base_repository import AsyncRepository
 from app.core.models import Expense
 
 # ── Catégories ──

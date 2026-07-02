@@ -1108,153 +1108,153 @@ class TestEvents:
 
 
 # =============================================================================
-# 16. app.schemas — validators complets
+# 16. app.core.schema — validators complets
 # =============================================================================
 
 class TestSchemas:
     # LoginRequest
     def test_login_valid(self):
-        from app.schemas.auth import LoginRequest
+        from app.core.schema.auth_validation import LoginRequest
         r = LoginRequest(username="admin", password="1234")
         assert r.username == "admin"
 
     def test_login_blank_username(self):
-        from app.schemas.auth import LoginRequest
+        from app.core.schema.auth_validation import LoginRequest
         from pydantic import ValidationError
         with pytest.raises(ValidationError):
             LoginRequest(username="  ", password="1234")
 
     def test_login_blank_password(self):
-        from app.schemas.auth import LoginRequest
+        from app.core.schema.auth_validation import LoginRequest
         from pydantic import ValidationError
         with pytest.raises(ValidationError):
             LoginRequest(username="admin", password="   ")
 
     # ChangePasswordRequest
     def test_change_password_valid(self):
-        from app.schemas.auth import ChangePasswordRequest
+        from app.core.schema.auth_validation import ChangePasswordRequest
         r = ChangePasswordRequest(current_password="old", new_password="newpass", confirm_password="newpass")
         assert r.confirm_password == "newpass"
 
     def test_change_password_mismatch(self):
-        from app.schemas.auth import ChangePasswordRequest
+        from app.core.schema.auth_validation import ChangePasswordRequest
         from pydantic import ValidationError
         with pytest.raises(ValidationError):
             ChangePasswordRequest(current_password="old", new_password="new", confirm_password="diff")
 
     # UserCreate
     def test_user_create_strips(self):
-        from app.schemas.auth import UserCreate
+        from app.core.schema.auth_validation import UserCreate
         assert UserCreate(username="  alice  ", password="1234", role="operator").username == "alice"
 
     def test_user_create_blank_raises(self):
-        from app.schemas.auth import UserCreate
+        from app.core.schema.auth_validation import UserCreate
         from pydantic import ValidationError
         with pytest.raises(ValidationError):
             UserCreate(username="   ", password="1234", role="operator")
 
     # UserUpdate
     def test_user_update(self):
-        from app.schemas.auth import UserUpdate
+        from app.core.schema.auth_validation import UserUpdate
         u = UserUpdate(role="admin", is_active=True)
         assert u.role == "admin" and u.is_active is True
 
     def test_user_update_empty(self):
-        from app.schemas.auth import UserUpdate
+        from app.core.schema.auth_validation import UserUpdate
         u = UserUpdate()
         assert u.role is None and u.is_active is None
 
     # ClientValidationSchema
     def test_client_valid(self):
-        from app.schemas.client_validation import ClientValidationSchema
+        from app.core.schema.client_validation import ClientValidationSchema
         assert ClientValidationSchema(name="Dupont").name == "Dupont"
 
     def test_client_blank_name(self):
-        from app.schemas.client_validation import ClientValidationSchema
+        from app.core.schema.client_validation import ClientValidationSchema
         from pydantic import ValidationError
         with pytest.raises(ValidationError):
             ClientValidationSchema(name="   ")
 
     def test_client_credit_none(self):
-        from app.schemas.client_validation import ClientValidationSchema
+        from app.core.schema.client_validation import ClientValidationSchema
         c = ClientValidationSchema(name="T", opening_credit=None)
         assert c.opening_credit == Decimal("0.0000")
 
     def test_client_credit_empty(self):
-        from app.schemas.client_validation import ClientValidationSchema
+        from app.core.schema.client_validation import ClientValidationSchema
         assert ClientValidationSchema(name="T", opening_credit="").opening_credit == Decimal("0.0000")
 
     def test_client_credit_float(self):
-        from app.schemas.client_validation import ClientValidationSchema
+        from app.core.schema.client_validation import ClientValidationSchema
         assert ClientValidationSchema(name="T", opening_credit=100.5).opening_credit == Decimal("100.5")
 
     def test_client_credit_european(self):
-        from app.schemas.client_validation import ClientValidationSchema
+        from app.core.schema.client_validation import ClientValidationSchema
         assert ClientValidationSchema(name="T", opening_credit="1 500,50").opening_credit == Decimal("1500.50")
 
     def test_client_credit_negative(self):
-        from app.schemas.client_validation import ClientValidationSchema
+        from app.core.schema.client_validation import ClientValidationSchema
         from pydantic import ValidationError
         with pytest.raises(ValidationError):
             ClientValidationSchema(name="T", opening_credit="-10")
 
     def test_client_credit_invalid(self):
-        from app.schemas.client_validation import ClientValidationSchema
+        from app.core.schema.client_validation import ClientValidationSchema
         from pydantic import ValidationError
         with pytest.raises(ValidationError):
             ClientValidationSchema(name="T", opening_credit="abc")
 
     # PaymentCreateSchema
     def test_payment_schema_valid(self):
-        from app.schemas.api_schemas import PaymentCreateSchema
+        from app.core.schema.api_validation import PaymentCreateSchema
         assert PaymentCreateSchema(client_id=1, amount="500.00").client_id == 1
 
     def test_payment_schema_no_client(self):
-        from app.schemas.api_schemas import PaymentCreateSchema
+        from app.core.schema.api_validation import PaymentCreateSchema
         from pydantic import ValidationError
         with pytest.raises(ValidationError): PaymentCreateSchema(client_id=None, amount="100")
 
     def test_payment_schema_empty_client(self):
-        from app.schemas.api_schemas import PaymentCreateSchema
+        from app.core.schema.api_validation import PaymentCreateSchema
         from pydantic import ValidationError
         with pytest.raises(ValidationError): PaymentCreateSchema(client_id="", amount="100")
 
     def test_payment_schema_invalid_client(self):
-        from app.schemas.api_schemas import PaymentCreateSchema
+        from app.core.schema.api_validation import PaymentCreateSchema
         from pydantic import ValidationError
         with pytest.raises(ValidationError): PaymentCreateSchema(client_id="abc", amount="100")
 
     def test_payment_schema_no_amount(self):
-        from app.schemas.api_schemas import PaymentCreateSchema
+        from app.core.schema.api_validation import PaymentCreateSchema
         from pydantic import ValidationError
         with pytest.raises(ValidationError): PaymentCreateSchema(client_id=1, amount=None)
 
     def test_payment_schema_int_amount(self):
-        from app.schemas.api_schemas import PaymentCreateSchema
+        from app.core.schema.api_validation import PaymentCreateSchema
         assert PaymentCreateSchema(client_id=1, amount=250).amount == Decimal("250")
 
     def test_payment_schema_european_amount(self):
-        from app.schemas.api_schemas import PaymentCreateSchema
+        from app.core.schema.api_validation import PaymentCreateSchema
         assert PaymentCreateSchema(client_id=1, amount="1 500,50").amount == Decimal("1500.50")
 
     def test_payment_schema_invalid_amount(self):
-        from app.schemas.api_schemas import PaymentCreateSchema
+        from app.core.schema.api_validation import PaymentCreateSchema
         from pydantic import ValidationError
         with pytest.raises(ValidationError): PaymentCreateSchema(client_id=1, amount="abc")
 
-    # PaymentCreate (schemas/payment.py)
+    # PaymentCreate (core/schema/payment_validation.py)
     def test_payment_create_valid(self):
-        from app.schemas.payment import PaymentCreate
+        from app.core.schema.payment_validation import PaymentCreate
         assert PaymentCreate(client_id=1, amount=Decimal("100"), payment_date="2026-05-31").payment_date == "2026-05-31"
 
     def test_payment_create_invalid_date(self):
-        from app.schemas.payment import PaymentCreate
+        from app.core.schema.payment_validation import PaymentCreate
         from pydantic import ValidationError
         with pytest.raises(ValidationError): PaymentCreate(client_id=1, amount=Decimal("100"), payment_date="31/05/2026")
 
-    # ProductionBatchCreate (schemas/production.py)
+    # ProductionBatchCreate (core/schema/production_validation.py)
     def test_production_batch_valid(self):
-        from app.schemas.production import ProductionBatchCreate, ProductionBatchItemInput
+        from app.core.schema.production_validation import ProductionBatchCreate, ProductionBatchItemInput
         b = ProductionBatchCreate(
             finished_product_id=1, output_quantity=Decimal("10"),
             production_date="2026-05-31",
@@ -1263,7 +1263,7 @@ class TestSchemas:
         assert b.production_date == "2026-05-31"
 
     def test_production_batch_invalid_date(self):
-        from app.schemas.production import ProductionBatchCreate, ProductionBatchItemInput
+        from app.core.schema.production_validation import ProductionBatchCreate, ProductionBatchItemInput
         from pydantic import ValidationError
         with pytest.raises(ValidationError):
             ProductionBatchCreate(

@@ -5,7 +5,7 @@ from sqlmodel import select, func, case, cast, Numeric, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Purchase, PurchaseDocument, Supplier, RawMaterial, FinishedProduct
-from app.repositories.base_repository import AsyncRepository
+from app.core.base_repository import AsyncRepository
 
 class PurchaseRepository(AsyncRepository[Purchase]):
     """Asynchronous repository for the Purchase model."""
