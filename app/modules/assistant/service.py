@@ -120,12 +120,111 @@ TABLE_SCHEMAS = {
         "unit_cost_snapshot* (NUMERIC), line_cost* (NUMERIC) "
         "— Matières premières consommées par lot de production"
     ),
+    "app_settings": (
+        "key* (TEXT primary key), value (TEXT), updated_at (TIMESTAMPTZ auto) "
+        "— Paramètres et configuration de l'application (ex: gdrive_backup_dir, backup_snapshot_time, backup_local_retention...)."
+    ),
+    "saved_recipes": (
+        "id* (BIGINT auto), finished_product_id* (INTEGER FK→finished_products), name* (TEXT), notes (TEXT), created_at* (TIMESTAMPTZ auto) "
+        "— Recettes enregistrées pour la production."
+    ),
+    "saved_recipe_items": (
+        "id* (BIGINT auto), recipe_id* (INTEGER FK→saved_recipes), raw_material_id* (INTEGER FK→raw_materials), quantity* (NUMERIC), position* (INTEGER défaut 0) "
+        "— Matières premières associées à une recette enregistrée."
+    ),
+    "stock_movements": (
+        "id* (BIGINT auto), item_kind* (TEXT: 'raw' ou 'finished'), item_id* (BIGINT), direction* (TEXT: 'in' ou 'out'), quantity* (NUMERIC), unit (TEXT), stock_before* (NUMERIC), stock_after* (NUMERIC), reason (TEXT), reference_type (TEXT: 'purchase', 'sale', 'raw_sale', 'production'), reference_id (BIGINT), created_at* (TIMESTAMPTZ auto) "
+        "— Historique détaillé des mouvements de stock."
+    ),
 }
 
 
 def get_schema() -> Dict[str, Any]:
     """Retourne la description de la structure de la base de données."""
     return {"schema": TABLE_SCHEMAS}
+
+
+ACTION_GUIDE = (
+    "GUIDE DES ACTIONS POSSIBLES (suit TOUJOURS ces étapes dans l'ordre) :\n"
+    "\n"
+    "=== CLIENTS ===\n"
+    "• Créer un client : INSERT INTO clients (name, phone, address, notes, opening_credit) VALUES (...)\n"
+    "• Modifier un client : 1) SELECT id FROM clients WHERE lower(name) LIKE '%nom%'; 2) UPDATE clients SET ... WHERE id=?\n"
+    "• Supprimer un client : DELETE FROM clients WHERE id=? (attention: vérifie d'abord s'il a des ventes/versements)\n"
+    "• Voir un client : SELECT * FROM clients WHERE lower(name) LIKE '%nom%'\n"
+    "\n"
+    "=== FOURNISSEURS ===\n"
+    "• Créer : INSERT INTO suppliers (name, phone, address, notes) VALUES (...)\n"
+    "• Modifier : UPDATE suppliers SET ... WHERE id=?\n"
+    "• Supprimer : DELETE FROM suppliers WHERE id=?\n"
+    "\n"
+    "=== PRODUITS FINIS ===\n"
+    "• Créer : INSERT INTO finished_products (name, default_unit, stock_qty, sale_price, avg_cost, alert_threshold) VALUES (...)\n"
+    "• Modifier : UPDATE finished_products SET sale_price=?, avg_cost=?, stock_qty=? WHERE id=?\n"
+    "• Supprimer : DELETE FROM finished_products WHERE id=?\n"
+    "• Voir stock : SELECT id, name, stock_qty, sale_price, avg_cost FROM finished_products ORDER BY name\n"
+    "\n"
+    "=== MATIÈRES PREMIÈRES ===\n"
+    "• Créer : INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold, threshold_qty) VALUES (...)\n"
+    "• Modifier : UPDATE raw_materials SET ... WHERE id=?\n"
+    "• Supprimer : DELETE FROM raw_materials WHERE id=?\n"
+    "• Voir stock : SELECT id, name, stock_qty, unit, avg_cost FROM raw_materials ORDER BY name\n"
+    "\n"
+    "=== VENTES (produits finis) ===\n"
+    "• Étape 1 : SELECT id,name FROM clients WHERE lower(name) LIKE '%?%'\n"
+    "• Étape 2 : SELECT id,name,sale_price,avg_cost,stock_qty,default_unit FROM finished_products WHERE lower(name) LIKE '%?%'\n"
+    "• Étape 3 : INSERT INTO sales (client_id,finished_product_id,quantity,unit,unit_price,total,sale_type,amount_paid,balance_due,cost_price_snapshot,profit_amount,sale_date) VALUES (...)\n"
+    "  → sale_type: 'cash' (payé cash) ou 'credit' (crédit)\n"
+    "  → amount_paid = total si cash, sinon acompte versé (peut être 0)\n"
+    "  → balance_due = total - amount_paid\n"
+    "  → cost_price_snapshot = avg_cost du produit\n"
+    "  → profit_amount = (unit_price - avg_cost) * quantity\n"
+    "• Étape 4 : UPDATE finished_products SET stock_qty = stock_qty - [qty] WHERE id=?\n"
+    "\n"
+    "=== VENTES (matières premières) ===\n"
+    "• Identique aux ventes produits finis mais avec raw_sales et raw_material_id au lieu de finished_product_id\n"
+    "• Étape 4 : UPDATE raw_materials SET stock_qty = stock_qty - [qty] WHERE id=?\n"
+    "\n"
+    "=== ACHATS ===\n"
+    "• Étape 1 : SELECT id,name FROM suppliers WHERE lower(name) LIKE '%?%' (optionnel)\n"
+    "• Étape 2 : SELECT id,name,unit FROM raw_materials WHERE lower(name) LIKE '%?%' (ou finished_products)\n"
+    "• Étape 3 : INSERT INTO purchases (supplier_id,raw_material_id,quantity,unit,unit_price,total,purchase_date) VALUES (...)\n"
+    "• Étape 4 : UPDATE raw_materials SET stock_qty=stock_qty+[qty], avg_cost=[unit_price] WHERE id=?\n"
+    "\n"
+    "=== VERSEMENTS / PAIEMENTS ===\n"
+    "• Étape 1 : SELECT id,name FROM clients WHERE lower(name) LIKE '%?%'\n"
+    "• Étape 2 : INSERT INTO payments (client_id, payment_type, amount, payment_date) VALUES (?, 'versement', ?, CURRENT_DATE)\n"
+    "  → payment_type TOUJOURS 'versement' ou 'avance' — jamais 'cash','cheque','virement'\n"
+    "\n"
+    "=== PRODUCTION ===\n"
+    "• Étape 1 : SELECT id,name,avg_cost FROM finished_products WHERE lower(name) LIKE '%?%'\n"
+    "• Étape 2 : INSERT INTO production_batches (finished_product_id,output_quantity,production_cost,unit_cost,production_date) VALUES (...)\n"
+    "• Étape 3 : INSERT INTO production_batch_items (batch_id,raw_material_id,quantity,unit_cost_snapshot,line_cost) VALUES (...)\n"
+    "• Étape 4 : UPDATE finished_products SET stock_qty=stock_qty+[qty] WHERE id=?\n"
+    "• Étape 5 : UPDATE raw_materials SET stock_qty=stock_qty-[qty] WHERE id=? (pour chaque matière consommée)\n"
+    "\n"
+    "=== RECETTES DE PRODUCTION ===\n"
+    "• Créer une recette : 1) SELECT id FROM finished_products WHERE name=?; 2) INSERT INTO saved_recipes (finished_product_id, name, notes) VALUES (?, ?, ?);\n"
+    "• Associer des ingrédients à la recette : INSERT INTO saved_recipe_items (recipe_id, raw_material_id, quantity, position) VALUES (?, ?, ?, ?);\n"
+    "• Voir les recettes : SELECT r.id, r.name, p.name AS product_name FROM saved_recipes r JOIN finished_products p ON p.id=r.finished_product_id;\n"
+    "\n"
+    "=== DÉPENSES ===\n"
+    "• Créer : INSERT INTO expenses (date, category, description, amount, payment_method) VALUES (...)\n"
+    "• Modifier : UPDATE expenses SET ... WHERE id=?\n"
+    "• Supprimer : DELETE FROM expenses WHERE id=?\n"
+    "• Voir : SELECT * FROM expenses ORDER BY date DESC\n"
+    "\n"
+    "=== PARAMÈTRES / CONFIGURATION ===\n"
+    "• Voir les paramètres : SELECT key, value FROM app_settings;\n"
+    "• Modifier ou ajouter un paramètre : INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP;\n"
+    "\n"
+    "=== RAPPORTS / STATS ===\n"
+    "• Chiffre d'affaires : SELECT SUM(total) FROM sales WHERE sale_date BETWEEN '...' AND '...'\n"
+    "• Achats : SELECT SUM(total) FROM purchases WHERE purchase_date BETWEEN ...\n"
+    "• Versements reçus : SELECT SUM(amount) FROM payments WHERE payment_date BETWEEN ...\n"
+    "• Solde client : SELECT c.name, SUM(s.balance_due) - SUM(COALESCE(p.amount,0)) AS solde FROM clients c LEFT JOIN sales s ON s.client_id=c.id LEFT JOIN payments p ON p.client_id=c.id GROUP BY c.name\n"
+)
+
 
 from decimal import Decimal
 from datetime import date, datetime
@@ -253,6 +352,7 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_na
         "Utilise le formatage Markdown (tableaux, listes, gras) pour rendre les données lisibles.\n\n"
         f"SCHÉMA DE LA BASE DE DONNÉES (utilise-le directement sans appeler get_schema) :\n{schema_text}\n\n"
         f"{app_routes}\n"
+        f"{ACTION_GUIDE}\n"
         "Pour LIRE des données → utilise `execute_readonly_sql`.\n"
         "Pour AJOUTER, MODIFIER ou SUPPRIMER des données → utilise `execute_write_sql` uniquement si l'utilisateur le demande explicitement.\n"
         "Quand l'utilisateur veut naviguer vers une section, donne-lui le lien sous forme de chemin (ex: /operations/payments/new).\n"
@@ -262,6 +362,7 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_na
         "2. N'accède jamais à la table 'users'.\n"
         "3. N'exécute jamais DROP, ALTER ou TRUNCATE."
     )
+
     
     payload = {
         "contents": contents,
@@ -332,6 +433,7 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
         "Utilise le Markdown pour formater les réponses (tableaux, listes, gras).\n\n"
         f"SCHÉMA DE LA BASE DE DONNÉES :\n{schema_text}\n\n"
         f"{app_routes_ollama}\n"
+        f"{ACTION_GUIDE}\n"
         "Pour LIRE des données → utilise execute_readonly_sql.\n"
         "Pour CRÉER, MODIFIER ou SUPPRIMER des données → utilise execute_write_sql "
         "uniquement si l'utilisateur le demande explicitement.\n"
@@ -339,6 +441,7 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
         "Réponds à TOUTES les questions (générales, calculs, traductions, etc.).\n"
         "Règles : N'accède jamais à la table 'users'. N'exécute jamais DROP, ALTER ou TRUNCATE."
     )
+
 
     # Outils en format OpenAI (compatible Ollama)
     tools = [
