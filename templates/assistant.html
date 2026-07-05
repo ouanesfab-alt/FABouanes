@@ -825,9 +825,19 @@
     chatMessages.addEventListener('click', function(e) {
       const copyBtn = e.target.closest('.btn-copy');
       if (copyBtn) {
-        const bubble = copyBtn.closest('.chat-bubble');
-        // Extract text ignoring button labels
-        const textNode = bubble.innerText.replace(/[\n\s]*Copier[\n\s]*Lire à haute voix/g, '').trim();
+        // Pour les bulles IA : le bouton est DANS la bulle
+        // Pour les bulles user : le bouton est HORS de la bulle (dans le wrapper)
+        let bubble = copyBtn.closest('.chat-bubble');
+        if (!bubble) {
+          // Cherche la bulle sœur dans le wrapper parent
+          bubble = copyBtn.closest('div')?.parentElement?.querySelector('.chat-bubble');
+        }
+        if (!bubble) return;
+        // Extraire le texte en ignorant les labels des boutons
+        const textNode = bubble.innerText
+          .replace(/\n?\s*Copier\s*/g, '')
+          .replace(/\n?\s*Lire à haute voix\s*/g, '')
+          .trim();
         navigator.clipboard.writeText(textNode).then(() => {
           const origHTML = copyBtn.innerHTML;
           copyBtn.innerHTML = '<i class="bi bi-check2 text-success"></i> Copié';
@@ -854,27 +864,43 @@
     });
 
     function appendMessage(role, text) {
-      const bubble = document.createElement('div');
-      bubble.className = `chat-bubble ${role}`;
-      bubble.innerHTML = parseMarkdown(text);
+      if (role === 'user') {
+        // Wrapper aligné à droite : bulle + bouton Copier en dessous, même style que l'IA
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;gap:2px;';
 
-      // Append action bar for model responses AND user messages
-      if (role === 'model' || role === 'user') {
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble user';
+        bubble.innerHTML = parseMarkdown(text);
+
         const actions = document.createElement('div');
-        actions.className = 'chat-bubble-actions mt-2';
+        actions.className = 'chat-bubble-actions';
+        actions.style.cssText = 'justify-content:flex-end;';
+        actions.innerHTML = `<button class="bubble-action-btn btn-copy"><i class="bi bi-clipboard"></i> Copier</button>`;
+
+        wrapper.appendChild(bubble);
+        wrapper.appendChild(actions);
+        chatMessages.appendChild(wrapper);
+
+      } else {
+        // Bulles IA et system : comportement habituel
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble ${role}`;
+        bubble.innerHTML = parseMarkdown(text);
+
         if (role === 'model') {
+          const actions = document.createElement('div');
+          actions.className = 'chat-bubble-actions mt-2';
           actions.innerHTML = `
             <button class="bubble-action-btn btn-copy"><i class="bi bi-clipboard"></i> Copier</button>
             <button class="bubble-action-btn btn-speak"><i class="bi bi-volume-up"></i> Lire à haute voix</button>
           `;
-        } else {
-          // User bubble — only copy button, styled for light background
-          actions.innerHTML = `<button class="bubble-action-btn btn-copy" style="color: rgba(255,255,255,0.7);"><i class="bi bi-clipboard"></i> Copier</button>`;
+          bubble.appendChild(actions);
         }
-        bubble.appendChild(actions);
+
+        chatMessages.appendChild(bubble);
       }
 
-      chatMessages.appendChild(bubble);
       scrollToBottom();
     }
 
