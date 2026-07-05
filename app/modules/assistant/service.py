@@ -120,7 +120,7 @@ async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> s
             res = await call_gemini_api(contents, api_key)
         except Exception as exc:
             logger.error("Erreur d'appel API Gemini: %s", exc)
-            return "Désolé, impossible de joindre l'API Gemini. Vérifiez votre clé d'API dans les paramètres."
+            return f"Désolé, impossible de joindre l'API Gemini ({str(exc)}). Vérifiez votre clé d'API dans les paramètres."
 
         candidates = res.get("candidates", [])
         if not candidates:
