@@ -12,22 +12,26 @@ TABLE_SCHEMAS = {
     "clients": (
         "id* (BIGINT auto), name* (TEXT), phone (TEXT), address (TEXT), notes (TEXT), "
         "opening_credit* (NUMERIC défaut 0), credit_limit (NUMERIC), created_at* (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
-        "— Liste des clients"
+        "— Liste des clients. "
+        "IMPORTANT: Avant INSERT une vente ou versement, vérifier que le client existe via SELECT id, name FROM clients."
     ),
     "suppliers": (
         "id* (BIGINT auto), name* (TEXT), phone (TEXT), address (TEXT), notes (TEXT), "
         "created_at* (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
-        "— Liste des fournisseurs"
+        "— Liste des fournisseurs. "
+        "IMPORTANT: Avant INSERT un achat, vérifier que le fournisseur existe via SELECT id, name FROM suppliers."
     ),
     "raw_materials": (
         "id* (BIGINT auto), name* (TEXT), unit* (TEXT), stock_qty* (NUMERIC), avg_cost* (NUMERIC), "
         "sale_price* (NUMERIC), alert_threshold* (NUMERIC), threshold_qty* (NUMERIC), updated_at (TIMESTAMPTZ) "
-        "— Matières premières en stock"
+        "— Matières premières en stock. "
+        "IMPORTANT: Avant INSERT un achat ou vente de matière, vérifier que la matière existe via SELECT id, name, unit FROM raw_materials."
     ),
     "finished_products": (
         "id* (BIGINT auto), name* (TEXT), default_unit* (TEXT), stock_qty* (NUMERIC), "
         "sale_price* (NUMERIC), avg_cost* (NUMERIC), alert_threshold* (NUMERIC), updated_at (TIMESTAMPTZ) "
-        "— Produits finis en stock"
+        "— Produits finis en stock. "
+        "IMPORTANT: Avant INSERT une vente de produit fini, vérifier que le produit existe via SELECT id, name, avg_cost, sale_price FROM finished_products."
     ),
     "purchases": (
         "id* (BIGINT auto), supplier_id (INTEGER FK→suppliers), document_id (INTEGER), "
@@ -36,53 +40,79 @@ TABLE_SCHEMAS = {
         "purchase_date* (DATE), notes (TEXT), custom_item_name (TEXT), "
         "created_at* (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
         "— Achats (matières premières ou produits finis). "
-        "IMPORTANT: Ne PAS spécifier 'id' dans INSERT (auto-généré). "
-        "Après INSERT dans purchases, faire un UPDATE séparé sur raw_materials.stock_qty ou finished_products.stock_qty."
+        "RÈGLE ABSOLUE: Ne PAS spécifier 'id' dans INSERT (auto-généré). "
+        "Il faut OBLIGATOIREMENT soit raw_material_id soit finished_product_id (sinon la ligne n'apparaît pas). "
+        "Étapes pour créer un achat: "
+        "1) SELECT id,name FROM suppliers; "
+        "2) SELECT id,name FROM raw_materials (ou finished_products); "
+        "3) INSERT INTO purchases (supplier_id, raw_material_id, quantity, unit, unit_price, total, purchase_date) VALUES (...); "
+        "4) UPDATE raw_materials SET stock_qty = stock_qty + [quantity], avg_cost = [unit_price] WHERE id = [id];"
     ),
     "sales": (
         "id* (BIGINT auto), client_id (INTEGER FK→clients), document_id (INTEGER), "
-        "finished_product_id* (INTEGER FK→finished_products), quantity* (NUMERIC), unit* (TEXT), "
-        "unit_price* (NUMERIC), total* (NUMERIC), sale_type* (TEXT: 'cash' ou 'credit'), "
-        "amount_paid* (NUMERIC), balance_due* (NUMERIC), cost_price_snapshot* (NUMERIC), "
-        "profit_amount* (NUMERIC), sale_date* (DATE), notes (TEXT), "
+        "finished_product_id* (INTEGER FK→finished_products — OBLIGATOIRE, pas NULL !), quantity* (NUMERIC), unit* (TEXT), "
+        "unit_price* (NUMERIC), total* (NUMERIC), sale_type* (TEXT: 'cash' si payé immédiatement, 'credit' si paiement différé), "
+        "amount_paid* (NUMERIC: = total si cash, = acompte si credit, = 0 si rien payé), "
+        "balance_due* (NUMERIC: = 0 si cash, = total - amount_paid si credit), "
+        "cost_price_snapshot* (NUMERIC: = avg_cost du produit au moment de la vente — lire dans finished_products.avg_cost), "
+        "profit_amount* (NUMERIC: = (unit_price - cost_price_snapshot) * quantity), "
+        "sale_date* (DATE), notes (TEXT), "
         "created_at* (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
         "— Ventes de produits finis. "
-        "IMPORTANT: Ne PAS spécifier 'id' dans INSERT. "
-        "Après INSERT dans sales, faire UPDATE finished_products SET stock_qty = stock_qty - quantity."
+        "RÈGLE ABSOLUE: finished_product_id ne peut PAS être NULL — sinon la ligne n'apparaît PAS dans les opérations. "
+        "RÈGLE ABSOLUE: Ne PAS spécifier 'id' dans INSERT. "
+        "Étapes pour créer une vente de produit fini: "
+        "1) SELECT id,name FROM clients WHERE lower(name) LIKE '%nom%'; "
+        "2) SELECT id,name,sale_price,avg_cost,stock_qty,default_unit FROM finished_products WHERE lower(name) LIKE '%produit%'; "
+        "3) INSERT INTO sales (client_id, finished_product_id, quantity, unit, unit_price, total, sale_type, amount_paid, balance_due, cost_price_snapshot, profit_amount, sale_date) VALUES (...); "
+        "4) UPDATE finished_products SET stock_qty = stock_qty - [quantity] WHERE id = [id];"
     ),
     "raw_sales": (
         "id* (BIGINT auto), client_id (INTEGER FK→clients), document_id (INTEGER), "
-        "raw_material_id* (INTEGER FK→raw_materials), quantity* (NUMERIC), unit* (TEXT), "
+        "raw_material_id* (INTEGER FK→raw_materials — OBLIGATOIRE, pas NULL !), quantity* (NUMERIC), unit* (TEXT), "
         "unit_price* (NUMERIC), total* (NUMERIC), sale_type* (TEXT: 'cash' ou 'credit'), "
-        "amount_paid* (NUMERIC), balance_due* (NUMERIC), cost_price_snapshot* (NUMERIC), "
-        "profit_amount* (NUMERIC), sale_date* (DATE), notes (TEXT), custom_item_name (TEXT), "
+        "amount_paid* (NUMERIC), balance_due* (NUMERIC), cost_price_snapshot* (NUMERIC: avg_cost de la matière), "
+        "profit_amount* (NUMERIC: = (unit_price - cost_price_snapshot) * quantity), "
+        "sale_date* (DATE), notes (TEXT), custom_item_name (TEXT), "
         "created_at* (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
         "— Ventes de matières premières. "
-        "IMPORTANT: Ne PAS spécifier 'id' dans INSERT. "
-        "Après INSERT dans raw_sales, faire UPDATE raw_materials SET stock_qty = stock_qty - quantity."
+        "RÈGLE ABSOLUE: raw_material_id ne peut PAS être NULL — sinon la ligne n'apparaît PAS dans les opérations. "
+        "RÈGLE ABSOLUE: Ne PAS spécifier 'id' dans INSERT. "
+        "Étapes pour créer une vente de matière première: "
+        "1) SELECT id,name FROM clients WHERE lower(name) LIKE '%nom%'; "
+        "2) SELECT id,name,sale_price,avg_cost,stock_qty,unit FROM raw_materials WHERE lower(name) LIKE '%matière%'; "
+        "3) INSERT INTO raw_sales (client_id, raw_material_id, quantity, unit, unit_price, total, sale_type, amount_paid, balance_due, cost_price_snapshot, profit_amount, sale_date) VALUES (...); "
+        "4) UPDATE raw_materials SET stock_qty = stock_qty - [quantity] WHERE id = [id];"
     ),
     "payments": (
-        "id* (BIGINT auto), client_id* (INTEGER FK→clients), sale_id (INTEGER FK→sales optionnel), "
+        "id* (BIGINT auto), client_id* (INTEGER FK→clients — OBLIGATOIRE, pas NULL !), "
+        "sale_id (INTEGER FK→sales optionnel), "
         "raw_sale_id (INTEGER FK→raw_sales optionnel), "
         "sale_kind (TEXT: 'finished' si lié à une vente produit fini, 'raw' si lié à une vente matière première, NULL si versement général), "
-        "payment_type* (TEXT: TOUJOURS 'versement' pour un versement client, ou 'avance' pour une avance — NE PAS mettre 'cash', 'cheque' ou 'virement' ici !), "
+        "payment_type* (TEXT: TOUJOURS 'versement' pour un versement client, ou 'avance' pour une avance — NE JAMAIS mettre 'cash', 'cheque' ou 'virement' ici !), "
         "allocation_meta (TEXT JSON optionnel), amount* (NUMERIC), payment_date* (DATE), notes (TEXT), "
         "created_at* (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
         "— Paiements/versements reçus des clients. "
-        "IMPORTANT: Ne PAS spécifier 'id' dans INSERT (auto-généré). "
-        "payment_type doit être 'versement' (défaut DB) ou 'avance' — jamais autre chose."
+        "RÈGLE ABSOLUE: client_id ne peut PAS être NULL — sinon la ligne n'apparaît PAS. "
+        "RÈGLE ABSOLUE: payment_type doit être 'versement' ou 'avance' — jamais autre chose. "
+        "RÈGLE ABSOLUE: Ne PAS spécifier 'id' dans INSERT. "
+        "Étapes pour créer un versement: "
+        "1) SELECT id,name FROM clients WHERE lower(name) LIKE '%nom%'; "
+        "2) INSERT INTO payments (client_id, payment_type, amount, payment_date) VALUES ([id], 'versement', [montant], CURRENT_DATE);"
     ),
     "expenses": (
         "id* (BIGINT auto), date* (DATE), category* (TEXT), description (TEXT), "
         "amount* (NUMERIC), payment_method (TEXT), "
         "created_at (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
-        "— Dépenses et charges"
+        "— Dépenses et charges. "
+        "RÈGLE: Ne PAS spécifier 'id' dans INSERT."
     ),
     "production_batches": (
         "id* (BIGINT auto), finished_product_id* (INTEGER FK→finished_products), "
         "output_quantity* (NUMERIC), production_cost* (NUMERIC), unit_cost* (NUMERIC), "
         "production_date* (DATE), notes (TEXT) "
-        "— Lots de production de produits finis"
+        "— Lots de production de produits finis. "
+        "RÈGLE: Ne PAS spécifier 'id' dans INSERT."
     ),
     "production_batch_items": (
         "id* (BIGINT auto), batch_id* (INTEGER FK→production_batches), "
@@ -91,6 +121,7 @@ TABLE_SCHEMAS = {
         "— Matières premières consommées par lot de production"
     ),
 }
+
 
 def get_schema() -> Dict[str, Any]:
     """Retourne la description de la structure de la base de données."""
