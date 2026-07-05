@@ -62,11 +62,15 @@ TABLE_SCHEMAS = {
         "Après INSERT dans raw_sales, faire UPDATE raw_materials SET stock_qty = stock_qty - quantity."
     ),
     "payments": (
-        "id* (BIGINT auto), client_id* (INTEGER FK→clients), sale_id (INTEGER), raw_sale_id (INTEGER), "
-        "sale_kind (TEXT: 'sale' ou 'raw_sale'), payment_type* (TEXT: 'cash','cheque','virement',...), "
-        "allocation_meta (TEXT JSON), amount* (NUMERIC), payment_date* (DATE), notes (TEXT), "
+        "id* (BIGINT auto), client_id* (INTEGER FK→clients), sale_id (INTEGER FK→sales optionnel), "
+        "raw_sale_id (INTEGER FK→raw_sales optionnel), "
+        "sale_kind (TEXT: 'finished' si lié à une vente produit fini, 'raw' si lié à une vente matière première, NULL si versement général), "
+        "payment_type* (TEXT: TOUJOURS 'versement' pour un versement client, ou 'avance' pour une avance — NE PAS mettre 'cash', 'cheque' ou 'virement' ici !), "
+        "allocation_meta (TEXT JSON optionnel), amount* (NUMERIC), payment_date* (DATE), notes (TEXT), "
         "created_at* (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
-        "— Paiements/règlements reçus des clients"
+        "— Paiements/versements reçus des clients. "
+        "IMPORTANT: Ne PAS spécifier 'id' dans INSERT (auto-généré). "
+        "payment_type doit être 'versement' (défaut DB) ou 'avance' — jamais autre chose."
     ),
     "expenses": (
         "id* (BIGINT auto), date* (DATE), category* (TEXT), description (TEXT), "
