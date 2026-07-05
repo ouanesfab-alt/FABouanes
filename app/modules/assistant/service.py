@@ -144,79 +144,144 @@ def get_schema() -> Dict[str, Any]:
     return {"schema": TABLE_SCHEMAS}
 
 
+# Mapping: table → lien de formulaire de création et de liste
+FORM_LINKS = {
+    "clients":             ("/contacts/clients/new", "/contacts/clients"),
+    "suppliers":           ("/contacts/suppliers/new", "/contacts/suppliers"),
+    "finished_products":   ("/products/new", "/products"),
+    "raw_materials":       ("/raw-materials/new", "/raw-materials"),
+    "sales":               ("/operations/sales/new", "/operations"),
+    "raw_sales":           ("/operations/sales/new", "/operations"),
+    "purchases":           ("/operations/purchases/new", "/operations"),
+    "payments":            ("/operations/payments/new", "/operations"),
+    "expenses":            ("/expenses/new", "/expenses"),
+    "production_batches":  ("/production/new", "/production"),
+}
+
+# Mapping: table → type d'impression (pour les liens /print/{doc_type}/{id})
+PRINT_DOC_TYPES = {
+    "sales":               "sale_finished",
+    "raw_sales":           "sale_raw",
+    "purchases":           "purchase",
+    "payments":            "payment",
+    "production_batches":  "production",
+}
+
 ACTION_GUIDE = (
     "GUIDE DES ACTIONS POSSIBLES (suit TOUJOURS ces étapes dans l'ordre) :\n"
     "\n"
+    "=== RÈGLES DE COMPORTEMENT IMPORTANTES ===\n"
+    "• TOUJOURS utiliser RETURNING id à la fin de chaque INSERT pour récupérer l'ID créé.\n"
+    "  Exemple : INSERT INTO clients (...) VALUES (...) RETURNING id;\n"
+    "• VÉRIFIER le stock avant toute vente : SELECT stock_qty FROM finished_products WHERE id=?\n"
+    "  Si stock_qty < quantité demandée → REFUSER la vente et informer l'utilisateur.\n"
+    "• Après chaque création réussie, inclure dans la réponse Markdown :\n"
+    "  - Un lien vers la liste : ex: [→ Voir les opérations](/operations)\n"
+    "  - Un lien vers l'impression si applicable : ex: [🖨️ Imprimer le bon](/print/sale_finished/{id})\n"
+    "  - Un lien PDF si applicable : ex: [📄 Télécharger PDF](/print/sale_finished/{id}?format=pdf)\n"
+    "• Si l'utilisateur dit 'ouvre le formulaire' ou 'montre-moi le formulaire' ou 'je veux remplir moi-même' :\n"
+    "  → Ne PAS faire l'INSERT. Donner uniquement le lien du formulaire.\n"
+    "\n"
+    "=== FORMULAIRES DISPONIBLES (pour ouvrir manuellement) ===\n"
+    "• Nouveau client → /contacts/clients/new\n"
+    "• Nouveau fournisseur → /contacts/suppliers/new\n"
+    "• Nouveau produit fini → /products/new\n"
+    "• Nouvelle matière première → /raw-materials/new\n"
+    "• Nouvelle vente → /operations/sales/new\n"
+    "• Nouvel achat → /operations/purchases/new\n"
+    "• Nouveau versement → /operations/payments/new\n"
+    "• Nouvelle dépense → /expenses/new\n"
+    "• Nouveau lot de production → /production/new\n"
+    "\n"
+    "=== LIENS D'IMPRESSION (après création, remplacer {id} par l'ID réel) ===\n"
+    "• Bon de vente produit fini : /print/sale_finished/{id} | PDF : /print/sale_finished/{id}?format=pdf\n"
+    "• Bon de vente matière première : /print/sale_raw/{id} | PDF : /print/sale_raw/{id}?format=pdf\n"
+    "• Bon d'achat : /print/purchase/{id} | PDF : /print/purchase/{id}?format=pdf\n"
+    "• Reçu de versement : /print/payment/{id} | PDF : /print/payment/{id}?format=pdf\n"
+    "• Bon de production : /print/production/{id} | PDF : /print/production/{id}?format=pdf\n"
+    "\n"
     "=== CLIENTS ===\n"
-    "• Créer un client : INSERT INTO clients (name, phone, address, notes, opening_credit) VALUES (...)\n"
-    "• Modifier un client : 1) SELECT id FROM clients WHERE lower(name) LIKE '%nom%'; 2) UPDATE clients SET ... WHERE id=?\n"
-    "• Supprimer un client : DELETE FROM clients WHERE id=? (attention: vérifie d'abord s'il a des ventes/versements)\n"
-    "• Voir un client : SELECT * FROM clients WHERE lower(name) LIKE '%nom%'\n"
+    "• Créer un client : INSERT INTO clients (name, phone, address, notes, opening_credit) VALUES (...) RETURNING id\n"
+    "  Après création : ✅ Client créé. [→ Voir les clients](/contacts/clients)\n"
+    "• Modifier : 1) SELECT id FROM clients WHERE lower(name) LIKE '%nom%'; 2) UPDATE clients SET ... WHERE id=?\n"
+    "• Supprimer : DELETE FROM clients WHERE id=? (vérifier d'abord s'il a des ventes/versements)\n"
+    "• Voir : SELECT * FROM clients WHERE lower(name) LIKE '%nom%'\n"
     "\n"
     "=== FOURNISSEURS ===\n"
-    "• Créer : INSERT INTO suppliers (name, phone, address, notes) VALUES (...)\n"
+    "• Créer : INSERT INTO suppliers (name, phone, address, notes) VALUES (...) RETURNING id\n"
+    "  Après création : ✅ Fournisseur créé. [→ Voir les fournisseurs](/contacts/suppliers)\n"
     "• Modifier : UPDATE suppliers SET ... WHERE id=?\n"
     "• Supprimer : DELETE FROM suppliers WHERE id=?\n"
     "\n"
     "=== PRODUITS FINIS ===\n"
-    "• Créer : INSERT INTO finished_products (name, default_unit, stock_qty, sale_price, avg_cost, alert_threshold) VALUES (...)\n"
+    "• Créer : INSERT INTO finished_products (name, default_unit, stock_qty, sale_price, avg_cost, alert_threshold) VALUES (...) RETURNING id\n"
+    "  Après création : ✅ Produit créé. [→ Voir le catalogue](/products)\n"
     "• Modifier : UPDATE finished_products SET sale_price=?, avg_cost=?, stock_qty=? WHERE id=?\n"
     "• Supprimer : DELETE FROM finished_products WHERE id=?\n"
     "• Voir stock : SELECT id, name, stock_qty, sale_price, avg_cost FROM finished_products ORDER BY name\n"
     "\n"
     "=== MATIÈRES PREMIÈRES ===\n"
-    "• Créer : INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold, threshold_qty) VALUES (...)\n"
+    "• Créer : INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold, threshold_qty) VALUES (...) RETURNING id\n"
+    "  Après création : ✅ Matière créée. [→ Voir les matières](/raw-materials)\n"
     "• Modifier : UPDATE raw_materials SET ... WHERE id=?\n"
     "• Supprimer : DELETE FROM raw_materials WHERE id=?\n"
     "• Voir stock : SELECT id, name, stock_qty, unit, avg_cost FROM raw_materials ORDER BY name\n"
     "\n"
     "=== VENTES (produits finis) ===\n"
+    "• Étape 0 : VÉRIFIER LE STOCK : SELECT stock_qty FROM finished_products WHERE id=? → Si stock_qty < qty STOP et prévenir l'utilisateur.\n"
     "• Étape 1 : SELECT id,name FROM clients WHERE lower(name) LIKE '%?%'\n"
     "• Étape 2 : SELECT id,name,sale_price,avg_cost,stock_qty,default_unit FROM finished_products WHERE lower(name) LIKE '%?%'\n"
-    "• Étape 3 : INSERT INTO sales (client_id,finished_product_id,quantity,unit,unit_price,total,sale_type,amount_paid,balance_due,cost_price_snapshot,profit_amount,sale_date) VALUES (...)\n"
-    "  → sale_type: 'cash' (payé cash) ou 'credit' (crédit)\n"
-    "  → amount_paid = total si cash, sinon acompte versé (peut être 0)\n"
+    "• Étape 3 : INSERT INTO sales (client_id,finished_product_id,quantity,unit,unit_price,total,sale_type,amount_paid,balance_due,cost_price_snapshot,profit_amount,sale_date) VALUES (...) RETURNING id\n"
+    "  → sale_type: 'cash' ou 'credit'\n"
+    "  → amount_paid = total si cash, sinon acompte (peut être 0)\n"
     "  → balance_due = total - amount_paid\n"
     "  → cost_price_snapshot = avg_cost du produit\n"
     "  → profit_amount = (unit_price - avg_cost) * quantity\n"
     "• Étape 4 : UPDATE finished_products SET stock_qty = stock_qty - [qty] WHERE id=?\n"
+    "• Réponse finale : ✅ Vente créée (ID={id}). [→ Voir les opérations](/operations) | [🖨️ Bon de vente](/print/sale_finished/{id}) | [📄 PDF](/print/sale_finished/{id}?format=pdf)\n"
     "\n"
     "=== VENTES (matières premières) ===\n"
-    "• Identique aux ventes produits finis mais avec raw_sales et raw_material_id au lieu de finished_product_id\n"
+    "• Identique aux ventes produits finis mais avec raw_sales et raw_material_id.\n"
     "• Étape 4 : UPDATE raw_materials SET stock_qty = stock_qty - [qty] WHERE id=?\n"
+    "• Réponse finale : ✅ Vente créée (ID={id}). [→ Voir les opérations](/operations) | [🖨️ Bon de vente](/print/sale_raw/{id}) | [📄 PDF](/print/sale_raw/{id}?format=pdf)\n"
     "\n"
     "=== ACHATS ===\n"
     "• Étape 1 : SELECT id,name FROM suppliers WHERE lower(name) LIKE '%?%' (optionnel)\n"
     "• Étape 2 : SELECT id,name,unit FROM raw_materials WHERE lower(name) LIKE '%?%' (ou finished_products)\n"
-    "• Étape 3 : INSERT INTO purchases (supplier_id,raw_material_id,quantity,unit,unit_price,total,purchase_date) VALUES (...)\n"
+    "• Étape 3 : INSERT INTO purchases (supplier_id,raw_material_id,quantity,unit,unit_price,total,purchase_date) VALUES (...) RETURNING id\n"
     "• Étape 4 : UPDATE raw_materials SET stock_qty=stock_qty+[qty], avg_cost=[unit_price] WHERE id=?\n"
+    "• Réponse finale : ✅ Achat créé (ID={id}). [→ Voir les opérations](/operations) | [🖨️ Bon d'achat](/print/purchase/{id}) | [📄 PDF](/print/purchase/{id}?format=pdf)\n"
     "\n"
     "=== VERSEMENTS / PAIEMENTS ===\n"
     "• Étape 1 : SELECT id,name FROM clients WHERE lower(name) LIKE '%?%'\n"
-    "• Étape 2 : INSERT INTO payments (client_id, payment_type, amount, payment_date) VALUES (?, 'versement', ?, CURRENT_DATE)\n"
+    "• Étape 2 : INSERT INTO payments (client_id, payment_type, amount, payment_date) VALUES (?, 'versement', ?, CURRENT_DATE) RETURNING id\n"
     "  → payment_type TOUJOURS 'versement' ou 'avance' — jamais 'cash','cheque','virement'\n"
+    "• Réponse finale : ✅ Versement enregistré (ID={id}). [→ Voir les opérations](/operations) | [🖨️ Reçu](/print/payment/{id}) | [📄 PDF](/print/payment/{id}?format=pdf)\n"
     "\n"
     "=== PRODUCTION ===\n"
     "• Étape 1 : SELECT id,name,avg_cost FROM finished_products WHERE lower(name) LIKE '%?%'\n"
-    "• Étape 2 : INSERT INTO production_batches (finished_product_id,output_quantity,production_cost,unit_cost,production_date) VALUES (...)\n"
+    "• Étape 2 : INSERT INTO production_batches (finished_product_id,output_quantity,production_cost,unit_cost,production_date) VALUES (...) RETURNING id\n"
     "• Étape 3 : INSERT INTO production_batch_items (batch_id,raw_material_id,quantity,unit_cost_snapshot,line_cost) VALUES (...)\n"
     "• Étape 4 : UPDATE finished_products SET stock_qty=stock_qty+[qty] WHERE id=?\n"
     "• Étape 5 : UPDATE raw_materials SET stock_qty=stock_qty-[qty] WHERE id=? (pour chaque matière consommée)\n"
+    "• Réponse finale : ✅ Lot de production créé (ID={id}). [→ Voir la production](/production) | [🖨️ Bon de production](/print/production/{id}) | [📄 PDF](/print/production/{id}?format=pdf)\n"
     "\n"
     "=== RECETTES DE PRODUCTION ===\n"
-    "• Créer une recette : 1) SELECT id FROM finished_products WHERE name=?; 2) INSERT INTO saved_recipes (finished_product_id, name, notes) VALUES (?, ?, ?);\n"
-    "• Associer des ingrédients à la recette : INSERT INTO saved_recipe_items (recipe_id, raw_material_id, quantity, position) VALUES (?, ?, ?, ?);\n"
+    "• Créer une recette : 1) SELECT id FROM finished_products WHERE name=?; 2) INSERT INTO saved_recipes (finished_product_id, name, notes) VALUES (?, ?, ?) RETURNING id;\n"
+    "• Associer des ingrédients : INSERT INTO saved_recipe_items (recipe_id, raw_material_id, quantity, position) VALUES (?, ?, ?, ?);\n"
     "• Voir les recettes : SELECT r.id, r.name, p.name AS product_name FROM saved_recipes r JOIN finished_products p ON p.id=r.finished_product_id;\n"
     "\n"
     "=== DÉPENSES ===\n"
-    "• Créer : INSERT INTO expenses (date, category, description, amount, payment_method) VALUES (...)\n"
+    "• Créer : INSERT INTO expenses (date, category, description, amount, payment_method) VALUES (...) RETURNING id\n"
+    "  Après création : ✅ Dépense enregistrée. [→ Voir les dépenses](/expenses)\n"
     "• Modifier : UPDATE expenses SET ... WHERE id=?\n"
     "• Supprimer : DELETE FROM expenses WHERE id=?\n"
     "• Voir : SELECT * FROM expenses ORDER BY date DESC\n"
     "\n"
     "=== PARAMÈTRES / CONFIGURATION ===\n"
     "• Voir les paramètres : SELECT key, value FROM app_settings;\n"
-    "• Modifier ou ajouter un paramètre : INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP;\n"
+    "• Modifier : INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP;\n"
+    "  Après modification : ✅ Paramètre mis à jour. [→ Paramètres](/admin)\n"
     "\n"
     "=== RAPPORTS / STATS ===\n"
     "• Chiffre d'affaires : SELECT SUM(total) FROM sales WHERE sale_date BETWEEN '...' AND '...'\n"
@@ -283,20 +348,41 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
     # Ne pas autoriser la lecture/écriture sur la table des utilisateurs
     if "users" in clean_query:
         return {"error": "Accès à la table 'users' interdit."}
+
+    # Détecter si la requête contient RETURNING pour capturer l'ID créé
+    has_returning = "returning" in clean_query
         
     try:
         with db_manager.db_transaction() as conn:
             cur = conn.execute(query)
-            # pg8000 CompatCursor n'a pas toujours 'rowcount' — on utilise getattr pour éviter l'erreur
+            inserted_id = None
+            # Si RETURNING id est présent, récupérer le résultat
+            if has_returning:
+                try:
+                    row = cur.fetchone()
+                    if row:
+                        # Peut être un tuple (id,) ou un dict {'id': 1}
+                        if isinstance(row, dict):
+                            inserted_id = row.get("id")
+                        elif isinstance(row, (list, tuple)) and len(row) > 0:
+                            inserted_id = row[0]
+                except Exception:
+                    pass
             rowcount = getattr(cur, "rowcount", None)
             try:
                 cur.close()
             except Exception:
                 pass
-            if rowcount is not None:
-                return {"success": True, "rowcount": rowcount, "message": f"{rowcount} ligne(s) affectée(s)."}
+            result: Dict[str, Any] = {"success": True}
+            if inserted_id is not None:
+                result["inserted_id"] = inserted_id
+                result["message"] = f"Opération réussie. ID créé : {inserted_id}."
+            elif rowcount is not None:
+                result["rowcount"] = rowcount
+                result["message"] = f"{rowcount} ligne(s) affectée(s)."
             else:
-                return {"success": True, "message": "Opération exécutée avec succès."}
+                result["message"] = "Opération exécutée avec succès."
+            return result
     except Exception as e:
         return {"error": f"Erreur SQL lors de l'écriture : {str(e)}"}
 
@@ -326,17 +412,22 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_na
                 },
                 {
                     "name": "execute_write_sql",
-                    "description": "Exécute une requête SQL d'écriture (INSERT, UPDATE, DELETE) pour ajouter, modifier ou supprimer des données.",
+                    "description": (
+                        "Exécute une requête SQL d'écriture (INSERT, UPDATE, DELETE) pour ajouter, modifier ou supprimer des données. "
+                        "Pour les INSERT, toujours ajouter 'RETURNING id' à la fin pour récupérer l'ID créé. "
+                        "La réponse contiendra 'inserted_id' si RETURNING est utilisé."
+                    ),
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
                             "query": {
                                 "type": "STRING",
-                                "description": "La requête SQL d'écriture complète à exécuter."
+                                "description": "La requête SQL d'écriture complète à exécuter. Pour INSERT, terminer par 'RETURNING id'."
                             }
                         },
                         "required": ["query"]
                     }
+
                 }
             ]
         }
@@ -466,13 +557,17 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
             "type": "function",
             "function": {
                 "name": "execute_write_sql",
-                "description": "Exécute une requête SQL d'écriture (INSERT, UPDATE, DELETE) pour ajouter, modifier ou supprimer des données.",
+                "description": (
+                    "Exécute une requête SQL d'écriture (INSERT, UPDATE, DELETE) pour ajouter, modifier ou supprimer des données. "
+                    "Pour les INSERT, toujours ajouter 'RETURNING id' à la fin pour récupérer l'ID créé. "
+                    "La réponse contiendra 'inserted_id' si RETURNING est utilisé."
+                ),
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "La requête SQL complète (INSERT, UPDATE ou DELETE)."
+                            "description": "La requête SQL complète (INSERT ... RETURNING id, UPDATE ou DELETE)."
                         }
                     },
                     "required": ["query"]
@@ -480,6 +575,7 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
             }
         }
     ]
+
 
     # Convertir l'historique Gemini → format OpenAI/Ollama
     ollama_messages = [{"role": "system", "content": system_prompt}]
