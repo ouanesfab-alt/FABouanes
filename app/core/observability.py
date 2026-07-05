@@ -54,7 +54,7 @@ def setup_observability(service_name: str = "fabouanes") -> None:
             logging.getLogger("observability").warning("Failed to initialize OTLP Span Exporter.")
     elif not is_test:
         # En production sans OTLP, ou en dev avec OTEL_EXPORT_CONSOLE=true : console exporter
-        if is_production or os.environ.get("OTEL_EXPORT_CONSOLE", "").strip().lower() in ("true", "1"):
+        if os.environ.get("OTEL_EXPORT_CONSOLE", "").strip().lower() in ("true", "1"):
             provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
 
     trace.set_tracer_provider(provider)

@@ -128,4 +128,62 @@
       applyNavHidden(!navHidden());
     });
   }
+
+  /*
+   * P3 — Auto-activate vertical sidebar on large screens (≥ 1400px)
+   * Only when the user has not explicitly set a nav layout preference.
+   * Respects user choices: once the user picks horizontal or vertical
+   * manually, this auto-behaviour is permanently disabled for them.
+   */
+  (function autoSidebar() {
+    var LAYOUT_KEY = 'fab_nav_layout';
+    var AUTO_KEY   = 'fab_nav_auto_applied';
+
+    // Check if user has ever manually set a nav layout
+    var userHasChosen = false;
+    try { userHasChosen = localStorage.getItem(LAYOUT_KEY) !== null; } catch(e) {}
+
+    if (userHasChosen) return; // Respect explicit user preference
+
+    var THRESHOLD = 1400; // px — same as CSS P3-A breakpoint
+
+    function applyAutoSidebar() {
+      var isWide = window.innerWidth >= THRESHOLD;
+      var current = document.documentElement.getAttribute('data-nav');
+
+      if (isWide && current !== 'vertical') {
+        document.documentElement.classList.add('desktop-auto-sidebar');
+        // Use the existing applyNavLayout function already in scope
+        document.documentElement.setAttribute('data-nav', 'vertical');
+        var btn = document.getElementById('sideNavToggle');
+        if (btn) { btn.hidden = false; }
+      } else if (!isWide && current === 'vertical') {
+        // Only revert if we auto-applied it (not if user chose vertical)
+        try {
+          var autoApplied = sessionStorage.getItem(AUTO_KEY) === '1';
+          if (autoApplied) {
+            document.documentElement.setAttribute('data-nav', 'horizontal');
+            document.documentElement.classList.remove('desktop-auto-sidebar');
+            var btn2 = document.getElementById('sideNavToggle');
+            if (btn2) { btn2.hidden = true; }
+          }
+        } catch(e) {}
+      }
+
+      // Record that we auto-applied (session only, not persistent)
+      if (isWide) {
+        try { sessionStorage.setItem(AUTO_KEY, '1'); } catch(e) {}
+      }
+    }
+
+    // Apply on load (after a short delay to let existing CSS settle)
+    setTimeout(applyAutoSidebar, 0);
+
+    // Re-evaluate on resize (debounced)
+    var resizeTimer;
+    window.addEventListener('resize', function() {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(applyAutoSidebar, 150);
+    }, { passive: true });
+  })();
 })();

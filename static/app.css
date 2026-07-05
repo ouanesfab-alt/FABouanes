@@ -4463,10 +4463,13 @@ html.theme-changing .btn {
   border: 2px solid var(--card);
 }
 
-/* Floating Labels for Forms */
 .form-float { position: relative; margin-bottom: 1.25rem; }
 .form-float input, .form-float select {
   height: 56px;
+  padding: 20px 14px 6px;
+  border-radius: 10px;
+}
+.form-float textarea {
   padding: 20px 14px 6px;
   border-radius: 10px;
 }
@@ -4480,12 +4483,15 @@ html.theme-changing .btn {
 }
 .form-float input:focus ~ label,
 .form-float input:not(:placeholder-shown) ~ label,
+.form-float textarea:focus ~ label,
+.form-float textarea:not(:placeholder-shown) ~ label,
 .form-float select ~ label {
   top: 6px;
   font-size: .72rem;
   font-weight: 700;
 }
 .form-float input:focus ~ label,
+.form-float textarea:focus ~ label,
 .form-float select:focus ~ label {
   color: #2563eb;
 }
@@ -5930,8 +5936,8 @@ html[data-theme="windows-dark"] .nav-links a:not(.active):hover {
 }
 
 /* ── Phase 3 & 4: macOS Sequoia Transitions & Spotlight & Context Menu ── */
-/* Custom macOS style notification banner */
-.toast-container-app .toast {
+.toast-container-app .toast,
+.toast-container-app .toast .toast-body {
   background: var(--glass-thick) !important;
   backdrop-filter: var(--blur-md) saturate(190%) !important;
   -webkit-backdrop-filter: var(--blur-md) saturate(190%) !important;
@@ -5939,6 +5945,30 @@ html[data-theme="windows-dark"] .nav-links a:not(.active):hover {
   border-radius: var(--radius-lg) !important;
   box-shadow: var(--shadow-xl) !important;
   transition: transform 0.4s var(--ease-spring), opacity 0.4s var(--ease-spring) !important;
+  color: var(--text) !important;
+}
+
+.toast-container-app .toast .bi-check-circle {
+  color: var(--system-green) !important;
+}
+
+.toast-container-app .toast .bi-exclamation-triangle {
+  color: var(--system-red) !important;
+}
+
+.toast-container-app .toast .bi-info-circle {
+  color: var(--system-blue) !important;
+}
+
+/* In light mode (default), invert the white close button to make it dark */
+.toast-container-app .toast .btn-close-white {
+  filter: invert(1) grayscale(1) brightness(0) !important;
+}
+
+/* In dark mode, keep it white */
+html[data-theme="dark"] .toast-container-app .toast .btn-close-white,
+html[data-theme="windows-dark"] .toast-container-app .toast .btn-close-white {
+  filter: none !important;
 }
 
 /* macOS Clic-Droit Finder context menu styling */
@@ -6454,3 +6484,459 @@ html:not([data-theme="light"]) .table tbody tr:hover > th {
 }
 
 
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE SYSTEM — Priorities 1, 2 & 3
+   Pure additive rules — no existing styles overridden
+   ══════════════════════════════════════════════════════════════ */
+
+/* ──────────────────────────────────────────────────────────────
+   PRIORITY 1 — Immediate mobile fixes
+   ────────────────────────────────────────────────────────────── */
+
+/*
+ * P1-A: Anti-zoom iOS — prevent Safari from auto-zooming
+ * when focusing an input whose font-size < 16px.
+ * Only applies on touch/mobile viewports.
+ */
+@media (max-width: 767px) {
+  .form-control,
+  .form-select,
+  select,
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="search"],
+  textarea {
+    font-size: 16px !important; /* iOS zoom threshold */
+  }
+}
+
+/*
+ * P1-B: Page-hero action buttons — stack vertically
+ * under 575px so they don't overflow on small phones.
+ */
+@media (max-width: 575px) {
+  .page-hero .btn-group,
+  .page-hero .d-flex.gap-2,
+  .page-hero .d-flex.gap-3 {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .page-hero .btn-group .btn,
+  .page-hero .d-flex.gap-2 .btn,
+  .page-hero .d-flex.gap-3 .btn,
+  .page-hero .btn-page-action,
+  .page-hero .btn-page-action-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/*
+ * P1-C: KPI card values — reduce font-size on very small
+ * screens so numbers don't clip inside the card.
+ */
+@media (max-width: 400px) {
+  .kpi-val {
+    font-size: 1.1rem;
+  }
+
+  .kpi-label {
+    font-size: .68rem;
+  }
+
+  .kpi-card {
+    padding: 10px;
+  }
+}
+
+/*
+ * P1-D: Reports / filter bars — guarantee wrapping and
+ * full-width inputs on phone.
+ */
+@media (max-width: 767px) {
+  .reports-filter-bar,
+  .table-toolbar,
+  .filter-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .reports-filter-bar input[type="date"],
+  .reports-filter-bar .form-control,
+  .reports-filter-bar .form-select {
+    max-width: none !important;
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .reports-filter-bar .btn {
+    flex: 1 1 calc(50% - 4px);
+    justify-content: center;
+  }
+}
+
+/*
+ * P1-E: Table secondary columns hidden on very small phones.
+ * Mark columns with .col-hide-xs in templates to hide them.
+ */
+@media (max-width: 480px) {
+  .col-hide-xs {
+    display: none !important;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   PRIORITY 2 — Tablet & touch-target improvements
+   ────────────────────────────────────────────────────────────── */
+
+/*
+ * P2-A: Tablet grid (768–991px) — span-6 / span-4 / span-3 forms
+ * switch to 2 columns instead of staying at their fixed width.
+ * Covers the intermediate range not handled by the 767px breakpoints.
+ */
+@media (min-width: 768px) and (max-width: 991px) {
+  /* entity-form-grid used by client, contact, catalog forms */
+  .entity-form-grid .span-4,
+  .entity-form-grid .span-3 {
+    grid-column: span 6;
+  }
+
+  /* production-form-grid */
+  .production-form-grid .span-4,
+  .production-form-grid .span-3 {
+    grid-column: span 6;
+  }
+
+  /* operation-form-grid */
+  .operation-form-grid .span-4,
+  .operation-form-grid .span-3 {
+    grid-column: span 6;
+  }
+
+  /* catalog / product / raw-material edit grids */
+  .product-edit-grid .span-4,
+  .raw-edit-grid .span-4,
+  .catalog-form-grid .span-4,
+  .catalog-form-grid .span-3 {
+    grid-column: span 6;
+  }
+}
+
+/*
+ * P2-B: Touch targets — minimum 44px height on all interactive
+ * elements (iOS HIG and Material guidelines).
+ * Does NOT change visual appearance on desktop.
+ */
+@media (max-width: 991px) {
+  .btn:not(.btn-sm):not(.btn-xs) {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .form-control,
+  .form-select,
+  select {
+    min-height: 44px;
+  }
+
+  textarea.form-control {
+    min-height: unset; /* don't constrain textareas */
+  }
+
+  .bot-tab {
+    min-height: 44px;
+  }
+
+  /* Drawer links */
+  .drawer-link {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
+
+/*
+ * P2-C: Typography scaling for tablet — section titles slightly
+ * smaller to leave more room for content.
+ */
+@media (max-width: 767px) {
+  .section-title {
+    font-size: 1rem;
+  }
+
+  .section-title-lg {
+    font-size: 1.15rem;
+  }
+
+  h2.section-title {
+    font-size: 1.05rem;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   PRIORITY 3 — Fluid typography with clamp()
+   Scales smoothly between 375px and 1400px viewports.
+   ────────────────────────────────────────────────────────────── */
+
+/*
+ * P3-A: Fluid section titles — 1rem at 375px → 1.1rem at 1400px
+ */
+.section-title {
+  font-size: clamp(0.95rem, 0.9rem + 0.3vw, 1.1rem);
+}
+
+.section-title-lg {
+  font-size: clamp(1.05rem, 1rem + 0.5vw, 1.25rem);
+}
+
+/*
+ * P3-B: Fluid KPI values — 1.15rem at 375px → 1.35rem at 1200px
+ */
+.kpi-val {
+  font-size: clamp(1.1rem, 1rem + 0.6vw, 1.35rem);
+}
+
+/*
+ * P3-C: Fluid stat figures (dashboard large numbers)
+ */
+.stat {
+  font-size: clamp(1.2rem, 1rem + 0.9vw, 1.6rem);
+}
+
+/*
+ * P3-D: App content max horizontal padding on very large screens.
+ * Prevents content from stretching uncomfortably on 1600px+ monitors.
+ */
+@media (min-width: 1400px) {
+  .app-content {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+/* ══════════════════════════════════════════════════════════════
+   DESKTOP RESPONSIVE SYSTEM — Priorities 1, 2 & 3
+   Pure additive rules — no existing styles overridden.
+   Target: screens ≥ 992px (laptops, desktops, ultrawide)
+   ══════════════════════════════════════════════════════════════ */
+
+/* ──────────────────────────────────────────────────────────────
+   PRIORITY 1 — Use available space on large screens
+   ────────────────────────────────────────────────────────────── */
+
+/*
+ * P1-A: Widen app-content on 1600px+ screens.
+ * The current cap is 1400px — on wide monitors this
+ * leaves large empty margins that waste screen estate.
+ */
+@media (min-width: 1600px) {
+  .app-content {
+    max-width: 1600px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .app-content {
+    max-width: 1800px;
+  }
+}
+
+/*
+ * P1-B: entity-form-shell — let forms breathe on 1280px+.
+ * Default max-width is 920px; on wide laptops the side space
+ * is entirely wasted. We progressively widen it.
+ */
+@media (min-width: 1280px) {
+  .entity-form-shell {
+    max-width: 1060px;
+  }
+
+  .entity-form-shell.is-narrow {
+    max-width: 860px;
+  }
+
+  .entity-form-shell.is-wide {
+    max-width: 1280px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .entity-form-shell {
+    max-width: 1200px;
+  }
+
+  .entity-form-shell.is-narrow {
+    max-width: 960px;
+  }
+
+  .entity-form-shell.is-wide {
+    max-width: 1480px;
+  }
+}
+
+/*
+ * P1-C: KPI grid — add a 6th column on 1400px+ screens
+ * for dashboards that have 6+ KPI cards.
+ */
+@media (min-width: 1400px) {
+  .kpi-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+@media (min-width: 1920px) {
+  .kpi-grid {
+    grid-template-columns: repeat(7, 1fr);
+  }
+}
+
+/*
+ * P1-D: production/catalog/client shell pages — wider shell
+ * so tables and forms use the available width.
+ */
+@media (min-width: 1400px) {
+  .production-form-shell,
+  .catalog-form-shell,
+  .client-edit-shell,
+  .raw-edit-shell,
+  .product-edit-shell {
+    max-width: 1080px;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   PRIORITY 2 — Denser layouts and earlier nav on medium screens
+   ────────────────────────────────────────────────────────────── */
+
+/*
+ * P2-A: Lower the navbar horizontal collapse threshold.
+ * Currently the horizontal nav hides at 1180px and becomes
+ * a hamburger — on 1024-1180px laptops this is unnecessary.
+ * We restore nav links for screens ≥ 960px.
+ *
+ * This overrides the existing @media(max-width:1180px) rule
+ * by re-showing the nav at 960px+.
+ */
+@media (min-width: 960px) {
+  .nav-links {
+    display: flex !important;
+  }
+
+  .nav-actions .d-desktop {
+    display: flex !important;
+  }
+
+  .nav-actions .d-none.d-md-flex {
+    display: flex !important;
+  }
+
+  .nav-actions .d-none.d-md-block {
+    display: block !important;
+  }
+
+  .nav-hamburger {
+    display: none !important;
+  }
+}
+
+/*
+ * P2-B: Intermediate grid step for 992-1280px.
+ * entity-form-grid span-3 fields currently stay as 3 columns
+ * on all desktop widths. At 992-1280px (common laptop) they
+ * can be a bit tight. Give span-3 a comfortable 4-column width.
+ */
+@media (min-width: 992px) and (max-width: 1280px) {
+  .entity-form-grid .span-3 {
+    grid-column: span 4;
+  }
+
+  .production-form-grid .span-3 {
+    grid-column: span 4;
+  }
+
+  .catalog-form-grid .span-3 {
+    grid-column: span 4;
+  }
+}
+
+/*
+ * P2-C: record-grid (invoice detail 4-col) — keep 4 columns
+ * at 992px+ instead of collapsing to 2 at 991px.
+ * Adds a comfortable 3-col intermediate step.
+ */
+@media (min-width: 992px) and (max-width: 1199px) {
+  .record-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .record-grid.record-grid-three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/*
+ * P2-D: Tighter padding on the nav-inner at 1280px+
+ * so menu items don't run into the right-side buttons.
+ */
+@media (min-width: 1280px) {
+  .nav-inner {
+    gap: 14px;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   PRIORITY 3 — Auto sidebar on very large screens
+   ────────────────────────────────────────────────────────────── */
+
+/*
+ * P3-A: Widen the vertical sidebar on 1400px+ screens.
+ * The sidebar is currently fixed at 240px. On large monitors
+ * it can be a bit narrow — give it more breathing room.
+ * Only applies when data-nav="vertical" is active.
+ */
+@media (min-width: 1400px) {
+  html[data-nav="vertical"] {
+    --side-nav-w: 260px;
+  }
+}
+
+@media (min-width: 1600px) {
+  html[data-nav="vertical"] {
+    --side-nav-w: 280px;
+  }
+}
+
+/*
+ * P3-B: When vertical nav is auto-activated by JS on large
+ * screens (class .desktop-auto-sidebar applied to <html>),
+ * ensure smooth transition for the padding-left shift.
+ */
+html.desktop-auto-sidebar body {
+  transition: padding-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/*
+ * P3-C: Ultrawide (1920px+) — add a gentle max-width guard
+ * on the sidebar content so labels don't stretch awkwardly.
+ */
+@media (min-width: 1920px) {
+  html[data-nav="vertical"] .nav-inner {
+    max-width: 300px;
+  }
+}
+
+/*
+ * P3-D: On 1600px+ screens with vertical nav, give the
+ * side-nav toggle button more breathing room.
+ */
+@media (min-width: 1600px) {
+  html[data-nav="vertical"] .side-nav-toggle {
+    left: calc(var(--side-nav-w) - 46px);
+  }
+}

@@ -42,17 +42,17 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="action" value="create_user">
             <div class="col-12">
-              <label class="form-label">Nom d'utilisateur</label>
-              <input name="username" class="form-control" required>
+              <label for="usernameInput" class="form-label mb-1">Nom d'utilisateur</label>
+              <input name="username" id="usernameInput" class="form-control" required>
             </div>
             <div class="col-12">
-              <label class="form-label">Code PIN (4 chiffres)</label>
-              <input name="password" type="password" class="form-control" inputmode="numeric" pattern="\d{4}" maxlength="4"
+              <label for="pinInput" class="form-label mb-1">Code PIN (4 chiffres)</label>
+              <input name="password" id="pinInput" type="password" class="form-control" inputmode="numeric" pattern="\d{4}" maxlength="4"
                 minlength="4" placeholder="1234" required>
             </div>
             <div class="col-12">
-              <label class="form-label">Rôle</label>
-              <select name="role" class="form-select">
+              <label for="roleInput" class="form-label mb-1">Rôle</label>
+              <select name="role" id="roleInput" class="form-select">
                 <option value="operator">Operator</option>
                 <option value="manager">Manager</option>
                 <option value="admin">Admin</option>
@@ -154,8 +154,8 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="action" value="restore_backup">
             <div class="col-12">
-              <label class="form-label">Restaurer depuis</label>
-              <select name="backup_name" class="form-select" required>
+              <label for="restoreSelect" class="form-label mb-1">Restaurer depuis</label>
+              <select name="backup_name" id="restoreSelect" class="form-select" required>
                 <option value="">Choisir une sauvegarde...</option>
                 {% for b in backups %}
                 <option value="{{ b.value }}">{{ b.label }}</option>
@@ -196,23 +196,23 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="action" value="save_backup_settings">
             <div class="col-12">
-              <label class="form-label">Dossier Google Drive local</label>
-              <input name="gdrive_backup_dir" class="form-control" value="{{ settings.gdrive_backup_dir }}"
+              <label for="gdriveDirInput" class="form-label mb-1">Dossier Google Drive local</label>
+              <input name="gdrive_backup_dir" id="gdriveDirInput" class="form-control" value="{{ settings.gdrive_backup_dir }}"
                 placeholder="Ex: C:\Users\massi\Google Drive\FABOuanes">
               <div class="small text-muted mt-1">Choisissez ici le dossier déjà synchronisé par Google Drive sur ce PC.</div>
             </div>
             <div class="col-md-4">
-              <label class="form-label">Snapshot</label>
-              <input name="backup_snapshot_time" class="form-control" value="{{ settings.backup_snapshot_time }}">
+              <label for="snapshotInput" class="form-label mb-1">Snapshot</label>
+              <input name="backup_snapshot_time" id="snapshotInput" class="form-control" value="{{ settings.backup_snapshot_time }}">
             </div>
             <div class="col-md-4">
-              <label class="form-label">Retention nuit</label>
-              <input name="backup_local_retention" type="number" min="1" class="form-control"
+              <label for="retentionNightInput" class="form-label mb-1">Retention nuit</label>
+              <input name="backup_local_retention" id="retentionNightInput" type="number" min="1" class="form-control"
                 value="{{ settings.backup_local_retention }}">
             </div>
             <div class="col-md-4">
-              <label class="form-label">Retention event</label>
-              <input name="backup_event_retention" type="number" min="1" class="form-control"
+              <label for="retentionEventInput" class="form-label mb-1">Retention event</label>
+              <input name="backup_event_retention" id="retentionEventInput" type="number" min="1" class="form-control"
                 value="{{ settings.backup_event_retention }}">
             </div>
             <div class="col-12 d-grid mt-3">

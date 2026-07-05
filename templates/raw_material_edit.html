@@ -30,7 +30,7 @@
     <div class="card raw-edit-card">
       <form method="post" class="raw-edit-grid">
         <div class="span-12">
-          <label class="form-label">Nom de la matière première</label>
+          <label for="rawNameInput" class="form-label mb-1">Nom de la matière première</label>
           <input name="name" id="rawNameInput" class="form-control" placeholder="Entrez ou sélectionnez le nom" list="nameSuggestions" value="{{ custom_name_value }}" required autocomplete="off">
           <datalist id="nameSuggestions">
             {% for preset in name_presets %}<option value="{{ preset }}">{{ preset }}</option>{% endfor %}
@@ -45,25 +45,25 @@
           </div>
         </div>
         <div class="span-4">
-          <label class="form-label">Unité</label>
+          <label for="unitSelect" class="form-label mb-1">Unité</label>
           <select name="unit" id="unitSelect" class="form-select">
             {% for u in units %}<option value="{{ u }}" {% if material.unit==u %}selected{% endif %}>{{ u }}</option>{% endfor %}
           </select>
         </div>
         <div class="span-4">
-          <label class="form-label">Stock</label>
-          <input name="stock_qty" type="text" inputmode="decimal" class="form-control" value="{{ material.stock_qty }}">
+          <label for="stockInput" class="form-label mb-1">Stock</label>
+          <input name="stock_qty" id="stockInput" type="text" inputmode="decimal" class="form-control" value="{{ material.stock_qty }}">
         </div>
         <div class="span-4">
-          <label class="form-label">Seuil</label>
-          <input name="alert_threshold" type="text" inputmode="decimal" class="form-control" value="{{ material.alert_threshold }}">
+          <label for="alertThresholdInput" class="form-label mb-1">Seuil</label>
+          <input name="alert_threshold" id="alertThresholdInput" type="text" inputmode="decimal" class="form-control" value="{{ material.alert_threshold }}">
         </div>
         <div class="span-6">
-          <label class="form-label">Coût d'achat moyen</label>
-          <input name="avg_cost" type="text" inputmode="decimal" class="form-control" value="{{ material.avg_cost }}">
+          <label for="avgCostInput" class="form-label mb-1">Coût d'achat moyen</label>
+          <input name="avg_cost" id="avgCostInput" type="text" inputmode="decimal" class="form-control" value="{{ material.avg_cost }}">
         </div>
         <div class="span-6">
-          <label class="form-label">Prix de vente par kg</label>
+          <label for="salePriceKg" class="form-label mb-1">Prix de vente par kg</label>
           <input id="salePriceKg" name="sale_price" type="text" inputmode="decimal" class="form-control" value="{{ material.sale_price }}">
         </div>
         <div class="span-12">

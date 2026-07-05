@@ -97,22 +97,22 @@
 
       <form method="post" class="production-form-grid" id="productionForm">
         <div class="span-6">
-          <label class="form-label">Produit final</label>
+          <label for="finishedProduct" class="form-label mb-1">Produit final</label>
           <select name="finished_product_id" id="finishedProduct" class="form-select" required>
             {% for p in products %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
           </select>
         </div>
         <div class="span-3">
-          <label class="form-label">Quantité produite</label>
+          <label for="outputQty" class="form-label mb-1">Quantité produite</label>
           <input name="output_quantity" id="outputQty" type="number" step="0.01" min="0" class="form-control" required>
         </div>
         <div class="span-3">
-          <label class="form-label">Date</label>
-          <input name="production_date" type="date" class="form-control" max="{{ now().strftime('%Y-%m-%d') if now is defined else '' }}">
+          <label for="productionDate" class="form-label mb-1">Date</label>
+          <input name="production_date" id="productionDate" type="date" class="form-control" max="{{ now().strftime('%Y-%m-%d') if now is defined else '' }}">
         </div>
 
         <div class="span-6">
-          <label class="form-label">Recette enregistrée</label>
+          <label for="savedRecipe" class="form-label mb-1">Recette enregistrée</label>
           <select id="savedRecipe" class="form-select">
             <option value="">— Choisir une recette —</option>
             {% for r in recipes %}<option value="{{ r.id }}" data-product="{{ r.finished_product_id }}">{{ r.finished_name }} — {{ r.name }}</option>{% endfor %}
@@ -120,7 +120,7 @@
           <div class="form-text">Choisissez une recette existante pour préremplir le mélange.</div>
         </div>
         <div class="span-4">
-          <label class="form-label">Nom de recette à enregistrer</label>
+          <label for="recipeName" class="form-label mb-1">Nom de recette à enregistrer</label>
           <input name="recipe_name" id="recipeName" class="form-control" placeholder="Ex: Demarrage volaille">
         </div>
         <div class="span-4 production-form-inline">
@@ -154,8 +154,8 @@
           </div>
         </div>
         <div class="span-12">
-          <label class="form-label">Notes</label>
-          <textarea name="notes" class="form-control" rows="3"></textarea>
+          <label for="productionNotes" class="form-label mb-1">Notes</label>
+          <textarea name="notes" id="productionNotes" class="form-control" rows="3" placeholder="Optionnel"></textarea>
         </div>
         <div class="span-12">
           <div class="production-form-note">

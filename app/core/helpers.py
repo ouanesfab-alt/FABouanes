@@ -204,13 +204,8 @@ def parse_excel_client_history(file_path) -> dict:
 
 
 def init_db() -> None:
-    import importlib.util
-    from pathlib import Path
-    schema_path = Path(__file__).parent / "schema.py"
-    spec = importlib.util.spec_from_file_location("app.core.schema_file", str(schema_path))
-    schema_mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(schema_mod)
-    return schema_mod.init_db()
+    from app.core.schema import init_db as _init_db
+    return _init_db()
 
 
 def log_server_start() -> None:

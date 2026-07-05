@@ -14,8 +14,8 @@
         
         <!-- Segmented control to choose kind -->
         <div class="span-12">
-          <label class="form-label">Type d'article</label>
-          <div class="glass-segmented-control theme-blue">
+          <label class="form-label mb-1">Type d'article</label>
+          <div class="glass-segmented-control theme-emerald">
             <input type="radio" name="kind" id="kindRaw" value="raw" {% if kind == 'raw' %}checked{% endif %}>
             <label for="kindRaw">
               <i class="bi bi-box-seam me-2"></i>Matière première
@@ -29,7 +29,7 @@
         </div>
 
         <div class="span-12">
-          <label class="form-label">Nom du produit / matière première</label>
+          <label for="catalogNameInput" class="form-label mb-1">Nom du produit / matière première</label>
           <input name="name" id="catalogNameInput" class="form-control" placeholder="Entrez ou sélectionnez le nom (ex: Poussin, Aliment, ...)" list="nameSuggestions" required autocomplete="off">
           <datalist id="nameSuggestions">
             <!-- Loaded dynamically in JS based on chosen kind -->
@@ -41,26 +41,26 @@
           </div>
         </div>
         <div class="span-3">
-          <label class="form-label">Unité</label>
+          <label for="unitSelect" class="form-label mb-1">Unité</label>
           <select name="unit" id="unitSelect" class="form-select">
             {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
           </select>
         </div>
         <div class="span-3">
-          <label class="form-label">Stock</label>
-          <input name="stock_qty" type="text" inputmode="decimal" value="0" class="form-control">
+          <label for="stockInput" class="form-label mb-1">Stock</label>
+          <input name="stock_qty" id="stockInput" type="text" inputmode="decimal" value="0" class="form-control">
         </div>
         <div class="span-3">
-          <label class="form-label">Coût moyen par kg</label>
+          <label for="avgCostKg" class="form-label mb-1">Coût moyen par kg</label>
           <input id="avgCostKg" name="avg_cost" type="text" inputmode="decimal" value="0" class="form-control">
         </div>
         <div class="span-3">
-          <label class="form-label">Prix de vente par kg</label>
+          <label for="salePriceKg" class="form-label mb-1">Prix de vente par kg</label>
           <input id="salePriceKg" name="sale_price" type="text" inputmode="decimal" value="0" class="form-control">
         </div>
         <div class="span-12" id="alertThresholdWrap">
-          <label class="form-label">Seuil d'alerte</label>
-          <input name="alert_threshold" type="text" inputmode="decimal" value="0" class="form-control">
+          <label for="alertThresholdInput" class="form-label mb-1">Seuil d'alerte</label>
+          <input name="alert_threshold" id="alertThresholdInput" type="text" inputmode="decimal" value="0" class="form-control">
         </div>
         <div class="span-12">
           <div class="entity-form-note">

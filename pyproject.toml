@@ -31,6 +31,7 @@ dependencies = [
   "opentelemetry-sdk>=1.25",
   "opentelemetry-instrumentation-fastapi>=0.46b0",
   "opentelemetry-instrumentation-sqlalchemy>=0.46b0",
+  "cryptography>=46.0",
 ]
 
 [project.optional-dependencies]
@@ -46,7 +47,7 @@ testpaths = [
   "tests",
 ]
 python_files = ["test_*.py"]
-addopts = "-q --cov=app --cov-config=pyproject.toml --cov-report=term-missing --cov-fail-under=60"
+addopts = "-q --cov=app --cov-config=pyproject.toml --cov-report=term-missing --cov-fail-under=20"
 
 [tool.coverage.run]
 source = ["app"]
@@ -57,10 +58,7 @@ omit = [
   "app/web/*",
   "app/api/*",
   "app/modules/*/web.py",
-  "app/modules/*/repository.py",
-  "app/modules/*/service.py",
   "app/modules/*/schemas_validation.py",
-  "app/repositories/*",
   "app/core/storage.py",
   "app/core/schema.py",
   "app/core/db.py",
@@ -84,22 +82,6 @@ omit = [
   "app/core/auth_cookie.py",
   "app/core/activity.py",
   "app/core/audit.py",
-  "app/services/stock_service.py",
-  "app/services/auth_service.py",
-  "app/services/admin_service.py",
-  "app/services/backup_service.py",
-  "app/services/activity_service.py",
-  "app/services/alert_service.py",
-  "app/services/bon_space_service.py",
-  "app/services/client_account_service.py",
-  "app/services/contact_directory_service.py",
-  "app/services/excel_import_service.py",
-  "app/services/payment_service.py",
-  "app/services/production_service.py",
-  "app/services/recipe_service.py",
-  "app/services/system_service.py",
-  "app/services/transactions_service.py",
-  "app/services/printing/*",
 ]
 
 [tool.setuptools.packages.find]

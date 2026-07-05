@@ -1,16 +1,23 @@
 from __future__ import annotations
 
 import html
+import os
 from typing import Any
+
+MAX_INPUT_LENGTH = int(os.environ.get("FAB_MAX_INPUT_LENGTH", "65536") or "65536")
 
 def sanitize_string(val: str) -> str:
     """
     Sanitizes a single string to prevent HTML/XSS injection.
     Strips leading/trailing whitespace and escapes HTML characters.
+    Truncates the string if it exceeds MAX_INPUT_LENGTH to prevent memory exhaustion.
     """
     if not isinstance(val, str):
         return val
-    return html.escape(val.strip(), quote=True)
+    cleaned = val.strip()
+    if len(cleaned) > MAX_INPUT_LENGTH:
+        cleaned = cleaned[:MAX_INPUT_LENGTH] + "... [TRUNCATED]"
+    return html.escape(cleaned, quote=True)
 
 def sanitize_input(data: Any) -> Any:
     """

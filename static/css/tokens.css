@@ -869,17 +869,17 @@ html[data-theme="windows-dark"] textarea {
   transform: scale(0.98) !important;
 }
 
-.btn-primary, .btn-premium, .btn-success {
+.btn-primary, .btn-premium {
   background: linear-gradient(to bottom, #3498ff, #0076f6) !important;
   border: 0.5px solid rgba(0, 0, 0, 0.15) !important;
   color: #ffffff !important;
   text-shadow: 0 -0.5px 0.5px rgba(0, 0, 0, 0.15) !important;
 }
-.btn-primary:hover, .btn-premium:hover, .btn-success:hover {
+.btn-primary:hover, .btn-premium:hover {
   background: linear-gradient(to bottom, #4fa5ff, #1182ff) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 118, 246, 0.2) !important;
 }
-.btn-primary:active, .btn-premium:active, .btn-success:active {
+.btn-primary:active, .btn-premium:active {
   background: #0060cc !important;
 }
 

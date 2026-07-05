@@ -283,6 +283,15 @@ class DatabaseManager:
         try:
             engine = self.get_database_engine(raw_url)
             conn = engine.raw_connection()
+            # Set statement timeout on raw connection (default 30 seconds) to prevent backend from hanging
+            timeout_ms = int(os.environ.get("FAB_PG_STATEMENT_TIMEOUT_MS", "30000") or "30000")
+            cursor = conn.cursor()
+            try:
+                cursor.execute(f"SET statement_timeout = {timeout_ms}")
+            except Exception as e:
+                logging.getLogger("fabouanes").debug("Failed to set statement_timeout: %s", e)
+            finally:
+                cursor.close()
         except Exception as e:
             err_msg = str(e).lower()
             if "does not exist" in err_msg or "3d000" in err_msg:
@@ -643,8 +652,19 @@ class DatabaseManager:
         if not batch:
             return
         with self._perf_conn_lock:
+            now = monotonic()
+            if self._perf_conn is not None:
+                # Recycle connection if it's older than 15 minutes to avoid stale connection issues
+                age = now - getattr(self, "_perf_conn_created_at", 0)
+                if age > 900:
+                    try:
+                        self._perf_conn.close()
+                    except Exception:
+                        pass
+                    self._perf_conn = None
             if self._perf_conn is None:
                 self._perf_conn = self.connect_database(settings.database_url)
+                self._perf_conn_created_at = now
             try:
                 for kind, name, elapsed_ms, route, details in batch:
                     cur = self._perf_conn.execute(

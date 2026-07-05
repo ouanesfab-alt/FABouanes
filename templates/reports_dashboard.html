@@ -28,9 +28,9 @@
 
   <!-- ── Filtres ── -->
   <form method="get" class="reports-filter-bar">
-    <label class="fw-bold small">Période :</label>
-    <input type="date" name="date_from" value="{{ date_from }}" class="form-control" title="Du">
-    <input type="date" name="date_to" value="{{ date_to }}" class="form-control" title="Au">
+    <label for="dateFromInput" class="fw-bold small">Période :</label>
+    <input type="date" name="date_from" id="dateFromInput" value="{{ date_from }}" class="form-control" title="Du">
+    <input type="date" name="date_to" id="dateToInput" value="{{ date_to }}" class="form-control" title="Au">
     <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-funnel me-1"></i>Filtrer</button>
     <a href="{{ url_for('reports_dashboard') }}" class="btn btn-outline-secondary btn-sm">Tout afficher</a>
   </form>

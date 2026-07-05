@@ -83,8 +83,14 @@ def bootstrap_and_migrate() -> None:
 
 def healthcheck() -> bool:
     """Perform a basic connectivity check to the database."""
-    from app.core.db import get_database_engine
-    engine = get_database_engine(settings.database_url)
-    with engine.connect() as conn:
-        conn.execute(text("SELECT 1"))
-    return True
+    try:
+        from app.core.db import get_database_engine
+        engine = get_database_engine(settings.database_url)
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return True
+    except Exception as e:
+        import logging
+        logging.getLogger("fabouanes").error("Database healthcheck failed: %s", e)
+        return False
+

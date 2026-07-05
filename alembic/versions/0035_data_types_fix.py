@@ -1,4 +1,4 @@
-﻿"""
+"""
 0035 - Correction des types de donnees financiers et dates.
 
 - expenses.amount: float -> NUMERIC(15,4) pour la coherence financiere
@@ -9,7 +9,7 @@ from __future__ import annotations
 from alembic import op
 
 revision = "0035"
-down_revision = "0034"
+down_revision = "0034_gamification"
 branch_labels = None
 depends_on = None
 

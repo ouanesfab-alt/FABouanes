@@ -48,8 +48,8 @@
           <input name="sale_date" type="date" class="form-control" id="saleDate" value="{{ sale_document.sale_date }}" {% if edit_locked %}disabled{% endif %}>
         </div>
         <div class="span-12">
-          <label class="form-label">Notes</label>
-          <input name="notes" class="form-control" placeholder="Observation globale de la facture" value="{{ sale_document.notes or '' }}" {% if edit_locked %}disabled{% endif %}>
+          <label class="form-label mb-1">Notes</label>
+          <textarea name="notes" class="form-control" rows="2" placeholder="Observation globale de la facture" {% if edit_locked %}disabled{% endif %}>{{ sale_document.notes or '' }}</textarea>
         </div>
         <div class="span-12 doc-summary-box{% if not edit_locked %} is-single{% endif %}">
           {% if edit_locked %}

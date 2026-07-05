@@ -52,20 +52,20 @@
     <!-- 1. ACHAT SECTION -->
     <div class="card entity-form-card" id="section-purchase" style="display: none;">
       <form method="post" class="entity-form-grid" id="purchaseDocumentForm" action="/operations/purchases/new">
-        <div class="span-6 form-float">
-          <select name="supplier_id" class="form-select" id="supplierSelect" placeholder=" ">
+        <div class="span-6">
+          <label for="supplierSelect" class="form-label mb-1">Fournisseur</label>
+          <select name="supplier_id" class="form-select" id="supplierSelect">
             <option value="">Sans fournisseur</option>
             {% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
           </select>
-          <label for="supplierSelect">Fournisseur</label>
         </div>
-        <div class="span-6 form-float">
-          <input name="purchase_date" type="date" class="form-control" id="purchaseDate" placeholder=" ">
-          <label for="purchaseDate">Date</label>
+        <div class="span-6">
+          <label for="purchaseDate" class="form-label mb-1">Date</label>
+          <input name="purchase_date" type="date" class="form-control" id="purchaseDate">
         </div>
-        <div class="span-12 form-float">
-          <textarea name="notes" id="purchaseNotes" class="form-control" rows="2" placeholder=" "></textarea>
-          <label for="purchaseNotes">Notes (Observation globale du bon)</label>
+        <div class="span-12">
+          <label for="purchaseNotes" class="form-label mb-1">Notes (Observation globale du bon)</label>
+          <textarea name="notes" id="purchaseNotes" class="form-control" rows="2" placeholder="Optionnel"></textarea>
         </div>
         
         <div class="span-12 doc-lines-shell">
@@ -104,20 +104,20 @@
     <!-- 2. VENTE SECTION -->
     <div class="card entity-form-card" id="section-sale" style="display: none;">
       <form method="post" class="entity-form-grid" id="sale-form" action="/operations/sales/new">
-        <div class="span-6 form-float">
-          <select name="client_id" class="form-select" id="clientSelect" placeholder=" ">
+        <div class="span-6">
+          <label for="clientSelect" class="form-label mb-1">Client</label>
+          <select name="client_id" class="form-select" id="clientSelect">
             <option value="">Comptoir (cash)</option>
             {% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
           </select>
-          <label for="clientSelect">Client</label>
         </div>
-        <div class="span-6 form-float">
-          <input name="sale_date" type="date" class="form-control" id="saleDate" placeholder=" ">
-          <label for="saleDate">Date de vente</label>
+        <div class="span-6">
+          <label for="saleDate" class="form-label mb-1">Date de vente</label>
+          <input name="sale_date" type="date" class="form-control" id="saleDate">
         </div>
-        <div class="span-12 form-float">
-          <input name="notes" id="saleNotes" class="form-control" placeholder=" ">
-          <label for="saleNotes">Notes (Observation globale de la facture)</label>
+        <div class="span-12">
+          <label for="saleNotes" class="form-label mb-1">Notes (Observation globale de la facture)</label>
+          <textarea name="notes" id="saleNotes" class="form-control" rows="2" placeholder="Optionnel"></textarea>
         </div>
 
         <div class="span-12 doc-lines-shell">
@@ -159,23 +159,23 @@
         <input type="hidden" name="payment_type" id="paymentTypeInput" value="versement">
         
         <div class="span-6">
-          <label class="form-label">Client</label>
+          <label for="paymentClientSelect" class="form-label mb-1">Client</label>
           <select name="client_id" class="form-select" id="paymentClientSelect" required>
             {% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
           </select>
         </div>
         <div class="span-3">
-          <label class="form-label">Montant (DA)</label>
-          <input name="amount" type="number" step="0.01" min="0.01" class="form-control" required placeholder="0.00">
+          <label for="paymentAmount" class="form-label mb-1">Montant (DA)</label>
+          <input name="amount" type="number" step="0.01" min="0.01" class="form-control" id="paymentAmount" required placeholder="0.00">
         </div>
         <div class="span-3">
-          <label class="form-label">Date</label>
+          <label for="paymentDate" class="form-label mb-1">Date</label>
           <input name="payment_date" type="date" class="form-control" id="paymentDate">
         </div>
         
         <div class="span-12" id="paymentSaleLinkWrapper">
-          <label class="form-label">Créance liée</label>
-          <select name="sale_link" class="form-select">
+          <label for="paymentSaleLink" class="form-label mb-1">Créance liée</label>
+          <select name="sale_link" class="form-select" id="paymentSaleLink">
             <option value="">Affectation automatique</option>
             {% for s in open_sales %}<option value="{{ s.item_kind }}:{{ s.id }}">{{ s.client_name }} · {{ s.item_name }} · reste {{ s.balance_due|money }}</option>{% endfor %}
           </select>
@@ -189,8 +189,8 @@
         </div>
         
         <div class="span-12">
-          <label class="form-label">Notes / Observations</label>
-          <input name="notes" class="form-control" placeholder="Optionnel">
+          <label for="paymentNotes" class="form-label mb-1">Notes / Observations</label>
+          <textarea name="notes" id="paymentNotes" class="form-control" rows="2" placeholder="Optionnel"></textarea>
         </div>
         
         <div class="span-12">
@@ -327,11 +327,6 @@ document.addEventListener('DOMContentLoaded', () => {
     sectionPurchase.style.display = 'none';
     sectionSale.style.display = 'none';
     sectionPayment.style.display = 'none';
-
-    if (control) {
-      control.classList.remove('theme-amber', 'theme-blue');
-      control.classList.add('theme-emerald');
-    }
 
     if (opAchat.checked) {
       sectionPurchase.style.display = 'block';

@@ -142,11 +142,11 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="batch_id" id="editProdId">
         <div class="mb-3">
-          <label class="form-label fw-semibold">Date de production</label>
+          <label for="editProdDate" class="form-label mb-1">Date de production</label>
           <input type="date" name="production_date" id="editProdDate" class="form-control">
         </div>
         <div class="mb-3">
-          <label class="form-label fw-semibold">Notes</label>
+          <label for="editProdNotes" class="form-label mb-1">Notes</label>
           <textarea name="notes" id="editProdNotes" class="form-control" rows="4" placeholder="Observations..."></textarea>
         </div>
       </div>

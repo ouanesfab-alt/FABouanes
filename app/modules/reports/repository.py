@@ -6,7 +6,7 @@ import time
 from typing import Any
 from decimal import Decimal
 
-from sqlalchemy import select, union_all, func, case, cast, literal_column, String, Numeric, or_, text
+from sqlalchemy import select, union_all, func, case, cast, literal_column, String, Numeric, or_, text, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_sessionmaker
 from app.core.helpers import db_task_compat
@@ -819,7 +819,7 @@ async def _build_kpis_for_date(target_date: str, db: AsyncSession) -> dict[str, 
         p_cte.c.cash.label("cash"),
         (s_cte.c.profit + rs_cte.c.profit).label("profit"),
         receivables_val.label("receivables")
-    ).select_from(s_cte, rs_cte, p_cte)
+    ).select_from(s_cte.join(rs_cte, true()).join(p_cte, true()))
 
     res = await db.execute(kpi_query)
     row = res.first()

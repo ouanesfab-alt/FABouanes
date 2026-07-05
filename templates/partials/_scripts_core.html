@@ -12,6 +12,18 @@
       setTimeout(() => firstInput.focus(), 100);
     }
 
+    // Auto-resize textareas to fit content dynamically
+    const autoResizeTextarea = (el) => {
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    };
+    document.querySelectorAll('textarea').forEach(tx => {
+      tx.style.overflowY = 'hidden';
+      setTimeout(() => autoResizeTextarea(tx), 50);
+      tx.addEventListener('input', () => autoResizeTextarea(tx));
+      tx.addEventListener('focus', () => autoResizeTextarea(tx));
+    });
+
     // Floating labels select fix
     document.querySelectorAll('.form-float select').forEach(sel => {
       const checkVal = () => { if(sel.value) sel.classList.add('has-value'); else sel.classList.remove('has-value'); };

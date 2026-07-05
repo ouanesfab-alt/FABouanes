@@ -19,11 +19,11 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label fw-bold" for="expDate">Date <span class="text-danger">*</span></label>
+          <label class="form-label mb-1" for="expDate">Date <span class="text-danger">*</span></label>
           <input type="date" name="date" id="expDate" class="form-control" value="{{ expense.date if expense else '' }}" required>
         </div>
         <div class="col-md-6">
-          <label class="form-label fw-bold" for="expCategory">Catégorie <span class="text-danger">*</span></label>
+          <label class="form-label mb-1" for="expCategory">Catégorie <span class="text-danger">*</span></label>
           <select name="category" id="expCategory" class="form-select" required>
             {% for val, label in categories %}
             <option value="{{ val }}" {{ 'selected' if expense and expense.category == val else '' }}>{{ label }}</option>
@@ -31,15 +31,15 @@
           </select>
         </div>
         <div class="col-12">
-          <label class="form-label fw-bold" for="expDescription">Description</label>
+          <label class="form-label mb-1" for="expDescription">Description</label>
           <input type="text" name="description" id="expDescription" class="form-control" value="{{ expense.description if expense else '' }}" placeholder="Ex: Carburant livraison, Facture électricité...">
         </div>
         <div class="col-md-6">
-          <label class="form-label fw-bold" for="expAmount">Montant (DA) <span class="text-danger">*</span></label>
+          <label class="form-label mb-1" for="expAmount">Montant (DA) <span class="text-danger">*</span></label>
           <input type="number" name="amount" id="expAmount" class="form-control" value="{{ expense.amount if expense else '' }}" step="0.01" min="0" required placeholder="0,00">
         </div>
         <div class="col-md-6">
-          <label class="form-label fw-bold" for="expMethod">Méthode de paiement</label>
+          <label class="form-label mb-1" for="expMethod">Méthode de paiement</label>
           <select name="payment_method" id="expMethod" class="form-select">
             {% for val, label in payment_methods %}
             <option value="{{ val }}" {{ 'selected' if expense and expense.payment_method == val else '' }}>{{ label }}</option>

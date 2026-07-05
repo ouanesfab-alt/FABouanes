@@ -30,7 +30,7 @@
     <div class="card product-edit-card">
       <form method="post" class="product-edit-grid">
         <div class="span-12">
-          <label class="form-label">Nom du produit fini</label>
+          <label for="productNameInput" class="form-label mb-1">Nom du produit fini</label>
           <input name="name" id="productNameInput" class="form-control" placeholder="Entrez ou sélectionnez le nom" list="nameSuggestions" value="{{ custom_name_value }}" required autocomplete="off">
           <datalist id="nameSuggestions">
             {% for preset in name_presets %}<option value="{{ preset }}">{{ preset }}</option>{% endfor %}
@@ -45,21 +45,21 @@
           </div>
         </div>
         <div class="span-4">
-          <label class="form-label">Unité</label>
+          <label for="unitSelect" class="form-label mb-1">Unité</label>
           <select name="default_unit" id="unitSelect" class="form-select">
             {% for u in units %}<option value="{{ u }}" {% if product.default_unit==u %}selected{% endif %}>{{ u }}</option>{% endfor %}
           </select>
         </div>
         <div class="span-4">
-          <label class="form-label">Stock</label>
-          <input name="stock_qty" type="text" inputmode="decimal" class="form-control" value="{{ product.stock_qty }}">
+          <label for="stockInput" class="form-label mb-1">Stock</label>
+          <input name="stock_qty" id="stockInput" type="text" inputmode="decimal" class="form-control" value="{{ product.stock_qty }}">
         </div>
         <div class="span-4">
-          <label class="form-label">Prix de vente par kg</label>
+          <label for="salePriceKg" class="form-label mb-1">Prix de vente par kg</label>
           <input id="salePriceKg" name="sale_price" type="text" inputmode="decimal" class="form-control" value="{{ product.sale_price }}">
         </div>
         <div class="span-12">
-          <label class="form-label">Prix de production / coût moyen par kg</label>
+          <label for="avgCostKg" class="form-label mb-1">Prix de production / coût moyen par kg</label>
           <input id="avgCostKg" name="avg_cost" type="text" inputmode="decimal" class="form-control" value="{{ product.avg_cost }}">
         </div>
         <div class="span-12">

@@ -254,7 +254,9 @@
     <div class="kpi-sheet-head"><h3 class="kpi-sheet-title" id="kpiSheetTitle">Valeur à une date</h3><button type="button" class="kpi-sheet-close" onclick="closeKpiSheet()"><i class="bi bi-x-lg"></i></button></div>
     <div class="kpi-sheet-body">
       <div class="kpi-quick-btns"><button type="button" class="kpi-quick-btn" onclick="setKpiDateOffset(0,this)">Aujourd'hui</button><button type="button" class="kpi-quick-btn" onclick="setKpiDateOffset(1,this)">Hier</button><button type="button" class="kpi-quick-btn" onclick="setKpiDateOffset(7,this)">J-7</button><button type="button" class="kpi-quick-btn" onclick="setKpiDateOffset(30,this)">J-30</button></div>
-      <label class="form-label">Date</label><input type="date" class="form-control" id="kpiDateInput"><button class="btn btn-dark w-100 mt-3" onclick="fetchKpiAtDate()">Afficher</button>
+      <label for="kpiDateInput" class="form-label mb-1">Date</label>
+      <input type="date" class="form-control" id="kpiDateInput">
+      <button class="btn btn-dark w-100 mt-3" onclick="fetchKpiAtDate()">Afficher</button>
       <div class="kpi-result" id="kpiResult"><div class="kpi-result-label" id="kpiResultLabel">Valeur</div><div class="kpi-result-value" id="kpiResultValue">0</div><div class="kpi-result-date" id="kpiResultDate"></div></div>
     </div>
   </div>
