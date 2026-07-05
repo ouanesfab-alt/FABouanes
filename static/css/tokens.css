@@ -990,7 +990,7 @@ html[data-theme="windows-dark"] .table tbody tr:hover > th {
   .transactions-table-wrap,
   .catalog-table-wrap,
   .production-table-wrap {
-    max-height: max(525px, calc(100vh - 265px)) !important;
+    max-height: max(535px, calc(100vh - 262px)) !important;
   }
 }
 
@@ -1000,9 +1000,10 @@ html[data-theme="windows-dark"] .table tbody tr:hover > th {
   .transactions-table-wrap,
   .catalog-table-wrap,
   .production-table-wrap {
-    max-height: max(435px, calc(100vh - 185px)) !important;
+    max-height: max(445px, calc(100vh - 182px)) !important;
   }
 }
+
 
 
 
