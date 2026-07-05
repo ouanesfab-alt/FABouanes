@@ -52,6 +52,34 @@ def execute_readonly_sql(query: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": f"Erreur SQL : {str(e)}"}
 
+def execute_write_sql(query: str) -> Dict[str, Any]:
+    """Exécute une requête SQL d'écriture (INSERT, UPDATE, DELETE) pour modifier, ajouter ou supprimer des données."""
+    clean_query = query.strip().lower()
+    
+    # Interdiction des opérations destructrices de structure
+    forbidden = ["drop", "alter", "truncate", "grant", "revoke"]
+    for word in forbidden:
+        if f" {word} " in f" {clean_query} " or clean_query.startswith(f"{word} "):
+            return {"error": f"Opération de structure '{word}' interdite pour des raisons de sécurité."}
+            
+    # Ne pas autoriser la lecture/écriture sur la table des utilisateurs
+    if "users" in clean_query:
+        return {"error": "Accès à la table 'users' interdit."}
+        
+    try:
+        with db_manager.db_transaction() as conn:
+            cur = conn.execute(query)
+            rowcount = cur.rowcount
+            try:
+                rows = cur.fetchall()
+                result = {"rowcount": rowcount, "rows": [dict(r) for r in rows]}
+            except Exception:
+                result = {"rowcount": rowcount}
+            cur.close()
+            return result
+    except Exception as e:
+        return {"error": f"Erreur SQL lors de l'écriture : {str(e)}"}
+
 async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str) -> Dict[str, Any]:
     """Appelle l'API Gemini Flash avec les messages et outils définis."""
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={api_key}"
@@ -76,6 +104,20 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str) -> Dict[
                         },
                         "required": ["query"]
                     }
+                },
+                {
+                    "name": "execute_write_sql",
+                    "description": "Exécute une requête SQL d'écriture (INSERT, UPDATE, DELETE) pour ajouter, modifier ou supprimer des données (clients, produits, dépenses, stocks, prix, ventes, etc.). Retourne le nombre de lignes affectées.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "query": {
+                                "type": "STRING",
+                                "description": "La requête SQL d'écriture complète à exécuter."
+                            }
+                        },
+                        "required": ["query"]
+                    }
                 }
             ]
         }
@@ -83,14 +125,16 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str) -> Dict[
     
     system_instruction = (
         "Tu es l'Assistant IA de FABOuanes, un progiciel de gestion commerciale et de stock.\n"
-        "Tu as un accès direct à la base de données via des outils de lecture.\n"
+        "Tu as un accès direct à la base de données via des outils de lecture et d'écriture.\n"
         "Rédige tes réponses en français, de manière claire, concise et professionnelle.\n"
         "Utilise le formatage Markdown (tableaux, listes, gras) pour rendre les données très lisibles.\n"
-        "Pour répondre aux questions sur les données, utilise `get_schema` puis génère une requête SQL que tu exécuteras via `execute_readonly_sql`.\n"
+        "Pour répondre aux questions, utilise `get_schema` pour comprendre la structure.\n"
+        "Pour LIRE des données, utilise `execute_readonly_sql`.\n"
+        "Pour AJOUTER, MODIFIER ou SUPPRIMER des données (clients, produits, dépenses, stocks, prix, ventes, etc.) à la demande explicite de l'utilisateur, utilise `execute_write_sql`.\n"
         "Règles STRICTES :\n"
-        "1. Ne modifie JAMAIS de données.\n"
-        "2. Ne lis jamais la table 'users' (contient les mots de passe hachés).\n"
-        "3. Sois honnête si la base ne contient pas l'info."
+        "1. Ne modifie les données que si l'utilisateur te le demande explicitement.\n"
+        "2. Ne lis ou ne modifie jamais la table 'users' (contient les mots de passe hachés).\n"
+        "3. Ne fais jamais d'opérations DROP ou ALTER sur les tables."
     )
     
     payload = {
@@ -154,6 +198,9 @@ async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> s
             elif func_name == "execute_readonly_sql":
                 sql_query = func_args.get("query", "")
                 output = execute_readonly_sql(sql_query)
+            elif func_name == "execute_write_sql":
+                sql_query = func_args.get("query", "")
+                output = execute_write_sql(sql_query)
             else:
                 output = {"error": f"Outil '{func_name}' inconnu."}
                 
