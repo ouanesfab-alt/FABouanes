@@ -194,7 +194,7 @@ async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> s
     for turn in range(max_turns):
         res = None
         last_exception = None
-        candidate_models = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"]
+        candidate_models = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-latest"]
         for model in candidate_models:
             try:
                 res = await call_gemini_api(contents, api_key, model_name=model)
