@@ -208,6 +208,8 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_na
     
     system_instruction = (
         "Tu es l'Assistant IA de FABOuanes, un progiciel de gestion commerciale et de stock.\n"
+        f"Tu fonctionnes actuellement avec le modèle : **{model_name}** (Google Gemini).\n"
+        "Si on te demande quel modèle tu utilises, réponds avec ce nom.\n"
         "Tu as un accès direct à la base de données via des outils SQL.\n"
         "Tu comprends parfaitement le français, l'anglais, l'arabe (dialecte algérien/darja) et le kabyle (Taqbaylit).\n"
         "Rédige tes réponses de manière claire et professionnelle dans la langue choisie par l'utilisateur (français par défaut).\n"
@@ -270,6 +272,8 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
     """
     system_prompt = (
         "Tu es l'Assistant IA de FABOuanes, un progiciel de gestion commerciale et de stock.\n"
+        f"Tu fonctionnes actuellement avec le modèle : **{OLLAMA_MODEL}** (IA locale Ollama).\n"
+        "Si on te demande quel modèle tu utilises, réponds avec ce nom.\n"
         "Tu comprends parfaitement le français, l'anglais, l'arabe (darja) et le kabyle.\n"
         "Réponds dans la langue utilisée par l'utilisateur (français par défaut).\n"
         "Utilise le Markdown pour formater les réponses (tableaux, listes, gras).\n\n"
