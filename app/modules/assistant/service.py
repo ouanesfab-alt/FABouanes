@@ -25,6 +25,23 @@ def get_schema() -> Dict[str, Any]:
     """Retourne la description de la structure de la base de données."""
     return {"schema": TABLE_SCHEMAS}
 
+from decimal import Decimal
+from datetime import date, datetime
+
+def serialize_for_json(obj: Any) -> Any:
+    """Convertit récursivement les Decimal, date et datetime en types JSON sérialisables."""
+    if isinstance(obj, dict):
+        return {k: serialize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [serialize_for_json(x) for x in obj]
+    elif isinstance(obj, Decimal):
+        if obj % 1 == 0:
+            return int(obj)
+        return float(obj)
+    elif isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    return obj
+
 def execute_readonly_sql(query: str) -> Dict[str, Any]:
     """Exécute une requête SQL SELECT en lecture seule et retourne le résultat."""
     clean_query = query.strip().lower()
@@ -46,7 +63,7 @@ def execute_readonly_sql(query: str) -> Dict[str, Any]:
                 cur = conn.execute(query)
                 rows = cur.fetchall()
                 cur.close()
-                return {"rows": [dict(r) for r in rows]}
+                return {"rows": serialize_for_json([dict(r) for r in rows])}
             finally:
                 conn.rollback() # Toujours rollback pour annuler toute modification accidentelle
     except Exception as e:
@@ -72,7 +89,7 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
             rowcount = cur.rowcount
             try:
                 rows = cur.fetchall()
-                result = {"rowcount": rowcount, "rows": [dict(r) for r in rows]}
+                result = {"rowcount": rowcount, "rows": serialize_for_json([dict(r) for r in rows])}
             except Exception:
                 result = {"rowcount": rowcount}
             cur.close()
@@ -126,7 +143,8 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str) -> Dict[
     system_instruction = (
         "Tu es l'Assistant IA de FABOuanes, un progiciel de gestion commerciale et de stock.\n"
         "Tu as un accès direct à la base de données via des outils de lecture et d'écriture.\n"
-        "Rédige tes réponses en français, de manière claire, concise et professionnelle.\n"
+        "Tu comprends parfaitement le français, l'anglais, l'arabe (y compris le dialecte algérien/darja) et le kabyle (Taqbaylit écrit en caractères latins ou arabes).\n"
+        "Rédige tes réponses de manière claire, concise et professionnelle, dans la langue choisie par l'utilisateur (ou en français par défaut).\n"
         "Utilise le formatage Markdown (tableaux, listes, gras) pour rendre les données très lisibles.\n"
         "Pour répondre aux questions, utilise `get_schema` pour comprendre la structure.\n"
         "Pour LIRE des données, utilise `execute_readonly_sql`.\n"
