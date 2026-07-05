@@ -57,18 +57,18 @@
       {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
       {% for category, message in messages %}
-      {% set bg_class = 'success' if category == 'success' else 'danger' if category == 'danger' else 'warning' if
-      category == 'warning' else 'dark' %}
-      <div class="toast align-items-center text-bg-{{ bg_class }} border-0 mb-2 shadow" role="alert"
-        aria-live="assertive" aria-atomic="true" data-bs-delay="4000">
-        <div class="d-flex">
-          <div class="toast-body fw-medium">
-            <i
-              class="bi bi-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' if category == 'danger' else 'info-circle' }} me-2"></i>
-            {{ message }}
+      {% set icon = 'check-circle-fill' if category == 'success' else 'exclamation-triangle-fill' if category == 'danger' else 'info-circle-fill' %}
+      {% set accent = '#25D366' if category == 'success' else '#ef4444' if category == 'danger' else '#f59e0b' %}
+      <div class="toast border-0 mb-2 shadow-lg flash-toast" role="alert"
+        aria-live="assertive" aria-atomic="true" data-bs-delay="4000"
+        data-accent="{{ accent }}">
+        <div class="toast-body p-3">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-{{ icon }} flex-shrink-0" style="color:{{ accent }};font-size:0.95rem;"></i>
+            <div class="fw-medium" style="font-size:0.9rem;line-height:1.4;">{{ message }}</div>
+            <button type="button" class="btn-close flex-shrink-0 flash-toast-close" data-bs-dismiss="toast"
+              aria-label="Fermer" style="font-size:0.7em;opacity:0.75;margin-left:4px;"></button>
           </div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
-            aria-label="Fermer"></button>
         </div>
       </div>
       {% endfor %}

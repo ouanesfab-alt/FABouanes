@@ -6,6 +6,18 @@
     const toasts = document.querySelectorAll('.toast');
     toasts.forEach(t => new bootstrap.Toast(t).show());
 
+    // Apply theme-adaptive styling to flash toasts
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    document.querySelectorAll('.flash-toast').forEach(t => {
+      t.style.borderRadius = '10px';
+      t.style.backgroundColor = isDark ? '#1e2a30' : '#f0f2f5';
+      t.style.color = isDark ? '#e9edef' : '#111b21';
+      t.style.borderLeft = '4px solid ' + (t.dataset.accent || '#25D366');
+      if (!isDark) t.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)';
+      const closeBtn = t.querySelector('.flash-toast-close');
+      if (closeBtn && isDark) closeBtn.classList.add('btn-close-white');
+    });
+
     // Autofocus first valid input
     const firstInput = document.querySelector('form:not([data-no-autofocus]) input:not([type=hidden]):not([readonly])');
     if (firstInput && !firstInput.closest('.modal')) {
