@@ -53,8 +53,8 @@ def execute_readonly_sql(query: str) -> Dict[str, Any]:
         return {"error": f"Erreur SQL : {str(e)}"}
 
 async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str) -> Dict[str, Any]:
-    """Appelle l'API Gemini 2.5 Flash avec les messages et outils définis."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    """Appelle l'API Gemini 2.0 Flash avec les messages et outils définis."""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
     
     tools = [
         {
