@@ -201,12 +201,17 @@
 
   /* Fixed bottom input area */
   .chat-input-area {
-    position: sticky;
+    position: fixed;
     bottom: 0;
+    left: 0;
+    right: 0;
     padding: 16px 20px;
     background: var(--glass-chrome);
     border-top: 1px solid var(--line);
-    z-index: 100;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
   }
 
   @media (max-width: 991px) {
@@ -316,6 +321,8 @@
     border-radius: 20px;
     padding: 4px 6px 4px 16px;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    width: 100%;
+    max-width: 900px;
   }
 
   .chat-input-bar:focus-within {
