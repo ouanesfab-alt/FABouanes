@@ -1,121 +1,333 @@
 {% extends 'base.html' %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
+  /* Let the entire page scroll naturally using the browser scrollbar */
+  html:has(.assistant-wrapper),
+  body:has(.assistant-wrapper) {
+    height: auto !important;
+    overflow: auto !important;
+  }
+
+  body:has(.assistant-wrapper) .app-content {
+    height: auto !important;
+    padding: 16px !important;
+    display: block !important;
+  }
+
   .assistant-wrapper {
     max-width: 900px;
     margin: 0 auto;
     width: 100%;
+    min-height: calc(100vh - var(--nav-h, 56px) - 60px);
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding-bottom: 40px; /* Space at the bottom */
+    font-family: var(--font-main);
   }
 
+  /* macOS Sequoia Glass Window */
   .chat-card {
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    background: var(--bg-secondary);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    position: relative;
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    background: var(--glass-chrome);
+    backdrop-filter: var(--backdrop-blur);
+    box-shadow: var(--shadow-xl);
     display: flex;
     flex-direction: column;
+    flex: 1;
+    height: auto !important;
+  }
+
+  /* macOS Titlebar / Header */
+  /* macOS Titlebar / Header */
+  .mac-titlebar {
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0, 0, 0, 0.02);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .mac-header-title {
+    font-family: var(--font-title);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* macOS Buttons */
+  .mac-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--line);
+    color: var(--text-primary);
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.1s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+
+  .mac-btn:hover {
+    background: var(--bg-tertiary);
+  }
+
+  .mac-btn:active {
+    background: var(--line);
+  }
+
+  .mac-btn-primary {
+    background: var(--accent);
+    color: white !important;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  .mac-btn-primary:hover {
+    background: #0068D6;
+  }
+
+  /* Ambient AI Aurora Border Glow */
+  .chat-card {
+    position: relative;
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    background: var(--glass-chrome);
+    backdrop-filter: var(--backdrop-blur);
+    box-shadow: var(--shadow-xl);
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0; /* Let flex container shrink properly */
+    overflow: hidden;
+  }
+
+  .chat-card::before {
+    content: '';
+    position: absolute;
+    inset: -1.5px;
+    border-radius: 17px;
+    background: linear-gradient(90deg, #007AFF, #AF52DE, #5AC8FA, #007AFF);
+    background-size: 400% 400%;
+    z-index: -1;
+    animation: aurora 15s ease infinite;
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  @keyframes aurora {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
 
   .chat-messages-container {
-    padding: 20px;
+    padding: 24px 24px 110px; /* Extra bottom padding so last message is visible above the sticky input bar */
     display: flex;
     flex-direction: column;
     gap: 16px;
     background: var(--bg-primary);
     border-bottom: 1px solid var(--line);
-    min-height: 350px;
+    flex: 1;
+    overflow: visible !important;
   }
 
-  /* Sticky input area at the bottom of the viewport */
+  /* Welcome Screen Layout */
+  .chat-welcome-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: auto 0;
+    max-width: 700px;
+    width: 100%;
+    align-self: center;
+    padding: 20px 0;
+  }
+
+  .welcome-header h3 {
+    font-family: var(--font-title);
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  .welcome-grid {
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  .capability-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    gap: 14px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--shadow-sm);
+    height: 100%;
+  }
+
+  .capability-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+    box-shadow: var(--shadow-md);
+  }
+
+  .capability-card i {
+    font-size: 1.4rem;
+    margin-top: 2px;
+  }
+
+  .capability-title {
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .capability-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  /* Fixed bottom input area */
   .chat-input-area {
     position: sticky;
     bottom: 0;
     padding: 16px 20px;
-    background: var(--bg-secondary);
+    background: var(--glass-chrome);
     border-top: 1px solid var(--line);
     z-index: 100;
   }
 
-  /* Sleek macOS-like chat bubbles */
+  @media (max-width: 991px) {
+    .chat-input-area {
+      bottom: var(--bot-h, 56px); /* Account for bottom navigation bar on mobile/tablet */
+    }
+  }
+
+  /* Sleek macOS iMessage-style bubbles */
   .chat-bubble {
-    max-width: 75%;
-    padding: 12px 16px;
-    border-radius: 16px;
-    line-height: 1.5;
+    max-width: 70%;
+    padding: 10px 16px;
+    border-radius: 18px;
+    line-height: 1.45;
     font-size: 0.92rem;
     word-wrap: break-word;
+    position: relative;
   }
 
   .chat-bubble.user {
     align-self: flex-end;
-    background: #059669;
-    /* Emerald theme primary */
+    background: linear-gradient(180deg, var(--accent) 0%, #0068D6 100%);
     color: #ffffff;
-    border-bottom-right-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 122, 255, 0.25);
   }
 
   .chat-bubble.model {
     align-self: flex-start;
     background: var(--bg-secondary);
     border: 1px solid var(--line);
-    color: var(--text);
-    border-bottom-left-radius: 4px;
+    color: var(--text-primary);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  }
+
+  /* Bubble Action Buttons */
+  .chat-bubble-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    opacity: 0.4;
+    transition: opacity 0.15s ease;
+  }
+
+  .chat-bubble:hover .chat-bubble-actions {
+    opacity: 1;
+  }
+
+  .bubble-action-btn {
+    background: transparent;
+    border: none;
+    padding: 2px 6px;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.1s ease;
+  }
+
+  .bubble-action-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
   .chat-bubble.system {
     align-self: center;
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.15);
     color: #ef4444;
     font-size: 0.85rem;
-    border-radius: 10px;
+    border-radius: 12px;
     text-align: center;
     max-width: 90%;
   }
 
-  /* Suggestions */
+  /* macOS Style Suggestions */
   .chat-suggestions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding: 16px 20px 8px;
-    background: var(--bg-secondary);
+    padding: 12px 20px 4px;
+    background: transparent;
   }
 
   .suggestion-chip {
-    background: var(--bg-tertiary);
+    background: var(--bg-secondary);
     border: 1px solid var(--line);
     color: var(--text-secondary);
-    padding: 6px 12px;
-    border-radius: 20px;
+    padding: 5px 12px;
+    border-radius: 14px;
     font-size: 0.8rem;
     cursor: pointer;
     transition: all 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
   }
 
   .suggestion-chip:hover {
-    background: var(--line);
-    color: var(--text);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--text-tertiary);
   }
-
 
   .chat-input-bar {
     display: flex;
     align-items: center;
-    background: var(--bg-tertiary);
+    background: var(--bg-secondary);
     border: 1px solid var(--line);
-    border-radius: 24px;
+    border-radius: 20px;
     padding: 4px 6px 4px 16px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .chat-input-bar:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
   }
 
   .chat-input-bar textarea {
     flex: 1;
     border: none !important;
     background: transparent !important;
-    color: var(--text) !important;
+    color: var(--text-primary) !important;
     font-size: 0.92rem;
     padding: 8px 0;
     resize: none;
@@ -125,39 +337,67 @@
   }
 
   .chat-send-btn {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
-    background: #059669;
+    background: var(--accent);
     border: none;
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: transform 0.1s ease;
+    transition: transform 0.1s ease, background 0.15s ease;
+  }
+
+  .chat-send-btn:hover {
+    background: #0068D6;
   }
 
   .chat-send-btn:active {
-    transform: scale(0.95);
+    transform: scale(0.92);
   }
 
   .chat-send-btn:disabled {
     background: var(--line);
-    color: var(--text-secondary);
+    color: var(--text-tertiary);
     cursor: not-allowed;
   }
 
-  /* Inline settings panel */
+  /* Inline settings panel (macOS Sheet Style) */
   .settings-panel-inline {
     background: var(--bg-tertiary);
     border-bottom: 1px solid var(--line);
     padding: 16px 20px;
     display: none;
+    animation: slideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideDown {
+    from { transform: translateY(-10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
   }
 
   .settings-panel-inline.show {
     display: block;
+  }
+
+  /* macOS Style Input Fields */
+  .mac-input {
+    background: var(--bg-secondary);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    width: 100%;
+  }
+
+  .mac-input:focus {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
   }
 
   /* Loader */
@@ -188,13 +428,9 @@
   }
 
   @keyframes bounce {
-
-    0%,
-    80%,
-    100% {
+    0%, 80%, 100% {
       transform: scale(0);
     }
-
     40% {
       transform: scale(1);
     }
@@ -233,45 +469,44 @@
   <!-- Main Chat Card -->
   <div class="chat-card">
 
-    <!-- Card Header / Title bar with actions -->
-    <div class="card-header py-3 px-4 d-flex align-items-center justify-content-between bg-transparent border-bottom">
-      <div class="d-flex align-items-center gap-3">
-        <h5 class="m-0 fw-bold d-flex align-items-center gap-2">
-          <i class="bi bi-stars text-emerald"></i>
-          Assistant IA
-        </h5>
-        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Gemini 2.5 Flash</span>
+    <!-- macOS Window Title Bar (Traffic lights removed) -->
+    <div class="mac-titlebar">
+      <div class="d-flex align-items-center gap-2">
+        <div class="mac-header-title">
+          <i class="bi bi-stars text-primary"></i>
+          <span>Assistant commercial</span>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5" style="font-size: 0.7rem; border-radius: 10px;">Gemini 2.5</span>
+        </div>
       </div>
       <div class="d-flex gap-2">
-        <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" id="toggleSettingsBtn">
-          <i class="bi bi-key-fill"></i> Clé d'API
+        <button class="mac-btn" id="toggleSettingsBtn">
+          <i class="bi bi-key-fill text-muted"></i> <span>Clé d'API</span>
         </button>
-        <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" id="clearChatBtn">
-          <i class="bi bi-trash"></i> Effacer
+        <button class="mac-btn" id="clearChatBtn">
+          <i class="bi bi-trash text-muted"></i> <span>Effacer</span>
         </button>
       </div>
     </div>
 
-    <!-- Inline API Key Panel -->
+    <!-- Inline API Key Panel (macOS Sheet Style) -->
     <div class="settings-panel-inline {% if not has_key %}show{% endif %}" id="settingsPanel">
       <form method="post" action="{{ url_for('assistant_save_settings') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <div class="row g-3 align-items-center">
+        <div class="row g-2 align-items-center">
           <div class="col-auto">
-            <label for="apiKeyInput" class="col-form-label py-0 small fw-bold">Clé d'API Gemini :</label>
+            <label for="apiKeyInput" class="small fw-bold text-secondary">Clé d'API Gemini :</label>
           </div>
           <div class="col-md-6 col-sm-8">
-            <input type="password" name="gemini_api_key" id="apiKeyInput" class="form-control form-control-sm"
+            <input type="password" name="gemini_api_key" id="apiKeyInput" class="mac-input"
               placeholder="Saisissez votre clé d'API (AIzaSy...)" required>
           </div>
           <div class="col-auto">
-            <button type="submit" class="btn btn-sm btn-success">Enregistrer</button>
+            <button type="submit" class="mac-btn mac-btn-primary">Enregistrer</button>
           </div>
         </div>
         {% if not has_key %}
         <div class="mt-2 text-danger small">
-          <i class="bi bi-exclamation-triangle-fill me-1"></i> Une clé d'API valide est requise pour utiliser
-          l'assistant.
+          <i class="bi bi-exclamation-triangle-fill me-1"></i> Une clé d'API valide est requise pour utiliser l'assistant.
         </div>
         {% endif %}
       </form>
@@ -279,29 +514,75 @@
 
     <!-- Conversation Messages Container -->
     <div class="chat-messages-container" id="chatMessages">
-      <div class="chat-bubble model">
-        Bonjour ! Je suis votre Assistant commercial. Je peux consulter en direct vos clients, vos ventes, vos stocks et
-        vos dépenses. Quelle information recherchez-vous aujourd'hui ?
+      
+      <!-- Welcome Screen (Gemini Style) -->
+      <div class="chat-welcome-container" id="welcomeContainer">
+        <div class="welcome-header text-center mb-4">
+          <div class="mb-3">
+            <i class="bi bi-stars fs-1 text-primary"></i>
+          </div>
+          <h3 class="fw-bold">Comment puis-je vous aider aujourd'hui ?</h3>
+          <p class="text-secondary small">Posez des questions pour analyser vos données de vente, vos clients, vos stocks et vos dépenses.</p>
+        </div>
+        <div class="row g-3 welcome-grid">
+          <div class="col-md-6">
+            <div class="capability-card" data-question="Combien de clients ont un crédit actif ?">
+              <i class="bi bi-people-fill text-primary"></i>
+              <div>
+                <div class="capability-title">Analyse Clients</div>
+                <div class="capability-desc">Consultez les soldes, crédits et fiches clients.</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="capability-card" data-question="Quelles sont les ventes du mois en cours ?">
+              <i class="bi bi-graph-up-arrow text-success"></i>
+              <div>
+                <div class="capability-title">Rapports de Vente</div>
+                <div class="capability-desc">Suivez votre chiffre d'affaires mensuel ou annuel.</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="capability-card" data-question="Quels produits ont un stock inférieur à leur seuil d'alerte ?">
+              <i class="bi bi-box-seam text-warning"></i>
+              <div>
+                <div class="capability-title">Suivi des Stocks</div>
+                <div class="capability-desc">Identifiez les ruptures de stock et produits en alerte.</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="capability-card" data-question="Fais-moi un résumé des dépenses de ce mois par catégorie">
+              <i class="bi bi-wallet2 text-danger"></i>
+              <div>
+                <div class="capability-title">Gestion Dépenses</div>
+                <div class="capability-desc">Visualisez les dépenses par catégorie budgétaire.</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
     </div>
 
     <!-- Suggested Quick Questions -->
-    <div class="chat-suggestions" id="suggestionChips">
+    <div class="chat-suggestions d-none" id="suggestionChips">
       <div class="suggestion-chip" data-question="Combien de clients ont un crédit actif ?">Crédit clients</div>
       <div class="suggestion-chip" data-question="Quelles sont les ventes du mois en cours ?">Ventes ce mois-ci</div>
-      <div class="suggestion-chip" data-question="Quels produits ont un stock inférieur à leur seuil d'alerte ?">Alertes
-        stock</div>
-      <div class="suggestion-chip" data-question="Fais-moi un résumé des dépenses de ce mois par catégorie">Dépenses
-      </div>
+      <div class="suggestion-chip" data-question="Quels produits ont un stock inférieur à leur seuil d'alerte ?">Alertes stock</div>
+      <div class="suggestion-chip" data-question="Fais-moi un résumé des dépenses de ce mois par catégorie">Dépenses</div>
     </div>
 
     <!-- Message Input Area -->
     <div class="chat-input-area">
       <div class="chat-input-bar">
-        <textarea id="chatInput" placeholder="Posez votre question ici..." {% if not has_key %}disabled{% endif
-          %}></textarea>
+        <textarea id="chatInput" placeholder="Posez votre question ici..." {% if not has_key %}disabled{% endif %}></textarea>
         <button id="sendBtn" class="chat-send-btn" {% if not has_key %}disabled{% endif %}>
           <i class="bi bi-arrow-up-short fs-4"></i>
+        </button>
+        <button id="stopBtn" class="chat-send-btn bg-danger" style="display: none;" title="Arrêter la génération">
+          <i class="bi bi-stop-fill fs-5"></i>
         </button>
       </div>
     </div>
@@ -314,12 +595,14 @@
     const chatMessages = document.getElementById('chatMessages');
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendBtn');
+    const stopBtn = document.getElementById('stopBtn');
     const clearChatBtn = document.getElementById('clearChatBtn');
-    const suggestionChips = document.getElementById('suggestionChips');
     const toggleSettingsBtn = document.getElementById('toggleSettingsBtn');
     const settingsPanel = document.getElementById('settingsPanel');
+    const welcomeContainer = document.getElementById('welcomeContainer');
 
     let history = [];
+    let abortController = null;
 
     // Toggle settings panel
     toggleSettingsBtn?.addEventListener('click', () => {
@@ -331,7 +614,10 @@
       const saved = localStorage.getItem('fab_assistant_history');
       if (saved) {
         history = JSON.parse(saved);
-        renderHistory();
+        if (history.length > 0) {
+          welcomeContainer.style.display = 'none';
+          renderHistory();
+        }
       }
     } catch (e) { }
 
@@ -347,13 +633,25 @@
 
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || "";
 
+      // Hide welcome container on first message
+      if (welcomeContainer) {
+        welcomeContainer.style.display = 'none';
+      }
+
       appendMessage('user', text);
       chatInput.value = '';
       chatInput.style.height = '38px';
       chatInput.focus();
 
+      // Show stop button, hide send button
+      sendBtn.style.display = 'none';
+      stopBtn.style.display = 'inline-flex';
+
       const indicator = appendTypingIndicator();
       chatMessages.scrollTop = chatMessages.scrollHeight;
+
+      // Instantiate abort controller
+      abortController = new AbortController();
 
       try {
         const response = await fetch('/assistant/chat', {
@@ -363,7 +661,8 @@
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRF-Token': csrfToken
           },
-          body: JSON.stringify({ message: text, history: history })
+          body: JSON.stringify({ message: text, history: history }),
+          signal: abortController.signal
         });
 
         const data = await response.json();
@@ -379,13 +678,28 @@
         }
       } catch (err) {
         removeTypingIndicator(indicator);
-        appendMessage('system', "Erreur de connexion réseau.");
+        if (err.name === 'AbortError') {
+          appendMessage('system', "Génération interrompue par l'utilisateur.");
+        } else {
+          appendMessage('system', "Erreur de connexion réseau.");
+        }
+      } finally {
+        // Reset buttons
+        sendBtn.style.display = 'inline-flex';
+        stopBtn.style.display = 'none';
+        abortController = null;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
       }
-
-      chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
     sendBtn?.addEventListener('click', () => sendMessage(chatInput.value));
+
+    // Abort/Stop button click handler
+    stopBtn?.addEventListener('click', () => {
+      if (abortController) {
+        abortController.abort();
+      }
+    });
 
     chatInput?.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -394,27 +708,75 @@
       }
     });
 
-    suggestionChips?.addEventListener('click', function (e) {
-      const chip = e.target.closest('.suggestion-chip');
-      if (chip) {
-        sendMessage(chip.getAttribute('data-question'));
+    // Delegate welcome card click and quick chips
+    document.addEventListener('click', function (e) {
+      const card = e.target.closest('.capability-card');
+      if (card) {
+        sendMessage(card.getAttribute('data-question'));
       }
     });
 
     clearChatBtn?.addEventListener('click', function () {
+      // Cancel speech synthesis if speaking
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
       history = [];
       saveHistory();
-      chatMessages.innerHTML = `
-        <div class="chat-bubble model">
-          Historique effacé. Posez-moi vos questions !
-        </div>
-      `;
+      chatMessages.innerHTML = '';
+      if (welcomeContainer) {
+        welcomeContainer.style.display = 'flex';
+      }
+    });
+
+    // Handle bubble actions (Copy to clipboard and speech synthesis)
+    chatMessages.addEventListener('click', function(e) {
+      const copyBtn = e.target.closest('.btn-copy');
+      if (copyBtn) {
+        const bubble = copyBtn.closest('.chat-bubble');
+        // Extract text ignoring button labels
+        const textNode = bubble.innerText.replace(/[\n\s]*Copier[\n\s]*Lire à haute voix/g, '').trim();
+        navigator.clipboard.writeText(textNode).then(() => {
+          const origHTML = copyBtn.innerHTML;
+          copyBtn.innerHTML = '<i class="bi bi-check2 text-success"></i> Copié';
+          setTimeout(() => copyBtn.innerHTML = origHTML, 2000);
+        });
+      }
+
+      const speakBtn = e.target.closest('.btn-speak');
+      if (speakBtn) {
+        const bubble = speakBtn.closest('.chat-bubble');
+        const textNode = bubble.innerText.replace(/[\n\s]*Copier[\n\s]*Lire à haute voix/g, '').trim();
+        
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+          speakBtn.innerHTML = '<i class="bi bi-volume-up"></i> Lire à haute voix';
+        } else {
+          const utterance = new SpeechSynthesisUtterance(textNode);
+          utterance.lang = 'fr-FR';
+          utterance.onend = () => speakBtn.innerHTML = '<i class="bi bi-volume-up"></i> Lire à haute voix';
+          window.speechSynthesis.speak(utterance);
+          speakBtn.innerHTML = '<i class="bi bi-volume-mute"></i> Arrêter la lecture';
+        }
+      }
     });
 
     function appendMessage(role, text) {
       const bubble = document.createElement('div');
       bubble.className = `chat-bubble ${role}`;
       bubble.innerHTML = parseMarkdown(text);
+
+      // Append action bar for model responses
+      if (role === 'model') {
+        const actions = document.createElement('div');
+        actions.className = 'chat-bubble-actions mt-2';
+        actions.innerHTML = `
+          <button class="bubble-action-btn btn-copy"><i class="bi bi-clipboard"></i> Copier</button>
+          <button class="bubble-action-btn btn-speak"><i class="bi bi-volume-up"></i> Lire à haute voix</button>
+        `;
+        bubble.appendChild(actions);
+      }
+
       chatMessages.appendChild(bubble);
       chatMessages.scrollTop = chatMessages.scrollHeight;
     }
