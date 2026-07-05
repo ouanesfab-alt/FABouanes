@@ -1,243 +1,348 @@
 {% extends 'base.html' %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
-  .assistant-page {
-    display: grid;
-    grid-template-columns: 1fr 320px;
-    gap: 20px;
+  .assistant-container {
+    max-width: 920px;
+    margin: 0 auto;
+    width: 100%;
     height: calc(100vh - var(--nav-h) - 40px);
-    min-height: 500px;
-  }
-  .chat-panel {
+    min-height: 550px;
     display: flex;
     flex-direction: column;
-    height: 100%;
+  }
+  
+  /* macOS Sequoia Window Style */
+  .mac-window {
+    flex: 1;
     background: var(--card);
     border: 1px solid var(--line);
     border-radius: 16px;
-    overflow: hidden;
-  }
-  .chat-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--line);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    overflow: hidden;
+    position: relative;
   }
-  .chat-input-area {
-    padding: 16px 20px;
-    border-top: 1px solid var(--line);
+
+  /* Title Bar */
+  .mac-titlebar {
+    height: 52px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--line);
     background: rgba(0, 0, 0, 0.01);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
   }
-  .chat-input-wrapper {
+
+  .mac-dots {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    width: 80px;
+  }
+
+  .mac-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .mac-dot.red { background: #ff5f56; }
+  .mac-dot.yellow { background: #ffbd2e; }
+  .mac-dot.green { background: #27c93f; }
+
+  .mac-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text);
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mac-actions {
     display: flex;
     gap: 10px;
-    align-items: flex-end;
+    align-items: center;
   }
-  .message-bubble {
-    max-width: 85%;
-    padding: 12px 16px;
-    border-radius: 12px;
+
+  /* Chat Messages */
+  .mac-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  /* macOS Message Bubbles */
+  .mac-bubble {
+    max-width: 75%;
+    padding: 10px 16px;
+    border-radius: 18px;
     line-height: 1.5;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
+    position: relative;
+    word-wrap: break-word;
   }
-  .message-bubble.user {
+
+  .mac-bubble.user {
     align-self: flex-end;
     background: #059669; /* Vert émeraude */
     color: #ffffff;
     border-bottom-right-radius: 4px;
+    box-shadow: 0 1px 2px rgba(5, 150, 105, 0.15);
   }
-  .message-bubble.model {
+
+  .mac-bubble.model {
     align-self: flex-start;
     background: var(--bg-secondary);
     border: 1px solid var(--line);
     color: var(--text);
     border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
   }
-  .message-bubble.system {
+
+  .mac-bubble.system {
     align-self: center;
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(239, 68, 68, 0.08);
     color: #ef4444;
     font-size: 0.85rem;
-    max-width: 90%;
+    border-radius: 12px;
     text-align: center;
+    max-width: 90%;
   }
-  .settings-panel {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    padding: 20px;
-    height: fit-content;
-  }
-  .suggestion-chips {
+
+  /* Suggestion chips */
+  .mac-suggestions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    padding: 0 24px;
     margin-bottom: 12px;
   }
-  .suggestion-chip {
+
+  .mac-chip {
     background: var(--bg-tertiary);
     border: 1px solid var(--line);
     color: var(--text-secondary);
-    padding: 6px 12px;
+    padding: 6px 14px;
     border-radius: 20px;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
   }
-  .suggestion-chip:hover {
+
+  .mac-chip:hover {
     background: var(--line);
     color: var(--text);
     transform: translateY(-1px);
   }
-  .typing-indicator {
+
+  /* macOS Spotlight style Input Bar */
+  .mac-input-area {
+    padding: 16px 24px 24px;
+    background: transparent;
+  }
+
+  .mac-input-bar {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 8px 12px;
     background: var(--bg-secondary);
     border: 1px solid var(--line);
-    border-radius: 12px;
-    width: fit-content;
-    align-self: flex-start;
+    border-radius: 24px;
+    padding: 4px 6px 4px 16px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
   }
-  .typing-dot {
+
+  .mac-input-bar textarea {
+    flex: 1;
+    border: none !important;
+    background: transparent !important;
+    color: var(--text) !important;
+    font-size: 0.92rem;
+    padding: 8px 0;
+    resize: none;
+    height: 38px;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  .mac-send-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #059669;
+    border: none;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+  }
+
+  .mac-send-btn:active {
+    transform: scale(0.92);
+  }
+
+  .mac-send-btn:disabled {
+    background: var(--line);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+  }
+
+  /* Settings Sheet (macOS Modal) */
+  .mac-sheet {
+    position: absolute;
+    top: -100%;
+    left: 0;
+    right: 0;
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    transition: top 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 100;
+    padding: 24px;
+  }
+
+  .mac-sheet.open {
+    top: 52px; /* Apparaît juste sous la titlebar */
+  }
+
+  /* Markdown formatting inside bubbles */
+  .mac-bubble table {
+    width: 100%;
+    margin: 8px 0;
+    border-collapse: collapse;
+  }
+  .mac-bubble th, .mac-bubble td {
+    border: 1px solid var(--line);
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+  .mac-bubble th {
+    background: rgba(0, 0, 0, 0.02);
+  }
+  .mac-bubble pre {
+    background: rgba(0, 0, 0, 0.04);
+    padding: 8px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: monospace;
+    font-size: 0.82rem;
+  }
+
+  /* Loader */
+  .mac-loading {
+    display: flex;
+    gap: 4px;
+    padding: 8px 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    width: fit-content;
+  }
+  .mac-dot-anim {
     width: 6px;
     height: 6px;
     background: var(--text-secondary);
     border-radius: 50%;
-    animation: typingBounce 1.4s infinite ease-in-out both;
+    animation: macBounce 1.4s infinite ease-in-out both;
   }
-  .typing-dot:nth-child(1) { animation-delay: -0.32s; }
-  .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+  .mac-dot-anim:nth-child(1) { animation-delay: -0.32s; }
+  .mac-dot-anim:nth-child(2) { animation-delay: -0.16s; }
 
-  @keyframes typingBounce {
+  @keyframes macBounce {
     0%, 80%, 100% { transform: scale(0); }
     40% { transform: scale(1); }
   }
 
-  /* Formats de code Markdown */
-  .message-bubble pre {
-    background: rgba(0, 0, 0, 0.05);
-    padding: 10px;
-    border-radius: 6px;
-    overflow-x: auto;
-    font-family: monospace;
-    font-size: 0.85rem;
-    margin: 8px 0;
-  }
-  .message-bubble table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 10px 0;
-  }
-  .message-bubble th, .message-bubble td {
-    border: 1px solid var(--line);
-    padding: 6px 10px;
-    font-size: 0.85rem;
-    text-align: left;
-  }
-  .message-bubble th {
-    background: rgba(0, 0, 0, 0.03);
-  }
-
-  @media(max-width: 991px) {
-    .assistant-page {
-      grid-template-columns: 1fr;
-      height: auto;
+  @media(max-width: 767px) {
+    .assistant-container {
+      height: calc(100vh - var(--nav-h) - 20px);
     }
-    .chat-panel {
-      height: 600px;
+    .mac-titlebar {
+      height: 48px;
+    }
+    .mac-dots {
+      display: none; /* cache les feux tricolores sur mobile */
     }
   }
 </style>
 
-<div class="assistant-page">
-  <!-- Left panel: Chat Interface -->
-  <div class="chat-panel">
-    <div class="chat-header">
-      <div class="d-flex align-items-center gap-2">
-        <i class="bi bi-stars fs-4" style="color: #059669;"></i>
-        <div>
-          <h5 class="mb-0 fw-bold">Assistant IA</h5>
-          <small class="text-emerald text-success">En ligne • Gemini 2.5 Flash</small>
-        </div>
+<div class="assistant-container">
+  <div class="mac-window">
+    
+    <!-- Titlebar macOS -->
+    <div class="mac-titlebar">
+      <div class="mac-dots">
+        <span class="mac-dot red"></span>
+        <span class="mac-dot yellow"></span>
+        <span class="mac-dot green"></span>
       </div>
-      <button class="btn btn-sm btn-outline-secondary" id="clearChatBtn" title="Effacer la discussion">
-        <i class="bi bi-trash me-1"></i>Effacer
-      </button>
-    </div>
-
-    <!-- Messages area -->
-    <div class="chat-messages" id="chatMessages">
-      <div class="message-bubble model">
-        Bonjour ! Je suis votre Assistant FABOuanes. Je peux consulter la base de données pour vous donner des rapports de vente, vérifier l'état du stock ou analyser vos charges. Posez-moi vos questions !
-      </div>
-    </div>
-
-    <!-- Input area -->
-    <div class="chat-input-area">
-      <!-- Suggestion chips -->
-      <div class="suggestion-chips" id="suggestionChips">
-        <div class="suggestion-chip" data-question="Combien de clients ont un crédit actif ?">Crédit clients</div>
-        <div class="suggestion-chip" data-question="Quelles sont les ventes du mois en cours ?">Ventes ce mois-ci</div>
-        <div class="suggestion-chip" data-question="Quels produits ont un stock inférieur à leur seuil d'alerte ?">Alertes stock</div>
-        <div class="suggestion-chip" data-question="Fais-moi un résumé des dépenses de ce mois par catégorie">Dépenses par catégorie</div>
+      
+      <div class="mac-title">
+        <i class="bi bi-stars" style="color: #059669;"></i>
+        <span>Assistant IA</span>
       </div>
 
-      <div class="chat-input-wrapper">
-        <textarea id="chatInput" class="form-control" rows="1" placeholder="Posez une question sur vos ventes, stocks, clients..." {% if not has_key %}disabled{% endif %} style="resize: none; max-height: 120px;"></textarea>
-        <button id="sendBtn" class="btn btn-success d-flex align-items-center justify-content-center" {% if not has_key %}disabled{% endif %} style="height: 44px; width: 44px; border-radius: 10px;">
-          <i class="bi bi-send-fill fs-5"></i>
+      <div class="mac-actions">
+        <button class="btn btn-xs btn-outline-secondary px-2" id="toggleSettingsBtn" title="Réglages de la clé d'API">
+          <i class="bi bi-gear-fill"></i> Clé d'API
+        </button>
+        <button class="btn btn-xs btn-outline-secondary px-2" id="clearChatBtn" title="Effacer l'historique">
+          <i class="bi bi-trash"></i> Effacer
         </button>
       </div>
     </div>
-  </div>
 
-  <!-- Right panel: Settings -->
-  <div class="settings-panel">
-    <h6 class="fw-bold mb-3"><i class="bi bi-gear me-2"></i>Configuration</h6>
-    
-    {% if not has_key %}
-    <div class="alert alert-warning py-2 px-3 small mb-3">
-      <i class="bi bi-exclamation-triangle me-2"></i>
-      Une clé d'API Gemini est requise pour utiliser l'assistant.
-    </div>
-    {% else %}
-    <div class="alert alert-success py-2 px-3 small mb-3">
-      <i class="bi bi-check-circle me-2"></i>
-      Clé d'API configurée et active.
-    </div>
-    {% endif %}
-
-    <form method="post" action="{{ url_for('assistant_save_settings') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <div class="mb-3">
-        <label for="apiKeyInput" class="form-label mb-1 small">Clé d'API Gemini</label>
-        <input type="password" name="gemini_api_key" id="apiKeyInput" class="form-control form-control-sm" placeholder="AIzaSy..." required>
-        <div class="form-text small" style="font-size: 0.75rem;">
-          La clé est sauvegardée de manière sécurisée dans la configuration locale.
+    <!-- Dropdown Preferences Sheet -->
+    <div class="mac-sheet" id="settingsSheet">
+      <h6 class="fw-bold mb-2">Clé d'API Gemini</h6>
+      <p class="text-muted small mb-3">La clé est enregistrée localement dans les paramètres de votre base de données.</p>
+      
+      <form method="post" action="{{ url_for('assistant_save_settings') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="d-flex gap-2">
+          <input type="password" name="gemini_api_key" id="apiKeyInput" class="form-control form-control-sm" placeholder="AIzaSy..." required style="max-width: 450px;">
+          <button type="submit" class="btn btn-sm btn-success">Enregistrer</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="closeSettingsBtn">Fermer</button>
         </div>
-      </div>
-      <button type="submit" class="btn btn-sm btn-success w-100">
-        Enregistrer la clé
-      </button>
-    </form>
-    
-    <div class="mt-4 pt-3 border-top">
-      <h6 class="fw-bold small mb-2"><i class="bi bi-shield-lock me-2"></i>Sécurité</h6>
-      <p class="text-muted" style="font-size: 0.78rem; line-height: 1.4;">
-        L'assistant dispose d'un accès strictement <strong>en lecture seule</strong>. Il ne peut ni modifier vos ventes, ni supprimer vos stocks, ni altérer vos clients.
-      </p>
+      </form>
     </div>
+
+    <!-- Conversation Messages -->
+    <div class="mac-chat-messages" id="chatMessages">
+      <div class="mac-bubble model">
+        Bonjour ! Je suis votre Assistant. Je peux analyser la base de données de FABOuanes en temps réel. Posez-moi des questions sur vos ventes, vos clients ou vos stocks !
+      </div>
+    </div>
+
+    <!-- Suggestions Area -->
+    <div class="mac-suggestions" id="suggestionChips">
+      <div class="mac-chip" data-question="Combien de clients ont un crédit actif ?">Crédit clients</div>
+      <div class="mac-chip" data-question="Quelles sont les ventes du mois en cours ?">Ventes ce mois-ci</div>
+      <div class="mac-chip" data-question="Quels produits ont un stock inférieur à leur seuil d'alerte ?">Alertes stock</div>
+      <div class="mac-chip" data-question="Fais-moi un résumé des dépenses de ce mois par catégorie">Dépenses</div>
+    </div>
+
+    <!-- Input Bar -->
+    <div class="mac-input-area">
+      <div class="mac-input-bar">
+        <textarea id="chatInput" placeholder="Écrivez votre message..." {% if not has_key %}disabled{% endif %}></textarea>
+        <button id="sendBtn" class="mac-send-btn" {% if not has_key %}disabled{% endif %}>
+          <i class="bi bi-arrow-up-short fs-4"></i>
+        </button>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -248,10 +353,22 @@
     const sendBtn = document.getElementById('sendBtn');
     const clearChatBtn = document.getElementById('clearChatBtn');
     const suggestionChips = document.getElementById('suggestionChips');
+    const toggleSettingsBtn = document.getElementById('toggleSettingsBtn');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const settingsSheet = document.getElementById('settingsSheet');
 
     let history = [];
 
-    // Charger l'historique local s'il existe
+    // Toggler les réglages de la clé
+    toggleSettingsBtn?.addEventListener('click', () => {
+      settingsSheet.classList.toggle('open');
+    });
+
+    closeSettingsBtn?.addEventListener('click', () => {
+      settingsSheet.classList.remove('open');
+    });
+
+    // Charger l'historique
     try {
       const saved = localStorage.getItem('fab_assistant_history');
       if (saved) {
@@ -260,30 +377,26 @@
       }
     } catch(e) {}
 
-    // Ajustement de hauteur du textarea sur saisie
+    // Hauteur auto textarea
     chatInput?.addEventListener('input', function() {
-      this.style.height = 'auto';
-      this.style.height = (this.scrollHeight) + 'px';
+      this.style.height = '38px';
+      this.style.height = Math.min(100, this.scrollHeight) + 'px';
     });
 
-    // Envoi du message
+    // Envoi
     async function sendMessage(text) {
       if (!text || text.trim() === "") return;
       
-      // Récupérer le token CSRF depuis les balises meta
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || "";
       
-      // Ajouter le message utilisateur à l'UI
       appendMessage('user', text);
       chatInput.value = '';
-      chatInput.style.height = 'auto';
+      chatInput.style.height = '38px';
       chatInput.focus();
 
-      // Ajouter l'indicateur de chargement
       const indicator = appendTypingIndicator();
       chatMessages.scrollTop = chatMessages.scrollHeight;
 
-      // Envoyer à l'API
       try {
         const response = await fetch('/assistant/chat', {
           method: 'POST',
@@ -292,10 +405,7 @@
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRF-Token': csrfToken
           },
-          body: JSON.stringify({
-            message: text,
-            history: history
-          })
+          body: JSON.stringify({ message: text, history: history })
         });
         
         const data = await response.json();
@@ -303,7 +413,6 @@
 
         if (data.success) {
           appendMessage('model', data.response);
-          // Mettre à jour l'historique local
           history.push({ role: 'user', parts: [{ text: text }] });
           history.push({ role: 'model', parts: [{ text: data.response }] });
           saveHistory();
@@ -327,20 +436,18 @@
       }
     });
 
-    // Cliquer sur les suggestions
     suggestionChips?.addEventListener('click', function(e) {
-      const chip = e.target.closest('.suggestion-chip');
+      const chip = e.target.closest('.mac-chip');
       if (chip) {
         sendMessage(chip.getAttribute('data-question'));
       }
     });
 
-    // Effacer l'historique
     clearChatBtn?.addEventListener('click', function() {
       history = [];
       saveHistory();
       chatMessages.innerHTML = `
-        <div class="message-bubble model">
+        <div class="mac-bubble model">
           Historique effacé. Posez-moi vos questions !
         </div>
       `;
@@ -348,22 +455,19 @@
 
     function appendMessage(role, text) {
       const bubble = document.createElement('div');
-      bubble.className = `message-bubble ${role}`;
-      
-      // Parser le Markdown basique
+      bubble.className = `mac-bubble ${role}`;
       bubble.innerHTML = parseMarkdown(text);
-      
       chatMessages.appendChild(bubble);
       chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
     function appendTypingIndicator() {
       const indicator = document.createElement('div');
-      indicator.className = 'typing-indicator';
+      indicator.className = 'mac-loading';
       indicator.innerHTML = `
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
+        <div class="mac-dot-anim"></div>
+        <div class="mac-dot-anim"></div>
+        <div class="mac-dot-anim"></div>
       `;
       chatMessages.appendChild(indicator);
       return indicator;
@@ -381,42 +485,30 @@
 
     function renderHistory() {
       history.forEach(msg => {
-        const role = msg.role;
-        const text = msg.parts[0].text;
-        appendMessage(role, text);
+        appendMessage(msg.role, msg.parts[0].text);
       });
     }
 
-    // Markdown parser très simple pour thèmes et tableaux
     function parseMarkdown(md) {
       if (!md) return "";
       let html = md
-        // Échapper le HTML pour éviter XSS
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 
-      // Code blocks
       html = html.replace(/```(sql|json|text|html|)?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-      
-      // Inline code
       html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
-      // Tableaux Markdown
       html = html.replace(/\|(.+)\|/g, function(match, row) {
         const cols = row.split('|').map(c => c.trim());
-        if (cols.join('').replace(/-/g, '') === '') return ''; // ignorer ligne séparateur ---
+        if (cols.join('').replace(/-/g, '') === '') return '';
         const tag = md.indexOf(match) < md.indexOf('\n--') ? 'th' : 'td';
         return '<tr>' + cols.map(c => `<${tag}>${c}</${tag}>`).join('') + '</tr>';
       });
-      // Envelopper les tr consécutifs dans un table
       html = html.replace(/(<tr>[\s\S]*?<\/tr>)+/g, '<table>$1</table>');
 
-      // Gras et italique
       html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
       html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-      
-      // Retours à la ligne
       html = html.replace(/\n/g, '<br>');
 
       return html;
