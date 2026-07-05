@@ -548,8 +548,8 @@
             <div class="capability-card" data-question="Combien de clients ont un crédit actif ?">
               <i class="bi bi-people-fill text-primary"></i>
               <div>
-                <div class="capability-title">Analyse Clients</div>
-                <div class="capability-desc">Consultez les soldes, crédits et fiches clients.</div>
+                <div class="capability-title">Gestion Clients</div>
+                <div class="capability-desc">Consultez, créez, modifiez ou supprimez des clients.</div>
               </div>
             </div>
           </div>
@@ -557,8 +557,8 @@
             <div class="capability-card" data-question="Quelles sont les ventes du mois en cours ?">
               <i class="bi bi-graph-up-arrow text-success"></i>
               <div>
-                <div class="capability-title">Rapports de Vente</div>
-                <div class="capability-desc">Suivez votre chiffre d'affaires mensuel ou annuel.</div>
+                <div class="capability-title">Ventes & Opérations</div>
+                <div class="capability-desc">Analysez les ventes, créez des opérations et enregistrez des paiements.</div>
               </div>
             </div>
           </div>
@@ -566,8 +566,8 @@
             <div class="capability-card" data-question="Quels produits ont un stock inférieur à leur seuil d'alerte ?">
               <i class="bi bi-box-seam text-warning"></i>
               <div>
-                <div class="capability-title">Suivi des Stocks</div>
-                <div class="capability-desc">Identifiez les ruptures de stock et produits en alerte.</div>
+                <div class="capability-title">Stocks & Produits</div>
+                <div class="capability-desc">Consultez ou modifiez les stocks, prix et produits.</div>
               </div>
             </div>
           </div>
@@ -575,8 +575,26 @@
             <div class="capability-card" data-question="Fais-moi un résumé des dépenses de ce mois par catégorie">
               <i class="bi bi-wallet2 text-danger"></i>
               <div>
-                <div class="capability-title">Gestion Dépenses</div>
-                <div class="capability-desc">Visualisez les dépenses par catégorie budgétaire.</div>
+                <div class="capability-title">Dépenses</div>
+                <div class="capability-desc">Ajoutez, modifiez ou supprimez des dépenses par catégorie.</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="capability-card" data-question="Ajoute un nouveau client nommé 'Test' avec téléphone '0600000000'">
+              <i class="bi bi-plus-circle-fill text-info"></i>
+              <div>
+                <div class="capability-title">Créer & Modifier</div>
+                <div class="capability-desc">Dites à l'IA de créer, modifier ou supprimer n'importe quelle donnée.</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="capability-card" data-question="Quelle est la capitale de la France ?">
+              <i class="bi bi-lightbulb-fill text-secondary"></i>
+              <div>
+                <div class="capability-title">Questions Générales</div>
+                <div class="capability-desc">Posez n'importe quelle question : calculs, traductions, culture générale…</div>
               </div>
             </div>
           </div>
@@ -587,10 +605,11 @@
 
     <!-- Suggested Quick Questions -->
     <div class="chat-suggestions d-none" id="suggestionChips">
-      <div class="suggestion-chip" data-question="Combien de clients ont un crédit actif ?">Crédit clients</div>
-      <div class="suggestion-chip" data-question="Quelles sont les ventes du mois en cours ?">Ventes ce mois-ci</div>
+      <div class="suggestion-chip" data-question="Combien de clients ont un crédit actif ?">Crédits clients</div>
+      <div class="suggestion-chip" data-question="Quelles sont les ventes du mois en cours ?">Ventes ce mois</div>
       <div class="suggestion-chip" data-question="Quels produits ont un stock inférieur à leur seuil d'alerte ?">Alertes stock</div>
-      <div class="suggestion-chip" data-question="Fais-moi un résumé des dépenses de ce mois par catégorie">Dépenses</div>
+      <div class="suggestion-chip" data-question="Ajoute une dépense de 5000 DA pour 'Carburant' aujourd'hui">+ Dépense</div>
+      <div class="suggestion-chip" data-question="Montre-moi tous les clients">Tous les clients</div>
     </div>
 
   </div>
@@ -936,6 +955,15 @@
 
       recognition.onerror = function(event) {
         console.error("Speech recognition error:", event.error);
+        if (event.error === 'not-allowed') {
+          appendMessage('system', "⚠️ Microphone bloqué. Ouvrez l'application dans **Chrome** ou **Edge** à l'adresse **http://127.0.0.1:5000** puis autorisez le microphone.");
+        } else if (event.error === 'no-speech') {
+          // Pas d'alerte, juste reset silencieux
+        } else if (event.error === 'network') {
+          appendMessage('system', "⚠️ Erreur réseau pour la reconnaissance vocale. Vérifiez votre connexion internet.");
+        } else {
+          appendMessage('system', "⚠️ Erreur de reconnaissance vocale : " + event.error);
+        }
         stopRecording();
       };
 

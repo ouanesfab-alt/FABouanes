@@ -98,9 +98,9 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": f"Erreur SQL lors de l'écriture : {str(e)}"}
 
-async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str) -> Dict[str, Any]:
-    """Appelle l'API Gemini Flash avec les messages et outils définis."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={api_key}"
+async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_name: str = "gemini-flash-latest") -> Dict[str, Any]:
+    """Appelle l'API Gemini avec les messages et outils définis."""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
     
     tools = [
         {
@@ -167,7 +167,7 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str) -> Dict[
     
     headers = {"Content-Type": "application/json"}
     
-    max_retries = 4
+    max_retries = 2
     for attempt in range(max_retries):
         try:
             async with httpx.AsyncClient() as client:
@@ -176,8 +176,8 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str) -> Dict[
                 return response.json()
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 429 and attempt < max_retries - 1:
-                wait_time = 2 ** (attempt + 1)
-                logger.warning("Quota ou Rate Limit 429 de l'API Gemini atteint. Nouvelle tentative dans %ds...", wait_time)
+                wait_time = 1.5
+                logger.warning("Rate Limit 429 sur %s. Attente de 1.5s avant nouvel essai...", model_name)
                 await asyncio.sleep(wait_time)
                 continue
             raise
@@ -192,11 +192,27 @@ async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> s
     # Limite de sécurité sur le nombre de tours d'appels d'outils successifs
     max_turns = 6
     for turn in range(max_turns):
-        try:
-            res = await call_gemini_api(contents, api_key)
-        except Exception as exc:
-            logger.error("Erreur d'appel API Gemini: %s", exc)
-            return f"Désolé, impossible de joindre l'API Gemini ({str(exc)}). Vérifiez votre clé d'API dans les paramètres."
+        res = None
+        last_exception = None
+        candidate_models = ["gemini-flash-latest", "gemini-1.5-flash-8b", "gemini-2.0-flash-lite"]
+        for model in candidate_models:
+            try:
+                res = await call_gemini_api(contents, api_key, model_name=model)
+                break
+            except httpx.HTTPStatusError as exc:
+                last_exception = exc
+                if exc.response.status_code == 429:
+                    logger.warning("Modèle %s limité (429). Essai du modèle suivant...", model)
+                    continue
+                raise
+            except Exception as exc:
+                last_exception = exc
+                logger.warning("Erreur avec le modèle %s : %s. Essai du modèle suivant...", model, exc)
+                continue
+                
+        if res is None:
+            error_msg = str(last_exception) if last_exception else "Tous les modèles Gemini ont échoué."
+            return f"Désolé, impossible de joindre l'API Gemini ({error_msg}). Vérifiez votre clé d'API ou réessayez dans une minute."
 
         candidates = res.get("candidates", [])
         if not candidates:
