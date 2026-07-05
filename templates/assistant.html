@@ -492,7 +492,7 @@
       <div class="d-flex align-items-center gap-2">
         <div class="mac-header-title">
           <i class="bi bi-stars text-primary"></i>
-          <span>Assistant commercial</span>
+          <span>Sabrina - Assistante IA</span>
           <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5" style="font-size: 0.7rem; border-radius: 10px;">Gemini 3.5 Flash</span>
         </div>
       </div>
@@ -540,8 +540,8 @@
           <div class="mb-3">
             <i class="bi bi-stars fs-1 text-primary"></i>
           </div>
-          <h3 class="fw-bold">Comment puis-je vous aider aujourd'hui ?</h3>
-          <p class="text-secondary small">Posez des questions pour analyser vos données de vente, vos clients, vos stocks et vos dépenses.</p>
+          <h3 class="fw-bold">Je suis Sabrina, votre assistante commerciale.</h3>
+          <p class="text-secondary small">Comment puis-je vous aider aujourd'hui ? Posez vos questions pour gérer vos clients, ventes, stocks ou dépenses.</p>
         </div>
         <div class="row g-3 welcome-grid">
           <div class="col-md-6">
@@ -761,10 +761,39 @@
         removeTypingIndicator(indicator);
 
         if (data.success) {
-          appendMessage('model', data.response);
+          const rawResponse = data.response || "";
+          
+          // 1. Détection du thème à changer
+          const themeMatch = rawResponse.match(/\[THEME:(dark|light)\]/i);
+          if (themeMatch) {
+            const requestedTheme = themeMatch[1].toLowerCase();
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            if (currentTheme !== requestedTheme) {
+              const toggleBtn = document.getElementById('themeToggleBtnNavbar');
+              if (toggleBtn) {
+                toggleBtn.click();
+              } else {
+                document.documentElement.setAttribute('data-theme', requestedTheme);
+                localStorage.setItem('fab_theme', requestedTheme);
+              }
+            }
+          }
+
+          // 2. Détection d'une redirection automatique
+          const redirectMatch = rawResponse.match(/\[REDIRECT:([^\]]+)\]/i);
+          
+          appendMessage('model', rawResponse);
           history.push({ role: 'user', parts: [{ text: text }] });
-          history.push({ role: 'model', parts: [{ text: data.response }] });
+          history.push({ role: 'model', parts: [{ text: rawResponse }] });
           saveHistory();
+
+          if (redirectMatch) {
+            const redirectUrl = redirectMatch[1].trim();
+            appendMessage('system', `Redirection automatique vers ${redirectUrl}...`);
+            setTimeout(() => {
+              window.location.href = redirectUrl;
+            }, 1200);
+          }
         } else {
           appendMessage('system', data.error || "Une erreur est survenue.");
         }
@@ -934,10 +963,20 @@
 
     function parseMarkdown(md) {
       if (!md) return "";
-      let html = md
+      
+      // Nettoyer les tags d'actions pour qu'ils ne s'affichent pas sous forme de texte brut
+      let cleaned = md
+        .replace(/\[REDIRECT:[^\]]+\]/gi, '')
+        .replace(/\[THEME:[^\]]+\]/gi, '')
+        .trim();
+
+      let html = cleaned
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
+
+      // Remplacer [texte](url) par <a href="url">texte</a>
+      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="fw-semibold text-primary text-decoration-underline">$1</a>');
 
       html = html.replace(/```(sql|json|text|html|)?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
       html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
@@ -945,7 +984,7 @@
       html = html.replace(/\|(.+)\|/g, function (match, row) {
         const cols = row.split('|').map(c => c.trim());
         if (cols.join('').replace(/-/g, '') === '') return '';
-        const tag = md.indexOf(match) < md.indexOf('\n--') ? 'th' : 'td';
+        const tag = cleaned.indexOf(match) < cleaned.indexOf('\n--') ? 'th' : 'td';
         return '<tr>' + cols.map(c => `<${tag}>${c}</${tag}>`).join('') + '</tr>';
       });
       html = html.replace(/(<tr>[\s\S]*?<\/tr>)+/g, '<table>$1</table>');
