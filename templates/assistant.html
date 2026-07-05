@@ -619,6 +619,17 @@
     let history = [];
     let abortController = null;
 
+    // Helper to scroll page and container to bottom smoothly
+    function scrollToBottom() {
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      setTimeout(() => {
+        window.scrollTo({
+          top: document.documentElement.scrollHeight || document.body.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 50);
+    }
+
     // Toggle settings panel
     toggleSettingsBtn?.addEventListener('click', () => {
       settingsPanel.classList.toggle('show');
@@ -663,7 +674,7 @@
       stopBtn.style.display = 'inline-flex';
 
       const indicator = appendTypingIndicator();
-      chatMessages.scrollTop = chatMessages.scrollHeight;
+      scrollToBottom();
 
       // Instantiate abort controller
       abortController = new AbortController();
@@ -703,7 +714,7 @@
         sendBtn.style.display = 'inline-flex';
         stopBtn.style.display = 'none';
         abortController = null;
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        scrollToBottom();
       }
     }
 
@@ -793,7 +804,7 @@
       }
 
       chatMessages.appendChild(bubble);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
+      scrollToBottom();
     }
 
     function appendTypingIndicator() {
