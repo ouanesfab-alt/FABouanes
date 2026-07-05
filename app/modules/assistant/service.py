@@ -167,7 +167,22 @@ PRINT_DOC_TYPES = {
     "production_batches":  "production",
 }
 
+APP_ROUTES = (
+    "PAGES ET CHEMINS DE L'APPLICATION :\n"
+    "- Tableau de bord → /dashboard\n"
+    "- Clients → /contacts/clients | Nouveau client → /contacts/clients/new | Fiche client → /contacts/clients/{id}\n"
+    "- Fournisseurs → /contacts/suppliers | Nouveau → /contacts/suppliers/new\n"
+    "- Opérations → /operations | Nouvelle vente → /operations/sales/new\n"
+    "- Nouvel achat → /operations/purchases/new | Nouveau versement → /operations/payments/new\n"
+    "- Catalogue/Stock → /catalog | Produits finis → /products | Matières premières → /raw-materials\n"
+    "- Production → /production | Nouveau lot → /production/new\n"
+    "- Dépenses → /expenses | Nouvelle dépense → /expenses/new\n"
+    "- Rapports → /reports | Paramètres/Admin → /admin | Utilisateurs → /users\n"
+    "- Journal d'audit → /admin/audit | Notes → /notes | Bons/PDF → /bons\n"
+)
+
 ACTION_GUIDE = (
+
     "GUIDE DES ACTIONS POSSIBLES (suit TOUJOURS ces étapes dans l'ordre) :\n"
     "\n"
     "=== RÈGLES DE COMPORTEMENT IMPORTANTES ===\n"
@@ -442,7 +457,7 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_na
         "Rédige tes réponses de manière claire et professionnelle dans la langue choisie par l'utilisateur (français par défaut).\n"
         "Utilise le formatage Markdown (tableaux, listes, gras) pour rendre les données lisibles.\n\n"
         f"SCHÉMA DE LA BASE DE DONNÉES (utilise-le directement sans appeler get_schema) :\n{schema_text}\n\n"
-        f"{app_routes}\n"
+        f"{APP_ROUTES}\n"
         f"{ACTION_GUIDE}\n"
         "Pour LIRE des données → utilise `execute_readonly_sql`.\n"
         "Pour AJOUTER, MODIFIER ou SUPPRIMER des données → utilise `execute_write_sql` uniquement si l'utilisateur le demande explicitement.\n"
@@ -501,20 +516,6 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
     Supporte le tool calling natif OpenAI : execute_readonly_sql + execute_write_sql.
     Peut lire et écrire la base de données, exactement comme Gemini.
     """
-    app_routes_ollama = (
-        "PAGES ET CHEMINS DE L'APPLICATION :\n"
-        "- Tableau de bord → /dashboard\n"
-        "- Clients → /contacts/clients | Nouveau client → /contacts/clients/new | Fiche client → /contacts/clients/{id}\n"
-        "- Fournisseurs → /contacts/suppliers | Nouveau → /contacts/suppliers/new\n"
-        "- Opérations → /operations | Nouvelle vente → /operations/sales/new\n"
-        "- Nouvel achat → /operations/purchases/new | Nouveau versement → /operations/payments/new\n"
-        "- Catalogue/Stock → /catalog | Produits finis → /products | Matières premières → /raw-materials\n"
-        "- Production → /production | Nouveau lot → /production/new\n"
-        "- Dépenses → /expenses | Nouvelle dépense → /expenses/new\n"
-        "- Rapports → /reports | Paramètres/Admin → /admin | Utilisateurs → /users\n"
-        "- Journal d'audit → /admin/audit | Notes → /notes | Bons/PDF → /bons\n"
-    )
-
     system_prompt = (
         "Tu es l'Assistant IA de FABOuanes, un progiciel de gestion commerciale et de stock.\n"
         f"Tu fonctionnes actuellement avec le modèle : **{OLLAMA_MODEL}** (IA locale Ollama).\n"
@@ -523,7 +524,7 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
         "Réponds dans la langue utilisée par l'utilisateur (français par défaut).\n"
         "Utilise le Markdown pour formater les réponses (tableaux, listes, gras).\n\n"
         f"SCHÉMA DE LA BASE DE DONNÉES :\n{schema_text}\n\n"
-        f"{app_routes_ollama}\n"
+        f"{APP_ROUTES}\n"
         f"{ACTION_GUIDE}\n"
         "Pour LIRE des données → utilise execute_readonly_sql.\n"
         "Pour CRÉER, MODIFIER ou SUPPRIMER des données → utilise execute_write_sql "
@@ -532,6 +533,7 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
         "Réponds à TOUTES les questions (générales, calculs, traductions, etc.).\n"
         "Règles : N'accède jamais à la table 'users'. N'exécute jamais DROP, ALTER ou TRUNCATE."
     )
+
 
 
     # Outils en format OpenAI (compatible Ollama)
