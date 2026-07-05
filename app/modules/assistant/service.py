@@ -9,17 +9,83 @@ from app.core.db_helpers import db_manager
 logger = logging.getLogger("fabouanes.assistant")
 
 TABLE_SCHEMAS = {
-    "clients": "id (BIGINT), name (TEXT), phone (TEXT), address (TEXT), notes (TEXT), opening_credit (NUMERIC), created_at (TIMESTAMPTZ) - Liste des clients",
-    "suppliers": "id (BIGINT), name (TEXT), phone (TEXT), address (TEXT), notes (TEXT), created_at (TIMESTAMPTZ) - Liste des fournisseurs",
-    "raw_materials": "id (BIGINT), name (TEXT), unit (TEXT), stock_qty (NUMERIC), avg_cost (NUMERIC), alert_threshold (NUMERIC), threshold_qty (NUMERIC) - Matières premières en stock",
-    "finished_products": "id (BIGINT), name (TEXT), default_unit (TEXT), stock_qty (NUMERIC), sale_price (NUMERIC), avg_cost (NUMERIC), alert_threshold (NUMERIC) - Produits finis en stock",
-    "purchases": "id (BIGINT), supplier_id (BIGINT), raw_material_id (BIGINT), finished_product_id (BIGINT), quantity (NUMERIC), unit (TEXT), unit_price (NUMERIC), total (NUMERIC), purchase_date (DATE), notes (TEXT), created_at (TIMESTAMPTZ) - Achats de matières premières ou de produits finis",
-    "sales": "id (BIGINT), client_id (BIGINT), finished_product_id (BIGINT), quantity (NUMERIC), unit (TEXT), unit_price (NUMERIC), total (NUMERIC), sale_type (TEXT 'cash' ou 'credit'), amount_paid (NUMERIC), balance_due (NUMERIC), cost_price_snapshot (NUMERIC), profit_amount (NUMERIC), sale_date (DATE), notes (TEXT), created_at (TIMESTAMPTZ) - Ventes de produits finis",
-    "raw_sales": "id (BIGINT), client_id (BIGINT), raw_material_id (BIGINT), quantity (NUMERIC), unit (TEXT), unit_price (NUMERIC), total (NUMERIC), sale_type (TEXT 'cash' ou 'credit'), amount_paid (NUMERIC), balance_due (NUMERIC), cost_price_snapshot (NUMERIC), profit_amount (NUMERIC), sale_date (DATE), notes (TEXT), created_at (TIMESTAMPTZ) - Ventes de matières premières",
-    "payments": "id (BIGINT), client_id (BIGINT), amount (NUMERIC), payment_date (DATE), notes (TEXT), created_at (TIMESTAMPTZ) - Règlements ou versements reçus des clients pour leurs crédits",
-    "expenses": "id (BIGINT), date (DATE), category (TEXT), description (TEXT), amount (NUMERIC), payment_method (TEXT) - Dépenses et charges diverses",
-    "production_batches": "id (BIGINT), product_id (BIGINT), quantity_produced (NUMERIC), production_date (DATE), notes (TEXT) - Lots de fabrication de produits finis",
-    "production_batch_items": "id (BIGINT), batch_id (BIGINT), raw_material_id (BIGINT), quantity_used (NUMERIC) - Matières premières consommées lors de la production"
+    "clients": (
+        "id* (BIGINT auto), name* (TEXT), phone (TEXT), address (TEXT), notes (TEXT), "
+        "opening_credit* (NUMERIC défaut 0), credit_limit (NUMERIC), created_at* (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
+        "— Liste des clients"
+    ),
+    "suppliers": (
+        "id* (BIGINT auto), name* (TEXT), phone (TEXT), address (TEXT), notes (TEXT), "
+        "created_at* (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
+        "— Liste des fournisseurs"
+    ),
+    "raw_materials": (
+        "id* (BIGINT auto), name* (TEXT), unit* (TEXT), stock_qty* (NUMERIC), avg_cost* (NUMERIC), "
+        "sale_price* (NUMERIC), alert_threshold* (NUMERIC), threshold_qty* (NUMERIC), updated_at (TIMESTAMPTZ) "
+        "— Matières premières en stock"
+    ),
+    "finished_products": (
+        "id* (BIGINT auto), name* (TEXT), default_unit* (TEXT), stock_qty* (NUMERIC), "
+        "sale_price* (NUMERIC), avg_cost* (NUMERIC), alert_threshold* (NUMERIC), updated_at (TIMESTAMPTZ) "
+        "— Produits finis en stock"
+    ),
+    "purchases": (
+        "id* (BIGINT auto), supplier_id (INTEGER FK→suppliers), document_id (INTEGER), "
+        "raw_material_id (INTEGER FK→raw_materials), finished_product_id (BIGINT FK→finished_products), "
+        "quantity* (NUMERIC), unit* (TEXT défaut 'kg'), unit_price* (NUMERIC), total* (NUMERIC), "
+        "purchase_date* (DATE), notes (TEXT), custom_item_name (TEXT), "
+        "created_at* (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
+        "— Achats (matières premières ou produits finis). "
+        "IMPORTANT: Ne PAS spécifier 'id' dans INSERT (auto-généré). "
+        "Après INSERT dans purchases, faire un UPDATE séparé sur raw_materials.stock_qty ou finished_products.stock_qty."
+    ),
+    "sales": (
+        "id* (BIGINT auto), client_id (INTEGER FK→clients), document_id (INTEGER), "
+        "finished_product_id* (INTEGER FK→finished_products), quantity* (NUMERIC), unit* (TEXT), "
+        "unit_price* (NUMERIC), total* (NUMERIC), sale_type* (TEXT: 'cash' ou 'credit'), "
+        "amount_paid* (NUMERIC), balance_due* (NUMERIC), cost_price_snapshot* (NUMERIC), "
+        "profit_amount* (NUMERIC), sale_date* (DATE), notes (TEXT), "
+        "created_at* (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
+        "— Ventes de produits finis. "
+        "IMPORTANT: Ne PAS spécifier 'id' dans INSERT. "
+        "Après INSERT dans sales, faire UPDATE finished_products SET stock_qty = stock_qty - quantity."
+    ),
+    "raw_sales": (
+        "id* (BIGINT auto), client_id (INTEGER FK→clients), document_id (INTEGER), "
+        "raw_material_id* (INTEGER FK→raw_materials), quantity* (NUMERIC), unit* (TEXT), "
+        "unit_price* (NUMERIC), total* (NUMERIC), sale_type* (TEXT: 'cash' ou 'credit'), "
+        "amount_paid* (NUMERIC), balance_due* (NUMERIC), cost_price_snapshot* (NUMERIC), "
+        "profit_amount* (NUMERIC), sale_date* (DATE), notes (TEXT), custom_item_name (TEXT), "
+        "created_at* (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
+        "— Ventes de matières premières. "
+        "IMPORTANT: Ne PAS spécifier 'id' dans INSERT. "
+        "Après INSERT dans raw_sales, faire UPDATE raw_materials SET stock_qty = stock_qty - quantity."
+    ),
+    "payments": (
+        "id* (BIGINT auto), client_id* (INTEGER FK→clients), sale_id (INTEGER), raw_sale_id (INTEGER), "
+        "sale_kind (TEXT: 'sale' ou 'raw_sale'), payment_type* (TEXT: 'cash','cheque','virement',...), "
+        "allocation_meta (TEXT JSON), amount* (NUMERIC), payment_date* (DATE), notes (TEXT), "
+        "created_at* (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
+        "— Paiements/règlements reçus des clients"
+    ),
+    "expenses": (
+        "id* (BIGINT auto), date* (DATE), category* (TEXT), description (TEXT), "
+        "amount* (NUMERIC), payment_method (TEXT), "
+        "created_at (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
+        "— Dépenses et charges"
+    ),
+    "production_batches": (
+        "id* (BIGINT auto), finished_product_id* (INTEGER FK→finished_products), "
+        "output_quantity* (NUMERIC), production_cost* (NUMERIC), unit_cost* (NUMERIC), "
+        "production_date* (DATE), notes (TEXT) "
+        "— Lots de production de produits finis"
+    ),
+    "production_batch_items": (
+        "id* (BIGINT auto), batch_id* (INTEGER FK→production_batches), "
+        "raw_material_id* (INTEGER FK→raw_materials), quantity* (NUMERIC), "
+        "unit_cost_snapshot* (NUMERIC), line_cost* (NUMERIC) "
+        "— Matières premières consommées par lot de production"
+    ),
 }
 
 def get_schema() -> Dict[str, Any]:
