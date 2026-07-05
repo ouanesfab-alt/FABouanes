@@ -193,6 +193,8 @@ def emit(event: DomainEvent) -> None:
 
 def _auto_audit(event: DomainEvent) -> None:
     """Enregistre automatiquement un événement d'audit."""
+    if event.action == "invalidate":
+        return
     from app.core.audit import audit_event
 
     audit_event(
@@ -207,6 +209,8 @@ def _auto_audit(event: DomainEvent) -> None:
 
 def _auto_activity(event: DomainEvent) -> None:
     """Log l'activité utilisateur automatiquement."""
+    if event.action == "invalidate":
+        return
     from app.core.activity import log_activity
 
     log_activity(
@@ -215,6 +219,7 @@ def _auto_activity(event: DomainEvent) -> None:
         event.entity_id,
         event.label,
     )
+
 
 
 def _auto_backup(event: DomainEvent) -> None:

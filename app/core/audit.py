@@ -69,42 +69,46 @@ async def _audit_flusher_task() -> None:
                 except asyncio.QueueEmpty:
                     break
             
-            for row in batch:
-                try:
-                    async with get_async_sessionmaker()() as session:
-                        await session.execute(
-                            text("""
-                            INSERT INTO audit_logs (
-                                actor_user_id, actor_username, actor_role, source,
-                                action, entity_type, entity_id, status,
-                                ip_address, user_agent, request_id,
-                                before_json, after_json, meta_json, created_at
-                            ) VALUES (:actor_user_id, :actor_username, :actor_role, :source,
-                                     :action, :entity_type, :entity_id, :status,
-                                     :ip_address, :user_agent, :request_id,
-                                     :before_json, :after_json, :meta_json, CURRENT_TIMESTAMP)
-                            """),
-                            {
-                                "actor_user_id": row[0],
-                                "actor_username": row[1],
-                                "actor_role": row[2],
-                                "source": row[3],
-                                "action": row[4],
-                                "entity_type": row[5],
-                                "entity_id": row[6],
-                                "status": row[7],
-                                "ip_address": row[8],
-                                "user_agent": row[9],
-                                "request_id": row[10],
-                                "before_json": row[11],
-                                "after_json": row[12],
-                                "meta_json": row[13],
-                            }
-                        )
-                        await session.commit()
-                except Exception:
-                    logger.exception("Unable to persist audit log row")
-                finally:
+            try:
+                async with get_async_sessionmaker()() as session:
+                    for row in batch:
+                        try:
+                            await session.execute(
+                                text("""
+                                INSERT INTO audit_logs (
+                                    actor_user_id, actor_username, actor_role, source,
+                                    action, entity_type, entity_id, status,
+                                    ip_address, user_agent, request_id,
+                                    before_json, after_json, meta_json, created_at
+                                ) VALUES (:actor_user_id, :actor_username, :actor_role, :source,
+                                         :action, :entity_type, :entity_id, :status,
+                                         :ip_address, :user_agent, :request_id,
+                                         :before_json, :after_json, :meta_json, CURRENT_TIMESTAMP)
+                                """),
+                                {
+                                    "actor_user_id": row[0],
+                                    "actor_username": row[1],
+                                    "actor_role": row[2],
+                                    "source": row[3],
+                                    "action": row[4],
+                                    "entity_type": row[5],
+                                    "entity_id": row[6],
+                                    "status": row[7],
+                                    "ip_address": row[8],
+                                    "user_agent": row[9],
+                                    "request_id": row[10],
+                                    "before_json": row[11],
+                                    "after_json": row[12],
+                                    "meta_json": row[13],
+                                }
+                            )
+                        except Exception:
+                            logger.exception("Unable to execute audit log row statement")
+                    await session.commit()
+            except Exception:
+                logger.exception("Unable to commit audit log batch")
+            finally:
+                for _ in batch:
                     queue.task_done()
         except asyncio.CancelledError:
             break
