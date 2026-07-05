@@ -78,7 +78,8 @@ async def save_settings(request: Request):
     form = await request.form()
     api_key = form.get("gemini_api_key", "").strip()
     
-    db_manager.set_setting("gemini_api_key", api_key)
+    if api_key:
+        db_manager.set_setting("gemini_api_key", api_key)
     
     # Rediriger vers l'assistant
     return RedirectResponse("/assistant", status_code=303)

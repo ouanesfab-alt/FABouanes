@@ -506,7 +506,8 @@
           </div>
           <div class="col-md-6 col-sm-8">
             <input type="password" name="gemini_api_key" id="apiKeyInput" class="mac-input"
-              placeholder="Saisissez votre clé d'API (AIzaSy...)" required>
+              placeholder="{% if has_key %}•••••••••••••••• (Sauvegardée){% else %}Saisissez votre clé d'API (AIzaSy...){% endif %}"
+              {% if not has_key %}required{% endif %}>
           </div>
           <div class="col-auto">
             <button type="submit" class="mac-btn mac-btn-primary">Enregistrer</button>
@@ -605,6 +606,39 @@
     const inputArea = document.querySelector('.chat-input-area');
     if (inputArea) {
       document.body.appendChild(inputArea);
+    }
+
+    // Automatic backup and restore of API Key using localStorage
+    const serverHasKey = {{ 'true' if has_key else 'false' }};
+    const localKey = localStorage.getItem('fab_gemini_api_key');
+    
+    // Save to localStorage on submit
+    const settingsForm = document.querySelector('#settingsPanel form');
+    settingsForm?.addEventListener('submit', function () {
+      const keyInput = document.getElementById('apiKeyInput');
+      if (keyInput && keyInput.value.trim()) {
+        localStorage.setItem('fab_gemini_api_key', keyInput.value.trim());
+      }
+    });
+
+    // Auto-restore key if server lost it (e.g. database reset)
+    if (!serverHasKey && localKey) {
+      const formData = new FormData();
+      formData.append('gemini_api_key', localKey);
+      const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || "";
+      formData.append('csrf_token', csrfToken);
+
+      fetch('/assistant/settings', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }).then(response => {
+        if (response.ok) {
+          window.location.reload();
+        }
+      });
     }
 
     const chatMessages = document.getElementById('chatMessages');
