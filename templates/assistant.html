@@ -270,6 +270,9 @@
     async function sendMessage(text) {
       if (!text || text.trim() === "") return;
       
+      // Récupérer le token CSRF depuis les balises meta
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || "";
+      
       // Ajouter le message utilisateur à l'UI
       appendMessage('user', text);
       chatInput.value = '';
@@ -286,7 +289,8 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-Token': csrfToken
           },
           body: JSON.stringify({
             message: text,
