@@ -971,50 +971,61 @@ html[data-theme="windows-dark"] .table tbody tr:hover > th {
 /* End of tokens.css */
 
 /* ══════════════════════════════════════════════════════════════
-   Sticky Table Headers & Internal Scroll — Visible en permanence
+   Sticky Table Headers & Responsive Layout
    ══════════════════════════════════════════════════════════════ */
 
-/* Conteneur scrollable verticalement pour permettre aux en-têtes d'être sticky */
-.app-content .table-responsive,
-.contacts-table-wrap,
-.transactions-table-wrap,
-.catalog-table-wrap,
-.production-table-wrap {
-  overflow-y: auto !important;
-  position: relative !important;
-}
-
-@media (min-width: 768px) {
+/* --- CONFIGURATION DESKTOP (Grands écrans >= 992px) --- */
+@media (min-width: 992px) {
   .app-content .table-responsive,
   .contacts-table-wrap,
   .transactions-table-wrap,
   .catalog-table-wrap,
   .production-table-wrap {
-    max-height: calc(100vh - 280px) !important;
+    max-height: none !important;
+    overflow: visible !important; /* Laisse défiler la page entière */
+    position: relative !important;
+  }
+
+  /* Sticky par rapport au défilement de la page entière (sous la barre de navigation) */
+  .table-responsive > table > thead > tr > th,
+  .table-responsive > .table > thead > tr > th,
+  .contacts-table-wrap table > thead > tr > th,
+  .transactions-table-wrap table > thead > tr > th,
+  .catalog-table-wrap table > thead > tr > th,
+  .production-table-wrap table > thead > tr > th {
+    position: sticky !important;
+    top: var(--nav-h, 64px) !important; /* S'accroche sous la navbar */
+    z-index: 100 !important;
+    background: var(--bg-tertiary, #f2f2f7) !important;
+    box-shadow: 0 1px 0 var(--line, #e0e0e0) !important;
   }
 }
 
-@media (max-width: 767px) {
+/* --- CONFIGURATION TABLETTE & MOBILE (< 992px) --- */
+@media (max-width: 991px) {
   .app-content .table-responsive,
   .contacts-table-wrap,
   .transactions-table-wrap,
   .catalog-table-wrap,
   .production-table-wrap {
-    max-height: calc(100vh - 200px) !important;
+    max-height: calc(100vh - 200px) !important; /* Cadrage dans la hauteur de l'écran */
+    overflow: auto !important; /* Défilement interne sur tactile */
+    position: relative !important;
+  }
+
+  /* Sticky par rapport au conteneur interne du tableau */
+  .table-responsive > table > thead > tr > th,
+  .table-responsive > .table > thead > tr > th,
+  .contacts-table-wrap table > thead > tr > th,
+  .transactions-table-wrap table > thead > tr > th,
+  .catalog-table-wrap table > thead > tr > th,
+  .production-table-wrap table > thead > tr > th {
+    position: sticky !important;
+    top: 0 !important; /* S'accroche au bord du tableau */
+    z-index: 100 !important;
+    background: var(--bg-tertiary, #f2f2f7) !important;
+    box-shadow: 0 1px 0 var(--line, #e0e0e0) !important;
   }
 }
 
-/* Force les en-têtes th à être sticky en haut et à avoir un arrière-plan opaque */
-.table-responsive > table > thead > tr > th,
-.table-responsive > .table > thead > tr > th,
-.contacts-table-wrap table > thead > tr > th,
-.transactions-table-wrap table > thead > tr > th,
-.catalog-table-wrap table > thead > tr > th,
-.production-table-wrap table > thead > tr > th {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 100 !important;
-  background: var(--bg-tertiary, #f2f2f7) !important;
-  box-shadow: 0 1px 0 var(--line, #e0e0e0) !important;
-}
 
