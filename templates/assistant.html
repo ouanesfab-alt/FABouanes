@@ -858,14 +858,19 @@
       bubble.className = `chat-bubble ${role}`;
       bubble.innerHTML = parseMarkdown(text);
 
-      // Append action bar for model responses
-      if (role === 'model') {
+      // Append action bar for model responses AND user messages
+      if (role === 'model' || role === 'user') {
         const actions = document.createElement('div');
         actions.className = 'chat-bubble-actions mt-2';
-        actions.innerHTML = `
-          <button class="bubble-action-btn btn-copy"><i class="bi bi-clipboard"></i> Copier</button>
-          <button class="bubble-action-btn btn-speak"><i class="bi bi-volume-up"></i> Lire à haute voix</button>
-        `;
+        if (role === 'model') {
+          actions.innerHTML = `
+            <button class="bubble-action-btn btn-copy"><i class="bi bi-clipboard"></i> Copier</button>
+            <button class="bubble-action-btn btn-speak"><i class="bi bi-volume-up"></i> Lire à haute voix</button>
+          `;
+        } else {
+          // User bubble — only copy button, styled for light background
+          actions.innerHTML = `<button class="bubble-action-btn btn-copy" style="color: rgba(255,255,255,0.7);"><i class="bi bi-clipboard"></i> Copier</button>`;
+        }
         bubble.appendChild(actions);
       }
 
@@ -930,6 +935,7 @@
     const micBtn = document.getElementById('micBtn');
     let recognition = null;
     let isRecording = false;
+    let hasShownMicError = false; // prevent duplicate mic error messages
 
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -938,14 +944,6 @@
       recognition.interimResults = false;
       recognition.lang = navigator.language || 'fr-FR';
 
-      recognition.onstart = function() {
-        isRecording = true;
-        if (micBtn) {
-          micBtn.innerHTML = '<i class="bi bi-mic-fill text-danger animate-pulse"></i>';
-          micBtn.title = "En écoute... Cliquez pour arrêter";
-        }
-        chatInput.placeholder = "Je vous écoute...";
-      };
 
       recognition.onresult = function(event) {
         const transcript = event.results[0][0].transcript;
@@ -955,16 +953,29 @@
 
       recognition.onerror = function(event) {
         console.error("Speech recognition error:", event.error);
-        if (event.error === 'not-allowed') {
-          appendMessage('system', "⚠️ Microphone bloqué. Ouvrez l'application dans **Chrome** ou **Edge** à l'adresse **http://127.0.0.1:5000** puis autorisez le microphone.");
-        } else if (event.error === 'no-speech') {
-          // Pas d'alerte, juste reset silencieux
-        } else if (event.error === 'network') {
-          appendMessage('system', "⚠️ Erreur réseau pour la reconnaissance vocale. Vérifiez votre connexion internet.");
-        } else {
-          appendMessage('system', "⚠️ Erreur de reconnaissance vocale : " + event.error);
+        if (!hasShownMicError) {
+          hasShownMicError = true;
+          if (event.error === 'not-allowed') {
+            appendMessage('system', "⚠️ Microphone bloqué. Ouvrez l'application dans Chrome ou Edge à l'adresse http://127.0.0.1:5000 puis autorisez le microphone.");
+          } else if (event.error === 'no-speech') {
+            // Reset silencieux, pas de message
+          } else if (event.error === 'network') {
+            appendMessage('system', "⚠️ Erreur réseau pour la reconnaissance vocale. Vérifiez votre connexion internet.");
+          } else {
+            appendMessage('system', "⚠️ Erreur de reconnaissance vocale : " + event.error);
+          }
         }
         stopRecording();
+      };
+
+      recognition.onstart = function() {
+        hasShownMicError = false; // reset flag on each new attempt
+        isRecording = true;
+        if (micBtn) {
+          micBtn.innerHTML = '<i class="bi bi-mic-fill text-danger animate-pulse"></i>';
+          micBtn.title = "En écoute... Cliquez pour arrêter";
+        }
+        chatInput.placeholder = "Je vous écoute...";
       };
 
       recognition.onend = function() {

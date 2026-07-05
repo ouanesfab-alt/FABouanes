@@ -194,17 +194,16 @@ async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> s
     for turn in range(max_turns):
         res = None
         last_exception = None
-        candidate_models = ["gemini-flash-latest", "gemini-1.5-flash-8b", "gemini-2.0-flash-lite"]
+        candidate_models = ["gemini-flash-latest", "gemini-2.0-flash-lite", "gemini-1.5-flash"]
         for model in candidate_models:
             try:
                 res = await call_gemini_api(contents, api_key, model_name=model)
                 break
             except httpx.HTTPStatusError as exc:
                 last_exception = exc
-                if exc.response.status_code == 429:
-                    logger.warning("Modèle %s limité (429). Essai du modèle suivant...", model)
-                    continue
-                raise
+                status = exc.response.status_code
+                logger.warning("Modèle %s erreur HTTP %s. Essai du modèle suivant...", model, status)
+                continue
             except Exception as exc:
                 last_exception = exc
                 logger.warning("Erreur avec le modèle %s : %s. Essai du modèle suivant...", model, exc)
