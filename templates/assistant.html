@@ -1,14 +1,25 @@
 {% extends 'base.html' %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
+  /* Force body overflow hidden on the assistant page to prevent double scrolls */
+  body:has(.assistant-wrapper) {
+    overflow: hidden;
+  }
+
   .assistant-wrapper {
     max-width: 900px;
     margin: 0 auto;
     width: 100%;
-    height: calc(100vh - 140px);
+    height: calc(100vh - 130px);
     display: flex;
     flex-direction: column;
     gap: 12px;
+  }
+
+  @media (max-width: 991px) {
+    .assistant-wrapper {
+      height: calc(100vh - 180px); /* Account for bottom navigation bar on mobile/tablet */
+    }
   }
 
   .chat-card {
@@ -20,7 +31,7 @@
     flex-direction: column;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     flex: 1;
-    min-height: 0;
+    min-height: 0; /* Let flex container shrink properly */
   }
 
   .chat-messages-container {
@@ -47,7 +58,8 @@
 
   .chat-bubble.user {
     align-self: flex-end;
-    background: #059669; /* Emerald theme primary */
+    background: #059669;
+    /* Emerald theme primary */
     color: #ffffff;
     border-bottom-right-radius: 4px;
   }
@@ -169,6 +181,7 @@
     border-radius: 12px;
     width: fit-content;
   }
+
   .dot-anim {
     width: 6px;
     height: 6px;
@@ -176,12 +189,26 @@
     border-radius: 50%;
     animation: bounce 1.4s infinite ease-in-out both;
   }
-  .dot-anim:nth-child(1) { animation-delay: -0.32s; }
-  .dot-anim:nth-child(2) { animation-delay: -0.16s; }
+
+  .dot-anim:nth-child(1) {
+    animation-delay: -0.32s;
+  }
+
+  .dot-anim:nth-child(2) {
+    animation-delay: -0.16s;
+  }
 
   @keyframes bounce {
-    0%, 80%, 100% { transform: scale(0); }
-    40% { transform: scale(1); }
+
+    0%,
+    80%,
+    100% {
+      transform: scale(0);
+    }
+
+    40% {
+      transform: scale(1);
+    }
   }
 
   /* Markdown details */
@@ -190,14 +217,18 @@
     margin: 8px 0;
     border-collapse: collapse;
   }
-  .chat-bubble th, .chat-bubble td {
+
+  .chat-bubble th,
+  .chat-bubble td {
     border: 1px solid var(--line);
     padding: 6px 10px;
     font-size: 0.85rem;
   }
+
   .chat-bubble th {
     background: rgba(0, 0, 0, 0.02);
   }
+
   .chat-bubble pre {
     background: rgba(0, 0, 0, 0.04);
     padding: 8px;
@@ -209,21 +240,17 @@
 </style>
 
 <div class="assistant-wrapper">
-  
-  <!-- Header / Hero section -->
-  <div class="page-hero mb-0">
-    <div>
-      <h2 class="section-title mb-1"><i class="bi bi-stars me-2 text-emerald"></i>Assistant IA</h2>
-      <p class="text-muted mb-0">Posez des questions en langage naturel pour consulter vos données et vos rapports de vente.</p>
-    </div>
-  </div>
 
   <!-- Main Chat Card -->
   <div class="chat-card">
-    
+
     <!-- Card Header / Title bar with actions -->
     <div class="card-header py-3 px-4 d-flex align-items-center justify-content-between bg-transparent border-bottom">
-      <div class="d-flex align-items-center gap-2">
+      <div class="d-flex align-items-center gap-3">
+        <h5 class="m-0 fw-bold d-flex align-items-center gap-2">
+          <i class="bi bi-stars text-emerald"></i>
+          Assistant IA
+        </h5>
         <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Gemini 2.5 Flash</span>
       </div>
       <div class="d-flex gap-2">
@@ -245,7 +272,8 @@
             <label for="apiKeyInput" class="col-form-label py-0 small fw-bold">Clé d'API Gemini :</label>
           </div>
           <div class="col-md-6 col-sm-8">
-            <input type="password" name="gemini_api_key" id="apiKeyInput" class="form-control form-control-sm" placeholder="Saisissez votre clé d'API (AIzaSy...)" required>
+            <input type="password" name="gemini_api_key" id="apiKeyInput" class="form-control form-control-sm"
+              placeholder="Saisissez votre clé d'API (AIzaSy...)" required>
           </div>
           <div class="col-auto">
             <button type="submit" class="btn btn-sm btn-success">Enregistrer</button>
@@ -253,7 +281,8 @@
         </div>
         {% if not has_key %}
         <div class="mt-2 text-danger small">
-          <i class="bi bi-exclamation-triangle-fill me-1"></i> Une clé d'API valide est requise pour utiliser l'assistant.
+          <i class="bi bi-exclamation-triangle-fill me-1"></i> Une clé d'API valide est requise pour utiliser
+          l'assistant.
         </div>
         {% endif %}
       </form>
@@ -262,7 +291,8 @@
     <!-- Conversation Messages Container -->
     <div class="chat-messages-container" id="chatMessages">
       <div class="chat-bubble model">
-        Bonjour ! Je suis votre Assistant commercial. Je peux consulter en direct vos clients, vos ventes, vos stocks et vos dépenses. Quelle information recherchez-vous aujourd'hui ?
+        Bonjour ! Je suis votre Assistant commercial. Je peux consulter en direct vos clients, vos ventes, vos stocks et
+        vos dépenses. Quelle information recherchez-vous aujourd'hui ?
       </div>
     </div>
 
@@ -270,14 +300,17 @@
     <div class="chat-suggestions" id="suggestionChips">
       <div class="suggestion-chip" data-question="Combien de clients ont un crédit actif ?">Crédit clients</div>
       <div class="suggestion-chip" data-question="Quelles sont les ventes du mois en cours ?">Ventes ce mois-ci</div>
-      <div class="suggestion-chip" data-question="Quels produits ont un stock inférieur à leur seuil d'alerte ?">Alertes stock</div>
-      <div class="suggestion-chip" data-question="Fais-moi un résumé des dépenses de ce mois par catégorie">Dépenses</div>
+      <div class="suggestion-chip" data-question="Quels produits ont un stock inférieur à leur seuil d'alerte ?">Alertes
+        stock</div>
+      <div class="suggestion-chip" data-question="Fais-moi un résumé des dépenses de ce mois par catégorie">Dépenses
+      </div>
     </div>
 
     <!-- Message Input Area -->
     <div class="chat-input-area">
       <div class="chat-input-bar">
-        <textarea id="chatInput" placeholder="Posez votre question ici..." {% if not has_key %}disabled{% endif %}></textarea>
+        <textarea id="chatInput" placeholder="Posez votre question ici..." {% if not has_key %}disabled{% endif
+          %}></textarea>
         <button id="sendBtn" class="chat-send-btn" {% if not has_key %}disabled{% endif %}>
           <i class="bi bi-arrow-up-short fs-4"></i>
         </button>
@@ -288,7 +321,7 @@
 </div>
 
 <script nonce="{{ csp_nonce }}">
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', function () {
     const chatMessages = document.getElementById('chatMessages');
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendBtn');
@@ -311,10 +344,10 @@
         history = JSON.parse(saved);
         renderHistory();
       }
-    } catch(e) {}
+    } catch (e) { }
 
     // Auto textarea height
-    chatInput?.addEventListener('input', function() {
+    chatInput?.addEventListener('input', function () {
       this.style.height = '38px';
       this.style.height = Math.min(120, this.scrollHeight) + 'px';
     });
@@ -322,9 +355,9 @@
     // Send Message
     async function sendMessage(text) {
       if (!text || text.trim() === "") return;
-      
+
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || "";
-      
+
       appendMessage('user', text);
       chatInput.value = '';
       chatInput.style.height = '38px';
@@ -343,7 +376,7 @@
           },
           body: JSON.stringify({ message: text, history: history })
         });
-        
+
         const data = await response.json();
         removeTypingIndicator(indicator);
 
@@ -355,7 +388,7 @@
         } else {
           appendMessage('system', data.error || "Une erreur est survenue.");
         }
-      } catch(err) {
+      } catch (err) {
         removeTypingIndicator(indicator);
         appendMessage('system', "Erreur de connexion réseau.");
       }
@@ -364,22 +397,22 @@
     }
 
     sendBtn?.addEventListener('click', () => sendMessage(chatInput.value));
-    
-    chatInput?.addEventListener('keydown', function(e) {
+
+    chatInput?.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendMessage(this.value);
       }
     });
 
-    suggestionChips?.addEventListener('click', function(e) {
+    suggestionChips?.addEventListener('click', function (e) {
       const chip = e.target.closest('.suggestion-chip');
       if (chip) {
         sendMessage(chip.getAttribute('data-question'));
       }
     });
 
-    clearChatBtn?.addEventListener('click', function() {
+    clearChatBtn?.addEventListener('click', function () {
       history = [];
       saveHistory();
       chatMessages.innerHTML = `
@@ -416,7 +449,7 @@
     function saveHistory() {
       try {
         localStorage.setItem('fab_assistant_history', JSON.stringify(history));
-      } catch(e) {}
+      } catch (e) { }
     }
 
     function renderHistory() {
@@ -435,7 +468,7 @@
       html = html.replace(/```(sql|json|text|html|)?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
       html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
-      html = html.replace(/\|(.+)\|/g, function(match, row) {
+      html = html.replace(/\|(.+)\|/g, function (match, row) {
         const cols = row.split('|').map(c => c.trim());
         if (cols.join('').replace(/-/g, '') === '') return '';
         const tag = md.indexOf(match) < md.indexOf('\n--') ? 'th' : 'td';
