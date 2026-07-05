@@ -60,35 +60,34 @@
           const container = document.getElementById('toastContainer');
           if(!container) return;
           const toastEl = document.createElement('div');
-          
-          // Style WhatsApp Web
-          toastEl.className = `toast border-0 mb-2 shadow-lg`;
-          toastEl.style.borderRadius = '8px';
-          toastEl.style.backgroundColor = document.documentElement.getAttribute('data-theme') === 'dark' ? '#202c33' : '#ffffff';
-          toastEl.style.color = document.documentElement.getAttribute('data-theme') === 'dark' ? '#e9edef' : '#111b21';
-          toastEl.style.borderLeft = '4px solid #25D366'; // WhatsApp Green Accent
-          
+          const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+          toastEl.className = 'toast border-0 mb-2 shadow-lg';
+          toastEl.style.borderRadius = '10px';
+          toastEl.style.backgroundColor = isDark ? '#1e2a30' : '#ffffff';
+          toastEl.style.color = isDark ? '#e9edef' : '#111b21';
+          toastEl.style.borderLeft = '4px solid #25D366';
+          toastEl.style.minWidth = '280px';
+          toastEl.style.maxWidth = '360px';
+
           toastEl.setAttribute('role', 'alert');
           toastEl.setAttribute('aria-live', 'assertive');
           toastEl.setAttribute('aria-atomic', 'true');
           if (autoRefresh) toastEl.setAttribute('data-bs-autohide', 'false');
-          
+
           toastEl.innerHTML = `
             <div class="toast-body p-3">
-              <div class="d-flex justify-content-between align-items-start mb-1">
-                <strong class="me-auto" style="color: #25D366;"><i class="bi bi-bell-fill me-2"></i>Nouvelle activité</strong>
-                <button type="button" class="btn-close" style="font-size: 0.7em;" data-bs-dismiss="toast" aria-label="Fermer"></button>
-              </div>
-              <div style="font-size: 0.95rem; line-height: 1.4; display:flex; align-items:center; gap:12px;">
-                <span>${message}</span>
-                ${autoRefresh ? '<button class="btn btn-sm btn-success ms-auto" onclick="location.reload()" style="border-radius: 20px; font-weight: 600; flex-shrink: 0; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; padding: 6px 16px; font-size: 0.85rem; border: none; height: 32px;">Rafraîchir</button>' : ''}
+              <div class="d-flex align-items-start gap-2">
+                <i class="bi bi-bell-fill mt-1 flex-shrink-0" style="color:#25D366;font-size:0.95rem;"></i>
+                <div class="flex-grow-1" style="min-width:0;">
+                  <div class="fw-semibold mb-1" style="color:#25D366;font-size:0.85rem;">Nouvelle activité</div>
+                  <div style="font-size:0.9rem;line-height:1.4;">${message}</div>
+                  ${autoRefresh ? '<button class="btn btn-sm btn-success mt-2" onclick="location.reload()" style="border-radius:20px;font-weight:600;font-size:0.82rem;padding:4px 14px;border:none;">Rafraîchir</button>' : ''}
+                </div>
+                <button type="button" class="btn-close btn-close-white flex-shrink-0" data-bs-dismiss="toast" aria-label="Fermer" style="font-size:0.7em;opacity:0.7;margin-top:2px;"></button>
               </div>
             </div>
           `;
-          
-          try {
-              const blop = new Audio('data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq');
-          } catch(e) {}
 
           container.appendChild(toastEl);
           const t = new bootstrap.Toast(toastEl);
