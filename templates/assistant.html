@@ -12,6 +12,7 @@
     height: auto !important;
     padding: 16px !important;
     display: block !important;
+    transform: none !important; /* Disable transform to prevent breaking position: fixed relative to viewport */
   }
 
   .assistant-wrapper {
@@ -581,24 +582,31 @@
       <div class="suggestion-chip" data-question="Fais-moi un résumé des dépenses de ce mois par catégorie">Dépenses</div>
     </div>
 
-    <!-- Message Input Area -->
-    <div class="chat-input-area">
-      <div class="chat-input-bar">
-        <textarea id="chatInput" placeholder="Posez votre question ici..." {% if not has_key %}disabled{% endif %}></textarea>
-        <button id="sendBtn" class="chat-send-btn" {% if not has_key %}disabled{% endif %}>
-          <i class="bi bi-arrow-up-short fs-4"></i>
-        </button>
-        <button id="stopBtn" class="chat-send-btn bg-danger" style="display: none;" title="Arrêter la génération">
-          <i class="bi bi-stop-fill fs-5"></i>
-        </button>
-      </div>
-    </div>
-
   </div>
+
+  <!-- Message Input Area -->
+  <div class="chat-input-area">
+    <div class="chat-input-bar">
+      <textarea id="chatInput" placeholder="Posez votre question ici..." {% if not has_key %}disabled{% endif %}></textarea>
+      <button id="sendBtn" class="chat-send-btn" {% if not has_key %}disabled{% endif %}>
+        <i class="bi bi-arrow-up-short fs-4"></i>
+      </button>
+      <button id="stopBtn" class="chat-send-btn bg-danger" style="display: none;" title="Arrêter la génération">
+        <i class="bi bi-stop-fill fs-5"></i>
+      </button>
+    </div>
+  </div>
+
 </div>
 
 <script nonce="{{ csp_nonce }}">
   document.addEventListener('DOMContentLoaded', function () {
+    // Append input area directly to body to ensure fixed position works correctly relative to viewport
+    const inputArea = document.querySelector('.chat-input-area');
+    if (inputArea) {
+      document.body.appendChild(inputArea);
+    }
+
     const chatMessages = document.getElementById('chatMessages');
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendBtn');
