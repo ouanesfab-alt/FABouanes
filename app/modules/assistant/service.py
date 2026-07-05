@@ -102,13 +102,12 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_na
     """Appelle l'API Gemini avec les messages et outils définis."""
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
     
+    # Schéma intégré directement dans le prompt pour éviter un appel get_schema inutile
+    schema_text = "\n".join(f"- {t}: {d}" for t, d in TABLE_SCHEMAS.items())
+    
     tools = [
         {
             "functionDeclarations": [
-                {
-                    "name": "get_schema",
-                    "description": "Retourne le schéma complet de la base de données (tables et colonnes)."
-                },
                 {
                     "name": "execute_readonly_sql",
                     "description": "Exécute une requête SQL SELECT en lecture seule et retourne le résultat sous forme de lignes JSON.",
@@ -125,7 +124,7 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_na
                 },
                 {
                     "name": "execute_write_sql",
-                    "description": "Exécute une requête SQL d'écriture (INSERT, UPDATE, DELETE) pour ajouter, modifier ou supprimer des données (clients, produits, dépenses, stocks, prix, ventes, etc.). Retourne le nombre de lignes affectées.",
+                    "description": "Exécute une requête SQL d'écriture (INSERT, UPDATE, DELETE) pour ajouter, modifier ou supprimer des données.",
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
@@ -143,18 +142,18 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_na
     
     system_instruction = (
         "Tu es l'Assistant IA de FABOuanes, un progiciel de gestion commerciale et de stock.\n"
-        "Tu as un accès direct à la base de données via des outils de lecture et d'écriture.\n"
-        "Tu comprends parfaitement le français, l'anglais, l'arabe (y compris le dialecte algérien/darja) et le kabyle (Taqbaylit écrit en caractères latins ou arabes).\n"
-        "Rédige tes réponses de manière claire, concise et professionnelle, dans la langue choisie par l'utilisateur (ou en français par défaut).\n"
-        "Utilise le formatage Markdown (tableaux, listes, gras) pour rendre les données très lisibles.\n"
-        "Pour répondre aux questions sur FABOuanes ou les données de l'entreprise, utilise `get_schema` pour comprendre la structure de la base, puis fais tes requêtes SQL.\n"
-        "Pour LIRE des données, utilise `execute_readonly_sql`.\n"
-        "Pour AJOUTER, MODIFIER ou SUPPRIMER des données (clients, produits, dépenses, stocks, prix, ventes, etc.) à la demande explicite de l'utilisateur, utilise `execute_write_sql`.\n"
-        "Tu es également un assistant IA général : s'il te plaît, réponds avec plaisir à TOUTES les autres questions générales de l'utilisateur (culture générale, calculs, traductions, rédactions, questions diverses, aide, etc.) même si elles ne concernent pas directement FABOuanes. Si une question requiert un accès à internet en temps réel (comme la météo en direct), explique-le poliment mais réponds sur tout le reste au mieux de tes connaissances.\n"
+        "Tu as un accès direct à la base de données via des outils SQL.\n"
+        "Tu comprends parfaitement le français, l'anglais, l'arabe (dialecte algérien/darja) et le kabyle (Taqbaylit).\n"
+        "Rédige tes réponses de manière claire et professionnelle dans la langue choisie par l'utilisateur (français par défaut).\n"
+        "Utilise le formatage Markdown (tableaux, listes, gras) pour rendre les données lisibles.\n\n"
+        f"SCHÉMA DE LA BASE DE DONNÉES (utilise-le directement sans appeler get_schema) :\n{schema_text}\n\n"
+        "Pour LIRE des données → utilise `execute_readonly_sql`.\n"
+        "Pour AJOUTER, MODIFIER ou SUPPRIMER des données → utilise `execute_write_sql` uniquement si l'utilisateur le demande explicitement.\n"
+        "Tu es aussi un assistant général : réponds à TOUTES les questions (culture générale, calculs, traductions, aide…) même hors FABOuanes.\n"
         "Règles STRICTES :\n"
-        "1. Ne modifie les données que si l'utilisateur te le demande explicitement.\n"
-        "2. Ne lis ou ne modifie jamais la table 'users' (contient les mots de passe hachés).\n"
-        "3. Ne fais jamais d'opérations DROP ou ALTER sur les tables."
+        "1. Ne modifie les données que sur demande explicite.\n"
+        "2. N'accède jamais à la table 'users'.\n"
+        "3. N'exécute jamais DROP, ALTER ou TRUNCATE."
     )
     
     payload = {
@@ -190,7 +189,8 @@ async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> s
     contents = list(messages)
     
     # Limite de sécurité sur le nombre de tours d'appels d'outils successifs
-    max_turns = 6
+    # Réduit à 3 pour économiser le quota API (chaque tour = 1 appel API)
+    max_turns = 3
     for turn in range(max_turns):
         res = None
         last_exception = None
