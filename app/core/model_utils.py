@@ -5,5 +5,5 @@ from datetime import datetime, timezone
 
 
 def _now() -> datetime:
-    """Retourne l'heure courante UTC avec timezone (remplace datetime.utcnow déprécié)."""
-    return datetime.now(timezone.utc)
+    """Retourne l'heure courante UTC sans timezone (naïve) pour compatibilité avec les colonnes TIMESTAMP."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
