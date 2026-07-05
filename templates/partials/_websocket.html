@@ -64,11 +64,12 @@
 
           toastEl.className = 'toast border-0 mb-2 shadow-lg';
           toastEl.style.borderRadius = '10px';
-          toastEl.style.backgroundColor = isDark ? '#1e2a30' : '#ffffff';
+          toastEl.style.backgroundColor = isDark ? '#1e2a30' : '#f0f2f5';
           toastEl.style.color = isDark ? '#e9edef' : '#111b21';
           toastEl.style.borderLeft = '4px solid #25D366';
           toastEl.style.minWidth = '280px';
           toastEl.style.maxWidth = '360px';
+          if (!isDark) toastEl.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)';
 
           toastEl.setAttribute('role', 'alert');
           toastEl.setAttribute('aria-live', 'assertive');
@@ -84,7 +85,7 @@
                   <div style="font-size:0.9rem;line-height:1.4;">${message}</div>
                   ${autoRefresh ? '<button class="btn btn-sm btn-success mt-2" onclick="location.reload()" style="border-radius:20px;font-weight:600;font-size:0.82rem;padding:4px 14px;border:none;">Rafraîchir</button>' : ''}
                 </div>
-                <button type="button" class="btn-close btn-close-white flex-shrink-0" data-bs-dismiss="toast" aria-label="Fermer" style="font-size:0.7em;opacity:0.7;margin-top:2px;"></button>
+                <button type="button" class="btn-close ${isDark ? 'btn-close-white' : ''} flex-shrink-0" data-bs-dismiss="toast" aria-label="Fermer" style="font-size:0.7em;opacity:0.75;margin-top:2px;"></button>
               </div>
             </div>
           `;
