@@ -1,167 +1,116 @@
 {% extends 'base.html' %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
-  .assistant-container {
-    max-width: 920px;
+  .assistant-wrapper {
+    max-width: 900px;
     margin: 0 auto;
     width: 100%;
-    height: calc(100vh - var(--nav-h) - 40px);
-    min-height: 550px;
+    height: calc(100vh - 140px);
     display: flex;
     flex-direction: column;
+    gap: 12px;
   }
-  
-  /* macOS Sequoia Window Style */
-  .mac-window {
-    flex: 1;
-    background: var(--card);
+
+  .chat-card {
     border: 1px solid var(--line);
-    border-radius: 16px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
-    display: flex;
-    flex-direction: column;
+    border-radius: 12px;
+    background: var(--bg-secondary);
     overflow: hidden;
-    position: relative;
-  }
-
-  /* Title Bar */
-  .mac-titlebar {
-    height: 52px;
-    padding: 0 20px;
-    border-bottom: 1px solid var(--line);
-    background: rgba(0, 0, 0, 0.01);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: relative;
-  }
-
-  .mac-dots {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    width: 80px;
-  }
-
-  .mac-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    display: inline-block;
-  }
-  .mac-dot.red { background: #ff5f56; }
-  .mac-dot.yellow { background: #ffbd2e; }
-  .mac-dot.green { background: #27c93f; }
-
-  .mac-title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text);
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .mac-actions {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-  }
-
-  /* Chat Messages */
-  .mac-chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    flex: 1;
+    min-height: 0;
   }
 
-  /* macOS Message Bubbles */
-  .mac-bubble {
+  .chat-messages-container {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* Sleek macOS-like chat bubbles */
+  .chat-bubble {
     max-width: 75%;
-    padding: 10px 16px;
-    border-radius: 18px;
+    padding: 12px 16px;
+    border-radius: 16px;
     line-height: 1.5;
     font-size: 0.92rem;
-    position: relative;
     word-wrap: break-word;
   }
 
-  .mac-bubble.user {
+  .chat-bubble.user {
     align-self: flex-end;
-    background: #059669; /* Vert émeraude */
+    background: #059669; /* Emerald theme primary */
     color: #ffffff;
     border-bottom-right-radius: 4px;
-    box-shadow: 0 1px 2px rgba(5, 150, 105, 0.15);
   }
 
-  .mac-bubble.model {
+  .chat-bubble.model {
     align-self: flex-start;
     background: var(--bg-secondary);
     border: 1px solid var(--line);
     color: var(--text);
     border-bottom-left-radius: 4px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
   }
 
-  .mac-bubble.system {
+  .chat-bubble.system {
     align-self: center;
-    background: rgba(239, 68, 68, 0.08);
+    background: rgba(239, 68, 68, 0.1);
     color: #ef4444;
     font-size: 0.85rem;
-    border-radius: 12px;
+    border-radius: 10px;
     text-align: center;
     max-width: 90%;
   }
 
-  /* Suggestion chips */
-  .mac-suggestions {
+  /* Suggestions */
+  .chat-suggestions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding: 0 24px;
-    margin-bottom: 12px;
+    padding: 16px 20px 8px;
+    background: var(--bg-secondary);
   }
 
-  .mac-chip {
+  .suggestion-chip {
     background: var(--bg-tertiary);
     border: 1px solid var(--line);
     color: var(--text-secondary);
-    padding: 6px 14px;
+    padding: 6px 12px;
     border-radius: 20px;
     font-size: 0.8rem;
     cursor: pointer;
     transition: all 0.15s ease;
   }
 
-  .mac-chip:hover {
+  .suggestion-chip:hover {
     background: var(--line);
     color: var(--text);
-    transform: translateY(-1px);
   }
 
-  /* macOS Spotlight style Input Bar */
-  .mac-input-area {
-    padding: 16px 24px 24px;
-    background: transparent;
+  /* Input bar */
+  .chat-input-area {
+    padding: 8px 20px 20px;
+    background: var(--bg-secondary);
   }
 
-  .mac-input-bar {
+  .chat-input-bar {
     display: flex;
     align-items: center;
-    background: var(--bg-secondary);
+    background: var(--bg-tertiary);
     border: 1px solid var(--line);
     border-radius: 24px;
     padding: 4px 6px 4px 16px;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
   }
 
-  .mac-input-bar textarea {
+  .chat-input-bar textarea {
     flex: 1;
     border: none !important;
     background: transparent !important;
@@ -174,7 +123,7 @@
     box-shadow: none !important;
   }
 
-  .mac-send-btn {
+  .chat-send-btn {
     width: 32px;
     height: 32px;
     border-radius: 50%;
@@ -188,49 +137,68 @@
     transition: transform 0.1s ease;
   }
 
-  .mac-send-btn:active {
-    transform: scale(0.92);
+  .chat-send-btn:active {
+    transform: scale(0.95);
   }
 
-  .mac-send-btn:disabled {
+  .chat-send-btn:disabled {
     background: var(--line);
     color: var(--text-secondary);
     cursor: not-allowed;
   }
 
-  /* Settings Sheet (macOS Modal) */
-  .mac-sheet {
-    position: absolute;
-    top: -100%;
-    left: 0;
-    right: 0;
-    background: var(--card);
+  /* Inline settings panel */
+  .settings-panel-inline {
+    background: var(--bg-tertiary);
     border-bottom: 1px solid var(--line);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    transition: top 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    z-index: 100;
-    padding: 24px;
+    padding: 16px 20px;
+    display: none;
   }
 
-  .mac-sheet.open {
-    top: 52px; /* Apparaît juste sous la titlebar */
+  .settings-panel-inline.show {
+    display: block;
   }
 
-  /* Markdown formatting inside bubbles */
-  .mac-bubble table {
+  /* Loader */
+  .chat-loading {
+    display: flex;
+    gap: 4px;
+    padding: 8px 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    width: fit-content;
+  }
+  .dot-anim {
+    width: 6px;
+    height: 6px;
+    background: var(--text-secondary);
+    border-radius: 50%;
+    animation: bounce 1.4s infinite ease-in-out both;
+  }
+  .dot-anim:nth-child(1) { animation-delay: -0.32s; }
+  .dot-anim:nth-child(2) { animation-delay: -0.16s; }
+
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+  }
+
+  /* Markdown details */
+  .chat-bubble table {
     width: 100%;
     margin: 8px 0;
     border-collapse: collapse;
   }
-  .mac-bubble th, .mac-bubble td {
+  .chat-bubble th, .chat-bubble td {
     border: 1px solid var(--line);
     padding: 6px 10px;
     font-size: 0.85rem;
   }
-  .mac-bubble th {
+  .chat-bubble th {
     background: rgba(0, 0, 0, 0.02);
   }
-  .mac-bubble pre {
+  .chat-bubble pre {
     background: rgba(0, 0, 0, 0.04);
     padding: 8px;
     border-radius: 6px;
@@ -238,106 +206,79 @@
     font-family: monospace;
     font-size: 0.82rem;
   }
-
-  /* Loader */
-  .mac-loading {
-    display: flex;
-    gap: 4px;
-    padding: 8px 14px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    width: fit-content;
-  }
-  .mac-dot-anim {
-    width: 6px;
-    height: 6px;
-    background: var(--text-secondary);
-    border-radius: 50%;
-    animation: macBounce 1.4s infinite ease-in-out both;
-  }
-  .mac-dot-anim:nth-child(1) { animation-delay: -0.32s; }
-  .mac-dot-anim:nth-child(2) { animation-delay: -0.16s; }
-
-  @keyframes macBounce {
-    0%, 80%, 100% { transform: scale(0); }
-    40% { transform: scale(1); }
-  }
-
-  @media(max-width: 767px) {
-    .assistant-container {
-      height: calc(100vh - var(--nav-h) - 20px);
-    }
-    .mac-titlebar {
-      height: 48px;
-    }
-    .mac-dots {
-      display: none; /* cache les feux tricolores sur mobile */
-    }
-  }
 </style>
 
-<div class="assistant-container">
-  <div class="mac-window">
-    
-    <!-- Titlebar macOS -->
-    <div class="mac-titlebar">
-      <div class="mac-dots">
-        <span class="mac-dot red"></span>
-        <span class="mac-dot yellow"></span>
-        <span class="mac-dot green"></span>
-      </div>
-      
-      <div class="mac-title">
-        <i class="bi bi-stars" style="color: #059669;"></i>
-        <span>Assistant IA</span>
-      </div>
+<div class="assistant-wrapper">
+  
+  <!-- Header / Hero section -->
+  <div class="page-hero mb-0">
+    <div>
+      <h2 class="section-title mb-1"><i class="bi bi-stars me-2 text-emerald"></i>Assistant IA</h2>
+      <p class="text-muted mb-0">Posez des questions en langage naturel pour consulter vos données et vos rapports de vente.</p>
+    </div>
+  </div>
 
-      <div class="mac-actions">
-        <button class="btn btn-xs btn-outline-secondary px-2" id="toggleSettingsBtn" title="Réglages de la clé d'API">
-          <i class="bi bi-gear-fill"></i> Clé d'API
+  <!-- Main Chat Card -->
+  <div class="chat-card">
+    
+    <!-- Card Header / Title bar with actions -->
+    <div class="card-header py-3 px-4 d-flex align-items-center justify-content-between bg-transparent border-bottom">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Gemini 2.5 Flash</span>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" id="toggleSettingsBtn">
+          <i class="bi bi-key-fill"></i> Clé d'API
         </button>
-        <button class="btn btn-xs btn-outline-secondary px-2" id="clearChatBtn" title="Effacer l'historique">
+        <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" id="clearChatBtn">
           <i class="bi bi-trash"></i> Effacer
         </button>
       </div>
     </div>
 
-    <!-- Dropdown Preferences Sheet -->
-    <div class="mac-sheet" id="settingsSheet">
-      <h6 class="fw-bold mb-2">Clé d'API Gemini</h6>
-      <p class="text-muted small mb-3">La clé est enregistrée localement dans les paramètres de votre base de données.</p>
-      
+    <!-- Inline API Key Panel -->
+    <div class="settings-panel-inline {% if not has_key %}show{% endif %}" id="settingsPanel">
       <form method="post" action="{{ url_for('assistant_save_settings') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <div class="d-flex gap-2">
-          <input type="password" name="gemini_api_key" id="apiKeyInput" class="form-control form-control-sm" placeholder="AIzaSy..." required style="max-width: 450px;">
-          <button type="submit" class="btn btn-sm btn-success">Enregistrer</button>
-          <button type="button" class="btn btn-sm btn-outline-secondary" id="closeSettingsBtn">Fermer</button>
+        <div class="row g-3 align-items-center">
+          <div class="col-auto">
+            <label for="apiKeyInput" class="col-form-label py-0 small fw-bold">Clé d'API Gemini :</label>
+          </div>
+          <div class="col-md-6 col-sm-8">
+            <input type="password" name="gemini_api_key" id="apiKeyInput" class="form-control form-control-sm" placeholder="Saisissez votre clé d'API (AIzaSy...)" required>
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-success">Enregistrer</button>
+          </div>
         </div>
+        {% if not has_key %}
+        <div class="mt-2 text-danger small">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i> Une clé d'API valide est requise pour utiliser l'assistant.
+        </div>
+        {% endif %}
       </form>
     </div>
 
-    <!-- Conversation Messages -->
-    <div class="mac-chat-messages" id="chatMessages">
-      <div class="mac-bubble model">
-        Bonjour ! Je suis votre Assistant. Je peux analyser la base de données de FABOuanes en temps réel. Posez-moi des questions sur vos ventes, vos clients ou vos stocks !
+    <!-- Conversation Messages Container -->
+    <div class="chat-messages-container" id="chatMessages">
+      <div class="chat-bubble model">
+        Bonjour ! Je suis votre Assistant commercial. Je peux consulter en direct vos clients, vos ventes, vos stocks et vos dépenses. Quelle information recherchez-vous aujourd'hui ?
       </div>
     </div>
 
-    <!-- Suggestions Area -->
-    <div class="mac-suggestions" id="suggestionChips">
-      <div class="mac-chip" data-question="Combien de clients ont un crédit actif ?">Crédit clients</div>
-      <div class="mac-chip" data-question="Quelles sont les ventes du mois en cours ?">Ventes ce mois-ci</div>
-      <div class="mac-chip" data-question="Quels produits ont un stock inférieur à leur seuil d'alerte ?">Alertes stock</div>
-      <div class="mac-chip" data-question="Fais-moi un résumé des dépenses de ce mois par catégorie">Dépenses</div>
+    <!-- Suggested Quick Questions -->
+    <div class="chat-suggestions" id="suggestionChips">
+      <div class="suggestion-chip" data-question="Combien de clients ont un crédit actif ?">Crédit clients</div>
+      <div class="suggestion-chip" data-question="Quelles sont les ventes du mois en cours ?">Ventes ce mois-ci</div>
+      <div class="suggestion-chip" data-question="Quels produits ont un stock inférieur à leur seuil d'alerte ?">Alertes stock</div>
+      <div class="suggestion-chip" data-question="Fais-moi un résumé des dépenses de ce mois par catégorie">Dépenses</div>
     </div>
 
-    <!-- Input Bar -->
-    <div class="mac-input-area">
-      <div class="mac-input-bar">
-        <textarea id="chatInput" placeholder="Écrivez votre message..." {% if not has_key %}disabled{% endif %}></textarea>
-        <button id="sendBtn" class="mac-send-btn" {% if not has_key %}disabled{% endif %}>
+    <!-- Message Input Area -->
+    <div class="chat-input-area">
+      <div class="chat-input-bar">
+        <textarea id="chatInput" placeholder="Posez votre question ici..." {% if not has_key %}disabled{% endif %}></textarea>
+        <button id="sendBtn" class="chat-send-btn" {% if not has_key %}disabled{% endif %}>
           <i class="bi bi-arrow-up-short fs-4"></i>
         </button>
       </div>
@@ -354,21 +295,16 @@
     const clearChatBtn = document.getElementById('clearChatBtn');
     const suggestionChips = document.getElementById('suggestionChips');
     const toggleSettingsBtn = document.getElementById('toggleSettingsBtn');
-    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
-    const settingsSheet = document.getElementById('settingsSheet');
+    const settingsPanel = document.getElementById('settingsPanel');
 
     let history = [];
 
-    // Toggler les réglages de la clé
+    // Toggle settings panel
     toggleSettingsBtn?.addEventListener('click', () => {
-      settingsSheet.classList.toggle('open');
+      settingsPanel.classList.toggle('show');
     });
 
-    closeSettingsBtn?.addEventListener('click', () => {
-      settingsSheet.classList.remove('open');
-    });
-
-    // Charger l'historique
+    // Load saved conversation history
     try {
       const saved = localStorage.getItem('fab_assistant_history');
       if (saved) {
@@ -377,13 +313,13 @@
       }
     } catch(e) {}
 
-    // Hauteur auto textarea
+    // Auto textarea height
     chatInput?.addEventListener('input', function() {
       this.style.height = '38px';
-      this.style.height = Math.min(100, this.scrollHeight) + 'px';
+      this.style.height = Math.min(120, this.scrollHeight) + 'px';
     });
 
-    // Envoi
+    // Send Message
     async function sendMessage(text) {
       if (!text || text.trim() === "") return;
       
@@ -437,7 +373,7 @@
     });
 
     suggestionChips?.addEventListener('click', function(e) {
-      const chip = e.target.closest('.mac-chip');
+      const chip = e.target.closest('.suggestion-chip');
       if (chip) {
         sendMessage(chip.getAttribute('data-question'));
       }
@@ -447,7 +383,7 @@
       history = [];
       saveHistory();
       chatMessages.innerHTML = `
-        <div class="mac-bubble model">
+        <div class="chat-bubble model">
           Historique effacé. Posez-moi vos questions !
         </div>
       `;
@@ -455,7 +391,7 @@
 
     function appendMessage(role, text) {
       const bubble = document.createElement('div');
-      bubble.className = `mac-bubble ${role}`;
+      bubble.className = `chat-bubble ${role}`;
       bubble.innerHTML = parseMarkdown(text);
       chatMessages.appendChild(bubble);
       chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -463,11 +399,11 @@
 
     function appendTypingIndicator() {
       const indicator = document.createElement('div');
-      indicator.className = 'mac-loading';
+      indicator.className = 'chat-loading';
       indicator.innerHTML = `
-        <div class="mac-dot-anim"></div>
-        <div class="mac-dot-anim"></div>
-        <div class="mac-dot-anim"></div>
+        <div class="dot-anim"></div>
+        <div class="dot-anim"></div>
+        <div class="dot-anim"></div>
       `;
       chatMessages.appendChild(indicator);
       return indicator;
