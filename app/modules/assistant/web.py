@@ -22,10 +22,14 @@ async def assistant_page(request: Request):
         
     api_key = get_gemini_api_key()
     has_key = bool(api_key)
+    selected_model = db_manager.get_setting("gemini_model", "gemini-1.5-flash").strip()
+    if not selected_model:
+        selected_model = "gemini-1.5-flash"
     
     return templates.TemplateResponse("assistant.html", template_context(
         request,
         has_key=has_key,
+        selected_model=selected_model,
         title="Assistant IA - FABOuanes"
     ))
 
@@ -77,9 +81,12 @@ async def save_settings(request: Request):
         
     form = await request.form()
     api_key = form.get("gemini_api_key", "").strip()
+    selected_model = form.get("gemini_model", "").strip()
     
     if api_key:
         db_manager.set_setting("gemini_api_key", api_key)
+    if selected_model:
+        db_manager.set_setting("gemini_model", selected_model)
     
     # Rediriger vers l'assistant
     return RedirectResponse("/assistant", status_code=303)

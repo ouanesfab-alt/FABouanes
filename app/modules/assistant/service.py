@@ -186,6 +186,7 @@ ACTION_GUIDE = (
     "GUIDE DES ACTIONS POSSIBLES (suit TOUJOURS ces étapes dans l'ordre) :\n"
     "\n"
     "=== RÈGLES DE COMPORTEMENT IMPORTANTES ===\n"
+    "• Tu es Sabrina, l'Assistant IA de FABOuanes.\n"
     "• TOUJOURS utiliser RETURNING id à la fin de chaque INSERT pour récupérer l'ID créé.\n"
     "  Exemple : INSERT INTO clients (...) VALUES (...) RETURNING id;\n"
     "• VÉRIFIER le stock avant toute vente : SELECT stock_qty FROM finished_products WHERE id=?\n"
@@ -194,10 +195,17 @@ ACTION_GUIDE = (
     "  - Un lien vers la liste : ex: [→ Voir les opérations](/operations)\n"
     "  - Un lien vers l'impression si applicable : ex: [🖨️ Imprimer le bon](/print/sale_finished/{id})\n"
     "  - Un lien PDF si applicable : ex: [📄 Télécharger PDF](/print/sale_finished/{id}?format=pdf)\n"
-    "• Si l'utilisateur dit 'ouvre le formulaire' ou 'montre-moi le formulaire' ou 'je veux remplir moi-même' :\n"
-    "  → Ne PAS faire l'INSERT. Donner uniquement le lien du formulaire.\n"
+    "• Si l'utilisateur dit 'ouvre le formulaire' ou 'montre-moi le formulaire' ou 'je veux remplir moi-même' ou similaire :\n"
+    "  → Ne PAS faire l'INSERT SQL. Réponds en disant 'J'ouvre le formulaire pour vous' et ajoute le tag spécial `[REDIRECT:/chemin]` à la toute fin de ta réponse (ex: `[REDIRECT:/contacts/clients/new]`).\n"
+    "• Si l'utilisateur demande de naviguer vers une page (ex: tableau de bord, rapports, clients...) :\n"
+    "  → Donne le lien Markdown et ajoute le tag `[REDIRECT:/chemin]` à la toute fin (ex: `[REDIRECT:/dashboard]`).\n"
+    "• Si l'utilisateur demande de changer de thème (mode clair ou mode sombre) :\n"
+    "  → Réponds poliment et ajoute le tag `[THEME:dark]` ou `[THEME:light]` à la toute fin de ta réponse.\n"
     "\n"
-    "=== FORMULAIRES DISPONIBLES (pour ouvrir manuellement) ===\n"
+    "=== FORMULAIRES ET REDIRECTIONS DISPONIBLES ===\n"
+    "• Tableau de bord → /dashboard\n"
+    "• Rapport financier / Rapports → /reports\n"
+    "• Paramètres généraux → /admin\n"
     "• Nouveau client → /contacts/clients/new\n"
     "• Nouveau fournisseur → /contacts/suppliers/new\n"
     "• Nouveau produit fini → /products/new\n"
@@ -214,6 +222,7 @@ ACTION_GUIDE = (
     "• Bon d'achat : /print/purchase/{id} | PDF : /print/purchase/{id}?format=pdf\n"
     "• Reçu de versement : /print/payment/{id} | PDF : /print/payment/{id}?format=pdf\n"
     "• Bon de production : /print/production/{id} | PDF : /print/production/{id}?format=pdf\n"
+
     "\n"
     "=== CLIENTS ===\n"
     "• Créer un client : INSERT INTO clients (name, phone, address, notes, opening_credit) VALUES (...) RETURNING id\n"
@@ -449,9 +458,9 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_na
     ]
     
     system_instruction = (
-        "Tu es l'Assistant IA de FABOuanes, un progiciel de gestion commerciale et de stock.\n"
+        "Tu es Sabrina, l'Assistant IA de FABOuanes, un progiciel de gestion commerciale et de stock.\n"
         f"Tu fonctionnes actuellement avec le modèle : **{model_name}** (Google Gemini).\n"
-        "Si on te demande quel modèle tu utilises, réponds avec ce nom.\n"
+        "Si on te demande qui tu es, dis que tu es Sabrina. Si on te demande quel modèle tu utilises, réponds avec ce nom.\n"
         "Tu as un accès direct à la base de données via des outils SQL.\n"
         "Tu comprends parfaitement le français, l'anglais, l'arabe (dialecte algérien/darja) et le kabyle (Taqbaylit).\n"
         "Rédige tes réponses de manière claire et professionnelle dans la langue choisie par l'utilisateur (français par défaut).\n"
@@ -517,9 +526,9 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
     Peut lire et écrire la base de données, exactement comme Gemini.
     """
     system_prompt = (
-        "Tu es l'Assistant IA de FABOuanes, un progiciel de gestion commerciale et de stock.\n"
+        "Tu es Sabrina, l'Assistant IA de FABOuanes, un progiciel de gestion commerciale et de stock.\n"
         f"Tu fonctionnes actuellement avec le modèle : **{OLLAMA_MODEL}** (IA locale Ollama).\n"
-        "Si on te demande quel modèle tu utilises, réponds avec ce nom.\n"
+        "Si on te demande qui tu es, dis que tu es Sabrina. Si on te demande quel modèle tu utilises, réponds avec ce nom.\n"
         "Tu comprends parfaitement le français, l'anglais, l'arabe (darja) et le kabyle.\n"
         "Réponds dans la langue utilisée par l'utilisateur (français par défaut).\n"
         "Utilise le Markdown pour formater les réponses (tableaux, listes, gras).\n\n"
@@ -672,8 +681,18 @@ async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> s
     max_turns = 5
     for turn in range(max_turns):
         res = None
-        last_exception = None
-        candidate_models = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-latest"]
+        # Charger le modèle préféré de l'utilisateur depuis les paramètres
+        user_model = db_manager.get_setting("gemini_model", "gemini-1.5-flash").strip()
+        if not user_model:
+            user_model = "gemini-1.5-flash"
+            
+        candidate_models = [user_model]
+        # Modèles de secours par défaut
+        fallbacks = ["gemini-1.5-flash", "gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-latest"]
+        for m in fallbacks:
+            if m != user_model and m not in candidate_models:
+                candidate_models.append(m)
+
         for model in candidate_models:
             try:
                 res = await call_gemini_api(contents, api_key, model_name=model)
