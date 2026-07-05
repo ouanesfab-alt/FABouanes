@@ -196,25 +196,64 @@ async def is_ollama_available() -> bool:
     except Exception:
         return False
 
-async def call_ollama_api(messages: List[Dict[str, Any]], schema_text: str) -> str:
+async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> str:
     """
-    Appelle l'IA locale Ollama (qwen2.5:7b) comme fallback quand Gemini est saturé.
-    Ollama ne supporte pas le tool-calling natif de Gemini, donc on envoie tout
-    le contexte dans le prompt système et on laisse le modèle répondre directement.
+    Boucle d'agent complète avec Ollama local (qwen2.5:7b).
+    Supporte le tool calling natif OpenAI : execute_readonly_sql + execute_write_sql.
+    Peut lire et écrire la base de données, exactement comme Gemini.
     """
     system_prompt = (
-        "Tu es l'Assistant IA de FABOuanes, un progiciel de gestion commerciale.\n"
+        "Tu es l'Assistant IA de FABOuanes, un progiciel de gestion commerciale et de stock.\n"
         "Tu comprends parfaitement le français, l'anglais, l'arabe (darja) et le kabyle.\n"
-        "Réponds dans la langue utilisée par l'utilisateur.\n"
+        "Réponds dans la langue utilisée par l'utilisateur (français par défaut).\n"
         "Utilise le Markdown pour formater les réponses (tableaux, listes, gras).\n\n"
         f"SCHÉMA DE LA BASE DE DONNÉES :\n{schema_text}\n\n"
-        "IMPORTANT : Tu n'as PAS accès aux outils SQL en ce moment (mode hors-ligne).\n"
-        "Si on te demande des données précises (clients, ventes, etc.), explique poliment\n"
-        "que tu fonctionnes en mode local sans connexion à la base de données,\n"
-        "et réponds à tout le reste au mieux de tes connaissances."
+        "Pour LIRE des données → utilise execute_readonly_sql.\n"
+        "Pour CRÉER, MODIFIER ou SUPPRIMER des données → utilise execute_write_sql "
+        "uniquement si l'utilisateur le demande explicitement.\n"
+        "Réponds à TOUTES les questions (générales, calculs, traductions, etc.).\n"
+        "Règles : N'accède jamais à la table 'users'. N'exécute jamais DROP, ALTER ou TRUNCATE."
     )
 
-    # Convertir l'historique Gemini en format OpenAI/Ollama
+    # Outils en format OpenAI (compatible Ollama)
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "execute_readonly_sql",
+                "description": "Exécute une requête SQL SELECT en lecture seule et retourne les résultats.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "La requête SQL SELECT complète à exécuter."
+                        }
+                    },
+                    "required": ["query"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "execute_write_sql",
+                "description": "Exécute une requête SQL d'écriture (INSERT, UPDATE, DELETE) pour ajouter, modifier ou supprimer des données.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "La requête SQL complète (INSERT, UPDATE ou DELETE)."
+                        }
+                    },
+                    "required": ["query"]
+                }
+            }
+        }
+    ]
+
+    # Convertir l'historique Gemini → format OpenAI/Ollama
     ollama_messages = [{"role": "system", "content": system_prompt}]
     for msg in messages:
         role = msg.get("role", "user")
@@ -227,22 +266,74 @@ async def call_ollama_api(messages: List[Dict[str, Any]], schema_text: str) -> s
                     "content": text
                 })
 
-    payload = {
-        "model": OLLAMA_MODEL,
-        "messages": ollama_messages,
-        "stream": False,
-        "options": {"temperature": 0.7, "num_predict": 1024}
-    }
+    max_turns = 5
+    for turn in range(max_turns):
+        payload = {
+            "model": OLLAMA_MODEL,
+            "messages": ollama_messages,
+            "tools": tools,
+            "stream": False,
+            "options": {"temperature": 0.3, "num_predict": 2048}
+        }
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{OLLAMA_URL}/api/chat",
-            json=payload,
-            timeout=120.0  # CPU peut être lent
-        )
-        response.raise_for_status()
-        data = response.json()
-        return data.get("message", {}).get("content", "Pas de réponse.")
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{OLLAMA_URL}/api/chat",
+                    json=payload,
+                    timeout=180.0  # CPU peut être lent
+                )
+                response.raise_for_status()
+                data = response.json()
+        except Exception as e:
+            logger.error("Erreur Ollama tour %d : %s", turn, e)
+            return f"⚠️ Erreur IA locale (Ollama) : {str(e)}"
+
+        message = data.get("message", {})
+        tool_calls = message.get("tool_calls", [])
+        content = message.get("content", "")
+
+        # Ajouter la réponse de l'assistant à l'historique
+        assistant_msg = {"role": "assistant", "content": content}
+        if tool_calls:
+            assistant_msg["tool_calls"] = tool_calls
+        ollama_messages.append(assistant_msg)
+
+        if not tool_calls:
+            # Réponse textuelle finale
+            return content if content.strip() else "Pas de réponse."
+
+        # Exécuter les appels d'outils
+        for tc in tool_calls:
+            func = tc.get("function", {})
+            func_name = func.get("name", "")
+            # Ollama peut retourner arguments en str ou dict
+            raw_args = func.get("arguments", {})
+            if isinstance(raw_args, str):
+                try:
+                    func_args = json.loads(raw_args)
+                except Exception:
+                    func_args = {}
+            else:
+                func_args = raw_args
+
+            logger.info("Ollama Agent Call: '%s' args=%s", func_name, func_args)
+
+            if func_name == "execute_readonly_sql":
+                output = execute_readonly_sql(func_args.get("query", ""))
+            elif func_name == "execute_write_sql":
+                output = execute_write_sql(func_args.get("query", ""))
+            else:
+                output = {"error": f"Outil '{func_name}' inconnu."}
+
+            # Ajouter le résultat de l'outil dans la conversation
+            ollama_messages.append({
+                "role": "tool",
+                "content": json.dumps(output, ensure_ascii=False, default=str)
+            })
+
+    return "La requête Ollama a dépassé la limite de tours sans retourner de réponse."
+
 
 async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> str:
     """Orchestre la boucle d'agent avec Gemini (Tool Calling)."""
@@ -278,22 +369,23 @@ async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> s
             ollama_ok = await is_ollama_available()
             if ollama_ok:
                 try:
-                    ollama_response = await call_ollama_api(contents, schema_text)
+                    ollama_response = await run_ollama_agent(contents, schema_text)
                     logger.info("Réponse obtenue via Ollama local.")
-                    return f"🤖 **(Mode hors-ligne - IA locale)**\n\n{ollama_response}"
+                    return f"🤖 **(Mode IA locale - Ollama)**\n\n{ollama_response}"
                 except Exception as ollama_exc:
                     logger.error("Ollama local a également échoué : %s", ollama_exc)
                     return (
-                        "⚠️ Les modèles Gemini sont saturés (quota dépassé) et Ollama local a échoué.\n"
+                        "⚠️ Les modèles Gemini sont saturés et Ollama local a échoué.\n"
                         "Réessayez dans quelques minutes."
                     )
             else:
                 error_msg = str(last_exception) if last_exception else "Quota dépassé."
                 return (
                     f"⚠️ Quota Gemini dépassé ({error_msg}).\n"
-                    "💬 **Conseil :** L'IA locale Ollama n'est pas démarrée. "
-                    "Lancez **Ollama** pour continuer sans internet."
+                    "💬 **Conseil :** Ollama n'est pas démarré. "
+                    "Lancez l'application **Ollama** pour continuer sans internet."
                 )
+
 
         candidates = res.get("candidates", [])
         if not candidates:
