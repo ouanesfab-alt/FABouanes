@@ -65,8 +65,9 @@
           class="drawer-sublink {{ 'active' if request.endpoint == 'mobile_connect' else '' }}">
           <i class="bi bi-qr-code"></i> Connexion mobile
         </a>
-        <a href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer" class="drawer-sublink">
-          <i class="bi bi-stars" style="color:#886cf5"></i> Assistant IA <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.65rem;opacity:.5"></i>
+        <a href="{{ url_for('assistant_chat_page') }}"
+          class="drawer-sublink {{ 'active' if request.endpoint in ['assistant_chat_page'] else '' }}">
+          <i class="bi bi-stars" style="color:#886cf5"></i> Assistant IA
         </a>
       </div>
     </div>

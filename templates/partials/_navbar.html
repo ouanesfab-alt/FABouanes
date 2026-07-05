@@ -49,7 +49,7 @@
           <li><a class="dropdown-item {{ 'active' if request.endpoint == 'mobile_connect' else '' }}"
               href="{{ url_for('mobile_connect') }}"><i class="bi bi-qr-code me-2"></i>Connexion mobile</a></li>
           <li><hr class="dropdown-divider"></li>
-          <li><a class="dropdown-item" href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer"><i class="bi bi-stars me-2" style="color:#886cf5"></i>Assistant IA <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.7rem;opacity:.5"></i></a></li>
+          <li><a class="dropdown-item {{ 'active' if request.endpoint in ['assistant_chat_page'] else '' }}" href="{{ url_for('assistant_chat_page') }}"><i class="bi bi-stars me-2" style="color:#886cf5"></i>Assistant IA</a></li>
         </ul>
       </div>
     </div>
