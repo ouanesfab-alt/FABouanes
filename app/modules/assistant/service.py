@@ -201,6 +201,12 @@ ACTION_GUIDE = (
     "  → Donne le lien Markdown et ajoute le tag `[REDIRECT:/chemin]` à la toute fin (ex: `[REDIRECT:/dashboard]`).\n"
     "• Si l'utilisateur demande de changer de thème (mode clair ou mode sombre) :\n"
     "  → Réponds poliment et ajoute le tag `[THEME:dark]` ou `[THEME:light]` à la toute fin de ta réponse.\n"
+    "• Si l'utilisateur demande de changer de modèle ou de passer en mode local/Ollama/hors ligne :\n"
+    "  → Exécute une requête SQL d'écriture pour modifier 'gemini_model' dans `app_settings`.\n"
+    "    - Pour changer de modèle en ligne : INSERT INTO app_settings (key, value, updated_at) VALUES ('gemini_model', 'gemini-3.5-flash', CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP;\n"
+    "      (Les modèles disponibles sont uniquement : gemini-3.1-flash-lite, gemini-3.5-flash, gemini-flash-latest).\n"
+    "    - Pour passer en mode local/Ollama : INSERT INTO app_settings (key, value, updated_at) VALUES ('gemini_model', 'local', CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP;\n"
+    "    - Pour repasser en mode en ligne (Gemini) : INSERT INTO app_settings (key, value, updated_at) VALUES ('gemini_model', 'gemini-3.1-flash-lite', CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP;\n"
     "\n"
     "=== FORMULAIRES ET REDIRECTIONS DISPONIBLES ===\n"
     "• Tableau de bord → /dashboard\n"
@@ -671,24 +677,43 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
 
 
 async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> str:
-    """Orchestre la boucle d'agent avec Gemini (Tool Calling)."""
+    """Orchestre la boucle d'agent avec Gemini (Tool Calling) ou Ollama."""
+    # Charger le modèle préféré de l'utilisateur depuis les paramètres
+    user_model = db_manager.get_setting("gemini_model", "gemini-3.1-flash-lite").strip()
+    if not user_model:
+        user_model = "gemini-3.1-flash-lite"
+
+    # Si le modèle choisi est "local" ou "ollama", bypasser Gemini pour utiliser Ollama directement
+    if user_model.lower() in ("local", "ollama"):
+        logger.info("Mode local forcé par l'utilisateur (Ollama).")
+        schema_text = "\n".join(f"- {t}: {d}" for t, d in TABLE_SCHEMAS.items())
+        ollama_ok = await is_ollama_available()
+        if ollama_ok:
+            try:
+                ollama_response = await run_ollama_agent(messages, schema_text)
+                return f"🤖 **(Mode IA locale - Ollama)**\n\n{ollama_response}"
+            except Exception as ollama_exc:
+                logger.error("Ollama local a également échoué : %s", ollama_exc)
+                return "⚠️ Le mode local (Ollama) a échoué. Assurez-vous qu'Ollama est démarré et que le modèle qwen2.5:7b est installé."
+        else:
+            return (
+                "⚠️ Le mode local (Ollama) est activé mais Ollama n'est pas démarré.\n"
+                "Lancez l'application **Ollama** ou demandez à Sabrina de repasser en mode en ligne (Gemini)."
+            )
+
     # Copie locale de l'historique pour l'échange en cours
     contents = list(messages)
     
     # Limite de sécurité sur le nombre de tours d'appels d'outils successifs
-    # 5 tours = assez pour les opérations complexes (créer vente, chercher client, INSERT...)
-    # sans gaspiller trop de quota API
     max_turns = 5
     for turn in range(max_turns):
         res = None
-        # Charger le modèle préféré de l'utilisateur depuis les paramètres
-        user_model = db_manager.get_setting("gemini_model", "gemini-1.5-flash").strip()
-        if not user_model:
-            user_model = "gemini-1.5-flash"
-            
+        last_exception = None
+        
+        # Le premier candidat est le modèle choisi par l'utilisateur (s'il s'agit d'un modèle en ligne)
         candidate_models = [user_model]
-        # Modèles de secours par défaut
-        fallbacks = ["gemini-1.5-flash", "gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-latest"]
+        # Modèles de secours en ligne (les 3 modèles d'origine)
+        fallbacks = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-latest"]
         for m in fallbacks:
             if m != user_model and m not in candidate_models:
                 candidate_models.append(m)

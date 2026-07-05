@@ -493,12 +493,12 @@
         <div class="mac-header-title">
           <i class="bi bi-stars text-primary"></i>
           <span>Sabrina - Assistante IA</span>
-          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5" style="font-size: 0.7rem; border-radius: 10px;">{{ selected_model or 'gemini-1.5-flash' }}</span>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5" style="font-size: 0.7rem; border-radius: 10px;">{{ selected_model or 'gemini-3.1-flash-lite' }}</span>
         </div>
       </div>
       <div class="d-flex gap-2">
         <button class="mac-btn" id="toggleSettingsBtn">
-          <i class="bi bi-key-fill text-muted"></i> <span>Paramètres</span>
+          <i class="bi bi-key-fill text-muted"></i> <span>Clé d'API</span>
         </button>
         <button class="mac-btn" id="clearChatBtn">
           <i class="bi bi-trash text-muted"></i> <span>Effacer</span>
@@ -511,28 +511,16 @@
       <form method="post" action="{{ url_for('assistant_save_settings') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="row g-2 align-items-center">
-          <div class="col-md-5">
-            <div class="d-flex align-items-center gap-2">
-              <label for="apiKeyInput" class="small fw-bold text-secondary text-nowrap">Clé d'API :</label>
-              <input type="password" name="gemini_api_key" id="apiKeyInput" class="mac-input"
-                placeholder="{% if has_key %}•••••••••••••••• (Sauvegardée){% else %}Saisissez votre clé d'API (AIzaSy...){% endif %}"
-                {% if not has_key %}required{% endif %}>
-            </div>
+          <div class="col-auto">
+            <label for="apiKeyInput" class="small fw-bold text-secondary">Clé d'API Gemini :</label>
           </div>
-          <div class="col-md-5">
-            <div class="d-flex align-items-center gap-2">
-              <label for="modelSelect" class="small fw-bold text-secondary text-nowrap">Modèle :</label>
-              <select name="gemini_model" id="modelSelect" class="mac-select">
-                <option value="gemini-1.5-flash" {% if selected_model == 'gemini-1.5-flash' %}selected{% endif %}>Gemini 1.5 Flash (Défaut)</option>
-                <option value="gemini-1.5-pro" {% if selected_model == 'gemini-1.5-pro' %}selected{% endif %}>Gemini 1.5 Pro</option>
-                <option value="gemini-3.1-flash-lite" {% if selected_model == 'gemini-3.1-flash-lite' %}selected{% endif %}>Gemini 3.1 Flash Lite</option>
-                <option value="gemini-3.5-flash" {% if selected_model == 'gemini-3.5-flash' %}selected{% endif %}>Gemini 3.5 Flash</option>
-                <option value="gemini-2.5-flash" {% if selected_model == 'gemini-2.5-flash' %}selected{% endif %}>Gemini 2.5 Flash</option>
-              </select>
-            </div>
+          <div class="col-md-6 col-sm-8">
+            <input type="password" name="gemini_api_key" id="apiKeyInput" class="mac-input"
+              placeholder="{% if has_key %}•••••••••••••••• (Sauvegardée){% else %}Saisissez votre clé d'API (AIzaSy...){% endif %}"
+              {% if not has_key %}required{% endif %}>
           </div>
-          <div class="col-md-2 text-end">
-            <button type="submit" class="mac-btn mac-btn-primary w-100 justify-content-center">Enregistrer</button>
+          <div class="col-auto">
+            <button type="submit" class="mac-btn mac-btn-primary">Enregistrer</button>
           </div>
         </div>
         {% if not has_key %}
