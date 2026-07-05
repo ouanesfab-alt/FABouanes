@@ -970,4 +970,39 @@ html[data-theme="windows-dark"] .table tbody tr:hover > th {
 
 /* End of tokens.css */
 
+/* ══════════════════════════════════════════════════════════════
+   Sticky Table Headers — en-têtes visibles au scroll
+   ══════════════════════════════════════════════════════════════ */
 
+/* Sticky thead pour tous les tableaux Bootstrap de l'app */
+.table-responsive > table > thead > tr > th,
+.table-responsive > .table > thead > tr > th,
+table.table > thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--bg-secondary, #fff);
+  box-shadow: 0 1px 0 var(--line, #e0e0e0);
+}
+
+/* Dark mode */
+[data-theme="dark"] .table-responsive > table > thead > tr > th,
+[data-theme="dark"] .table-responsive > .table > thead > tr > th,
+[data-theme="dark"] table.table > thead > tr > th {
+  background-color: var(--bg-secondary, #1e2a30);
+  box-shadow: 0 1px 0 var(--line, #2d3748);
+}
+
+/* WhatsApp dark mode */
+[data-theme="whatsapp"] .table-responsive > table > thead > tr > th,
+[data-theme="whatsapp"] .table-responsive > .table > thead > tr > th,
+[data-theme="whatsapp"] table.table > thead > tr > th {
+  background-color: var(--bg-secondary, #202c33);
+  box-shadow: 0 1px 0 var(--line, #2d3748);
+}
+
+/* Pour les tableaux avec scroll interne (max-height sur le wrapper) */
+.table-responsive[style*="max-height"] > table > thead > tr > th,
+.table-responsive[style*="overflow-y"] > table > thead > tr > th {
+  top: 0; /* relatif au conteneur scrollable */
+}
