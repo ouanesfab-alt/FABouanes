@@ -153,14 +153,16 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
     try:
         with db_manager.db_transaction() as conn:
             cur = conn.execute(query)
-            rowcount = cur.rowcount
+            # pg8000 CompatCursor n'a pas toujours 'rowcount' — on utilise getattr pour éviter l'erreur
+            rowcount = getattr(cur, "rowcount", None)
             try:
-                rows = cur.fetchall()
-                result = {"rowcount": rowcount, "rows": serialize_for_json([dict(r) for r in rows])}
+                cur.close()
             except Exception:
-                result = {"rowcount": rowcount}
-            cur.close()
-            return result
+                pass
+            if rowcount is not None:
+                return {"success": True, "rowcount": rowcount, "message": f"{rowcount} ligne(s) affectée(s)."}
+            else:
+                return {"success": True, "message": "Opération exécutée avec succès."}
     except Exception as e:
         return {"error": f"Erreur SQL lors de l'écriture : {str(e)}"}
 
