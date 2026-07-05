@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import asyncio
 import httpx
 from typing import Any, Dict, List
 from app.core.db_helpers import db_manager
@@ -166,10 +167,22 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str) -> Dict[
     
     headers = {"Content-Type": "application/json"}
     
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, json=payload, headers=headers, timeout=60.0)
-        response.raise_for_status()
-        return response.json()
+    max_retries = 4
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload, headers=headers, timeout=60.0)
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 429 and attempt < max_retries - 1:
+                wait_time = 2 ** (attempt + 1)
+                logger.warning("Quota ou Rate Limit 429 de l'API Gemini atteint. Nouvelle tentative dans %ds...", wait_time)
+                await asyncio.sleep(wait_time)
+                continue
+            raise
+        except Exception:
+            raise
 
 async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> str:
     """Orchestre la boucle d'agent avec Gemini (Tool Calling)."""
