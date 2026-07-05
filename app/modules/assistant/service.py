@@ -250,8 +250,9 @@ async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> s
     contents = list(messages)
     
     # Limite de sécurité sur le nombre de tours d'appels d'outils successifs
-    # Réduit à 3 pour économiser le quota API (chaque tour = 1 appel API)
-    max_turns = 3
+    # 5 tours = assez pour les opérations complexes (créer vente, chercher client, INSERT...)
+    # sans gaspiller trop de quota API
+    max_turns = 5
     for turn in range(max_turns):
         res = None
         last_exception = None
