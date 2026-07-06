@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import Any, Dict, List, Optional, Tuple, Set
-from sqlmodel import select, func, case, literal, union_all
+from sqlmodel import select, func, case, literal, union_all, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Sale, RawSale, SaleDocument, FinishedProduct, Client, RawMaterial, Payment
@@ -144,7 +144,7 @@ class SaleRepository(AsyncRepository[Sale]):
         if search:
             search_pattern = f"%{search}%"
             stmt = stmt.where(
-                func.or_(
+                or_(
                     func.coalesce(union_stmt.c.client_name, '').ilike(search_pattern),
                     func.coalesce(union_stmt.c.item_name, '').ilike(search_pattern),
                     func.coalesce(union_stmt.c.notes, '').ilike(search_pattern)

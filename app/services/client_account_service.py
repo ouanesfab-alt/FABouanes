@@ -239,12 +239,16 @@ async def create_payment_record(
 async def _create_payment_record_impl(
     client_id: int,
     amount: float,
-    payment_date: str,
+    payment_date: str | date,
     notes: str,
     sale_link: str,
     payment_type: str,
     db: AsyncSession,
 ) -> int:
+    from datetime import date
+    if isinstance(payment_date, str):
+        payment_date = date.fromisoformat(payment_date.strip())
+        
     if amount <= 0:
         raise ValueError("Le montant doit etre superieur a zero.")
 

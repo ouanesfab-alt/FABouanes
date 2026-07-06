@@ -32,8 +32,8 @@ class AssistantModule(ModuleBase):
     def role_permissions(self) -> dict[str, list[str]]:
         return {
             "admin": ["assistant.read", "assistant.write"],
-            "manager": ["assistant.read"],
-            "operator": ["assistant.read"],
+            "manager": ["assistant.read", "assistant.write"],
+            "operator": ["assistant.read", "assistant.write"],
         }
 
 # Registration

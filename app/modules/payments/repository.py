@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
-from sqlmodel import select, func, case, literal_column
+from sqlmodel import select, func, case, literal_column, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Payment, Client
@@ -17,8 +17,8 @@ class PaymentRepository(AsyncRepository[Payment]):
 
     async def get_by_id(self, payment_id: int) -> Optional[Dict[str, Any]]:
         sale_ref_expr = case(
-            (func.and_(Payment.sale_kind == 'finished', Payment.sale_id != None), func.concat('Produit #', Payment.sale_id)),
-            (func.and_(Payment.sale_kind == 'raw', Payment.raw_sale_id != None), func.concat('Matière #', Payment.raw_sale_id)),
+            (and_(Payment.sale_kind == 'finished', Payment.sale_id != None), func.concat('Produit #', Payment.sale_id)),
+            (and_(Payment.sale_kind == 'raw', Payment.raw_sale_id != None), func.concat('Matière #', Payment.raw_sale_id)),
             else_='-'
         )
         stmt = (
@@ -45,8 +45,8 @@ class PaymentRepository(AsyncRepository[Payment]):
         page_size: int = 50,
     ) -> Tuple[List[Dict[str, Any]], int]:
         sale_ref_expr = case(
-            (func.and_(Payment.sale_kind == 'finished', Payment.sale_id != None), func.concat('Produit #', Payment.sale_id)),
-            (func.and_(Payment.sale_kind == 'raw', Payment.raw_sale_id != None), func.concat('Matière #', Payment.raw_sale_id)),
+            (and_(Payment.sale_kind == 'finished', Payment.sale_id != None), func.concat('Produit #', Payment.sale_id)),
+            (and_(Payment.sale_kind == 'raw', Payment.raw_sale_id != None), func.concat('Matière #', Payment.raw_sale_id)),
             else_='-'
         )
         
@@ -63,7 +63,7 @@ class PaymentRepository(AsyncRepository[Payment]):
         if search:
             search_pattern = f"%{search}%"
             stmt = stmt.where(
-                func.or_(
+                or_(
                     Client.name.ilike(search_pattern),
                     func.coalesce(Payment.notes, '').ilike(search_pattern)
                 )

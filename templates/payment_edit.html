@@ -27,6 +27,7 @@
   <div class="payment-edit-shell">
     <div class="card payment-edit-card">
       <form method="post" class="payment-edit-grid">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="span-6">
           <label class="form-label">Type</label>
           <select name="payment_type" class="form-select">
@@ -67,6 +68,11 @@
         <div class="span-12 entity-form-actions">
           <button class="btn btn-success">Enregistrer les modifications</button>
           <a href="{{ url_for('operations', type='payment') }}" class="btn btn-outline-secondary">Retour</a>
+          <form method="post" action="{{ url_for('delete_payment', payment_id=payment.id) }}" style="display:inline;margin:0;"
+                onsubmit="return confirm('Supprimer ce versement/avance ?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash3 me-1"></i>Supprimer</button>
+          </form>
         </div>
       </form>
     </div>

@@ -15,7 +15,7 @@
         <!-- Segmented control to choose kind -->
         <div class="span-12">
           <label class="form-label mb-1">Type de contact</label>
-          <div class="glass-segmented-control theme-emerald">
+          <div class="glass-segmented-control theme-amber control-2-options">
             <input type="radio" name="kind" id="kindClient" value="client" {% if kind == 'client' %}checked{% endif %}>
             <label for="kindClient">
               <i class="bi bi-person-fill me-2"></i>Client
@@ -115,6 +115,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize
   updateFormKind();
+
+  // Prefill from URL query parameters (Agentic automation)
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  const kindParam = urlParams.get('kind');
+  if (kindParam === 'supplier') {
+    kindSupplier.checked = true;
+    updateFormKind();
+  } else if (kindParam === 'client') {
+    kindClient.checked = true;
+    updateFormKind();
+  }
+  
+  const nameParam = urlParams.get('name');
+  if (nameParam) document.getElementById('inputName').value = nameParam;
+  
+  const phoneParam = urlParams.get('phone');
+  if (phoneParam) document.getElementById('inputPhone').value = phoneParam;
+  
+  const addressParam = urlParams.get('address');
+  if (addressParam) document.getElementById('inputAddress').value = addressParam;
+  
+  const creditParam = urlParams.get('opening_credit') || urlParams.get('credit');
+  if (creditParam) document.getElementById('inputCredit').value = creditParam;
+  
+  const notesParam = urlParams.get('notes');
+  if (notesParam) document.getElementById('inputNotes').value = notesParam;
 });
 </script>
 {% endblock %}

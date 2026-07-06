@@ -4844,28 +4844,34 @@ th.sort-desc .sort-icon::before { content: "\F229"; } /* bi-chevron-down */
 }
 
 /* Accent themes with macOS Aqua Liquid Glass Glossy Overlays */
+
+/* BLUE — Catalogue / Produits */
 .theme-blue .glass-slider {
   width: calc(50% - 4px);
   background: 
     linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.2) 100%), 
-    linear-gradient(135deg, var(--accent, #3b82f6), #1d4ed8);
+    linear-gradient(135deg, #3b82f6, #1d4ed8);
   box-shadow: 
     inset 0 1px 1px rgba(255, 255, 255, 0.4), 
     0 4px 12px rgba(29, 78, 216, 0.4),
     0 8px 24px rgba(29, 78, 216, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
+
+/* AMBER (orange) — Contacts / Clients */
 .theme-amber .glass-slider {
   width: calc(50% - 4px);
   background: 
     linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.2) 100%), 
-    linear-gradient(135deg, #f59e0b, #d97706);
+    linear-gradient(135deg, #f97316, #ea580c);
   box-shadow: 
     inset 0 1px 1px rgba(255, 255, 255, 0.4), 
-    0 4px 12px rgba(217, 119, 6, 0.4),
-    0 8px 24px rgba(217, 119, 6, 0.2);
+    0 4px 12px rgba(234, 88, 12, 0.4),
+    0 8px 24px rgba(234, 88, 12, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.25);
 }
+
+/* EMERALD (green) — Opérations (4 items = 25% each) */
 .theme-emerald .glass-slider {
   width: calc(25% - 2px);
   background: 
@@ -4878,8 +4884,14 @@ th.sort-desc .sort-icon::before { content: "\F229"; } /* bi-chevron-down */
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+/* Force 25% for the 4-option op-switcher */
 .op-switcher .glass-slider {
   width: calc(25% - 2px) !important;
+}
+
+/* Override for any 2-option control */
+.control-2-options .glass-slider {
+  width: calc(50% - 4px) !important;
 }
 
 @media(max-width:767px){
@@ -4893,9 +4905,8 @@ th.sort-desc .sort-icon::before { content: "\F229"; } /* bi-chevron-down */
     font-size: 0.85rem;
     padding: 8px 12px;
   }
-  
+
   /* Adapt 4-item glass-slider for 2x2 grid layout on mobile */
-  .theme-emerald .glass-slider,
   .op-switcher .glass-slider {
     width: calc(50% - 4px) !important;
     height: calc(50% - 4px) !important;
@@ -4910,6 +4921,7 @@ th.sort-desc .sort-icon::before { content: "\F229"; } /* bi-chevron-down */
     transform: translate(100%, 100%) !important;
   }
 }
+
 
 .preset-badge {
   background: rgba(255, 255, 255, 0.05);
@@ -4943,6 +4955,11 @@ th.sort-desc .sort-icon::before { content: "\F229"; } /* bi-chevron-down */
 }
 .glass-segmented-control input[id="opAvance"]:checked ~ .glass-slider {
   transform: translateX(300%);
+}
+
+/* Override for 2-option controls */
+.glass-segmented-control.control-2-options .glass-slider {
+  width: calc(50% - 4px) !important;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────

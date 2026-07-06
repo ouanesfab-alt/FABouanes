@@ -15,7 +15,7 @@
         <!-- Segmented control to choose kind -->
         <div class="span-12">
           <label class="form-label mb-1">Type d'article</label>
-          <div class="glass-segmented-control theme-emerald">
+          <div class="glass-segmented-control theme-blue control-2-options">
             <input type="radio" name="kind" id="kindRaw" value="raw" {% if kind == 'raw' %}checked{% endif %}>
             <label for="kindRaw">
               <i class="bi bi-box-seam me-2"></i>Matière première
@@ -164,6 +164,53 @@
   // Initialize
   renderSuggestions();
   syncPricePreview();
+
+  // Prefill from URL query parameters (Agentic automation)
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  const kindParam = urlParams.get('kind');
+  if (kindParam === 'raw') {
+    kindRaw.checked = true;
+    renderSuggestions();
+  } else if (kindParam === 'finished' || kindParam === 'product') {
+    kindFinished.checked = true;
+    renderSuggestions();
+  }
+  
+  const nameParam = urlParams.get('name');
+  if (nameParam) {
+    document.getElementById('catalogNameInput').value = nameParam;
+  }
+  
+  const unitParam = urlParams.get('unit');
+  if (unitParam) {
+    const unitSel = document.getElementById('unitSelect');
+    if (unitSel) unitSel.value = unitParam;
+  }
+  
+  const stockParam = urlParams.get('stock') || urlParams.get('stock_qty');
+  if (stockParam) {
+    document.getElementById('stockInput').value = stockParam;
+  }
+  
+  const costParam = urlParams.get('avg_cost') || urlParams.get('cost');
+  if (costParam) {
+    document.getElementById('avgCostKg').value = costParam;
+  }
+  
+  const priceParam = urlParams.get('sale_price') || urlParams.get('price');
+  if (priceParam) {
+    const priceInput = document.getElementById('salePriceKg');
+    if (priceInput) {
+      priceInput.value = priceParam;
+      syncPricePreview();
+    }
+  }
+  
+  const thresholdParam = urlParams.get('alert_threshold') || urlParams.get('threshold');
+  if (thresholdParam) {
+    document.getElementById('alertThresholdInput').value = thresholdParam;
+  }
 })();
 </script>
 {% endblock %}

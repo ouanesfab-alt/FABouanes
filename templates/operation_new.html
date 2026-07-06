@@ -784,6 +784,153 @@ async function fillDropdownsFromCache() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', fillDropdownsFromCache);
+async function handlePrefillAndCache() {
+  await fillDropdownsFromCache();
+  
+  // Prefill from URL query parameters (Agentic automation)
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  // 1. Choose mode
+  const modeParam = urlParams.get('mode') || urlParams.get('type') || urlParams.get('kind');
+  if (modeParam) {
+    const opAchat = document.getElementById('opAchat');
+    const opVente = document.getElementById('opVente');
+    const opVersement = document.getElementById('opVersement');
+    const opAvance = document.getElementById('opAvance');
+    
+    if (modeParam === 'achat' || modeParam === 'purchase') {
+      if (opAchat) opAchat.checked = true;
+    } else if (modeParam === 'vente' || modeParam === 'sale') {
+      if (opVente) opVente.checked = true;
+    } else if (modeParam === 'versement' || modeParam === 'payment') {
+      if (opVersement) opVersement.checked = true;
+    } else if (modeParam === 'avance') {
+      if (opAvance) opAvance.checked = true;
+    }
+    
+    // Trigger updateActiveSection
+    const activeRadio = [opAchat, opVente, opVersement, opAvance].find(r => r && r.checked);
+    if (activeRadio) {
+      activeRadio.dispatchEvent(new Event('change'));
+    }
+  }
+  
+  // 2. Prefill client / supplier
+  const clientParam = urlParams.get('client_id');
+  if (clientParam) {
+    const clientSelect = document.getElementById('clientSelect');
+    if (clientSelect) clientSelect.value = clientParam;
+    const paymentClientSelect = document.getElementById('paymentClientSelect');
+    if (paymentClientSelect) paymentClientSelect.value = clientParam;
+  }
+  
+  const supplierParam = urlParams.get('supplier_id');
+  if (supplierParam) {
+    const supplierSelect = document.getElementById('supplierSelect');
+    if (supplierSelect) supplierSelect.value = supplierParam;
+  }
+  
+  // 3. Prefill date
+  const dateParam = urlParams.get('date');
+  if (dateParam) {
+    const purchaseDate = document.getElementById('purchaseDate');
+    if (purchaseDate) purchaseDate.value = dateParam;
+    const saleDate = document.getElementById('saleDate');
+    if (saleDate) saleDate.value = dateParam;
+    const paymentDate = document.getElementById('paymentDate');
+    if (paymentDate) paymentDate.value = dateParam;
+  }
+  
+  // 4. Prefill amount
+  const amountParam = urlParams.get('amount');
+  if (amountParam) {
+    const paymentAmount = document.getElementById('paymentAmount');
+    if (paymentAmount) paymentAmount.value = amountParam;
+  }
+  
+  // 5. Prefill notes
+  const notesParam = urlParams.get('notes');
+  if (notesParam) {
+    const purchaseNotes = document.getElementById('purchaseNotes');
+    if (purchaseNotes) purchaseNotes.value = notesParam;
+    const saleNotes = document.getElementById('saleNotes');
+    if (saleNotes) saleNotes.value = notesParam;
+    const paymentNotes = document.getElementById('paymentNotes');
+    if (paymentNotes) paymentNotes.value = notesParam;
+  }
+
+  // 6. Prefill first line for purchase or sale
+  const itemIdParam = urlParams.get('item_id') || urlParams.get('raw_material_id') || urlParams.get('product_id');
+  const qtyParam = urlParams.get('quantity') || urlParams.get('qty');
+  const priceParam = urlParams.get('price') || urlParams.get('unit_price');
+  
+  const isAchat = document.getElementById('opAchat')?.checked;
+  const isVente = document.getElementById('opVente')?.checked;
+
+  if (isAchat && (itemIdParam || qtyParam || priceParam)) {
+    setTimeout(() => {
+      const firstRow = document.querySelector('#purchaseLines .doc-line-card');
+      if (firstRow) {
+        if (itemIdParam) {
+          const matSelect = firstRow.querySelector('.purchase-material');
+          if (matSelect) {
+            matSelect.value = itemIdParam;
+            matSelect.dispatchEvent(new Event('change'));
+          }
+        }
+        if (qtyParam) {
+          const qtyInput = firstRow.querySelector('.purchase-qty');
+          if (qtyInput) {
+            qtyInput.value = qtyParam;
+            qtyInput.dispatchEvent(new Event('input'));
+          }
+        }
+        if (priceParam) {
+          const priceInput = firstRow.querySelector('.purchase-price');
+          if (priceInput) {
+            priceInput.value = priceParam;
+            priceInput.dispatchEvent(new Event('input'));
+          }
+        }
+      }
+    }, 150);
+  }
+
+  if (isVente && (itemIdParam || qtyParam || priceParam)) {
+    setTimeout(() => {
+      const firstRow = document.querySelector('#saleLines .doc-line-card');
+      if (firstRow) {
+        if (itemIdParam) {
+          const itemSelect = firstRow.querySelector('.sale-item');
+          if (itemSelect) {
+            for (let option of itemSelect.options) {
+              if (option.value === itemIdParam || option.value.endsWith(':' + itemIdParam)) {
+                itemSelect.value = option.value;
+                itemSelect.dispatchEvent(new Event('change'));
+                break;
+              }
+            }
+          }
+        }
+        if (qtyParam) {
+          const qtyInput = firstRow.querySelector('.sale-qty');
+          if (qtyInput) {
+            qtyInput.value = qtyParam;
+            qtyInput.dispatchEvent(new Event('input'));
+          }
+        }
+        if (priceParam) {
+          const priceInput = firstRow.querySelector('.sale-price');
+          if (priceInput) {
+            priceInput.value = priceParam;
+            priceInput.dispatchEvent(new Event('input'));
+          }
+        }
+      }
+    }, 150);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', handlePrefillAndCache);
 </script>
 {% endblock %}

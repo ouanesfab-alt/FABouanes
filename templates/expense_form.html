@@ -55,3 +55,46 @@
   </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  const dateParam = urlParams.get('date');
+  if (dateParam) {
+    document.getElementById('expDate').value = dateParam;
+  } else {
+    // Default to today if empty
+    const today = new Date().toISOString().split('T')[0];
+    const expDateInput = document.getElementById('expDate');
+    if (expDateInput && !expDateInput.value) {
+      expDateInput.value = today;
+    }
+  }
+  
+  const categoryParam = urlParams.get('category');
+  if (categoryParam) {
+    const expCategory = document.getElementById('expCategory');
+    if (expCategory) expCategory.value = categoryParam;
+  }
+  
+  const descriptionParam = urlParams.get('description');
+  if (descriptionParam) {
+    document.getElementById('expDescription').value = descriptionParam;
+  }
+  
+  const amountParam = urlParams.get('amount');
+  if (amountParam) {
+    document.getElementById('expAmount').value = amountParam;
+  }
+  
+  const methodParam = urlParams.get('payment_method') || urlParams.get('method');
+  if (methodParam) {
+    const expMethod = document.getElementById('expMethod');
+    if (expMethod) expMethod.value = methodParam;
+  }
+});
+</script>
+{% endblock %}
+

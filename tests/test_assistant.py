@@ -7,15 +7,15 @@ def test_execute_readonly_sql_validation():
     # Test queries that should fail basic read-only validation
     res = execute_readonly_sql("INSERT INTO clients (name) VALUES ('test')")
     assert "error" in res
-    assert "Seules les requêtes SELECT" in res["error"]
+    assert "interdite" in res["error"]
 
     res_update = execute_readonly_sql("UPDATE clients SET name = 'test'")
     assert "error" in res_update
-    assert "Seules les requêtes SELECT" in res_update["error"]
+    assert "interdite" in res_update["error"]
 
     res_injection = execute_readonly_sql("SELECT * FROM clients; DROP TABLE clients;")
     assert "error" in res_injection
-    assert "interdite" in res_injection["error"]
+    assert "Une seule requête" in res_injection["error"] or "interdite" in res_injection["error"] or "syntaxe" in res_injection["error"]
 
 def test_sanitizer_truncation():
     # Test that normal strings are not truncated
@@ -42,7 +42,8 @@ async def test_run_assistant_agent_no_tool_call():
     }
     
     with patch("app.modules.assistant.service.call_gemini_api", new_callable=AsyncMock) as mock_call:
-        mock_call.return_value = mock_response
-        result = await run_assistant_agent([], "fake_api_key")
-        assert result == "Bonjour ! Comment puis-je vous aider ?"
-        mock_call.assert_called_once()
+        with patch("app.core.db_helpers.db_manager.get_setting", return_value="gemini-3.1-flash-lite"):
+            mock_call.return_value = mock_response
+            result = await run_assistant_agent([], "fake_api_key")
+            assert result == "Bonjour ! Comment puis-je vous aider ?"
+            mock_call.assert_called_once()

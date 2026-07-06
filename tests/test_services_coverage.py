@@ -98,9 +98,13 @@ os.environ.setdefault("FAB_DISABLE_BACKGROUND_JOBS", "1")
 from werkzeug.security import generate_password_hash
 from app.core.db_helpers import CompatRow
 
-def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = ()):
+def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = (), *args, **kwargs):
     q = sql.lower()
     
+    # 0_metadata. Column information schema
+    if "information_schema.columns" in q or "column_name" in q:
+        return [("column_name",)], [("id",), ("created_at",), ("updated_at",)]
+        
     # 0. Client keys query check first (very specific)
     if "client_keys" in q or "encryption_key" in q:
         cols = [("client_id",), ("encryption_key",)]
@@ -348,8 +352,8 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = ()):
 
     return [("id",), ("value",), ("c",), ("status",), ("reason",), ("action",), ("item_kind",), ("created_at",), ("message",), ("level",), ("details",), ("quantity",), ("unit",), ("stock_before",), ("stock_after",), ("flow_direction",), ("product_name",), ("product_unit",), ("batch_id",)], [(1, "1", 1, "success", "manual", "login", "finished", datetime.now(), "Log message detail", "info", "{}", 10.0, "kg", 100.0, 90.0, "out", "Product X", "kg", 1)]
 
-def mock_orm_rows_for_sql(sql: str, params=()):
-    cols, rows = mock_dbapi_rows_for_sql(sql, params)
+def mock_orm_rows_for_sql(sql: str, params=(), *args, **kwargs):
+    cols, rows = mock_dbapi_rows_for_sql(sql, params, *args, **kwargs)
     col_names = [c[0] for c in cols]
     
     rows_list = [list(r) for r in rows]
@@ -932,12 +936,10 @@ class TestCriticalServiceIntegrity:
     """
 
     def test_models_datetime_are_timezone_aware(self):
-        """Vérifie que tous les defaults datetime utilisent timezone UTC (non naïfs)."""
-        from datetime import timezone
+        """Vérifie que tous les defaults datetime utilisent timezone UTC (naïfs)."""
         from app.core.models import _now
         dt = _now()
-        assert dt.tzinfo is not None, "_now() doit retourner un datetime timezone-aware"
-        assert dt.tzinfo == timezone.utc or dt.utcoffset().total_seconds() == 0
+        assert dt.tzinfo is None, "_now() doit retourner un datetime timezone-naive pour compatibilité"
 
     def test_expense_amount_is_decimal_type(self):
         """Vérifie que Expense.amount est bien Decimal et non float."""

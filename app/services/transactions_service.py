@@ -48,12 +48,20 @@ async def _transactions_context_impl(
     date_filter = (filter_date or "").strip()
     operation_filter = (filter_operation or "").strip().lower()
     
+    db_date_filter = None
+    if date_filter:
+        from datetime import datetime as dt_class
+        try:
+            db_date_filter = dt_class.strptime(date_filter, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    
     # 1. Purchases query
     if filter_type in ("all", "purchase"):
         p_where = []
-        if date_filter:
+        if db_date_filter:
             p_where.append("p.purchase_date = :date_filter")
-            params["date_filter"] = date_filter
+            params["date_filter"] = db_date_filter
         if name_filter:
             p_where.append("(lower(COALESCE(s.name, '')) LIKE :name_filter OR lower(COALESCE(r.name, '')) LIKE :name_filter OR lower(COALESCE(fp.name, '')) LIKE :name_filter)")
             params["name_filter"] = f"%{name_filter}%"
@@ -94,9 +102,9 @@ async def _transactions_context_impl(
     # 2. Sales query (finished + raw)
     if filter_type in ("all", "sale"):
         s_where = []
-        if date_filter:
+        if db_date_filter:
             s_where.append("x.sale_date = :date_filter")
-            params["date_filter"] = date_filter
+            params["date_filter"] = db_date_filter
         if name_filter:
             s_where.append("(lower(COALESCE(x.client_name, '')) LIKE :name_filter OR lower(x.item_name) LIKE :name_filter)")
             params["name_filter"] = f"%{name_filter}%"
@@ -126,9 +134,9 @@ async def _transactions_context_impl(
     # 3. Payments query
     if filter_type in ("all", "payment"):
         pay_where = []
-        if date_filter:
+        if db_date_filter:
             pay_where.append("p.payment_date = :date_filter")
-            params["date_filter"] = date_filter
+            params["date_filter"] = db_date_filter
         if name_filter:
             pay_where.append("(lower(COALESCE(c.name, '')) LIKE :name_filter OR lower(CASE WHEN p.payment_type='avance' THEN 'Avance client' ELSE 'Versement client' END) LIKE :name_filter)")
             params["name_filter"] = f"%{name_filter}%"

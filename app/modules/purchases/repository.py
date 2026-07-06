@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
-from sqlmodel import select, func, case, cast, Numeric, text
+from sqlmodel import select, func, case, cast, Numeric, text, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Purchase, PurchaseDocument, Supplier, RawMaterial, FinishedProduct
@@ -128,7 +128,7 @@ class PurchaseRepository(AsyncRepository[Purchase]):
         if search:
             search_pattern = f"%{search}%"
             stmt = stmt.where(
-                func.or_(
+                or_(
                     func.coalesce(subq.c.supplier_name, '').ilike(search_pattern),
                     func.coalesce(subq.c.material_name, '').ilike(search_pattern),
                     func.coalesce(subq.c.notes, '').ilike(search_pattern)

@@ -49,7 +49,7 @@
   </div>
 
   <div class="card transactions-table-card">
-    <form method="get" class="row g-2 mb-3 transactions-filter-row">
+    <form method="get" action="/operations" class="row g-2 mb-3 transactions-filter-row">
       <input type="hidden" name="type" value="{{ filter_type }}">
       <div class="col-md-3">
         <input type="text" name="name" value="{{ filter_name }}" class="form-control" placeholder="Nom ou désignation">
@@ -284,7 +284,18 @@
     const tab = e.target.closest('.js-filter-tab');
     if (tab) {
       e.preventDefault();
-      loadTransactions(tab.getAttribute('href'));
+      // Preserve active filters when switching tabs
+      const tabUrl = new URL(tab.getAttribute('href'), window.location.origin);
+      const form = document.querySelector('.transactions-filter-row');
+      if (form) {
+        const formData = new FormData(form);
+        for (const [key, value] of formData.entries()) {
+          if (value && key !== 'type') {
+            tabUrl.searchParams.set(key, value);
+          }
+        }
+      }
+      loadTransactions(tabUrl.toString());
       return;
     }
 

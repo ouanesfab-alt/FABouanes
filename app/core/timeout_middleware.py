@@ -47,7 +47,10 @@ class RequestTimeoutMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Use longer timeout for heavy operations
-        timeout = self.long_timeout if any(path.startswith(p) for p in EXEMPT_PREFIXES) else self.timeout
+        if path.startswith("/assistant/"):
+            timeout = 180.0  # Local AI (Ollama) can be slow on CPU
+        else:
+            timeout = self.long_timeout if any(path.startswith(p) for p in EXEMPT_PREFIXES) else self.timeout
 
         try:
             return await asyncio.wait_for(call_next(request), timeout=timeout)

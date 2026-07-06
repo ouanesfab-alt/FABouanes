@@ -26,13 +26,42 @@
   }
 
   .assistant-wrapper {
-    max-width: 900px;
+    max-width: 1200px;
     margin: 0 auto;
     width: 100%;
     min-height: calc(100vh - var(--nav-h, 56px) - 60px);
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    gap: 20px;
     font-family: var(--font-main);
+    align-items: flex-start;
+  }
+
+  .assistant-sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: var(--glass-chrome);
+    backdrop-filter: var(--backdrop-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--shadow-md);
+    position: sticky;
+    top: 20px;
+  }
+
+  @media (max-width: 991px) {
+    .assistant-wrapper {
+      flex-direction: column !important;
+    }
+    .assistant-sidebar {
+      width: 100% !important;
+      position: static !important;
+      margin-bottom: 16px;
+    }
   }
 
   /* macOS Sequoia Glass Window */
@@ -45,8 +74,15 @@
     box-shadow: var(--shadow-xl);
     display: flex;
     flex-direction: column;
+    height: calc(100vh - var(--nav-h, 56px) - 50px) !important;
+    overflow: hidden;
     flex: 1;
-    height: auto !important;
+  }
+
+  @media (max-width: 991px) {
+    .chat-card {
+      height: calc(100vh - var(--nav-h, 56px) - var(--bot-h, 56px) - 30px) !important;
+    }
   }
 
   /* macOS Titlebar / Header */
@@ -106,17 +142,7 @@
 
   /* Ambient AI Aurora Border Glow */
   .chat-card {
-    position: relative;
-    border: 1px solid var(--glass-border);
-    border-radius: 16px;
-    background: var(--glass-chrome);
-    backdrop-filter: var(--backdrop-blur);
-    box-shadow: var(--shadow-xl);
-    display: flex;
-    flex-direction: column;
-    flex: 1;
     min-height: 0; /* Let flex container shrink properly */
-    overflow: hidden;
   }
 
   .chat-card::before {
@@ -139,14 +165,14 @@
   }
 
   .chat-messages-container {
-    padding: 24px 24px 110px; /* Extra bottom padding so last message is visible above the sticky input bar */
+    padding: 24px;
     display: flex;
     flex-direction: column;
     gap: 16px;
     background: var(--bg-primary);
     border-bottom: 1px solid var(--line);
     flex: 1;
-    overflow: visible !important;
+    overflow-y: auto !important;
   }
 
   /* Welcome Screen Layout */
@@ -210,25 +236,18 @@
     line-height: 1.4;
   }
 
-  /* Fixed bottom input area */
+  /* Chat input area as footer of chat-card */
   .chat-input-area {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
     padding: 16px 20px;
     background: var(--glass-chrome);
+    backdrop-filter: var(--backdrop-blur);
     border-top: 1px solid var(--line);
-    z-index: 1000;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
     box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
-  }
-
-  @media (max-width: 991px) {
-    .chat-input-area {
-      bottom: var(--bot-h, 56px); /* Account for bottom navigation bar on mobile/tablet */
-    }
+    width: 100%;
+    flex-shrink: 0;
   }
 
   /* Sleek macOS iMessage-style bubbles */
@@ -480,56 +499,109 @@
     font-family: monospace;
     font-size: 0.82rem;
   }
+
+  /* Segmented switch styling */
+  .segmented-switch {
+    display: flex;
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 3px;
+    position: relative;
+    width: 100%;
+  }
+  
+  .segmented-switch input[type="radio"] {
+    display: none;
+  }
+  
+  .segmented-switch label {
+    flex: 1;
+    text-align: center;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    transition: all 0.15s ease;
+    margin: 0;
+  }
+  
+  .segmented-switch input[type="radio"]:checked + label {
+    background: var(--accent);
+    color: white !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  html[data-theme="dark"] .segmented-switch {
+    background: rgba(255, 255, 255, 0.05);
+  }
 </style>
 
 <div class="assistant-wrapper">
 
-  <!-- Main Chat Card -->
-  <div class="chat-card">
+  <!-- Sidebar à gauche -->
+  <div class="assistant-sidebar" id="settingsPanel">
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <span style="background: rgba(136, 108, 245, 0.15); color: #886cf5; font-weight: 700; border-radius: 4px; padding: 2px 6px; font-size: 0.85rem; border: 1px solid rgba(136, 108, 245, 0.3); font-family: system-ui, sans-serif; display: inline-flex; align-items: center; justify-content: center; height: 22px; width: 26px; line-height: 1;">S<sup style="font-size: 0.55rem; margin-left: 0.5px;">ia</sup></span>
+      <h5 class="fw-bold m-0" style="font-family: var(--font-title); font-size: 1.1rem; color: var(--text-primary);">Sabrina</h5>
+    </div>
+    <p class="text-secondary small mb-3">Votre assistante commerciale intelligente.</p>
 
-    <!-- macOS Window Title Bar (Traffic lights removed) -->
-    <div class="mac-titlebar">
-      <div class="d-flex align-items-center gap-2">
-        <div class="mac-header-title">
-          <i class="bi bi-stars text-primary"></i>
-          <span>Sabrina - Assistante IA</span>
-          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5" style="font-size: 0.7rem; border-radius: 10px;">{{ selected_model or 'gemini-3.1-flash-lite' }}</span>
-        </div>
-      </div>
-      <div class="d-flex gap-2">
-        <button class="mac-btn" id="toggleSettingsBtn">
-          <i class="bi bi-key-fill text-muted"></i> <span>Clé d'API</span>
-        </button>
-        <button class="mac-btn" id="clearChatBtn">
-          <i class="bi bi-trash text-muted"></i> <span>Effacer</span>
-        </button>
-      </div>
+    <!-- Contrôle bascule en ligne / local -->
+    <div class="segmented-switch mb-3">
+      <input type="radio" name="model_mode" id="modeOnline" value="online" {% if selected_model != 'local' and selected_model != 'ollama' %}checked{% endif %}>
+      <label for="modeOnline">En ligne</label>
+      
+      <input type="radio" name="model_mode" id="modeLocal" value="local" {% if selected_model == 'local' or selected_model == 'ollama' %}checked{% endif %}>
+      <label for="modeLocal">IA Locale</label>
     </div>
 
-    <!-- Inline API Key Panel (macOS Sheet Style) -->
-    <div class="settings-panel-inline {% if not has_key %}show{% endif %}" id="settingsPanel">
-      <form method="post" action="{{ url_for('assistant_save_settings') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <div class="row g-2 align-items-center">
-          <div class="col-auto">
-            <label for="apiKeyInput" class="small fw-bold text-secondary">Clé d'API Gemini :</label>
-          </div>
-          <div class="col-md-6 col-sm-8">
-            <input type="password" name="gemini_api_key" id="apiKeyInput" class="mac-input"
-              placeholder="{% if has_key %}•••••••••••••••• (Sauvegardée){% else %}Saisissez votre clé d'API (AIzaSy...){% endif %}"
-              {% if not has_key %}required{% endif %}>
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="mac-btn mac-btn-primary">Enregistrer</button>
-          </div>
+    <form method="post" action="{{ url_for('assistant_save_settings') }}" class="d-flex flex-column gap-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      
+      <!-- Sélecteur de modèle en ligne (affiché si en ligne est coché) -->
+      <div id="geminiSelectGroup" class="form-group" style="{% if selected_model == 'local' or selected_model == 'ollama' %}display: none;{% endif %}">
+        <label for="geminiModelSelect" class="small fw-bold text-secondary mb-1" style="font-size: 0.78rem;">Modèle Gemini :</label>
+        <select name="gemini_model" class="form-select" id="geminiModelSelect" style="font-size: 0.82rem; border-radius: 8px; cursor: pointer;" onchange="this.form.submit()">
+          <option value="gemini-3.1-flash-lite" {% if selected_model == 'gemini-3.1-flash-lite' or not selected_model %}selected{% endif %}>Gemini 3.1 Flash Lite (Par défaut)</option>
+          <option value="gemini-2.5-flash" {% if selected_model == 'gemini-2.5-flash' %}selected{% endif %}>Gemini 2.5 Flash</option>
+          <option value="gemini-1.5-pro" {% if selected_model == 'gemini-1.5-pro' %}selected{% endif %}>Gemini 1.5 Pro (Performance)</option>
+          <option value="gemini-1.5-flash" {% if selected_model == 'gemini-1.5-flash' %}selected{% endif %}>Gemini 1.5 Flash</option>
+        </select>
+      </div>
+
+      <!-- Sélecteur invisible pour forcer la valeur 'local' lors de la bascule locale -->
+      <input type="hidden" name="gemini_model" id="localModelHiddenInput" value="local" {% if selected_model != 'local' and selected_model != 'ollama' %}disabled{% endif %}>
+
+      <!-- Clé d'API -->
+      <div class="form-group" id="apiKeyGroup" style="{% if selected_model == 'local' or selected_model == 'ollama' %}display: none;{% endif %}">
+        <label for="apiKeyInput" class="small fw-bold text-secondary mb-1" style="font-size: 0.78rem;">Clé d'API Gemini :</label>
+        <div class="input-group">
+          <input type="password" name="gemini_api_key" id="apiKeyInput" class="form-control" style="font-size: 0.82rem; border-radius: 8px 0 0 8px;"
+            placeholder="{% if has_key %}•••••••• (Sauvegardée){% else %}AIzaSy...{% endif %}"
+            {% if not has_key and selected_model != 'local' and selected_model != 'ollama' %}required{% endif %}>
+          <button class="btn btn-outline-secondary" type="submit" style="font-size: 0.82rem; border-radius: 0 8px 8px 0;">Sauver</button>
         </div>
         {% if not has_key %}
-        <div class="mt-2 text-danger small">
-          <i class="bi bi-exclamation-triangle-fill me-1"></i> Une clé d'API valide est requise pour utiliser l'assistant.
+        <div class="mt-1 text-danger small" style="font-size: 0.72rem;">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i> Clé requise pour le mode en ligne.
         </div>
         {% endif %}
-      </form>
+      </div>
+    </form>
+
+    <!-- Boutons d'actions -->
+    <div class="mt-auto pt-3 border-top" style="border-top: 1px solid rgba(0,0,0,0.06) !important;">
+      <button class="mac-btn w-100 justify-content-center text-danger border-danger-subtle bg-danger-subtle mb-2" id="clearChatBtn" style="font-size: 0.82rem; padding: 7px 10px; border-radius: 8px;">
+        <i class="bi bi-trash me-1"></i> Effacer la discussion
+      </button>
     </div>
+  </div>
+
+  <!-- Main Chat Card -->
+  <div class="chat-card">
 
     <!-- Conversation Messages Container -->
     <div class="chat-messages-container" id="chatMessages">
@@ -612,12 +684,23 @@
       <div class="suggestion-chip" data-question="Montre-moi tous les clients">Tous les clients</div>
     </div>
 
-  </div>
-
   <!-- Message Input Area -->
   <div class="chat-input-area">
+    <!-- File Preview Container -->
+    <div id="filePreviewContainer" class="w-100 mb-2 px-3 d-none align-items-center gap-2" style="max-width: 600px; background: rgba(0,0,0,0.03); border-radius: 8px; padding: 6px 12px; border: 1px dashed var(--line);">
+      <div id="filePreviewIcon" class="text-primary"><i class="bi bi-file-earmark-pdf fs-4"></i></div>
+      <div class="flex-grow-1 text-truncate small" id="filePreviewName" style="color: var(--text-primary); font-weight: 500;">document.pdf</div>
+      <button type="button" id="removeFileBtn" class="btn btn-sm btn-link text-danger p-0 border-0" style="text-decoration: none;"><i class="bi bi-x-circle-fill"></i></button>
+    </div>
+
     <div class="chat-input-bar">
-      <button id="micBtn" class="chat-send-btn bg-transparent border-0 text-muted me-2" type="button" title="Parler (Reconnaissance vocale)" {% if not has_key %}disabled{% endif %} style="padding: 0 8px; box-shadow: none; display: inline-flex; align-items: center; justify-content: center; height: 38px; width: 38px;">
+      <!-- File attachment button (clip) -->
+      <button id="attachBtn" class="chat-send-btn bg-transparent border-0 text-muted me-1" type="button" title="Joindre une photo ou un PDF" {% if not has_key %}disabled{% endif %} style="padding: 0 8px; box-shadow: none; display: inline-flex; align-items: center; justify-content: center; height: 38px; width: 38px;">
+        <i class="bi bi-paperclip fs-4"></i>
+      </button>
+      <input type="file" id="fileInput" accept="image/*,application/pdf" style="display: none;">
+
+      <button id="micBtn" class="chat-send-btn bg-transparent border-0 text-muted me-2" type="button" title="Parler (Reconnaissance vocale)" style="padding: 0 8px; box-shadow: none; display: inline-flex; align-items: center; justify-content: center; height: 38px; width: 38px;">
         <i class="bi bi-mic fs-4"></i>
       </button>
       <textarea id="chatInput" placeholder="Posez votre question ici..." {% if not has_key %}disabled{% endif %}></textarea>
@@ -630,28 +713,18 @@
     </div>
   </div>
 
-</div>
+  </div> <!-- closes .chat-card -->
+
+</div> <!-- closes .assistant-wrapper -->
 
 <script nonce="{{ csp_nonce }}">
   document.addEventListener('DOMContentLoaded', function () {
-    // Append input area directly to body to ensure fixed position works correctly relative to viewport
-    const inputArea = document.querySelector('.chat-input-area');
-    if (inputArea) {
-      document.body.appendChild(inputArea);
-    }
 
     // Automatic backup and restore of API Key using localStorage
     const serverHasKey = {{ 'true' if has_key else 'false' }};
     const localKey = localStorage.getItem('fab_gemini_api_key');
     
-    // Save to localStorage on submit
-    const settingsForm = document.querySelector('#settingsPanel form');
-    settingsForm?.addEventListener('submit', function () {
-      const keyInput = document.getElementById('apiKeyInput');
-      if (keyInput && keyInput.value.trim()) {
-        localStorage.setItem('fab_gemini_api_key', keyInput.value.trim());
-      }
-    });
+    // Save to localStorage on submit (handled via AJAX below)
 
     // Auto-restore key if server lost it (e.g. database reset)
     if (!serverHasKey && localKey) {
@@ -682,6 +755,15 @@
     const settingsPanel = document.getElementById('settingsPanel');
     const welcomeContainer = document.getElementById('welcomeContainer');
 
+    const attachBtn = document.getElementById('attachBtn');
+    const micBtn = document.getElementById('micBtn');
+    const fileInput = document.getElementById('fileInput');
+    const filePreviewContainer = document.getElementById('filePreviewContainer');
+    const filePreviewIcon = document.getElementById('filePreviewIcon');
+    const filePreviewName = document.getElementById('filePreviewName');
+    const removeFileBtn = document.getElementById('removeFileBtn');
+    let selectedFile = null;
+
     let history = [];
     let abortController = null;
 
@@ -696,9 +778,167 @@
       }, 50);
     }
 
-    // Toggle settings panel
-    toggleSettingsBtn?.addEventListener('click', () => {
-      settingsPanel.classList.toggle('show');
+    // Toggle segmented switch logic (En ligne / IA Locale)
+    const modeOnline = document.getElementById('modeOnline');
+    const modeLocal = document.getElementById('modeLocal');
+    const geminiSelectGroup = document.getElementById('geminiSelectGroup');
+    const apiKeyGroup = document.getElementById('apiKeyGroup');
+    const localModelHiddenInput = document.getElementById('localModelHiddenInput');
+    const settingsFormElement = document.querySelector('#settingsPanel form');
+    const geminiModelSelect = document.getElementById('geminiModelSelect');
+
+    async function saveSettingsAJAX(model, apiKey) {
+      const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || "";
+      try {
+        const payload = {};
+        if (model) payload.gemini_model = model;
+        if (apiKey) payload.gemini_api_key = apiKey;
+
+        const response = await fetch('/assistant/settings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-Token': csrfToken
+          },
+          body: JSON.stringify(payload)
+        });
+        const resData = await response.json();
+        return resData && resData.success;
+      } catch (e) {
+        console.error("Erreur de sauvegarde des paramètres:", e);
+        return false;
+      }
+    }
+
+    function handleModeChange() {
+      if (modeLocal.checked) {
+        if (geminiSelectGroup) geminiSelectGroup.style.display = 'none';
+        if (apiKeyGroup) apiKeyGroup.style.display = 'none';
+        if (localModelHiddenInput) localModelHiddenInput.disabled = false;
+        
+        // Save dynamically without reload
+        saveSettingsAJAX('local');
+        
+        // Enable input fields immediately
+        enableChatInputs();
+      } else {
+        if (geminiSelectGroup) geminiSelectGroup.style.display = 'block';
+        if (apiKeyGroup) apiKeyGroup.style.display = 'block';
+        if (localModelHiddenInput) localModelHiddenInput.disabled = true;
+        
+        const activeOnlineModel = geminiModelSelect?.value || 'gemini-3.1-flash-lite';
+        saveSettingsAJAX(activeOnlineModel);
+        
+        // Enable or disable based on API key presence
+        updateChatInputsForOnline();
+      }
+    }
+
+    modeOnline?.addEventListener('change', handleModeChange);
+    modeLocal?.addEventListener('change', handleModeChange);
+    
+    // Initialize: apply mode state on page load
+    handleModeChange();
+    
+    geminiModelSelect?.addEventListener('change', function() {
+      saveSettingsAJAX(this.value);
+    });
+
+    // Handle form submit button manually via AJAX
+    settingsFormElement?.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const keyInput = document.getElementById('apiKeyInput');
+      if (keyInput && keyInput.value.trim()) {
+        const apiKeyVal = keyInput.value.trim();
+        localStorage.setItem('fab_gemini_api_key', apiKeyVal);
+        
+        const success = await saveSettingsAJAX(null, apiKeyVal);
+        if (success) {
+          keyInput.value = '';
+          keyInput.placeholder = '•••••••• (Sauvegardée)';
+          enableChatInputs();
+          
+          const savedMessage = document.createElement('div');
+          savedMessage.style.cssText = 'color:#198754;font-size:0.75rem;margin-top:4px;';
+          savedMessage.innerHTML = '<i class="bi bi-check-circle-fill"></i> Clé sauvegardée';
+          apiKeyGroup?.appendChild(savedMessage);
+          setTimeout(() => savedMessage.remove(), 2500);
+        }
+      }
+    });
+
+    function enableChatInputs() {
+      if (chatInput) {
+        chatInput.disabled = false;
+        chatInput.placeholder = "Posez votre question ici...";
+      }
+      if (sendBtn) sendBtn.disabled = false;
+      if (attachBtn) attachBtn.disabled = false;
+      if (micBtn) micBtn.disabled = false;
+      const errorDiv = document.querySelector('#apiKeyGroup .text-danger');
+      if (errorDiv) errorDiv.style.display = 'none';
+    }
+
+    function updateChatInputsForOnline() {
+      // Check if there is a saved key or if the placeholder indicates it is saved
+      const hasKey = {{ 'true' if has_key else 'false' }} || document.getElementById('apiKeyInput')?.placeholder.includes('Sauvegardée');
+      if (hasKey) {
+        enableChatInputs();
+      } else {
+        if (chatInput) {
+          chatInput.disabled = true;
+          chatInput.placeholder = "Veuillez configurer votre clé d'API...";
+        }
+        if (sendBtn) sendBtn.disabled = true;
+        if (attachBtn) attachBtn.disabled = true;
+        if (micBtn) micBtn.disabled = true;
+        const errorDiv = document.querySelector('#apiKeyGroup .text-danger');
+        if (errorDiv) errorDiv.style.display = 'block';
+      }
+    }
+
+    // File selection listeners
+    attachBtn?.addEventListener('click', () => fileInput?.click());
+    
+    fileInput?.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      selectedFile = file;
+      if (filePreviewName) filePreviewName.textContent = file.name;
+      
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          if (filePreviewIcon) {
+            filePreviewIcon.innerHTML = `<img src="${e.target.result}" style="height: 32px; width: 32px; object-fit: cover; border-radius: 4px;">`;
+          }
+        };
+        reader.readAsDataURL(file);
+      } else if (file.type === 'application/pdf') {
+        if (filePreviewIcon) {
+          filePreviewIcon.innerHTML = `<i class="bi bi-file-earmark-pdf-fill text-danger fs-4"></i>`;
+        }
+      } else {
+        if (filePreviewIcon) {
+          filePreviewIcon.innerHTML = `<i class="bi bi-file-earmark-fill text-primary fs-4"></i>`;
+        }
+      }
+      
+      if (filePreviewContainer) {
+        filePreviewContainer.classList.remove('d-none');
+        filePreviewContainer.style.display = 'flex';
+      }
+    });
+
+    removeFileBtn?.addEventListener('click', function() {
+      selectedFile = null;
+      if (fileInput) fileInput.value = '';
+      if (filePreviewContainer) {
+        filePreviewContainer.classList.add('d-none');
+        filePreviewContainer.style.display = 'none';
+      }
     });
 
     // Load saved conversation history
@@ -720,7 +960,64 @@
     });
 
     // Send Message
-    async function sendMessage(text) {
+    // Send Message
+    function appendProgressIndicator() {
+      const container = document.createElement('div');
+      container.className = 'chat-progress-container';
+      container.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin: 10px 0;padding: 12px;background:rgba(136, 108, 245, 0.05);border-radius:12px;border: 1px solid rgba(136,108,245,0.15);';
+      
+      const spinnerRow = document.createElement('div');
+      spinnerRow.className = 'd-flex align-items-center gap-2';
+      spinnerRow.innerHTML = `
+        <div class="spinner-border spinner-border-sm text-primary" role="status" style="width: 1rem; height: 1rem; border-width: 0.15em; color: #886cf5 !important;"></div>
+        <span class="progress-status-text fw-medium small" style="color:var(--text-primary);">Sabrina réfléchit...</span>
+      `;
+      container.appendChild(spinnerRow);
+      
+      const detailsList = document.createElement('div');
+      detailsList.className = 'progress-details small text-muted mt-1';
+      detailsList.style.cssText = 'padding-left: 20px; font-size: 0.75rem; display: flex; flex-direction: column; gap: 4px; opacity: 0.85;';
+      container.appendChild(detailsList);
+      
+      chatMessages.appendChild(container);
+      scrollToBottom();
+      return { 
+        container, 
+        statusText: spinnerRow.querySelector('.progress-status-text'), 
+        detailsList 
+      };
+    }
+
+    function appendConfirmationBubble(query, messageText) {
+      const bubble = document.createElement('div');
+      bubble.className = 'chat-bubble system p-3 border-warning';
+      bubble.style.cssText = 'background: rgba(255, 193, 7, 0.08); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 12px; margin: 10px 0; width: 100%; box-sizing: border-box;';
+      
+      bubble.innerHTML = `
+        <div class="fw-bold text-warning mb-2" style="font-size:0.9rem;"><i class="bi bi-shield-lock-fill"></i> Confirmation requise</div>
+        <p class="small mb-2" style="color:var(--text-primary); font-size:0.82rem;">${messageText}</p>
+        <pre class="p-2 bg-dark text-light rounded mb-3" style="font-size:0.75rem; overflow-x:auto; font-family: monospace; border:1px solid rgba(255,255,255,0.1);"><code>${query}</code></pre>
+        <div class="d-flex gap-2">
+          <button class="btn btn-warning btn-sm fw-bold btn-confirm-write" style="font-size:0.78rem; padding: 6px 12px; border-radius: 6px; color: #212529 !important;"><i class="bi bi-check2"></i> Confirmer</button>
+          <button class="btn btn-outline-secondary btn-sm btn-cancel-write" style="font-size:0.78rem; padding: 6px 12px; border-radius: 6px;">Annuler</button>
+        </div>
+      `;
+      chatMessages.appendChild(bubble);
+      scrollToBottom();
+      
+      return new Promise((resolve) => {
+        bubble.querySelector('.btn-confirm-write').addEventListener('click', () => {
+          bubble.remove();
+          resolve(true);
+        });
+        bubble.querySelector('.btn-cancel-write').addEventListener('click', () => {
+          bubble.remove();
+          resolve(false);
+        });
+      });
+    }
+
+    async function sendMessage(text, confirmedQuery = null) {
       if (!text || text.trim() === "") return;
 
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || "";
@@ -730,10 +1027,41 @@
         welcomeContainer.style.display = 'none';
       }
 
-      appendMessage('user', text);
-      chatInput.value = '';
-      chatInput.style.height = '38px';
-      chatInput.focus();
+      let fileData = null;
+      let localFileObj = null;
+      
+      // Si c'est une requête de confirmation d'écriture, on n'ajoute pas à nouveau le message utilisateur ou le fichier !
+      if (!confirmedQuery) {
+        if (selectedFile) {
+          fileData = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const base64Data = e.target.result.split(',')[1];
+              resolve({
+                mime_type: selectedFile.type,
+                name: selectedFile.name,
+                data: base64Data
+              });
+            };
+            reader.readAsDataURL(selectedFile);
+          });
+          localFileObj = { ...fileData };
+        }
+
+        appendMessage('user', text, localFileObj);
+
+        // Clear file inputs immediately
+        selectedFile = null;
+        if (fileInput) fileInput.value = '';
+        if (filePreviewContainer) {
+          filePreviewContainer.classList.add('d-none');
+          filePreviewContainer.style.display = 'none';
+        }
+
+        chatInput.value = '';
+        chatInput.style.height = '38px';
+        chatInput.focus();
+      }
 
       // Show stop button, hide send button
       sendBtn.style.display = 'none';
@@ -742,7 +1070,6 @@
       const indicator = appendTypingIndicator();
       scrollToBottom();
 
-      // Instantiate abort controller
       abortController = new AbortController();
 
       try {
@@ -753,59 +1080,121 @@
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRF-Token': csrfToken
           },
-          body: JSON.stringify({ message: text, history: history }),
+          body: JSON.stringify({ 
+            message: text, 
+            history: history,
+            file: fileData,
+            confirmed_query: confirmedQuery
+          }),
           signal: abortController.signal
         });
 
-        const data = await response.json();
-        removeTypingIndicator(indicator);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-        if (data.success) {
-          const rawResponse = data.response || "";
-          
-          // 1. Détection du thème à changer
-          const themeMatch = rawResponse.match(/\[THEME:(dark|light)\]/i);
-          if (themeMatch) {
-            const requestedTheme = themeMatch[1].toLowerCase();
-            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-            if (currentTheme !== requestedTheme) {
-              const toggleBtn = document.getElementById('themeToggleBtnNavbar');
-              if (toggleBtn) {
-                toggleBtn.click();
+        removeTypingIndicator(indicator);
+        const progress = appendProgressIndicator();
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            const cleanLine = line.trim();
+            if (!cleanLine.startsWith('data: ')) continue;
+
+            const rawData = cleanLine.substring(6);
+            let event;
+            try {
+              event = JSON.parse(rawData);
+            } catch (e) {
+              continue;
+            }
+
+            if (event.type === 'status') {
+              progress.statusText.textContent = event.message;
+              const logLine = document.createElement('div');
+              logLine.textContent = `• ${event.message}`;
+              progress.detailsList.appendChild(logLine);
+              scrollToBottom();
+            } else if (event.type === 'confirmation_required') {
+              progress.container.remove();
+              
+              // Reset buttons for pause
+              sendBtn.style.display = 'inline-flex';
+              stopBtn.style.display = 'none';
+              
+              const confirmed = await appendConfirmationBubble(event.query, event.message);
+              if (confirmed) {
+                // Call sendMessage again with confirmed query
+                sendMessage(text, event.query);
               } else {
-                document.documentElement.setAttribute('data-theme', requestedTheme);
-                localStorage.setItem('fab_theme', requestedTheme);
+                appendMessage('system', "Opération d'écriture annulée.");
               }
+              return;
+            } else if (event.type === 'final_response') {
+              progress.container.remove();
+              const rawResponse = event.text || "";
+
+              const themeMatch = rawResponse.match(/\[THEME:(dark|light)\]/i);
+              if (themeMatch) {
+                const requestedTheme = themeMatch[1].toLowerCase();
+                const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+                if (currentTheme !== requestedTheme) {
+                  const toggleBtn = document.getElementById('themeToggleBtnNavbar');
+                  if (toggleBtn) {
+                    toggleBtn.click();
+                  } else {
+                    document.documentElement.setAttribute('data-theme', requestedTheme);
+                    localStorage.setItem('fab_theme', requestedTheme);
+                  }
+                }
+              }
+
+              const redirectMatch = rawResponse.match(/\[REDIRECT:([^\]]+)\]/i);
+              appendMessage('model', rawResponse);
+
+              let historyText = text;
+              if (localFileObj) {
+                historyText = `[Fichier joint: ${localFileObj.name}] ${text}`;
+              }
+              history.push({ role: 'user', parts: [{ text: historyText }] });
+              history.push({ role: 'model', parts: [{ text: rawResponse }] });
+              saveHistory();
+
+              if (redirectMatch) {
+                const redirectUrl = redirectMatch[1].trim();
+                appendMessage('system', `Ouverture de la page dans un nouvel onglet : ${redirectUrl}...`);
+                setTimeout(() => {
+                  window.open(redirectUrl, '_blank');
+                }, 1200);
+              }
+            } else if (event.type === 'error') {
+              progress.container.remove();
+              appendMessage('system', event.error || "Une erreur est survenue.");
             }
           }
-
-          // 2. Détection d'une redirection automatique
-          const redirectMatch = rawResponse.match(/\[REDIRECT:([^\]]+)\]/i);
-          
-          appendMessage('model', rawResponse);
-          history.push({ role: 'user', parts: [{ text: text }] });
-          history.push({ role: 'model', parts: [{ text: rawResponse }] });
-          saveHistory();
-
-          if (redirectMatch) {
-            const redirectUrl = redirectMatch[1].trim();
-            appendMessage('system', `Redirection automatique vers ${redirectUrl}...`);
-            setTimeout(() => {
-              window.location.href = redirectUrl;
-            }, 1200);
-          }
-        } else {
-          appendMessage('system', data.error || "Une erreur est survenue.");
         }
       } catch (err) {
         removeTypingIndicator(indicator);
+        const progContainer = document.querySelector('.chat-progress-container');
+        if (progContainer) progContainer.remove();
+
         if (err.name === 'AbortError') {
-          appendMessage('system', "Génération interrompue par l'utilisateur.");
+          appendMessage('system', "Génération interrompue.");
         } else {
-          appendMessage('system', "Erreur de connexion réseau.");
+          appendMessage('system', "Erreur de connexion réseau ou serveur.");
         }
       } finally {
-        // Reset buttons
         sendBtn.style.display = 'inline-flex';
         stopBtn.style.display = 'none';
         abortController = null;
@@ -892,7 +1281,7 @@
       }
     });
 
-    function appendMessage(role, text) {
+    function appendMessage(role, text, fileObj) {
       if (role === 'user') {
         // Wrapper aligné à droite : bulle + bouton Copier en dessous, même style que l'IA
         const wrapper = document.createElement('div');
@@ -900,7 +1289,16 @@
 
         const bubble = document.createElement('div');
         bubble.className = 'chat-bubble user';
-        bubble.innerHTML = parseMarkdown(text);
+        
+        let fileHTML = '';
+        if (fileObj) {
+          if (fileObj.mime_type.startsWith('image/')) {
+            fileHTML = `<div class="mb-2"><img src="data:${fileObj.mime_type};base64,${fileObj.data}" style="max-width: 200px; max-height: 200px; border-radius: 8px; display: block; border: 1px solid rgba(255,255,255,0.2);"></div>`;
+          } else if (fileObj.mime_type === 'application/pdf') {
+            fileHTML = `<div class="mb-2 d-flex align-items-center gap-2 p-2 rounded" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2);"><i class="bi bi-file-earmark-pdf-fill text-danger fs-5"></i> <span class="small text-white-50" style="font-size:0.75rem;">${fileObj.name || 'document.pdf'}</span></div>`;
+          }
+        }
+        bubble.innerHTML = fileHTML + parseMarkdown(text);
 
         const actions = document.createElement('div');
         actions.className = 'chat-bubble-actions';
@@ -975,8 +1373,8 @@
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 
-      // Remplacer [texte](url) par <a href="url">texte</a>
-      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="fw-semibold text-primary text-decoration-underline">$1</a>');
+      // Remplacer [texte](url) par <a href="url" target="_blank">texte</a>
+      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="fw-semibold text-primary text-decoration-underline">$1</a>');
 
       html = html.replace(/```(sql|json|text|html|)?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
       html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
@@ -997,7 +1395,6 @@
     }
 
     // Speech Recognition
-    const micBtn = document.getElementById('micBtn');
     let recognition = null;
     let isRecording = false;
     let hasShownMicError = false; // prevent duplicate mic error messages
@@ -1021,7 +1418,7 @@
         if (!hasShownMicError) {
           hasShownMicError = true;
           if (event.error === 'not-allowed') {
-            appendMessage('system', "⚠️ Microphone bloqué. Ouvrez l'application dans Chrome ou Edge à l'adresse http://127.0.0.1:5000 puis autorisez le microphone.");
+            appendMessage('system', "⚠️ Microphone bloqué. Ouvrez l'application dans Chrome ou Edge à l'adresse " + window.location.origin + " puis autorisez le microphone.");
           } else if (event.error === 'no-speech') {
             // Reset silencieux, pas de message
           } else if (event.error === 'network') {

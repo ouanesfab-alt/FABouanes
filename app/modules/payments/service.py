@@ -185,11 +185,15 @@ class PaymentsService:
         self,
         client_id: int,
         amount: float,
-        payment_date: date,
+        payment_date: date | str,
         notes: str,
         sale_link: str = "",
         payment_type: str = "versement"
     ) -> int:
+        from datetime import date
+        if isinstance(payment_date, str):
+            payment_date = date.fromisoformat(payment_date.strip())
+            
         amount = float(amount)
         if amount <= 0:
             raise ValidationError("Le montant doit être supérieur à zéro.")

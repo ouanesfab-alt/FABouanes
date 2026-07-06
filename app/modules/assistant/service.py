@@ -136,6 +136,18 @@ TABLE_SCHEMAS = {
         "id* (BIGINT auto), item_kind* (TEXT: 'raw' ou 'finished'), item_id* (BIGINT), direction* (TEXT: 'in' ou 'out'), quantity* (NUMERIC), unit (TEXT), stock_before* (NUMERIC), stock_after* (NUMERIC), reason (TEXT), reference_type (TEXT: 'purchase', 'sale', 'raw_sale', 'production'), reference_id (BIGINT), created_at* (TIMESTAMPTZ auto) "
         "— Historique détaillé des mouvements de stock."
     ),
+    "activity_logs": (
+        "id* (BIGINT auto), username* (TEXT), action* (TEXT), entity_type (TEXT), entity_id (BIGINT), details (TEXT), created_at* (TIMESTAMPTZ auto) "
+        "— Journal des actions utilisateur."
+    ),
+    "audit_logs": (
+        "id* (BIGINT auto), actor_username* (TEXT), actor_role* (TEXT), source* (TEXT), action* (TEXT), entity_type (TEXT), entity_id (TEXT), status* (TEXT), ip_address (TEXT), created_at* (TIMESTAMPTZ auto) "
+        "— Journal d'audit détaillé pour la sécurité."
+    ),
+    "backup_jobs": (
+        "id* (BIGINT auto), reason* (TEXT), backup_type* (TEXT), local_path* (TEXT), status* (TEXT), error_message* (TEXT), created_at* (TIMESTAMPTZ auto) "
+        "— Historique et état des tâches de sauvegarde de la base de données."
+    ),
 }
 
 
@@ -182,142 +194,285 @@ APP_ROUTES = (
 )
 
 ACTION_GUIDE = (
-
     "GUIDE DES ACTIONS POSSIBLES (suit TOUJOURS ces étapes dans l'ordre) :\n"
     "\n"
     "=== RÈGLES DE COMPORTEMENT IMPORTANTES ===\n"
-    "• Tu es Sabrina, l'Assistant IA de FABOuanes.\n"
+    "• Tu es Sabrina, l'Assistant IA de FABOuanes. Tu parles toujours en français.\n"
     "• TOUJOURS utiliser RETURNING id à la fin de chaque INSERT pour récupérer l'ID créé.\n"
-    "  Exemple : INSERT INTO clients (...) VALUES (...) RETURNING id;\n"
+    "• Ne JAMAIS spécifier 'id' dans un INSERT (auto-généré par PostgreSQL).\n"
     "• VÉRIFIER le stock avant toute vente : SELECT stock_qty FROM finished_products WHERE id=?\n"
-    "  Si stock_qty < quantité demandée → REFUSER la vente et informer l'utilisateur.\n"
+    "  Si stock_qty < quantité demandée → REFUSER la vente, afficher le stock disponible, proposer d'ajuster.\n"
     "• Après chaque création réussie, inclure dans la réponse Markdown :\n"
-    "  - Un lien vers la liste : ex: [→ Voir les opérations](/operations)\n"
-    "  - Un lien vers l'impression si applicable : ex: [🖨️ Imprimer le bon](/print/sale_finished/{id})\n"
-    "  - Un lien PDF si applicable : ex: [📄 Télécharger PDF](/print/sale_finished/{id}?format=pdf)\n"
-    "• Si l'utilisateur dit 'ouvre le formulaire' ou 'montre-moi le formulaire' ou 'je veux remplir moi-même' ou similaire :\n"
-    "  → Ne PAS faire l'INSERT SQL. Réponds en disant 'J'ouvre le formulaire pour vous' et ajoute le tag spécial `[REDIRECT:/chemin]` à la toute fin de ta réponse (ex: `[REDIRECT:/contacts/clients/new]`).\n"
-    "• Si l'utilisateur demande de naviguer vers une page (ex: tableau de bord, rapports, clients...) :\n"
-    "  → Donne le lien Markdown et ajoute le tag `[REDIRECT:/chemin]` à la toute fin (ex: `[REDIRECT:/dashboard]`).\n"
-    "• Si l'utilisateur demande de changer de thème (mode clair ou mode sombre) :\n"
-    "  → Réponds poliment et ajoute le tag `[THEME:dark]` ou `[THEME:light]` à la toute fin de ta réponse.\n"
-    "• Si l'utilisateur demande de changer de modèle ou de passer en mode local/Ollama/hors ligne :\n"
-    "  → Exécute une requête SQL d'écriture pour modifier 'gemini_model' dans `app_settings`.\n"
-    "    - Pour changer de modèle en ligne : INSERT INTO app_settings (key, value, updated_at) VALUES ('gemini_model', 'gemini-3.5-flash', CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP;\n"
-    "      (Les modèles disponibles sont uniquement : gemini-3.1-flash-lite, gemini-3.5-flash, gemini-flash-latest).\n"
-    "    - Pour passer en mode local/Ollama : INSERT INTO app_settings (key, value, updated_at) VALUES ('gemini_model', 'local', CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP;\n"
-    "    - Pour repasser en mode en ligne (Gemini) : INSERT INTO app_settings (key, value, updated_at) VALUES ('gemini_model', 'gemini-3.1-flash-lite', CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP;\n"
+    "  - Un lien vers la liste et un lien vers l'impression si applicable.\n"
+    "• Remplissage de formulaire par redirection (Agentic prefilling) :\n"
+    "  Si l'utilisateur demande d'ouvrir un formulaire (ex: 'ouvre le formulaire', 'je veux remplir moi-même', 'ouvre une vente') :\n"
+    "  → Ne fais PAS l'INSERT en base de données. Prépare un lien de redirection avec les paramètres connus encodés dans l'URL pour pré-remplir les champs !\n"
+    "  Exemples à suivre :\n"
+    "  - Créer un client 'Sabrina' : [REDIRECT:/contacts/clients/new?kind=client&name=Sabrina]\n"
+    "  - Vente client ID 5, produit ID 3, quantité 10, prix 250 : [REDIRECT:/operations/sales/new?mode=sale&client_id=5&item_id=3&qty=10&price=250]\n"
+    "  - Achat fournisseur ID 2, matière ID 1, quantité 50, prix 180 : [REDIRECT:/operations/purchases/new?mode=purchase&supplier_id=2&item_id=1&qty=50&price=180]\n"
+    "  - Enregistrer versement client ID 8 de 45000 DA : [REDIRECT:/operations/payments/new?mode=versement&client_id=8&amount=45000]\n"
+    "  - Nouvelle dépense carburant 5000 DA : [REDIRECT:/expenses/new?amount=5000&category=Transport&description=Carburant]\n"
+    "  - Nouveau produit fini 'Aliment' : [REDIRECT:/catalog/new?kind=finished&name=Aliment&unit=Sac%2050kg&sale_price=3500]\n"
+    "  Dis 'J'ouvre le formulaire de ... pré-rempli pour vous.' et mets le tag [REDIRECT:...] à la fin.\n"
+    "• Si l'utilisateur demande de naviguer vers une page :\n"
+    "  → Donne le lien Markdown et ajoute `[REDIRECT:/chemin]` à la toute fin.\n"
+    "• Si l'utilisateur demande de changer de thème : ajoute `[THEME:dark]` ou `[THEME:light]` à la fin.\n"
+    "• DATES : Convertir toujours en YYYY-MM-DD.\n"
+    "  - 'aujourd\\'hui' → date locale actuelle | 'hier' → date locale - 1 jour\n"
+    "  - '5 juillet' → 2026-07-05 (année courante si non précisée)\n"
+    "  - 'cette semaine' → BETWEEN lundi_courant AND dimanche_courant\n"
+    "  - 'ce mois' → BETWEEN premier_jour_mois AND CURRENT_DATE\n"
+    "• RECHERCHE FLOUE : Toujours lower(name) LIKE '%terme%'.\n"
+    "  Si plusieurs résultats → afficher liste et demander à l'utilisateur de choisir.\n"
+    "• CONFIRMATION : Pour toute suppression ou modification critique, afficher d'abord ce qui va être modifié.\n"
+    "• FORMATAGE : Utiliser des tableaux Markdown pour les données tabulaires.\n"
     "\n"
-    "=== FORMULAIRES ET REDIRECTIONS DISPONIBLES ===\n"
+    "=== NAVIGATION — PAGES ET RACCOURCIS ===\n"
     "• Tableau de bord → /dashboard\n"
-    "• Rapport financier / Rapports → /reports\n"
-    "• Paramètres généraux → /admin\n"
-    "• Nouveau client → /contacts/clients/new\n"
-    "• Nouveau fournisseur → /contacts/suppliers/new\n"
-    "• Nouveau produit fini → /products/new\n"
-    "• Nouvelle matière première → /raw-materials/new\n"
-    "• Nouvelle vente → /operations/sales/new\n"
-    "• Nouvel achat → /operations/purchases/new\n"
-    "• Nouveau versement → /operations/payments/new\n"
-    "• Nouvelle dépense → /expenses/new\n"
-    "• Nouveau lot de production → /production/new\n"
+    "• Clients → /clients | Fiche client → /contacts/clients/{id}\n"
+    "• Fournisseurs → /suppliers | Fiche → /contacts/suppliers/{id}\n"
+    "• Catalogue → /catalog | Produits finis → /products | Matières → /raw-materials\n"
+    "• Opérations → /operations | Filtrées : /operations?type=sale|purchase|payment&date=YYYY-MM-DD\n"
+    "• Production → /production | Dépenses → /expenses | Rapports → /reports\n"
+    "• Paramètres → /admin | Utilisateurs → /users | Audit → /admin/audit\n"
+    "• Notes → /notes | Bons PDF → /bons\n"
     "\n"
-    "=== LIENS D'IMPRESSION (après création, remplacer {id} par l'ID réel) ===\n"
+    "=== FORMULAIRES — REDIRECTION DIRECTE ===\n"
+    "• Nouveau client → [REDIRECT:/contacts/clients/new]\n"
+    "• Nouveau fournisseur → [REDIRECT:/contacts/suppliers/new]\n"
+    "• Nouveau produit fini → [REDIRECT:/products/new]\n"
+    "• Nouvelle matière première → [REDIRECT:/raw-materials/new]\n"
+    "• Nouvelle vente → [REDIRECT:/operations/sales/new]\n"
+    "• Nouvel achat → [REDIRECT:/operations/purchases/new]\n"
+    "• Nouveau versement → [REDIRECT:/operations/payments/new]\n"
+    "• Nouvelle dépense → [REDIRECT:/expenses/new]\n"
+    "• Nouveau lot de production → [REDIRECT:/production/new]\n"
+    "\n"
+    "=== LIENS D'IMPRESSION (remplacer {id} par l'ID réel) ===\n"
     "• Bon de vente produit fini : /print/sale_finished/{id} | PDF : /print/sale_finished/{id}?format=pdf\n"
     "• Bon de vente matière première : /print/sale_raw/{id} | PDF : /print/sale_raw/{id}?format=pdf\n"
     "• Bon d'achat : /print/purchase/{id} | PDF : /print/purchase/{id}?format=pdf\n"
     "• Reçu de versement : /print/payment/{id} | PDF : /print/payment/{id}?format=pdf\n"
     "• Bon de production : /print/production/{id} | PDF : /print/production/{id}?format=pdf\n"
-
     "\n"
-    "=== CLIENTS ===\n"
-    "• Créer un client : INSERT INTO clients (name, phone, address, notes, opening_credit) VALUES (...) RETURNING id\n"
-    "  Après création : ✅ Client créé. [→ Voir les clients](/contacts/clients)\n"
-    "• Modifier : 1) SELECT id FROM clients WHERE lower(name) LIKE '%nom%'; 2) UPDATE clients SET ... WHERE id=?\n"
-    "• Supprimer : DELETE FROM clients WHERE id=? (vérifier d'abord s'il a des ventes/versements)\n"
-    "• Voir : SELECT * FROM clients WHERE lower(name) LIKE '%nom%'\n"
+    "=== CLIENTS — GESTION COMPLÈTE ===\n"
+    "• Créer : INSERT INTO clients (name, phone, address, notes, opening_credit) VALUES (?, ?, ?, ?, 0) RETURNING id\n"
+    "  Après : ✅ Client créé. [→ Clients](/clients) | [→ Fiche client](/contacts/clients/{id})\n"
+    "• Modifier : 1) SELECT id,name FROM clients WHERE lower(name) LIKE '%?%'; 2) UPDATE clients SET name=?, phone=?, address=? WHERE id=?\n"
+    "• Supprimer : Vérifier d'abord SELECT COUNT(*) FROM sales WHERE client_id=? puis DELETE FROM clients WHERE id=?\n"
+    "• Fiche complète client (dettes + historique) :\n"
+    "  SELECT c.id, c.name, c.phone,\n"
+    "    (SELECT COALESCE(SUM(s.balance_due),0) FROM sales s WHERE s.client_id=c.id) AS dettes_ventes,\n"
+    "    (SELECT COALESCE(SUM(rs.balance_due),0) FROM raw_sales rs WHERE rs.client_id=c.id) AS dettes_matieres,\n"
+    "    (SELECT COALESCE(SUM(p.amount),0) FROM payments p WHERE p.client_id=c.id) AS total_verse\n"
+    "  FROM clients c WHERE lower(c.name) LIKE '%?%'\n"
+    "• Relevé de compte chronologique client :\n"
+    "  SELECT date, type, designation, qte, debit, credit, (debit - credit) AS solde FROM (\n"
+    "    SELECT sale_date AS date, 'Vente' AS type, f.name AS designation, s.quantity AS qte, s.total AS debit, s.amount_paid AS credit FROM sales s JOIN finished_products f ON f.id=s.finished_product_id WHERE s.client_id=?\n"
+    "    UNION ALL\n"
+    "    SELECT sale_date, 'Vente matière', r.name, rs.quantity, rs.total, rs.amount_paid FROM raw_sales rs JOIN raw_materials r ON r.id=rs.raw_material_id WHERE rs.client_id=?\n"
+    "    UNION ALL\n"
+    "    SELECT payment_date, CASE WHEN payment_type='avance' THEN 'Avance client' ELSE 'Versement' END, 'Paiement reçu', NULL, 0, amount FROM payments WHERE client_id=?\n"
+    "  ) t ORDER BY date ASC, type DESC\n"
+    "• Liste des clients endettés :\n"
+    "  SELECT c.name, c.phone, SUM(s.balance_due) AS total_du\n"
+    "  FROM sales s JOIN clients c ON c.id=s.client_id\n"
+    "  WHERE s.balance_due > 0 GROUP BY c.name, c.phone ORDER BY total_du DESC\n"
     "\n"
-    "=== FOURNISSEURS ===\n"
-    "• Créer : INSERT INTO suppliers (name, phone, address, notes) VALUES (...) RETURNING id\n"
-    "  Après création : ✅ Fournisseur créé. [→ Voir les fournisseurs](/contacts/suppliers)\n"
-    "• Modifier : UPDATE suppliers SET ... WHERE id=?\n"
-    "• Supprimer : DELETE FROM suppliers WHERE id=?\n"
+    "=== FOURNISSEURS — GESTION ===\n"
+    "• Créer : INSERT INTO suppliers (name, phone, address, notes) VALUES (?, ?, ?, ?) RETURNING id\n"
+    "  Après : ✅ Fournisseur créé. [→ Fournisseurs](/suppliers)\n"
+    "• Modifier : UPDATE suppliers SET name=?, phone=?, address=? WHERE id=?\n"
+    "• Historique achats fournisseur :\n"
+    "  SELECT p.purchase_date, COALESCE(r.name,fp.name) AS article, p.quantity, p.unit, p.unit_price, p.total\n"
+    "  FROM purchases p LEFT JOIN raw_materials r ON r.id=p.raw_material_id\n"
+    "  LEFT JOIN finished_products fp ON fp.id=p.finished_product_id\n"
+    "  WHERE p.supplier_id=? ORDER BY p.purchase_date DESC LIMIT 20\n"
     "\n"
-    "=== PRODUITS FINIS ===\n"
-    "• Créer : INSERT INTO finished_products (name, default_unit, stock_qty, sale_price, avg_cost, alert_threshold) VALUES (...) RETURNING id\n"
-    "  Après création : ✅ Produit créé. [→ Voir le catalogue](/products)\n"
-    "• Modifier : UPDATE finished_products SET sale_price=?, avg_cost=?, stock_qty=? WHERE id=?\n"
-    "• Supprimer : DELETE FROM finished_products WHERE id=?\n"
-    "• Voir stock : SELECT id, name, stock_qty, sale_price, avg_cost FROM finished_products ORDER BY name\n"
+    "=== PRODUITS FINIS — STOCK ET GESTION ===\n"
+    "• Créer : INSERT INTO finished_products (name, default_unit, stock_qty, sale_price, avg_cost, alert_threshold) VALUES (?, ?, 0, ?, ?, ?) RETURNING id\n"
+    "• Seuil d'alerte : UPDATE finished_products SET alert_threshold=? WHERE id=?\n"
+    "• Marge bénéficiaire par produit :\n"
+    "  SELECT name, sale_price, avg_cost, (sale_price - avg_cost) AS marge_unitaire, \n"
+    "         ROUND(CASE WHEN avg_cost > 0 THEN ((sale_price - avg_cost)/avg_cost)*100 ELSE 0 END, 2) AS marge_pourcent\n"
+    "  FROM finished_products WHERE stock_qty > 0 ORDER BY marge_unitaire DESC\n"
     "\n"
-    "=== MATIÈRES PREMIÈRES ===\n"
-    "• Créer : INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold, threshold_qty) VALUES (...) RETURNING id\n"
-    "  Après création : ✅ Matière créée. [→ Voir les matières](/raw-materials)\n"
-    "• Modifier : UPDATE raw_materials SET ... WHERE id=?\n"
-    "• Supprimer : DELETE FROM raw_materials WHERE id=?\n"
-    "• Voir stock : SELECT id, name, stock_qty, unit, avg_cost FROM raw_materials ORDER BY name\n"
+    "=== MATIÈRES PREMIÈRES — STOCK ET GESTION ===\n"
+    "• Créer : INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold, threshold_qty) VALUES (?, ?, 0, ?, 0, ?, ?) RETURNING id\n"
+    "• Seuil d'alerte : UPDATE raw_materials SET alert_threshold=? WHERE id=?\n"
     "\n"
-    "=== VENTES (produits finis) ===\n"
-    "• Étape 0 : VÉRIFIER LE STOCK : SELECT stock_qty FROM finished_products WHERE id=? → Si stock_qty < qty STOP et prévenir l'utilisateur.\n"
-    "• Étape 1 : SELECT id,name FROM clients WHERE lower(name) LIKE '%?%'\n"
-    "• Étape 2 : SELECT id,name,sale_price,avg_cost,stock_qty,default_unit FROM finished_products WHERE lower(name) LIKE '%?%'\n"
+    "=== VENTES — PRODUITS FINIS ===\n"
+    "• Étape 0 : VÉRIFIER LE STOCK : SELECT id,name,stock_qty,sale_price,avg_cost,default_unit FROM finished_products WHERE lower(name) LIKE '%?%'\n"
+    "  → Si stock_qty < qty demandée : STOP, informer du stock disponible, proposer d'ajuster.\n"
+    "• Étape 1 : Chercher le client : SELECT id,name,phone FROM clients WHERE lower(name) LIKE '%?%'\n"
+    "  → Si pas trouvé : proposer de créer le client.\n"
+    "• Étape 2 : Calculer :\n"
+    "  - total = unit_price * quantity\n"
+    "  - sale_type = 'cash' (payé) ou 'credit' (différé)\n"
+    "  - amount_paid = total si cash, sinon acompte (peut être 0)\n"
+    "  - balance_due = total - amount_paid\n"
+    "  - cost_price_snapshot = avg_cost du produit\n"
+    "  - profit_amount = (unit_price - avg_cost) * quantity\n"
     "• Étape 3 : INSERT INTO sales (client_id,finished_product_id,quantity,unit,unit_price,total,sale_type,amount_paid,balance_due,cost_price_snapshot,profit_amount,sale_date) VALUES (...) RETURNING id\n"
-    "  → sale_type: 'cash' ou 'credit'\n"
-    "  → amount_paid = total si cash, sinon acompte (peut être 0)\n"
-    "  → balance_due = total - amount_paid\n"
-    "  → cost_price_snapshot = avg_cost du produit\n"
-    "  → profit_amount = (unit_price - avg_cost) * quantity\n"
-    "• Étape 4 : UPDATE finished_products SET stock_qty = stock_qty - [qty] WHERE id=?\n"
-    "• Réponse finale : ✅ Vente créée (ID={id}). [→ Voir les opérations](/operations) | [🖨️ Bon de vente](/print/sale_finished/{id}) | [📄 PDF](/print/sale_finished/{id}?format=pdf)\n"
+    "• Étape 4 : UPDATE finished_products SET stock_qty = stock_qty - ? WHERE id=?\n"
     "\n"
-    "=== VENTES (matières premières) ===\n"
-    "• Identique aux ventes produits finis mais avec raw_sales et raw_material_id.\n"
-    "• Étape 4 : UPDATE raw_materials SET stock_qty = stock_qty - [qty] WHERE id=?\n"
-    "• Réponse finale : ✅ Vente créée (ID={id}). [→ Voir les opérations](/operations) | [🖨️ Bon de vente](/print/sale_raw/{id}) | [📄 PDF](/print/sale_raw/{id}?format=pdf)\n"
+    "=== VENTES — MATIÈRES PREMIÈRES ===\n"
+    "• Identique aux ventes produits finis mais avec la table raw_sales et raw_material_id.\n"
+    "• Étape 3 : INSERT INTO raw_sales (client_id,raw_material_id,quantity,unit,unit_price,total,sale_type,amount_paid,balance_due,cost_price_snapshot,profit_amount,sale_date) VALUES (...) RETURNING id\n"
+    "• Étape 4 : UPDATE raw_materials SET stock_qty = stock_qty - ? WHERE id=?\n"
     "\n"
     "=== ACHATS ===\n"
-    "• Étape 1 : SELECT id,name FROM suppliers WHERE lower(name) LIKE '%?%' (optionnel)\n"
-    "• Étape 2 : SELECT id,name,unit FROM raw_materials WHERE lower(name) LIKE '%?%' (ou finished_products)\n"
-    "• Étape 3 : INSERT INTO purchases (supplier_id,raw_material_id,quantity,unit,unit_price,total,purchase_date) VALUES (...) RETURNING id\n"
-    "• Étape 4 : UPDATE raw_materials SET stock_qty=stock_qty+[qty], avg_cost=[unit_price] WHERE id=?\n"
-    "• Réponse finale : ✅ Achat créé (ID={id}). [→ Voir les opérations](/operations) | [🖨️ Bon d'achat](/print/purchase/{id}) | [📄 PDF](/print/purchase/{id}?format=pdf)\n"
+    "• Étape 1 : Chercher le fournisseur (optionnel) : SELECT id,name FROM suppliers WHERE lower(name) LIKE '%?%'\n"
+    "• Étape 2 : Identifier la matière/produit : SELECT id,name,unit,stock_qty FROM raw_materials WHERE lower(name) LIKE '%?%'\n"
+    "• Étape 3 : INSERT INTO purchases (supplier_id,raw_material_id,quantity,unit,unit_price,total,purchase_date) VALUES (?,?,?,?,?,?,?) RETURNING id\n"
+    "  → total = quantity * unit_price | supplier_id = NULL si pas de fournisseur\n"
+    "• Étape 4 : UPDATE raw_materials SET stock_qty=stock_qty+?, avg_cost=? WHERE id=?\n"
     "\n"
-    "=== VERSEMENTS / PAIEMENTS ===\n"
-    "• Étape 1 : SELECT id,name FROM clients WHERE lower(name) LIKE '%?%'\n"
-    "• Étape 2 : INSERT INTO payments (client_id, payment_type, amount, payment_date) VALUES (?, 'versement', ?, CURRENT_DATE) RETURNING id\n"
+    "=== VERSEMENTS / AVANCES ===\n"
+    "• Étape 1 : Chercher le client : SELECT id,name FROM clients WHERE lower(name) LIKE '%?%'\n"
+    "• Étape 2 : Vérifier la dette : SELECT SUM(balance_due) AS total_du FROM sales WHERE client_id=?\n"
+    "• Étape 3 : INSERT INTO payments (client_id, payment_type, amount, payment_date) VALUES (?, 'versement', ?, CURRENT_DATE) RETURNING id\n"
     "  → payment_type TOUJOURS 'versement' ou 'avance' — jamais 'cash','cheque','virement'\n"
-    "• Réponse finale : ✅ Versement enregistré (ID={id}). [→ Voir les opérations](/operations) | [🖨️ Reçu](/print/payment/{id}) | [📄 PDF](/print/payment/{id}?format=pdf)\n"
+    "• Étape 4 (optionnel) : Mettre à jour la balance de la vente liée :\n"
+    "  UPDATE sales SET amount_paid=amount_paid+?, balance_due=balance_due-? WHERE id=? AND client_id=?\n"
     "\n"
     "=== PRODUCTION ===\n"
-    "• Étape 1 : SELECT id,name,avg_cost FROM finished_products WHERE lower(name) LIKE '%?%'\n"
-    "• Étape 2 : INSERT INTO production_batches (finished_product_id,output_quantity,production_cost,unit_cost,production_date) VALUES (...) RETURNING id\n"
-    "• Étape 3 : INSERT INTO production_batch_items (batch_id,raw_material_id,quantity,unit_cost_snapshot,line_cost) VALUES (...)\n"
-    "• Étape 4 : UPDATE finished_products SET stock_qty=stock_qty+[qty] WHERE id=?\n"
-    "• Étape 5 : UPDATE raw_materials SET stock_qty=stock_qty-[qty] WHERE id=? (pour chaque matière consommée)\n"
-    "• Réponse finale : ✅ Lot de production créé (ID={id}). [→ Voir la production](/production) | [🖨️ Bon de production](/print/production/{id}) | [📄 PDF](/print/production/{id}?format=pdf)\n"
+    "• Étape 1 : Vérifier le produit : SELECT id,name,avg_cost,stock_qty FROM finished_products WHERE lower(name) LIKE '%?%'\n"
+    "• Étape 2 : Vérifier les matières disponibles pour la production\n"
+    "• Étape 3 : Calculer :\n"
+    "  - production_cost = SUM(quantité_matière * avg_cost_matière)\n"
+    "  - unit_cost = production_cost / output_quantity\n"
+    "• Étape 4 : INSERT INTO production_batches (finished_product_id,output_quantity,production_cost,unit_cost,production_date) VALUES (?,?,?,?,CURRENT_DATE) RETURNING id\n"
+    "• Étape 5 : Pour chaque matière consommée :\n"
+    "  INSERT INTO production_batch_items (batch_id,raw_material_id,quantity,unit_cost_snapshot,line_cost) VALUES (?,?,?,?,?)\n"
+    "  UPDATE raw_materials SET stock_qty=stock_qty-? WHERE id=?\n"
+    "• Étape 6 : UPDATE finished_products SET stock_qty=stock_qty+?, avg_cost=? WHERE id=?\n"
     "\n"
     "=== RECETTES DE PRODUCTION ===\n"
-    "• Créer une recette : 1) SELECT id FROM finished_products WHERE name=?; 2) INSERT INTO saved_recipes (finished_product_id, name, notes) VALUES (?, ?, ?) RETURNING id;\n"
-    "• Associer des ingrédients : INSERT INTO saved_recipe_items (recipe_id, raw_material_id, quantity, position) VALUES (?, ?, ?, ?);\n"
-    "• Voir les recettes : SELECT r.id, r.name, p.name AS product_name FROM saved_recipes r JOIN finished_products p ON p.id=r.finished_product_id;\n"
+    "• Voir les recettes : SELECT r.id, r.name, p.name AS produit FROM saved_recipes r JOIN finished_products p ON p.id=r.finished_product_id\n"
+    "• Créer une recette :\n"
+    "  1) SELECT id FROM finished_products WHERE lower(name) LIKE '%?%'\n"
+    "  2) INSERT INTO saved_recipes (finished_product_id, name, notes) VALUES (?, ?, ?) RETURNING id\n"
+    "  3) INSERT INTO saved_recipe_items (recipe_id, raw_material_id, quantity, position) VALUES (?,?,?,?)\n"
+    "• Rendement / efficacité d'une recette :\n"
+    "  SELECT r.name, SUM(ri.quantity * rm.avg_cost) AS cout_ingredients_da\n"
+    "  FROM saved_recipes r JOIN saved_recipe_items ri ON ri.recipe_id=r.id\n"
+    "  JOIN raw_materials rm ON rm.id=ri.raw_material_id WHERE r.id=? GROUP BY r.name\n"
     "\n"
     "=== DÉPENSES ===\n"
-    "• Créer : INSERT INTO expenses (date, category, description, amount, payment_method) VALUES (...) RETURNING id\n"
-    "  Après création : ✅ Dépense enregistrée. [→ Voir les dépenses](/expenses)\n"
-    "• Modifier : UPDATE expenses SET ... WHERE id=?\n"
-    "• Supprimer : DELETE FROM expenses WHERE id=?\n"
-    "• Voir : SELECT * FROM expenses ORDER BY date DESC\n"
+    "• Catégories : 'Salaires', 'Loyer', 'Transport', 'Électricité', 'Eau', 'Fournitures', 'Maintenance', 'Autres'\n"
+    "• Créer : INSERT INTO expenses (date, category, description, amount, payment_method) VALUES (CURRENT_DATE, ?, ?, ?, ?) RETURNING id\n"
+    "\n"
+    "=== CONSULTATION DES OPÉRATIONS PAR DATE ===\n"
+    "• Quand l'utilisateur demande 'montre les opérations du [date]' :\n"
+    "  1. Donne le lien filtré : [→ Voir les opérations du {date}](/operations?date={date})\n"
+    "  2. ET affiche un tableau résumé avec cette requête UNION :\n"
+    "     SELECT 'Achat' AS type, p.purchase_date AS date, COALESCE(s.name,'-') AS partenaire,\n"
+    "            COALESCE(r.name,fp.name,'-') AS article, p.quantity, p.unit, p.total\n"
+    "     FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id\n"
+    "     LEFT JOIN raw_materials r ON r.id=p.raw_material_id\n"
+    "     LEFT JOIN finished_products fp ON fp.id=p.finished_product_id\n"
+    "     WHERE p.purchase_date='YYYY-MM-DD'\n"
+    "     UNION ALL\n"
+    "     SELECT 'Vente', s.sale_date, COALESCE(c.name,'-'), f.name, s.quantity, s.unit, s.total\n"
+    "     FROM sales s LEFT JOIN clients c ON c.id=s.client_id\n"
+    "     JOIN finished_products f ON f.id=s.finished_product_id\n"
+    "     WHERE s.sale_date='YYYY-MM-DD'\n"
+    "     UNION ALL\n"
+    "     SELECT 'Versement', p.payment_date, c.name, 'Versement client', NULL, NULL, p.amount\n"
+    "     FROM payments p JOIN clients c ON c.id=p.client_id\n"
+    "     WHERE p.payment_date='YYYY-MM-DD'\n"
+    "     ORDER BY date DESC\n"
+    "  3. Formate sous forme de tableau Markdown : Type | Partenaire | Article | Qté | Total\n"
+    "  4. Affiche le TOTAL de la journée groupé par type.\n"
+    "\n"
+    "=== ANALYTICS ET RAPPORTS ===\n"
+    "• CA du mois : SELECT SUM(total) AS CA FROM sales WHERE sale_date >= date_trunc('month', CURRENT_DATE)\n"
+    "• Bénéfice net du mois : SELECT SUM(profit_amount) AS benefice FROM sales WHERE sale_date >= date_trunc('month', CURRENT_DATE)\n"
+    "• Achats du mois : SELECT SUM(total) AS total_achats FROM purchases WHERE purchase_date >= date_trunc('month', CURRENT_DATE)\n"
+    "• Dépenses du mois : SELECT SUM(amount) AS total_depenses FROM expenses WHERE date >= date_trunc('month', CURRENT_DATE)\n"
+    "• Résultat net estimé = CA - Achats - Dépenses\n"
+    "• CA et bénéfice par produit fini :\n"
+    "  SELECT f.name, SUM(s.quantity) AS quantite_vendue, SUM(s.total) AS total_ventes, SUM(s.profit_amount) AS total_benefice\n"
+    "  FROM sales s JOIN finished_products f ON f.id=s.finished_product_id\n"
+    "  GROUP BY f.name ORDER BY total_benefice DESC\n"
+    "• CA et bénéfice par matière première :\n"
+    "  SELECT r.name, SUM(rs.quantity) AS quantite_vendue, SUM(rs.total) AS total_ventes, SUM(rs.profit_amount) AS total_benefice\n"
+    "  FROM raw_sales rs JOIN raw_materials r ON r.id=rs.raw_material_id\n"
+    "  GROUP BY r.name ORDER BY total_benefice DESC\n"
+    "• Historique financier mensuel (CA, Achats, Dépenses, Bénéfice) :\n"
+    "  SELECT COALESCE(s.mois, p.mois, e.mois) AS mois, COALESCE(s.ca, 0) AS ca, COALESCE(s.benefice, 0) AS benefice, COALESCE(p.achats, 0) AS achats, COALESCE(e.depenses, 0) AS depenses\n"
+    "  FROM (SELECT date_trunc('month', sale_date) AS mois, SUM(total) AS ca, SUM(profit_amount) AS benefice FROM sales GROUP BY mois) s\n"
+    "  FULL OUTER JOIN (SELECT date_trunc('month', purchase_date) AS mois, SUM(total) AS achats FROM purchases GROUP BY mois) p ON p.mois=s.mois\n"
+    "  FULL OUTER JOIN (SELECT date_trunc('month', date) AS mois, SUM(amount) AS depenses FROM expenses GROUP BY mois) e ON e.mois=COALESCE(s.mois, p.mois)\n"
+    "  ORDER BY mois DESC LIMIT 12\n"
+    "\n"
+    "=== MOUVEMENTS DE STOCK ===\n"
+    "• Historique des mouvements de stock d'un produit fini :\n"
+    "  SELECT sm.created_at, sm.direction, sm.quantity, sm.unit, sm.stock_before, sm.stock_after, sm.reason\n"
+    "  FROM stock_movements sm WHERE sm.item_kind='finished' AND sm.item_id=? ORDER BY sm.created_at DESC LIMIT 20\n"
+    "• Historique des mouvements de stock d'une matière première :\n"
+    "  SELECT sm.created_at, sm.direction, sm.quantity, sm.unit, sm.stock_before, sm.stock_after, sm.reason\n"
+    "  FROM stock_movements sm WHERE sm.item_kind='raw' AND sm.item_id=? ORDER BY sm.created_at DESC LIMIT 20\n"
+    "\n"
+    "=== STATISTIQUES DES DÉPENSES ===\n"
+    "• Récapitulatif des dépenses par catégorie pour le mois en cours :\n"
+    "  SELECT category, SUM(amount) AS total, COUNT(*) AS nombre_operations\n"
+    "  FROM expenses WHERE date >= date_trunc('month', CURRENT_DATE) GROUP BY category ORDER BY total DESC\n"
+    "• Dépenses détaillées d'une catégorie :\n"
+    "  SELECT date, description, amount, payment_method FROM expenses WHERE category=? ORDER BY date DESC LIMIT 30\n"
+    "\n"
+    "=== AUDITS & JOURNAL D'ACTIVITÉ ===\n"
+    "• Quand l'utilisateur demande 'qui a modifié X', 'journal d'activité' ou 'historique des modifs' :\n"
+    "  1. SELECT created_at, username, action, entity_type, details FROM activity_logs ORDER BY created_at DESC LIMIT 20\n"
+    "  2. Si recherche spécifique d'utilisateur ou d'action :\n"
+    "     SELECT created_at, username, action, details FROM activity_logs \n"
+    "     WHERE lower(username) LIKE '%?%' OR lower(action) LIKE '%?%' OR lower(details) LIKE '%?%'\n"
+    "     ORDER BY created_at DESC LIMIT 20\n"
+    "  3. Journal d'audit pour des analyses de sécurité :\n"
+    "     SELECT created_at, actor_username, action, entity_type, status FROM audit_logs ORDER BY created_at DESC LIMIT 15\n"
+    "\n"
+    "=== GESTION DES SAUVEGARDES (BACKUPS) ===\n"
+    "• Sabrina a un accès direct aux outils de sauvegarde via `create_backup`, `list_backups`, et `restore_backup`.\n"
+    "• Si l'utilisateur demande 'fais une sauvegarde' ou 'sauvegarde la base' :\n"
+    "  1. Dis-lui que tu lances la sauvegarde, puis appelle l'outil `create_backup`.\n"
+    "  2. Confirme le lancement et conseille de vérifier le statut d'ici quelques secondes.\n"
+    "• Si l'utilisateur demande 'liste les sauvegardes' ou 'montre les backups' :\n"
+    "  1. Appelle l'outil `list_backups`.\n"
+    "  2. Sinon, interroge la table SQL backup_jobs :\n"
+    "     SELECT id, status, local_path, error_message, created_at FROM backup_jobs ORDER BY created_at DESC LIMIT 5\n"
+    "• Si l'utilisateur veut restaurer, utilise l'outil `restore_backup(backup_name)`.\n"
+    "\n"
+    "=== ALERTES ET SUGGESTIONS PROACTIVES ===\n"
+    "• Si l'utilisateur dit 'état du stock' ou 'alerte stock' :\n"
+    "  → Exécuter :\n"
+    "    SELECT name, stock_qty, alert_threshold, default_unit, 'Produit fini' AS type\n"
+    "    FROM finished_products WHERE stock_qty <= alert_threshold\n"
+    "    UNION ALL\n"
+    "    SELECT name, stock_qty, alert_threshold, unit, 'Matière première'\n"
+    "    FROM raw_materials WHERE stock_qty <= alert_threshold\n"
+    "  → Afficher avec 🔴 si stock=0 (rupture) ou 🟡 si stock <= seuil (alerte)\n"
+    "• Bilan du jour :\n"
+    "  → SELECT 'Ventes' AS type, COALESCE(SUM(total),0) AS total FROM sales WHERE sale_date=CURRENT_DATE\n"
+    "    UNION ALL\n"
+    "    SELECT 'Achats', COALESCE(SUM(total),0) FROM purchases WHERE purchase_date=CURRENT_DATE\n"
+    "    UNION ALL\n"
+    "    SELECT 'Versements', COALESCE(SUM(amount),0) FROM payments WHERE payment_date=CURRENT_DATE\n"
+    "    UNION ALL\n"
+    "    SELECT 'Dépenses', COALESCE(SUM(amount),0) FROM expenses WHERE date=CURRENT_DATE\n"
     "\n"
     "=== PARAMÈTRES / CONFIGURATION ===\n"
-    "• Voir les paramètres : SELECT key, value FROM app_settings;\n"
-    "• Modifier : INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP;\n"
-    "  Après modification : ✅ Paramètre mis à jour. [→ Paramètres](/admin)\n"
-    "\n"
-    "=== RAPPORTS / STATS ===\n"
-    "• Chiffre d'affaires : SELECT SUM(total) FROM sales WHERE sale_date BETWEEN '...' AND '...'\n"
-    "• Achats : SELECT SUM(total) FROM purchases WHERE purchase_date BETWEEN ...\n"
-    "• Versements reçus : SELECT SUM(amount) FROM payments WHERE payment_date BETWEEN ...\n"
-    "• Solde client : SELECT c.name, SUM(s.balance_due) - SUM(COALESCE(p.amount,0)) AS solde FROM clients c LEFT JOIN sales s ON s.client_id=c.id LEFT JOIN payments p ON p.client_id=c.id GROUP BY c.name\n"
+    "• Voir : SELECT key, value, updated_at FROM app_settings ORDER BY key\n"
+    "• Modifier : INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)\n"
+    "    ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP\n"
+    "  Après : ✅ Paramètre mis à jour. [→ Paramètres](/admin)\n"
+    "• Changer de modèle IA (gemini_model) :\n"
+    "  - Gemini 2.5 Flash : 'gemini-2.5-flash'\n"
+    "  - Gemini 1.5 Pro : 'gemini-1.5-pro'\n"
+    "  - Mode local/Ollama : 'local'\n"
+    "  → INSERT INTO app_settings (key,value,updated_at) VALUES ('gemini_model','[modèle]',CURRENT_TIMESTAMP)\n"
+    "    ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP\n"
 )
 
 
@@ -338,60 +493,137 @@ def serialize_for_json(obj: Any) -> Any:
         return obj.isoformat()
     return obj
 
+def get_encryption_key() -> bytes:
+    from app.core.config import settings
+    import hashlib
+    secret = settings.secret_key or "fallback_secret_key_for_sabrina"
+    return hashlib.sha256(secret.encode("utf-8")).digest()
+
+def get_gemini_api_key() -> str:
+    """Récupère la clé d'API depuis l'environnement ou les paramètres de la base de données (déchiffrée)."""
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        from app.core.security import decrypt_val
+        raw_val = db_manager.get_setting("gemini_api_key", "").strip()
+        api_key = decrypt_val(raw_val, get_encryption_key()) or ""
+    return api_key
+
+def get_sabrina_system_prompt(model_name: str) -> str:
+    """Génère le prompt système personnalisé pour Sabrina avec le contexte de l'entreprise."""
+    company_name = db_manager.get_setting("company_name", "FABOuanes").strip() or "FABOuanes"
+    currency = "DZD"  # Devise par défaut
+    tva = "19%"       # TVA standard algérienne
+    
+    schema_text = "\n".join(f"- {t}: {d}" for t, d in TABLE_SCHEMAS.items())
+    
+    return (
+        "Tu es Sabrina, l'assistante commerciale intelligente de l'entreprise.\n"
+        f"🏢 Contexte de l'entreprise :\n"
+        f"- Nom de l'entreprise : {company_name}\n"
+        f"- Devise par défaut : {currency} (Dinar Algérien)\n"
+        f"- TVA applicable : {tva}\n"
+        f"- Modèle d'IA actif : **{model_name}**\n\n"
+        "🎯 Ta mission :\n"
+        "1. Répondre aux questions sur les ventes, achats, stock et finances de l'entreprise.\n"
+        "2. Être de bon conseil, précise, chaleureuse et professionnelle.\n"
+        "3. Enregistrer des opérations à la demande (avec confirmation obligatoire par l'utilisateur).\n"
+        "4. Formater les données chiffrées sous forme de magnifiques tableaux Markdown.\n\n"
+        f"SCHÉMA DE LA BASE DE DONNÉES (utilise-le directement sans appeler get_schema) :\n{schema_text}\n\n"
+        f"{APP_ROUTES}\n"
+        f"{ACTION_GUIDE}\n\n"
+        "RÈGLES ABSOLUES :\n"
+        "- Ne JAMAIS lire la table 'users'.\n"
+        "- Confirmer TOUJOURS avant toute opération d'écriture (INSERT/UPDATE/DELETE).\n"
+        "- Limiter les requêtes SQL à 100 lignes max (LIMIT 100).\n"
+    )
+
 def execute_readonly_sql(query: str) -> Dict[str, Any]:
     """Exécute une requête SQL SELECT en lecture seule et retourne le résultat."""
-    clean_query = query.strip().lower()
+    try:
+        import sqlglot
+        stmts = sqlglot.parse(query, read="postgres")
+    except Exception as e:
+        return {"error": f"Erreur de syntaxe ou de validation SQL : {str(e)}"}
+        
+    if not stmts:
+        return {"error": "Aucune requête SQL valide fournie."}
+        
+    if len(stmts) > 1:
+        return {"error": "Une seule requête SQL SELECT est autorisée à la fois."}
+        
+    stmt = stmts[0]
     
-    # Validation basique
-    if not clean_query.startswith(("select", "with", "show", "explain")):
-        return {"error": "Seules les requêtes SELECT, WITH, EXPLAIN ou SHOW sont autorisées pour des raisons de sécurité."}
-    
-    # Interdiction des opérations d'écriture cachées ou chaînées
-    forbidden = ["insert", "update", "delete", "drop", "alter", "create", "truncate", "grant", "revoke", "replace"]
-    for word in forbidden:
-        if f" {word} " in f" {clean_query} " or clean_query.startswith(f"{word} "):
-            return {"error": f"Opération '{word}' interdite pour des raisons de sécurité."}
+    # Validation AST contre les DML/DDL de modification
+    for node in stmt.find_all(sqlglot.exp.Expression):
+        name = node.__class__.__name__.lower()
+        if any(ind in name for ind in ['insert', 'update', 'delete', 'create', 'drop', 'alter', 'truncate', 'command', 'grant', 'revoke']):
+            return {"error": f"Opération de type '{name}' interdite en lecture seule."}
+            
+    # Interdiction d'accès à la table users
+    for table_node in stmt.find_all(sqlglot.exp.Table):
+        if "users" in table_node.name.lower():
+            return {"error": "Accès à la table 'users' interdit."}
+            
+    # Forcer LIMIT 100 si absent
+    has_limit = any(isinstance(node, sqlglot.exp.Limit) for node in stmt.find_all(sqlglot.exp.Expression))
+    sql_to_run = query
+    if not has_limit:
+        if isinstance(stmt, (sqlglot.exp.Select, sqlglot.exp.Subquery, sqlglot.exp.Union, sqlglot.exp.CTE)):
+            sql_to_run = stmt.limit(100).sql(dialect="postgres")
+        else:
+            sql_to_run = f"{query.rstrip(';')} LIMIT 100"
             
     try:
-        # Exécution dans une transaction et rollback automatique systématique
         with db_manager.db_transaction() as conn:
             try:
-                cur = conn.execute(query)
+                cur = conn.execute(sql_to_run)
                 rows = cur.fetchall()
                 cur.close()
                 return {"rows": serialize_for_json([dict(r) for r in rows])}
             finally:
-                conn.rollback() # Toujours rollback pour annuler toute modification accidentelle
+                conn.rollback()
     except Exception as e:
+        logger.error("execute_readonly_sql error for query %s: %s", sql_to_run, e, exc_info=True)
         return {"error": f"Erreur SQL : {str(e)}"}
 
 def execute_write_sql(query: str) -> Dict[str, Any]:
     """Exécute une requête SQL d'écriture (INSERT, UPDATE, DELETE) pour modifier, ajouter ou supprimer des données."""
-    clean_query = query.strip().lower()
+    try:
+        import sqlglot
+        stmts = sqlglot.parse(query, read="postgres")
+    except Exception as e:
+        return {"error": f"Erreur de syntaxe ou de validation SQL : {str(e)}"}
+        
+    if not stmts:
+        return {"error": "Aucune requête SQL valide fournie."}
+        
+    if len(stmts) > 1:
+        return {"error": "Une seule requête d'écriture est autorisée à la fois."}
+        
+    stmt = stmts[0]
     
-    # Interdiction des opérations destructrices de structure
-    forbidden = ["drop", "alter", "truncate", "grant", "revoke"]
-    for word in forbidden:
-        if f" {word} " in f" {clean_query} " or clean_query.startswith(f"{word} "):
-            return {"error": f"Opération de structure '{word}' interdite pour des raisons de sécurité."}
+    # Interdiction des opérations destructrices
+    for node in stmt.find_all(sqlglot.exp.Expression):
+        name = node.__class__.__name__.lower()
+        if any(ind in name for ind in ['drop', 'alter', 'truncate', 'command', 'grant', 'revoke']):
+            return {"error": f"Opération de structure/droit '{name}' interdite pour des raisons de sécurité."}
             
-    # Ne pas autoriser la lecture/écriture sur la table des utilisateurs
-    if "users" in clean_query:
-        return {"error": "Accès à la table 'users' interdit."}
-
-    # Détecter si la requête contient RETURNING pour capturer l'ID créé
+    # Interdiction d'accès à la table users
+    for table_node in stmt.find_all(sqlglot.exp.Table):
+        if "users" in table_node.name.lower():
+            return {"error": "Accès à la table 'users' interdit."}
+            
+    clean_query = query.strip().lower()
     has_returning = "returning" in clean_query
         
     try:
         with db_manager.db_transaction() as conn:
             cur = conn.execute(query)
             inserted_id = None
-            # Si RETURNING id est présent, récupérer le résultat
             if has_returning:
                 try:
                     row = cur.fetchone()
                     if row:
-                        # Peut être un tuple (id,) ou un dict {'id': 1}
                         if isinstance(row, dict):
                             inserted_id = row.get("id")
                         elif isinstance(row, (list, tuple)) and len(row) > 0:
@@ -414,14 +646,12 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
                 result["message"] = "Opération exécutée avec succès."
             return result
     except Exception as e:
+        logger.error("execute_write_sql error for query %s: %s", query, e, exc_info=True)
         return {"error": f"Erreur SQL lors de l'écriture : {str(e)}"}
 
 async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_name: str = "gemini-flash-latest") -> Dict[str, Any]:
     """Appelle l'API Gemini avec les messages et outils définis."""
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-    
-    # Schéma intégré directement dans le prompt pour éviter un appel get_schema inutile
-    schema_text = "\n".join(f"- {t}: {d}" for t, d in TABLE_SCHEMAS.items())
     
     tools = [
         {
@@ -457,33 +687,12 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_na
                         },
                         "required": ["query"]
                     }
-
                 }
             ]
         }
     ]
     
-    system_instruction = (
-        "Tu es Sabrina, l'Assistant IA de FABOuanes, un progiciel de gestion commerciale et de stock.\n"
-        f"Tu fonctionnes actuellement avec le modèle : **{model_name}** (Google Gemini).\n"
-        "Si on te demande qui tu es, dis que tu es Sabrina. Si on te demande quel modèle tu utilises, réponds avec ce nom.\n"
-        "Tu as un accès direct à la base de données via des outils SQL.\n"
-        "Tu comprends parfaitement le français, l'anglais, l'arabe (dialecte algérien/darja) et le kabyle (Taqbaylit).\n"
-        "Rédige tes réponses de manière claire et professionnelle dans la langue choisie par l'utilisateur (français par défaut).\n"
-        "Utilise le formatage Markdown (tableaux, listes, gras) pour rendre les données lisibles.\n\n"
-        f"SCHÉMA DE LA BASE DE DONNÉES (utilise-le directement sans appeler get_schema) :\n{schema_text}\n\n"
-        f"{APP_ROUTES}\n"
-        f"{ACTION_GUIDE}\n"
-        "Pour LIRE des données → utilise `execute_readonly_sql`.\n"
-        "Pour AJOUTER, MODIFIER ou SUPPRIMER des données → utilise `execute_write_sql` uniquement si l'utilisateur le demande explicitement.\n"
-        "Quand l'utilisateur veut naviguer vers une section, donne-lui le lien sous forme de chemin (ex: /operations/payments/new).\n"
-        "Tu es aussi un assistant général : réponds à TOUTES les questions (culture générale, calculs, traductions, aide…) même hors FABOuanes.\n"
-        "Règles STRICTES :\n"
-        "1. Ne modifie les données que sur demande explicitement.\n"
-        "2. N'accède jamais à la table 'users'.\n"
-        "3. N'exécute jamais DROP, ALTER ou TRUNCATE."
-    )
-
+    system_instruction = get_sabrina_system_prompt(model_name)
     
     payload = {
         "contents": contents,
@@ -512,7 +721,6 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_na
         except Exception:
             raise
 
-
 OLLAMA_URL = "http://localhost:11434"
 OLLAMA_MODEL = "qwen2.5:7b"
 
@@ -525,33 +733,11 @@ async def is_ollama_available() -> bool:
     except Exception:
         return False
 
-async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> str:
-    """
-    Boucle d'agent complète avec Ollama local (qwen2.5:7b).
-    Supporte le tool calling natif OpenAI : execute_readonly_sql + execute_write_sql.
-    Peut lire et écrire la base de données, exactement comme Gemini.
-    """
-    system_prompt = (
-        "Tu es Sabrina, l'Assistant IA de FABOuanes, un progiciel de gestion commerciale et de stock.\n"
-        f"Tu fonctionnes actuellement avec le modèle : **{OLLAMA_MODEL}** (IA locale Ollama).\n"
-        "Si on te demande qui tu es, dis que tu es Sabrina. Si on te demande quel modèle tu utilises, réponds avec ce nom.\n"
-        "Tu comprends parfaitement le français, l'anglais, l'arabe (darja) et le kabyle.\n"
-        "Réponds dans la langue utilisée par l'utilisateur (français par défaut).\n"
-        "Utilise le Markdown pour formater les réponses (tableaux, listes, gras).\n\n"
-        f"SCHÉMA DE LA BASE DE DONNÉES :\n{schema_text}\n\n"
-        f"{APP_ROUTES}\n"
-        f"{ACTION_GUIDE}\n"
-        "Pour LIRE des données → utilise execute_readonly_sql.\n"
-        "Pour CRÉER, MODIFIER ou SUPPRIMER des données → utilise execute_write_sql "
-        "uniquement si l'utilisateur le demande explicitement.\n"
-        "Quand l'utilisateur veut naviguer vers une section, donne-lui le chemin (ex: /operations/payments/new).\n"
-        "Réponds à TOUTES les questions (générales, calculs, traductions, etc.).\n"
-        "Règles : N'accède jamais à la table 'users'. N'exécute jamais DROP, ALTER ou TRUNCATE."
-    )
-
-
-
-    # Outils en format OpenAI (compatible Ollama)
+async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_query: str | None = None):
+    """Boucle d'agent asynchrone génératrice pour Ollama local."""
+    schema_text = "\n".join(f"- {t}: {d}" for t, d in TABLE_SCHEMAS.items())
+    system_prompt = get_sabrina_system_prompt(OLLAMA_MODEL)
+    
     tools = [
         {
             "type": "function",
@@ -592,9 +778,7 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
             }
         }
     ]
-
-
-    # Convertir l'historique Gemini → format OpenAI/Ollama
+    
     ollama_messages = [{"role": "system", "content": system_prompt}]
     for msg in messages:
         role = msg.get("role", "user")
@@ -606,7 +790,7 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
                     "role": "assistant" if role == "model" else "user",
                     "content": text
                 })
-
+                
     max_turns = 5
     for turn in range(max_turns):
         payload = {
@@ -616,39 +800,36 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
             "stream": False,
             "options": {"temperature": 0.3, "num_predict": 2048}
         }
-
+        
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     f"{OLLAMA_URL}/api/chat",
                     json=payload,
-                    timeout=180.0  # CPU peut être lent
+                    timeout=180.0
                 )
                 response.raise_for_status()
                 data = response.json()
         except Exception as e:
-            logger.error("Erreur Ollama tour %d : %s", turn, e)
-            return f"⚠️ Erreur IA locale (Ollama) : {str(e)}"
-
+            yield {"type": "error", "error": f"⚠️ Erreur IA locale (Ollama) : {str(e)}"}
+            return
+            
         message = data.get("message", {})
         tool_calls = message.get("tool_calls", [])
         content = message.get("content", "")
-
-        # Ajouter la réponse de l'assistant à l'historique
+        
         assistant_msg = {"role": "assistant", "content": content}
         if tool_calls:
             assistant_msg["tool_calls"] = tool_calls
         ollama_messages.append(assistant_msg)
-
+        
         if not tool_calls:
-            # Réponse textuelle finale
-            return content if content.strip() else "Pas de réponse."
-
-        # Exécuter les appels d'outils
+            yield {"type": "final_response", "text": content if content.strip() else "Pas de réponse."}
+            return
+            
         for tc in tool_calls:
             func = tc.get("function", {})
             func_name = func.get("name", "")
-            # Ollama peut retourner arguments en str ou dict
             raw_args = func.get("arguments", {})
             if isinstance(raw_args, str):
                 try:
@@ -657,125 +838,114 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
                     func_args = {}
             else:
                 func_args = raw_args
-
+                
             logger.info("Ollama Agent Call: '%s' args=%s", func_name, func_args)
-
+            
             if func_name == "execute_readonly_sql":
-                output = execute_readonly_sql(func_args.get("query", ""))
+                sql_query = func_args.get("query", "")
+                yield {"type": "status", "message": "Recherche dans la base de données locale (SELECT)..."}
+                output = execute_readonly_sql(sql_query)
             elif func_name == "execute_write_sql":
-                output = execute_write_sql(func_args.get("query", ""))
+                sql_query = func_args.get("query", "")
+                if confirmed_query and confirmed_query.strip() == sql_query.strip():
+                    yield {"type": "status", "message": "Modification de la base de données locale (confirmée)..."}
+                    output = execute_write_sql(sql_query)
+                else:
+                    yield {
+                        "type": "confirmation_required",
+                        "query": sql_query,
+                        "message": "Je m'apprête à modifier la base de données (IA locale). Veuillez confirmer la requête SQL ci-dessous :"
+                    }
+                    return
             else:
                 output = {"error": f"Outil '{func_name}' inconnu."}
-
-            # Ajouter le résultat de l'outil dans la conversation
+                
             ollama_messages.append({
                 "role": "tool",
                 "content": json.dumps(output, ensure_ascii=False, default=str)
             })
+            
+    yield {"type": "error", "error": "La requête Ollama a dépassé la limite de tours sans retourner de réponse."}
 
-    return "La requête Ollama a dépassé la limite de tours sans retourner de réponse."
+async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> str:
+    """Boucle d'agent synchrone pour Ollama (rétrocompatibilité)."""
+    final_text = ""
+    async for event in run_ollama_agent_generator(messages):
+        if event.get("type") == "final_response":
+            final_text = event.get("text", "")
+        elif event.get("type") == "error":
+            return event.get("error", "")
+    return final_text
 
-
-async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> str:
-    """Orchestre la boucle d'agent avec Gemini (Tool Calling) ou Ollama."""
-    # Charger le modèle préféré de l'utilisateur depuis les paramètres
+async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key: str, confirmed_query: str | None = None):
+    """Orchestre la boucle d'agent sous forme de générateur asynchrone d'événements."""
+    yield {"type": "status", "message": "Sabrina analyse votre demande..."}
+    
     user_model = db_manager.get_setting("gemini_model", "gemini-3.1-flash-lite").strip()
     if not user_model:
         user_model = "gemini-3.1-flash-lite"
-
-    # Si le modèle choisi est "local" ou "ollama", bypasser Gemini pour utiliser Ollama directement
+        
     if user_model.lower() in ("local", "ollama"):
-        logger.info("Mode local forcé par l'utilisateur (Ollama).")
-        schema_text = "\n".join(f"- {t}: {d}" for t, d in TABLE_SCHEMAS.items())
-        ollama_ok = await is_ollama_available()
-        if ollama_ok:
-            try:
-                ollama_response = await run_ollama_agent(messages, schema_text)
-                return f"🤖 **(Mode IA locale - Ollama)**\n\n{ollama_response}"
-            except Exception as ollama_exc:
-                logger.error("Ollama local a également échoué : %s", ollama_exc)
-                return "⚠️ Le mode local (Ollama) a échoué. Assurez-vous qu'Ollama est démarré et que le modèle qwen2.5:7b est installé."
-        else:
-            return (
-                "⚠️ Le mode local (Ollama) est activé mais Ollama n'est pas démarré.\n"
-                "Lancez l'application **Ollama** ou demandez à Sabrina de repasser en mode en ligne (Gemini)."
-            )
-
-    # Copie locale de l'historique pour l'échange en cours
+        async for event in run_ollama_agent_generator(messages, confirmed_query):
+            yield event
+        return
+        
     contents = list(messages)
-    
-    # Limite de sécurité sur le nombre de tours d'appels d'outils successifs
     max_turns = 5
     for turn in range(max_turns):
         res = None
         last_exception = None
         
-        # Le premier candidat est le modèle choisi par l'utilisateur (s'il s'agit d'un modèle en ligne)
         candidate_models = [user_model]
-        # Modèles de secours en ligne (les 3 modèles d'origine)
-        fallbacks = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-latest"]
+        fallbacks = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-flash-latest"]
         for m in fallbacks:
             if m != user_model and m not in candidate_models:
                 candidate_models.append(m)
-
+                
         for model in candidate_models:
             try:
                 res = await call_gemini_api(contents, api_key, model_name=model)
                 break
-            except httpx.HTTPStatusError as exc:
-                last_exception = exc
-                status = exc.response.status_code
-                logger.warning("Modèle %s erreur HTTP %s. Essai du modèle suivant...", model, status)
-                continue
             except Exception as exc:
                 last_exception = exc
                 logger.warning("Erreur avec le modèle %s : %s. Essai du modèle suivant...", model, exc)
                 continue
                 
         if res is None:
-            # Tous les modèles Gemini ont échoué → essai du fallback Ollama local
-            logger.warning("Tous les modèles Gemini ont échoué. Tentative avec Ollama local...")
-            schema_text = "\n".join(f"- {t}: {d}" for t, d in TABLE_SCHEMAS.items())
+            # Fallback Ollama
             ollama_ok = await is_ollama_available()
             if ollama_ok:
-                try:
-                    ollama_response = await run_ollama_agent(contents, schema_text)
-                    logger.info("Réponse obtenue via Ollama local.")
-                    return f"🤖 **(Mode IA locale - Ollama)**\n\n{ollama_response}"
-                except Exception as ollama_exc:
-                    logger.error("Ollama local a également échoué : %s", ollama_exc)
-                    return (
-                        "⚠️ Les modèles Gemini sont saturés et Ollama local a échoué.\n"
-                        "Réessayez dans quelques minutes."
-                    )
+                yield {"type": "status", "message": "Modèles Gemini indisponibles. Bascule automatique sur l'IA locale..."}
+                async for event in run_ollama_agent_generator(contents, confirmed_query):
+                    yield event
+                return
             else:
                 error_msg = str(last_exception) if last_exception else "Quota dépassé."
-                return (
-                    f"⚠️ Quota Gemini dépassé ({error_msg}).\n"
-                    "💬 **Conseil :** Ollama n'est pas démarré. "
-                    "Lancez l'application **Ollama** pour continuer sans internet."
-                )
-
-
+                yield {
+                    "type": "error",
+                    "error": (
+                        f"⚠️ Quota Gemini dépassé ({error_msg}).\n"
+                        "💬 **Conseil :** Ollama n'est pas démarré. Lancez l'application **Ollama** pour continuer en local."
+                    )
+                }
+                return
+                
         candidates = res.get("candidates", [])
         if not candidates:
-            return "L'assistant n'a pas renvoyé de réponse."
-
+            yield {"type": "error", "error": "L'assistant n'a pas renvoyé de réponse."}
+            return
+            
         content_obj = candidates[0].get("content", {})
         parts = content_obj.get("parts", [])
-        
-        # Ajouter la réponse du modèle à l'historique pour le tour suivant
         contents.append(content_obj)
         
-        # Vérifier si le modèle a demandé un appel d'outil
         tool_calls = [p for p in parts if "functionCall" in p]
         
         if not tool_calls:
-            # Réponse textuelle finale trouvée
             text_parts = [p.get("text", "") for p in parts if "text" in p]
-            return "".join(text_parts)
-
-        # Si le modèle a demandé des appels d'outils, on les exécute tous
+            yield {"type": "final_response", "text": "".join(text_parts)}
+            return
+            
         function_responses = []
         for part in tool_calls:
             func_call = part["functionCall"]
@@ -788,10 +958,22 @@ async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> s
                 output = get_schema()
             elif func_name == "execute_readonly_sql":
                 sql_query = func_args.get("query", "")
+                yield {"type": "status", "message": "Recherche dans la base de données (SELECT)..."}
                 output = execute_readonly_sql(sql_query)
             elif func_name == "execute_write_sql":
                 sql_query = func_args.get("query", "")
-                output = execute_write_sql(sql_query)
+                
+                # Vérification de la confirmation
+                if confirmed_query and confirmed_query.strip() == sql_query.strip():
+                    yield {"type": "status", "message": "Modification de la base de données (confirmée)..."}
+                    output = execute_write_sql(sql_query)
+                else:
+                    yield {
+                        "type": "confirmation_required",
+                        "query": sql_query,
+                        "message": "Je m'apprête à modifier la base de données. Veuillez confirmer la requête SQL ci-dessous :"
+                    }
+                    return
             else:
                 output = {"error": f"Outil '{func_name}' inconnu."}
                 
@@ -802,10 +984,19 @@ async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> s
                 }
             })
             
-        # Ajouter les réponses de fonction dans les contenus de la conversation
         contents.append({
             "role": "function",
             "parts": function_responses
         })
         
-    return "La requête a dépassé la limite de tours d'agent sans retourner de réponse textuelle."
+    yield {"type": "error", "error": "La requête a dépassé la limite de tours d'agent sans retourner de réponse."}
+
+async def run_assistant_agent(messages: List[Dict[str, Any]], api_key: str) -> str:
+    """Orchestre la boucle d'agent en mode synchrone (compatibilité)."""
+    final_text = ""
+    async for event in run_assistant_agent_generator(messages, api_key):
+        if event.get("type") == "final_response":
+            final_text = event.get("text", "")
+        elif event.get("type") == "error":
+            return event.get("error", "")
+    return final_text
