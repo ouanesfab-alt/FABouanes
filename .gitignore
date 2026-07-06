@@ -43,3 +43,6 @@ Desktop.ini
 .DS_Store
 /scratch/
 
+# Sabrina runtime logs
+sabrina_audit.jsonl
+sabrina_failures.jsonl

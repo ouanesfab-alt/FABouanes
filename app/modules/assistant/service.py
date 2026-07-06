@@ -550,37 +550,6 @@ def get_sabrina_system_prompt(model_name: str) -> str:
     
     schema_text = "\n".join(f"- {t}: {d}" for t, d in TABLE_SCHEMAS.items())
     
-    clients_list = []
-    products_list = []
-    settings_list = []
-    
-    try:
-        # 1. Fetch clients
-        rows = db_manager.query_db("SELECT id, name FROM clients LIMIT 200")
-        clients_list = [f"ID {r['id']}: {r['name']}" for r in rows]
-        
-        # 2. Fetch finished products
-        rows = db_manager.query_db("SELECT id, name, sale_price, default_unit FROM finished_products LIMIT 200")
-        products_list.append("Produits finis :")
-        for r in rows:
-            products_list.append(f"- ID {r['id']}: {r['name']} ({r['sale_price']} DA / {r['default_unit']})")
-        
-        # 3. Fetch raw materials
-        rows = db_manager.query_db("SELECT id, name, unit FROM raw_materials LIMIT 200")
-        products_list.append("Matières premières :")
-        for r in rows:
-            products_list.append(f"- ID {r['id']}: {r['name']} (unité: {r['unit']})")
-        
-        # 4. Fetch settings
-        rows = db_manager.query_db("SELECT key, value FROM app_settings")
-        settings_list = [f"- {r['key']}: {r['value']}" for r in rows]
-    except Exception as e:
-        logger.error("Failed to query catalog index for system prompt", exc_info=True)
-
-    clients_index = "\n".join(clients_list) if clients_list else "Aucun client enregistré."
-    products_index = "\n".join(products_list) if len(products_list) > 2 else "Aucun produit enregistré."
-    settings_index = "\n".join(settings_list) if settings_list else "Aucun paramètre enregistré."
-    
     return (
         "Tu es Sabrina, l'assistante commerciale intelligente de l'entreprise.\n"
         f"🏢 Contexte de l'entreprise :\n"
@@ -597,27 +566,223 @@ def get_sabrina_system_prompt(model_name: str) -> str:
         f"SCHÉMA DE LA BASE DE DONNÉES (utilise-le directement sans appeler get_schema) :\n{schema_text}\n\n"
         f"{APP_ROUTES}\n"
         f"{ACTION_GUIDE}\n\n"
-        "📂 INDEX EN TEMPS RÉEL DE LA BASE DE DONNÉES (SABRINA CONNAÎT DÉJÀ TOUS LES IDS) :\n"
-        "--- INDEX DES CLIENTS ---\n"
-        f"{clients_index}\n\n"
-        "--- INDEX DU CATALOGUE DES PRODUITS ---\n"
-        f"{products_index}\n\n"
-        "--- PARAMÈTRES SYSTÈME ACTIFS ---\n"
-        f"{settings_index}\n\n"
         "🔴 PROTOCOLE STRICT D'INTERACTION (RÈGLE ABSOLUE SUR L'INTÉGRALITÉ DE L'APPLICATION) :\n"
         "Pour absolument TOUT (champs, formulaires, templates, pages, paramètres, clients, fournisseurs, produits finis, matières premières, ventes, achats, versements, dépenses, lots de production, recettes de fabrication, factures, bons de livraison/dépôt, sauvegardes et restaurations de base de données, etc.) :\n"
         "1. NE JAMAIS DEVINER, INVENTER OU ASSUMER de valeurs, d'arguments, de configurations, de modes de paiement, de catégories ou de détails manquants.\n"
-        "2. Si l'utilisateur demande une action, une création ou une modification sans vous fournir TOUS les champs requis ou s'il y a la moindre ambiguïté :\n"
+        "2. RECHERCHE À LA DEMANDE : Tu dois obligatoirement utiliser les outils `search_clients` ou `search_products` pour trouver les identifiants (IDs) des clients ou produits avant de proposer une action. Ne jamais deviner un ID !\n"
+        "3. CONTRATS DE VALEURS (ENUMS) : Avant d'insérer ou de modifier un champ restrictif, appelle toujours l'outil `get_enum_values(table, column)` pour vérifier les valeurs acceptées (ex: categories de dépenses, type de versement, mode de paiement).\n"
+        "4. RAISONNEMENT ET PLAN D'ACTIONS : Pour toute demande complexe ou multi-étapes (ex: 'crée le client X puis ajoute sa première vente'), tu DOIS d'abord générer un texte expliquant ton plan d'actions prévu étape par étape sous forme de liste numérotée, et demander la confirmation de l'utilisateur avant d'émettre la moindre exécution de fonction.\n"
+        "5. AUTO-ÉVALUATION DES MISES À JOUR/SUPPRESSIONS : Avant de proposer ou d'exécuter une requête SQL d'écriture de type UPDATE ou DELETE, tu DOIS obligatoirement exécuter une requête `execute_readonly_sql` de type `SELECT` pour vérifier quelles lignes et quelles valeurs exactes vont être modifiées ou supprimées. Présente le résultat de cette vérification à l'utilisateur dans ton message de demande de confirmation.\n"
+        "6. VISION & ANALYSE DE DOCUMENTS : Si l'utilisateur téléverse une image ou un document PDF (par exemple une photo de bon de livraison, facture, ou reçu de versement), tu as un accès direct à cette pièce jointe via le champ multimodal. Analyse-la pour en extraire les informations clés (articles, quantités, montants, date, client) et propose de les enregistrer en base de données.\n"
+        "7. Si l'utilisateur demande une action, une création ou une modification sans fournir TOUS les champs requis ou s'il y a la moindre ambiguïté :\n"
         "   - Tu DOIS d'abord lister clairement les compléments exacts requis pour cette opération ainsi que leurs options possibles.\n"
         "   - Tu DOIS lui demander de fournir ces compléments.\n"
-        "3. Ce n'est qu'une fois que l'utilisateur vous a fourni l'intégralité des compléments exacts que vous pouvez générer l'appel de fonction ou la requête SQL et lui demander sa confirmation interactive finale. Pas d'erreurs, pas de devinettes, pas de confusion.\n\n"
+        "8. Ce n'est qu'une fois que l'utilisateur vous a fourni l'intégralité des compléments exacts que vous pouvez générer l'appel de fonction ou la requête SQL et lui demander sa confirmation interactive finale. Pas d'erreurs, pas de devinettes, pas de confusion.\n\n"
         "RÈGLES ABSOLUES :\n"
         "- Ne JAMAIS lire la table 'users'.\n"
         "- Confirmer TOUJOURS avant toute opération d'écriture (INSERT/UPDATE/DELETE).\n"
         "- Limiter les requêtes SQL à 100 lignes max (LIMIT 100).\n"
-        "- RÈGLE DE PRÉCISION ET SAISIE : Ne JAMAIS deviner ou inventer de valeurs pour les champs restrictifs (ex: modes de paiement, catégories, types, etc.). Si une valeur dans la demande de l'utilisateur est ambiguë, mal orthographiée, ou n'est pas explicitement précisée, tu DOIS lire la description de la table pour connaître les valeurs autorisées, et demander clarification ou proposer les choix exacts à l'utilisateur au lieu de générer une requête qui provoquera une erreur SQL.\n"
+        "- RÈGLE DE PRÉCISION ET SAISIE : Ne JAMAIS deviner ou inventer de valeurs pour les champs restrictifs. Si une valeur est ambiguë, demande clarification ou propose les choix exacts à l'utilisateur.\n"
         "- RÈGLE DES NOMBRES ET FORMATS : Convertir correctement les notations (ex: remplacer les virgules par des points pour les décimaux, nettoyer les symboles de monnaie ou abréviations comme 'da' ou 'dzd') pour s'assurer que les valeurs numériques transmises dans les requêtes SQL sont strictement des nombres valides.\n"
     )
+
+class DryRunRollback(Exception):
+    def __init__(self, data):
+        self.data = data
+
+def dry_run_sql(query: str) -> str:
+    """Simule une requête SQL d'écriture dans une transaction temporaire puis effectue un rollback."""
+    try:
+        import sqlglot
+        stmts = sqlglot.parse(query, read="postgres")
+        if not stmts:
+            return "⚠️ Requête SQL invalide."
+        stmt = stmts[0]
+        table_names = [t.name.lower() for t in stmt.find_all(sqlglot.exp.Table)]
+        
+        try:
+            with db_manager.db_transaction() as conn:
+                # Récupérer les soldes clients avant
+                client_balances_before = {}
+                if "clients" in table_names:
+                    rows = conn.execute(sqlglot.parse("SELECT id, name, debt FROM clients", read="postgres")[0].sql(dialect="postgres")).fetchall()
+                    client_balances_before = {r[0]: (r[1], r[2]) for r in rows}
+                    
+                cur = conn.execute(query)
+                rowcount = getattr(cur, "rowcount", None)
+                inserted_id = None
+                try:
+                    row = cur.fetchone()
+                    if row:
+                        if isinstance(row, dict):
+                            inserted_id = row.get("id")
+                        elif isinstance(row, (list, tuple)) and len(row) > 0:
+                            inserted_id = row[0]
+                except Exception:
+                    pass
+                    
+                # Récupérer les soldes clients après
+                client_balances_after = {}
+                if "clients" in table_names:
+                    rows = conn.execute(sqlglot.parse("SELECT id, name, debt FROM clients", read="postgres")[0].sql(dialect="postgres")).fetchall()
+                    client_balances_after = {r[0]: r[2] for r in rows}
+                
+                res_info = {
+                    "inserted_id": inserted_id,
+                    "rowcount": rowcount,
+                    "balances_before": client_balances_before,
+                    "balances_after": client_balances_after
+                }
+                raise DryRunRollback(res_info)
+        except DryRunRollback as dr:
+            res_info = dr.data
+            inserted_id = res_info["inserted_id"]
+            rowcount = res_info["rowcount"]
+            client_balances_before = res_info["balances_before"]
+            client_balances_after = res_info["balances_after"]
+            
+            parts = ["📝 **[Simulation] Résumé des modifications de données :**"]
+            if inserted_id:
+                parts.append(f"• Création d'un nouvel enregistrement (ID temporaire : `{inserted_id}`) dans la table `{', '.join(table_names)}`.")
+            elif rowcount is not None and rowcount > 0:
+                parts.append(f"• Modification de `{rowcount}` ligne(s) dans la table `{', '.join(table_names)}`.")
+            else:
+                parts.append(f"• Exécution d'une modification sur la table `{', '.join(table_names)}`.")
+                
+            for cid, (name, bal_before) in client_balances_before.items():
+                bal_before_val = float(bal_before or 0.0)
+                bal_after_val = float(client_balances_after.get(cid) or 0.0)
+                if bal_before_val != bal_after_val:
+                    parts.append(f"   - Le solde de **{name}** passe de `{bal_before_val:,.2f} DA` à `{bal_after_val:,.2f} DA`.")
+            
+            return "\n".join(parts)
+    except Exception as e:
+        return f"⚠️ La simulation (dry-run) a échoué : {str(e)}"
+
+def log_structured_failure(action: str, error: str, parameters: dict):
+    from app.core.config import BASE_DIR
+    import datetime
+    import json
+    log_file = BASE_DIR / "sabrina_failures.jsonl"
+    log_entry = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "action": action,
+        "error": error,
+        "parameters": parameters
+    }
+    try:
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+    except Exception as e:
+        logger.error("Failed to write structured failure log: %s", e)
+
+def log_sabrina_action(action: str, args: dict, confirmed: bool, success: bool, result_summary: str):
+    from app.core.config import BASE_DIR
+    import datetime
+    import json
+    log_file = BASE_DIR / "sabrina_audit.jsonl"
+    log_entry = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "action": action,
+        "arguments": args,
+        "confirmed": confirmed,
+        "success": success,
+        "result_summary": result_summary
+    }
+    try:
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+    except Exception as e:
+        logger.error("Failed to write sabrina audit log: %s", e)
+
+def get_ollama_tools() -> List[Dict[str, Any]]:
+    gemini_tools = get_gemini_tools()
+    ollama_tools = []
+    if gemini_tools and "functionDeclarations" in gemini_tools[0]:
+        for decl in gemini_tools[0]["functionDeclarations"]:
+            raw_params = decl.get("parameters", {})
+            params = json.loads(json.dumps(raw_params).lower())
+            ollama_tools.append({
+                "type": "function",
+                "function": {
+                    "name": decl.get("name"),
+                    "description": decl.get("description"),
+                    "parameters": params
+                }
+            })
+    return ollama_tools
+
+async def compress_history_if_needed(messages: List[Dict[str, Any]], api_key: str, is_local: bool) -> List[Dict[str, Any]]:
+    if len(messages) <= 12:
+        return messages
+    to_summarize = messages[:-6]
+    to_keep = messages[-6:]
+    summary_prompt = (
+        "Fais un résumé très condensé en français des actions, discussions et opérations mentionnées ci-dessous. "
+        "Sois précis sur les chiffres, les noms de clients et les produits créés. Ne dépasse pas 150 mots."
+    )
+    
+    conversation_text = ""
+    for msg in to_summarize:
+        role = msg.get("role", "user")
+        parts = msg.get("parts", [])
+        if isinstance(parts, list):
+            content = " ".join(p.get("text", "") for p in parts if "text" in p)
+        else:
+            content = msg.get("content", "")
+        conversation_text += f"{'Utilisateur' if role == 'user' else 'Sabrina'}: {content}\n"
+        
+    if is_local:
+        payload = {
+            "model": OLLAMA_MODEL,
+            "messages": [
+                {"role": "system", "content": summary_prompt},
+                {"role": "user", "content": conversation_text}
+            ],
+            "stream": False
+        }
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.post(f"{OLLAMA_URL}/api/chat", json=payload, timeout=60.0)
+                res.raise_for_status()
+                data = res.json()
+                summary_text = data["message"]["content"]
+                
+                new_messages = []
+                new_messages.append({
+                    "role": "user",
+                    "content": f"[CONTEXTE DES DISCUSSIONS PRÉCÉDENTES : {summary_text.strip()}]"
+                })
+                new_messages.extend(to_keep)
+                return new_messages
+        except Exception as e:
+            logger.warning("Ollama history summarization failed: %s", e)
+            return messages
+    else:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "contents": [
+                {"role": "user", "parts": [{"text": f"{summary_prompt}\n\nConversation à résumer :\n{conversation_text}"}]}
+            ]
+        }
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.post(url, json=payload, headers=headers, timeout=30.0)
+                res.raise_for_status()
+                data = res.json()
+                summary_text = data["candidates"][0]["content"]["parts"][0]["text"]
+                
+                new_messages = []
+                new_messages.append({
+                    "role": "user",
+                    "parts": [{"text": f"[CONTEXTE DES DISCUSSIONS PRÉCÉDENTES : {summary_text.strip()}]"}]
+                })
+                new_messages.extend(to_keep)
+                return new_messages
+        except Exception as e:
+            logger.warning("Gemini history summarization failed: %s", e)
+            return messages
 
 def execute_readonly_sql(query: str) -> Dict[str, Any]:
     """Exécute une requête SQL SELECT en lecture seule et retourne le résultat."""
@@ -729,7 +894,13 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
 
 def get_tool_confirmation_message(name: str, args: dict) -> str:
     if name == "execute_write_sql":
-        return f"Exécuter la requête SQL suivante :\n```sql\n{args.get('query')}\n```"
+        query = args.get('query', '')
+        dry_summary = dry_run_sql(query)
+        return (
+            f"Exécuter la requête SQL suivante :\n```sql\n{query}\n```\n"
+            f"{dry_summary}\n\n"
+            f"⚠️ **Attention** : Cette action va modifier directement la base de données."
+        )
     elif name == "modify_app_file":
         filepath = args.get("filepath", "")
         old_c = args.get("old_content", "")
@@ -774,325 +945,518 @@ def get_tool_confirmation_message(name: str, args: dict) -> str:
 async def execute_tool_action(func_name: str, func_args: dict) -> Dict[str, Any]:
     from app.core.async_db import get_async_sessionmaker
     session_maker = get_async_sessionmaker()
-    
     try:
-        if func_name == "read_app_file":
-            filepath = func_args.get("filepath", "")
-            abs_path = os.path.abspath(filepath)
-            workspace_dir = os.path.abspath("c:\\Users\\massi\\Downloads\\FABouanes-main")
-            if not abs_path.startswith(workspace_dir):
-                return {"error": "Sécurité : Accès interdit en dehors du répertoire de l'application."}
-            with open(abs_path, "r", encoding="utf-8") as f:
-                return {"content": f.read()}
-                
-        elif func_name == "modify_app_file":
-            filepath = func_args.get("filepath", "")
-            old_c = func_args.get("old_content", "")
-            new_c = func_args.get("new_content", "")
-            abs_path = os.path.abspath(filepath)
-            workspace_dir = os.path.abspath("c:\\Users\\massi\\Downloads\\FABouanes-main")
-            if not abs_path.startswith(workspace_dir):
-                return {"error": "Sécurité : Accès interdit en dehors du répertoire de l'application."}
-            with open(abs_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            if old_c not in content:
-                return {"error": "Le contenu original à remplacer n'a pas été trouvé dans le fichier."}
-            new_content = content.replace(old_c, new_c, 1)
-            with open(abs_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
-            return {"success": True, "message": "Fichier modifié avec succès."}
-            
-        elif func_name == "create_app_backup":
-            reason = func_args.get("reason", "Sauvegarde automatique")
-            from app.services.admin_service import create_manual_backup
-            res = await create_manual_backup(reason=reason)
-            return {"success": True, "backup": res}
-            
-        elif func_name == "list_app_backups":
-            from app.services.admin_service import list_restore_backups
-            res = await list_restore_backups()
-            return {"backups": res}
-            
-        elif func_name == "restore_app_backup":
-            backup_name = func_args.get("backup_name", "")
-            from app.services.admin_service import restore_backup_by_value
-            await restore_backup_by_value(backup_name)
-            return {"success": True, "message": "Restauration effectuée avec succès."}
-            
-        elif func_name == "create_app_user":
-            username = func_args.get("username", "")
-            password = func_args.get("password", "")
-            role = func_args.get("role", "operator")
-            from app.services.admin_service import create_user_account
-            await create_user_account(username, password, role, "active")
-            return {"success": True, "message": f"Utilisateur {username} créé."}
-            
-        elif func_name == "change_app_user_password":
-            username = func_args.get("username", "")
-            new_password = func_args.get("new_password", "")
-            from app.services.auth_service import get_user_by_username, generate_password_hash
-            from app.modules.users.repository import update_password
-            user = await get_user_by_username(username)
-            if not user:
-                return {"error": f"Utilisateur {username} introuvable."}
-            async with session_maker() as session:
-                await update_password(user["id"], generate_password_hash(new_password), 0, db=session)
-                await session.commit()
-            return {"success": True, "message": f"Mot de passe de {username} modifié."}
-            
-        elif func_name == "delete_app_user":
-            username = func_args.get("username", "")
-            from app.services.auth_service import get_user_by_username
-            user = await get_user_by_username(username)
-            if not user:
-                return {"error": f"Utilisateur {username} introuvable."}
-            async with session_maker() as session:
-                from sqlmodel import text
-                await session.execute(text("DELETE FROM users WHERE id = :id"), {"id": user["id"]})
-                await session.commit()
-            return {"success": True, "message": f"Utilisateur {username} supprimé."}
-            
-        elif func_name == "update_setting":
-            key = func_args.get("key", "")
-            value = func_args.get("value", "")
-            db_manager.set_setting(key, value)
-            return {"success": True, "message": f"Paramètre {key} mis à jour."}
-            
-        elif func_name == "add_client":
-            name = func_args.get("name", "")
-            phone = func_args.get("phone", "")
-            address = func_args.get("address", "")
-            notes = func_args.get("notes", "")
-            opening_credit = float(func_args.get("opening_credit", 0.0) or 0.0)
-            from app.modules.clients.service import ClientService
-            from app.modules.clients.schemas_validation import ClientCreateSchema
-            schema = ClientCreateSchema(name=name, phone=phone, address=address, notes=notes, opening_credit=opening_credit)
-            async with session_maker() as session:
-                service = ClientService(session)
-                client = await service.create_client(schema)
-                await session.commit()
-            return {"success": True, "client_id": client.id}
-            
-        elif func_name == "modify_client":
-            client_id = int(func_args.get("client_id"))
-            name = func_args.get("name")
-            phone = func_args.get("phone")
-            address = func_args.get("address")
-            notes = func_args.get("notes")
-            from app.modules.clients.service import ClientService
-            from app.modules.clients.schemas_validation import ClientUpdateSchema
-            schema = ClientUpdateSchema(name=name, phone=phone, address=address, notes=notes)
-            async with session_maker() as session:
-                service = ClientService(session)
-                await service.update_client(client_id, schema)
-                await session.commit()
-            return {"success": True, "message": f"Client {client_id} modifié."}
-            
-        elif func_name == "delete_client":
-            client_id = int(func_args.get("client_id"))
-            from app.modules.clients.service import ClientService
-            async with session_maker() as session:
-                service = ClientService(session)
-                await service.delete_client(client_id)
-                await session.commit()
-            return {"success": True, "message": f"Client {client_id} supprimé."}
-            
-        elif func_name == "add_product":
-            name = func_args.get("name", "")
-            category = func_args.get("category", "")
-            price = float(func_args.get("price", 0.0) or 0.0)
-            cost = float(func_args.get("cost", 0.0) or 0.0)
-            unit = func_args.get("unit", "kg")
-            table = "finished_products" if category.lower() in ("finished", "produit final", "produit") else "raw_materials"
-            async with session_maker() as session:
-                from sqlmodel import text
-                if table == "finished_products":
-                    await session.execute(text(
-                        "INSERT INTO finished_products (name, sale_price, avg_cost, unit) VALUES (:name, :price, :cost, :unit)"
-                    ), {"name": name, "price": price, "cost": cost, "unit": unit})
-                else:
-                    await session.execute(text(
-                        "INSERT INTO raw_materials (name, avg_cost, unit) VALUES (:name, :cost, :unit)"
-                    ), {"name": name, "cost": cost, "unit": unit})
-                await session.commit()
-            return {"success": True, "message": f"Produit {name} ajouté."}
-            
-        elif func_name == "modify_product":
-            product_id = int(func_args.get("product_id"))
-            category = func_args.get("category", "finished")
-            name = func_args.get("name")
-            price = func_args.get("price")
-            cost = func_args.get("cost")
-            table = "finished_products" if category.lower() in ("finished", "produit final", "produit") else "raw_materials"
-            async with session_maker() as session:
-                from sqlmodel import text
-                updates = []
-                params = {"id": product_id}
-                if name:
-                    updates.append("name = :name")
-                    params["name"] = name
-                if cost is not None:
-                    updates.append("avg_cost = :cost")
-                    params["cost"] = float(cost)
-                if table == "finished_products" and price is not None:
-                    updates.append("sale_price = :price")
-                    params["price"] = float(price)
-                if updates:
-                    stmt = f"UPDATE {table} SET {', '.join(updates)} WHERE id = :id"
-                    await session.execute(text(stmt), params)
-                    await session.commit()
-            return {"success": True, "message": f"Produit {product_id} modifié."}
-            
-        elif func_name == "delete_product":
-            product_id = int(func_args.get("product_id"))
-            category = func_args.get("category", "finished")
-            table = "finished_products" if category.lower() in ("finished", "produit final", "produit") else "raw_materials"
-            async with session_maker() as session:
-                from sqlmodel import text
-                await session.execute(text(f"DELETE FROM {table} WHERE id = :id"), {"id": product_id})
-                await session.commit()
-            return {"success": True, "message": f"Produit {product_id} supprimé."}
-            
-        elif func_name == "add_sale":
-            client_id = func_args.get("client_id")
-            if client_id:
-                client_id = int(client_id)
-            item_kind = func_args.get("item_kind", "finished")
-            item_id = int(func_args.get("item_id"))
-            quantity = float(func_args.get("quantity"))
-            unit = func_args.get("unit", "kg")
-            unit_price = float(func_args.get("unit_price"))
-            amount_paid = float(func_args.get("amount_paid", 0.0) or 0.0)
-            notes = func_args.get("notes", "")
-            from app.modules.sales.service import SalesService
-            from app.modules.sales.schemas_validation import SaleFormSchema, SaleLineSchema
-            line = SaleLineSchema(item_key=f"{item_kind}:{item_id}", quantity=quantity, unit=unit, unit_price=unit_price)
-            schema = SaleFormSchema(client_id=client_id, notes=notes, lines=[line])
-            async with session_maker() as session:
-                service = SalesService(session)
-                res = await service.create_sale_from_form(schema)
-                if amount_paid > 0 and client_id:
-                    from app.modules.payments.service import PaymentsService
-                    from app.modules.payments.schemas_validation import PaymentFormSchema
-                    pay_service = PaymentsService(session)
-                    pay_schema = PaymentFormSchema(client_id=client_id, amount=amount_paid, payment_type="versement", notes=f"Paiement partiel vente {res.get('sale_id') or res.get('document_id')}")
-                    await pay_service.create_payment_from_form(pay_schema)
-                await session.commit()
-            return {"success": True, "sale_id": res.get("sale_id") or res.get("document_id")}
-            
-        elif func_name == "add_purchase":
-            supplier_id = func_args.get("supplier_id")
-            if supplier_id:
-                supplier_id = int(supplier_id)
-            item_kind = func_args.get("item_kind", "raw")
-            item_id = int(func_args.get("item_id"))
-            quantity = float(func_args.get("quantity"))
-            unit = func_args.get("unit", "kg")
-            unit_price = float(func_args.get("unit_price"))
-            notes = func_args.get("notes", "")
-            from app.modules.purchases.service import PurchaseService
-            from app.modules.purchases.schemas_validation import PurchaseFormSchema, PurchaseLineSchema
-            line = PurchaseLineSchema(raw_material_id=f"{item_kind}:{item_id}", quantity=quantity, unit=unit, unit_price=unit_price)
-            schema = PurchaseFormSchema(supplier_id=supplier_id, notes=notes, lines=[line])
-            async with session_maker() as session:
-                service = PurchaseService(session)
-                res = await service.create_purchase_from_form(schema)
-                await session.commit()
-            return {"success": True, "purchase_id": res.get("purchase_id") or res.get("document_id")}
-            
-        elif func_name == "add_payment":
-            client_id = int(func_args.get("client_id"))
-            amount = float(func_args.get("amount"))
-            payment_type = func_args.get("payment_type", "versement")
-            notes = func_args.get("notes", "")
-            from app.modules.payments.service import PaymentsService
-            from app.modules.payments.schemas_validation import PaymentFormSchema
-            schema = PaymentFormSchema(client_id=client_id, amount=amount, payment_type=payment_type, notes=notes)
-            async with session_maker() as session:
-                service = PaymentsService(session)
-                res = await service.create_payment_from_form(schema)
-                await session.commit()
-            return {"success": True, "payment_id": res.get("payment_id")}
-            
-        elif func_name == "delete_operation":
-            tx_kind = func_args.get("tx_kind")
-            tx_id = int(func_args.get("tx_id"))
-            async with session_maker() as session:
-                if tx_kind in ("sale_finished", "sale_raw", "sale"):
-                    from app.modules.sales.service import SalesService
-                    service = SalesService(session)
-                    await service.delete_sale_by_id(tx_id)
-                elif tx_kind == "purchase":
-                    from app.modules.purchases.service import PurchaseService
-                    service = PurchaseService(session)
-                    await service.delete_purchase_by_id(tx_id)
-                elif tx_kind == "payment":
-                    from app.modules.payments.service import PaymentsService
-                    service = PaymentsService(session)
-                    await service.delete_payment_by_id(tx_id)
-                await session.commit()
-            return {"success": True, "message": f"Opération {tx_kind} {tx_id} supprimée."}
-            
-        elif func_name == "add_expense":
-            category = func_args.get("category", "")
-            amount = float(func_args.get("amount"))
-            description = func_args.get("description", "")
-            payment_method = func_args.get("payment_method", "Espèce")
-            from app.modules.expenses.service import add_expense
-            async with session_maker() as session:
-                await add_expense(category, amount, description, payment_method, db=session)
-                await session.commit()
-            return {"success": True, "message": "Dépense enregistrée."}
-            
-        elif func_name == "modify_expense":
-            expense_id = int(func_args.get("expense_id"))
-            category = func_args.get("category")
-            amount = float(func_args.get("amount")) if func_args.get("amount") is not None else None
-            description = func_args.get("description")
-            from app.modules.expenses.service import modify_expense
-            async with session_maker() as session:
-                await modify_expense(expense_id, category, amount, description, db=session)
-                await session.commit()
-            return {"success": True, "message": f"Dépense {expense_id} modifiée."}
-            
-        elif func_name == "delete_expense":
-            expense_id = int(func_args.get("expense_id"))
-            from app.modules.expenses.service import remove_expense
-            async with session_maker() as session:
-                await remove_expense(expense_id, db=session)
-                await session.commit()
-            return {"success": True, "message": f"Dépense {expense_id} supprimée."}
-            
-        elif func_name == "add_production_batch":
-            finished_product_id = int(func_args.get("finished_product_id"))
-            quantity = float(func_args.get("quantity"))
-            notes = func_args.get("notes", "")
-            from app.services.production_service import apply_finished_production
-            async with session_maker() as session:
-                batch_id = await apply_finished_production(finished_product_id, quantity, notes, db=session)
-                await session.commit()
-            return {"success": True, "batch_id": batch_id}
-            
-        elif func_name == "delete_production":
-            batch_id = int(func_args.get("batch_id"))
-            from app.services.production_service import delete_production_by_id
-            async with session_maker() as session:
-                await delete_production_by_id(batch_id, db=session)
-                await session.commit()
-            return {"success": True, "message": f"Production {batch_id} supprimée."}
-            
-        elif func_name == "redirect_to":
-            url = func_args.get("url", "/")
-            return {"redirect_url": url}
-            
-        elif func_name == "change_theme":
-            theme = func_args.get("theme", "light")
-            return {"theme": theme}
-            
+        res = await _execute_tool_action_inner(func_name, func_args, session_maker)
+        if isinstance(res, dict) and "error" in res:
+            log_structured_failure(func_name, res["error"], func_args)
+        else:
+            summary = res.get("message") or res.get("print_url") or "Opération réussie"
+            log_sabrina_action(func_name, func_args, confirmed=True, success=True, result_summary=str(summary))
+        return res
     except Exception as e:
         logger.error("Error executing agent action %s with args %s: %s", func_name, func_args, e, exc_info=True)
+        log_structured_failure(func_name, str(e), func_args)
         return {"error": str(e)}
+
+async def _execute_tool_action_inner(func_name: str, func_args: dict, session_maker) -> Dict[str, Any]:
+    from app.core.config import BASE_DIR
+    import os
+    import json
+    
+    if func_name == "read_app_file":
+        filepath = func_args.get("filepath", "")
+        workspace_dir = os.path.abspath(str(BASE_DIR))
+        abs_path = os.path.abspath(filepath)
+        try:
+            common = os.path.commonpath([workspace_dir, abs_path])
+            if common != workspace_dir:
+                raise ValueError()
+        except Exception:
+            return {"error": "Sécurité : Accès interdit en dehors du répertoire de l'application."}
+        with open(abs_path, "r", encoding="utf-8") as f:
+            return {"content": f.read()}
+            
+    elif func_name == "modify_app_file":
+        filepath = func_args.get("filepath", "")
+        old_c = func_args.get("old_content", "")
+        new_c = func_args.get("new_content", "")
+        workspace_dir = os.path.abspath(str(BASE_DIR))
+        abs_path = os.path.abspath(filepath)
+        try:
+            common = os.path.commonpath([workspace_dir, abs_path])
+            if common != workspace_dir:
+                raise ValueError()
+        except Exception:
+            return {"error": "Sécurité : Accès interdit en dehors du répertoire de l'application."}
+        with open(abs_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        if old_c not in content:
+            return {"error": "Le contenu original à remplacer n'a pas été trouvé dans le fichier."}
+        new_content = content.replace(old_c, new_c, 1)
+        with open(abs_path, "w", encoding="utf-8") as f:
+            f.write(new_content)
+        return {"success": True, "message": "Fichier modifié avec succès."}
         
+    elif func_name == "create_app_backup":
+        reason = func_args.get("reason", "Sauvegarde automatique")
+        from app.services.admin_service import create_manual_backup
+        res = await create_manual_backup(reason=reason)
+        return {"success": True, "backup": res}
+        
+    elif func_name == "list_app_backups":
+        from app.services.admin_service import list_restore_backups
+        res = await list_restore_backups()
+        return {"backups": res}
+        
+    elif func_name == "restore_app_backup":
+        backup_name = func_args.get("backup_name", "")
+        from app.services.admin_service import restore_backup_by_value
+        await restore_backup_by_value(backup_name)
+        return {"success": True, "message": "Restauration effectuée avec succès."}
+        
+    elif func_name == "create_app_user":
+        username = func_args.get("username", "")
+        password = func_args.get("password", "")
+        role = func_args.get("role", "operator")
+        from app.services.admin_service import create_user_account
+        await create_user_account(username, password, role, "active")
+        return {"success": True, "message": f"Utilisateur {username} créé."}
+        
+    elif func_name == "change_app_user_password":
+        username = func_args.get("username", "")
+        new_password = func_args.get("new_password", "")
+        from app.services.auth_service import get_user_by_username, generate_password_hash
+        from app.modules.users.repository import update_password
+        user = await get_user_by_username(username)
+        if not user:
+            return {"error": f"Utilisateur {username} introuvable."}
+        async with session_maker() as session:
+            await update_password(user["id"], generate_password_hash(new_password), 0, db=session)
+            await session.commit()
+        return {"success": True, "message": f"Mot de passe de {username} modifié."}
+        
+    elif func_name == "delete_app_user":
+        username = func_args.get("username", "")
+        from app.services.auth_service import get_user_by_username
+        user = await get_user_by_username(username)
+        if not user:
+            return {"error": f"Utilisateur {username} introuvable."}
+        async with session_maker() as session:
+            from sqlmodel import text
+            await session.execute(text("DELETE FROM users WHERE id = :id"), {"id": user["id"]})
+            await session.commit()
+        return {"success": True, "message": f"Utilisateur {username} supprimé."}
+        
+    elif func_name == "update_setting":
+        key = func_args.get("key", "")
+        value = func_args.get("value", "")
+        db_manager.set_setting(key, value)
+        return {"success": True, "message": f"Paramètre {key} mis à jour."}
+        
+    elif func_name == "add_client":
+        name = func_args.get("name", "")
+        phone = func_args.get("phone", "")
+        address = func_args.get("address", "")
+        notes = func_args.get("notes", "")
+        opening_credit = float(func_args.get("opening_credit", 0.0) or 0.0)
+        from app.modules.clients.service import ClientService
+        from app.modules.clients.schemas_validation import ClientCreateSchema
+        schema = ClientCreateSchema(name=name, phone=phone, address=address, notes=notes, opening_credit=opening_credit)
+        async with session_maker() as session:
+            service = ClientService(session)
+            client = await service.create_client(schema)
+            await session.commit()
+        return {"success": True, "client_id": client.id}
+        
+    elif func_name == "modify_client":
+        client_id = int(func_args.get("client_id"))
+        name = func_args.get("name")
+        phone = func_args.get("phone")
+        address = func_args.get("address")
+        notes = func_args.get("notes")
+        from app.modules.clients.service import ClientService
+        from app.modules.clients.schemas_validation import ClientUpdateSchema
+        schema = ClientUpdateSchema(name=name, phone=phone, address=address, notes=notes)
+        async with session_maker() as session:
+            service = ClientService(session)
+            await service.update_client(client_id, schema)
+            await session.commit()
+        return {"success": True, "message": f"Client {client_id} modifié."}
+        
+    elif func_name == "delete_client":
+        client_id = int(func_args.get("client_id"))
+        from app.modules.clients.service import ClientService
+        async with session_maker() as session:
+            service = ClientService(session)
+            await service.delete_client(client_id)
+            await session.commit()
+        return {"success": True, "message": f"Client {client_id} supprimé."}
+        
+    elif func_name == "add_product":
+        name = func_args.get("name", "")
+        category = func_args.get("category", "")
+        price = float(func_args.get("price", 0.0) or 0.0)
+        cost = float(func_args.get("cost", 0.0) or 0.0)
+        unit = func_args.get("unit", "kg")
+        table = "finished_products" if category.lower() in ("finished", "produit final", "produit") else "raw_materials"
+        async with session_maker() as session:
+            from sqlmodel import text
+            if table == "finished_products":
+                await session.execute(text(
+                    "INSERT INTO finished_products (name, sale_price, avg_cost, unit) VALUES (:name, :price, :cost, :unit)"
+                ), {"name": name, "price": price, "cost": cost, "unit": unit})
+            else:
+                await session.execute(text(
+                    "INSERT INTO raw_materials (name, avg_cost, unit) VALUES (:name, :cost, :unit)"
+                ), {"name": name, "cost": cost, "unit": unit})
+            await session.commit()
+        return {"success": True, "message": f"Produit {name} ajouté."}
+        
+    elif func_name == "modify_product":
+        product_id = int(func_args.get("product_id"))
+        category = func_args.get("category", "finished")
+        name = func_args.get("name")
+        price = func_args.get("price")
+        cost = func_args.get("cost")
+        table = "finished_products" if category.lower() in ("finished", "produit final", "produit") else "raw_materials"
+        async with session_maker() as session:
+            from sqlmodel import text
+            updates = []
+            params = {"id": product_id}
+            if name:
+                updates.append("name = :name")
+                params["name"] = name
+            if cost is not None:
+                updates.append("avg_cost = :cost")
+                params["cost"] = float(cost)
+            if table == "finished_products" and price is not None:
+                updates.append("sale_price = :price")
+                params["price"] = float(price)
+            if updates:
+                stmt = f"UPDATE {table} SET {', '.join(updates)} WHERE id = :id"
+                await session.execute(text(stmt), params)
+                await session.commit()
+        return {"success": True, "message": f"Produit {product_id} modifié."}
+        
+    elif func_name == "delete_product":
+        product_id = int(func_args.get("product_id"))
+        category = func_args.get("category", "finished")
+        table = "finished_products" if category.lower() in ("finished", "produit final", "produit") else "raw_materials"
+        async with session_maker() as session:
+            from sqlmodel import text
+            await session.execute(text(f"DELETE FROM {table} WHERE id = :id"), {"id": product_id})
+            await session.commit()
+        return {"success": True, "message": f"Produit {product_id} supprimé."}
+        
+    elif func_name == "add_sale":
+        client_id = func_args.get("client_id")
+        if client_id:
+            client_id = int(client_id)
+        item_kind = func_args.get("item_kind", "finished")
+        item_id = int(func_args.get("item_id"))
+        quantity = float(func_args.get("quantity"))
+        unit = func_args.get("unit", "kg")
+        unit_price = float(func_args.get("unit_price"))
+        amount_paid = float(func_args.get("amount_paid", 0.0) or 0.0)
+        notes = func_args.get("notes", "")
+        from app.modules.sales.service import SalesService
+        from app.modules.sales.schemas_validation import SaleFormSchema, SaleLineSchema
+        line = SaleLineSchema(item_key=f"{item_kind}:{item_id}", quantity=quantity, unit=unit, unit_price=unit_price)
+        schema = SaleFormSchema(client_id=client_id, notes=notes, lines=[line])
+        async with session_maker() as session:
+            service = SalesService(session)
+            res = await service.create_sale_from_form(schema)
+            if amount_paid > 0 and client_id:
+                from app.modules.payments.service import PaymentsService
+                from app.modules.payments.schemas_validation import PaymentFormSchema
+                pay_service = PaymentsService(session)
+                pay_schema = PaymentFormSchema(client_id=client_id, amount=amount_paid, payment_type="versement", notes=f"Paiement partiel vente {res.get('sale_id') or res.get('document_id')}")
+                await pay_service.create_payment_from_form(pay_schema)
+            await session.commit()
+        return {"success": True, "sale_id": res.get("sale_id") or res.get("document_id")}
+        
+    elif func_name == "add_purchase":
+        supplier_id = func_args.get("supplier_id")
+        if supplier_id:
+            supplier_id = int(supplier_id)
+        item_kind = func_args.get("item_kind", "raw")
+        item_id = int(func_args.get("item_id"))
+        quantity = float(func_args.get("quantity"))
+        unit = func_args.get("unit", "kg")
+        unit_price = float(func_args.get("unit_price"))
+        notes = func_args.get("notes", "")
+        from app.modules.purchases.service import PurchaseService
+        from app.modules.purchases.schemas_validation import PurchaseFormSchema, PurchaseLineSchema
+        line = PurchaseLineSchema(raw_material_id=f"{item_kind}:{item_id}", quantity=quantity, unit=unit, unit_price=unit_price)
+        schema = PurchaseFormSchema(supplier_id=supplier_id, notes=notes, lines=[line])
+        async with session_maker() as session:
+            service = PurchaseService(session)
+            res = await service.create_purchase_from_form(schema)
+            await session.commit()
+        return {"success": True, "purchase_id": res.get("purchase_id") or res.get("document_id")}
+        
+    elif func_name == "add_payment":
+        client_id = int(func_args.get("client_id"))
+        amount = float(func_args.get("amount"))
+        payment_type = func_args.get("payment_type", "versement")
+        notes = func_args.get("notes", "")
+        from app.modules.payments.service import PaymentsService
+        from app.modules.payments.schemas_validation import PaymentFormSchema
+        schema = PaymentFormSchema(client_id=client_id, amount=amount, payment_type=payment_type, notes=notes)
+        async with session_maker() as session:
+            service = PaymentsService(session)
+            res = await service.create_payment_from_form(schema)
+            await session.commit()
+        return {"success": True, "payment_id": res.get("payment_id")}
+        
+    elif func_name == "delete_operation":
+        tx_kind = func_args.get("tx_kind")
+        tx_id = int(func_args.get("tx_id"))
+        async with session_maker() as session:
+            if tx_kind in ("sale_finished", "sale_raw", "sale"):
+                from app.modules.sales.service import SalesService
+                service = SalesService(session)
+                await service.delete_sale_by_id(tx_id)
+            elif tx_kind == "purchase":
+                from app.modules.purchases.service import PurchaseService
+                service = PurchaseService(session)
+                await service.delete_purchase_by_id(tx_id)
+            elif tx_kind == "payment":
+                from app.modules.payments.service import PaymentsService
+                service = PaymentsService(session)
+                await service.delete_payment_by_id(tx_id)
+            await session.commit()
+        return {"success": True, "message": f"Opération {tx_kind} {tx_id} supprimée."}
+        
+    elif func_name == "add_expense":
+        category = func_args.get("category", "")
+        amount = float(func_args.get("amount"))
+        description = func_args.get("description", "")
+        payment_method = func_args.get("payment_method", "cash")
+        
+        from app.modules.expenses.schemas_validation import ExpenseCreateSchema
+        import datetime
+        schema = ExpenseCreateSchema(
+            date=datetime.date.today(),
+            category=category,
+            description=description,
+            amount=amount,
+            payment_method=payment_method
+        )
+        from app.modules.expenses.service import add_expense
+        async with session_maker() as session:
+            await add_expense(
+                db=session,
+                date=schema.date.isoformat(),
+                category=schema.category,
+                description=schema.description,
+                amount=schema.amount,
+                method=schema.payment_method
+            )
+        return {"success": True, "message": "Dépense enregistrée."}
+        
+    elif func_name == "modify_expense":
+        expense_id = int(func_args.get("expense_id"))
+        category = func_args.get("category")
+        amount = float(func_args.get("amount")) if func_args.get("amount") is not None else None
+        description = func_args.get("description")
+        from app.modules.expenses.service import modify_expense
+        async with session_maker() as session:
+            await modify_expense(expense_id, category, amount, description, db=session)
+            await session.commit()
+        return {"success": True, "message": f"Dépense {expense_id} modifiée."}
+        
+    elif func_name == "delete_expense":
+        expense_id = int(func_args.get("expense_id"))
+        from app.modules.expenses.service import remove_expense
+        async with session_maker() as session:
+            await remove_expense(expense_id, db=session)
+            await session.commit()
+        return {"success": True, "message": f"Dépense {expense_id} supprimée."}
+        
+    elif func_name == "add_production_batch":
+        finished_product_id = int(func_args.get("finished_product_id"))
+        quantity = float(func_args.get("quantity"))
+        notes = func_args.get("notes", "")
+        from app.services.production_service import apply_finished_production
+        async with session_maker() as session:
+            batch_id = await apply_finished_production(finished_product_id, quantity, notes, db=session)
+            await session.commit()
+        return {"success": True, "batch_id": batch_id}
+        
+    elif func_name == "delete_production":
+        batch_id = int(func_args.get("batch_id"))
+        from app.services.production_service import delete_production_by_id
+        async with session_maker() as session:
+            await delete_production_by_id(batch_id, db=session)
+            await session.commit()
+        return {"success": True, "message": f"Production {batch_id} supprimée."}
+        
+    elif func_name == "redirect_to":
+        url = func_args.get("url", "/")
+        return {"redirect_url": url}
+        
+    elif func_name == "change_theme":
+        theme = func_args.get("theme", "light")
+        return {"theme": theme}
+
+    elif func_name == "get_enum_values":
+        table = func_args.get("table", "").lower()
+        column = func_args.get("column", "").lower()
+        enums = {
+            "expenses": {
+                "payment_method": ["cash", "cheque", "virement", "autre"],
+                "category": ["matiere_premiere", "carburant", "maintenance", "electricite", "salaire", "autre", "loyer", "transport", "impot"]
+            },
+            "payments": {
+                "payment_type": ["versement", "avance"]
+            },
+            "supplier_payments": {
+                "payment_type": ["versement", "avance"]
+            },
+            "sale_documents": {
+                "doc_type": ["bon", "facture"]
+            },
+            "purchase_documents": {
+                "doc_type": ["bon", "facture"]
+            },
+            "products": {
+                "category": ["finished", "raw"]
+            },
+            "sales": {
+                "item_kind": ["finished", "raw"]
+            },
+            "purchases": {
+                "item_kind": ["finished", "raw"]
+            }
+        }
+        val = enums.get(table, {}).get(column)
+        if val is not None:
+            return {"values": val}
+        return {"error": f"Pas de contraintes énumérées pour {table}.{column}."}
+
+    elif func_name == "search_clients":
+        q = func_args.get("query", "").strip()
+        from app.core.perf_cache import async_cached_result
+        async def builder():
+            from sqlmodel import text
+            async with session_maker() as session:
+                rows = (await session.execute(text(
+                    "SELECT id, name, phone, debt FROM clients WHERE name ILIKE :q LIMIT 50"
+                ), {"q": f"%{q}%"})).fetchall()
+            return [{"id": r[0], "name": r[1], "phone": r[2], "debt": float(r[3])} for r in rows]
+        res = await async_cached_result(("assistant", "search_clients", q), builder, ttl_seconds=30.0)
+        return {"results": res}
+
+    elif func_name == "search_products":
+        q = func_args.get("query", "").strip()
+        from app.core.perf_cache import async_cached_result
+        async def builder():
+            from sqlmodel import text
+            async with session_maker() as session:
+                finished = (await session.execute(text(
+                    "SELECT id, name, sale_price, avg_cost, unit FROM finished_products WHERE name ILIKE :q LIMIT 50"
+                ), {"q": f"%{q}%"})).fetchall()
+                raw = (await session.execute(text(
+                    "SELECT id, name, avg_cost, unit FROM raw_materials WHERE name ILIKE :q LIMIT 50"
+                ), {"q": f"%{q}%"})).fetchall()
+            results = []
+            for r in finished:
+                results.append({"id": r[0], "name": r[1], "category": "finished", "price": float(r[2]), "cost": float(r[3]), "unit": r[4]})
+            for r in raw:
+                results.append({"id": r[0], "name": r[1], "category": "raw", "price": 0.0, "cost": float(r[2]), "unit": r[3]})
+            return results
+        res = await async_cached_result(("assistant", "search_products", q), builder, ttl_seconds=30.0)
+        return {"results": res}
+
+    elif func_name == "get_business_insights":
+        insight_type = func_args.get("insight_type", "summary").lower()
+        from sqlmodel import text
+        async with session_maker() as session:
+            if insight_type == "top_debtors":
+                rows = (await session.execute(text(
+                    "SELECT name, phone, debt FROM clients WHERE debt > 0 ORDER BY debt DESC LIMIT 5"
+                ))).fetchall()
+                return {"top_debtors": [{"name": r[0], "phone": r[1], "debt": float(r[2])} for r in rows]}
+            elif insight_type == "monthly_sales_comparison":
+                sales_cur = (await session.execute(text(
+                    "SELECT COALESCE(SUM(total_amount), 0) FROM sale_documents WHERE date >= DATE_TRUNC('month', CURRENT_DATE)"
+                ))).scalar()
+                sales_prev = (await session.execute(text(
+                    "SELECT COALESCE(SUM(total_amount), 0) FROM sale_documents WHERE date >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND date < DATE_TRUNC('month', CURRENT_DATE)"
+                ))).scalar()
+                sales_cur = float(sales_cur)
+                sales_prev = float(sales_prev)
+                growth = ((sales_cur - sales_prev) / sales_prev * 100) if sales_prev > 0 else 0.0
+                return {
+                    "sales_current_month": sales_cur,
+                    "sales_previous_month": sales_prev,
+                    "growth_rate": round(growth, 2)
+                }
+            else:
+                clients_count = (await session.execute(text("SELECT COUNT(*) FROM clients"))).scalar()
+                products_count = (await session.execute(text("SELECT COUNT(*) FROM finished_products"))).scalar()
+                sales_month = (await session.execute(text("SELECT COALESCE(SUM(total_amount), 0) FROM sale_documents WHERE date >= DATE_TRUNC('month', CURRENT_DATE)"))).scalar()
+                return {
+                    "total_clients": clients_count,
+                    "total_products": products_count,
+                    "sales_this_month": float(sales_month)
+                }
+
+    elif func_name == "get_print_link":
+        dt = func_args.get("doc_type", "").lower()
+        item_id = int(func_args.get("item_id"))
+        allowed = {
+            "sale_finished": f"/print/sale_finished/{item_id}",
+            "sale_raw": f"/print/sale_raw/{item_id}",
+            "purchase": f"/print/purchase/{item_id}",
+            "payment": f"/print/payment/{item_id}",
+            "production": f"/print/production/{item_id}",
+            "client_history": f"/contacts/clients/{item_id}/print-history"
+        }
+        url = allowed.get(dt)
+        if url:
+            return {
+                "print_url": url,
+                "pdf_url": f"{url}?format=pdf",
+                "message": f"Voici les liens d'impression :\n- [Imprimer/Voir]({url})\n- [Télécharger en PDF]({url}?format=pdf)"
+            }
+        return {"error": f"Type de document '{dt}' non supporté pour l'impression."}
+
+    elif func_name == "import_client_excel":
+        filepath = func_args.get("filepath", "")
+        abs_path = os.path.abspath(filepath)
+        workspace_dir = os.path.abspath(str(BASE_DIR))
+        try:
+            common = os.path.commonpath([workspace_dir, abs_path])
+            if common != workspace_dir:
+                raise ValueError()
+        except Exception:
+            return {"error": "Sécurité : Accès interdit en dehors du répertoire de l'application."}
+        from app.services.excel_import_service import parse_excel_client_file
+        try:
+            data = parse_excel_client_file(abs_path)
+        except Exception as e:
+            return {"error": f"Erreur de lecture du fichier Excel : {str(e)}"}
+        from app.modules.clients.service import ClientService
+        from app.modules.clients.schemas_validation import ClientCreateSchema
+        schema = ClientCreateSchema(
+            name=data["name"],
+            phone=data["phone"],
+            address=data["address"],
+            notes=data["notes"],
+            opening_credit=data["opening_credit"]
+        )
+        async with session_maker() as session:
+            service = ClientService(session)
+            client = await service.create_client(schema)
+            await session.commit()
+        return {
+            "success": True,
+            "client_id": client.id,
+            "message": f"Client '{data['name']}' importé avec succès avec un solde initial de {data['opening_credit']} DA (Lignes détectées : {data['history_count']})."
+        }
+
     return {"error": f"Outil '{func_name}' non géré."}
 
 def get_gemini_tools() -> List[Dict[str, Any]]:
@@ -1679,6 +2043,98 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         },
                         "required": ["theme"]
                     }
+                },
+                {
+                    "name": "get_enum_values",
+                    "description": "Récupère la liste des valeurs autorisées pour une colonne spécifique (ex: catégories de dépenses, modes de paiement). Le modèle doit appeler cet outil pour s'assurer de la validité d'un champ énuméré avant toute insertion.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "table": {
+                                "type": "STRING",
+                                "description": "Le nom de la table (ex: expenses, payments)."
+                            },
+                            "column": {
+                                "type": "STRING",
+                                "description": "Le nom de la colonne (ex: category, payment_method)."
+                            }
+                        },
+                        "required": ["table", "column"]
+                    }
+                },
+                {
+                    "name": "search_clients",
+                    "description": "Recherche des clients par leur nom pour trouver leur ID, numéro de téléphone ou dette en cours.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "query": {
+                                "type": "STRING",
+                                "description": "Le nom ou partie du nom du client à rechercher."
+                            }
+                        },
+                        "required": ["query"]
+                    }
+                },
+                {
+                    "name": "search_products",
+                    "description": "Recherche des produits finis ou matières premières dans le catalogue par leur nom.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "query": {
+                                "type": "STRING",
+                                "description": "Le nom du produit ou composant à rechercher."
+                            }
+                        },
+                        "required": ["query"]
+                    }
+                },
+                {
+                    "name": "get_business_insights",
+                    "description": "Fournit des rapports et des analyses proactives sur l'activité de l'entreprise (ex: débiteurs principaux, comparaison des ventes mensuelles, résumé général).",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "insight_type": {
+                                "type": "STRING",
+                                "description": "Le type d'analyse : 'top_debtors', 'monthly_sales_comparison' ou 'summary'."
+                            }
+                        },
+                        "required": ["insight_type"]
+                    }
+                },
+                {
+                    "name": "get_print_link",
+                    "description": "Obtient le lien d'impression HTML et de téléchargement PDF pour un document commercial (vente, achat, versement ou production).",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "doc_type": {
+                                "type": "STRING",
+                                "description": "Type de document : 'sale_finished', 'sale_raw', 'purchase', 'payment' ou 'production'."
+                            },
+                            "item_id": {
+                                "type": "INTEGER",
+                                "description": "L'identifiant du document."
+                            }
+                        },
+                        "required": ["doc_type", "item_id"]
+                    }
+                },
+                {
+                    "name": "import_client_excel",
+                    "description": "Importe les données d'un client et son solde historique depuis un fichier Excel (.xlsx ou .xls) importé.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "filepath": {
+                                "type": "STRING",
+                                "description": "Le chemin d'accès au fichier Excel sur le serveur."
+                            }
+                        },
+                        "required": ["filepath"]
+                    }
                 }
             ]
         }
@@ -1871,47 +2327,7 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
 
     schema_text = "\n".join(f"- {t}: {d}" for t, d in TABLE_SCHEMAS.items())
     system_prompt = get_sabrina_system_prompt(OLLAMA_MODEL)
-    
-    tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "execute_readonly_sql",
-                "description": "Exécute une requête SQL SELECT en lecture seule et retourne les résultats.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "La requête SQL SELECT complète à exécuter."
-                        }
-                    },
-                    "required": ["query"]
-                }
-            }
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "execute_write_sql",
-                "description": (
-                    "Exécute une requête SQL d'écriture (INSERT, UPDATE, DELETE) pour ajouter, modifier ou supprimer des données. "
-                    "Pour les INSERT, toujours ajouter 'RETURNING id' à la fin pour récupérer l'ID créé. "
-                    "La réponse contiendra 'inserted_id' si RETURNING est utilisé."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "La requête SQL complète (INSERT ... RETURNING id, UPDATE ou DELETE)."
-                        }
-                    },
-                    "required": ["query"]
-                }
-            }
-        }
-    ]
+    tools = get_ollama_tools()
     
     ollama_messages = [{"role": "system", "content": system_prompt}]
     for msg in messages:
@@ -1926,6 +2342,7 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
                 })
                 
     max_turns = 5
+    sql_errors_count = 0
     for turn in range(max_turns):
         payload = {
             "model": OLLAMA_MODEL,
@@ -1996,18 +2413,55 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
                 output = execute_readonly_sql(sql_query)
             elif func_name == "execute_write_sql":
                 sql_query = func_args.get("query", "")
-                if confirmed_query and confirmed_query.strip() == sql_query.strip():
-                    yield {"type": "status", "message": "Modification de la base de données locale (confirmée)..."}
-                    output = execute_write_sql(sql_query)
-                else:
+                is_confirmed = confirmed_query and confirmed_query.strip() == sql_query.strip()
+                if not is_confirmed and confirmed_query:
+                    try:
+                        cq_data = json.loads(confirmed_query)
+                        if cq_data.get("name") == "execute_write_sql" and cq_data.get("args", {}).get("query") == sql_query:
+                            is_confirmed = True
+                    except Exception:
+                        pass
+                if not is_confirmed:
                     yield {
                         "type": "confirmation_required",
                         "query": sql_query,
-                        "message": "Je m'apprête à modifier la base de données (IA locale). Veuillez confirmer la requête SQL ci-dessous :"
+                        "message": f"Je m'apprête à modifier la base de données (local). Veuillez confirmer la requête SQL ci-dessous :\n```sql\n{sql_query}\n```"
                     }
                     return
+                yield {"type": "status", "message": "Modification de la base de données locale (confirmée)..."}
+                output = execute_write_sql(sql_query)
             else:
-                output = {"error": f"Outil '{func_name}' inconnu."}
+                is_write = func_name not in ("read_app_file", "list_app_backups", "redirect_to", "change_theme", "get_enum_values", "search_clients", "search_products", "get_business_insights", "get_print_link")
+                if is_write:
+                    normalized_call = json.dumps({"name": func_name, "args": func_args}, sort_keys=True)
+                    is_confirmed = False
+                    if confirmed_query:
+                        if confirmed_query.strip() == normalized_call:
+                            is_confirmed = True
+                        else:
+                            try:
+                                cq_data = json.loads(confirmed_query)
+                                if cq_data.get("name") == func_name and cq_data.get("args") == func_args:
+                                    is_confirmed = True
+                            except Exception:
+                                pass
+                    if not is_confirmed:
+                        msg = get_tool_confirmation_message(func_name, func_args)
+                        yield {
+                            "type": "confirmation_required",
+                            "query": normalized_call,
+                            "message": msg
+                        }
+                        return
+                
+                yield {"type": "status", "message": f"Exécution de l'action '{func_name}' (local)..."}
+                output = await execute_tool_action(func_name, func_args)
+                
+            if isinstance(output, dict) and "error" in output and func_name in ("execute_readonly_sql", "execute_write_sql"):
+                sql_errors_count += 1
+                if sql_errors_count >= 3:
+                    yield {"type": "error", "error": f"⚠️ Auto-correction SQL locale échouée après 3 tentatives. Dernière erreur : {output['error']}"}
+                    return
                 
             ollama_messages.append({
                 "role": "tool",
@@ -2031,10 +2485,33 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
     """Orchestre la boucle d'agent sous forme de générateur asynchrone d'événements."""
     yield {"type": "status", "message": "Sabrina analyse votre demande..."}
     
+    # 1. Compression glissante de la mémoire
+    messages = await compress_history_if_needed(messages, api_key, is_local=False)
+    
+    # 2. Aiguillage adaptatif du modèle
     user_model = db_manager.get_setting("gemini_model", "gemini-3.1-flash-lite").strip()
     if not user_model:
         user_model = "gemini-3.1-flash-lite"
         
+    if user_model.lower() not in ("local", "ollama"):
+        last_user_text = ""
+        for m in reversed(messages):
+            if m.get("role") == "user":
+                parts = m.get("parts", [])
+                if isinstance(parts, list):
+                    last_user_text = " ".join(p.get("text", "") for p in parts if "text" in p)
+                else:
+                    last_user_text = m.get("content", "")
+                break
+        
+        complex_keywords = ["modifier", "importer", "audit", "backup", "sql", "excel", "analyse", "lot de production", "sauvegarde", "restaurer", "supprimer", "update", "delete"]
+        is_complex = any(kw in last_user_text.lower() for kw in complex_keywords)
+        
+        if is_complex:
+            user_model = "gemini-1.5-pro"
+        else:
+            user_model = "gemini-3.1-flash-lite"
+            
     if confirmed_query:
         func_name = None
         func_args = {}
@@ -2103,6 +2580,7 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
         
     contents = list(messages)
     max_turns = 5
+    sql_errors_count = 0
     for turn in range(max_turns):
         res = None
         last_exception = None
@@ -2235,7 +2713,7 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
                 yield {"type": "status", "message": "Modification de la base de données (confirmée)..."}
                 output = execute_write_sql(sql_query)
             else:
-                is_write = func_name not in ("read_app_file", "list_app_backups", "redirect_to", "change_theme")
+                is_write = func_name not in ("read_app_file", "list_app_backups", "redirect_to", "change_theme", "get_enum_values", "search_clients", "search_products", "get_business_insights", "get_print_link")
                 if is_write:
                     normalized_call = json.dumps({"name": func_name, "args": func_args}, sort_keys=True)
                     is_confirmed = False
@@ -2260,6 +2738,12 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
                 
                 yield {"type": "status", "message": f"Exécution de l'action '{func_name}'..."}
                 output = await execute_tool_action(func_name, func_args)
+                
+            if isinstance(output, dict) and "error" in output and func_name in ("execute_readonly_sql", "execute_write_sql"):
+                sql_errors_count += 1
+                if sql_errors_count >= 3:
+                    yield {"type": "error", "error": f"⚠️ Auto-correction SQL échouée après 3 tentatives. Dernière erreur : {output['error']}"}
+                    return
                 
             function_responses.append({
                 "functionResponse": {
