@@ -52,7 +52,7 @@ async def _transactions_context_impl(
     if date_filter:
         from datetime import datetime as dt_class
         try:
-            db_date_filter = dt_class.strptime(date_filter, "%Y-%m-%d").date()
+            db_date_filter = dt_class.strptime(date_filter.strip(), "%Y-%m-%d").date()
         except ValueError:
             pass
     
@@ -98,7 +98,7 @@ async def _transactions_context_impl(
             {p_where_clause}
         """
         queries.append(p_query)
-
+ 
     # 2. Sales query (finished + raw)
     if filter_type in ("all", "sale"):
         s_where = []
@@ -130,7 +130,7 @@ async def _transactions_context_impl(
             {s_where_clause}
         """
         queries.append(s_query)
-
+ 
     # 3. Payments query
     if filter_type in ("all", "payment"):
         pay_where = []

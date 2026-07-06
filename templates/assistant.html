@@ -238,7 +238,7 @@
 
   /* Chat input area as footer of chat-card */
   .chat-input-area {
-    padding: 16px 20px;
+    padding: 8px 20px 10px;
     background: var(--glass-chrome);
     backdrop-filter: var(--backdrop-blur);
     border-top: 1px solid var(--line);
@@ -321,7 +321,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding: 12px 20px 4px;
+    padding: 6px 20px 2px;
     background: transparent;
   }
 
@@ -537,6 +537,34 @@
   html[data-theme="dark"] .segmented-switch {
     background: rgba(255, 255, 255, 0.05);
   }
+
+  /* Siri-style Soundwave visualizer */
+  .soundwave-container {
+    display: none;
+    align-items: center;
+    gap: 3.5px;
+    height: 24px;
+    margin-right: 12px;
+    align-self: center;
+  }
+  .soundwave-bar {
+    width: 3px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--accent) 0%, #AF52DE 100%);
+    border-radius: 2px;
+    transform: scaleY(0.3);
+    animation: soundwave-pulse 1.2s ease-in-out infinite alternate;
+  }
+  .soundwave-bar:nth-child(1) { animation-delay: 0.1s; height: 40%; }
+  .soundwave-bar:nth-child(2) { animation-delay: 0.35s; height: 80%; }
+  .soundwave-bar:nth-child(3) { animation-delay: 0.15s; height: 100%; }
+  .soundwave-bar:nth-child(4) { animation-delay: 0.45s; height: 60%; }
+  .soundwave-bar:nth-child(5) { animation-delay: 0.2s; height: 90%; }
+
+  @keyframes soundwave-pulse {
+    0% { transform: scaleY(0.35); }
+    100% { transform: scaleY(1); }
+  }
 </style>
 
 <div class="assistant-wrapper">
@@ -703,6 +731,13 @@
       <button id="micBtn" class="chat-send-btn bg-transparent border-0 text-muted me-2" type="button" title="Parler (Reconnaissance vocale)" style="padding: 0 8px; box-shadow: none; display: inline-flex; align-items: center; justify-content: center; height: 38px; width: 38px;">
         <i class="bi bi-mic fs-4"></i>
       </button>
+      <div id="soundwaveContainer" class="soundwave-container">
+        <div class="soundwave-bar"></div>
+        <div class="soundwave-bar"></div>
+        <div class="soundwave-bar"></div>
+        <div class="soundwave-bar"></div>
+        <div class="soundwave-bar"></div>
+      </div>
       <textarea id="chatInput" placeholder="Posez votre question ici..." {% if not has_key %}disabled{% endif %}></textarea>
       <button id="sendBtn" class="chat-send-btn" {% if not has_key %}disabled{% endif %}>
         <i class="bi bi-arrow-up-short fs-4"></i>
@@ -757,6 +792,7 @@
 
     const attachBtn = document.getElementById('attachBtn');
     const micBtn = document.getElementById('micBtn');
+    const soundwaveContainer = document.getElementById('soundwaveContainer');
     const fileInput = document.getElementById('fileInput');
     const filePreviewContainer = document.getElementById('filePreviewContainer');
     const filePreviewIcon = document.getElementById('filePreviewIcon');
@@ -811,38 +847,47 @@
       }
     }
 
-    function handleModeChange() {
+    function handleModeChange(isUserChange = false) {
       if (modeLocal.checked) {
         if (geminiSelectGroup) geminiSelectGroup.style.display = 'none';
         if (apiKeyGroup) apiKeyGroup.style.display = 'none';
         if (localModelHiddenInput) localModelHiddenInput.disabled = false;
+        if (geminiModelSelect) geminiModelSelect.disabled = true;
         
-        // Save dynamically without reload
-        saveSettingsAJAX('local');
-        
-        // Enable input fields immediately
-        enableChatInputs();
+        if (isUserChange) {
+          saveSettingsAJAX('local').then(() => {
+            window.location.reload();
+          });
+        } else {
+          enableChatInputs();
+        }
       } else {
         if (geminiSelectGroup) geminiSelectGroup.style.display = 'block';
         if (apiKeyGroup) apiKeyGroup.style.display = 'block';
         if (localModelHiddenInput) localModelHiddenInput.disabled = true;
+        if (geminiModelSelect) geminiModelSelect.disabled = false;
         
         const activeOnlineModel = geminiModelSelect?.value || 'gemini-3.1-flash-lite';
-        saveSettingsAJAX(activeOnlineModel);
-        
-        // Enable or disable based on API key presence
-        updateChatInputsForOnline();
+        if (isUserChange) {
+          saveSettingsAJAX(activeOnlineModel).then(() => {
+            window.location.reload();
+          });
+        } else {
+          updateChatInputsForOnline();
+        }
       }
     }
 
-    modeOnline?.addEventListener('change', handleModeChange);
-    modeLocal?.addEventListener('change', handleModeChange);
+    modeOnline?.addEventListener('change', () => handleModeChange(true));
+    modeLocal?.addEventListener('change', () => handleModeChange(true));
     
     // Initialize: apply mode state on page load
-    handleModeChange();
+    handleModeChange(false);
     
     geminiModelSelect?.addEventListener('change', function() {
-      saveSettingsAJAX(this.value);
+      saveSettingsAJAX(this.value).then(() => {
+        window.location.reload();
+      });
     });
 
     // Handle form submit button manually via AJAX
@@ -1095,6 +1140,7 @@
 
         removeTypingIndicator(indicator);
         const progress = appendProgressIndicator();
+        let streamMessageBubble = null;
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -1141,9 +1187,34 @@
                 appendMessage('system', "Opération d'écriture annulée.");
               }
               return;
+            } else if (event.type === 'text_chunk') {
+              if (progress.container) {
+                progress.container.remove();
+              }
+              if (!streamMessageBubble) {
+                streamMessageBubble = appendMessage('model', '');
+              }
+              const contentDiv = streamMessageBubble.querySelector('.bubble-content');
+              if (contentDiv) {
+                const currentText = streamMessageBubble.getAttribute('data-raw-text') || '';
+                const newText = currentText + event.text;
+                streamMessageBubble.setAttribute('data-raw-text', newText);
+                contentDiv.innerHTML = parseMarkdown(newText);
+                scrollToBottom();
+              }
             } else if (event.type === 'final_response') {
-              progress.container.remove();
+              if (progress.container) progress.container.remove();
               const rawResponse = event.text || "";
+
+              if (streamMessageBubble) {
+                const contentDiv = streamMessageBubble.querySelector('.bubble-content');
+                if (contentDiv) {
+                  contentDiv.innerHTML = parseMarkdown(rawResponse);
+                }
+              } else {
+                appendMessage('model', rawResponse);
+              }
+              streamMessageBubble = null;
 
               const themeMatch = rawResponse.match(/\[THEME:(dark|light)\]/i);
               if (themeMatch) {
@@ -1161,7 +1232,6 @@
               }
 
               const redirectMatch = rawResponse.match(/\[REDIRECT:([^\]]+)\]/i);
-              appendMessage('model', rawResponse);
 
               let historyText = text;
               if (localFileObj) {
@@ -1179,7 +1249,7 @@
                 }, 1200);
               }
             } else if (event.type === 'error') {
-              progress.container.remove();
+              if (progress.container) progress.container.remove();
               appendMessage('system', event.error || "Une erreur est survenue.");
             }
           }
@@ -1308,12 +1378,18 @@
         wrapper.appendChild(bubble);
         wrapper.appendChild(actions);
         chatMessages.appendChild(wrapper);
+        scrollToBottom();
+        return wrapper;
 
       } else {
         // Bulles IA et system : comportement habituel
         const bubble = document.createElement('div');
         bubble.className = `chat-bubble ${role}`;
-        bubble.innerHTML = parseMarkdown(text);
+        
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'bubble-content';
+        contentDiv.innerHTML = parseMarkdown(text);
+        bubble.appendChild(contentDiv);
 
         if (role === 'model') {
           const actions = document.createElement('div');
@@ -1326,9 +1402,9 @@
         }
 
         chatMessages.appendChild(bubble);
+        scrollToBottom();
+        return bubble;
       }
-
-      scrollToBottom();
     }
 
     function appendTypingIndicator() {
@@ -1399,70 +1475,131 @@
     let isRecording = false;
     let hasShownMicError = false; // prevent duplicate mic error messages
 
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = navigator.language || 'fr-FR';
+    try {
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = navigator.language || 'fr-FR';
 
-
-      recognition.onresult = function(event) {
-        const transcript = event.results[0][0].transcript;
-        chatInput.value = (chatInput.value + " " + transcript).trim();
-        chatInput.dispatchEvent(new Event('input'));
-      };
-
-      recognition.onerror = function(event) {
-        console.error("Speech recognition error:", event.error);
-        if (!hasShownMicError) {
-          hasShownMicError = true;
-          if (event.error === 'not-allowed') {
-            appendMessage('system', "⚠️ Microphone bloqué. Ouvrez l'application dans Chrome ou Edge à l'adresse " + window.location.origin + " puis autorisez le microphone.");
-          } else if (event.error === 'no-speech') {
-            // Reset silencieux, pas de message
-          } else if (event.error === 'network') {
-            appendMessage('system', "⚠️ Erreur réseau pour la reconnaissance vocale. Vérifiez votre connexion internet.");
-          } else {
-            appendMessage('system', "⚠️ Erreur de reconnaissance vocale : " + event.error);
+        recognition.onresult = function(event) {
+          const transcript = event.results[0][0].transcript;
+          if (transcript.trim().length > 0) {
+            chatInput.value = transcript;
+            chatInput.dispatchEvent(new Event('input'));
+            // Visual feedback: briefly show sending state
+            if (micBtn) {
+              micBtn.innerHTML = '<i class="bi bi-send-fill text-success"></i>';
+              micBtn.title = "Envoi...";
+            }
+            setTimeout(() => {
+              sendMessage(transcript);
+            }, 800);
           }
-        }
-        stopRecording();
-      };
+        };
 
-      recognition.onstart = function() {
-        hasShownMicError = false; // reset flag on each new attempt
-        isRecording = true;
-        if (micBtn) {
-          micBtn.innerHTML = '<i class="bi bi-mic-fill text-danger animate-pulse"></i>';
-          micBtn.title = "En écoute... Cliquez pour arrêter";
-        }
-        chatInput.placeholder = "Je vous écoute...";
-      };
+        recognition.onerror = function(event) {
+          console.error("Speech recognition error:", event.error);
+          if (!hasShownMicError) {
+            hasShownMicError = true;
+            if (event.error === 'not-allowed') {
+              appendMessage('system', "⚠️ Microphone bloqué. Ouvrez l'application dans Chrome ou Edge à l'adresse " + window.location.origin + " puis autorisez le microphone.");
+            } else if (event.error === 'no-speech') {
+              // Reset silencieux, pas de message
+            } else if (event.error === 'network') {
+              appendMessage('system', "⚠️ Erreur réseau pour la reconnaissance vocale. Vérifiez votre connexion internet.");
+            } else {
+              appendMessage('system', "⚠️ Erreur de reconnaissance vocale : " + event.error);
+            }
+          }
+          stopRecording();
+        };
 
-      recognition.onend = function() {
-        stopRecording();
-      };
+        let micTimeout = null;
 
-      function stopRecording() {
-        isRecording = false;
-        if (micBtn) {
-          micBtn.innerHTML = '<i class="bi bi-mic fs-4 text-muted"></i>';
-          micBtn.title = "Parler (Reconnaissance vocale)";
+        recognition.onstart = function() {
+          if (micTimeout) clearTimeout(micTimeout);
+          hasShownMicError = false; // reset flag on each new attempt
+          isRecording = true;
+          if (micBtn) {
+            micBtn.innerHTML = '<i class="bi bi-mic-fill text-danger animate-pulse"></i>';
+            micBtn.title = "En écoute... Cliquez pour arrêter";
+          }
+          if (soundwaveContainer) {
+            soundwaveContainer.style.display = 'flex';
+          }
+          chatInput.placeholder = "Je vous écoute...";
+        };
+
+        recognition.onend = function() {
+          if (micTimeout) clearTimeout(micTimeout);
+          stopRecording();
+        };
+
+        function stopRecording() {
+          if (micTimeout) clearTimeout(micTimeout);
+          isRecording = false;
+          if (micBtn) {
+            micBtn.innerHTML = '<i class="bi bi-mic fs-4 text-muted"></i>';
+            micBtn.title = "Parler (Reconnaissance vocale)";
+          }
+          if (soundwaveContainer) {
+            soundwaveContainer.style.display = 'none';
+          }
+          chatInput.placeholder = "Posez votre question ici...";
         }
-        chatInput.placeholder = "Posez votre question ici...";
+
+        micBtn?.addEventListener('click', function(e) {
+          e.preventDefault();
+          if (isRecording) {
+            try {
+              recognition.stop();
+            } catch (err) {
+              console.error("Speech recognition stop error:", err);
+              stopRecording();
+            }
+          } else {
+            try {
+              if (micBtn) {
+                micBtn.innerHTML = '<i class="bi bi-mic-fill text-warning"></i>';
+                micBtn.title = "Demande d'autorisation...";
+              }
+              if (micTimeout) clearTimeout(micTimeout);
+              micTimeout = setTimeout(() => {
+                if (!isRecording) {
+                  console.warn("Speech recognition authorization timeout.");
+                  stopRecording();
+                  appendMessage('system', "⚠️ Le microphone semble bloqué ou non autorisé. Si vous utilisez l'application de bureau, ouvrez plutôt un navigateur web (Chrome/Edge) à l'adresse " + window.location.origin + "/assistant pour utiliser le micro.");
+                }
+              }, 3500);
+              recognition.start();
+            } catch (err) {
+              console.error("Speech recognition start error:", err);
+              if (micTimeout) clearTimeout(micTimeout);
+              stopRecording();
+              appendMessage('system', "⚠️ Erreur d'activation du microphone : " + err.message + ". Assurez-vous que le microphone est branché et autorisé par votre navigateur.");
+            }
+          }
+        });
+      } else {
+        registerInsecureMicFallback();
       }
+    } catch (err) {
+      console.error("Speech recognition initialization failed:", err);
+      registerInsecureMicFallback();
+    }
 
-      micBtn?.addEventListener('click', function(e) {
-        e.preventDefault();
-        if (isRecording) {
-          recognition.stop();
-        } else {
-          recognition.start();
-        }
-      });
-    } else {
-      if (micBtn) micBtn.style.display = 'none';
+    function registerInsecureMicFallback() {
+      if (micBtn) {
+        micBtn.title = "Microphone non disponible (Cliquer pour de l'aide)";
+        micBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          appendMessage('system', "⚠️ Le microphone (reconnaissance vocale) n'est pas disponible sur cette adresse ou dans ce navigateur.\n\n" +
+            "Pour des raisons de sécurité des navigateurs (Web Speech API), l'utilisation du micro requiert d'ouvrir l'application dans Google Chrome ou Microsoft Edge à une adresse sécurisée :\n" +
+            "👉 **http://localhost:5000/assistant** ou **http://127.0.0.1:5000/assistant**");
+        });
+      }
     }
   });
 </script>

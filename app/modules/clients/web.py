@@ -28,25 +28,15 @@ router = APIRouter(prefix="/contacts/clients", tags=["clients"])
 
 
 @router.get("", name="clients_list")
-async def list_clients_page(
-    request: Request, db: AsyncSession = Depends(get_async_session)
-):
+async def list_clients_page(request: Request):
     denied = require_permission(request, "contacts.read")
     if denied:
         return denied
-
-    search = request.query_params.get("q", "").strip()
-    page = int(request.query_params.get("page", 1))
-
-    service = ClientService(db)
-    clients, total = await service.list_clients(search=search, page=page, page_size=20)
-
-    return templates.TemplateResponse(
-        "contacts.html",
-        template_context(
-            request, contacts=clients, total=total, search=search, kind="client"
-        ),
-    )
+    # Rediriger vers la page officielle filtrée sur type=client
+    from urllib.parse import urlencode
+    query = dict(request.query_params)
+    query["type"] = "client"
+    return RedirectResponse(f"/contacts?{urlencode(query)}", status_code=303)
 
 
 # ── CREATE ────────────────────────────────────────────────────────────────────

@@ -351,9 +351,10 @@ class DatabaseManager:
     def get_write_db(self) -> CompatConnection:
         state = get_request_state()
         if state is not None and getattr(state, "db", None) is not None:
-            return state.db
+            if not getattr(state.db, "_closed", False):
+                return state.db
         state = ensure_request_state()
-        if getattr(state, "db", None) is None:
+        if getattr(state, "db", None) is None or getattr(state.db, "_closed", False):
             state.db = self.connect_database(settings.database_url)
         return state.db
 
@@ -365,9 +366,10 @@ class DatabaseManager:
             return self.get_write_db()
         state = get_request_state()
         if state is not None and getattr(state, "read_db", None) is not None:
-            return state.read_db
+            if not getattr(state.read_db, "_closed", False):
+                return state.read_db
         state = ensure_request_state()
-        if getattr(state, "read_db", None) is None:
+        if getattr(state, "read_db", None) is None or getattr(state.read_db, "_closed", False):
             state.read_db = self.connect_database(read_url)
         return state.read_db
 

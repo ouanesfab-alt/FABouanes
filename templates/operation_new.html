@@ -832,14 +832,13 @@ async function handlePrefillAndCache() {
   
   // 3. Prefill date
   const dateParam = urlParams.get('date');
-  if (dateParam) {
-    const purchaseDate = document.getElementById('purchaseDate');
-    if (purchaseDate) purchaseDate.value = dateParam;
-    const saleDate = document.getElementById('saleDate');
-    if (saleDate) saleDate.value = dateParam;
-    const paymentDate = document.getElementById('paymentDate');
-    if (paymentDate) paymentDate.value = dateParam;
-  }
+  const todayStr = new Date().toISOString().split('T')[0];
+  const purchaseDate = document.getElementById('purchaseDate');
+  if (purchaseDate) purchaseDate.value = dateParam || todayStr;
+  const saleDate = document.getElementById('saleDate');
+  if (saleDate) saleDate.value = dateParam || todayStr;
+  const paymentDate = document.getElementById('paymentDate');
+  if (paymentDate) paymentDate.value = dateParam || todayStr;
   
   // 4. Prefill amount
   const amountParam = urlParams.get('amount');

@@ -8,7 +8,8 @@ from app.core.security import encrypt_val
 from app.modules.assistant.service import (
     get_gemini_api_key,
     get_encryption_key,
-    run_assistant_agent_generator
+    run_assistant_agent_generator,
+    start_ollama
 )
 
 router = APIRouter()
@@ -88,6 +89,22 @@ async def assistant_chat(request: Request):
                     yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'error', 'error': str(e)}, ensure_ascii=False)}\n\n"
+            finally:
+                from app.core.request_state import get_request_state
+                state = get_request_state()
+                if state is not None:
+                    db = getattr(state, "db", None)
+                    if db is not None:
+                        try:
+                            db.close()
+                        except Exception:
+                            pass
+                    read_db = getattr(state, "read_db", None)
+                    if read_db is not None:
+                        try:
+                            read_db.close()
+                        except Exception:
+                            pass
                 
         return StreamingResponse(chat_event_generator(), media_type="text/event-stream")
         
@@ -121,6 +138,11 @@ async def save_settings(request: Request):
             
     if selected_model:
         db_manager.set_setting("gemini_model", selected_model)
+        if selected_model.lower() in ("local", "ollama"):
+            try:
+                start_ollama()
+            except Exception:
+                pass
         
     is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest" or \
               "application/json" in request.headers.get("accept", "") or \
