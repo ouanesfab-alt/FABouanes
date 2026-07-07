@@ -606,7 +606,8 @@ def dry_run_sql(query: str) -> str:
                 # Récupérer les soldes clients avant
                 client_balances_before = {}
                 if "clients" in table_names:
-                    rows = conn.execute(sqlglot.parse("SELECT id, name, debt FROM clients", read="postgres")[0].sql(dialect="postgres")).fetchall()
+                    from sqlalchemy import text
+                    rows = conn.execute(text("SELECT id, name, current_balance FROM clients_with_stats")).fetchall()
                     client_balances_before = {r[0]: (r[1], r[2]) for r in rows}
                     
                 cur = conn.execute(query)
@@ -625,7 +626,8 @@ def dry_run_sql(query: str) -> str:
                 # Récupérer les soldes clients après
                 client_balances_after = {}
                 if "clients" in table_names:
-                    rows = conn.execute(sqlglot.parse("SELECT id, name, debt FROM clients", read="postgres")[0].sql(dialect="postgres")).fetchall()
+                    from sqlalchemy import text
+                    rows = conn.execute(text("SELECT id, name, current_balance FROM clients_with_stats")).fetchall()
                     client_balances_after = {r[0]: r[2] for r in rows}
                 
                 res_info = {
@@ -2660,7 +2662,6 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
 
 async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key: str, confirmed_query: str | None = None):
     """Orchestre la boucle d'agent sous forme de générateur asynchrone d'événements."""
-    had_confirmed_query = confirmed_query is not None
     yield {"type": "status", "message": "Sabrina analyse votre demande..."}
     
     # 1. Compression glissante de la mémoire
@@ -2741,7 +2742,7 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
                 "parts": [{"functionCall": {"name": func_name, "args": func_args}}]
             })
             messages.append({
-                "role": "user",
+                "role": "function",
                 "parts": [{
                     "functionResponse": {
                         "name": func_name,
@@ -2819,8 +2820,7 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
             # Fallback Ollama
             ollama_ok = await is_ollama_available()
             if ollama_ok:
-                if not had_confirmed_query:
-                    yield {"type": "status", "message": "Modèles Gemini indisponibles. Bascule automatique sur l'IA locale..."}
+                yield {"type": "status", "message": "Modèles Gemini indisponibles. Bascule automatique sur l'IA locale..."}
                 async for event in run_ollama_agent_generator(contents, confirmed_query):
                     yield event
                 return
@@ -2932,7 +2932,7 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
             })
             
         contents.append({
-            "role": "user",
+            "role": "function",
             "parts": function_responses
         })
         

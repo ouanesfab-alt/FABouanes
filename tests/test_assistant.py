@@ -58,7 +58,7 @@ async def test_run_assistant_agent_no_tool_call():
 
 def test_dry_run_sql_preview():
     # Verify that dry run for modification queries compiles and displays simulation info
-    res = dry_run_sql("UPDATE clients SET debt = 100 WHERE id = 99999")
+    res = dry_run_sql("UPDATE clients SET notes = 'test' WHERE id = 99999")
     assert "Simulation" in res or "dry-run" in res
 
 @pytest.mark.asyncio
