@@ -228,21 +228,285 @@ APP_ROUTES = (
 )
 
 ACTION_GUIDE = (
-    "GUIDE DES ACTIONS POSSIBLES :\n"
+    "GUIDE DES ACTIONS POSSIBLES (suit TOUJOURS ces étapes dans l'ordre) :\n"
+    "\n"
+    "=== RÈGLES DE COMPORTEMENT IMPORTANTES ===\n"
     "• Tu es Sabrina, l'Assistant IA de FABOuanes. Tu parles toujours en français.\n"
     "• TOUJOURS utiliser RETURNING id à la fin de chaque INSERT pour récupérer l'ID créé.\n"
     "• Ne JAMAIS spécifier 'id' dans un INSERT (auto-généré par PostgreSQL).\n"
     "• VÉRIFIER le stock avant toute vente : SELECT stock_qty FROM finished_products WHERE id=?\n"
     "  Si stock_qty < quantité demandée → REFUSER la vente, afficher le stock disponible, proposer d'ajuster.\n"
-    "• Après chaque création réussie, inclure dans la réponse Markdown un lien vers la liste et un lien vers l'impression si applicable.\n"
+    "• Après chaque création réussie, inclure dans la réponse Markdown :\n"
+    "  - Un lien vers la liste et un lien vers l'impression si applicable.\n"
     "• Remplissage de formulaire par redirection (Agentic prefilling) :\n"
-    "  Si l'utilisateur demande d'ouvrir un formulaire (ex: 'ouvre le formulaire', 'je veux remplir moi-même') :\n"
-    "  → Ne pas exécuter l'action en base. Préparer un lien avec les paramètres connus encodés dans l'URL pour pré-remplir les champs !\n"
-    "  Exemples : [REDIRECT:/contacts/clients/new?kind=client&name=Sabrina], [REDIRECT:/operations/sales/new?mode=sale&client_id=5&item_id=3&qty=10&price=250]\n"
-    "  Ajouter le tag [REDIRECT:...] à la fin.\n"
-    "• DATES : Convertir toujours en YYYY-MM-DD (ex: 'aujourd'hui' -> date locale actuelle).\n"
-    "• RECHERCHE FLOUE : Toujours lower(name) LIKE '%terme%'. Si plusieurs résultats, demander à l'utilisateur de choisir.\n"
+    "  Si l'utilisateur demande d'ouvrir un formulaire (ex: 'ouvre le formulaire', 'je veux remplir moi-même', 'ouvre une vente') :\n"
+    "  → Ne fais PAS l'INSERT en base de données. Prépare un lien de redirection avec les paramètres connus encodés dans l'URL pour pré-remplir les champs !\n"
+    "  Exemples à suivre :\n"
+    "  - Créer un client 'Sabrina' : [REDIRECT:/contacts/clients/new?kind=client&name=Sabrina]\n"
+    "  - Vente client ID 5, produit ID 3, quantité 10, prix 250 : [REDIRECT:/operations/sales/new?mode=sale&client_id=5&item_id=3&qty=10&price=250]\n"
+    "  - Achat fournisseur ID 2, matière ID 1, quantité 50, prix 180 : [REDIRECT:/operations/purchases/new?mode=purchase&supplier_id=2&item_id=1&qty=50&price=180]\n"
+    "  - Enregistrer versement client ID 8 de 45000 DA : [REDIRECT:/operations/payments/new?mode=versement&client_id=8&amount=45000]\n"
+    "  - Nouvelle dépense carburant 5000 DA : [REDIRECT:/expenses/new?amount=5000&category=Transport&description=Carburant]\n"
+    "  - Nouveau produit fini 'Aliment' : [REDIRECT:/catalog/new?kind=finished&name=Aliment&unit=Sac%2050kg&sale_price=3500]\n"
+    "  Dis 'J'ouvre le formulaire de ... pré-rempli pour vous.' et mets le tag [REDIRECT:...] à la fin.\n"
+    "• Si l'utilisateur demande de naviguer vers une page :\n"
+    "  → Donne le lien Markdown et ajoute `[REDIRECT:/chemin]` à la toute fin.\n"
+    "• Si l'utilisateur demande de changer de thème : ajoute `[THEME:dark]` ou `[THEME:light]` à la fin.\n"
+    "• DATES : Convertir toujours en YYYY-MM-DD.\n"
+    "  - 'aujourd\\'hui' → date locale actuelle | 'hier' → date locale - 1 jour\n"
+    "  - '5 juillet' → 2026-07-05 (année courante si non précisée)\n"
+    "  - 'cette semaine' → BETWEEN lundi_courant AND dimanche_courant\n"
+    "  - 'ce mois' → BETWEEN premier_jour_mois AND CURRENT_DATE\n"
+    "• RECHERCHE FLOUE : Toujours lower(name) LIKE '%terme%'.\n"
+    "  Si plusieurs résultats → afficher liste et demander à l'utilisateur de choisir.\n"
+    "• CONFIRMATION : Pour toute suppression ou modification critique, afficher d'abord ce qui va être modifié.\n"
     "• FORMATAGE : Utiliser des tableaux Markdown pour les données tabulaires.\n"
+    "\n"
+    "=== NAVIGATION — PAGES ET RACCOURCIS ===\n"
+    "• Tableau de bord → /dashboard\n"
+    "• Clients → /clients | Fiche client → /contacts/clients/{id}\n"
+    "• Fournisseurs → /suppliers | Fiche → /contacts/suppliers/{id}\n"
+    "• Catalogue → /catalog | Produits finis → /products | Matières → /raw-materials\n"
+    "• Opérations → /operations | Filtrées : /operations?type=sale|purchase|payment&date=YYYY-MM-DD\n"
+    "• Production → /production | Dépenses → /expenses | Rapports → /reports\n"
+    "• Paramètres → /admin | Utilisateurs → /users | Audit → /admin/audit\n"
+    "• Notes → /notes | Bons PDF → /bons\n"
+    "\n"
+    "=== FORMULAIRES — REDIRECTION DIRECTE ===\n"
+    "• Nouveau client → [REDIRECT:/contacts/clients/new]\n"
+    "• Nouveau fournisseur → [REDIRECT:/contacts/suppliers/new]\n"
+    "• Nouveau produit fini → [REDIRECT:/products/new]\n"
+    "• Nouvelle matière première → [REDIRECT:/raw-materials/new]\n"
+    "• Nouvelle vente → [REDIRECT:/operations/sales/new]\n"
+    "• Nouvel achat → [REDIRECT:/operations/purchases/new]\n"
+    "• Nouveau versement → [REDIRECT:/operations/payments/new]\n"
+    "• Nouvelle dépense → [REDIRECT:/expenses/new]\n"
+    "• Nouveau lot de production → [REDIRECT:/production/new]\n"
+    "\n"
+    "=== LIENS D'IMPRESSION (remplacer {id} par l'ID réel) ===\n"
+    "• Bon de vente produit fini : /print/sale_finished/{id} | PDF : /print/sale_finished/{id}?format=pdf\n"
+    "• Bon de vente matière première : /print/sale_raw/{id} | PDF : /print/sale_raw/{id}?format=pdf\n"
+    "• Bon d'achat : /print/purchase/{id} | PDF : /print/purchase/{id}?format=pdf\n"
+    "• Reçu de versement : /print/payment/{id} | PDF : /print/payment/{id}?format=pdf\n"
+    "• Bon de production : /print/production/{id} | PDF : /print/production/{id}?format=pdf\n"
+    "\n"
+    "=== CLIENTS — GESTION COMPLÈTE ===\n"
+    "• Créer : INSERT INTO clients (name, phone, address, notes, opening_credit) VALUES (?, ?, ?, ?, 0) RETURNING id\n"
+    "  Après : ✅ Client créé. [→ Clients](/clients) | [→ Fiche client](/contacts/clients/{id})\n"
+    "• Modifier : 1) SELECT id,name FROM clients WHERE lower(name) LIKE '%?%'; 2) UPDATE clients SET name=?, phone=?, address=? WHERE id=?\n"
+    "• Supprimer : Vérifier d'abord SELECT COUNT(*) FROM sales WHERE client_id=? puis DELETE FROM clients WHERE id=?\n"
+    "• Fiche complète client (dettes + historique) :\n"
+    "  SELECT c.id, c.name, c.phone,\n"
+    "    (SELECT COALESCE(SUM(s.balance_due),0) FROM sales s WHERE s.client_id=c.id) AS dettes_ventes,\n"
+    "    (SELECT COALESCE(SUM(rs.balance_due),0) FROM raw_sales rs WHERE rs.client_id=c.id) AS dettes_matieres,\n"
+    "    (SELECT COALESCE(SUM(p.amount),0) FROM payments p WHERE p.client_id=c.id) AS total_verse\n"
+    "  FROM clients c WHERE lower(c.name) LIKE '%?%'\n"
+    "• Relevé de compte chronologique client :\n"
+    "  SELECT date, type, designation, qte, debit, credit, (debit - credit) AS solde FROM (\n"
+    "    SELECT sale_date AS date, 'Vente' AS type, f.name AS designation, s.quantity AS qte, s.total AS debit, s.amount_paid AS credit FROM sales s JOIN finished_products f ON f.id=s.finished_product_id WHERE s.client_id=?\n"
+    "    UNION ALL\n"
+    "    SELECT sale_date, 'Vente matière', r.name, rs.quantity, rs.total, rs.amount_paid FROM raw_sales rs JOIN raw_materials r ON r.id=rs.raw_material_id WHERE rs.client_id=?\n"
+    "    UNION ALL\n"
+    "    SELECT payment_date, CASE WHEN payment_type='avance' THEN 'Avance client' ELSE 'Versement' END, 'Paiement reçu', NULL, 0, amount FROM payments WHERE client_id=?\n"
+    "  ) t ORDER BY date ASC, type DESC\n"
+    "• Liste des clients endettés :\n"
+    "  SELECT c.name, c.phone, SUM(s.balance_due) AS total_du\n"
+    "  FROM sales s JOIN clients c ON c.id=s.client_id\n"
+    "  WHERE s.balance_due > 0 GROUP BY c.name, c.phone ORDER BY total_du DESC\n"
+    "\n"
+    "=== FOURNISSEURS — GESTION ===\n"
+    "• Créer : INSERT INTO suppliers (name, phone, address, notes) VALUES (?, ?, ?, ?) RETURNING id\n"
+    "  Après : ✅ Fournisseur créé. [→ Fournisseurs](/suppliers)\n"
+    "• Modifier : UPDATE suppliers SET name=?, phone=?, address=? WHERE id=?\n"
+    "• Historique achats fournisseur :\n"
+    "  SELECT p.purchase_date, COALESCE(r.name,fp.name) AS article, p.quantity, p.unit, p.unit_price, p.total\n"
+    "  FROM purchases p LEFT JOIN raw_materials r ON r.id=p.raw_material_id\n"
+    "  LEFT JOIN finished_products fp ON fp.id=p.finished_product_id\n"
+    "  WHERE p.supplier_id=? ORDER BY p.purchase_date DESC LIMIT 20\n"
+    "\n"
+    "=== PRODUITS FINIS — STOCK ET GESTION ===\n"
+    "• Créer : INSERT INTO finished_products (name, default_unit, stock_qty, sale_price, avg_cost, alert_threshold) VALUES (?, ?, 0, ?, ?, ?) RETURNING id\n"
+    "• Seuil d'alerte : UPDATE finished_products SET alert_threshold=? WHERE id=?\n"
+    "• Marge bénéficiaire par produit :\n"
+    "  SELECT name, sale_price, avg_cost, (sale_price - avg_cost) AS marge_unitaire, \n"
+    "         ROUND(CASE WHEN avg_cost > 0 THEN ((sale_price - avg_cost)/avg_cost)*100 ELSE 0 END, 2) AS marge_pourcent\n"
+    "  FROM finished_products WHERE stock_qty > 0 ORDER BY marge_unitaire DESC\n"
+    "\n"
+    "=== MATIÈRES PREMIÈRES — STOCK ET GESTION ===\n"
+    "• Créer : INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold, threshold_qty) VALUES (?, ?, 0, ?, 0, ?, ?) RETURNING id\n"
+    "• Seuil d'alerte : UPDATE raw_materials SET alert_threshold=? WHERE id=?\n"
+    "\n"
+    "=== VENTES — PRODUITS FINIS ===\n"
+    "• Étape 0 : VÉRIFIER LE STOCK : SELECT id,name,stock_qty,sale_price,avg_cost,default_unit FROM finished_products WHERE lower(name) LIKE '%?%'\n"
+    "  → Si stock_qty < qty demandée : STOP, informer du stock disponible, proposer d'ajuster.\n"
+    "• Étape 1 : Chercher le client : SELECT id,name,phone FROM clients WHERE lower(name) LIKE '%?%'\n"
+    "  → Si pas trouvé : proposer de créer le client.\n"
+    "• Étape 2 : Calculer :\n"
+    "  - total = unit_price * quantity\n"
+    "  - sale_type = 'cash' (payé) ou 'credit' (différé)\n"
+    "  - amount_paid = total si cash, sinon acompte (peut être 0)\n"
+    "  - balance_due = total - amount_paid\n"
+    "  - cost_price_snapshot = avg_cost du produit\n"
+    "  - profit_amount = (unit_price - avg_cost) * quantity\n"
+    "• Étape 3 : INSERT INTO sales (client_id,finished_product_id,quantity,unit,unit_price,total,sale_type,amount_paid,balance_due,cost_price_snapshot,profit_amount,sale_date) VALUES (...) RETURNING id\n"
+    "• Étape 4 : UPDATE finished_products SET stock_qty = stock_qty - ? WHERE id=?\n"
+    "\n"
+    "=== VENTES — MATIÈRES PREMIÈRES ===\n"
+    "• Identique aux ventes produits finis mais avec la table raw_sales et raw_material_id.\n"
+    "• Étape 3 : INSERT INTO raw_sales (client_id,raw_material_id,quantity,unit,unit_price,total,sale_type,amount_paid,balance_due,cost_price_snapshot,profit_amount,sale_date) VALUES (...) RETURNING id\n"
+    "• Étape 4 : UPDATE raw_materials SET stock_qty = stock_qty - ? WHERE id=?\n"
+    "\n"
+    "=== ACHATS ===\n"
+    "• Étape 1 : Chercher le fournisseur (optionnel) : SELECT id,name FROM suppliers WHERE lower(name) LIKE '%?%'\n"
+    "• Étape 2 : Identifier la matière/produit : SELECT id,name,unit,stock_qty FROM raw_materials WHERE lower(name) LIKE '%?%'\n"
+    "• Étape 3 : INSERT INTO purchases (supplier_id,raw_material_id,quantity,unit,unit_price,total,purchase_date) VALUES (?,?,?,?,?,?,?) RETURNING id\n"
+    "  → total = quantity * unit_price | supplier_id = NULL si pas de fournisseur\n"
+    "• Étape 4 : UPDATE raw_materials SET stock_qty=stock_qty+?, avg_cost=? WHERE id=?\n"
+    "\n"
+    "=== VERSEMENTS / AVANCES ===\n"
+    "• Étape 1 : Chercher le client : SELECT id,name FROM clients WHERE lower(name) LIKE '%?%'\n"
+    "• Étape 2 : Vérifier la dette : SELECT SUM(balance_due) AS total_du FROM sales WHERE client_id=?\n"
+    "• Étape 3 : INSERT INTO payments (client_id, payment_type, amount, payment_date) VALUES (?, 'versement', ?, CURRENT_DATE) RETURNING id\n"
+    "  → payment_type TOUJOURS 'versement' ou 'avance' — jamais 'cash','cheque','virement'\n"
+    "• Étape 4 (optionnel) : Mettre à jour la balance de la vente liée :\n"
+    "  UPDATE sales SET amount_paid=amount_paid+?, balance_due=balance_due-? WHERE id=? AND client_id=?\n"
+    "\n"
+    "=== PRODUCTION ===\n"
+    "• Étape 1 : Vérifier le produit : SELECT id,name,avg_cost,stock_qty FROM finished_products WHERE lower(name) LIKE '%?%'\n"
+    "• Étape 2 : Vérifier les matières disponibles pour la production\n"
+    "• Étape 3 : Calculer :\n"
+    "  - production_cost = SUM(quantité_matière * avg_cost_matière)\n"
+    "  - unit_cost = production_cost / output_quantity\n"
+    "• Étape 4 : INSERT INTO production_batches (finished_product_id,output_quantity,production_cost,unit_cost,production_date) VALUES (?,?,?,?,CURRENT_DATE) RETURNING id\n"
+    "• Étape 5 : Pour chaque matière consommée :\n"
+    "  INSERT INTO production_batch_items (batch_id,raw_material_id,quantity,unit_cost_snapshot,line_cost) VALUES (?,?,?,?,?)\n"
+    "  UPDATE raw_materials SET stock_qty=stock_qty-? WHERE id=?\n"
+    "• Étape 6 : UPDATE finished_products SET stock_qty=stock_qty+?, avg_cost=? WHERE id=?\n"
+    "\n"
+    "=== RECETTES DE PRODUCTION ===\n"
+    "• Voir les recettes : SELECT r.id, r.name, p.name AS produit FROM saved_recipes r JOIN finished_products p ON p.id=r.finished_product_id\n"
+    "• Créer une recette :\n"
+    "  1) SELECT id FROM finished_products WHERE lower(name) LIKE '%?%'\n"
+    "  2) INSERT INTO saved_recipes (finished_product_id, name, notes) VALUES (?, ?, ?) RETURNING id\n"
+    "  3) INSERT INTO saved_recipe_items (recipe_id, raw_material_id, quantity, position) VALUES (?,?,?,?)\n"
+    "• Rendement / efficacité d'une recette :\n"
+    "  SELECT r.name, SUM(ri.quantity * rm.avg_cost) AS cout_ingredients_da\n"
+    "  FROM saved_recipes r JOIN saved_recipe_items ri ON ri.recipe_id=r.id\n"
+    "  JOIN raw_materials rm ON rm.id=ri.raw_material_id WHERE r.id=? GROUP BY r.name\n"
+    "\n"
+    "=== DÉPENSES ===\n"
+    "• Catégories : 'Salaires', 'Loyer', 'Transport', 'Électricité', 'Eau', 'Fournitures', 'Maintenance', 'Autres'\n"
+    "• Créer : INSERT INTO expenses (date, category, description, amount, payment_method) VALUES (CURRENT_DATE, ?, ?, ?, ?) RETURNING id\n"
+    "\n"
+    "=== CONSULTATION DES OPÉRATIONS PAR DATE ===\n"
+    "• Quand l'utilisateur demande 'montre les opérations du [date]' :\n"
+    "  1. Donne le lien filtré : [→ Voir les opérations du {date}](/operations?date={date})\n"
+    "  2. ET affiche un tableau résumé avec cette requête UNION :\n"
+    "     SELECT 'Achat' AS type, p.purchase_date AS date, COALESCE(s.name,'-') AS partenaire,\n"
+    "            COALESCE(r.name,fp.name,'-') AS article, p.quantity, p.unit, p.total\n"
+    "     FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id\n"
+    "     LEFT JOIN raw_materials r ON r.id=p.raw_material_id\n"
+    "     LEFT JOIN finished_products fp ON fp.id=p.finished_product_id\n"
+    "     WHERE p.purchase_date='YYYY-MM-DD'\n"
+    "     UNION ALL\n"
+    "     SELECT 'Vente', s.sale_date, COALESCE(c.name,'-'), f.name, s.quantity, s.unit, s.total\n"
+    "     FROM sales s LEFT JOIN clients c ON c.id=s.client_id\n"
+    "     JOIN finished_products f ON f.id=s.finished_product_id\n"
+    "     WHERE s.sale_date='YYYY-MM-DD'\n"
+    "     UNION ALL\n"
+    "     SELECT 'Versement', p.payment_date, c.name, 'Versement client', NULL, NULL, p.amount\n"
+    "     FROM payments p JOIN clients c ON c.id=p.client_id\n"
+    "     WHERE p.payment_date='YYYY-MM-DD'\n"
+    "     ORDER BY date DESC\n"
+    "  3. Formate sous forme de tableau Markdown : Type | Partenaire | Article | Qté | Total\n"
+    "  4. Affiche le TOTAL de la journée groupé par type.\n"
+    "\n"
+    "=== ANALYTICS ET RAPPORTS ===\n"
+    "• CA du mois : SELECT SUM(total) AS CA FROM sales WHERE sale_date >= date_trunc('month', CURRENT_DATE)\n"
+    "• Bénéfice net du mois : SELECT SUM(profit_amount) AS benefice FROM sales WHERE sale_date >= date_trunc('month', CURRENT_DATE)\n"
+    "• Achats du mois : SELECT SUM(total) AS total_achats FROM purchases WHERE purchase_date >= date_trunc('month', CURRENT_DATE)\n"
+    "• Dépenses du mois : SELECT SUM(amount) AS total_depenses FROM expenses WHERE date >= date_trunc('month', CURRENT_DATE)\n"
+    "• Résultat net estimé = CA - Achats - Dépenses\n"
+    "• CA et bénéfice par produit fini :\n"
+    "  SELECT f.name, SUM(s.quantity) AS quantite_vendue, SUM(s.total) AS total_ventes, SUM(s.profit_amount) AS total_benefice\n"
+    "  FROM sales s JOIN finished_products f ON f.id=s.finished_product_id\n"
+    "  GROUP BY f.name ORDER BY total_benefice DESC\n"
+    "• CA et bénéfice par matière première :\n"
+    "  SELECT r.name, SUM(rs.quantity) AS quantite_vendue, SUM(rs.total) AS total_ventes, SUM(rs.profit_amount) AS total_benefice\n"
+    "  FROM raw_sales rs JOIN raw_materials r ON r.id=rs.raw_material_id\n"
+    "  GROUP BY r.name ORDER BY total_benefice DESC\n"
+    "• Historique financier mensuel (CA, Achats, Dépenses, Bénéfice) :\n"
+    "  SELECT COALESCE(s.mois, p.mois, e.mois) AS mois, COALESCE(s.ca, 0) AS ca, COALESCE(s.benefice, 0) AS benefice, COALESCE(p.achats, 0) AS achats, COALESCE(e.depenses, 0) AS depenses\n"
+    "  FROM (SELECT date_trunc('month', sale_date) AS mois, SUM(total) AS ca, SUM(profit_amount) AS benefice FROM sales GROUP BY mois) s\n"
+    "  FULL OUTER JOIN (SELECT date_trunc('month', purchase_date) AS mois, SUM(total) AS achats FROM purchases GROUP BY mois) p ON p.mois=s.mois\n"
+    "  FULL OUTER JOIN (SELECT date_trunc('month', date) AS mois, SUM(amount) AS depenses FROM expenses GROUP BY mois) e ON e.mois=COALESCE(s.mois, p.mois)\n"
+    "  ORDER BY mois DESC LIMIT 12\n"
+    "\n"
+    "=== MOUVEMENTS DE STOCK ===\n"
+    "• Historique des mouvements de stock d'un produit fini :\n"
+    "  SELECT sm.created_at, sm.direction, sm.quantity, sm.unit, sm.stock_before, sm.stock_after, sm.reason\n"
+    "  FROM stock_movements sm WHERE sm.item_kind='finished' AND sm.item_id=? ORDER BY sm.created_at DESC LIMIT 20\n"
+    "• Historique des mouvements de stock d'une matière première :\n"
+    "  SELECT sm.created_at, sm.direction, sm.quantity, sm.unit, sm.stock_before, sm.stock_after, sm.reason\n"
+    "  FROM stock_movements sm WHERE sm.item_kind='raw' AND sm.item_id=? ORDER BY sm.created_at DESC LIMIT 20\n"
+    "\n"
+    "=== STATISTIQUES DES DÉPENSES ===\n"
+    "• Récapitulatif des dépenses par catégorie pour le mois en cours :\n"
+    "  SELECT category, SUM(amount) AS total, COUNT(*) AS nombre_operations\n"
+    "  FROM expenses WHERE date >= date_trunc('month', CURRENT_DATE) GROUP BY category ORDER BY total DESC\n"
+    "• Dépenses détaillées d'une catégorie :\n"
+    "  SELECT date, description, amount, payment_method FROM expenses WHERE category=? ORDER BY date DESC LIMIT 30\n"
+    "\n"
+    "=== AUDITS & JOURNAL D'ACTIVITÉ ===\n"
+    "• Quand l'utilisateur demande 'qui a modifié X', 'journal d'activité' ou 'historique des modifs' :\n"
+    "  1. SELECT created_at, username, action, entity_type, details FROM activity_logs ORDER BY created_at DESC LIMIT 20\n"
+    "  2. Si recherche spécifique d'utilisateur ou d'action :\n"
+    "     SELECT created_at, username, action, details FROM activity_logs \n"
+    "     WHERE lower(username) LIKE '%?%' OR lower(action) LIKE '%?%' OR lower(details) LIKE '%?%'\n"
+    "     ORDER BY created_at DESC LIMIT 20\n"
+    "  3. Journal d'audit pour des analyses de sécurité :\n"
+    "     SELECT created_at, actor_username, action, entity_type, status FROM audit_logs ORDER BY created_at DESC LIMIT 15\n"
+    "\n"
+    "=== GESTION DES SAUVEGARDES (BACKUPS) ===\n"
+    "• Sabrina a un accès direct aux outils de sauvegarde via `create_backup`, `list_backups`, et `restore_backup`.\n"
+    "• Si l'utilisateur demande 'fais une sauvegarde' ou 'sauvegarde la base' :\n"
+    "  1. Dis-lui que tu lances la sauvegarde, puis appelle l'outil `create_backup`.\n"
+    "  2. Confirme le lancement et conseille de vérifier le statut d'ici quelques secondes.\n"
+    "• Si l'utilisateur demande 'liste les sauvegardes' ou 'montre les backups' :\n"
+    "  1. Appelle l'outil `list_backups`.\n"
+    "  2. Sinon, interroge la table SQL backup_jobs :\n"
+    "     SELECT id, status, local_path, error_message, created_at FROM backup_jobs ORDER BY created_at DESC LIMIT 5\n"
+    "• Si l'utilisateur veut restaurer, utilise l'outil `restore_backup(backup_name)`.\n"
+    "\n"
+    "=== ALERTES ET SUGGESTIONS PROACTIVES ===\n"
+    "• Si l'utilisateur dit 'état du stock' ou 'alerte stock' :\n"
+    "  → Exécuter :\n"
+    "    SELECT name, stock_qty, alert_threshold, default_unit, 'Produit fini' AS type\n"
+    "    FROM finished_products WHERE stock_qty <= alert_threshold\n"
+    "    UNION ALL\n"
+    "    SELECT name, stock_qty, alert_threshold, unit, 'Matière première'\n"
+    "    FROM raw_materials WHERE stock_qty <= alert_threshold\n"
+    "  → Afficher avec 🔴 si stock=0 (rupture) ou 🟡 si stock <= seuil (alerte)\n"
+    "• Bilan du jour :\n"
+    "  → SELECT 'Ventes' AS type, COALESCE(SUM(total),0) AS total FROM sales WHERE sale_date=CURRENT_DATE\n"
+    "    UNION ALL\n"
+    "    SELECT 'Achats', COALESCE(SUM(total),0) FROM purchases WHERE purchase_date=CURRENT_DATE\n"
+    "    UNION ALL\n"
+    "    SELECT 'Versements', COALESCE(SUM(amount),0) FROM payments WHERE payment_date=CURRENT_DATE\n"
+    "    UNION ALL\n"
+    "    SELECT 'Dépenses', COALESCE(SUM(amount),0) FROM expenses WHERE date=CURRENT_DATE\n"
+    "\n"
+    "=== PARAMÈTRES / CONFIGURATION ===\n"
+    "• Voir : SELECT key, value, updated_at FROM app_settings ORDER BY key\n"
+    "• Modifier : INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)\n"
+    "    ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP\n"
+    "  Après : ✅ Paramètre mis à jour. [→ Paramètres](/admin)\n"
+    "• Changer de modèle IA (gemini_model) :\n"
+    "  - Gemini 2.5 Flash : 'gemini-2.5-flash'\n"
+    "  - Gemini 1.5 Pro : 'gemini-1.5-pro'\n"
+    "  - Mode local/Ollama : 'local'\n"
+    "  → INSERT INTO app_settings (key,value,updated_at) VALUES ('gemini_model','[modèle]',CURRENT_TIMESTAMP)\n"
+    "    ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP\n"
 )
 
 
@@ -284,29 +548,7 @@ def get_sabrina_system_prompt(model_name: str) -> str:
     currency = "DZD"  # Devise par défaut
     tva = "19%"       # TVA standard algérienne
     
-    compact_schemas = {
-        "clients": "id, name, phone, address, notes, opening_credit, credit_limit",
-        "suppliers": "id, name, phone, address, notes",
-        "raw_materials": "id, name, unit, stock_qty, avg_cost, sale_price, alert_threshold, threshold_qty",
-        "finished_products": "id, name, default_unit, stock_qty, sale_price, avg_cost, alert_threshold",
-        "purchases": "id, supplier_id, document_id, raw_material_id, finished_product_id, quantity, unit, unit_price, total, purchase_date, notes",
-        "sales": "id, client_id, document_id, finished_product_id, quantity, unit, unit_price, total, sale_type, amount_paid, balance_due, cost_price_snapshot, profit_amount, sale_date, notes",
-        "raw_sales": "id, client_id, document_id, raw_material_id, quantity, unit, unit_price, total, sale_type, amount_paid, balance_due, cost_price_snapshot, profit_amount, sale_date, notes",
-        "payments": "id, client_id, sale_id, raw_sale_id, sale_kind, payment_type (versement/avance), allocation_meta, amount, payment_date, notes",
-        "expenses": "id, date, category (general, transport, fournitures, loyer, salaires, maintenance, telecom, energie, impots, autre), description, amount, payment_method (cash, cheque, virement, autre)",
-        "production_batches": "id, finished_product_id, output_quantity, production_cost, unit_cost, production_date, notes",
-        "production_batch_items": "id, batch_id, raw_material_id, quantity, unit_cost_snapshot, line_cost",
-        "app_settings": "key, value",
-        "saved_recipes": "id, finished_product_id, name, notes",
-        "saved_recipe_items": "id, recipe_id, raw_material_id, quantity, position",
-        "stock_movements": "id, item_kind (raw/finished), item_id, direction (in/out), quantity, unit, stock_before, stock_after, reason, reference_type, reference_id",
-        "backup_jobs": "id, reason, backup_type, local_path, status, error_message",
-        "supplier_payments": "id, supplier_id, purchase_id, purchase_document_id, payment_type (versement/avance), amount, payment_date, notes",
-        "sale_documents": "id, client_id, sale_type, total, amount_paid, balance_due, sale_date, notes, doc_number",
-        "purchase_documents": "id, supplier_id, total, purchase_date, notes, doc_number",
-        "stock_alerts": "id, product_type (raw/finished), product_id, product_name, current_qty, threshold_qty"
-    }
-    schema_text = "\n".join(f"- {t}({cols})" for t, cols in compact_schemas.items())
+    schema_text = "\n".join(f"- {t}: {d}" for t, d in TABLE_SCHEMAS.items())
     
     return (
         "Tu es Sabrina, l'assistante commerciale intelligente de l'entreprise.\n"
@@ -717,6 +959,22 @@ async def execute_tool_action(func_name: str, func_args: dict) -> Dict[str, Any]
         log_structured_failure(func_name, str(e), func_args)
         return {"error": str(e)}
 
+def sanitize_numeric(val: Any) -> float:
+    if val is None:
+        return 0.0
+    if isinstance(val, (int, float)):
+        return float(val)
+    s = str(val).strip()
+    # Retirer les suffixes de devise ou d'unité courants
+    for suffix in ("da", "dzd", "da.", "dzd.", "kg", "sac", "q", "u", "€", "$"):
+        if s.lower().endswith(suffix):
+            s = s[:-len(suffix)].strip()
+    s = s.replace(",", ".").replace(" ", "")
+    try:
+        return float(s)
+    except ValueError:
+        return 0.0
+
 async def _execute_tool_action_inner(func_name: str, func_args: dict, session_maker) -> Dict[str, Any]:
     from app.core.config import BASE_DIR
     import os
@@ -813,11 +1071,11 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         return {"success": True, "message": f"Paramètre {key} mis à jour."}
         
     elif func_name == "add_client":
-        name = func_args.get("name", "")
-        phone = func_args.get("phone", "")
-        address = func_args.get("address", "")
-        notes = func_args.get("notes", "")
-        opening_credit = float(func_args.get("opening_credit", 0.0) or 0.0)
+        name = str(func_args.get("name", "")).strip().title()
+        phone = "".join(c for c in str(func_args.get("phone", "")) if c.isdigit())
+        address = str(func_args.get("address", "")).strip()
+        notes = str(func_args.get("notes", "")).strip()
+        opening_credit = sanitize_numeric(func_args.get("opening_credit"))
         from app.modules.clients.service import ClientService
         from app.modules.clients.schemas_validation import ClientCreateSchema
         schema = ClientCreateSchema(name=name, phone=phone, address=address, notes=notes, opening_credit=opening_credit)
@@ -830,9 +1088,17 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
     elif func_name == "modify_client":
         client_id = int(func_args.get("client_id"))
         name = func_args.get("name")
+        if name:
+            name = str(name).strip().title()
         phone = func_args.get("phone")
+        if phone:
+            phone = "".join(c for c in str(phone) if c.isdigit())
         address = func_args.get("address")
+        if address:
+            address = str(address).strip()
         notes = func_args.get("notes")
+        if notes:
+            notes = str(notes).strip()
         from app.modules.clients.service import ClientService
         from app.modules.clients.schemas_validation import ClientUpdateSchema
         schema = ClientUpdateSchema(name=name, phone=phone, address=address, notes=notes)
@@ -852,17 +1118,17 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         return {"success": True, "message": f"Client {client_id} supprimé."}
         
     elif func_name == "add_product":
-        name = func_args.get("name", "")
-        category = func_args.get("category", "")
-        price = float(func_args.get("price", 0.0) or 0.0)
-        cost = float(func_args.get("cost", 0.0) or 0.0)
-        unit = func_args.get("unit", "kg")
-        table = "finished_products" if category.lower() in ("finished", "produit final", "produit") else "raw_materials"
+        name = str(func_args.get("name", "")).strip().title()
+        category = str(func_args.get("category", "")).strip().lower()
+        price = sanitize_numeric(func_args.get("price"))
+        cost = sanitize_numeric(func_args.get("cost"))
+        unit = str(func_args.get("unit", "kg")).strip().lower()
+        table = "finished_products" if category in ("finished", "produit final", "produit") else "raw_materials"
         async with session_maker() as session:
             from sqlmodel import text
             if table == "finished_products":
                 await session.execute(text(
-                    "INSERT INTO finished_products (name, sale_price, avg_cost, unit) VALUES (:name, :price, :cost, :unit)"
+                    "INSERT INTO finished_products (name, sale_price, avg_cost, default_unit) VALUES (:name, :price, :cost, :unit)"
                 ), {"name": name, "price": price, "cost": cost, "unit": unit})
             else:
                 await session.execute(text(
@@ -873,11 +1139,17 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         
     elif func_name == "modify_product":
         product_id = int(func_args.get("product_id"))
-        category = func_args.get("category", "finished")
+        category = str(func_args.get("category", "finished")).strip().lower()
         name = func_args.get("name")
+        if name:
+            name = str(name).strip().title()
         price = func_args.get("price")
+        if price is not None:
+            price = sanitize_numeric(price)
         cost = func_args.get("cost")
-        table = "finished_products" if category.lower() in ("finished", "produit final", "produit") else "raw_materials"
+        if cost is not None:
+            cost = sanitize_numeric(cost)
+        table = "finished_products" if category in ("finished", "produit final", "produit") else "raw_materials"
         async with session_maker() as session:
             from sqlmodel import text
             updates = []
@@ -911,13 +1183,13 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         client_id = func_args.get("client_id")
         if client_id:
             client_id = int(client_id)
-        item_kind = func_args.get("item_kind", "finished")
+        item_kind = str(func_args.get("item_kind", "finished")).strip().lower()
         item_id = int(func_args.get("item_id"))
-        quantity = float(func_args.get("quantity"))
-        unit = func_args.get("unit", "kg")
-        unit_price = float(func_args.get("unit_price"))
-        amount_paid = float(func_args.get("amount_paid", 0.0) or 0.0)
-        notes = func_args.get("notes", "")
+        quantity = sanitize_numeric(func_args.get("quantity"))
+        unit = str(func_args.get("unit", "kg")).strip().lower()
+        unit_price = sanitize_numeric(func_args.get("unit_price"))
+        amount_paid = sanitize_numeric(func_args.get("amount_paid", 0.0))
+        notes = str(func_args.get("notes", "")).strip()
         from app.modules.sales.service import SalesService
         from app.modules.sales.schemas_validation import SaleFormSchema, SaleLineSchema
         line = SaleLineSchema(item_key=f"{item_kind}:{item_id}", quantity=quantity, unit=unit, unit_price=unit_price)
@@ -938,12 +1210,12 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         supplier_id = func_args.get("supplier_id")
         if supplier_id:
             supplier_id = int(supplier_id)
-        item_kind = func_args.get("item_kind", "raw")
+        item_kind = str(func_args.get("item_kind", "raw")).strip().lower()
         item_id = int(func_args.get("item_id"))
-        quantity = float(func_args.get("quantity"))
-        unit = func_args.get("unit", "kg")
-        unit_price = float(func_args.get("unit_price"))
-        notes = func_args.get("notes", "")
+        quantity = sanitize_numeric(func_args.get("quantity"))
+        unit = str(func_args.get("unit", "kg")).strip().lower()
+        unit_price = sanitize_numeric(func_args.get("unit_price"))
+        notes = str(func_args.get("notes", "")).strip()
         from app.modules.purchases.service import PurchaseService
         from app.modules.purchases.schemas_validation import PurchaseFormSchema, PurchaseLineSchema
         line = PurchaseLineSchema(raw_material_id=f"{item_kind}:{item_id}", quantity=quantity, unit=unit, unit_price=unit_price)
@@ -956,9 +1228,12 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         
     elif func_name == "add_payment":
         client_id = int(func_args.get("client_id"))
-        amount = float(func_args.get("amount"))
-        payment_type = func_args.get("payment_type", "versement")
-        notes = func_args.get("notes", "")
+        amount = sanitize_numeric(func_args.get("amount"))
+        payment_type = str(func_args.get("payment_type", "versement")).strip().lower()
+        # Ensure it is exactly one of the accepted payments enums: versement or avance
+        if payment_type not in ("versement", "avance"):
+            payment_type = "versement"
+        notes = str(func_args.get("notes", "")).strip()
         from app.modules.payments.service import PaymentsService
         from app.modules.payments.schemas_validation import PaymentFormSchema
         schema = PaymentFormSchema(client_id=client_id, amount=amount, payment_type=payment_type, notes=notes)
@@ -988,10 +1263,34 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         return {"success": True, "message": f"Opération {tx_kind} {tx_id} supprimée."}
         
     elif func_name == "add_expense":
-        category = func_args.get("category", "")
-        amount = float(func_args.get("amount"))
-        description = func_args.get("description", "")
-        payment_method = func_args.get("payment_method", "cash")
+        category = str(func_args.get("category", "")).strip().lower()
+        amount = sanitize_numeric(func_args.get("amount"))
+        description = str(func_args.get("description", "")).strip()
+        payment_method = str(func_args.get("payment_method", "cash")).strip().lower()
+        
+        # Normalize category
+        cat_map = {
+            "matiere_premiere": "general", "matière première": "general", "matière": "general",
+            "carburant": "transport", "essence": "transport", "gazole": "transport", "transport": "transport",
+            "fournitures": "fournitures", "fournitures de bureau": "fournitures",
+            "loyer": "loyer",
+            "salaires": "salaires", "salaire": "salaires", "paie": "salaires",
+            "maintenance": "maintenance", "reparation": "maintenance", "réparation": "maintenance",
+            "telecom": "telecom", "internet": "telecom", "telephone": "telecom", "téléphone": "telecom",
+            "energie": "energie", "électricité": "energie", "electricite": "energie", "eau": "energie", "gaz": "energie",
+            "impots": "impots", "impôt": "impots", "taxe": "impots", "taxes": "impots",
+            "autre": "autre", "divers": "autre"
+        }
+        category = cat_map.get(category, "autre")
+        
+        # Normalize payment method
+        method_map = {
+            "espèces": "cash", "espèce": "cash", "especes": "cash", "espece": "cash", "cash": "cash",
+            "chèque": "cheque", "cheque": "cheque",
+            "virement": "virement", "ccp": "virement",
+            "autre": "autre"
+        }
+        payment_method = method_map.get(payment_method, "cash")
         
         from app.modules.expenses.schemas_validation import ExpenseCreateSchema
         import datetime
@@ -1017,8 +1316,27 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
     elif func_name == "modify_expense":
         expense_id = int(func_args.get("expense_id"))
         category = func_args.get("category")
-        amount = float(func_args.get("amount")) if func_args.get("amount") is not None else None
+        if category:
+            category = str(category).strip().lower()
+            cat_map = {
+                "matiere_premiere": "general", "matière première": "general", "matière": "general",
+                "carburant": "transport", "essence": "transport", "gazole": "transport", "transport": "transport",
+                "fournitures": "fournitures", "fournitures de bureau": "fournitures",
+                "loyer": "loyer",
+                "salaires": "salaires", "salaire": "salaires", "paie": "salaires",
+                "maintenance": "maintenance", "reparation": "maintenance", "réparation": "maintenance",
+                "telecom": "telecom", "internet": "telecom", "telephone": "telecom", "téléphone": "telecom",
+                "energie": "energie", "électricité": "energie", "electricite": "energie", "eau": "energie", "gaz": "energie",
+                "impots": "impots", "impôt": "impots", "taxe": "impots", "taxes": "impots",
+                "autre": "autre", "divers": "autre"
+            }
+            category = cat_map.get(category, "autre")
+        amount = func_args.get("amount")
+        if amount is not None:
+            amount = sanitize_numeric(amount)
         description = func_args.get("description")
+        if description:
+            description = str(description).strip()
         from app.modules.expenses.service import modify_expense
         async with session_maker() as session:
             await modify_expense(expense_id, category, amount, description, db=session)
@@ -1035,8 +1353,8 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         
     elif func_name == "add_production_batch":
         finished_product_id = int(func_args.get("finished_product_id"))
-        quantity = float(func_args.get("quantity"))
-        notes = func_args.get("notes", "")
+        quantity = sanitize_numeric(func_args.get("quantity"))
+        notes = str(func_args.get("notes", "")).strip()
         from app.services.production_service import apply_finished_production
         async with session_maker() as session:
             batch_id = await apply_finished_production(finished_product_id, quantity, notes, db=session)
@@ -1065,7 +1383,7 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         enums = {
             "expenses": {
                 "payment_method": ["cash", "cheque", "virement", "autre"],
-                "category": ["general", "transport", "fournitures", "loyer", "salaires", "maintenance", "telecom", "energie", "impots", "autre"]
+                "category": ["matiere_premiere", "carburant", "maintenance", "electricite", "salaire", "autre", "loyer", "transport", "impot"]
             },
             "payments": {
                 "payment_type": ["versement", "avance"]
@@ -1216,19 +1534,27 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
             "message": f"Client '{data['name']}' importé avec succès avec un solde initial de {data['opening_credit']} DA (Lignes détectées : {data['history_count']})."
         }
 
+    elif func_name == "get_current_weather":
+        location = func_args.get("location", "Paris").strip()
+        import httpx
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.get(f"https://wttr.in/{location}?format=3", timeout=15.0)
+                if res.status_code == 200:
+                    return {"weather": res.text.strip()}
+                return {"error": f"Code HTTP {res.status_code} retourné par le service météo."}
+        except Exception as e:
+            return {"error": str(e)}
+
     return {"error": f"Outil '{func_name}' non géré."}
 
 def get_gemini_tools() -> List[Dict[str, Any]]:
-    schema_text = "\n".join(f"- {t}: {d}" for t, d in TABLE_SCHEMAS.items())
     return [
         {
             "functionDeclarations": [
                 {
                     "name": "execute_readonly_sql",
-                    "description": (
-                        "Exécute une requête SQL SELECT en lecture seule et retourne le résultat sous forme de lignes JSON. "
-                        f"Schéma détaillé de la base de données :\n{schema_text}"
-                    ),
+                    "description": "Exécute une requête SQL SELECT en lecture seule et retourne le résultat sous forme de lignes JSON.",
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
@@ -1244,8 +1570,7 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "name": "execute_write_sql",
                     "description": (
                         "Exécute une requête SQL d'écriture (INSERT, UPDATE, DELETE) pour ajouter, modifier ou supprimer des données. "
-                        "Pour les INSERT, toujours ajouter 'RETURNING id' à la fin. "
-                        f"Schéma détaillé de la base de données :\n{schema_text}"
+                        "Pour les INSERT, toujours ajouter 'RETURNING id' à la fin."
                     ),
                     "parameters": {
                         "type": "OBJECT",
@@ -1899,6 +2224,20 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         },
                         "required": ["filepath"]
                     }
+                },
+                {
+                    "name": "get_current_weather",
+                    "description": "Récupère les prévisions météo en temps réel pour une ville donnée.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "location": {
+                                "type": "STRING",
+                                "description": "Le nom de la ville ou région (ex: Paris, Marseille, Alger)."
+                            }
+                        },
+                        "required": ["location"]
+                    }
                 }
             ]
         }
@@ -2195,7 +2534,7 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
                 yield {"type": "status", "message": "Modification de la base de données locale (confirmée)..."}
                 output = execute_write_sql(sql_query)
             else:
-                is_write = func_name not in ("read_app_file", "list_app_backups", "redirect_to", "change_theme", "get_enum_values", "search_clients", "search_products", "get_business_insights", "get_print_link")
+                is_write = func_name not in ("read_app_file", "list_app_backups", "redirect_to", "change_theme", "get_enum_values", "search_clients", "search_products", "get_business_insights", "get_print_link", "get_current_weather")
                 if is_write:
                     normalized_call = json.dumps({"name": func_name, "args": func_args}, sort_keys=True)
                     is_confirmed = False
@@ -2477,7 +2816,7 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
                 yield {"type": "status", "message": "Modification de la base de données (confirmée)..."}
                 output = execute_write_sql(sql_query)
             else:
-                is_write = func_name not in ("read_app_file", "list_app_backups", "redirect_to", "change_theme", "get_enum_values", "search_clients", "search_products", "get_business_insights", "get_print_link")
+                is_write = func_name not in ("read_app_file", "list_app_backups", "redirect_to", "change_theme", "get_enum_values", "search_clients", "search_products", "get_business_insights", "get_print_link", "get_current_weather")
                 if is_write:
                     normalized_call = json.dumps({"name": func_name, "args": func_args}, sort_keys=True)
                     is_confirmed = False

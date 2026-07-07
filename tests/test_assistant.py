@@ -6,7 +6,8 @@ from app.modules.assistant.service import (
     dry_run_sql,
     execute_tool_action,
     compress_history_if_needed,
-    get_ollama_tools
+    get_ollama_tools,
+    sanitize_numeric
 )
 from app.core.sanitizer import sanitize_string, MAX_INPUT_LENGTH
 
@@ -110,4 +111,24 @@ async def test_get_enum_values_tool():
     res = await execute_tool_action("get_enum_values", {"table": "expenses", "column": "payment_method"})
     assert "values" in res
     assert "cash" in res["values"]
+
+def test_sanitize_numeric():
+    assert sanitize_numeric("150,50") == 150.50
+    assert sanitize_numeric(" 200 DA ") == 200.0
+    assert sanitize_numeric("3 000,75 da") == 3000.75
+    assert sanitize_numeric(12.34) == 12.34
+    assert sanitize_numeric(None) == 0.0
+
+@pytest.mark.asyncio
+async def test_get_current_weather_tool():
+    # Mock httpx response for wttr.in weather fetch
+    from unittest.mock import MagicMock
+    mock_res = MagicMock()
+    mock_res.status_code = 200
+    mock_res.text = "Paris: 🌦️ +14°C ↙️19km/h"
+    with patch("httpx.AsyncClient.get", return_value=mock_res) as mock_get:
+        res = await execute_tool_action("get_current_weather", {"location": "Paris"})
+        assert "weather" in res
+        assert "Paris: 🌦️" in res["weather"]
+        mock_get.assert_called_once()
 
