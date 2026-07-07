@@ -11,30 +11,41 @@
     display: inline-block;
   }
 
-  /* Let the entire page scroll naturally using the browser scrollbar */
+  /* Prevent body from scrolling double scrollbars and lock layout to viewport */
   html:has(.assistant-wrapper),
   body:has(.assistant-wrapper) {
-    height: auto !important;
-    overflow: auto !important;
+    height: 100vh !important;
+    overflow: hidden !important;
   }
 
   body:has(.assistant-wrapper) .app-content {
-    height: auto !important;
+    height: calc(100vh - var(--nav-h, 56px)) !important;
     padding: 16px !important;
-    display: block !important;
-    transform: none !important; /* Disable transform to prevent breaking position: fixed relative to viewport */
+    display: flex !important;
+    flex-direction: column !important;
+    transform: none !important;
+    min-height: 0 !important;
+  }
+
+  @media (max-width: 991px) {
+    body:has(.assistant-wrapper) .app-content {
+      height: calc(100vh - var(--nav-h, 56px) - var(--bot-h, 56px)) !important;
+      padding: 10px 8px !important;
+    }
   }
 
   .assistant-wrapper {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
     width: 100%;
-    min-height: calc(100vh - var(--nav-h, 56px) - 60px);
+    height: 100%;
     display: flex;
     flex-direction: row;
     gap: 20px;
     font-family: var(--font-main);
-    align-items: flex-start;
+    align-items: stretch;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .assistant-sidebar {
@@ -49,19 +60,50 @@
     border-radius: 16px;
     padding: 20px;
     box-shadow: var(--shadow-md);
-    position: sticky;
-    top: 20px;
+    height: 100%;
+    overflow-y: auto;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+  }
+
+  @media (min-width: 992px) {
+    .assistant-sidebar.collapsed {
+      display: none !important;
+    }
   }
 
   @media (max-width: 991px) {
-    .assistant-wrapper {
-      flex-direction: column !important;
-    }
     .assistant-sidebar {
-      width: 100% !important;
-      position: static !important;
-      margin-bottom: 16px;
+      position: fixed !important;
+      top: 0;
+      left: 0;
+      height: 100vh !important;
+      width: 280px !important;
+      z-index: 2500;
+      transform: translateX(-100%);
+      visibility: hidden;
+      opacity: 0;
+      border-radius: 0 16px 16px 0;
+      background: var(--bg-primary);
+      box-shadow: 0 0 24px rgba(0, 0, 0, 0.3);
     }
+    .assistant-sidebar.open {
+      transform: translateX(0);
+      visibility: visible;
+      opacity: 1;
+    }
+  }
+
+  /* Overlay backdrop for mobile drawer */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 2400;
+  }
+  .sidebar-overlay.show {
+    display: block;
   }
 
   /* macOS Sequoia Glass Window */
@@ -74,15 +116,10 @@
     box-shadow: var(--shadow-xl);
     display: flex;
     flex-direction: column;
-    height: calc(100vh - var(--nav-h, 56px) - 50px) !important;
+    height: 100% !important;
     overflow: hidden;
     flex: 1;
-  }
-
-  @media (max-width: 991px) {
-    .chat-card {
-      height: calc(100vh - var(--nav-h, 56px) - var(--bot-h, 56px) - 30px) !important;
-    }
+    min-height: 0;
   }
 
   /* macOS Titlebar / Header */
@@ -571,9 +608,12 @@
 
   <!-- Sidebar à gauche -->
   <div class="assistant-sidebar" id="settingsPanel">
-    <div class="d-flex align-items-center gap-2 mb-1">
-      <span style="background: rgba(136, 108, 245, 0.15); color: #886cf5; font-weight: 700; border-radius: 4px; padding: 2px 6px; font-size: 0.85rem; border: 1px solid rgba(136, 108, 245, 0.3); font-family: system-ui, sans-serif; display: inline-flex; align-items: center; justify-content: center; height: 22px; width: 26px; line-height: 1;">S<sup style="font-size: 0.55rem; margin-left: 0.5px;">ia</sup></span>
-      <h5 class="fw-bold m-0" style="font-family: var(--font-title); font-size: 1.1rem; color: var(--text-primary);">Sabrina</h5>
+    <div class="d-flex align-items-center justify-content-between mb-1">
+      <div class="d-flex align-items-center gap-2">
+        <span style="background: rgba(136, 108, 245, 0.15); color: #886cf5; font-weight: 700; border-radius: 4px; padding: 2px 6px; font-size: 0.85rem; border: 1px solid rgba(136, 108, 245, 0.3); font-family: system-ui, sans-serif; display: inline-flex; align-items: center; justify-content: center; height: 22px; width: 26px; line-height: 1;">S<sup style="font-size: 0.55rem; margin-left: 0.5px;">ia</sup></span>
+        <h5 class="fw-bold m-0" style="font-family: var(--font-title); font-size: 1.1rem; color: var(--text-primary);">Sabrina</h5>
+      </div>
+      <button type="button" class="btn-close d-lg-none" id="closeSidebarBtn" aria-label="Fermer" style="filter: var(--close-btn-filter);"></button>
     </div>
     <p class="text-secondary small mb-3">Votre assistante commerciale intelligente.</p>
 
@@ -630,6 +670,19 @@
 
   <!-- Main Chat Card -->
   <div class="chat-card">
+    <!-- macOS Titlebar / Header -->
+    <div class="mac-titlebar">
+      <div class="mac-header-title">
+        <i class="bi bi-stars text-primary animate-pulse"></i>
+        <span style="font-weight:600; font-family:var(--font-title);">Sabrina</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button class="mac-btn" id="toggleSidebarBtn" type="button" title="Paramètres de Sabrina">
+          <i class="bi bi-sliders"></i>
+          <span class="d-none d-md-inline">Paramètres</span>
+        </button>
+      </div>
+    </div>
 
     <!-- Conversation Messages Container -->
     <div class="chat-messages-container" id="chatMessages">
@@ -800,18 +853,47 @@
     const removeFileBtn = document.getElementById('removeFileBtn');
     let selectedFile = null;
 
+    // Sidebar Collapsible & Overlay drawer logic
+    const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+    const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+    
+    // Create the sidebar overlay element dynamically
+    const sidebarOverlay = document.createElement('div');
+    sidebarOverlay.className = 'sidebar-overlay';
+    document.body.appendChild(sidebarOverlay);
+
+    if (toggleSidebarBtn) {
+      toggleSidebarBtn.addEventListener('click', function() {
+        if (window.innerWidth < 992) {
+          settingsPanel.classList.toggle('open');
+          sidebarOverlay.classList.toggle('show');
+        } else {
+          settingsPanel.classList.toggle('collapsed');
+        }
+      });
+    }
+
+    if (closeSidebarBtn) {
+      closeSidebarBtn.addEventListener('click', function() {
+        settingsPanel.classList.remove('open');
+        sidebarOverlay.classList.remove('show');
+      });
+    }
+
+    sidebarOverlay.addEventListener('click', function() {
+      settingsPanel.classList.remove('open');
+      sidebarOverlay.classList.remove('show');
+    });
+
     let history = [];
     let abortController = null;
 
     // Helper to scroll page and container to bottom smoothly
     function scrollToBottom() {
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-      setTimeout(() => {
-        window.scrollTo({
-          top: document.documentElement.scrollHeight || document.body.scrollHeight,
-          behavior: 'smooth'
-        });
-      }, 50);
+      chatMessages.scrollTo({
+        top: chatMessages.scrollHeight,
+        behavior: 'smooth'
+      });
     }
 
     // Toggle segmented switch logic (En ligne / IA Locale)
