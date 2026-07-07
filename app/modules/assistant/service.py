@@ -2660,6 +2660,7 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
 
 async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key: str, confirmed_query: str | None = None):
     """Orchestre la boucle d'agent sous forme de générateur asynchrone d'événements."""
+    had_confirmed_query = confirmed_query is not None
     yield {"type": "status", "message": "Sabrina analyse votre demande..."}
     
     # 1. Compression glissante de la mémoire
@@ -2818,7 +2819,8 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
             # Fallback Ollama
             ollama_ok = await is_ollama_available()
             if ollama_ok:
-                yield {"type": "status", "message": "Modèles Gemini indisponibles. Bascule automatique sur l'IA locale..."}
+                if not had_confirmed_query:
+                    yield {"type": "status", "message": "Modèles Gemini indisponibles. Bascule automatique sur l'IA locale..."}
                 async for event in run_ollama_agent_generator(contents, confirmed_query):
                     yield event
                 return
