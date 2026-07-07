@@ -1511,37 +1511,41 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
 
     elif func_name == "get_business_insights":
         insight_type = func_args.get("insight_type", "summary").lower()
-        from sqlmodel import text
-        async with session_maker() as session:
-            if insight_type == "top_debtors":
-                rows = (await session.execute(text(
-                    "SELECT name, phone, debt FROM clients WHERE debt > 0 ORDER BY debt DESC LIMIT 5"
-                ))).fetchall()
-                return {"top_debtors": [{"name": r[0], "phone": r[1], "debt": float(r[2])} for r in rows]}
-            elif insight_type == "monthly_sales_comparison":
-                sales_cur = (await session.execute(text(
-                    "SELECT COALESCE(SUM(total_amount), 0) FROM sale_documents WHERE date >= DATE_TRUNC('month', CURRENT_DATE)"
-                ))).scalar()
-                sales_prev = (await session.execute(text(
-                    "SELECT COALESCE(SUM(total_amount), 0) FROM sale_documents WHERE date >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND date < DATE_TRUNC('month', CURRENT_DATE)"
-                ))).scalar()
-                sales_cur = float(sales_cur)
-                sales_prev = float(sales_prev)
-                growth = ((sales_cur - sales_prev) / sales_prev * 100) if sales_prev > 0 else 0.0
-                return {
-                    "sales_current_month": sales_cur,
-                    "sales_previous_month": sales_prev,
-                    "growth_rate": round(growth, 2)
-                }
-            else:
-                clients_count = (await session.execute(text("SELECT COUNT(*) FROM clients"))).scalar()
-                products_count = (await session.execute(text("SELECT COUNT(*) FROM finished_products"))).scalar()
-                sales_month = (await session.execute(text("SELECT COALESCE(SUM(total_amount), 0) FROM sale_documents WHERE date >= DATE_TRUNC('month', CURRENT_DATE)"))).scalar()
-                return {
-                    "total_clients": clients_count,
-                    "total_products": products_count,
-                    "sales_this_month": float(sales_month)
-                }
+        from app.core.perf_cache import async_cached_result
+        async def builder():
+            from sqlmodel import text
+            async with session_maker() as session:
+                if insight_type == "top_debtors":
+                    rows = (await session.execute(text(
+                        "SELECT name, phone, current_balance FROM clients_with_stats WHERE current_balance > 0 ORDER BY current_balance DESC LIMIT 5"
+                    ))).fetchall()
+                    return {"top_debtors": [{"name": r[0], "phone": r[1], "debt": float(r[2])} for r in rows]}
+                elif insight_type == "monthly_sales_comparison":
+                    sales_cur = (await session.execute(text(
+                        "SELECT COALESCE(SUM(total), 0) FROM sale_documents WHERE sale_date >= DATE_TRUNC('month', CURRENT_DATE)"
+                    ))).scalar()
+                    sales_prev = (await session.execute(text(
+                        "SELECT COALESCE(SUM(total), 0) FROM sale_documents WHERE sale_date >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND sale_date < DATE_TRUNC('month', CURRENT_DATE)"
+                    ))).scalar()
+                    sales_cur = float(sales_cur)
+                    sales_prev = float(sales_prev)
+                    growth = ((sales_cur - sales_prev) / sales_prev * 100) if sales_prev > 0 else 0.0
+                    return {
+                        "sales_current_month": sales_cur,
+                        "sales_previous_month": sales_prev,
+                        "growth_rate": round(growth, 2)
+                    }
+                else:
+                    clients_count = (await session.execute(text("SELECT COUNT(*) FROM clients"))).scalar()
+                    products_count = (await session.execute(text("SELECT COUNT(*) FROM finished_products"))).scalar()
+                    sales_month = (await session.execute(text("SELECT COALESCE(SUM(total), 0) FROM sale_documents WHERE sale_date >= DATE_TRUNC('month', CURRENT_DATE)"))).scalar()
+                    return {
+                        "total_clients": clients_count,
+                        "total_products": products_count,
+                        "sales_this_month": float(sales_month)
+                    }
+        res = await async_cached_result(("assistant", "get_business_insights", insight_type), builder, ttl_seconds=60.0)
+        return res
 
     elif func_name == "get_print_link":
         dt = func_args.get("doc_type", "").lower()

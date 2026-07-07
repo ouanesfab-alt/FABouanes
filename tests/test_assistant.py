@@ -151,3 +151,28 @@ async def test_search_web_tool():
         assert res["results"][0]["url"] == "https://www.google.com"
         mock_get.assert_called_once()
 
+@pytest.mark.asyncio
+async def test_get_business_insights_tool():
+    # Mock database session execute return values
+    from unittest.mock import MagicMock, AsyncMock
+    mock_session = AsyncMock()
+    mock_res = MagicMock()
+    mock_res.fetchall.return_value = [("Client A", "0555000000", 15000.0)]
+    mock_res.scalar.return_value = 50000.0
+    mock_session.execute.return_value = mock_res
+    
+    mock_session_maker = MagicMock()
+    mock_session_maker.return_value.__aenter__.return_value = mock_session
+    
+    with patch("app.core.async_db.get_async_sessionmaker", return_value=mock_session_maker):
+        # We also mock async_cached_result to just call the builder
+        async def mock_cached(key, builder, ttl_seconds=0):
+            return await builder()
+        with patch("app.core.perf_cache.async_cached_result", side_effect=mock_cached):
+            res = await execute_tool_action("get_business_insights", {"insight_type": "top_debtors"})
+            assert "top_debtors" in res
+            assert res["top_debtors"][0]["name"] == "Client A"
+            
+            res_summary = await execute_tool_action("get_business_insights", {"insight_type": "summary"})
+            assert "total_clients" in res_summary
+

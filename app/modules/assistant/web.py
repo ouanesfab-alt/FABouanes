@@ -72,8 +72,8 @@ async def assistant_chat(request: Request):
             data = file_obj.get("data")
             if mime_type and data:
                 new_message["parts"].append({
-                    "inline_data": {
-                        "mime_type": mime_type,
+                    "inlineData": {
+                        "mimeType": mime_type,
                         "data": data
                     }
                 })

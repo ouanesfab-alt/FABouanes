@@ -2,7 +2,7 @@ import os
 import ast
 import re
 
-ROOT_DIR = r"c:\Users\massi\Downloads\FABouanes-main"
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 APP_DIR = os.path.join(ROOT_DIR, "app")
 TEMPLATES_DIR = os.path.join(ROOT_DIR, "templates")
 
