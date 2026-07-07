@@ -132,3 +132,22 @@ async def test_get_current_weather_tool():
         assert "Paris: 🌦️" in res["weather"]
         mock_get.assert_called_once()
 
+@pytest.mark.asyncio
+async def test_search_web_tool():
+    from unittest.mock import MagicMock
+    mock_res = MagicMock()
+    mock_res.status_code = 200
+    mock_res.text = """
+    <div class="result results_links results_links_deep web-result ">
+      <a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.google.com">Google Home Page</a>
+      <div class="result__snippet">Google is the most popular search engine.</div>
+    </div>
+    """
+    with patch("httpx.AsyncClient.get", return_value=mock_res) as mock_get:
+        res = await execute_tool_action("search_web", {"query": "google"})
+        assert "results" in res
+        assert len(res["results"]) > 0
+        assert res["results"][0]["title"] == "Google Home Page"
+        assert res["results"][0]["url"] == "https://www.google.com"
+        mock_get.assert_called_once()
+

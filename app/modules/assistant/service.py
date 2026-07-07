@@ -975,6 +975,62 @@ def sanitize_numeric(val: Any) -> float:
     except ValueError:
         return 0.0
 
+async def search_web(query: str) -> Dict[str, Any]:
+    import httpx
+    import urllib.parse
+    import re
+    import html
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.get(url, headers=headers, timeout=12.0)
+            if res.status_code != 200:
+                return {"error": f"DuckDuckGo a renvoyé le statut HTTP {res.status_code}"}
+            
+            parts = res.text.split('<div class="result results_links results_links_deep web-result ')
+            results = []
+            
+            for block in parts[1:7]:  # Limiter aux 6 premiers résultats
+                title_match = re.search(r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', block, re.DOTALL)
+                snippet_match = re.search(r'class="result__snippet"[^>]*>(.*?)</', block, re.DOTALL)
+                
+                if title_match:
+                    raw_url = title_match.group(1)
+                    raw_title = title_match.group(2)
+                    
+                    url_clean = raw_url
+                    if "uddg=" in raw_url:
+                        try:
+                            parsed = urllib.parse.urlparse(raw_url)
+                            queries = urllib.parse.parse_qs(parsed.query)
+                            if "uddg" in queries:
+                                url_clean = queries["uddg"][0]
+                        except Exception:
+                            pass
+                    elif url_clean.startswith("//"):
+                        url_clean = "https:" + url_clean
+                        
+                    title = re.sub(r'<[^>]*>', '', raw_title)
+                    title = html.unescape(title).strip()
+                    
+                    snippet = ""
+                    if snippet_match:
+                        raw_snippet = snippet_match.group(1)
+                        snippet = re.sub(r'<[^>]*>', '', raw_snippet)
+                        snippet = html.unescape(snippet).strip()
+                        
+                    results.append({
+                        "title": title,
+                        "url": url_clean,
+                        "snippet": snippet
+                    })
+            return {"results": results}
+    except Exception as e:
+        return {"error": str(e)}
+
 async def _execute_tool_action_inner(func_name: str, func_args: dict, session_maker) -> Dict[str, Any]:
     from app.core.config import BASE_DIR
     import os
@@ -1545,6 +1601,10 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
                 return {"error": f"Code HTTP {res.status_code} retourné par le service météo."}
         except Exception as e:
             return {"error": str(e)}
+
+    elif func_name == "search_web":
+        query = func_args.get("query", "").strip()
+        return await search_web(query)
 
     return {"error": f"Outil '{func_name}' non géré."}
 
@@ -2238,6 +2298,20 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         },
                         "required": ["location"]
                     }
+                },
+                {
+                    "name": "search_web",
+                    "description": "Effectue une recherche sur le Web pour répondre à des questions sur l'actualité, des faits récents ou toute information externe générale.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "query": {
+                                "type": "STRING",
+                                "description": "La requête de recherche à envoyer au moteur de recherche."
+                            }
+                        },
+                        "required": ["query"]
+                    }
                 }
             ]
         }
@@ -2534,7 +2608,7 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
                 yield {"type": "status", "message": "Modification de la base de données locale (confirmée)..."}
                 output = execute_write_sql(sql_query)
             else:
-                is_write = func_name not in ("read_app_file", "list_app_backups", "redirect_to", "change_theme", "get_enum_values", "search_clients", "search_products", "get_business_insights", "get_print_link", "get_current_weather")
+                is_write = func_name not in ("read_app_file", "list_app_backups", "redirect_to", "change_theme", "get_enum_values", "search_clients", "search_products", "get_business_insights", "get_print_link", "get_current_weather", "search_web")
                 if is_write:
                     normalized_call = json.dumps({"name": func_name, "args": func_args}, sort_keys=True)
                     is_confirmed = False
@@ -2816,7 +2890,7 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
                 yield {"type": "status", "message": "Modification de la base de données (confirmée)..."}
                 output = execute_write_sql(sql_query)
             else:
-                is_write = func_name not in ("read_app_file", "list_app_backups", "redirect_to", "change_theme", "get_enum_values", "search_clients", "search_products", "get_business_insights", "get_print_link", "get_current_weather")
+                is_write = func_name not in ("read_app_file", "list_app_backups", "redirect_to", "change_theme", "get_enum_values", "search_clients", "search_products", "get_business_insights", "get_print_link", "get_current_weather", "search_web")
                 if is_write:
                     normalized_call = json.dumps({"name": func_name, "args": func_args}, sort_keys=True)
                     is_confirmed = False
