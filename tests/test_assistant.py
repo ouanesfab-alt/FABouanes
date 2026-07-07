@@ -176,3 +176,51 @@ async def test_get_business_insights_tool():
             res_summary = await execute_tool_action("get_business_insights", {"insight_type": "summary"})
             assert "total_clients" in res_summary
 
+@pytest.mark.asyncio
+async def test_import_client_history_excel_tool():
+    from unittest.mock import MagicMock, AsyncMock
+    
+    mock_service = MagicMock()
+    mock_service.import_client_history_from_excel = AsyncMock(return_value={
+        "client_id": 42,
+        "client_name": "Test Client History",
+        "nb_lignes": 15,
+        "solde_final": 2500.0
+    })
+    
+    mock_session_maker = MagicMock()
+    
+    with patch("app.core.async_db.get_async_sessionmaker", return_value=mock_session_maker):
+        with patch("app.modules.clients.service.ClientService", return_value=mock_service):
+            res = await execute_tool_action("import_client_history_excel", {"filepath": "test.xlsx", "client_id": 42})
+            assert "success" in res
+            assert res["success"] is True
+            assert "15" in res["message"]
+            assert "2500" in res["message"]
+
+@pytest.mark.asyncio
+async def test_execute_write_sql_auto_eval():
+    from unittest.mock import MagicMock
+    from app.modules.assistant.service import execute_write_sql
+    
+    mock_rows = [{"id": 12, "name": "Client Target", "current_balance": 15000.0}]
+    
+    with patch("app.core.db_helpers.db_manager.query_db", return_value=mock_rows) as mock_query:
+        mock_conn = MagicMock()
+        mock_cur = MagicMock()
+        mock_cur.rowcount = 1
+        mock_conn.execute.return_value = mock_cur
+        
+        mock_tx = MagicMock()
+        mock_tx.__enter__.return_value = mock_conn
+        
+        with patch("app.core.db_helpers.db_manager.db_transaction", return_value=mock_tx):
+            res = execute_write_sql("UPDATE clients SET notes = 'Updated' WHERE id = 12")
+            assert "success" in res
+            assert res["success"] is True
+            assert "auto_evaluation" in res
+            assert res["auto_evaluation"]["table_name"] == "clients"
+            assert res["auto_evaluation"]["rows_affected_preview"] == 1
+            assert res["auto_evaluation"]["preview_sample"][0]["name"] == "Client Target"
+            mock_query.assert_called_once()
+

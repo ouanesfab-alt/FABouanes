@@ -864,6 +864,36 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
         if "users" in table_node.name.lower():
             return {"error": "Accès à la table 'users' interdit."}
             
+    # Auto-évaluation systématique pour UPDATE et DELETE en arrière-plan
+    auto_eval_report = None
+    if stmt.__class__.__name__.lower() in ("update", "delete"):
+        try:
+            table_name = str(stmt.this)
+            where_node = stmt.args.get("where")
+            where_str = f" WHERE {where_node.this}" if where_node else ""
+            select_query = f"SELECT * FROM {table_name}{where_str}"
+            
+            # Exécuter de manière synchrone via query_db
+            eval_rows = db_manager.query_db(select_query)
+            
+            preview_sample = []
+            for r in eval_rows[:5]:
+                try:
+                    preview_sample.append(dict(r))
+                except Exception:
+                    preview_sample.append(list(r))
+            
+            auto_eval_report = {
+                "table_name": table_name,
+                "where_clause": where_str.strip() or "Aucune restriction (toutes les lignes !)",
+                "rows_affected_preview": len(eval_rows),
+                "preview_sample": serialize_for_json(preview_sample)
+            }
+            if len(eval_rows) > 0 and not where_node:
+                logger.warning("ATTENTION : Modification SQL d'écriture sans clause WHERE sur la table %s (%s lignes ciblées)", table_name, len(eval_rows))
+        except Exception as eval_err:
+            logger.error("Auto-évaluation SQL échouée : %s", eval_err)
+
     clean_query = query.strip().lower()
     has_returning = "returning" in clean_query
         
@@ -887,6 +917,8 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
             except Exception:
                 pass
             result: Dict[str, Any] = {"success": True}
+            if auto_eval_report:
+                result["auto_evaluation"] = auto_eval_report
             if inserted_id is not None:
                 result["inserted_id"] = inserted_id
                 result["message"] = f"Opération réussie. ID créé : {inserted_id}."
@@ -983,60 +1015,64 @@ def sanitize_numeric(val: Any) -> float:
         return 0.0
 
 async def search_web(query: str) -> Dict[str, Any]:
-    import httpx
-    import urllib.parse
-    import re
-    import html
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
-    try:
-        async with httpx.AsyncClient() as client:
-            res = await client.get(url, headers=headers, timeout=12.0)
-            if res.status_code != 200:
-                return {"error": f"DuckDuckGo a renvoyé le statut HTTP {res.status_code}"}
-            
-            parts = res.text.split('<div class="result results_links results_links_deep web-result ')
-            results = []
-            
-            for block in parts[1:7]:  # Limiter aux 6 premiers résultats
-                title_match = re.search(r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', block, re.DOTALL)
-                snippet_match = re.search(r'class="result__snippet"[^>]*>(.*?)</', block, re.DOTALL)
+    from app.core.perf_cache import async_cached_result
+    async def builder():
+        import httpx
+        import urllib.parse
+        import re
+        import html
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.get(url, headers=headers, timeout=12.0)
+                if res.status_code != 200:
+                    return {"error": f"DuckDuckGo a renvoyé le statut HTTP {res.status_code}"}
                 
-                if title_match:
-                    raw_url = title_match.group(1)
-                    raw_title = title_match.group(2)
+                parts = res.text.split('<div class="result results_links results_links_deep web-result ')
+                results = []
+                
+                for block in parts[1:7]:  # Limiter aux 6 premiers résultats
+                    title_match = re.search(r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', block, re.DOTALL)
+                    snippet_match = re.search(r'class="result__snippet"[^>]*>(.*?)</', block, re.DOTALL)
                     
-                    url_clean = raw_url
-                    if "uddg=" in raw_url:
-                        try:
-                            parsed = urllib.parse.urlparse(raw_url)
-                            queries = urllib.parse.parse_qs(parsed.query)
-                            if "uddg" in queries:
-                                url_clean = queries["uddg"][0]
-                        except Exception:
-                            pass
-                    elif url_clean.startswith("//"):
-                        url_clean = "https:" + url_clean
+                    if title_match:
+                        raw_url = title_match.group(1)
+                        raw_title = title_match.group(2)
                         
-                    title = re.sub(r'<[^>]*>', '', raw_title)
-                    title = html.unescape(title).strip()
-                    
-                    snippet = ""
-                    if snippet_match:
-                        raw_snippet = snippet_match.group(1)
-                        snippet = re.sub(r'<[^>]*>', '', raw_snippet)
-                        snippet = html.unescape(snippet).strip()
+                        url_clean = raw_url
+                        if "uddg=" in raw_url:
+                            try:
+                                parsed = urllib.parse.urlparse(raw_url)
+                                queries = urllib.parse.parse_qs(parsed.query)
+                                if "uddg" in queries:
+                                    url_clean = queries["uddg"][0]
+                            except Exception:
+                                pass
+                        elif url_clean.startswith("//"):
+                            url_clean = "https:" + url_clean
+                            
+                        title = re.sub(r'<[^>]*>', '', raw_title)
+                        title = html.unescape(title).strip()
                         
-                    results.append({
-                        "title": title,
-                        "url": url_clean,
-                        "snippet": snippet
-                    })
-            return {"results": results}
-    except Exception as e:
-        return {"error": str(e)}
+                        snippet = ""
+                        if snippet_match:
+                            raw_snippet = snippet_match.group(1)
+                            snippet = re.sub(r'<[^>]*>', '', raw_snippet)
+                            snippet = html.unescape(snippet).strip()
+                            
+                        results.append({
+                            "title": title,
+                            "url": url_clean,
+                            "snippet": snippet
+                        })
+                return {"results": results}
+        except Exception as e:
+            return {"error": str(e)}
+
+    return await async_cached_result(("assistant", "search_web", query), builder, ttl_seconds=300.0)
 
 async def _execute_tool_action_inner(func_name: str, func_args: dict, session_maker) -> Dict[str, Any]:
     from app.core.config import BASE_DIR
@@ -1601,17 +1637,48 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
             "message": f"Client '{data['name']}' importé avec succès avec un solde initial de {data['opening_credit']} DA (Lignes détectées : {data['history_count']})."
         }
 
+    elif func_name == "import_client_history_excel":
+        filepath = func_args.get("filepath", "")
+        client_id_val = func_args.get("client_id")
+        client_id = int(client_id_val) if client_id_val is not None else None
+        
+        abs_path = os.path.abspath(filepath)
+        workspace_dir = os.path.abspath(str(BASE_DIR))
+        try:
+            common = os.path.commonpath([workspace_dir, abs_path])
+            if common != workspace_dir:
+                raise ValueError()
+        except Exception:
+            return {"error": "Sécurité : Accès interdit en dehors du répertoire de l'application."}
+            
+        from app.modules.clients.service import ClientService
+        async with session_maker() as session:
+            service = ClientService(session)
+            try:
+                res = await service.import_client_history_from_excel(abs_path, client_id=client_id, force_reimport=True)
+                await session.commit()
+                return {
+                    "success": True,
+                    "message": f"Historique Excel importé avec succès pour le client '{res.get('client_name')}' (Nombre de lignes : {res.get('nb_lignes')}, solde final : {res.get('solde_final')} DA)."
+                }
+            except Exception as e:
+                return {"error": f"Erreur lors de l'import de l'historique : {str(e)}"}
+
     elif func_name == "get_current_weather":
         location = func_args.get("location", "Paris").strip()
-        import httpx
-        try:
-            async with httpx.AsyncClient() as client:
-                res = await client.get(f"https://wttr.in/{location}?format=3", timeout=15.0)
-                if res.status_code == 200:
-                    return {"weather": res.text.strip()}
-                return {"error": f"Code HTTP {res.status_code} retourné par le service météo."}
-        except Exception as e:
-            return {"error": str(e)}
+        from app.core.perf_cache import async_cached_result
+        async def builder():
+            import httpx
+            try:
+                async with httpx.AsyncClient() as client:
+                    res = await client.get(f"https://wttr.in/{location}?format=3", timeout=15.0)
+                    if res.status_code == 200:
+                        return {"weather": res.text.strip()}
+                    return {"error": f"Code HTTP {res.status_code} retourné par le service météo."}
+            except Exception as e:
+                return {"error": str(e)}
+        res = await async_cached_result(("assistant", "get_current_weather", location), builder, ttl_seconds=600.0)
+        return res
 
     elif func_name == "search_web":
         query = func_args.get("query", "").strip()
@@ -2291,6 +2358,24 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                             "filepath": {
                                 "type": "STRING",
                                 "description": "Le chemin d'accès au fichier Excel sur le serveur."
+                            }
+                        },
+                        "required": ["filepath"]
+                    }
+                },
+                {
+                    "name": "import_client_history_excel",
+                    "description": "Importe l'historique complet des transactions (achats/ventes, versements) d'un client à partir de son fichier Excel FABouanes.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "filepath": {
+                                "type": "STRING",
+                                "description": "Le chemin d'accès au fichier Excel sur le serveur."
+                            },
+                            "client_id": {
+                                "type": "INTEGER",
+                                "description": "ID facultatif du client (s'il existe déjà dans l'application)."
                             }
                         },
                         "required": ["filepath"]

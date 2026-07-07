@@ -779,7 +779,7 @@
       <button id="attachBtn" class="chat-send-btn bg-transparent border-0 text-muted me-1" type="button" title="Joindre une photo ou un PDF" {% if not has_key %}disabled{% endif %} style="padding: 0 8px; box-shadow: none; display: inline-flex; align-items: center; justify-content: center; height: 38px; width: 38px;">
         <i class="bi bi-paperclip fs-4"></i>
       </button>
-      <input type="file" id="fileInput" accept="image/*,application/pdf" style="display: none;">
+      <input type="file" id="fileInput" accept="image/*,application/pdf,.xlsx,.xlsm" style="display: none;">
 
       <button id="micBtn" class="chat-send-btn bg-transparent border-0 text-muted me-2" type="button" title="Parler (Reconnaissance vocale)" style="padding: 0 8px; box-shadow: none; display: inline-flex; align-items: center; justify-content: center; height: 38px; width: 38px;">
         <i class="bi bi-mic fs-4"></i>
@@ -1046,6 +1046,10 @@
       } else if (file.type === 'application/pdf') {
         if (filePreviewIcon) {
           filePreviewIcon.innerHTML = `<i class="bi bi-file-earmark-pdf-fill text-danger fs-4"></i>`;
+        }
+      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xlsm') || file.type.includes('sheet') || file.type.includes('excel')) {
+        if (filePreviewIcon) {
+          filePreviewIcon.innerHTML = `<i class="bi bi-file-earmark-excel-fill text-success fs-4"></i>`;
         }
       } else {
         if (filePreviewIcon) {

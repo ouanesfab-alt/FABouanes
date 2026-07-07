@@ -70,7 +70,36 @@ async def assistant_chat(request: Request):
         if file_obj and isinstance(file_obj, dict):
             mime_type = file_obj.get("mime_type")
             data = file_obj.get("data")
-            if mime_type and data:
+            filename = file_obj.get("name", "upload.xlsx")
+            
+            is_excel = (
+                filename.lower().endswith((".xlsx", ".xlsm")) or 
+                (mime_type and ("sheet" in mime_type.lower() or "excel" in mime_type.lower()))
+            )
+            
+            if is_excel and mime_type and data:
+                import base64
+                from pathlib import Path
+                from app.core.config import BASE_DIR
+                
+                import_dir = Path(BASE_DIR) / "app" / "runtime" / "imports"
+                import_dir.mkdir(parents=True, exist_ok=True)
+                
+                safe_name = "".join(c for c in filename if c.isalnum() or c in (".", "_", "-")).strip()
+                if not safe_name:
+                    safe_name = "temp_upload.xlsx"
+                
+                target_path = import_dir / safe_name
+                try:
+                    file_bytes = base64.b64decode(data)
+                    with open(target_path, "wb") as f:
+                        f.write(file_bytes)
+                    
+                    abs_path_str = os.path.abspath(str(target_path))
+                    new_message["parts"][0]["text"] += f"\n\n[INFO SYSTÈME : Fichier Excel joint '{filename}' enregistré temporairement sur le serveur à l'emplacement : {abs_path_str}. Pour l'importer, appelle l'outil approprié comme `import_client_excel` ou `import_client_history_excel` avec cet emplacement exact.]"
+                except Exception as e:
+                    new_message["parts"][0]["text"] += f"\n\n[INFO SYSTÈME : Échec de l'enregistrement du fichier Excel joint '{filename}' : {str(e)}]"
+            elif mime_type and data:
                 new_message["parts"].append({
                     "inlineData": {
                         "mimeType": mime_type,
