@@ -182,6 +182,11 @@ TABLE_SCHEMAS = {
         "triggered_at* (TIMESTAMPTZ auto), acknowledged_at (TIMESTAMPTZ) "
         "— Alertes de stock bas en cours ou acquittées."
     ),
+    "clients_with_stats": (
+        "id, name, phone, address, notes, opening_credit, created_at, search_vector, "
+        "current_debt, current_balance, total_sales, total_payments "
+        "— Vue en lecture seule contenant le solde et les statistiques des clients (current_balance/current_debt représente le solde ou la dette actuelle du client)."
+    ),
 }
 
 
