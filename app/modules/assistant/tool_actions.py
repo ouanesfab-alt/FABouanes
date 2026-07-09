@@ -1244,4 +1244,60 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         )
         return {"success": True, "message": f"Utilisateur #{user_id} mis à jour avec succès."}
 
+    elif func_name == "get_export_link":
+        import urllib.parse
+        et = func_args.get("export_type", "").lower().strip()
+        date_from = func_args.get("date_from", "").strip()
+        date_to = func_args.get("date_to", "").strip()
+        
+        if et == "clients":
+            url = "/api/v1/clients/export"
+            return {
+                "export_url": url,
+                "message": f"Voici le lien pour exporter la liste des clients en CSV :\n- [Télécharger l'export Clients]({url})"
+            }
+        elif et == "reports":
+            params = {}
+            if date_from:
+                params["date_from"] = date_from
+            if date_to:
+                params["date_to"] = date_to
+            query_str = f"?{urllib.parse.urlencode(params)}" if params else ""
+            url = f"/reports/export-csv{query_str}"
+            return {
+                "export_url": url,
+                "message": f"Voici le lien pour exporter le rapport global en CSV :\n- [Télécharger le Rapport]({url})"
+            }
+        elif et == "audit":
+            params = {}
+            if date_from:
+                params["date_from"] = date_from
+            if date_to:
+                params["date_to"] = date_to
+            
+            af = func_args.get("audit_filters") or {}
+            if af.get("actor"):
+                params["actor"] = af["actor"].strip()
+            if af.get("action"):
+                params["action"] = af["action"].strip()
+            if af.get("entity_type"):
+                params["entity_type"] = af["entity_type"].strip()
+            if af.get("status"):
+                params["status"] = af["status"].strip()
+                
+            query_str = f"?{urllib.parse.urlencode(params)}" if params else ""
+            url = f"/admin/audit/export{query_str}"
+            return {
+                "export_url": url,
+                "message": f"Voici le lien pour exporter les journaux d'audit en CSV :\n- [Télécharger l'Audit]({url})"
+            }
+        elif et == "diagnostic":
+            url = "/admin/system-status/export"
+            return {
+                "export_url": url,
+                "message": f"Voici le lien pour exporter le rapport de diagnostic système en JSON :\n- [Télécharger le Rapport Diagnostic]({url})"
+            }
+            
+        return {"error": f"Type d'export '{et}' non reconnu."}
+
     return {"error": f"Outil '{func_name}' non géré."}

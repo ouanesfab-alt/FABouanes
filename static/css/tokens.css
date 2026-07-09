@@ -46,6 +46,7 @@
   --bg-secondary: #FFFFFF;
   --bg-tertiary: #F2F2F7;
   --bg-grouped: #F2F2F7;
+  --bg-th-opaque: #F2F2F7;
 
   /* Text */
   --text: #1D1D1F;
@@ -147,6 +148,7 @@
   --bg-secondary: #2C2C2E;
   --bg-tertiary: #3A3A3C;
   --bg-grouped: #000000;
+  --bg-th-opaque: #2C2C2E;
 
   --text: #F5F5F7;
   --text-primary: #F5F5F7;
@@ -459,7 +461,6 @@ h1, h2, h3, h4, h5, h6, .section-title {
   padding: 8px 12px !important;
   border-bottom: 0.5px solid var(--separator) !important;
   background: var(--bg-tertiary) !important;
-  backdrop-filter: var(--blur-xs);
 }
 .table td {
   padding: 8px 12px !important;
@@ -1023,7 +1024,9 @@ table.record-table > thead > tr > th,
   position: sticky !important;
   top: 0 !important;
   z-index: 100 !important;
-  background: var(--bg-tertiary, #f2f2f7) !important;
+  background: var(--bg-th-opaque, var(--bg-tertiary, #f2f2f7)) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   box-shadow: 0 1px 0 var(--line, #e0e0e0) !important;
 }
 

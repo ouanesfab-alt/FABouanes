@@ -1198,6 +1198,50 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         },
                         "required": ["user_id", "role", "is_active"]
                     }
+                },
+                {
+                    "name": "get_export_link",
+                    "description": "Obtient le lien de téléchargement d'un export de données CSV ou JSON (clients, rapports globaux, journaux d'audit ou diagnostic système).",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "export_type": {
+                                "type": "STRING",
+                                "description": "Type d'export souhaité : 'clients' (tous les clients avec stats), 'reports' (résumé ventes/achats/bénéfices), 'audit' (journaux d'audit), ou 'diagnostic' (état technique système)."
+                            },
+                            "date_from": {
+                                "type": "STRING",
+                                "description": "Date de début pour filtrer l'export au format YYYY-MM-DD (optionnel, pour 'reports' et 'audit')."
+                            },
+                            "date_to": {
+                                "type": "STRING",
+                                "description": "Date de fin pour filtrer l'export au format YYYY-MM-DD (optionnel, pour 'reports' et 'audit')."
+                            },
+                            "audit_filters": {
+                                "type": "OBJECT",
+                                "description": "Filtres additionnels pour l'export 'audit' (optionnel).",
+                                "properties": {
+                                    "actor": {
+                                        "type": "STRING",
+                                        "description": "Nom de l'acteur (utilisateur)."
+                                    },
+                                    "action": {
+                                        "type": "STRING",
+                                        "description": "Nom de l'action."
+                                    },
+                                    "entity_type": {
+                                        "type": "STRING",
+                                        "description": "Type de l'entité."
+                                    },
+                                    "status": {
+                                        "type": "STRING",
+                                        "description": "Statut de l'action ('success' ou 'failure')."
+                                    }
+                                }
+                            }
+                        },
+                        "required": ["export_type"]
+                    }
                 }
             ]
         }
