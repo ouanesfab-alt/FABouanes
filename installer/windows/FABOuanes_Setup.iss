@@ -21,7 +21,6 @@ OutputBaseFilename=FABOuanes_Setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-WizardResizable=yes
 WizardSizePercent=115,115
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
