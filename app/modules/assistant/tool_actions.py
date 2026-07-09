@@ -64,20 +64,8 @@ async def execute_tool_action(func_name: str, func_args: dict) -> Dict[str, Any]
 
 
 def sanitize_numeric(val: Any) -> float:
-    if val is None:
-        return 0.0
-    if isinstance(val, (int, float)):
-        return float(val)
-    s = str(val).strip()
-    # Retirer les suffixes de devise ou d'unité courants
-    for suffix in ("da", "dzd", "da.", "dzd.", "kg", "sac", "q", "u", "€", "$"):
-        if s.lower().endswith(suffix):
-            s = s[:-len(suffix)].strip()
-    s = s.replace(",", ".").replace(" ", "")
-    try:
-        return float(s)
-    except ValueError:
-        return 0.0
+    from app.modules.assistant.business_helpers import parse_amount
+    return parse_amount(val)
 
 
 async def search_web(query: str) -> Dict[str, Any]:
