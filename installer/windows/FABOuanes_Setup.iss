@@ -107,6 +107,10 @@ var
   PanelAiGemini: TPanel;
   PanelAiOllama: TPanel;
   PanelAiBoth: TPanel;
+  // Background panels
+  BgPanelDb: TPanel;
+  BgPanelPg: TPanel;
+  BgPanelAi: TPanel;
 
 procedure PgLocalCardClick(Sender: TObject);
 begin
@@ -153,29 +157,42 @@ begin
     'Choisissez comment FABOuanes doit stocker ses donnees.'
   );
 
-  TopPos := 0;
+  // Background Canvas Panel
+  BgPanelDb := TPanel.Create(PageDbChoice);
+  BgPanelDb.Parent := PageDbChoice.Surface;
+  BgPanelDb.Left := 0;
+  BgPanelDb.Top := 0;
+  BgPanelDb.Width := PageDbChoice.SurfaceWidth;
+  BgPanelDb.Height := PageDbChoice.SurfaceHeight;
+  BgPanelDb.Color := $F3F4F6; // Tailwind slate-100 equivalent
+  BgPanelDb.ParentBackground := False;
+  BgPanelDb.BevelOuter := bvNone;
+
+  TopPos := 12;
 
   LabelDbTitle := TNewStaticText.Create(PageDbChoice);
-  LabelDbTitle.Parent := PageDbChoice.Surface;
+  LabelDbTitle.Parent := BgPanelDb;
   LabelDbTitle.Caption := 'Quel mode souhaitez-vous utiliser ?';
   LabelDbTitle.Font.Name := 'Segoe UI';
   LabelDbTitle.Font.Style := [fsBold];
   LabelDbTitle.Font.Size := 10;
-  LabelDbTitle.Left := 0;
+  LabelDbTitle.Left := 8;
   LabelDbTitle.Top := TopPos;
   LabelDbTitle.AutoSize := True;
-  TopPos := TopPos + 28;
+  TopPos := TopPos + 26;
 
   // --- Card 1: Local Database ---
   PanelPgLocal := TPanel.Create(PageDbChoice);
-  PanelPgLocal.Parent := PageDbChoice.Surface;
-  PanelPgLocal.Left := 0;
+  PanelPgLocal.Parent := BgPanelDb;
+  PanelPgLocal.Left := 8;
   PanelPgLocal.Top := TopPos;
-  PanelPgLocal.Width := PageDbChoice.SurfaceWidth;
-  PanelPgLocal.Height := 76;
+  PanelPgLocal.Width := BgPanelDb.Width - 16;
+  PanelPgLocal.Height := 80;
   PanelPgLocal.Color := clWhite;
   PanelPgLocal.ParentBackground := False;
   PanelPgLocal.BevelOuter := bvNone;
+  PanelPgLocal.BevelInner := bvNone;
+  PanelPgLocal.BevelKind := bkFlat;
   PanelPgLocal.Cursor := crHand;
   PanelPgLocal.OnClick := @PgLocalCardClick;
 
@@ -186,7 +203,7 @@ begin
   RadioPgLocal.Font.Style := [fsBold];
   RadioPgLocal.Font.Size := 9;
   RadioPgLocal.Left := 16;
-  RadioPgLocal.Top := 14;
+  RadioPgLocal.Top := 16;
   RadioPgLocal.Width := PanelPgLocal.Width - 32;
   RadioPgLocal.Checked := True;
   RadioPgLocal.Cursor := crHand;
@@ -198,24 +215,26 @@ begin
   LabelDbDesc.Font.Size := 8;
   LabelDbDesc.Font.Color := clGray;
   LabelDbDesc.Left := 36;
-  LabelDbDesc.Top := 36;
+  LabelDbDesc.Top := 38;
   LabelDbDesc.Width := PanelPgLocal.Width - 52;
   LabelDbDesc.WordWrap := True;
   LabelDbDesc.Cursor := crHand;
   LabelDbDesc.OnClick := @PgLocalCardClick;
 
-  TopPos := TopPos + 88;
+  TopPos := TopPos + 92;
 
   // --- Card 2: Server Database ---
   PanelPgServer := TPanel.Create(PageDbChoice);
-  PanelPgServer.Parent := PageDbChoice.Surface;
-  PanelPgServer.Left := 0;
+  PanelPgServer.Parent := BgPanelDb;
+  PanelPgServer.Left := 8;
   PanelPgServer.Top := TopPos;
-  PanelPgServer.Width := PageDbChoice.SurfaceWidth;
-  PanelPgServer.Height := 76;
+  PanelPgServer.Width := BgPanelDb.Width - 16;
+  PanelPgServer.Height := 80;
   PanelPgServer.Color := clWhite;
   PanelPgServer.ParentBackground := False;
   PanelPgServer.BevelOuter := bvNone;
+  PanelPgServer.BevelInner := bvNone;
+  PanelPgServer.BevelKind := bkFlat;
   PanelPgServer.Cursor := crHand;
   PanelPgServer.OnClick := @PgServerCardClick;
 
@@ -226,7 +245,7 @@ begin
   RadioPgServer.Font.Style := [fsBold];
   RadioPgServer.Font.Size := 9;
   RadioPgServer.Left := 16;
-  RadioPgServer.Top := 14;
+  RadioPgServer.Top := 16;
   RadioPgServer.Width := PanelPgServer.Width - 32;
   RadioPgServer.Checked := False;
   RadioPgServer.Cursor := crHand;
@@ -238,7 +257,7 @@ begin
   LabelDbDesc.Font.Size := 8;
   LabelDbDesc.Font.Color := clGray;
   LabelDbDesc.Left := 36;
-  LabelDbDesc.Top := 36;
+  LabelDbDesc.Top := 38;
   LabelDbDesc.Width := PanelPgServer.Width - 52;
   LabelDbDesc.WordWrap := True;
   LabelDbDesc.Cursor := crHand;
@@ -257,29 +276,42 @@ begin
     'Entrez les parametres de votre PostgreSQL local.'
   );
 
-  TopPos := 0;
+  // Background Canvas Panel
+  BgPanelPg := TPanel.Create(PagePgConfig);
+  BgPanelPg.Parent := PagePgConfig.Surface;
+  BgPanelPg.Left := 0;
+  BgPanelPg.Top := 0;
+  BgPanelPg.Width := PagePgConfig.SurfaceWidth;
+  BgPanelPg.Height := PagePgConfig.SurfaceHeight;
+  BgPanelPg.Color := $F3F4F6;
+  BgPanelPg.ParentBackground := False;
+  BgPanelPg.BevelOuter := bvNone;
+
+  TopPos := 12;
 
   LabelPgTitle := TNewStaticText.Create(PagePgConfig);
-  LabelPgTitle.Parent := PagePgConfig.Surface;
+  LabelPgTitle.Parent := BgPanelPg;
   LabelPgTitle.Caption := 'Connexion au PostgreSQL de cette machine';
   LabelPgTitle.Font.Name := 'Segoe UI';
   LabelPgTitle.Font.Style := [fsBold];
   LabelPgTitle.Font.Size := 10;
-  LabelPgTitle.Left := 0;
+  LabelPgTitle.Left := 8;
   LabelPgTitle.Top := TopPos;
   LabelPgTitle.AutoSize := True;
-  TopPos := TopPos + 28;
+  TopPos := TopPos + 26;
 
   // --- Form Container Card ---
   FormCard := TPanel.Create(PagePgConfig);
-  FormCard.Parent := PagePgConfig.Surface;
-  FormCard.Left := 0;
+  FormCard.Parent := BgPanelPg;
+  FormCard.Left := 8;
   FormCard.Top := TopPos;
-  FormCard.Width := PagePgConfig.SurfaceWidth;
+  FormCard.Width := BgPanelPg.Width - 16;
   FormCard.Height := 150;
   FormCard.Color := clWhite;
   FormCard.ParentBackground := False;
   FormCard.BevelOuter := bvNone;
+  FormCard.BevelInner := bvNone;
+  FormCard.BevelKind := bkFlat;
 
   // Username
   LabelPgUser := TNewStaticText.Create(PagePgConfig);
@@ -369,15 +401,15 @@ begin
 
   // Info text
   LabelPgInfo := TNewStaticText.Create(PagePgConfig);
-  LabelPgInfo.Parent := PagePgConfig.Surface;
+  LabelPgInfo.Parent := BgPanelPg;
   LabelPgInfo.Caption :=
     'PostgreSQL doit etre installe sur cette machine.' + #13#10 +
     'Utilisez le mot de passe choisi lors de l''installation de PostgreSQL.' + #13#10 +
     'Si vous n''avez pas encore installe PostgreSQL, annulez l''installation' + #13#10 +
     'et installez-le depuis : https://www.postgresql.org/download/windows/';
-  LabelPgInfo.Left := 0;
+  LabelPgInfo.Left := 8;
   LabelPgInfo.Top := TopPos;
-  LabelPgInfo.Width := PagePgConfig.SurfaceWidth;
+  LabelPgInfo.Width := BgPanelPg.Width - 16;
   LabelPgInfo.WordWrap := True;
   LabelPgInfo.Font.Name := 'Segoe UI';
   LabelPgInfo.Font.Size := 8;
@@ -772,29 +804,42 @@ begin
     'Choisissez le mode de fonctionnement de l''IA Sabrina.'
   );
 
-  TopPos := 0;
+  // Background Canvas Panel
+  BgPanelAi := TPanel.Create(PageAiChoice);
+  BgPanelAi.Parent := PageAiChoice.Surface;
+  BgPanelAi.Left := 0;
+  BgPanelAi.Top := 0;
+  BgPanelAi.Width := PageAiChoice.SurfaceWidth;
+  BgPanelAi.Height := PageAiChoice.SurfaceHeight;
+  BgPanelAi.Color := $F3F4F6;
+  BgPanelAi.ParentBackground := False;
+  BgPanelAi.BevelOuter := bvNone;
+
+  TopPos := 12;
 
   LabelAiTitle := TNewStaticText.Create(PageAiChoice);
-  LabelAiTitle.Parent := PageAiChoice.Surface;
+  LabelAiTitle.Parent := BgPanelAi;
   LabelAiTitle.Caption := 'Quel assistant IA souhaitez-vous configurer ?';
   LabelAiTitle.Font.Name := 'Segoe UI';
   LabelAiTitle.Font.Style := [fsBold];
   LabelAiTitle.Font.Size := 10;
-  LabelAiTitle.Left := 0;
+  LabelAiTitle.Left := 8;
   LabelAiTitle.Top := TopPos;
   LabelAiTitle.AutoSize := True;
-  TopPos := TopPos + 28;
+  TopPos := TopPos + 26;
 
   // --- Card 1: Gemini ---
   PanelAiGemini := TPanel.Create(PageAiChoice);
-  PanelAiGemini.Parent := PageAiChoice.Surface;
-  PanelAiGemini.Left := 0;
+  PanelAiGemini.Parent := BgPanelAi;
+  PanelAiGemini.Left := 8;
   PanelAiGemini.Top := TopPos;
-  PanelAiGemini.Width := PageAiChoice.SurfaceWidth;
-  PanelAiGemini.Height := 54;
+  PanelAiGemini.Width := BgPanelAi.Width - 16;
+  PanelAiGemini.Height := 56;
   PanelAiGemini.Color := clWhite;
   PanelAiGemini.ParentBackground := False;
   PanelAiGemini.BevelOuter := bvNone;
+  PanelAiGemini.BevelInner := bvNone;
+  PanelAiGemini.BevelKind := bkFlat;
   PanelAiGemini.Cursor := crHand;
   PanelAiGemini.OnClick := @AiGeminiCardClick;
 
@@ -817,24 +862,26 @@ begin
   LabelAiGeminiDesc.Font.Size := 8;
   LabelAiGeminiDesc.Font.Color := clGray;
   LabelAiGeminiDesc.Left := 36;
-  LabelAiGeminiDesc.Top := 28;
+  LabelAiGeminiDesc.Top := 30;
   LabelAiGeminiDesc.Width := PanelAiGemini.Width - 52;
   LabelAiGeminiDesc.WordWrap := True;
   LabelAiGeminiDesc.Cursor := crHand;
   LabelAiGeminiDesc.OnClick := @AiGeminiCardClick;
 
-  TopPos := TopPos + 60;
+  TopPos := TopPos + 64;
 
   // --- Card 2: Ollama ---
   PanelAiOllama := TPanel.Create(PageAiChoice);
-  PanelAiOllama.Parent := PageAiChoice.Surface;
-  PanelAiOllama.Left := 0;
+  PanelAiOllama.Parent := BgPanelAi;
+  PanelAiOllama.Left := 8;
   PanelAiOllama.Top := TopPos;
-  PanelAiOllama.Width := PageAiChoice.SurfaceWidth;
-  PanelAiOllama.Height := 54;
+  PanelAiOllama.Width := BgPanelAi.Width - 16;
+  PanelAiOllama.Height := 56;
   PanelAiOllama.Color := clWhite;
   PanelAiOllama.ParentBackground := False;
   PanelAiOllama.BevelOuter := bvNone;
+  PanelAiOllama.BevelInner := bvNone;
+  PanelAiOllama.BevelKind := bkFlat;
   PanelAiOllama.Cursor := crHand;
   PanelAiOllama.OnClick := @AiOllamaCardClick;
 
@@ -857,24 +904,26 @@ begin
   LabelAiOllamaDesc.Font.Size := 8;
   LabelAiOllamaDesc.Font.Color := clGray;
   LabelAiOllamaDesc.Left := 36;
-  LabelAiOllamaDesc.Top := 28;
+  LabelAiOllamaDesc.Top := 30;
   LabelAiOllamaDesc.Width := PanelAiOllama.Width - 52;
   LabelAiOllamaDesc.WordWrap := True;
   LabelAiOllamaDesc.Cursor := crHand;
   LabelAiOllamaDesc.OnClick := @AiOllamaCardClick;
 
-  TopPos := TopPos + 60;
+  TopPos := TopPos + 64;
 
   // --- Card 3: Both (Hybrid) ---
   PanelAiBoth := TPanel.Create(PageAiChoice);
-  PanelAiBoth.Parent := PageAiChoice.Surface;
-  PanelAiBoth.Left := 0;
+  PanelAiBoth.Parent := BgPanelAi;
+  PanelAiBoth.Left := 8;
   PanelAiBoth.Top := TopPos;
-  PanelAiBoth.Width := PageAiChoice.SurfaceWidth;
-  PanelAiBoth.Height := 54;
+  PanelAiBoth.Width := BgPanelAi.Width - 16;
+  PanelAiBoth.Height := 56;
   PanelAiBoth.Color := clWhite;
   PanelAiBoth.ParentBackground := False;
   PanelAiBoth.BevelOuter := bvNone;
+  PanelAiBoth.BevelInner := bvNone;
+  PanelAiBoth.BevelKind := bkFlat;
   PanelAiBoth.Cursor := crHand;
   PanelAiBoth.OnClick := @AiBothCardClick;
 
@@ -895,9 +944,9 @@ begin
   LabelAiBothDesc.Caption := 'Installe Ollama localement et permet de basculer librement vers Gemini en ligne.';
   LabelAiBothDesc.Font.Name := 'Segoe UI';
   LabelAiBothDesc.Font.Size := 8;
-
+  LabelAiBothDesc.Font.Color := clGray;
   LabelAiBothDesc.Left := 36;
-  LabelAiBothDesc.Top := 28;
+  LabelAiBothDesc.Top := 30;
   LabelAiBothDesc.Width := PanelAiBoth.Width - 52;
   LabelAiBothDesc.WordWrap := True;
   LabelAiBothDesc.Cursor := crHand;
