@@ -1128,4 +1128,93 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         memory_id = func_args.get("memory_id", 0)
         return mem_forget(int(memory_id))
 
+    elif func_name == "list_recipes":
+        from app.services.recipe_service import load_saved_recipes
+        recipes = await load_saved_recipes()
+        return {"recipes": recipes}
+
+    elif func_name == "create_recipe":
+        from app.services.recipe_service import save_recipe_definition
+        finished_id = int(func_args.get("finished_product_id") or 0)
+        name = func_args.get("name", "").strip()
+        notes = func_args.get("notes", "").strip()
+        items = func_args.get("items", [])
+        
+        recipe_lines = []
+        for it in items:
+            raw_id = int(it.get("raw_material_id") or 0)
+            qty = float(it.get("quantity") or 0.0)
+            recipe_lines.append({
+                "material": {"id": raw_id},
+                "qty": qty
+            })
+            
+        recipe_id = await save_recipe_definition(
+            finished_id=finished_id,
+            recipe_name=name,
+            notes=notes,
+            recipe_lines=recipe_lines
+        )
+        if recipe_id:
+            return {"success": True, "recipe_id": recipe_id, "message": f"Recette '{name}' enregistrée avec succès (ID: {recipe_id})."}
+        return {"error": "Impossible d'enregistrer la recette. Vérifiez les composants."}
+
+    elif func_name == "delete_recipe":
+        from sqlalchemy import delete
+        from app.core.models import SavedRecipe, SavedRecipeItem
+        recipe_id = int(func_args.get("recipe_id") or 0)
+        async with session_maker() as session:
+            async with session.begin():
+                await session.execute(delete(SavedRecipeItem).where(SavedRecipeItem.recipe_id == recipe_id))
+                await session.execute(delete(SavedRecipe).where(SavedRecipe.id == recipe_id))
+        return {"success": True, "message": f"Recette #{recipe_id} supprimée avec succès."}
+
+    elif func_name == "list_bon_space_documents":
+        from app.services.bon_space_service import list_bon_space_documents
+        q = func_args.get("query", "").strip()
+        kind = func_args.get("kind", "").strip()
+        limit = int(func_args.get("limit") or 80)
+        docs = await list_bon_space_documents(q=q, kind=kind, limit=limit)
+        for d in docs:
+            d.pop("search_text", None)
+        return {"documents": docs}
+
+    elif func_name == "get_recent_activity_logs":
+        from app.services.activity_service import list_admin_activity
+        limit = int(func_args.get("limit") or 50)
+        activities = await list_admin_activity(limit=limit)
+        return {"logs": [act.get("sentence") for act in activities if act.get("sentence")]}
+
+    elif func_name == "get_active_alerts":
+        from sqlalchemy import select
+        from app.core.models import RawMaterial, FinishedProduct
+        from app.services.alert_service import check_overdue_clients
+        
+        alerts = []
+        async with session_maker() as session:
+            raws_res = await session.execute(
+                select(RawMaterial.name, RawMaterial.stock_qty, RawMaterial.alert_threshold, RawMaterial.unit)
+                .where(RawMaterial.stock_qty <= RawMaterial.alert_threshold, RawMaterial.alert_threshold > 0)
+            )
+            for row in raws_res.all():
+                alerts.append(f"Alerte Stock Matière : '{row.name}' est bas ({row.stock_qty} {row.unit} restant, seuil: {row.alert_threshold})")
+                
+            finished_res = await session.execute(
+                select(FinishedProduct.name, FinishedProduct.stock_qty, FinishedProduct.alert_threshold, FinishedProduct.unit)
+                .where(FinishedProduct.stock_qty <= FinishedProduct.alert_threshold, FinishedProduct.alert_threshold > 0)
+            )
+            for row in finished_res.all():
+                alerts.append(f"Alerte Stock Produit : '{row.name}' est bas ({row.stock_qty} {row.unit} restant, seuil: {row.alert_threshold})")
+                
+            overdue_clients = await check_overdue_clients(db=session)
+            for cl in overdue_clients:
+                alerts.append(f"Alerte Paiement : Client '{cl['name']}' est inactif depuis {int(cl['jours_inactif'] or 0)} jours avec une dette en cours de {cl['balance']:,} DA")
+                
+        return {"alerts": alerts if alerts else ["Aucune alerte active."]}
+
+    elif func_name == "run_system_maintenance":
+        from app.services.admin_service import run_database_maintenance
+        result = run_database_maintenance()
+        return {"success": result.get("ok", False), "message": result.get("message", "Maintenance complétée.")}
+
     return {"error": f"Outil '{func_name}' non géré."}

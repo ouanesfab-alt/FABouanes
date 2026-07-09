@@ -1032,6 +1032,117 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         },
                         "required": ["note_id"]
                     }
+                },
+                {
+                    "name": "list_recipes",
+                    "description": "Liste toutes les recettes de production enregistrées avec leurs composants (matières premières et quantités).",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {}
+                    }
+                },
+                {
+                    "name": "create_recipe",
+                    "description": "Crée ou met à jour une recette de production pour un produit fini spécifique.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "finished_product_id": {
+                                "type": "INTEGER",
+                                "description": "L'identifiant du produit fini fabriqué."
+                            },
+                            "name": {
+                                "type": "STRING",
+                                "description": "Le nom de la recette."
+                            },
+                            "notes": {
+                                "type": "STRING",
+                                "description": "Notes ou remarques facultatives."
+                            },
+                            "items": {
+                                "type": "ARRAY",
+                                "description": "Liste des ingrédients. Chaque ingrédient doit être un objet contenant 'raw_material_id' et 'quantity'.",
+                                "items": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "raw_material_id": {
+                                            "type": "INTEGER"
+                                        },
+                                        "quantity": {
+                                            "type": "NUMBER",
+                                            "description": "Quantité nécessaire en kg."
+                                        }
+                                    },
+                                    "required": ["raw_material_id", "quantity"]
+                                }
+                            }
+                        },
+                        "required": ["finished_product_id", "name", "items"]
+                    }
+                },
+                {
+                    "name": "delete_recipe",
+                    "description": "Supprime définitivement une recette de production existante.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "recipe_id": {
+                                "type": "INTEGER",
+                                "description": "L'identifiant de la recette à supprimer."
+                            }
+                        },
+                        "required": ["recipe_id"]
+                    }
+                },
+                {
+                    "name": "list_bon_space_documents",
+                    "description": "Recherche et liste les documents numérisés (PDF, factures, bons d'achat/vente, lots de production) de l'Espace Bons.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "query": {
+                                "type": "STRING",
+                                "description": "Terme de recherche facultatif (nom de client, produit, date)."
+                            },
+                            "kind": {
+                                "type": "STRING",
+                                "description": "Filtre facultatif par type de document : 'sale' (vente), 'purchase' (achat), 'payment' (versement), 'production' (production), 'external' (PDF)."
+                            },
+                            "limit": {
+                                "type": "INTEGER",
+                                "description": "Nombre maximum de résultats (défaut 80)."
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "get_recent_activity_logs",
+                    "description": "Récupère les derniers journaux d'activité et d'audit du système.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "limit": {
+                                "type": "INTEGER",
+                                "description": "Nombre maximum de logs à récupérer (défaut 50)."
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "get_active_alerts",
+                    "description": "Récupère toutes les alertes de stock critique actuelles et les clients débiteurs en retard de paiement.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {}
+                    }
+                },
+                {
+                    "name": "run_system_maintenance",
+                    "description": "Déclenche la maintenance de la base de données (optimisation des index, nettoyage des logs et caches). Uniquement disponible pour les administrateurs.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {}
+                    }
                 }
             ]
         }
