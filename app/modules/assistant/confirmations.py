@@ -7,6 +7,7 @@ READ_ONLY_TOOL_NAMES = frozenset({
     "change_theme",
     "execute_readonly_sql",
     "forget",
+    "get_active_alerts",
     "get_business_insights",
     "get_current_weather",
     "get_enum_values",
@@ -14,6 +15,8 @@ READ_ONLY_TOOL_NAMES = frozenset({
     "get_schema",
     "get_user_note",
     "list_app_backups",
+    "list_bon_space_documents",
+    "list_recipes",
     "list_user_notes",
     "read_app_file",
     "recall",
@@ -22,6 +25,7 @@ READ_ONLY_TOOL_NAMES = frozenset({
     "search_clients",
     "search_products",
     "search_web",
+    "get_recent_activity_logs",
 })
 
 
@@ -91,4 +95,28 @@ def get_tool_confirmation_message(name: str, args: dict) -> str:
         return f"Enregistrer les modifications sur la note '{args.get('title') or args.get('note_id')}' ?"
     elif name == "delete_user_note":
         return f"Supprimer la note ID '{args.get('note_id')}' ?"
+    elif name == "add_product":
+        cat = args.get('category', 'produit')
+        return f"Créer le produit `{args.get('name')}` ({cat}, prix: {args.get('price', '-')} DA, stock initial: {args.get('stock_qty', 0)}) ?"
+    elif name == "modify_product":
+        return f"Modifier le produit ID `{args.get('product_id')}` ({args.get('category', '')}) ?"
+    elif name == "delete_product":
+        return f"Supprimer définitivement le produit ID `{args.get('product_id')}` ({args.get('category', '')}) ?"
+    elif name == "create_recipe":
+        return f"Enregistrer la recette '{args.get('name', 'Sans nom')}' pour le produit ID `{args.get('finished_product_id')}` ({len(args.get('items', []))} ingrédient(s)) ?"
+    elif name == "delete_recipe":
+        return f"Supprimer définitivement la recette ID `{args.get('recipe_id')}` ?"
+    elif name == "import_bulk_clients_excel":
+        return f"Importer en masse les clients depuis le fichier `{args.get('filepath', '')}` ? Cette opération peut créer plusieurs enregistrements."
+    elif name == "import_bulk_products_excel":
+        kind = "matières premières" if args.get('is_raw_material') else "produits finis"
+        return f"Importer en masse les {kind} depuis `{args.get('filepath', '')}` ?"
+    elif name == "import_client_excel":
+        return f"Importer le client depuis le fichier Excel `{args.get('filepath', '')}` ?"
+    elif name == "import_client_history_excel":
+        return f"Importer l'historique Excel pour le client ID `{args.get('client_id', 'auto-détecté')}` depuis `{args.get('filepath', '')}` ?"
+    elif name == "save_backup_settings":
+        return f"Enregistrer la configuration des sauvegardes (répertoire: `{args.get('gdrive_backup_dir', '-')}`) ?"
+    elif name == "update_app_user":
+        return f"Mettre à jour l'utilisateur ID `{args.get('user_id')}` (rôle: `{args.get('role', '-')}`) ?"
     return f"Confirmer l'opération '{name}' avec les paramètres : {args}"

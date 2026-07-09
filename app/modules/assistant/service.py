@@ -7,21 +7,14 @@ from typing import Any, Dict, List, Tuple
 
 from app.core.db_helpers import db_manager
 from app.modules.assistant.confirmations import get_tool_confirmation_message, tool_requires_confirmation
-from app.modules.assistant.sql_tools import dry_run_sql as dry_run_sql
-from app.modules.assistant.sql_tools import execute_readonly_sql, execute_write_sql
+from app.modules.assistant.sql_tools import dry_run_sql, execute_readonly_sql, execute_write_sql
 from app.modules.assistant.tool_specs import get_gemini_tools, get_ollama_tools
-from app.modules.assistant.tool_actions import execute_tool_action as execute_tool_action
-from app.modules.assistant.tool_actions import sanitize_numeric as sanitize_numeric
+from app.modules.assistant.tool_actions import execute_tool_action, sanitize_numeric
 from app.modules.assistant.schema_context import (
-    TABLE_SCHEMAS,
-    FORM_LINKS,
-    PRINT_DOC_TYPES,
-    APP_ROUTES,
-    ACTION_GUIDE,
     get_schema,
     get_sabrina_system_prompt,
+    get_gemini_api_key,
     get_encryption_key,
-    get_gemini_api_key
 )
 from app.modules.assistant.intent import classify_intent
 
@@ -99,13 +92,6 @@ async def compress_history_if_needed(messages: List[Dict[str, Any]], api_key: st
         except Exception as e:
             logger.warning("Gemini history summarization failed: %s", e)
             return messages
-
-
-
-
-
-
-
 
 
 async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_name: str = "gemini-flash-latest") -> Dict[str, Any]:

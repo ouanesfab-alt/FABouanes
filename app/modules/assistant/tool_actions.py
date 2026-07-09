@@ -68,6 +68,41 @@ def sanitize_numeric(val: Any) -> float:
     return parse_amount(val)
 
 
+# ---------------------------------------------------------------------------
+# Constantes partagées
+# ---------------------------------------------------------------------------
+
+# Normalisation des catégories de dépenses (alias → valeur DB)
+EXPENSE_CATEGORY_MAP: Dict[str, str] = {
+    "matiere_premiere": "general", "matière première": "general", "matière": "general",
+    "carburant": "transport", "essence": "transport", "gazole": "transport", "transport": "transport",
+    "fournitures": "fournitures", "fournitures de bureau": "fournitures",
+    "loyer": "loyer",
+    "salaires": "salaires", "salaire": "salaires", "paie": "salaires",
+    "maintenance": "maintenance", "reparation": "maintenance", "réparation": "maintenance",
+    "telecom": "telecom", "internet": "telecom", "telephone": "telecom", "téléphone": "telecom",
+    "energie": "energie", "électricité": "energie", "electricite": "energie", "eau": "energie", "gaz": "energie",
+    "impots": "impots", "impôt": "impots", "taxe": "impots", "taxes": "impots",
+    "autre": "autre", "divers": "autre",
+}
+
+_ALLOWED_EXPENSE_CATEGORIES = frozenset(EXPENSE_CATEGORY_MAP.values())
+
+
+# ---------------------------------------------------------------------------
+# Sécurité chemin fichier
+# ---------------------------------------------------------------------------
+
+def _assert_workspace_path(abs_path: str, workspace_dir: str) -> None:
+    """Lève ValueError si abs_path sort du répertoire de l'application."""
+    try:
+        common = __import__("os").path.commonpath([workspace_dir, abs_path])
+        if common != workspace_dir:
+            raise ValueError()
+    except Exception:
+        raise ValueError("Sécurité : Accès interdit en dehors du répertoire de l'application.")
+
+
 async def search_web(query: str) -> Dict[str, Any]:
     from app.core.perf_cache import async_cached_result
     async def builder():
@@ -138,11 +173,9 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         workspace_dir = os.path.abspath(str(BASE_DIR))
         abs_path = os.path.abspath(filepath)
         try:
-            common = os.path.commonpath([workspace_dir, abs_path])
-            if common != workspace_dir:
-                raise ValueError()
-        except Exception:
-            return {"error": "Sécurité : Accès interdit en dehors du répertoire de l'application."}
+            _assert_workspace_path(abs_path, workspace_dir)
+        except ValueError as e:
+            return {"error": str(e)}
         with open(abs_path, "r", encoding="utf-8") as f:
             return {"content": f.read()}
 
@@ -153,11 +186,9 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         workspace_dir = os.path.abspath(str(BASE_DIR))
         abs_path = os.path.abspath(filepath)
         try:
-            common = os.path.commonpath([workspace_dir, abs_path])
-            if common != workspace_dir:
-                raise ValueError()
-        except Exception:
-            return {"error": "Sécurité : Accès interdit en dehors du répertoire de l'application."}
+            _assert_workspace_path(abs_path, workspace_dir)
+        except ValueError as e:
+            return {"error": str(e)}
         with open(abs_path, "r", encoding="utf-8") as f:
             content = f.read()
         if old_c not in content:
@@ -561,23 +592,10 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         description = str(func_args.get("description", "")).strip()
         payment_method = str(func_args.get("payment_method", "cash")).strip().lower()
 
-        # Normalize category
-        cat_map = {
-            "matiere_premiere": "general", "matière première": "general", "matière": "general",
-            "carburant": "transport", "essence": "transport", "gazole": "transport", "transport": "transport",
-            "fournitures": "fournitures", "fournitures de bureau": "fournitures",
-            "loyer": "loyer",
-            "salaires": "salaires", "salaire": "salaires", "paie": "salaires",
-            "maintenance": "maintenance", "reparation": "maintenance", "réparation": "maintenance",
-            "telecom": "telecom", "internet": "telecom", "telephone": "telecom", "téléphone": "telecom",
-            "energie": "energie", "électricité": "energie", "electricite": "energie", "eau": "energie", "gaz": "energie",
-            "impots": "impots", "impôt": "impots", "taxe": "impots", "taxes": "impots",
-            "autre": "autre", "divers": "autre"
-        }
-        allowed_literals = {"general", "transport", "fournitures", "loyer", "salaires", "maintenance", "telecom", "energie", "impots", "autre"}
-        if category in cat_map:
-            category = cat_map[category]
-        elif category not in allowed_literals:
+        # Normalize category using shared constant
+        if category in EXPENSE_CATEGORY_MAP:
+            category = EXPENSE_CATEGORY_MAP[category]
+        elif category not in _ALLOWED_EXPENSE_CATEGORIES:
             # Leave it as is so ExpenseCreateSchema validation fails naturally
             pass
 
@@ -616,20 +634,7 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         expense_id = int(func_args.get("expense_id"))
         category = func_args.get("category")
         if category:
-            category = str(category).strip().lower()
-            cat_map = {
-                "matiere_premiere": "general", "matière première": "general", "matière": "general",
-                "carburant": "transport", "essence": "transport", "gazole": "transport", "transport": "transport",
-                "fournitures": "fournitures", "fournitures de bureau": "fournitures",
-                "loyer": "loyer",
-                "salaires": "salaires", "salaire": "salaires", "paie": "salaires",
-                "maintenance": "maintenance", "reparation": "maintenance", "réparation": "maintenance",
-                "telecom": "telecom", "internet": "telecom", "telephone": "telecom", "téléphone": "telecom",
-                "energie": "energie", "électricité": "energie", "electricite": "energie", "eau": "energie", "gaz": "energie",
-                "impots": "impots", "impôt": "impots", "taxe": "impots", "taxes": "impots",
-                "autre": "autre", "divers": "autre"
-            }
-            category = cat_map.get(category, "autre")
+            category = EXPENSE_CATEGORY_MAP.get(str(category).strip().lower(), str(category).strip().lower())
         amount = func_args.get("amount")
         if amount is not None:
             amount = sanitize_numeric(amount)
@@ -925,11 +930,9 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         abs_path = os.path.abspath(filepath)
         workspace_dir = os.path.abspath(str(BASE_DIR))
         try:
-            common = os.path.commonpath([workspace_dir, abs_path])
-            if common != workspace_dir:
-                raise ValueError()
-        except Exception:
-            return {"error": "Sécurité : Accès interdit en dehors du répertoire de l'application."}
+            _assert_workspace_path(abs_path, workspace_dir)
+        except ValueError as e:
+            return {"error": str(e)}
         from app.services.excel_import_service import parse_excel_client_file
         try:
             data = parse_excel_client_file(abs_path)
@@ -962,11 +965,9 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         abs_path = os.path.abspath(filepath)
         workspace_dir = os.path.abspath(str(BASE_DIR))
         try:
-            common = os.path.commonpath([workspace_dir, abs_path])
-            if common != workspace_dir:
-                raise ValueError()
-        except Exception:
-            return {"error": "Sécurité : Accès interdit en dehors du répertoire de l'application."}
+            _assert_workspace_path(abs_path, workspace_dir)
+        except ValueError as e:
+            return {"error": str(e)}
 
         from app.modules.clients.service import ClientService
         async with session_maker() as session:
@@ -986,11 +987,9 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         abs_path = os.path.abspath(filepath)
         workspace_dir = os.path.abspath(str(BASE_DIR))
         try:
-            common = os.path.commonpath([workspace_dir, abs_path])
-            if common != workspace_dir:
-                raise ValueError()
-        except Exception:
-            return {"error": "Sécurité : Accès interdit en dehors du répertoire de l'application."}
+            _assert_workspace_path(abs_path, workspace_dir)
+        except ValueError as e:
+            return {"error": str(e)}
 
         from app.services.excel_import_service import parse_excel_bulk_clients
         try:
@@ -1030,11 +1029,9 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         abs_path = os.path.abspath(filepath)
         workspace_dir = os.path.abspath(str(BASE_DIR))
         try:
-            common = os.path.commonpath([workspace_dir, abs_path])
-            if common != workspace_dir:
-                raise ValueError()
-        except Exception:
-            return {"error": "Sécurité : Accès interdit en dehors du répertoire de l'application."}
+            _assert_workspace_path(abs_path, workspace_dir)
+        except ValueError as e:
+            return {"error": str(e)}
 
         from app.services.excel_import_service import parse_excel_bulk_products
         try:

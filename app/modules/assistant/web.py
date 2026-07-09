@@ -5,9 +5,8 @@ from fastapi.responses import RedirectResponse, JSONResponse, StreamingResponse
 from app.web.deps import require_permission
 from app.core.db_helpers import db_manager
 from app.core.security import encrypt_val
+from app.modules.assistant.schema_context import get_gemini_api_key, get_encryption_key
 from app.modules.assistant.service import (
-    get_gemini_api_key,
-    get_encryption_key,
     run_assistant_agent_generator,
     start_ollama
 )
