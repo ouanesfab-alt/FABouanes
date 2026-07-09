@@ -1182,11 +1182,11 @@
     }
 
 
-    // Helper to scroll page and container to bottom smoothly
-    function scrollToBottom() {
+    // Helper to scroll page and container to bottom
+    function scrollToBottom(smooth = true) {
       chatMessages.scrollTo({
         top: chatMessages.scrollHeight,
-        behavior: 'smooth'
+        behavior: smooth ? 'smooth' : 'auto'
       });
     }
 
@@ -1613,7 +1613,7 @@
                 const newText = currentText + event.text;
                 streamMessageBubble.setAttribute('data-raw-text', newText);
                 contentDiv.innerHTML = parseMarkdown(newText);
-                scrollToBottom();
+                scrollToBottom(false);
               }
             } else if (event.type === 'final_response') {
               if (progress.container) progress.container.remove();
@@ -1764,7 +1764,7 @@
       }
     });
 
-    function appendMessage(role, text, fileObj) {
+    function appendMessage(role, text, fileObj = null, shouldScroll = true) {
       if (role === 'user') {
         // Wrapper aligné à droite : bulle + bouton Copier en dessous, même style que l'IA
         const wrapper = document.createElement('div');
@@ -1791,7 +1791,9 @@
         wrapper.appendChild(bubble);
         wrapper.appendChild(actions);
         chatMessages.appendChild(wrapper);
-        scrollToBottom();
+        if (shouldScroll) {
+          scrollToBottom();
+        }
         return wrapper;
 
       } else {
@@ -1815,7 +1817,9 @@
         }
 
         chatMessages.appendChild(bubble);
-        scrollToBottom();
+        if (shouldScroll) {
+          scrollToBottom();
+        }
         return bubble;
       }
     }
@@ -1857,8 +1861,9 @@
 
     function renderHistory() {
       history.forEach(msg => {
-        appendMessage(msg.role, msg.parts[0].text);
+        appendMessage(msg.role, msg.parts[0].text, null, false);
       });
+      scrollToBottom(false);
     }
 
     function parseMarkdown(md) {
