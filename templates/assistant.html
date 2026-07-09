@@ -676,6 +676,30 @@
     0% { transform: scaleY(0.35); }
     100% { transform: scaleY(1); }
   }
+
+  @media (max-width: 576px) {
+    .chat-input-area {
+      padding: 6px 10px 8px !important;
+    }
+    .chat-input-bar {
+      padding: 4px 4px 4px 8px !important;
+      border-radius: 20px !important;
+    }
+    .chat-input-bar textarea {
+      font-size: 16px !important; /* Prevents iOS auto-zoom */
+      height: 38px !important;
+      padding: 8px 4px !important;
+    }
+    #attachBtn, #micBtn {
+      width: 32px !important;
+      height: 32px !important;
+      margin-right: 2px !important;
+      padding: 0 !important;
+    }
+    #attachBtn i, #micBtn i {
+      font-size: 1.25rem !important;
+    }
+  }
 </style>
 
 <div class="assistant-wrapper">
