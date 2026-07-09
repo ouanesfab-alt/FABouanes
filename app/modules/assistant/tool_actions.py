@@ -574,7 +574,16 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
             if tx_kind in ("sale_finished", "sale_raw", "sale"):
                 from app.modules.sales.service import SalesService
                 service = SalesService(session)
-                await service.delete_sale_by_id(tx_id)
+                kind = "finished"
+                if tx_kind == "sale_raw":
+                    kind = "raw"
+                elif tx_kind == "sale_finished":
+                    kind = "finished"
+                else:
+                    before_finished = await service.sale_repo.get_sale_detail("finished", tx_id)
+                    if not before_finished:
+                        kind = "raw"
+                await service.delete_sale_by_id(kind, tx_id)
             elif tx_kind == "purchase":
                 from app.modules.purchases.service import PurchaseService
                 service = PurchaseService(session)

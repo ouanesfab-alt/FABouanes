@@ -641,3 +641,47 @@ def test_classify_intent():
     assert classify_intent("générer un bon de livraison PDF") == "full"
 
 
+@pytest.mark.asyncio
+async def test_delete_operation_tool_action():
+    from unittest.mock import MagicMock
+    
+    mock_sales_service = MagicMock()
+    mock_sales_service.delete_sale_by_id = AsyncMock(return_value=True)
+    
+    mock_purchase_service = MagicMock()
+    mock_purchase_service.delete_purchase_by_id = AsyncMock(return_value=True)
+
+    mock_payments_service = MagicMock()
+    mock_payments_service.delete_payment_by_id = AsyncMock(return_value=True)
+
+    with patch("app.modules.sales.service.SalesService", return_value=mock_sales_service):
+        with patch("app.modules.purchases.service.PurchaseService", return_value=mock_purchase_service):
+            with patch("app.modules.payments.service.PaymentsService", return_value=mock_payments_service):
+                # 1. Test sale_finished mapping
+                res_finished = await execute_tool_action("delete_operation", {"tx_kind": "sale_finished", "tx_id": 123})
+                assert res_finished["success"] is True
+                mock_sales_service.delete_sale_by_id.assert_called_with("finished", 123)
+
+                # 2. Test sale_raw mapping
+                res_raw = await execute_tool_action("delete_operation", {"tx_kind": "sale_raw", "tx_id": 456})
+                assert res_raw["success"] is True
+                mock_sales_service.delete_sale_by_id.assert_called_with("raw", 456)
+
+                # 3. Test generic sale fallback mapping when it doesn't exist in finished (so it queries)
+                mock_sales_service.sale_repo.get_sale_detail = AsyncMock(return_value=None)
+                res_generic_raw = await execute_tool_action("delete_operation", {"tx_kind": "sale", "tx_id": 789})
+                assert res_generic_raw["success"] is True
+                mock_sales_service.delete_sale_by_id.assert_called_with("raw", 789)
+
+                # 4. Test purchase mapping
+                res_purchase = await execute_tool_action("delete_operation", {"tx_kind": "purchase", "tx_id": 111})
+                assert res_purchase["success"] is True
+                mock_purchase_service.delete_purchase_by_id.assert_called_with(111)
+
+                # 5. Test payment mapping
+                res_payment = await execute_tool_action("delete_operation", {"tx_kind": "payment", "tx_id": 222})
+                assert res_payment["success"] is True
+                mock_payments_service.delete_payment_by_id.assert_called_with(222)
+
+
+
