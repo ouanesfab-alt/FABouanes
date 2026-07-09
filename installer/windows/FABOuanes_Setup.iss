@@ -21,6 +21,8 @@ OutputBaseFilename=FABOuanes_Setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
+WizardResizable=yes
+WizardSizePercent=115,115
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 UsePreviousAppDir=yes
@@ -77,6 +79,8 @@ var
   RadioPgServer: TNewRadioButton;
   LabelDbTitle: TNewStaticText;
   LabelDbDesc: TNewStaticText;
+  PanelPgLocal: TPanel;
+  PanelPgServer: TPanel;
 
   // --- Page configuration PostgreSQL ---
   PagePgConfig: TWizardPage;
@@ -90,6 +94,7 @@ var
   LabelPgPass: TNewStaticText;
   LabelPgDbName: TNewStaticText;
   LabelPgInfo: TNewStaticText;
+  FormCard: TPanel;
 
   // --- Page choix de l'IA ---
   PageAiChoice: TWizardPage;
@@ -100,6 +105,34 @@ var
   LabelAiGeminiDesc: TNewStaticText;
   LabelAiOllamaDesc: TNewStaticText;
   LabelAiBothDesc: TNewStaticText;
+  PanelAiGemini: TPanel;
+  PanelAiOllama: TPanel;
+  PanelAiBoth: TPanel;
+
+procedure PgLocalCardClick(Sender: TObject);
+begin
+  RadioPgLocal.Checked := True;
+end;
+
+procedure PgServerCardClick(Sender: TObject);
+begin
+  RadioPgServer.Checked := True;
+end;
+
+procedure AiGeminiCardClick(Sender: TObject);
+begin
+  RadioAiGemini.Checked := True;
+end;
+
+procedure AiOllamaCardClick(Sender: TObject);
+begin
+  RadioAiOllama.Checked := True;
+end;
+
+procedure AiBothCardClick(Sender: TObject);
+begin
+  RadioAiBoth.Checked := True;
+end;
 
 function GetDbChoice(): Integer;
 begin
@@ -126,55 +159,91 @@ begin
   LabelDbTitle := TNewStaticText.Create(PageDbChoice);
   LabelDbTitle.Parent := PageDbChoice.Surface;
   LabelDbTitle.Caption := 'Quel mode souhaitez-vous utiliser ?';
+  LabelDbTitle.Font.Name := 'Segoe UI';
   LabelDbTitle.Font.Style := [fsBold];
   LabelDbTitle.Font.Size := 10;
   LabelDbTitle.Left := 0;
   LabelDbTitle.Top := TopPos;
   LabelDbTitle.AutoSize := True;
-  TopPos := TopPos + 32;
+  TopPos := TopPos + 28;
 
-  // --- Option 1: PostgreSQL local (this machine only) ---
+  // --- Card 1: Local Database ---
+  PanelPgLocal := TPanel.Create(PageDbChoice);
+  PanelPgLocal.Parent := PageDbChoice.Surface;
+  PanelPgLocal.Left := 0;
+  PanelPgLocal.Top := TopPos;
+  PanelPgLocal.Width := PageDbChoice.SurfaceWidth;
+  PanelPgLocal.Height := 76;
+  PanelPgLocal.Color := clWhite;
+  PanelPgLocal.ParentBackground := False;
+  PanelPgLocal.BevelOuter := bvNone;
+  PanelPgLocal.Cursor := crHand;
+  PanelPgLocal.OnClick := @PgLocalCardClick;
+
   RadioPgLocal := TNewRadioButton.Create(PageDbChoice);
-  RadioPgLocal.Parent := PageDbChoice.Surface;
+  RadioPgLocal.Parent := PanelPgLocal;
   RadioPgLocal.Caption := 'PostgreSQL — Utilisation sur ce poste uniquement (recommande)';
+  RadioPgLocal.Font.Name := 'Segoe UI';
   RadioPgLocal.Font.Style := [fsBold];
-  RadioPgLocal.Left := 8;
-  RadioPgLocal.Top := TopPos;
-  RadioPgLocal.Width := PageDbChoice.SurfaceWidth - 16;
+  RadioPgLocal.Font.Size := 9;
+  RadioPgLocal.Left := 16;
+  RadioPgLocal.Top := 14;
+  RadioPgLocal.Width := PanelPgLocal.Width - 32;
   RadioPgLocal.Checked := True;
-  TopPos := TopPos + 22;
+  RadioPgLocal.Cursor := crHand;
 
   LabelDbDesc := TNewStaticText.Create(PageDbChoice);
-  LabelDbDesc.Parent := PageDbChoice.Surface;
-  LabelDbDesc.Caption :=
-    '     Base fiable et performante avec PostgreSQL installe sur cette machine.' + #13#10 +
-    '     Ideal pour un usage professionnel quotidien sur un seul poste.';
-  LabelDbDesc.Left := 8;
-  LabelDbDesc.Top := TopPos;
-  LabelDbDesc.AutoSize := True;
+  LabelDbDesc.Parent := PanelPgLocal;
+  LabelDbDesc.Caption := 'Base fiable et performante avec PostgreSQL installe sur cette machine.' + #13#10 + 'Ideal pour un usage professionnel quotidien sur un seul poste.';
+  LabelDbDesc.Font.Name := 'Segoe UI';
+  LabelDbDesc.Font.Size := 8;
   LabelDbDesc.Font.Color := clGray;
-  TopPos := TopPos + 42;
+  LabelDbDesc.Left := 36;
+  LabelDbDesc.Top := 36;
+  LabelDbDesc.Width := PanelPgLocal.Width - 52;
+  LabelDbDesc.WordWrap := True;
+  LabelDbDesc.Cursor := crHand;
+  LabelDbDesc.OnClick := @PgLocalCardClick;
 
-  // --- Option 2: PostgreSQL serveur (this machine = server for others) ---
+  TopPos := TopPos + 88;
+
+  // --- Card 2: Server Database ---
+  PanelPgServer := TPanel.Create(PageDbChoice);
+  PanelPgServer.Parent := PageDbChoice.Surface;
+  PanelPgServer.Left := 0;
+  PanelPgServer.Top := TopPos;
+  PanelPgServer.Width := PageDbChoice.SurfaceWidth;
+  PanelPgServer.Height := 76;
+  PanelPgServer.Color := clWhite;
+  PanelPgServer.ParentBackground := False;
+  PanelPgServer.BevelOuter := bvNone;
+  PanelPgServer.Cursor := crHand;
+  PanelPgServer.OnClick := @PgServerCardClick;
+
   RadioPgServer := TNewRadioButton.Create(PageDbChoice);
-  RadioPgServer.Parent := PageDbChoice.Surface;
+  RadioPgServer.Parent := PanelPgServer;
   RadioPgServer.Caption := 'PostgreSQL Serveur — Ce poste sert les autres machines du reseau';
+  RadioPgServer.Font.Name := 'Segoe UI';
   RadioPgServer.Font.Style := [fsBold];
-  RadioPgServer.Left := 8;
-  RadioPgServer.Top := TopPos;
-  RadioPgServer.Width := PageDbChoice.SurfaceWidth - 16;
+  RadioPgServer.Font.Size := 9;
+  RadioPgServer.Left := 16;
+  RadioPgServer.Top := 14;
+  RadioPgServer.Width := PanelPgServer.Width - 32;
   RadioPgServer.Checked := False;
-  TopPos := TopPos + 22;
+  RadioPgServer.Cursor := crHand;
 
   LabelDbDesc := TNewStaticText.Create(PageDbChoice);
-  LabelDbDesc.Parent := PageDbChoice.Surface;
-  LabelDbDesc.Caption :=
-    '     Cette machine devient le serveur FABOuanes. Les autres postes' + #13#10 +
-    '     du reseau (PC, telephone) se connectent a celle-ci.';
-  LabelDbDesc.Left := 8;
-  LabelDbDesc.Top := TopPos;
-  LabelDbDesc.AutoSize := True;
+  LabelDbDesc.Parent := PanelPgServer;
+  LabelDbDesc.Caption := 'Cette machine devient le serveur FABOuanes. Les autres postes' + #13#10 + 'du reseau (PC, telephone) se connectent a celle-ci.';
+  LabelDbDesc.Font.Name := 'Segoe UI';
+  LabelDbDesc.Font.Size := 8;
   LabelDbDesc.Font.Color := clGray;
+  LabelDbDesc.Left := 36;
+  LabelDbDesc.Top := 36;
+  LabelDbDesc.Width := PanelPgServer.Width - 52;
+  LabelDbDesc.WordWrap := True;
+  LabelDbDesc.Cursor := crHand;
+  LabelDbDesc.OnClick := @PgServerCardClick;
 end;
 
 
@@ -194,76 +263,110 @@ begin
   LabelPgTitle := TNewStaticText.Create(PagePgConfig);
   LabelPgTitle.Parent := PagePgConfig.Surface;
   LabelPgTitle.Caption := 'Connexion au PostgreSQL de cette machine';
+  LabelPgTitle.Font.Name := 'Segoe UI';
   LabelPgTitle.Font.Style := [fsBold];
   LabelPgTitle.Font.Size := 10;
   LabelPgTitle.Left := 0;
   LabelPgTitle.Top := TopPos;
   LabelPgTitle.AutoSize := True;
-  TopPos := TopPos + 32;
+  TopPos := TopPos + 28;
 
-  // Port
-  LabelPgPort := TNewStaticText.Create(PagePgConfig);
-  LabelPgPort.Parent := PagePgConfig.Surface;
-  LabelPgPort.Caption := 'Port PostgreSQL :';
-  LabelPgPort.Left := 0;
-  LabelPgPort.Top := TopPos;
-  TopPos := TopPos + 18;
+  // --- Form Container Card ---
+  FormCard := TPanel.Create(PagePgConfig);
+  FormCard.Parent := PagePgConfig.Surface;
+  FormCard.Left := 0;
+  FormCard.Top := TopPos;
+  FormCard.Width := PagePgConfig.SurfaceWidth;
+  FormCard.Height := 150;
+  FormCard.Color := clWhite;
+  FormCard.ParentBackground := False;
+  FormCard.BevelOuter := bvNone;
 
-  EditPgPort := TNewEdit.Create(PagePgConfig);
-  EditPgPort.Parent := PagePgConfig.Surface;
-  EditPgPort.Left := 0;
-  EditPgPort.Top := TopPos;
-  EditPgPort.Width := 100;
-  EditPgPort.Text := '5432';
-  TopPos := TopPos + 30;
-
-  // User
+  // Username
   LabelPgUser := TNewStaticText.Create(PagePgConfig);
-  LabelPgUser.Parent := PagePgConfig.Surface;
-  LabelPgUser.Caption := 'Nom d''utilisateur PostgreSQL :';
-  LabelPgUser.Left := 0;
-  LabelPgUser.Top := TopPos;
-  TopPos := TopPos + 18;
+  LabelPgUser.Parent := FormCard;
+  LabelPgUser.Caption := 'Nom d''utilisateur :';
+  LabelPgUser.Font.Name := 'Segoe UI';
+  LabelPgUser.Font.Style := [fsBold];
+  LabelPgUser.Font.Size := 9;
+  LabelPgUser.Left := 16;
+  LabelPgUser.Top := 15;
+  LabelPgUser.Width := 150;
 
   EditPgUser := TNewEdit.Create(PagePgConfig);
-  EditPgUser.Parent := PagePgConfig.Surface;
-  EditPgUser.Left := 0;
-  EditPgUser.Top := TopPos;
-  EditPgUser.Width := 300;
+  EditPgUser.Parent := FormCard;
+  EditPgUser.Left := 185;
+  EditPgUser.Top := 12;
+  EditPgUser.Width := 220;
+  EditPgUser.Height := 24;
+  EditPgUser.Font.Name := 'Segoe UI';
+  EditPgUser.Font.Size := 9;
   EditPgUser.Text := 'postgres';
-  TopPos := TopPos + 30;
 
   // Password
   LabelPgPass := TNewStaticText.Create(PagePgConfig);
-  LabelPgPass.Parent := PagePgConfig.Surface;
-  LabelPgPass.Caption := 'Mot de passe PostgreSQL :';
-  LabelPgPass.Left := 0;
-  LabelPgPass.Top := TopPos;
-  TopPos := TopPos + 18;
+  LabelPgPass.Parent := FormCard;
+  LabelPgPass.Caption := 'Mot de passe :';
+  LabelPgPass.Font.Name := 'Segoe UI';
+  LabelPgPass.Font.Style := [fsBold];
+  LabelPgPass.Font.Size := 9;
+  LabelPgPass.Left := 16;
+  LabelPgPass.Top := 49;
+  LabelPgPass.Width := 150;
 
   EditPgPass := TPasswordEdit.Create(PagePgConfig);
-  EditPgPass.Parent := PagePgConfig.Surface;
-  EditPgPass.Left := 0;
-  EditPgPass.Top := TopPos;
-  EditPgPass.Width := 300;
+  EditPgPass.Parent := FormCard;
+  EditPgPass.Left := 185;
+  EditPgPass.Top := 46;
+  EditPgPass.Width := 220;
+  EditPgPass.Height := 24;
+  EditPgPass.Font.Name := 'Segoe UI';
+  EditPgPass.Font.Size := 9;
   EditPgPass.Text := '';
-  TopPos := TopPos + 30;
 
-  // Database name
+  // Port
+  LabelPgPort := TNewStaticText.Create(PagePgConfig);
+  LabelPgPort.Parent := FormCard;
+  LabelPgPort.Caption := 'Port PostgreSQL :';
+  LabelPgPort.Font.Name := 'Segoe UI';
+  LabelPgPort.Font.Style := [fsBold];
+  LabelPgPort.Font.Size := 9;
+  LabelPgPort.Left := 16;
+  LabelPgPort.Top := 83;
+  LabelPgPort.Width := 150;
+
+  EditPgPort := TNewEdit.Create(PagePgConfig);
+  EditPgPort.Parent := FormCard;
+  EditPgPort.Left := 185;
+  EditPgPort.Top := 80;
+  EditPgPort.Width := 100;
+  EditPgPort.Height := 24;
+  EditPgPort.Font.Name := 'Segoe UI';
+  EditPgPort.Font.Size := 9;
+  EditPgPort.Text := '5432';
+
+  // Database Name
   LabelPgDbName := TNewStaticText.Create(PagePgConfig);
-  LabelPgDbName.Parent := PagePgConfig.Surface;
-  LabelPgDbName.Caption := 'Nom de la base de donnees :';
-  LabelPgDbName.Left := 0;
-  LabelPgDbName.Top := TopPos;
-  TopPos := TopPos + 18;
+  LabelPgDbName.Parent := FormCard;
+  LabelPgDbName.Caption := 'Nom de la base :';
+  LabelPgDbName.Font.Name := 'Segoe UI';
+  LabelPgDbName.Font.Style := [fsBold];
+  LabelPgDbName.Font.Size := 9;
+  LabelPgDbName.Left := 16;
+  LabelPgDbName.Top := 117;
+  LabelPgDbName.Width := 150;
 
   EditPgDbName := TNewEdit.Create(PagePgConfig);
-  EditPgDbName.Parent := PagePgConfig.Surface;
-  EditPgDbName.Left := 0;
-  EditPgDbName.Top := TopPos;
-  EditPgDbName.Width := 300;
+  EditPgDbName.Parent := FormCard;
+  EditPgDbName.Left := 185;
+  EditPgDbName.Top := 114;
+  EditPgDbName.Width := 220;
+  EditPgDbName.Height := 24;
+  EditPgDbName.Font.Name := 'Segoe UI';
+  EditPgDbName.Font.Size := 9;
   EditPgDbName.Text := 'fabouanes';
-  TopPos := TopPos + 36;
+
+  TopPos := TopPos + 158;
 
   // Info text
   LabelPgInfo := TNewStaticText.Create(PagePgConfig);
@@ -271,12 +374,14 @@ begin
   LabelPgInfo.Caption :=
     'PostgreSQL doit etre installe sur cette machine.' + #13#10 +
     'Utilisez le mot de passe choisi lors de l''installation de PostgreSQL.' + #13#10 +
-    '' + #13#10 +
     'Si vous n''avez pas encore installe PostgreSQL, annulez l''installation' + #13#10 +
     'et installez-le depuis : https://www.postgresql.org/download/windows/';
   LabelPgInfo.Left := 0;
   LabelPgInfo.Top := TopPos;
-  LabelPgInfo.AutoSize := True;
+  LabelPgInfo.Width := PagePgConfig.SurfaceWidth;
+  LabelPgInfo.WordWrap := True;
+  LabelPgInfo.Font.Name := 'Segoe UI';
+  LabelPgInfo.Font.Size := 8;
   LabelPgInfo.Font.Color := clGray;
 end;
 
@@ -673,83 +778,145 @@ begin
   LabelAiTitle := TNewStaticText.Create(PageAiChoice);
   LabelAiTitle.Parent := PageAiChoice.Surface;
   LabelAiTitle.Caption := 'Quel assistant IA souhaitez-vous configurer ?';
+  LabelAiTitle.Font.Name := 'Segoe UI';
   LabelAiTitle.Font.Style := [fsBold];
   LabelAiTitle.Font.Size := 10;
   LabelAiTitle.Left := 0;
   LabelAiTitle.Top := TopPos;
   LabelAiTitle.AutoSize := True;
-  TopPos := TopPos + 32;
+  TopPos := TopPos + 28;
 
-  // --- Option 1: Gemini ---
+  // --- Card 1: Gemini ---
+  PanelAiGemini := TPanel.Create(PageAiChoice);
+  PanelAiGemini.Parent := PageAiChoice.Surface;
+  PanelAiGemini.Left := 0;
+  PanelAiGemini.Top := TopPos;
+  PanelAiGemini.Width := PageAiChoice.SurfaceWidth;
+  PanelAiGemini.Height := 54;
+  PanelAiGemini.Color := clWhite;
+  PanelAiGemini.ParentBackground := False;
+  PanelAiGemini.BevelOuter := bvNone;
+  PanelAiGemini.Cursor := crHand;
+  PanelAiGemini.OnClick := @AiGeminiCardClick;
+
   RadioAiGemini := TNewRadioButton.Create(PageAiChoice);
-  RadioAiGemini.Parent := PageAiChoice.Surface;
-  RadioAiGemini.Caption := '1. Google Gemini — Assistant en ligne (recommande)';
+  RadioAiGemini.Parent := PanelAiGemini;
+  RadioAiGemini.Caption := 'Google Gemini — Cloud en ligne (recommande)';
+  RadioAiGemini.Font.Name := 'Segoe UI';
   RadioAiGemini.Font.Style := [fsBold];
-  RadioAiGemini.Left := 8;
-  RadioAiGemini.Top := TopPos;
-  RadioAiGemini.Width := PageAiChoice.SurfaceWidth - 16;
+  RadioAiGemini.Font.Size := 9;
+  RadioAiGemini.Left := 16;
+  RadioAiGemini.Top := 10;
+  RadioAiGemini.Width := PanelAiGemini.Width - 32;
   RadioAiGemini.Checked := True;
-  TopPos := TopPos + 22;
+  RadioAiGemini.Cursor := crHand;
 
   LabelAiGeminiDesc := TNewStaticText.Create(PageAiChoice);
-  LabelAiGeminiDesc.Parent := PageAiChoice.Surface;
-  LabelAiGeminiDesc.Caption :=
-    '     Necessite une connexion Internet et une cle API Gemini.' + #13#10 +
-    '     Ultra-rapide, consomme tres peu de processeur et de memoire.';
-  LabelAiGeminiDesc.Left := 8;
-  LabelAiGeminiDesc.Top := TopPos;
-  LabelAiGeminiDesc.AutoSize := True;
+  LabelAiGeminiDesc.Parent := PanelAiGemini;
+  LabelAiGeminiDesc.Caption := 'Necessite une connexion Internet et une cle API. Rapide et econome en ressources.';
+  LabelAiGeminiDesc.Font.Name := 'Segoe UI';
+  LabelAiGeminiDesc.Font.Size := 8;
   LabelAiGeminiDesc.Font.Color := clGray;
-  TopPos := TopPos + 42;
+  LabelAiGeminiDesc.Left := 36;
+  LabelAiGeminiDesc.Top := 28;
+  LabelAiGeminiDesc.Width := PanelAiGemini.Width - 52;
+  LabelAiGeminiDesc.WordWrap := True;
+  LabelAiGeminiDesc.Cursor := crHand;
+  LabelAiGeminiDesc.OnClick := @AiGeminiCardClick;
 
-  // --- Option 2: Ollama ---
+  TopPos := TopPos + 60;
+
+  // --- Card 2: Ollama ---
+  PanelAiOllama := TPanel.Create(PageAiChoice);
+  PanelAiOllama.Parent := PageAiChoice.Surface;
+  PanelAiOllama.Left := 0;
+  PanelAiOllama.Top := TopPos;
+  PanelAiOllama.Width := PageAiChoice.SurfaceWidth;
+  PanelAiOllama.Height := 54;
+  PanelAiOllama.Color := clWhite;
+  PanelAiOllama.ParentBackground := False;
+  PanelAiOllama.BevelOuter := bvNone;
+  PanelAiOllama.Cursor := crHand;
+  PanelAiOllama.OnClick := @AiOllamaCardClick;
+
   RadioAiOllama := TNewRadioButton.Create(PageAiChoice);
-  RadioAiOllama.Parent := PageAiChoice.Surface;
-  RadioAiOllama.Caption := '2. Ollama — Assistant 100% local et prive (sans Internet)';
+  RadioAiOllama.Parent := PanelAiOllama;
+  RadioAiOllama.Caption := 'Ollama — Assistant 100% local et prive (sans Internet)';
+  RadioAiOllama.Font.Name := 'Segoe UI';
   RadioAiOllama.Font.Style := [fsBold];
-  RadioAiOllama.Left := 8;
-  RadioAiOllama.Top := TopPos;
-  RadioAiOllama.Width := PageAiChoice.SurfaceWidth - 16;
+  RadioAiOllama.Font.Size := 9;
+  RadioAiOllama.Left := 16;
+  RadioAiOllama.Top := 10;
+  RadioAiOllama.Width := PanelAiOllama.Width - 32;
   RadioAiOllama.Checked := False;
-  TopPos := TopPos + 22;
+  RadioAiOllama.Cursor := crHand;
 
   LabelAiOllamaDesc := TNewStaticText.Create(PageAiChoice);
-  LabelAiOllamaDesc.Parent := PageAiChoice.Surface;
-  LabelAiOllamaDesc.Caption :=
-    '     Execution locale privee sur votre PC (Ollama).' + #13#10 +
-    '     Necessite un telechargement du modele (qwen2.5:7b, 4.7 Go) lors de l''installation.';
-  LabelAiOllamaDesc.Left := 8;
-  LabelAiOllamaDesc.Top := TopPos;
-  LabelAiOllamaDesc.AutoSize := True;
+  LabelAiOllamaDesc.Parent := PanelAiOllama;
+  LabelAiOllamaDesc.Caption := 'Execution locale. Telecharge le modele (qwen2.5:7b, 4.7 Go) lors de l''installation.';
+  LabelAiOllamaDesc.Font.Name := 'Segoe UI';
+  LabelAiOllamaDesc.Font.Size := 8;
   LabelAiOllamaDesc.Font.Color := clGray;
-  TopPos := TopPos + 42;
+  LabelAiOllamaDesc.Left := 36;
+  LabelAiOllamaDesc.Top := 28;
+  LabelAiOllamaDesc.Width := PanelAiOllama.Width - 52;
+  LabelAiOllamaDesc.WordWrap := True;
+  LabelAiOllamaDesc.Cursor := crHand;
+  LabelAiOllamaDesc.OnClick := @AiOllamaCardClick;
 
-  // --- Option 3: Les deux (mode hybride) ---
+  TopPos := TopPos + 60;
+
+  // --- Card 3: Both (Hybrid) ---
+  PanelAiBoth := TPanel.Create(PageAiChoice);
+  PanelAiBoth.Parent := PageAiChoice.Surface;
+  PanelAiBoth.Left := 0;
+  PanelAiBoth.Top := TopPos;
+  PanelAiBoth.Width := PageAiChoice.SurfaceWidth;
+  PanelAiBoth.Height := 54;
+  PanelAiBoth.Color := clWhite;
+  PanelAiBoth.ParentBackground := False;
+  PanelAiBoth.BevelOuter := bvNone;
+  PanelAiBoth.Cursor := crHand;
+  PanelAiBoth.OnClick := @AiBothCardClick;
+
   RadioAiBoth := TNewRadioButton.Create(PageAiChoice);
-  RadioAiBoth.Parent := PageAiChoice.Surface;
-  RadioAiBoth.Caption := '3. Les deux — Mode hybride (Cloud + Local)';
+  RadioAiBoth.Parent := PanelAiBoth;
+  RadioAiBoth.Caption := 'Les deux — Mode hybride (Cloud + Local)';
+  RadioAiBoth.Font.Name := 'Segoe UI';
   RadioAiBoth.Font.Style := [fsBold];
-  RadioAiBoth.Left := 8;
-  RadioAiBoth.Top := TopPos;
-  RadioAiBoth.Width := PageAiChoice.SurfaceWidth - 16;
+  RadioAiBoth.Font.Size := 9;
+  RadioAiBoth.Left := 16;
+  RadioAiBoth.Top := 10;
+  RadioAiBoth.Width := PanelAiBoth.Width - 32;
   RadioAiBoth.Checked := False;
-  TopPos := TopPos + 22;
+  RadioAiBoth.Cursor := crHand;
 
   LabelAiBothDesc := TNewStaticText.Create(PageAiChoice);
-  LabelAiBothDesc.Parent := PageAiChoice.Surface;
-  LabelAiBothDesc.Caption :=
-    '     Installe Ollama localement ET configure le support Gemini.' + #13#10 +
-    '     Permet de basculer librement de l''un a l''autre dans l''application.';
-  LabelAiBothDesc.Left := 8;
-  LabelAiBothDesc.Top := TopPos;
-  LabelAiBothDesc.AutoSize := True;
-  LabelAiBothDesc.Font.Color := clGray;
+  LabelAiBothDesc.Parent := PanelAiBoth;
+  LabelAiBothDesc.Caption := 'Installe Ollama localement et permet de basculer librement vers Gemini en ligne.';
+  LabelAiBothDesc.Font.Name := 'Segoe UI';
+  LabelAiBothDesc.Font.Size := 8;
+
+  LabelAiBothDesc.Left := 36;
+  LabelAiBothDesc.Top := 28;
+  LabelAiBothDesc.Width := PanelAiBoth.Width - 52;
+  LabelAiBothDesc.WordWrap := True;
+  LabelAiBothDesc.Cursor := crHand;
+  LabelAiBothDesc.OnClick := @AiBothCardClick;
 end;
 
 
 // ---- Initialize custom pages ----
 procedure InitializeWizard();
 begin
+  // Appliquer la police système Segoe UI moderne par défaut sur tout le Wizard
+  WizardForm.Font.Name := 'Segoe UI';
+  WizardForm.WelcomeLabel1.Font.Name := 'Segoe UI';
+  WizardForm.WelcomeLabel1.Font.Style := [fsBold];
+  WizardForm.PageNameLabel.Font.Name := 'Segoe UI';
+  WizardForm.PageNameLabel.Font.Style := [fsBold];
+  WizardForm.PageDescriptionLabel.Font.Name := 'Segoe UI';
+
   CreateDbChoicePage();
   CreatePgConfigPage();
   CreateAiChoicePage();
