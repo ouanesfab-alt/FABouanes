@@ -35,7 +35,7 @@ async def _build_production_payload_impl(
     row = row_res.first()
     if not row:
         return None
-    
+
     row_dict = dict(row._mapping)
     item_rows_res = await db.execute(
         text("""

@@ -3,7 +3,6 @@ Responsibility: Bootstrap the initial database schema and seed data.
 """
 from __future__ import annotations
 
-import logging
 
 from app.core.config import settings
 from app.core.db import connect_database
@@ -70,7 +69,7 @@ def bootstrap_schema() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_outbox_events_processed_at ON outbox_events(processed_at);
         """)
-        
+
         # Then domain schemas
         conn.executescript(SCHEMA_CONTACTS)
         conn.executescript(SCHEMA_CATALOG)
@@ -95,7 +94,7 @@ def bootstrap_schema() -> None:
 
         CREATE INDEX IF NOT EXISTS idx_sales_credit_client ON sales(client_id, total) WHERE sale_type = 'credit';
         CREATE INDEX IF NOT EXISTS idx_raw_sales_credit_client ON raw_sales(client_id, total) WHERE sale_type = 'credit';
-        
+
         -- Option N: Composite and Search Indexes for SQL Query Optimization
         CREATE INDEX IF NOT EXISTS idx_sales_client_date_type ON sales(client_id, sale_date, sale_type);
         CREATE INDEX IF NOT EXISTS idx_purchases_supplier_date ON purchases(supplier_id, purchase_date);
@@ -111,7 +110,7 @@ def bootstrap_schema() -> None:
         CREATE INDEX IF NOT EXISTS idx_audit_logs_status ON audit_logs(status);
         CREATE INDEX IF NOT EXISTS idx_activity_logs_entity ON activity_logs(entity_type, entity_id);
         """)
-        
+
         # Then discover and execute module schemas
         try:
             from app.core.registry import discover_modules, get_enabled_modules
@@ -122,7 +121,7 @@ def bootstrap_schema() -> None:
         except Exception as e:
             import logging
             logging.getLogger("fabouanes").warning("Failed to bootstrap module schemas: %s", e)
-        
+
         # Auto-migrate existing database for operations time tracking and finished product purchases
         from app.core.db import list_columns
         for table in ["purchases", "sales", "raw_sales", "payments"]:
@@ -130,7 +129,7 @@ def bootstrap_schema() -> None:
                 cols = list_columns(conn, table)
                 if cols and "created_at" not in cols:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP")
-            except Exception as exc:
+            except Exception:
                 logging.getLogger("fabouanes").debug("Auto-migration column add skipped for %s", table, exc_info=True)
 
         try:
@@ -140,7 +139,7 @@ def bootstrap_schema() -> None:
             if cols:
                 # PostgreSQL command to drop not null constraint if present
                 conn.execute("ALTER TABLE purchases ALTER COLUMN raw_material_id DROP NOT NULL")
-        except Exception as exc:
+        except Exception:
             logging.getLogger("fabouanes").debug("Auto-migration for purchases.finished_product_id skipped", exc_info=True)
 
         try:
@@ -150,7 +149,7 @@ def bootstrap_schema() -> None:
                     conn.execute("ALTER TABLE outbox_events ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0")
                 if "last_error" not in cols:
                     conn.execute("ALTER TABLE outbox_events ADD COLUMN last_error TEXT")
-        except Exception as exc:
+        except Exception:
             logging.getLogger("fabouanes").debug("Auto-migration for outbox_events retry columns skipped", exc_info=True)
 
         conn.commit()

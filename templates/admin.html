@@ -10,6 +10,8 @@
     data-fab-switch-placeholder="adminSwitchPlaceholder">
     <button type="button" class="fab-switch-btn" data-fab-switch-target="adminUsersGroup"
       aria-controls="adminUsersGroup" aria-pressed="false"><i class="bi bi-people"></i> Utilisateurs &amp; Comptes</button>
+    <button type="button" class="fab-switch-btn" data-fab-switch-target="adminSabrina"
+      aria-controls="adminSabrina" aria-pressed="false"><i class="bi bi-stars"></i> Sabrina (IA)</button>
     <button type="button" class="fab-switch-btn" data-fab-switch-target="adminBackups"
       aria-controls="adminBackups" aria-pressed="false"><i class="bi bi-cloud-arrow-up"></i> Sauvegardes &amp; Drive</button>
     <button type="button" class="fab-switch-btn" data-fab-switch-target="adminBackupJobs"
@@ -133,6 +135,125 @@
     </div>
   </section>
 
+  <section id="adminSabrina" class="fab-switch-panel" hidden>
+    <div class="row g-3">
+      <!-- Card 1: Configuration de l'IA -->
+      <div class="col-lg-6">
+        <div class="card p-3 h-100">
+          <div class="card-header-row mb-3">
+            <div>
+              <h5 class="section-title"><i class="bi bi-stars text-primary"></i> Sabrina — Configuration de l'IA</h5>
+              <div class="small text-muted mt-1">Gérer le mode de fonctionnement et les clés d'accès de l'assistante.</div>
+            </div>
+          </div>
+          
+          <form method="post" action="/admin" class="d-flex flex-column gap-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="action" value="save_sabrina_settings">
+
+            <!-- Mode de fonctionnement -->
+            <div>
+              <label class="form-label fw-bold mb-2">Mode de fonctionnement</label>
+              <div class="d-flex gap-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="chat_mode" id="adminModeOnline" value="online"
+                    {% if sabrina_selected_model != 'local' and sabrina_selected_model != 'ollama' %}checked{% endif %}>
+                  <label class="form-check-label" for="adminModeOnline">
+                    En ligne (Gemini)
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="chat_mode" id="adminModeLocal" value="local"
+                    {% if sabrina_selected_model == 'local' or sabrina_selected_model == 'ollama' %}checked{% endif %}>
+                  <label class="form-check-label" for="adminModeLocal">
+                    IA Locale (Ollama)
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modèle Gemini -->
+            <div id="adminGeminiModelGroup" {% if sabrina_selected_model == 'local' or sabrina_selected_model == 'ollama' %}style="display:none;"{% endif %}>
+              <label for="adminGeminiModelSelect" class="form-label fw-bold mb-1">Modèle de l'IA</label>
+              <select name="gemini_model" id="adminGeminiModelSelect" class="form-select">
+                <option value="gemini-3.1-flash-lite" {% if sabrina_selected_model == 'gemini-3.1-flash-lite' %}selected{% endif %}>Gemini 3.1 Flash Lite (Recommandé)</option>
+                <option value="gemini-2.5-flash" {% if sabrina_selected_model == 'gemini-2.5-flash' %}selected{% endif %}>Gemini 2.5 Flash</option>
+                <option value="gemini-2.5-pro" {% if sabrina_selected_model == 'gemini-2.5-pro' %}selected{% endif %}>Gemini 2.5 Pro</option>
+              </select>
+            </div>
+
+            <!-- Clé d'API Gemini -->
+            <div id="adminApiKeyGroup" {% if sabrina_selected_model == 'local' or sabrina_selected_model == 'ollama' %}style="display:none;"{% endif %}>
+              <label for="adminApiKeyInput" class="form-label fw-bold mb-1">Clé d'API Gemini</label>
+              <input type="password" name="gemini_api_key" id="adminApiKeyInput" class="form-control"
+                placeholder="{% if sabrina_has_key %}•••••••• (Sauvegardée){% else %}AQ... (Google AI Studio){% endif %}">
+              <div class="small text-muted mt-1">
+                Générez une clé gratuite sur <a href="https://aistudio.google.com/" target="_blank" class="text-decoration-underline text-dark">Google AI Studio</a>.
+              </div>
+            </div>
+
+            <div>
+              <button type="submit" class="btn btn-dark w-100">Enregistrer les paramètres</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Card 2: Supervision & Diagnostics -->
+      <div class="col-lg-6">
+        <div class="card p-3 h-100">
+          <div class="card-header-row mb-3">
+            <div>
+              <h5 class="section-title"><i class="bi bi-activity text-danger"></i> Supervision & Diagnostics</h5>
+              <div class="small text-muted mt-1">État de santé en temps réel de Sabrina et ses dépendances.</div>
+            </div>
+          </div>
+
+          <div class="d-flex flex-column gap-3">
+            <!-- État de Gemini -->
+            <div class="p-3 border rounded d-flex align-items-center justify-content-between">
+              <div>
+                <div class="fw-semibold">Google Gemini API</div>
+                <div class="small text-muted">Statut de la connexion cloud</div>
+              </div>
+              <div>
+                {% if sabrina_has_key %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1">Configurée</span>
+                {% else %}
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3 py-1">Non configurée</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- État d'Ollama -->
+            <div class="p-3 border rounded d-flex align-items-center justify-content-between">
+              <div>
+                <div class="fw-semibold">IA Locale (Ollama)</div>
+                <div class="small text-muted">Modèle local de secours</div>
+              </div>
+              <div>
+                {% if sabrina_ollama_ok %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1">Actif</span>
+                {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3 py-1">Inactif</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Test de connexion -->
+            <div class="mt-2">
+              <button type="button" class="btn btn-outline-dark w-100" id="btnTestSabrinaConn">
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style="display:none;" id="testSabrinaSpinner"></span>
+                <i class="bi bi-arrow-repeat me-1" id="testSabrinaIcon"></i> Tester la connexion Gemini
+              </button>
+              <div class="alert mt-3 p-3" id="testSabrinaResult" style="display:none; font-size:0.85rem;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="adminBackups" class="fab-switch-panel" hidden>
     <div class="row g-3">
       <!-- Actions backup -->
@@ -200,6 +321,12 @@
               <input name="gdrive_backup_dir" id="gdriveDirInput" class="form-control" value="{{ settings.gdrive_backup_dir }}"
                 placeholder="Ex: C:\Users\massi\Google Drive\FABOuanes">
               <div class="small text-muted mt-1">Choisissez ici le dossier déjà synchronisé par Google Drive sur ce PC.</div>
+            </div>
+            <div class="col-12">
+              <label for="pgDumpPathInput" class="form-label mb-1">Chemin de l'utilitaire pg_dump (optionnel)</label>
+              <input name="pg_dump_path" id="pgDumpPathInput" class="form-control" value="{{ settings.pg_dump_path or '' }}"
+                placeholder="Ex: C:\Program Files\PostgreSQL\16\bin\pg_dump.exe">
+              <div class="small text-muted mt-1">Laissez vide pour utiliser la commande par défaut ou le fallback. Recommandé sous Windows si les outils PostgreSQL ne sont pas dans le PATH.</div>
             </div>
             <div class="col-md-4">
               <label for="snapshotInput" class="form-label mb-1">Snapshot</label>
@@ -588,4 +715,87 @@
   </section>
 
 </div>
+
+<script nonce="{{ csp_nonce }}">
+  document.addEventListener('DOMContentLoaded', function () {
+    const adminModeOnline = document.getElementById('adminModeOnline');
+    const adminModeLocal = document.getElementById('adminModeLocal');
+    const adminGeminiModelGroup = document.getElementById('adminGeminiModelGroup');
+    const adminApiKeyGroup = document.getElementById('adminApiKeyGroup');
+
+    function toggleAdminSabrinaFields() {
+      if (adminModeLocal && adminModeLocal.checked) {
+        if (adminGeminiModelGroup) adminGeminiModelGroup.style.display = 'none';
+        if (adminApiKeyGroup) adminApiKeyGroup.style.display = 'none';
+      } else {
+        if (adminGeminiModelGroup) adminGeminiModelGroup.style.display = 'block';
+        if (adminApiKeyGroup) adminApiKeyGroup.style.display = 'block';
+      }
+    }
+
+    if (adminModeOnline && adminModeLocal) {
+      adminModeOnline.addEventListener('change', toggleAdminSabrinaFields);
+      adminModeLocal.addEventListener('change', toggleAdminSabrinaFields);
+      toggleAdminSabrinaFields();
+    }
+
+    // Auto-focus panel from URL focus parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const focus = urlParams.get('focus');
+    if (focus === 'sabrina') {
+      setTimeout(() => {
+        const sabrinaBtn = document.querySelector('[data-fab-switch-target="adminSabrina"]');
+        if (sabrinaBtn) {
+          sabrinaBtn.click();
+        }
+      }, 50);
+    }
+
+    // Tester la connexion
+    const btnTest = document.getElementById('btnTestSabrinaConn');
+    const spinner = document.getElementById('testSabrinaSpinner');
+    const icon = document.getElementById('testSabrinaIcon');
+    const resultDiv = document.getElementById('testSabrinaResult');
+
+    btnTest?.addEventListener('click', async function () {
+      if (spinner) spinner.style.display = 'inline-block';
+      if (icon) icon.style.display = 'none';
+      if (resultDiv) {
+        resultDiv.style.display = 'none';
+        resultDiv.className = 'alert mt-3 p-3';
+      }
+
+      try {
+        const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || "";
+        const response = await fetch('/assistant/test-key', {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-Token': csrfToken
+          }
+        });
+        const data = await response.json();
+        if (resultDiv) {
+          resultDiv.style.display = 'block';
+          if (data.success) {
+            resultDiv.classList.add('alert-success');
+            resultDiv.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> ${data.message}`;
+          } else {
+            resultDiv.classList.add('alert-danger');
+            resultDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i> ${data.error}`;
+          }
+        }
+      } catch (e) {
+        if (resultDiv) {
+          resultDiv.style.display = 'block';
+          resultDiv.classList.add('alert-danger');
+          resultDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i> Erreur de communication : ${e.message}`;
+        }
+      } finally {
+        if (spinner) spinner.style.display = 'none';
+        if (icon) icon.style.display = 'inline-block';
+      }
+    });
+  });
+</script>
 {% endblock %}

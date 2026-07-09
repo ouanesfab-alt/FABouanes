@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
-from sqlmodel import select, func, case, cast, Numeric, text, or_
+from sqlmodel import select, func, case, cast, Numeric, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Purchase, PurchaseDocument, Supplier, RawMaterial, FinishedProduct
@@ -15,25 +15,25 @@ class PurchaseRepository(AsyncRepository[Purchase]):
 
     async def get_by_id(self, purchase_id: int) -> Optional[Dict[str, Any]]:
         unit_expr = func.coalesce(Purchase.unit, FinishedProduct.default_unit, RawMaterial.unit, 'kg')
-        
+
         material_name_expr = case(
-            (Purchase.finished_product_id != None, FinishedProduct.name),
+            (Purchase.finished_product_id.is_not(None), FinishedProduct.name),
             else_=func.coalesce(func.nullif(Purchase.custom_item_name, ''), RawMaterial.name)
         )
-        
+
         display_unit_expr = case(
-            (Purchase.finished_product_id != None, func.coalesce(Purchase.unit, FinishedProduct.default_unit, 'kg')),
+            (Purchase.finished_product_id.is_not(None), func.coalesce(Purchase.unit, FinishedProduct.default_unit, 'kg')),
             else_=func.coalesce(Purchase.unit, RawMaterial.unit, 'kg')
         )
-        
+
         sac_capacity_num = cast(func.coalesce(func.nullif(func.regexp_replace(unit_expr, '[^0-9.]', '', 'g'), ''), '50'), Numeric)
-        
+
         display_quantity_expr = case(
             (func.lower(unit_expr).like('sac%'), Purchase.quantity / sac_capacity_num),
             (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.quantity / 100.0),
             else_=Purchase.quantity
         )
-        
+
         display_unit_price_expr = case(
             (func.lower(unit_expr).like('sac%'), Purchase.unit_price * sac_capacity_num),
             (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.unit_price * 100.0),
@@ -65,28 +65,28 @@ class PurchaseRepository(AsyncRepository[Purchase]):
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
         page: int = 1,
-        page_size: int = 50,
+        page_size: int = 25,
     ) -> Tuple[List[Dict[str, Any]], int]:
         unit_expr = func.coalesce(Purchase.unit, FinishedProduct.default_unit, RawMaterial.unit, 'kg')
-        
+
         material_name_expr = case(
-            (Purchase.finished_product_id != None, FinishedProduct.name),
+            (Purchase.finished_product_id.is_not(None), FinishedProduct.name),
             else_=func.coalesce(func.nullif(Purchase.custom_item_name, ''), RawMaterial.name)
         )
-        
+
         material_unit_expr = case(
-            (Purchase.finished_product_id != None, func.coalesce(Purchase.unit, FinishedProduct.default_unit, 'kg')),
+            (Purchase.finished_product_id.is_not(None), func.coalesce(Purchase.unit, FinishedProduct.default_unit, 'kg')),
             else_=func.coalesce(Purchase.unit, RawMaterial.unit, 'kg')
         )
-        
+
         sac_capacity_num = cast(func.coalesce(func.nullif(func.regexp_replace(unit_expr, '[^0-9.]', '', 'g'), ''), '50'), Numeric)
-        
+
         display_quantity_expr = case(
             (func.lower(unit_expr).like('sac%'), Purchase.quantity / sac_capacity_num),
             (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.quantity / 100.0),
             else_=Purchase.quantity
         )
-        
+
         display_unit_price_expr = case(
             (func.lower(unit_expr).like('sac%'), Purchase.unit_price * sac_capacity_num),
             (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.unit_price * 100.0),
@@ -239,25 +239,25 @@ class PurchaseDocumentRepository(AsyncRepository[PurchaseDocument]):
 
     async def list_lines(self, doc_id: int) -> List[Dict[str, Any]]:
         unit_expr = func.coalesce(Purchase.unit, FinishedProduct.default_unit, RawMaterial.unit, 'kg')
-        
+
         material_name_expr = case(
-            (Purchase.finished_product_id != None, FinishedProduct.name),
+            (Purchase.finished_product_id.is_not(None), FinishedProduct.name),
             else_=func.coalesce(func.nullif(Purchase.custom_item_name, ''), RawMaterial.name)
         )
-        
+
         display_unit_expr = case(
-            (Purchase.finished_product_id != None, func.coalesce(Purchase.unit, FinishedProduct.default_unit, 'kg')),
+            (Purchase.finished_product_id.is_not(None), func.coalesce(Purchase.unit, FinishedProduct.default_unit, 'kg')),
             else_=func.coalesce(Purchase.unit, RawMaterial.unit, 'kg')
         )
-        
+
         sac_capacity_num = cast(func.coalesce(func.nullif(func.regexp_replace(unit_expr, '[^0-9.]', '', 'g'), ''), '50'), Numeric)
-        
+
         display_quantity_expr = case(
             (func.lower(unit_expr).like('sac%'), Purchase.quantity / sac_capacity_num),
             (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.quantity / 100.0),
             else_=Purchase.quantity
         )
-        
+
         display_unit_price_expr = case(
             (func.lower(unit_expr).like('sac%'), Purchase.unit_price * sac_capacity_num),
             (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.unit_price * 100.0),

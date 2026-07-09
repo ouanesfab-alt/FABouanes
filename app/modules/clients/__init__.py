@@ -1,18 +1,18 @@
 """Module Clients — Gestion des partenaires clients."""
 from app.modules.base import ModuleBase
 from app.modules.clients.web import router as web_router
-from app.core.registry import ModuleDescriptor, register
+from app.core.registry import register
 from app.modules.clients.schema import TABLES
 
 class ClientsModule(ModuleBase):
     @property
     def name(self) -> str:
         return "clients"
-    
+
     @property
     def label(self) -> str:
         return "Clients"
-    
+
     @property
     def icon(self) -> str:
         return "bi-people"

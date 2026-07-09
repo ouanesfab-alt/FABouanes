@@ -30,7 +30,7 @@ async def api_get_payments(request: Request, db: AsyncSession = Depends(get_asyn
         page=page,
         page_size=page_size
     )
-    
+
     meta = {
         "page": page,
         "page_size": page_size,
@@ -50,7 +50,7 @@ async def api_create_payment(request: Request, payload: PaymentCreateSchema):
         payment_id, payment_type = await create_payment_from_form(form_data)
     except ValueError as e:
         api_error("invalid_value", str(e), 400)
-        
+
     payment = await payment_payload(payment_id)
     return json_response(api_success({"payment_type": payment_type, "payment": payment}, status_code=201))
 
@@ -71,13 +71,13 @@ async def api_update_payment(request: Request, payment_id: int, payload: Payment
     payment = await payment_payload(payment_id)
     if not payment:
         api_error("not_found", "Paiement introuvable.", 404)
-    
+
     form_data = payload_to_form_data(payload.model_dump())
     try:
         await edit_payment_from_form(payment_id, form_data)
     except ValueError as e:
         api_error("invalid_value", str(e), 400)
-    
+
     stmt = select(Payment.id).order_by(Payment.id.desc()).limit(1)
     res = await db.execute(stmt)
     latest_id = res.scalar()
@@ -90,7 +90,7 @@ async def api_delete_payment(request: Request, payment_id: int):
     payment = await payment_payload(payment_id)
     if not payment:
         api_error("not_found", "Paiement introuvable.", 404)
-        
+
     success = await delete_payment_by_id(payment_id)
     if not success:
         api_error("conflict", "Suppression impossible.", 409)

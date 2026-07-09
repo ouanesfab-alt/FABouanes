@@ -7,11 +7,11 @@ class AssistantModule(ModuleBase):
     @property
     def name(self) -> str:
         return "assistant"
-    
+
     @property
     def label(self) -> str:
         return "Assistant IA"
-    
+
     @property
     def icon(self) -> str:
         return "bi-stars"

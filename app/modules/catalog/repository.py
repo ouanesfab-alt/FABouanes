@@ -50,7 +50,7 @@ class RawMaterialRepository(AsyncRepository[RawMaterial]):
             (func.lower(RawSale.unit).in_(['qt', 'quintal']), RawSale.quantity * 100),
             else_=RawSale.quantity
         )
-        
+
         stmt_sales = (
             select(
                 RawSale.raw_material_id,
@@ -58,7 +58,7 @@ class RawMaterialRepository(AsyncRepository[RawMaterial]):
             )
             .where(RawSale.sale_date >= cutoff_date)
         )
-        
+
         stmt_prod = (
             select(
                 ProductionBatchItem.raw_material_id,
@@ -68,9 +68,9 @@ class RawMaterialRepository(AsyncRepository[RawMaterial]):
             .join(ProductionBatch, ProductionBatch.id == ProductionBatchItem.batch_id)
             .where(ProductionBatch.production_date >= cutoff_date_str)
         )
-        
+
         source_q = union_all(stmt_sales, stmt_prod).subquery("source")
-        
+
         consumed_q = (
             select(
                 source_q.c.raw_material_id,
@@ -78,7 +78,7 @@ class RawMaterialRepository(AsyncRepository[RawMaterial]):
             )
             .group_by(source_q.c.raw_material_id)
         ).subquery("c")
-        
+
         stmt = (
             select(
                 RawMaterial.id,
@@ -87,7 +87,7 @@ class RawMaterialRepository(AsyncRepository[RawMaterial]):
             .select_from(RawMaterial)
             .join(consumed_q, consumed_q.c.raw_material_id == RawMaterial.id, isouter=True)
         )
-        
+
         result = await self.session.execute(stmt)
         return {row.id: float(row.consumed_30d) / 30.0 for row in result.all()}
 
@@ -126,7 +126,7 @@ class FinishedProductRepository(AsyncRepository[FinishedProduct]):
             .where(Sale.sale_date >= cutoff_date)
             .group_by(Sale.finished_product_id)
         ).subquery("s")
-        
+
         stmt = (
             select(
                 FinishedProduct.id,
@@ -265,7 +265,7 @@ async def list_raw_materials(
     search: str | None = None,
     status: str | None = None,
     page: int = 1,
-    page_size: int = 50,
+    page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
     if db is None:
@@ -300,11 +300,11 @@ async def _list_raw_materials_impl(
         stmt = stmt.where(
             RawMaterial.stock_qty <= func.coalesce(func.nullif(RawMaterial.threshold_qty, 0), RawMaterial.alert_threshold)
         )
-        
+
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total_res = await db.execute(count_stmt)
     total = total_res.scalar() or 0
-    
+
     stmt = stmt.order_by(RawMaterial.name).offset((page - 1) * page_size).limit(page_size)
     res = await db.execute(stmt)
     rows = [dict(r._mapping) for r in res.fetchall()]
@@ -314,7 +314,7 @@ async def _list_raw_materials_impl(
 async def list_finished_products(
     search: str | None = None,
     page: int = 1,
-    page_size: int = 50,
+    page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
     if db is None:
@@ -340,11 +340,11 @@ async def _list_finished_products_impl(
                 FinishedProduct.default_unit.ilike(search_filter)
             )
         )
-        
+
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total_res = await db.execute(count_stmt)
     total = total_res.scalar() or 0
-    
+
     stmt = stmt.order_by(FinishedProduct.name).offset((page - 1) * page_size).limit(page_size)
     res = await db.execute(stmt)
     rows = [dict(r._mapping) for r in res.fetchall()]
@@ -368,23 +368,23 @@ async def _list_production_page_context_impl(args, db: AsyncSession):
     q = str(args.get("q", "") or "").strip()
     production_date = str(args.get("date", "") or "").strip()
     production_date_obj = date.fromisoformat(production_date) if production_date else None
-    
+
     stmt = select(
         ProductionBatch,
         FinishedProduct.name.label("finished_name")
     ).join(FinishedProduct, FinishedProduct.id == ProductionBatch.finished_product_id)
-    
+
     if q:
         stmt = stmt.where(func.lower(func.concat(FinishedProduct.name, ' ', func.coalesce(ProductionBatch.notes, ''))).like(f"%{q.lower()}%"))
     if production_date_obj:
         stmt = stmt.where(ProductionBatch.production_date == production_date_obj)
-        
+
     stmt = stmt.order_by(ProductionBatch.id.desc())
-    
+
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total_res = await db.execute(count_stmt)
     total = total_res.scalar_one_or_none() or 0
-    
+
     stmt = stmt.offset(offset).limit(page_size)
     batches_res = await db.execute(stmt)
     batches_rows = batches_res.all()
@@ -395,7 +395,7 @@ async def _list_production_page_context_impl(args, db: AsyncSession):
         dct["finished_name"] = row.finished_name
         batches.append(dct)
         batch_ids.append(dct["id"])
-        
+
     recipe_by_batch: dict[int, list[str]] = {batch_id: [] for batch_id in batch_ids}
     if batch_ids:
         items_stmt = select(
@@ -404,19 +404,19 @@ async def _list_production_page_context_impl(args, db: AsyncSession):
             RawMaterial.name,
             RawMaterial.unit
         ).join(RawMaterial, RawMaterial.id == ProductionBatchItem.raw_material_id).where(ProductionBatchItem.batch_id.in_(batch_ids)).order_by(ProductionBatchItem.batch_id, ProductionBatchItem.id)
-        
+
         items_res = await db.execute(items_stmt)
         for item in items_res.all():
             recipe_by_batch.setdefault(int(item.batch_id), []).append(
                 f"{item.name} {item.quantity} {item.unit}"
             )
-            
+
     production_rows = []
     for batch in batches:
         row = dict(batch)
         row["recipe_text"] = " + ".join(recipe_by_batch.get(int(batch["id"]), []))
         production_rows.append(row)
-        
+
     return {
         'productions': production_rows,
         'filters': {'q': q, 'date': production_date},
@@ -435,10 +435,10 @@ async def production_form_context(db: AsyncSession | None = None):
 async def _production_form_context_impl(db: AsyncSession):
     raw_res = await db.execute(select(RawMaterial).order_by(RawMaterial.name))
     raw_materials = [r.model_dump() for r in raw_res.scalars().all()]
-    
+
     prod_res = await db.execute(select(FinishedProduct).order_by(FinishedProduct.name))
     products = [p.model_dump() for p in prod_res.scalars().all()]
-    
+
     recipes = await load_saved_recipes(db=db)
     return {
         'raw_materials': raw_materials,
@@ -454,7 +454,7 @@ async def list_production_batches(
     date_from: str | None = None,
     date_to: str | None = None,
     page: int = 1,
-    page_size: int = 50,
+    page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
     if db is None:
@@ -479,7 +479,7 @@ async def _list_production_batches_impl(
         FinishedProduct.name.label("product_name"),
         FinishedProduct.default_unit.label("product_unit")
     ).join(FinishedProduct, FinishedProduct.id == ProductionBatch.finished_product_id)
-    
+
     if search:
         search_pattern = f"%{search}%"
         stmt = stmt.where(
@@ -492,10 +492,10 @@ async def _list_production_batches_impl(
         stmt = stmt.where(ProductionBatch.production_date >= date_from_obj)
     if date_to_obj:
         stmt = stmt.where(ProductionBatch.production_date <= date_to_obj)
-        
+
     stmt = stmt.add_columns(func.count().over().label("_total_count"))
     stmt = stmt.order_by(ProductionBatch.production_date.desc(), ProductionBatch.id.desc()).offset((page - 1) * page_size).limit(page_size)
-    
+
     res = await db.execute(stmt)
     rows = []
     for row in res.all():
@@ -504,7 +504,7 @@ async def _list_production_batches_impl(
         dct["product_unit"] = row.product_unit
         dct["_total_count"] = row._total_count
         rows.append(dct)
-        
+
     total = int(rows[0]["_total_count"]) if rows else 0
     return rows, total
 
@@ -512,7 +512,7 @@ async def _list_production_batches_impl(
 @async_compat
 async def list_recipes(
     page: int = 1,
-    page_size: int = 50,
+    page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
     if db is None:
@@ -530,10 +530,10 @@ async def _list_recipes_impl(
         SavedRecipe,
         FinishedProduct.name.label("finished_product_name")
     ).join(FinishedProduct, FinishedProduct.id == SavedRecipe.finished_product_id)
-    
+
     stmt = stmt.add_columns(func.count().over().label("_total_count"))
     stmt = stmt.order_by(SavedRecipe.id.desc()).offset((page - 1) * page_size).limit(page_size)
-    
+
     res = await db.execute(stmt)
     rows = []
     for row in res.all():
@@ -541,7 +541,7 @@ async def _list_recipes_impl(
         dct["finished_product_name"] = row.finished_product_name
         dct["_total_count"] = row._total_count
         rows.append(dct)
-        
+
     total = int(rows[0]["_total_count"]) if rows else 0
     return rows, total
 
@@ -551,7 +551,7 @@ async def _list_recipes_impl(
 async def list_suppliers(
     search: str | None = None,
     page: int = 1,
-    page_size: int = 50,
+    page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
     if db is None:

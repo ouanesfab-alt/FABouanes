@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date as d_cls
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 

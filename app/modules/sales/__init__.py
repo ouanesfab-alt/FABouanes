@@ -7,11 +7,11 @@ class SalesModule(ModuleBase):
     @property
     def name(self) -> str:
         return "sales"
-    
+
     @property
     def label(self) -> str:
         return "Ventes"
-    
+
     @property
     def icon(self) -> str:
         return "bi-cart"

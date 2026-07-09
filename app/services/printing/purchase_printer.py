@@ -49,19 +49,19 @@ async def _build_purchase_payload_impl(
     pointer = pointer_res.first()
     if pointer and pointer.document_id:
         return await _build_print_payload("purchase_document", int(pointer.document_id), db=db)
-        
+
     row_res = await db.execute(
         text("""
-        SELECT p.*, 
-               CASE 
+        SELECT p.*,
+               CASE
                    WHEN p.finished_product_id IS NOT NULL THEN fp.name
                    ELSE COALESCE(NULLIF(p.custom_item_name, ''), rm.name)
-               END AS item_name, 
-               CASE 
+               END AS item_name,
+               CASE
                    WHEN p.finished_product_id IS NOT NULL THEN fp.default_unit
                    ELSE rm.unit
-               END AS base_unit, 
-               CASE 
+               END AS base_unit,
+               CASE
                    WHEN p.finished_product_id IS NOT NULL THEN COALESCE(p.unit, fp.default_unit, 'kg')
                    ELSE COALESCE(p.unit, rm.unit, 'kg')
                END AS display_unit,
@@ -87,7 +87,7 @@ async def _build_purchase_payload_impl(
     row = row_res.first()
     if not row:
         return None
-        
+
     row_dict = dict(row._mapping)
     lines = [_purchase_line_to_doc_line(row_dict)]
     return _print_defaults({
@@ -139,20 +139,20 @@ async def _build_purchase_document_payload_impl(
     doc = doc_res.first()
     if not doc:
         return None
-    
+
     doc_dict = dict(doc._mapping)
     line_rows_res = await db.execute(
         text("""
-        SELECT p.*, 
-               CASE 
+        SELECT p.*,
+               CASE
                    WHEN p.finished_product_id IS NOT NULL THEN fp.name
                    ELSE COALESCE(NULLIF(p.custom_item_name, ''), rm.name)
-               END AS item_name, 
-               CASE 
+               END AS item_name,
+               CASE
                    WHEN p.finished_product_id IS NOT NULL THEN fp.default_unit
                    ELSE rm.unit
-               END AS base_unit, 
-               CASE 
+               END AS base_unit,
+               CASE
                    WHEN p.finished_product_id IS NOT NULL THEN COALESCE(p.unit, fp.default_unit, 'kg')
                    ELSE COALESCE(p.unit, rm.unit, 'kg')
                END AS display_unit,

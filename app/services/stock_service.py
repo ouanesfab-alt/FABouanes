@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import asyncio
 from datetime import date
 import re
 from decimal import Decimal
@@ -93,7 +92,7 @@ async def record_stock_movement(
             stock_before, stock_after, reason, reference_type,
             reference_id, _actor_username(), db=db
         )
-    except Exception as exc:
+    except Exception:
         logging.getLogger("fabouanes").warning("Failed to record stock movement for %s #%s", item_kind, item_id, exc_info=True)
 
 

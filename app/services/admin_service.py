@@ -99,6 +99,7 @@ async def save_backup_settings_from_form(form_data: dict[str, str], db: AsyncSes
             "backup_snapshot_time": form_data.get("backup_snapshot_time", "02:00"),
             "backup_local_retention": form_data.get("backup_local_retention", "30"),
             "backup_event_retention": form_data.get("backup_event_retention", "100"),
+            "pg_dump_path": form_data.get("pg_dump_path", ""),
         },
     )
     return {"ok": True, "message": "Paramètres de sauvegarde enregistrés."}
@@ -141,7 +142,7 @@ def _build_restore_list():
 async def get_admin_view_data(audit_filters: dict[str, str] | None = None, db: AsyncSession | None = None):
     normalized_filters = audit_filters or {}
     filter_key = tuple(sorted(normalized_filters.items()))
-    
+
     async def load():
         if db is None:
             async with get_async_sessionmaker()() as session:
@@ -159,33 +160,42 @@ async def _build_admin_view_data(audit_filters: dict[str, str], db: AsyncSession
     backup_jobs = await list_backup_jobs(limit=20, db=db)
     latest_backup_error = next((job for job in backup_jobs if (job["error_message"] or "").strip()), None)
     activity_logs = await list_admin_activity(audit_filters, limit=80, db=db)
-    
+
     users = await list_users(db=db)
     backups = await asyncio.to_thread(_build_restore_list)
-    
+
     recent_logins_res = await db.execute(
         text("SELECT * FROM activity_logs WHERE action IN ('login','logout') ORDER BY id DESC LIMIT 20")
     )
     recent_logins = [dict(row._mapping) for row in recent_logins_res.all()]
-    
+
     activity_actions = await list_activity_actions(db=db)
     activity_entity_types = await list_activity_entity_types(db=db)
-    
+
     error_logs_res = await db.execute(text("SELECT * FROM error_logs ORDER BY id DESC LIMIT 30"))
     error_logs = [dict(row._mapping) for row in error_logs_res.all()]
-    
+
     system_logs_res = await db.execute(text("SELECT * FROM system_logs ORDER BY id DESC LIMIT 20"))
     system_logs = [dict(row._mapping) for row in system_logs_res.all()]
-    
+
     performance_logs_res = await db.execute(text("SELECT * FROM performance_logs ORDER BY id DESC LIMIT 40"))
     performance_logs = [dict(row._mapping) for row in performance_logs_res.all()]
-    
+
     audit_logs = await list_audit_logs(audit_filters, limit=120, db=db)
     settings = await get_backup_settings(db=db)
     system_status = await get_system_status(db=db)
-    
+
     stock_movements_res = await db.execute(text("SELECT * FROM stock_movements ORDER BY id DESC LIMIT 20"))
     stock_movements = [dict(row._mapping) for row in stock_movements_res.all()]
+
+    from app.modules.assistant.service import is_ollama_available
+    from app.modules.assistant.schema_context import get_gemini_api_key
+    from app.core.db_helpers import db_manager as helper_db_manager
+
+    sabrina_api_key = get_gemini_api_key()
+    selected_model = helper_db_manager.get_setting("gemini_model", "gemini-3.1-flash-lite").strip() or "gemini-3.1-flash-lite"
+    has_key = bool(sabrina_api_key)
+    ollama_ok = await is_ollama_available()
 
     return {
         "users": users,
@@ -205,4 +215,7 @@ async def _build_admin_view_data(audit_filters: dict[str, str], db: AsyncSession
         "latest_backup_error": latest_backup_error,
         "system_status": system_status,
         "stock_movements": stock_movements,
+        "sabrina_selected_model": selected_model,
+        "sabrina_has_key": has_key,
+        "sabrina_ollama_ok": ollama_ok,
     }

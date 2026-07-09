@@ -268,7 +268,7 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
     ]
     if doc.get("subtitle"):
         title_sub_rows.append([Paragraph(str(doc.get("subtitle", "")), subtitle_style)])
-    
+
     title_wrap_table = Table(title_sub_rows, colWidths=[6.0 * cm])
     title_wrap_table.setStyle(
         TableStyle(
@@ -313,7 +313,7 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
     ]
     for r in range(1, len(invoice_rows) - 1):
         invoice_box_commands.append(("LINEBELOW", (0, r), (-1, r), 0.5, border_light))
-        
+
     invoice_box.setStyle(TableStyle(invoice_box_commands))
 
     brand_table = Table([[company_block, invoice_box]], colWidths=[content_width - 6.4 * cm, 6.4 * cm])
@@ -347,7 +347,7 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
             ]
         )
     )
-    
+
     # Indent the tab by 0.4 cm to match HTML layout alignment
     tab_indent = Table([["", tab_table]], colWidths=[0.4 * cm, 2.2 * cm], hAlign="LEFT")
     tab_indent.setStyle(TableStyle([
@@ -356,7 +356,7 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
         ("TOPPADDING", (0, 0), (-1, -1), 0),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
     ]))
-    
+
     client_rows = [
         [
             Paragraph(str(doc.get("partner_name", "")), partner_name_style),
@@ -399,7 +399,7 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
         hAlign="LEFT",
     )
     client_box.setStyle(TableStyle(client_style_commands))
-    
+
     story.append(tab_indent)
     story.append(Spacer(1, 0.08 * cm))
     story.append(client_box)
@@ -481,7 +481,7 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
     for r in range(num_rows - 1):
         summary_commands.append(("LINEBELOW", (0, r), (-1, r), 0.5, border_light))
     summary_commands.append(("LINEABOVE", (0, num_rows - 1), (-1, num_rows - 1), 1.5, primary_color))
-    
+
     summary_table.setStyle(TableStyle(summary_commands))
     story.append(summary_table)
 

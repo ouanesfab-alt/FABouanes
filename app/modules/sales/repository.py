@@ -85,7 +85,7 @@ class SaleRepository(AsyncRepository[Sale]):
         kind: Optional[str] = None,
         status: Optional[str] = None,
         page: int = 1,
-        page_size: int = 50,
+        page_size: int = 25,
     ) -> Tuple[List[Dict[str, Any]], int]:
         """Fetch unified sales (finished + raw) paginated with count."""
         stmt_finished = (
@@ -112,7 +112,7 @@ class SaleRepository(AsyncRepository[Sale]):
             .join(Client, Client.id == Sale.client_id, isouter=True)
             .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
         )
-        
+
         stmt_raw = (
             select(
                 RawSale.id,
@@ -137,7 +137,7 @@ class SaleRepository(AsyncRepository[Sale]):
             .join(Client, Client.id == RawSale.client_id, isouter=True)
             .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
         )
-        
+
         union_stmt = union_all(stmt_finished, stmt_raw).subquery("x")
         stmt = select(union_stmt)
 
@@ -299,7 +299,7 @@ class SaleDocumentRepository(AsyncRepository[SaleDocument]):
             .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
             .where(Sale.document_id == doc_id)
         )
-        
+
         stmt_raw = (
             select(
                 RawSale.id.label("row_id"),
@@ -321,9 +321,9 @@ class SaleDocumentRepository(AsyncRepository[SaleDocument]):
             .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
             .where(RawSale.document_id == doc_id)
         )
-        
+
         union_stmt = union_all(stmt_finished, stmt_raw).subquery("x")
-        
+
         stmt = (
             select(union_stmt)
             .order_by(union_stmt.c.row_id.asc())
@@ -362,7 +362,7 @@ def invalidate_sellable_items_cache() -> None:
 @db_task_compat
 async def build_sellable_items(db: AsyncSession | None = None):
     from app.core.perf_cache import TTL_SEMI_STABLE
-    
+
     async def load():
         if db is None:
             async with get_async_sessionmaker()() as session:

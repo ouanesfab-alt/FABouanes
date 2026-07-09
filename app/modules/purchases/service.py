@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import date
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 from sqlmodel import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,7 +31,7 @@ class PurchaseService:
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
         page: int = 1,
-        page_size: int = 50,
+        page_size: int = 25,
     ) -> Tuple[List[Dict[str, Any]], int]:
         return await self.purchase_repo.list_purchases_paginated(
             search=search,
@@ -447,8 +447,8 @@ class PurchaseService:
         # Re-insert document if deleted during reverse
         doc = await self.doc_repo.get(document_id)
         if not doc:
-            doc_id = await self._insert_purchase_document(supplier_id, purchase_date, notes)
-            # Ensure we reuse the original ID if possible, but flush will auto-assign. 
+            await self._insert_purchase_document(supplier_id, purchase_date, notes)
+            # Ensure we reuse the original ID if possible, but flush will auto-assign.
             # In our case doc should not be deleted if lines are just reversed in same transaction before committing,
             # but recalc deletes it if line count is 0. So we bypass document delete on line count 0 inside recalc during a transaction:
             # wait, we can just edit totals. Let's make sure doc doesn't get deleted by recalc if we edit document.

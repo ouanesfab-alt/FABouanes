@@ -73,14 +73,14 @@ class InMemoryCache(CacheBackend):
     def set(self, key: tuple[Hashable, ...], value: Any, ttl: float, fingerprint: str) -> None:
         now = monotonic()
         domain = str(key[0]) if key else ""
-        
+
         v_param = None
         if fingerprint and fingerprint.startswith("v:"):
             try:
                 v_param = int(fingerprint.split(":")[1])
             except ValueError:
                 pass
-        
+
         if v_param is not None and v_param != self._global_version:
             target_fingerprint = fingerprint
         else:
@@ -422,7 +422,7 @@ def invalidate_client_cache(client_id: int) -> None:
         ("client_detail_context", client_id),
         ("client_history_context", client_id),
     ]
-    
+
     with _BACKEND._lock:
         for key in keys_to_delete:
             _BACKEND._cache.pop(key, None)

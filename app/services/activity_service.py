@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime
+from typing import Any
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.async_db import get_async_sessionmaker
 
 
@@ -139,7 +142,7 @@ async def _list_admin_activity_impl(
     normalized = _filters(filters)
     where: list[str] = []
     params: dict[str, Any] = {}
-    
+
     if normalized["activity_user"]:
         where.append("LOWER(username) LIKE LOWER(:activity_user)")
         params["activity_user"] = f"%{normalized['activity_user']}%"
@@ -162,13 +165,13 @@ async def _list_admin_activity_impl(
             ")"
         )
         params["activity_q"] = f"%{normalized['activity_q']}%"
-        
+
     query = "SELECT * FROM activity_logs"
     if where:
         query += " WHERE " + " AND ".join(where)
     query += " ORDER BY id DESC LIMIT :limit"
     params["limit"] = max(1, int(limit))
-    
+
     res = await db.execute(text(query), params)
     rows = res.all()
     return [_decorate_activity(dict(row._mapping)) for row in rows]

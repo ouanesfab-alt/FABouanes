@@ -22,13 +22,13 @@ async def contacts_context(
 ) -> dict:
     normalized_type = (filter_type or "all").strip().lower() or "all"
     normalized_name = (filter_name or "").strip().lower()
-    
+
     async def load():
         if db is None:
             async with get_async_sessionmaker()() as session:
                 return await _build_contacts_context(normalized_type, normalized_name, filter_name or "", session)
         return await _build_contacts_context(normalized_type, normalized_name, filter_name or "", db)
-        
+
     base = await async_cached_result(
         ("contacts_context", normalized_type, normalized_name),
         load,
@@ -106,7 +106,7 @@ async def _create_supplier_from_form_impl(form, db: AsyncSession) -> int:
     )
     db.add(new_supplier)
     await db.flush()
-    
+
     supplier_id = new_supplier.id
     created = await _get_supplier_impl(supplier_id, db)
     log_activity("create_supplier", "supplier", supplier_id, name)
@@ -142,7 +142,7 @@ async def update_supplier_from_form(supplier_id: int, form, db: AsyncSession | N
 
 async def _update_supplier_from_form_impl(supplier_id: int, form, db: AsyncSession) -> None:
     before = await _get_supplier_impl(supplier_id, db)
-    
+
     stmt = select(Supplier).where(Supplier.id == supplier_id)
     res = await db.execute(stmt)
     supplier = res.scalars().first()
@@ -152,7 +152,7 @@ async def _update_supplier_from_form_impl(supplier_id: int, form, db: AsyncSessi
         supplier.address = str(form.get("address", "")).strip()
         supplier.notes = str(form.get("notes", "")).strip()
         db.add(supplier)
-        
+
     updated = await _get_supplier_impl(supplier_id, db)
     log_activity("update_supplier", "supplier", supplier_id, str(form["name"]).strip())
     audit_event("update_supplier", "supplier", supplier_id, before=before, after=updated)
@@ -171,13 +171,13 @@ async def delete_supplier_by_id(supplier_id: int, db: AsyncSession | None = None
 
 async def _delete_supplier_by_id_impl(supplier_id: int, db: AsyncSession) -> None:
     before = await _get_supplier_impl(supplier_id, db)
-    
+
     stmt = select(Supplier).where(Supplier.id == supplier_id)
     res = await db.execute(stmt)
     supplier = res.scalars().first()
     if supplier:
         await db.delete(supplier)
-        
+
     log_activity("delete_supplier", "supplier", supplier_id, "Suppression fournisseur")
     audit_event("delete_supplier", "supplier", supplier_id, before=before, after=None)
     backup_database("delete_supplier")

@@ -52,7 +52,7 @@ async def _build_sale_finished_payload_impl(
     pointer = pointer_res.first()
     if pointer and pointer.document_id:
         return await _build_print_payload("sale_document", int(pointer.document_id), db=db)
-        
+
     row_res = await db.execute(
         text("""
         SELECT s.*, f.name AS item_name, COALESCE(c.name, 'Comptoir') AS partner_name,
@@ -67,7 +67,7 @@ async def _build_sale_finished_payload_impl(
     row = row_res.first()
     if not row:
         return None
-        
+
     row_dict = dict(row._mapping)
     lines = [_sale_line_to_doc_line(row_dict, row_dict["item_name"])]
     return _print_defaults({
@@ -117,7 +117,7 @@ async def _build_sale_raw_payload_impl(
     pointer = pointer_res.first()
     if pointer and pointer.document_id:
         return await _build_print_payload("sale_document", int(pointer.document_id), db=db)
-        
+
     row_res = await db.execute(
         text("""
         SELECT rs.*, COALESCE(NULLIF(rs.custom_item_name, ''), r.name) AS item_name, COALESCE(c.name, 'Comptoir') AS partner_name,
@@ -132,7 +132,7 @@ async def _build_sale_raw_payload_impl(
     row = row_res.first()
     if not row:
         return None
-        
+
     row_dict = dict(row._mapping)
     lines = [_sale_line_to_doc_line(row_dict, row_dict["item_name"])]
     return _print_defaults({
@@ -185,7 +185,7 @@ async def _build_sale_document_payload_impl(
     doc = doc_res.first()
     if not doc:
         return None
-        
+
     doc_dict = dict(doc._mapping)
     line_rows_res = await db.execute(
         text("""
@@ -259,7 +259,7 @@ async def _build_payment_payload_impl(
     row = row_res.first()
     if not row:
         return None
-        
+
     row_dict = dict(row._mapping)
     label = "Avance client" if row_dict["payment_type"] == "avance" else "Versement client"
     lines = [

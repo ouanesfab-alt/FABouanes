@@ -67,5 +67,5 @@ class ReportsContextDTO(BaseModel):
     daily_profits: list[float]
     date_from: str | None
     date_to: str | None
-    
+
     model_config = ConfigDict(arbitrary_types_allowed=True)

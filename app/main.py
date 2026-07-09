@@ -10,10 +10,11 @@ from types import SimpleNamespace
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from prometheus_fastapi_instrumentator import Instrumentator
+from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from slowapi.errors import RateLimitExceeded
 from app.core.exceptions import (
     NotFoundError,
     ValidationError,
@@ -21,38 +22,42 @@ from app.core.exceptions import (
     PermissionDeniedError,
     AuthenticationRequiredError,
 )
+from app.api.router import router as api_router
+from app.core.async_db import close_async_engine
+from app.core.audit import start_audit_worker, stop_audit_worker
+from app.core.config import settings, validate_single_worker_runtime
+from app.core.database import bootstrap_and_migrate, create_request_connection
+from app.core.db_access import execute_db
+from app.core.logging import configure_logging
+from app.core.rate_limit import limiter, rate_limit_exceeded_handler
+from app.core.registry import discover_modules, get_enabled_modules, mount_api_routes, mount_web_routes
+from app.core.request_state import push_request_state, reset_request_state, set_state_value
+from app.core.runtime_paths import ensure_runtime_dirs, paths
+from app.core.security import security_headers
+from app.core.timeout_middleware import RequestTimeoutMiddleware
+from app.services.backup_service import start_background_services
+from app.web.deps import ensure_csrf_token, load_user_from_session
+from app.web.router import router as web_router
 
 logger = logging.getLogger("fabouanes")
 
 
 class CachedStaticFiles(StaticFiles):
     def is_not_modified(self, response_headers, request_headers) -> bool:
+        from app.core.config import settings
+        if settings.desktop_mode or settings.env == "development":
+            return False
         return super().is_not_modified(response_headers, request_headers)
 
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
         if response.status_code == 200:
-            # Cache statics for 1 year; versioning is handled via ?v= query parameter in templates
-            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            from app.core.config import settings
+            if settings.desktop_mode or settings.env == "development":
+                response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            else:
+                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response
-
-from app.api.router import router as api_router
-from app.core.config import settings, validate_single_worker_runtime
-from app.core.database import bootstrap_and_migrate, create_request_connection
-from app.core.db_access import execute_db
-from app.core.logging import configure_logging
-from app.core.registry import discover_modules, get_enabled_modules, mount_api_routes, mount_web_routes
-from app.core.request_state import push_request_state, reset_request_state, set_state_value
-from app.core.runtime_paths import ensure_runtime_dirs, paths
-from app.core.security import security_headers
-from app.services.backup_service import start_background_services
-from app.web.deps import ensure_csrf_token, load_user_from_session
-from app.web.router import router as web_router
-from app.core.rate_limit import limiter, rate_limit_exceeded_handler
-from app.core.audit import start_audit_worker, stop_audit_worker
-from app.core.async_db import close_async_engine
-
-
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -60,7 +65,7 @@ async def lifespan(_: FastAPI):
     ensure_runtime_dirs()
     configure_logging()
     start_audit_worker()
-    
+
     # Initialize Observability (OpenTelemetry & structlog)
     try:
         from app.core.observability import setup_observability, instrument_app
@@ -144,8 +149,6 @@ async def lifespan(_: FastAPI):
         logger.info("Shutdown terminé.")
 
 
-from prometheus_fastapi_instrumentator import Instrumentator
-
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
@@ -228,8 +231,6 @@ app.add_middleware(
 )
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
-# Request timeout — protect against hung requests
-from app.core.timeout_middleware import RequestTimeoutMiddleware
 app.add_middleware(RequestTimeoutMiddleware)
 
 
@@ -298,7 +299,7 @@ async def auth_required_handler(request: Request, exc: AuthenticationRequiredErr
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     is_api = request.url.path.startswith("/api/") or not is_html_request(request)
-    
+
     if is_api:
         detail = exc.detail
         if isinstance(detail, dict):
@@ -309,7 +310,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             code = "http_error"
             message = str(detail)
             details = None
-            
+
         return JSONResponse(
             {
                 "success": False,
@@ -321,7 +322,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             },
             status_code=exc.status_code
         )
-        
+
     from app.web.deps import template_context, templates
     detail_msg = exc.detail
     if isinstance(detail_msg, dict):
@@ -343,9 +344,9 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
             template_context(request, status_code=400, error_message=str(exc)),
             status_code=400
         )
-    
+
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
-    
+
     err_msg = str(exc).lower()
     if "foreign key" in err_msg or "violates foreign key constraint" in err_msg or "clé étrangère" in err_msg or "foreignkey" in err_msg:
         friendly_msg = "Action impossible : cet élément est lié à d'autres opérations enregistrées dans le système et ne peut pas être modifié ou supprimé."
@@ -361,7 +362,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
             {"success": False, "error": {"code": "internal_error", "message": friendly_msg}},
             status_code=500
         )
-    
+
     from app.web.deps import template_context, templates
     return templates.TemplateResponse(
         "error.html",
@@ -395,12 +396,12 @@ async def health_check():
     # Backup scheduler status
     last_run = BACKGROUND_STATE.get("last_run_ts", 0)
     last_backup = BACKGROUND_STATE.get("last_backup_ts", 0)
-    
+
     if not BACKGROUND_STATE.get("started"):
         checks["scheduler"] = "stopped"
     elif last_run > 0 and (now - last_run) > 300: # 5 minutes threshold
         checks["scheduler"] = "stalled"
-    
+
     if last_run > 0:
         checks["last_run_age_s"] = str(int(now - last_run))
     if last_backup > 0:

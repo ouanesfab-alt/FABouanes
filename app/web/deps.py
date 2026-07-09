@@ -16,7 +16,6 @@ from app.core.auth_cookie import AUTH_COOKIE_NAME, read_auth_cookie_value
 
 from app.core.permissions import has_permission
 from app.core.runtime_paths import paths
-from app.modules.users.repository import get_user_by_id
 
 
 from app.web.compat import COMPAT_ROUTE_MAP
@@ -70,11 +69,11 @@ templates = _FATemplates(directory=str(paths.templates_dir))
 def _money_filter(value: Any) -> str:
     try:
         if value is None:
-            return "0,00 DA"
-        amount = f"{float(value):,.2f}".replace(",", " ").replace(".", ",")
+            return "0 DA"
+        amount = f"{int(round(float(value))):,}".replace(",", " ")
         return f"{amount} DA"
     except Exception:
-        return "0,00 DA"
+        return "0 DA"
 
 
 def _qty_filter(value: Any) -> str:

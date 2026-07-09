@@ -4,21 +4,28 @@
   /* ── macOS-style History Page ── */
   .hist-shell { max-width: 1080px; margin: 0 auto; }
 
-  .mac-surface {
-    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
-    box-shadow: 0 4px 16px rgba(0,0,0,.04); overflow: hidden;
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  /* Record table styles */
+  .record-table {
+    width: 100%; border-collapse: collapse; margin-top: 8px;
   }
-  [data-theme="dark"] .mac-surface {
-    background: rgba(13,20,38,.55); border-color: rgba(255,255,255,.08);
-    box-shadow: 0 8px 32px rgba(0,0,0,.3);
+  .record-table thead th {
+    position: sticky !important;
+    top: 0 !important;
+    background: var(--glass-thick) !important;
+    backdrop-filter: var(--blur-md) !important;
+    -webkit-backdrop-filter: var(--blur-md) !important;
+    z-index: 10 !important;
+    color: var(--text-secondary) !important;
+    font-weight: 700; font-size: 0.75rem; text-transform: uppercase;
+    letter-spacing: 0.05em; padding: 12px 16px;
+    border-bottom: 1.5px solid var(--separator) !important;
   }
 
   /* Header */
   .hist-header {
     display: flex; justify-content: space-between; align-items: center;
     gap: 16px; flex-wrap: wrap;
-    padding: 20px 28px; border-bottom: 1px solid var(--line);
+    padding: 20px 28px; border-bottom: 1px solid var(--separator);
   }
   .hist-back {
     font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
@@ -31,37 +38,31 @@
 
   .hist-balance-box {
     text-align: right; padding: 12px 16px; border-radius: 12px;
-    border: 1px solid var(--line); background: var(--surface); min-width: 180px;
+    border: 0.5px solid var(--glass-border); background: var(--surface); min-width: 180px;
   }
-  [data-theme="dark"] .hist-balance-box { background: rgba(15,23,42,.4); border-color: rgba(255,255,255,.06); }
   .hist-balance-label { font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   .hist-balance-value { font-size: 1.2rem; font-weight: 900; margin-top: 2px; }
 
   /* Stats cards */
   .hist-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; padding: 16px 28px 0; }
   .hist-stat {
-    border-radius: 12px; padding: 14px 16px; border: 1px solid var(--line);
-    background: var(--surface); transition: all .2s cubic-bezier(.23,1,.32,1);
+    border-radius: 12px; padding: 14px 16px; border: 0.5px solid var(--glass-border) !important;
+    background: var(--surface) !important; transition: all .2s cubic-bezier(.23,1,.32,1);
+    box-shadow: var(--shadow-sm) !important;
   }
-  .hist-stat:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.06); }
-  [data-theme="dark"] .hist-stat { background: rgba(15,23,42,.4); border-color: rgba(255,255,255,.06); }
-  [data-theme="dark"] .hist-stat:hover { box-shadow: 0 4px 16px rgba(59,130,246,.08); border-color: rgba(59,130,246,.2); }
+  .hist-stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-md) !important; }
   .hist-stat-label { font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
   .hist-stat-value { font-size: 1rem; font-weight: 800; color: var(--text); }
 
   /* Colored accent borders */
-  .hist-stat.stat-blue  { border-left: 3px solid #2563eb; }
-  .hist-stat.stat-green { border-left: 3px solid #16a34a; }
-  .hist-stat.stat-red   { border-left: 3px solid #dc2626; }
-  .hist-stat.stat-amber { border-left: 3px solid #d97706; }
-  .hist-stat.stat-blue  .hist-stat-value { color: #2563eb; }
-  .hist-stat.stat-green .hist-stat-value { color: #16a34a; }
-  .hist-stat.stat-red   .hist-stat-value { color: #dc2626; }
-  .hist-stat.stat-amber .hist-stat-value { color: #d97706; }
-  [data-theme="dark"] .hist-stat.stat-blue  .hist-stat-value { color: #60a5fa; }
-  [data-theme="dark"] .hist-stat.stat-green .hist-stat-value { color: #4ade80; }
-  [data-theme="dark"] .hist-stat.stat-red   .hist-stat-value { color: #f87171; }
-  [data-theme="dark"] .hist-stat.stat-amber .hist-stat-value { color: #fbbf24; }
+  .hist-stat.stat-blue  { border-left: 3px solid var(--system-blue) !important; }
+  .hist-stat.stat-green { border-left: 3px solid var(--system-green) !important; }
+  .hist-stat.stat-red   { border-left: 3px solid var(--system-red) !important; }
+  .hist-stat.stat-amber { border-left: 3px solid var(--system-orange) !important; }
+  .hist-stat.stat-blue  .hist-stat-value { color: var(--system-blue); }
+  .hist-stat.stat-green .hist-stat-value { color: var(--system-green); }
+  .hist-stat.stat-red   .hist-stat-value { color: var(--system-red); }
+  .hist-stat.stat-amber .hist-stat-value { color: var(--system-orange); }
 
   /* Table section */
   .hist-table-section { padding: 16px 28px 28px; }
@@ -74,15 +75,6 @@
   .hist-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .hist-actions .btn { border-radius: 10px; font-size: .82rem; }
 
-  /* Record table dark overrides */
-  [data-theme="dark"] .record-table thead th { background: rgba(15,23,42,.6) !important; color: var(--muted) !important; border-color: var(--line) !important; }
-  [data-theme="dark"] .record-table tbody td { border-color: var(--line) !important; color: var(--text) !important; }
-  [data-theme="dark"] .record-table tbody tr:hover { background: rgba(59,130,246,.04) !important; }
-  [data-theme="dark"] .record-table tfoot td { color: var(--text) !important; }
-  [data-theme="dark"] .record-table tfoot .text-dark { color: var(--text) !important; }
-
-  /* Dark mode text colors */
-  [data-theme="dark"] .text-danger { color: #f87171 !important; }
   [data-theme="dark"] .text-success { color: #4ade80 !important; }
   [data-theme="dark"] .text-primary { color: #60a5fa !important; }
   [data-theme="dark"] .text-info { color: #38bdf8 !important; }
@@ -119,7 +111,7 @@
 </style>
 
 <div class="hist-shell">
-  <section class="mac-surface">
+  <section class="card">
     <!-- Compact Header -->
     <header class="hist-header">
       <div style="min-width:0;">
@@ -170,7 +162,7 @@
         </div>
       </div>
 
-      <div class="table-responsive" style="border-radius:10px; max-height:none; overflow:visible;">
+      <div class="table-responsive" style="border-radius:10px; max-height: 520px; overflow-y: auto;">
         <table class="record-table align-middle">
           <thead>
             <tr>

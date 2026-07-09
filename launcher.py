@@ -1,4 +1,6 @@
 """Lanceur desktop FABOuanes."""
+import os
+os.environ["FAB_DESKTOP"] = "1"
 import json
 import os
 import shutil
@@ -321,7 +323,7 @@ def open_ui(url: str) -> None:
     try:
         import webview
 
-        webview.create_window(
+        window = webview.create_window(
             APP_NAME,
             url,
             width=1360,
@@ -334,7 +336,58 @@ def open_ui(url: str) -> None:
             background_color="#F5F7FB",
         )
         icon_path = get_window_icon()
+
+        def setup_webview_permissions(win):
+            import time
+            import threading
+
+            def configure():
+                try:
+                    # Wait for window.native to become available
+                    for _ in range(50):
+                        if win.native is not None:
+                            break
+                        time.sleep(0.1)
+                    if win.native is None:
+                        return
+
+                    # Wait for webview attribute
+                    for _ in range(50):
+                        if hasattr(win.native, "webview"):
+                            break
+                        time.sleep(0.1)
+                    if not hasattr(win.native, "webview"):
+                        return
+
+                    webview_ctrl = win.native.webview
+
+                    def on_init_completed(sender, args):
+                        try:
+                            core_wv2 = sender.CoreWebView2
+                            if core_wv2 is not None:
+                                def on_permission_requested(s, e):
+                                    try:
+                                        # Allow all permissions (Microphone, Camera, Clipboard, etc.)
+                                        e.State = 1  # CoreWebView2PermissionState.Allow
+                                        e.Handled = True
+                                    except Exception:
+                                        pass
+                                core_wv2.PermissionRequested += on_permission_requested
+                        except Exception:
+                            pass
+
+                    webview_ctrl.CoreWebView2InitializationCompleted += on_init_completed
+                    if webview_ctrl.CoreWebView2 is not None:
+                        on_init_completed(webview_ctrl, None)
+                except Exception:
+                    pass
+
+            t = threading.Thread(target=configure, daemon=True)
+            t.start()
+
         webview.start(
+            setup_webview_permissions,
+            window,
             gui="edgechromium",
             debug=False,
             private_mode=False,

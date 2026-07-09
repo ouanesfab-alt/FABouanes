@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from typing import Any
+
 from sqlalchemy import select, text, literal, literal_column, func, union_all, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.async_db import get_async_sessionmaker
 from app.core.helpers import async_compat
 
@@ -92,7 +95,7 @@ async def _apply_payment_to_entry_impl(kind: str, row_id: int, amount: float, en
                 return 0.0
             balance_due = float(sale_obj.balance_due)
             document_id = sale_obj.document_id
-        
+
         paid = min(amount, balance_due)
         await db.execute(
             update(Sale)
@@ -106,7 +109,7 @@ async def _apply_payment_to_entry_impl(kind: str, row_id: int, amount: float, en
         if document_id:
             await recalc_sale_document_totals(int(document_id), db=db)
         return paid
-    
+
     if entry is not None:
         balance_due = float(entry["balance_due"])
         document_id = entry.get("document_id")
@@ -116,7 +119,7 @@ async def _apply_payment_to_entry_impl(kind: str, row_id: int, amount: float, en
             return 0.0
         balance_due = float(sale_obj.balance_due)
         document_id = sale_obj.document_id
-    
+
     paid = min(amount, balance_due)
     await db.execute(
         update(RawSale)
@@ -248,7 +251,7 @@ async def _create_payment_record_impl(
     from datetime import date
     if isinstance(payment_date, str):
         payment_date = date.fromisoformat(payment_date.strip())
-        
+
     if amount <= 0:
         raise ValueError("Le montant doit etre superieur a zero.")
 

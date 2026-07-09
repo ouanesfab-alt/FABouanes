@@ -110,7 +110,7 @@ async def _check_stock_alerts_impl(db: AsyncSession) -> None:
     active_rows_res = await db.execute(
         select(StockAlert.product_type, StockAlert.product_id)
         .where(
-            StockAlert.acknowledged_at == None,
+            StockAlert.acknowledged_at.is_(None),
             StockAlert.triggered_at > func.now() - text("INTERVAL '24 hours'")
         )
     )
@@ -156,7 +156,7 @@ async def _trigger_alert(
             .where(
                 StockAlert.product_type == product_type,
                 StockAlert.product_id == product_id,
-                StockAlert.acknowledged_at == None,
+                StockAlert.acknowledged_at.is_(None),
                 StockAlert.triggered_at > func.now() - text("INTERVAL '24 hours'")
             )
             .limit(1)

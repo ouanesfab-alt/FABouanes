@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import date
 from typing import Any, Optional, Tuple
-from sqlmodel import select, func, case, literal, union_all, literal_column, text
+from sqlmodel import select, func, literal, union_all, literal_column, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events import DomainEvent, emit
@@ -193,11 +193,11 @@ class PaymentsService:
         from datetime import date
         if isinstance(payment_date, str):
             payment_date = date.fromisoformat(payment_date.strip())
-            
+
         amount = float(amount)
         if amount <= 0:
             raise ValidationError("Le montant doit être supérieur à zéro.")
-        
+
         # Verify client
         res_client = await self.session.execute(
             select(Client.id).where(Client.id == client_id)
@@ -478,7 +478,7 @@ class PaymentsService:
         await self.session.commit()
 
         created = await self.payment_repo.get_by_id(payment_id)
-        
+
         # Audit event
         actor_data = {"id": recorded_by, "username": f"user_{recorded_by}", "role": "operator"}
         if recorded_by:

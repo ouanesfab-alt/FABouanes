@@ -37,11 +37,11 @@ async def _create_payment_from_form_impl(form, db: AsyncSession):
     payment_type = (form.get("payment_type") or "versement").strip() or "versement"
     notes = form.get("notes", "").strip()
     payment_id = await create_payment_record(client_id, amount, payment_date, notes, sale_link, payment_type, db=db)
-    
+
     created_res = await db.execute(select(Payment).where(Payment.id == payment_id))
     created = created_res.scalar_one_or_none()
     created_dict = created.model_dump() if created else None
-    
+
     log_activity("create_payment", "payment", payment_id, f"client #{client_id} {payment_type} montant={amount}")
     audit_event("create_payment", "payment", payment_id, after=created_dict)
     mark_backup_needed("create_payment")
@@ -62,16 +62,16 @@ async def _get_edit_payment_context_impl(payment_id: int, db: AsyncSession):
     if not payment_obj:
         return None
     payment = payment_obj.model_dump()
-    
+
     current_link = ""
     if payment.get("sale_kind") == "finished" and payment.get("sale_id"):
         current_link = f"finished:{payment['sale_id']}"
     elif payment.get("sale_kind") == "raw" and payment.get("raw_sale_id"):
         current_link = f"raw:{payment['raw_sale_id']}"
-        
+
     open_sales = list(await get_open_credit_entries(db=db))
     existing_keys = [f"{sale['item_kind']}:{sale['id']}" for sale in open_sales]
-    
+
     if current_link and current_link not in existing_keys:
         if payment.get("sale_kind") == "finished" and payment.get("sale_id"):
             stmt = (
@@ -105,7 +105,7 @@ async def _get_edit_payment_context_impl(payment_id: int, db: AsyncSession):
             sale = res.first()
             if sale:
                 open_sales.append(dict(item_kind="raw", id=sale.id, client_id=sale.client_id, client_name=sale.client_name, item_name=sale.item_name, balance_due=sale.balance_due, sale_date=sale.sale_date, total=sale.total))
-                
+
     clients_res = await db.execute(select(Client).order_by(Client.name))
     clients = [c.model_dump() for c in clients_res.scalars().all()]
     return {"payment": payment, "current_link": current_link, "clients": clients, "open_sales": open_sales}
@@ -126,23 +126,23 @@ async def _edit_payment_from_form_impl(payment_id: int, form, db: AsyncSession):
     if not payment:
         raise ValueError("Versement introuvable.")
     payment_dict = payment.model_dump()
-    
+
     client_id = int(form["client_id"])
     sale_link = form.get("sale_link") or ""
     amount = to_float(form.get("amount"))
     payment_date = form.get("payment_date") or date.today().isoformat()
     notes = form.get("notes", "").strip()
     before = dict(payment_dict)
-    
+
     await reverse_payment_allocations(payment_dict, db=db)
     await db.execute(delete(Payment).where(Payment.id == payment_id))
-    
+
     new_payment_id = await create_payment_record(client_id, amount, payment_date, notes, sale_link, form.get("payment_type", "versement"), db=db)
-    
+
     after_res = await db.execute(select(Payment).where(Payment.id == new_payment_id))
     after_obj = after_res.scalar_one_or_none()
     after = after_obj.model_dump() if after_obj else None
-    
+
     log_activity("update_payment", "payment", payment_id, f"client #{client_id} {form.get('payment_type', 'versement')} montant={amount}")
     audit_event("update_payment", "payment", payment_id, before=before, after=after)
     mark_backup_needed("update_payment")
@@ -164,13 +164,13 @@ async def _delete_payment_by_id_impl(payment_id: int, db: AsyncSession) -> bool:
     if not payment:
         return False
     payment_dict = payment.model_dump()
-    
+
     before = dict(payment_dict)
     audit_delete_event("payment", payment_id, before)
-    
+
     await reverse_payment_allocations(payment_dict, db=db)
     await db.execute(delete(Payment).where(Payment.id == payment_id))
-    
+
     log_activity("delete_payment", "payment", payment_id, "Suppression transaction client")
     audit_event("delete_payment", "payment", payment_id, before=before, after=None)
     mark_backup_needed("delete_payment")
@@ -212,13 +212,13 @@ async def _create_mobile_payment_impl(
     )
     from app.core.audit import audit_event
     from app.modules.users.repository import get_user_by_id
-    
+
     created_res = await db.execute(select(Payment).where(Payment.id == payment_id))
     created = created_res.scalar_one_or_none()
     created_dict = created.model_dump() if created else None
-    
+
     log_activity("create_mobile_payment", "payment", payment_id, f"Mobile: client #{client_id} montant={amount} par user #{recorded_by}")
-    
+
     actor_data = {"id": recorded_by, "username": f"user_{recorded_by}", "role": "operator"}
     if recorded_by:
         try:

@@ -6,7 +6,7 @@
   .transactions-actions{display:flex;gap:10px;flex-wrap:wrap;}
   .transactions-filter-row{align-items:stretch;}
   .transactions-table-card{padding:18px;}
-  .transactions-table-wrap{overflow-x:visible;}
+  .transactions-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
   .transactions-table{margin:0 auto;width:100%;}
   .transactions-table th,.transactions-table td{vertical-align:top;}
   .transactions-table .col-date{width:10%;white-space:nowrap;}
@@ -45,6 +45,7 @@
       <a href="{{ url_for('operations', type='sale') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='sale' else 'btn-outline-secondary' }}">Ventes</a>
       <a href="{{ url_for('operations', type='payment') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='payment' else 'btn-outline-secondary' }}">Versements / avances</a>
       <button type="button" onclick="exportTransactions('csv')" class="btn btn-outline-success"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV</button>
+      <button type="button" onclick="exportTransactions('xlsx')" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Exporter Excel</button>
     </div>
   </div>
 

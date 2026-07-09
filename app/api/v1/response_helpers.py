@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import select, func, case, literal_column, text, table
+from sqlalchemy import select, func, case, literal_column, table
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_success

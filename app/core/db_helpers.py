@@ -25,12 +25,12 @@ def split_sql_script(script: str) -> list[str]:
     in_dollar = False
     in_single_quote = False
     in_double_quote = False
-    
+
     i = 0
     n = len(script)
     while i < n:
         char = script[i]
-        
+
         # Parse comments ONLY when we are not inside a string or dollar block
         if not in_dollar and not in_single_quote and not in_double_quote:
             # Single-line comment --
@@ -47,19 +47,19 @@ def split_sql_script(script: str) -> list[str]:
                     i += 1
                 i += 2  # skip closing */
                 continue
-        
+
         if char == '$' and i + 1 < n and script[i+1] == '$':
             in_dollar = not in_dollar
             current.append('$$')
             i += 2
             continue
-            
+
         if not in_dollar:
             if char == "'" and (i == 0 or script[i-1] != '\\'):
                 in_single_quote = not in_single_quote
             elif char == '"' and (i == 0 or script[i-1] != '\\'):
                 in_double_quote = not in_double_quote
-                
+
         if char == ';' and not in_dollar and not in_single_quote and not in_double_quote:
             stmt = "".join(current).strip()
             if stmt:
@@ -68,7 +68,7 @@ def split_sql_script(script: str) -> list[str]:
         else:
             current.append(char)
         i += 1
-        
+
     stmt = "".join(current).strip()
     if stmt:
         statements.append(stmt)
@@ -171,7 +171,7 @@ class CompatConnection:
                     self.conn.rollback()
                 except Exception:
                     pass
-                
+
                 exc_msg = str(exc).lower()
                 if ("25p02" in exc_msg or "transaction is aborted" in exc_msg) and not retried:
                     retried = True
@@ -301,7 +301,7 @@ class DatabaseManager:
                 pass_part = f":{parsed.password}" if parsed.password else ""
                 user_part = f"{parsed.username}{pass_part}@" if parsed.username else ""
                 postgres_url = f"{parsed.scheme}://{user_part}{parsed.hostname}{port_part}/postgres"
-                
+
                 pg_engine = create_engine(
                     self.sqlalchemy_database_url(postgres_url),
                     isolation_level="AUTOCOMMIT",
@@ -310,7 +310,7 @@ class DatabaseManager:
                 with pg_engine.connect() as pg_conn:
                     pg_conn.execute(text(f'CREATE DATABASE "{database}"'))
                 pg_engine.dispose()
-                
+
                 engine = self.get_database_engine(raw_url)
                 conn = engine.raw_connection()
             elif "authentification" in err_msg or "password authentication failed" in err_msg or "28p01" in err_msg:
@@ -771,21 +771,21 @@ def db_task(func):
     Decorator to wrap synchronous repository or database operations.
     Runs synchronously by default when called normally:
         result = get_client(123)
-        
+
     Runs in a background thread when called via the .async_ attribute:
         result = await get_client.async_(123)
     """
     import functools
     import asyncio
-    
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
-        
+
     @functools.wraps(func)
     async def async_wrapper(*args, **kwargs):
         return await asyncio.to_thread(func, *args, **kwargs)
-        
+
     wrapper.async_ = async_wrapper
     wrapper.sync = func
     return wrapper

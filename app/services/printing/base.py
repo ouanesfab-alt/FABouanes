@@ -105,9 +105,9 @@ def _print_defaults(payload: dict[str, Any]) -> dict[str, Any]:
 
 def _fmt_money_pdf(value) -> str:
     try:
-        return f"{float(value):,.2f} DA".replace(",", " ")
+        return f"{int(round(float(value))):,} DA".replace(",", " ")
     except (TypeError, ValueError):
-        return "0,00 DA"
+        return "0 DA"
 
 
 def _logo_cell(logo_path: Path, width_cm: float, height_cm: float):

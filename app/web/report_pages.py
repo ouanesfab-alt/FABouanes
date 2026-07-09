@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
@@ -12,68 +11,95 @@ from app.services.bon_space_service import find_bon_space_document, list_bon_spa
 from app.utils.tool_pages import (
     delete_pdf_reader_file,
     get_pdf_reader_file_path,
-    list_notes_history,
     list_pdf_reader_files,
-    notes_file_path,
-    read_app_notes,
-    read_notes_version,
     save_pdf_reader_upload,
-    write_app_notes,
+    list_user_notes,
+    save_user_note,
+    create_user_note,
+    delete_user_note,
 )
 from app.web.deps import csrf_protect, flash, get_current_user, template_context, templates
 
 router = APIRouter()
 
 
+@router.get("/notes", name="notes_page")
+async def notes_page(request: Request):
+    if not get_current_user(request):
+        return RedirectResponse("/login", status_code=303)
 
+    notes = list_user_notes()
+    return templates.TemplateResponse(
+        "notes.html",
+        template_context(
+            request,
+            notes=notes,
+        ),
+    )
+
+
+@router.post("/notes/api/create", name="notes_api_create")
+async def notes_api_create(request: Request):
+    if not get_current_user(request):
+        return JSONResponse({"success": False, "error": "Non authentifié"}, status_code=401)
+    await csrf_protect(request)
+
+    try:
+        form = await request.form()
+        title = str(form.get("title", "") or "Sans titre").strip()
+        content = str(form.get("content", "") or "")
+        color = str(form.get("color", "yellow") or "yellow").strip()
+
+        note = create_user_note(title, content, color)
+        return JSONResponse({"success": True, "note": note})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+@router.post("/notes/api/save", name="notes_api_save")
+async def notes_api_save(request: Request):
+    if not get_current_user(request):
+        return JSONResponse({"success": False, "error": "Non authentifié"}, status_code=401)
+    await csrf_protect(request)
+
+    try:
+        form = await request.form()
+        note_id = str(form.get("id", "") or "").strip()
+        if not note_id:
+            return JSONResponse({"success": False, "error": "ID de note manquant"}, status_code=400)
+
+        title = str(form.get("title", "") or "").strip()
+        content = str(form.get("content", "") or "")
+        color = str(form.get("color", "yellow") or "yellow").strip()
+        pinned = form.get("pinned") == "true" or form.get("pinned") == "1"
+
+        note = save_user_note(note_id, title, content, color, pinned)
+        return JSONResponse({"success": True, "note": note})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+@router.post("/notes/api/delete", name="notes_api_delete")
+async def notes_api_delete(request: Request):
+    if not get_current_user(request):
+        return JSONResponse({"success": False, "error": "Non authentifié"}, status_code=401)
+    await csrf_protect(request)
+
+    try:
+        form = await request.form()
+        note_id = str(form.get("id", "") or "").strip()
+        if not note_id:
+            return JSONResponse({"success": False, "error": "ID de note manquant"}, status_code=400)
+
+        success = delete_user_note(note_id)
+        return JSONResponse({"success": success})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
 
 @router.get("/sw.js", name="service_worker")
 async def service_worker():
     return FileResponse(paths.static_dir / "sw.js", media_type="application/javascript")
-
-
-@router.get("/notes", name="notes_page")
-async def notes_page(request: Request):
-    if not get_current_user(request):
-        return RedirectResponse("/login", status_code=303)
-    view_version = request.query_params.get("v", "")
-    current_content = read_app_notes()
-    viewing_content = read_notes_version(view_version) if view_version else current_content
-    note_path = notes_file_path()
-    updated_at = datetime.fromtimestamp(note_path.stat().st_mtime).strftime("%d/%m/%Y %H:%M") if note_path.exists() else None
-    return templates.TemplateResponse(
-        "notes.html",
-        template_context(
-            request,
-            content=viewing_content,
-            current_content=current_content,
-            updated_at=updated_at,
-            history=list_notes_history(),
-            view_version=view_version,
-        ),
-    )
-
-
-@router.post("/notes", name="notes_page")
-async def notes_submit(request: Request):
-    if not get_current_user(request):
-        return RedirectResponse("/login", status_code=303)
-    await csrf_protect(request)
-    form = await request.form()
-    action = str(form.get("action", "save") or "save").strip()
-    if action == "restore":
-        filename = str(form.get("version_file", "") or "").strip()
-        old_content = read_notes_version(filename)
-        if old_content:
-            write_app_notes(old_content)
-            flash(request, "Version restaurée avec succès.", "success")
-        else:
-            flash(request, "Version introuvable.", "danger")
-    else:
-        write_app_notes(str(form.get("content", "") or ""))
-        flash(request, "Bloc-note enregistré.", "success")
-    return RedirectResponse("/notes", status_code=303)
 
 
 @router.get("/pdf-reader", name="pdf_reader")

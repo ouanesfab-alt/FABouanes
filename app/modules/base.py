@@ -8,7 +8,7 @@ class ModuleBase(ABC):
     Abstract base class for all application modules.
     Ensures a consistent structure for routes and metadata.
     """
-    
+
     @property
     @abstractmethod
     def name(self) -> str:

@@ -1,141 +1,283 @@
 {% extends "base.html" %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
-  .bons-page{display:flex;flex-direction:column;gap:12px;height:auto;min-height:100%;overflow:visible;}
-  .bons-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) 180px auto;gap:8px;align-items:center;}
-  .bons-layout{display:flex;flex-direction:row;min-height:0;flex:1;}
-  .bons-list{background:var(--card);border:1px solid var(--line);border-radius:8px;min-height:0;height:1400px;display:flex;flex-direction:column;overflow:hidden;width:40%;min-width:320px;max-width:80%;}
-  .bons-list-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);}
-  .bons-list-count{color:var(--muted);font-size:.75rem;font-weight:700;}
-  .bons-list-body{overflow:auto;padding:0;min-height:0;flex:1;background:var(--card);}
-  .bons-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.8rem;}
-  .bons-table th{position:sticky;top:0;z-index:1;background:var(--surface);color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;padding:8px 9px;border-bottom:1px solid var(--line);white-space:nowrap;}
-  .bons-table th[data-bon-sort]{cursor:pointer;user-select:none;}
-  .bons-table th[data-bon-sort]::after{content:'';display:inline-block;width:.42rem;height:.42rem;margin-left:.4rem;border-right:2px solid currentColor;border-bottom:2px solid currentColor;opacity:.3;transform:rotate(45deg) translateY(-2px);vertical-align:middle;}
-  .bons-table th[data-sort-dir="asc"]::after{opacity:.9;transform:rotate(225deg) translateY(-1px);}
-  .bons-table th[data-sort-dir="desc"]::after{opacity:.9;transform:rotate(45deg) translateY(-2px);}
-  .bons-table td{padding:8px 9px;border-bottom:1px solid var(--line);vertical-align:middle;height:50px;}
-  .bons-table .col-type{width:44px;text-align:center;}
-  .bons-table .col-amount{width:115px;text-align:right;}
-  .bon-row{cursor:pointer;}
-  .bon-row:hover td{background:var(--bg);}
-  .bon-row.active td{background:rgba(37,99,235,.08);}
-  .bon-kind-icon{width:28px;height:28px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;background:#eef2f7;color:#111827;}
-  .bon-doc-link{display:block;color:var(--text);font-weight:800;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .bon-doc-link:hover{color:var(--accent);}
-  .bon-muted,.bon-number-cell{display:block;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .bon-number-cell{font-size:.74rem;font-weight:800;}
-  .bon-amount-cell{font-weight:900;white-space:nowrap;}
-  .bons-preview{background:var(--card);border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;min-width:320px;flex:1;height:1400px;overflow:hidden;}
-  .bons-preview-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);}
-  .bons-preview-title{min-width:0;}
-  .bons-preview-title strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.92rem;}
-  .bons-preview-title span{display:block;color:var(--muted);font-size:.76rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .bons-preview-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end;}
-  .bons-frame-wrap{flex:1;min-height:0;background:#525659;padding:10px;overflow:auto;display:flex;justify-content:center;align-items:flex-start;}
-  .bons-frame{width:min(100%,940px);height:100%;min-height:0;border:0;background:#fff;box-shadow:0 10px 32px rgba(0,0,0,.24);}
-  .bons-empty{display:flex;align-items:center;justify-content:center;flex:1;color:var(--muted);padding:32px;text-align:center;}
-  .bons-empty strong{display:block;color:var(--text);margin-bottom:6px;}
-  .bons-empty.is-error i{color:#dc2626;opacity:.55;}
-  .bons-upload{border-top:1px solid var(--line);padding:10px 12px;background:rgba(15,23,42,.02);}
-  .bons-upload form{display:flex;gap:8px;align-items:center;justify-content:space-between;}
-  .bons-upload-label{display:flex;align-items:center;gap:8px;font-weight:800;font-size:.82rem;cursor:pointer;min-width:0;}
-  .bons-upload-label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .bons-upload input[type=file]{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;}
-  /* Premium Theme enhancements for Espace Bons */
-  [data-theme="dark"] .bon-kind-icon, [data-theme="windows-dark"] .bon-kind-icon {
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--text);
+  .bons-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
   }
-  [data-theme="dark"] .bon-row.active td, [data-theme="windows-dark"] .bon-row.active td {
-    background: rgba(37, 99, 235, 0.15) !important;
-  }
-  .bon-row.active td:first-child {
-    border-left: 3.5px solid var(--accent, #2563eb);
-  }
-
-  /* Mobile Tabs segmented control style */
-  .mobile-bons-tabs {
-    display: none;
-    background: var(--glass-bg, rgba(255, 255, 255, 0.05));
-    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
-    border-radius: 12px;
-    padding: 4px;
-    margin-bottom: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-  }
-  [data-theme="dark"] .mobile-bons-tabs, [data-theme="windows-dark"] .mobile-bons-tabs {
-    background: rgba(255, 255, 255, 0.03);
-    border-color: rgba(255, 255, 255, 0.06);
-  }
-  .mobile-tab-btn {
+  
+  /* Bons search field — custom, no Bootstrap input-group */
+  .bons-search-wrap {
+    position: relative;
+    max-width: 380px;
     flex: 1;
-    border: 0;
-    background: transparent;
+  }
+  .bons-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
     color: var(--muted);
-    padding: 9px 12px;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .bons-search-input {
+    width: 100%;
+    padding: 8px 12px 8px 36px;
+    background: var(--surface) !important;
+    border: 0.5px solid var(--glass-border) !important;
+    border-radius: 10px !important;
+    color: var(--text) !important;
+    font-size: 0.87rem;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.22s, box-shadow 0.22s;
+    outline: none;
+  }
+  .bons-search-input::placeholder {
+    color: var(--text-tertiary);
+  }
+  .bons-search-input:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.15) !important;
+  }
+  
+  /* Category filter tabs */
+  .category-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--glass-border);
+    padding: 6px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+  .category-tab {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 0.82rem;
     font-weight: 700;
+    padding: 8px 16px;
     border-radius: 8px;
-    transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .category-tab:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .category-tab.active {
+    background: var(--accent, #0a84ff);
+    color: #fff !important;
+    box-shadow: 0 4px 12px rgba(10, 132, 255, 0.25);
+  }
+  
+  /* Category status badges in table */
+  .category-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.74rem;
+    font-weight: 800;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+  .badge-purchase { background: rgba(10, 132, 255, 0.12) !important; color: #0a84ff !important; border: 1px solid rgba(10, 132, 255, 0.2); }
+  .badge-sale { background: rgba(48, 209, 88, 0.12) !important; color: #30d158 !important; border: 1px solid rgba(48, 209, 88, 0.2); }
+  .badge-payment { background: rgba(191, 90, 242, 0.12) !important; color: #bf5af2 !important; border: 1px solid rgba(191, 90, 242, 0.2); }
+  .badge-advance { background: rgba(255, 159, 10, 0.12) !important; color: #ff9f0a !important; border: 1px solid rgba(255, 159, 10, 0.2); }
+  .badge-production { background: rgba(148, 163, 184, 0.12) !important; color: #94a3b8 !important; border: 1px solid rgba(148, 163, 184, 0.2); }
+  .badge-client_history { background: rgba(255, 55, 95, 0.12) !important; color: #ff375f !important; border: 1px solid rgba(255, 55, 95, 0.2); }
+  .badge-external { background: rgba(255, 69, 58, 0.12) !important; color: #ff453a !important; border: 1px solid rgba(255, 69, 58, 0.2); }
+
+  /* Table styling */
+  .bons-table-card {
+    padding: 20px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .bons-table th {
+    font-size: 0.74rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    font-weight: 700 !important;
+    color: var(--muted) !important;
+    border-bottom: 2px solid var(--separator) !important;
+  }
+  .bons-table tr.bon-row {
+    cursor: pointer;
+    transition: background 0.18s ease;
+  }
+  .bons-table tr.bon-row:hover {
+    background: rgba(255, 255, 255, 0.04) !important;
+  }
+  [data-theme="light"] .bons-table tr.bon-row:hover {
+    background: rgba(0, 0, 0, 0.02) !important;
+  }
+  
+  /* Upload area */
+  .bons-upload {
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+  }
+  .bons-upload form {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .bons-upload-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: .85rem;
+    cursor: pointer;
+    margin: 0;
+  }
+  .bons-upload input[type=file] {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+  }
+  
+  /* macOS Glass Floating Modal Overlay */
+  .mac-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.45);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 5000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: macFadeIn 0.22s ease-out;
+  }
+  .mac-modal-overlay.open {
+    display: flex;
+  }
+  .mac-modal-window {
+    background: var(--card);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    width: min(100%, 960px);
+    height: min(90vh, 1250px);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 35px 80px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    transform-origin: center;
+    animation: macModalPop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .mac-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .mac-modal-title {
+    min-width: 0;
+    flex: 1;
+    margin-right: 16px;
+  }
+  .mac-modal-title strong {
+    display: block;
+    font-size: 0.95rem;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mac-modal-title span {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 2px;
+  }
+  .mac-modal-actions-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .mac-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.6rem;
+    line-height: 1;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0px 8px 4px;
+    border-radius: 8px;
+    transition: all 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
   }
-  .mobile-tab-btn i {
-    font-size: 0.95rem;
+  .mac-modal-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text);
   }
-  .mobile-tab-btn.active {
-    background: var(--accent, #2563eb);
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.24);
+  [data-theme="light"] .mac-modal-close:hover {
+    background: rgba(0, 0, 0, 0.05);
   }
-
-  @media(max-width:991px){
-    .bons-page{height:auto;min-height:0;overflow:visible;}
-    .bons-toolbar{grid-template-columns:1fr; margin-bottom: 12px;}
-    .mobile-bons-tabs {
-      display: flex;
-    }
-    
-    /* Toggle visibility in mobile tabbed layout */
-    .bons-layout.show-preview #bonsList {
-      display: none !important;
-    }
-    .bons-layout.show-list .bons-preview {
-      display: none !important;
-    }
-    
-    .bons-layout{flex-direction:column; gap:0;}
-    .bons-list{
-      height: calc(100vh - 275px) !important;
-      max-height: none !important;
-      width: 100% !important;
-      border-radius: 12px;
-    }
-    .bons-preview{
-      height: calc(100vh - 275px) !important;
-      width: 100% !important;
-      border-radius: 12px;
-      display: flex;
-    }
-    .bons-frame-wrap{
-      height: 100% !important;
-      min-height: 0 !important;
-      padding: 6px;
-    }
-    .bons-frame{
-      height:100% !important;
-      border-radius: 6px;
-    }
-    .bons-table .col-amount{display:table-cell; width: 95px;}
+  
+  .mac-modal-body {
+    flex: 1;
+    background: var(--surface);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    position: relative;
   }
-  .bons-resizer{width:18px;margin:0 -4px;cursor:col-resize;display:flex;align-items:center;justify-content:center;position:relative;z-index:10;user-select:none;touch-action:none;}
-  .bons-resizer-handle{display:flex;align-items:center;justify-content:center;width:24px;height:48px;background:var(--card);border:1px solid var(--line);border-radius:12px;color:var(--muted);box-shadow:0 2px 6px rgba(0,0,0,0.06);transition:all 0.2s ease;}
-  .bons-resizer:hover .bons-resizer-handle, .bons-resizer.is-resizing .bons-resizer-handle{background:var(--accent, #2563eb);border-color:var(--accent, #2563eb);color:#fff;box-shadow:0 4px 12px rgba(37,99,235,0.25);transform:scale(1.05);}
-  [data-theme="dark"] .bons-resizer-handle, [data-theme="windows-dark"] .bons-resizer-handle{box-shadow:0 2px 6px rgba(0,0,0,0.3);}
-  @media(max-width:991px){
-    .bons-resizer{display:none;}
+  /* Wrapper to position the scroll-capture overlay */
+  .modal-frame-wrap {
+    position: relative;
+    width: 100%;
+  }
+  .modal-frame {
+    display: block;
+    width: 100%;
+    height: 1260px;
+    border: none;
+    background: #fff;
+  }
+  /* Transparent overlay on top of iframe to capture wheel events */
+  .modal-frame-scroll-cap {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: transparent;
+    pointer-events: none; /* will be toggled to 'all' to capture scroll */
+  }
+  
+  @keyframes macFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes macModalPop {
+    from { transform: scale(0.9) translateY(20px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
   }
 </style>
 
@@ -148,170 +290,145 @@
     <span class="text-muted small">{{ documents|length }} document(s)</span>
   </div>
 
-  <form class="bons-toolbar" method="get" action="{{ url_for('bons_space') }}">
-    <div class="input-group input-group-sm">
-      <span class="input-group-text"><i class="bi bi-search"></i></span>
-      <input class="form-control" name="q" value="{{ filters.q }}" placeholder="Rechercher client, numéro, date...">
-    </div>
-    <select class="form-select form-select-sm" name="kind">
-      <option value="" {{ 'selected' if not filters.kind else '' }}>Tous les bons</option>
-      <option value="purchase" {{ 'selected' if filters.kind == 'purchase' else '' }}>Achats</option>
-      <option value="sale" {{ 'selected' if filters.kind == 'sale' else '' }}>Ventes</option>
-      <option value="payment" {{ 'selected' if filters.kind == 'payment' else '' }}>Versements</option>
-      <option value="advance" {{ 'selected' if filters.kind == 'advance' else '' }}>Avances</option>
-      <option value="production" {{ 'selected' if filters.kind == 'production' else '' }}>Production</option>
-      <option value="client_history" {{ 'selected' if filters.kind == 'client_history' else '' }}>Historiques client</option>
-      <option value="external" {{ 'selected' if filters.kind == 'external' else '' }}>PDF importés</option>
-    </select>
-    <button class="btn btn-sm btn-dark" type="submit"><i class="bi bi-funnel me-1"></i>Filtrer</button>
-  </form>
-
-  <div class="mobile-bons-tabs">
-    <button type="button" class="mobile-tab-btn {% if not selected_doc %}active{% endif %}" id="btnShowList">
-      <i class="bi bi-list-ul me-2"></i>Liste des Bons
-    </button>
-    <button type="button" class="mobile-tab-btn {% if selected_doc %}active{% endif %}" id="btnShowPreview">
-      <i class="bi bi-eye me-2"></i>Aperçu du Bon
-    </button>
+  <div class="category-tabs">
+    <button type="button" class="category-tab {{ 'active' if not filters.kind else '' }}" data-category="all">Tous</button>
+    <button type="button" class="category-tab {{ 'active' if filters.kind == 'purchase' else '' }}" data-category="purchase">Achats</button>
+    <button type="button" class="category-tab {{ 'active' if filters.kind == 'sale' else '' }}" data-category="sale">Ventes</button>
+    <button type="button" class="category-tab {{ 'active' if filters.kind == 'payment' else '' }}" data-category="payment">Versements</button>
+    <button type="button" class="category-tab {{ 'active' if filters.kind == 'advance' else '' }}" data-category="advance">Avances</button>
+    <button type="button" class="category-tab {{ 'active' if filters.kind == 'client_history' else '' }}" data-category="client_history">Historiques client</button>
+    <button type="button" class="category-tab {{ 'active' if filters.kind == 'production' else '' }}" data-category="production">Production</button>
+    <button type="button" class="category-tab {{ 'active' if filters.kind == 'external' else '' }}" data-category="external">PDF importés</button>
   </div>
 
-  <div class="bons-layout {% if selected_doc %}show-preview{% else %}show-list{% endif %}" id="bonsLayout">
-    <aside class="bons-list" id="bonsList">
-      <div class="bons-list-head">
-        <strong>Documents</strong>
-        <span class="bons-list-count">{{ documents|length }} affichés</span>
-        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('bons_space') }}" title="Réinitialiser"><i class="bi bi-arrow-counterclockwise"></i></a>
-      </div>
-      <div class="bons-list-body">
-        <table class="bons-table">
-          <thead>
-            <tr>
-              <th class="col-type" data-bon-sort="type" tabindex="0" aria-sort="none">Type</th>
-              <th data-bon-sort="document" tabindex="0" aria-sort="none">Document</th>
-              <th class="col-amount" data-bon-sort="amount" tabindex="0" aria-sort="none">Montant</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for doc in documents %}
-            {% set row_url = url_for('bons_space', q=filters.q, kind=filters.kind, doc=doc.key) %}
-            <tr class="bon-row {{ 'active' if selected_doc and selected_doc.key == doc.key else '' }}" data-href="{{ row_url }}" tabindex="0" data-sort-sequence="{{ loop.index0 }}">
-              <td class="col-type" data-sort-value="{{ doc.category }}">
-                <span class="bon-kind-icon" title="{{ doc.category }}">
-                  {% if doc.kind == 'purchase' %}<i class="bi bi-cart-check"></i>
-                  {% elif doc.kind == 'sale' %}<i class="bi bi-receipt-cutoff"></i>
-                  {% elif doc.kind == 'payment' %}<i class="bi bi-cash-coin"></i>
-                  {% elif doc.kind == 'advance' %}<i class="bi bi-wallet2"></i>
-                  {% elif doc.kind == 'production' %}<i class="bi bi-gear"></i>
-                  {% elif doc.kind == 'client_history' %}<i class="bi bi-person-lines-fill"></i>
-                  {% else %}<i class="bi bi-file-earmark-pdf"></i>{% endif %}
-                </span>
-              </td>
-              <td data-sort-value="{{ doc.title }} {{ doc.partner_name or doc.detail or '' }}">
-                <a class="bon-doc-link" href="{{ row_url }}">{{ doc.title }}</a>
-                <div class="d-flex align-items-center gap-1 flex-wrap mt-1" style="font-size: 0.74rem; line-height: 1.2;">
-                  <span class="badge bg-secondary-subtle text-secondary font-monospace" style="padding: 1px 4px; font-size: 0.7rem; border: 1px solid var(--line);">N° {{ doc.number }}</span>
-                  <span class="text-muted">·</span>
-                  <span class="text-muted">{{ doc.doc_date or '-' }}</span>
-                  {% if doc.partner_name or doc.detail %}
-                  <span class="text-muted">·</span>
-                  <span class="text-muted text-truncate" style="max-width: 140px; display: inline-block; vertical-align: bottom;">{{ doc.partner_name or doc.detail }}</span>
-                  {% endif %}
-                </div>
-              </td>
-              <td class="col-amount" data-sort-value="{{ doc.amount if doc.amount is not none else '' }}">
-                {% if doc.amount is not none %}
-                <span class="bon-amount-cell text-primary">{{ doc.amount|money }}</span>
-                {% else %}
-                <span class="text-muted">—</span>
-                {% endif %}
-              </td>
-            </tr>
-            {% else %}
-            <tr>
-              <td colspan="3" class="text-center py-4 text-muted small">
-                <i class="bi bi-folder2-open d-block mb-2" style="font-size:1.7rem;opacity:.45;"></i>
-                Aucun bon trouvé.
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-      <div class="bons-upload">
-        <form method="post" enctype="multipart/form-data" action="{{ url_for('bons_space') }}" id="uploadForm" data-no-spinner="">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <label for="pdfInput" class="bons-upload-label">
-            <i class="bi bi-cloud-upload"></i>
-            <span>Ajouter un PDF externe</span>
-            <input type="file" id="pdfInput" name="pdf_file" accept=".pdf,application/pdf">
-          </label>
-          <button class="btn btn-sm btn-outline-secondary" type="button" id="uploadButton"><i class="bi bi-plus-lg"></i></button>
-        </form>
-      </div>
-    </aside>
-
-    <div class="bons-resizer" id="bonsResizer">
-      <div class="bons-resizer-handle"><i class="bi bi-grip-vertical"></i></div>
+  <div class="card bons-table-card">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <form method="get" action="{{ url_for('bons_space') }}" class="d-flex align-items-center gap-2 flex-grow-1">
+        <input type="hidden" name="kind" id="toolbarKindVal" value="{{ filters.kind or '' }}">
+        <div class="bons-search-wrap">
+          <i class="bi bi-search bons-search-icon"></i>
+          <input class="bons-search-input" type="search" name="q" value="{{ filters.q or '' }}" placeholder="Rechercher client, numéro, date..." autocomplete="off">
+        </div>
+      </form>
+      <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('bons_space') }}" title="Réinitialiser tous les filtres"><i class="bi bi-arrow-counterclockwise me-1"></i>Réinitialiser</a>
     </div>
 
-    <section class="bons-preview">
-      {% if missing_doc_key %}
-      <div class="bons-empty is-error">
-        <div>
-          <i class="bi bi-exclamation-triangle d-block mb-2" style="font-size:3rem;"></i>
-          <strong>Bon introuvable</strong>
-          <div class="mb-3">Le document demandé n'existe plus, a été supprimé ou ne correspond pas au filtre actuel.</div>
-          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('bons_space', q=filters.q, kind=filters.kind) }}">
-            <i class="bi bi-arrow-left me-1"></i>Revenir à la liste
-          </a>
-        </div>
-      </div>
-      {% elif selected_doc %}
-      {% set preview_url = selected_doc.view_url ~ ('&' if '?' in selected_doc.view_url else '?') ~ 'embed=1' %}
-      <div class="bons-preview-head">
-        <div class="bons-preview-title">
-          <strong>{{ selected_doc.title }} - {{ selected_doc.number }}</strong>
-          <span>{{ selected_doc.partner_name or selected_doc.detail }}{% if selected_doc.doc_date %} - {{ selected_doc.doc_date }}{% endif %}</span>
-        </div>
-        <div class="bons-preview-actions">
-          {% if selected_doc.source_url %}
-          <a class="btn btn-sm btn-outline-secondary" href="{{ selected_doc.source_url }}"><i class="bi bi-box-arrow-up-right me-1"></i>Source</a>
-          {% endif %}
-          {% if selected_doc.pdf_url %}
-          <a class="btn btn-sm btn-outline-dark" href="{{ selected_doc.pdf_url }}" target="_blank"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
-          {% endif %}
-          <a class="btn btn-sm btn-dark" href="{{ preview_url }}" target="_blank"><i class="bi bi-arrows-fullscreen me-1"></i>Ouvrir</a>
-          {% if selected_doc.delete_filename %}
-          <form method="post" action="{{ url_for('bons_space') }}" class="m-0" onsubmit="return confirm('Supprimer ce PDF ?')">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="action" value="delete">
-            <input type="hidden" name="filename" value="{{ selected_doc.delete_filename }}">
-            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3"></i></button>
-          </form>
-          {% endif %}
-        </div>
-      </div>
-      <div class="bons-frame-wrap">
-        <iframe class="bons-frame" src="{{ preview_url }}" title="{{ selected_doc.title }} {{ selected_doc.number }}"></iframe>
-      </div>
-      {% else %}
-      <div class="bons-empty">
-        <div>
-          <i class="bi bi-receipt d-block mb-2" style="font-size:3rem;opacity:.25;"></i>
-          <strong>Aucun document à afficher</strong>
-        </div>
-      </div>
-      {% endif %}
-    </section>
+    <div class="table-responsive">
+      <table class="table align-middle bons-table">
+        <thead>
+          <tr>
+            <th style="width: 15%;">Date</th>
+            <th style="width: 20%;">Catégorie</th>
+            <th style="width: 15%;">Numéro</th>
+            <th>Description / Client</th>
+            <th style="width: 18%; text-align: right;">Montant</th>
+          </tr>
+        </thead>
+        <tbody id="bonsTableBody">
+          {% for doc in documents %}
+          <tr class="bon-row" 
+              data-category="{{ doc.kind if doc.kind else 'external' }}"
+              data-href="{{ url_for('bons_space', q=filters.q, kind=filters.kind, doc=doc.key) }}"
+              data-view-url="{{ doc.view_url }}"
+              data-pdf-url="{{ doc.pdf_url }}"
+              data-source-url="{{ doc.source_url }}"
+              data-delete-filename="{{ doc.delete_filename }}"
+              data-title="{{ doc.title }}"
+              data-number="{{ doc.number }}"
+              data-partner-name="{{ doc.partner_name }}"
+              data-detail="{{ doc.detail }}"
+              data-doc-date="{{ doc.doc_date }}">
+            <td>{{ doc.doc_date or '-' }}</td>
+            <td>
+              <span class="category-badge badge-{{ doc.kind if doc.kind else 'external' }}">
+                {% if doc.kind == 'purchase' %}Achat
+                {% elif doc.kind == 'sale' %}Vente
+                {% elif doc.kind == 'payment' %}Versement
+                {% elif doc.kind == 'advance' %}Avance
+                {% elif doc.kind == 'production' %}Production
+                {% elif doc.kind == 'client_history' %}Historique
+                {% else %}PDF Importé{% endif %}
+              </span>
+            </td>
+            <td><strong class="font-monospace">N° {{ doc.number }}</strong></td>
+            <td>
+              <span class="text-truncate d-inline-block" style="max-width: 320px;">
+                {{ doc.partner_name or doc.detail or '-' }}
+              </span>
+            </td>
+            <td style="text-align: right; font-weight: 800; color: var(--accent);">
+              {% if doc.amount is not none %}
+              {{ doc.amount|money }}
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-center py-5 text-muted small">
+              <i class="bi bi-folder2-open d-block mb-2" style="font-size:2rem; opacity:.45;"></i>
+              Aucun document trouvé.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bons-upload">
+      <form method="post" enctype="multipart/form-data" action="{{ url_for('bons_space') }}" id="uploadForm" data-no-spinner="">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="pdfInput" class="bons-upload-label btn btn-sm btn-outline-secondary">
+          <i class="bi bi-cloud-upload me-2" style="font-size: 1rem; color: var(--accent);"></i>
+          <span>Sélectionner un fichier PDF</span>
+          <input type="file" id="pdfInput" name="pdf_file" accept=".pdf,application/pdf">
+        </label>
+        <button class="btn btn-sm btn-dark" type="button" id="uploadButton"><i class="bi bi-plus-lg me-1"></i>Ajouter PDF</button>
+      </form>
+    </div>
   </div>
 </div>
 
 {% endblock %}
 
+{% block modals %}
+<!-- macOS Style Floating Preview Modal — rendered OUTSIDE .app-content to avoid page-hidden opacity -->
+<div class="mac-modal-overlay" id="pdfPreviewModal">
+  <div class="mac-modal-window">
+    <div class="mac-modal-header">
+      <div class="mac-modal-title">
+        <strong id="modalTitleText">Facture</strong>
+        <span id="modalSubtitleText">Chargement...</span>
+      </div>
+      <div class="mac-modal-actions-wrap">
+        <a class="btn btn-sm btn-outline-secondary js-no-transition" id="modalSourceLink" href="#" title="Aller à la source"><i class="bi bi-box-arrow-up-right"></i></a>
+        <a class="btn btn-sm btn-outline-dark js-no-transition" id="modalPdfLink" href="#" target="_blank" title="Télécharger le PDF"><i class="bi bi-file-earmark-pdf"></i></a>
+        <a class="btn btn-sm btn-dark js-no-transition" id="modalOpenLink" href="#" target="_blank" title="Plein écran"><i class="bi bi-arrows-fullscreen"></i></a>
+        <form method="post" action="{{ url_for('bons_space') }}" class="m-0 d-inline-block" onsubmit="return confirm('Supprimer ce PDF ?')" id="modalDeleteForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="action" value="delete">
+          <input type="hidden" name="filename" id="modalDeleteFilename" value="">
+          <button class="btn btn-sm btn-outline-danger" title="Supprimer le fichier"><i class="bi bi-trash3"></i></button>
+        </form>
+        <button class="mac-modal-close" onclick="closeModalPreview()">&#215;</button>
+      </div>
+    </div>
+    <div class="mac-modal-body" id="modalBody">
+      <div class="modal-frame-wrap">
+        <iframe class="modal-frame" id="modalIframe" src="about:blank" title="Aperçu du document"></iframe>
+        <!-- Transparent overlay that captures wheel events and proxies them to the parent scroll container -->
+        <div class="modal-frame-scroll-cap" id="iframeScrollCap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
 {% block scripts %}
 <script nonce="{{ csp_nonce }}">
 (function(){
+  // PDF Upload actions
   const input = document.getElementById('pdfInput');
   const button = document.getElementById('uploadButton');
   const form = document.getElementById('uploadForm');
@@ -319,136 +436,198 @@
   input?.addEventListener('change', function(){
     if (this.files && this.files.length > 0) form?.submit();
   });
-  document.querySelectorAll('.bon-row[data-href]').forEach(function(row){
-    row.addEventListener('click', function(event){
-      if (event.target.closest('a,button,input,label,select,textarea')) return;
-      window.location.href = row.dataset.href;
-    });
-    row.addEventListener('keydown', function(event){
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      event.preventDefault();
-      window.location.href = row.dataset.href;
-    });
-  });
 
-  const table = document.querySelector('.bons-table');
-  const tbody = table?.tBodies[0];
-  const headers = table ? Array.from(table.querySelectorAll('th[data-bon-sort]')) : [];
-  function clean(value){ return String(value || '').trim().replace(/\s+/g, ' '); }
-  function normalize(value){ return clean(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
-  function parseNumber(value){
-    const token = clean(value).replace(/\u00a0/g, ' ').match(/[-+]?\d[\d\s.,]*/);
-    if (!token) return null;
-    const raw = token[0].replace(/\s+/g, '').replace(',', '.');
-    const number = Number(raw);
-    return Number.isNaN(number) ? null : number;
-  }
-  function parseDate(value){
-    const text = clean(value);
-    if (!text) return null;
-    const parsed = Date.parse(text);
-    return Number.isNaN(parsed) ? normalize(text) : parsed;
-  }
-  function cellValue(row, index, kind){
-    const raw = row.cells[index]?.dataset.sortValue || row.cells[index]?.textContent || '';
-    if (kind === 'amount') return parseNumber(raw);
-    if (kind === 'date') return parseDate(raw);
-    return normalize(raw);
-  }
-  function compare(left, right, direction){
-    const leftMissing = left === null || left === undefined || left === '';
-    const rightMissing = right === null || right === undefined || right === '';
-    if (leftMissing && rightMissing) return 0;
-    if (leftMissing) return 1;
-    if (rightMissing) return -1;
-    const result = typeof left === 'number' && typeof right === 'number'
-      ? (left > right ? 1 : left < right ? -1 : 0)
-      : String(left).localeCompare(String(right), 'fr', {numeric:true, sensitivity:'base'});
-    return direction === 'asc' ? result : -result;
-  }
-  headers.forEach(function(header, index){
-    function sortRows(){
-      if (!tbody) return;
-      const kind = header.dataset.bonSort;
-      const direction = header.dataset.sortDir === 'asc' ? 'desc' : 'asc';
-      headers.forEach(function(item){
-        delete item.dataset.sortDir;
-        item.setAttribute('aria-sort', 'none');
-      });
-      header.dataset.sortDir = direction;
-      header.setAttribute('aria-sort', direction === 'asc' ? 'ascending' : 'descending');
-      Array.from(tbody.querySelectorAll('tr.bon-row')).sort(function(a, b){
-        const result = compare(cellValue(a, index, kind), cellValue(b, index, kind), direction);
-        if (result) return result;
-        return Number(a.dataset.sortSequence || 0) - Number(b.dataset.sortSequence || 0);
-      }).forEach(function(row){ tbody.appendChild(row); });
+  const modal = document.getElementById('pdfPreviewModal');
+  const modalIframe = document.getElementById('modalIframe');
+  const modalTitleText = document.getElementById('modalTitleText');
+  const modalSubtitleText = document.getElementById('modalSubtitleText');
+  const modalSourceLink = document.getElementById('modalSourceLink');
+  const modalPdfLink = document.getElementById('modalPdfLink');
+  const modalOpenLink = document.getElementById('modalOpenLink');
+  const modalDeleteForm = document.getElementById('modalDeleteForm');
+  const modalDeleteFilename = document.getElementById('modalDeleteFilename');
+
+  // Open modal preview helper
+  function openModalPreview(data) {
+    if (!modal) return;
+    
+    // Update Title and Subtitle
+    if (modalTitleText) modalTitleText.textContent = `${data.title} - ${data.number}`;
+    if (modalSubtitleText) {
+      const partnerInfo = data.partnerName || data.detail;
+      modalSubtitleText.textContent = partnerInfo + (data.docDate && data.docDate !== 'None' ? ` - ${data.docDate}` : '');
     }
-    header.addEventListener('click', sortRows);
-    header.addEventListener('keydown', function(event){
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      event.preventDefault();
-      sortRows();
+    
+    // Update Source URL
+    if (modalSourceLink) {
+      if (data.sourceUrl && data.sourceUrl !== 'None') {
+        modalSourceLink.href = data.sourceUrl;
+        modalSourceLink.style.display = 'inline-flex';
+      } else {
+        modalSourceLink.style.display = 'none';
+      }
+    }
+    
+    // Update PDF URL
+    if (modalPdfLink) {
+      if (data.pdfUrl && data.pdfUrl !== 'None') {
+        modalPdfLink.href = data.pdfUrl;
+        modalPdfLink.style.display = 'inline-flex';
+      } else {
+        modalPdfLink.style.display = 'none';
+      }
+    }
+    
+    // Update Open URL (embed format)
+    if (modalOpenLink) {
+      const embedUrl = data.viewUrl + (data.viewUrl.includes('?') ? '&' : '?') + 'embed=1';
+      modalOpenLink.href = embedUrl;
+    }
+    
+    // Update Delete Form
+    if (modalDeleteForm && modalDeleteFilename) {
+      if (data.deleteFilename && data.deleteFilename !== 'None') {
+        modalDeleteFilename.value = data.deleteFilename;
+        modalDeleteForm.style.display = 'inline-block';
+      } else {
+        modalDeleteForm.style.display = 'none';
+      }
+    }
+    
+    // Update Frame Source
+    if (modalIframe) {
+      const embedUrl = data.viewUrl + (data.viewUrl.includes('?') ? '&' : '?') + 'embed=1';
+      modalIframe.src = embedUrl;
+    }
+    
+    // Open modal overlay
+    modal.classList.add('open');
+  }
+
+  // Close modal preview helper
+  window.closeModalPreview = function() {
+    if (!modal) return;
+    modal.classList.remove('open');
+    if (modalIframe) modalIframe.src = '#';
+    
+    // Reset URL to list view
+    const url = new URL(window.location.href);
+    url.searchParams.delete('doc');
+    window.history.pushState(null, '', url.toString());
+  }
+
+  // Dismiss modal on clicking ONLY the dark overlay background (not the window itself)
+  modal?.addEventListener('click', function(e) {
+    if (e.target === modal) closeModalPreview();
+  });
+  // Stop all clicks inside the modal window from reaching document-level listeners
+  modal?.querySelector('.mac-modal-window')?.addEventListener('click', function(e) {
+    e.stopPropagation();
+  });
+
+  // Client-side category filtering
+  const tabs = document.querySelectorAll('.category-tab');
+  const rows = document.querySelectorAll('.bon-row');
+  const toolbarKindVal = document.getElementById('toolbarKindVal');
+
+  function filterByKind(kind) {
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.category === kind));
+    if (toolbarKindVal) toolbarKindVal.value = (kind === 'all' ? '' : kind);
+    
+    rows.forEach(row => {
+      const rowCat = row.dataset.category;
+      const matches = (kind === 'all' || rowCat === kind);
+      row.style.display = matches ? '' : 'none';
+    });
+  }
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const cat = tab.dataset.category;
+      filterByKind(cat);
+      
+      // Update browser URL query without reload
+      const url = new URL(window.location.href);
+      if (cat === 'all') {
+        url.searchParams.delete('kind');
+      } else {
+        url.searchParams.set('kind', cat);
+      }
+      window.history.pushState(null, '', url.toString());
     });
   });
 
-  // Resizable panels
-  const resizer = document.getElementById('bonsResizer');
-  const leftPanel = document.getElementById('bonsList');
-  let isResizing = false;
-
-  resizer?.addEventListener('mousedown', function(e) {
-    isResizing = true;
-    resizer.classList.add('is-resizing');
-    document.body.style.cursor = 'col-resize';
-    e.preventDefault();
+  // Attach click listener to table rows
+  rows.forEach(row => {
+    row.addEventListener('click', function(e) {
+      // Don't intercept clicks on interactive elements inside the row
+      if (e.target.closest('a,button,form,input,label,select')) return;
+      e.preventDefault();
+      e.stopPropagation(); // prevent any global navigation listeners from reacting
+      
+      const docData = {
+        viewUrl: row.dataset.viewUrl,
+        pdfUrl: row.dataset.pdfUrl,
+        sourceUrl: row.dataset.sourceUrl,
+        deleteFilename: row.dataset.deleteFilename,
+        title: row.dataset.title,
+        number: row.dataset.number,
+        partnerName: row.dataset.partnerName,
+        detail: row.dataset.detail,
+        docDate: row.dataset.docDate
+      };
+      
+      // Open modal (no pushState — avoids triggering the app's navigation interceptor)
+      openModalPreview(docData);
+    });
   });
 
-  document.addEventListener('mousemove', function(e) {
-    if (!isResizing) return;
-    const container = leftPanel.parentElement;
-    const containerRect = container.getBoundingClientRect();
-    let newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-    if (newWidth < 20) newWidth = 20;
-    if (newWidth > 80) newWidth = 80;
-    leftPanel.style.width = newWidth + '%';
-  });
-
-  document.addEventListener('mouseup', function() {
-    if (isResizing) {
-      isResizing = false;
-      resizer.classList.remove('is-resizing');
-      document.body.style.cursor = '';
-      localStorage.setItem('bonsLeftPanelWidth', leftPanel.style.width);
-    }
-  });
-
-  const savedWidth = localStorage.getItem('bonsLeftPanelWidth');
-  if (savedWidth && leftPanel) {
-    leftPanel.style.width = savedWidth;
-  }
-
-  // Mobile tab toggling
-  const btnShowList = document.getElementById('btnShowList');
-  const btnShowPreview = document.getElementById('btnShowPreview');
-  const bonsLayout = document.getElementById('bonsLayout');
-
-  function setMobileTab(tab) {
-    if (!bonsLayout) return;
-    if (tab === 'preview') {
-      bonsLayout.classList.remove('show-list');
-      bonsLayout.classList.add('show-preview');
-      btnShowList?.classList.remove('active');
-      btnShowPreview?.classList.add('active');
-    } else {
-      bonsLayout.classList.remove('show-preview');
-      bonsLayout.classList.add('show-list');
-      btnShowPreview?.classList.remove('active');
-      btnShowList?.classList.add('active');
+  // Initial load checks (prefilled doc query param)
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialDoc = urlParams.get('doc');
+  if (initialDoc) {
+    const matchingRow = document.querySelector(`.bon-row[data-href*="doc=${initialDoc}"]`);
+    if (matchingRow) {
+      matchingRow.dispatchEvent(new Event('click'));
     }
   }
 
-  btnShowList?.addEventListener('click', () => setMobileTab('list'));
-  btnShowPreview?.addEventListener('click', () => setMobileTab('preview'));
+  // Pre-filter on page load if active tab is not 'all'
+  const activeTab = document.querySelector('.category-tab.active');
+  if (activeTab && activeTab.dataset.category !== 'all') {
+    filterByKind(activeTab.dataset.category);
+  }
+
+  // ── Iframe scroll proxy ────────────────────────────────────────────────────
+  // The transparent overlay (#iframeScrollCap) sits on top of the iframe.
+  // When active (pointer-events: all), it captures wheel events and
+  // manually scrolls #modalBody — so the mouse wheel works anywhere in the modal.
+  const iframeScrollCap = document.getElementById('iframeScrollCap');
+  const modalBody = document.getElementById('modalBody');
+
+  if (iframeScrollCap && modalBody) {
+    // Enable pointer events on the overlay (capture mode)
+    iframeScrollCap.style.pointerEvents = 'all';
+
+    iframeScrollCap.addEventListener('wheel', function(e) {
+      e.preventDefault();
+      modalBody.scrollTop += e.deltaY;
+      modalBody.scrollLeft += e.deltaX;
+    }, { passive: false });
+
+    // Touch support: track touch start and move
+    let touchStartY = 0;
+    iframeScrollCap.addEventListener('touchstart', function(e) {
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    iframeScrollCap.addEventListener('touchmove', function(e) {
+      const dy = touchStartY - e.touches[0].clientY;
+      touchStartY = e.touches[0].clientY;
+      modalBody.scrollTop += dy;
+      e.preventDefault();
+    }, { passive: false });
+  }
 })();
 </script>
 {% endblock %}

@@ -4,7 +4,6 @@ from __future__ import annotations
 import re
 from datetime import date
 from decimal import Decimal
-from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,7 +33,7 @@ class ReportsService:
 
     async def build_reports_context(self, date_from: str | None = None, date_to: str | None = None) -> ReportsContextDTO:
         """Construit toutes les données nécessaires pour la page de rapports via DTOs typés."""
-        
+
         summary_raw = await self.repository.get_period_summary(date_from, date_to)
         summary = ReportsSummaryDTO(
             total_sales=Decimal(str(summary_raw.get("total_sales", 0.0))),
@@ -45,14 +44,14 @@ class ReportsService:
             nb_purchases=int(summary_raw.get("nb_purchases", 0)),
             nb_payments=int(summary_raw.get("nb_payments", 0)),
         )
-        
+
         expenses_total = Decimal(str(await self.repository.get_expenses_total(date_from, date_to)))
         cogs = Decimal(str(await self.repository.get_cost_of_goods(date_from, date_to)))
-        
+
         revenue = summary.total_sales
         gross_margin = revenue - cogs
         net_profit = gross_margin - expenses_total
-        
+
         # Marge en pourcentage
         net_margin_pct = round(float(net_profit / revenue) * 100.0, 1) if revenue > 0 else 0.0
         gross_margin_pct = round(float(gross_margin / revenue) * 100.0, 1) if revenue > 0 else 0.0
@@ -81,17 +80,17 @@ class ReportsService:
         total_30_to_90 = Decimal("0.0")
         total_over_90 = Decimal("0.0")
         total_outstanding = Decimal("0.0")
-        
+
         for client in clients:
             c_sales = sales_by_client[client["id"]]
             c_payments = payments_by_client[client["id"]]
-            
+
             total_credit = Decimal(str(client["opening_credit"])) + sum(Decimal(str(s["total"])) for s in c_sales)
             total_paid_versements = sum(Decimal(str(p["amount"])) for p in c_payments if p["payment_type"] == "versement")
             total_paid_avances = sum(Decimal(str(p["amount"])) for p in c_payments if p["payment_type"] == "avance")
-            
+
             current_debt = total_credit - total_paid_versements + total_paid_avances
-            
+
             if current_debt > Decimal("0.01"):
                 # Brackets
                 brackets = {"under_30": Decimal("0.0"), "days_30_to_90": Decimal("0.0"), "over_90": Decimal("0.0")}
@@ -112,7 +111,7 @@ class ReportsService:
                         else:
                             brackets["over_90"] += unpaid
                     rem -= unpaid
-                
+
                 # Avg delay
                 delays = []
                 sale_idx = 0
@@ -128,13 +127,13 @@ class ReportsService:
                             delay_days = (p_date - s_date).days
                             if delay_days >= 0:
                                 delays.append(delay_days)
-                                
+
                         if sale_idx < len(c_sales_desc) and c_sales_desc[sale_idx]["total"] <= 0:
                             sale_idx += 1
                         else:
                             break
                 avg_delay = int(round(sum(delays) / len(delays))) if delays else None
-                
+
                 # Limit check
                 limit = Decimal("200000.0")
                 notes_str = str(client["notes"] or "")
@@ -147,7 +146,7 @@ class ReportsService:
                 limit_utilized_pct = round(float(current_debt / limit) * 100.0, 1) if limit > 0 else 0.0
                 limit_utilized_pct_clamped = min(limit_utilized_pct, 100.0)
                 limit_exceeded = current_debt > limit
-                
+
                 client_debts.append(ClientDebtDTO(
                     id=client["id"],
                     name=client["name"],
@@ -161,7 +160,7 @@ class ReportsService:
                     limit_utilized_pct_clamped=limit_utilized_pct_clamped,
                     limit_exceeded=limit_exceeded,
                 ))
-                
+
                 total_under_30 += brackets["under_30"]
                 total_30_to_90 += brackets["days_30_to_90"]
                 total_over_90 += brackets["over_90"]

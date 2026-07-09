@@ -68,7 +68,7 @@ async def api_sales(request: Request, db: AsyncSession = Depends(get_async_sessi
         page=page,
         page_size=page_size
     )
-    
+
     meta = {
         "page": page,
         "page_size": page_size,
@@ -173,7 +173,7 @@ async def api_recent_operations(request: Request):
         page=page,
         page_size=page_size
     )
-    
+
     meta = {
         "page": page,
         "page_size": page_size,

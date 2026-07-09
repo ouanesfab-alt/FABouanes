@@ -52,19 +52,19 @@
         </div>
         <div class="span-4">
           <label for="stockInput" class="form-label mb-1">Stock</label>
-          <input name="stock_qty" id="stockInput" type="text" inputmode="decimal" class="form-control" value="{{ material.stock_qty }}">
+          <input name="stock_qty" id="stockInput" type="text" inputmode="decimal" class="form-control" value="{{ material.stock_qty|round|int if material.stock_qty is not none else '0' }}">
         </div>
         <div class="span-4">
           <label for="alertThresholdInput" class="form-label mb-1">Seuil</label>
-          <input name="alert_threshold" id="alertThresholdInput" type="text" inputmode="decimal" class="form-control" value="{{ material.alert_threshold }}">
+          <input name="alert_threshold" id="alertThresholdInput" type="text" inputmode="decimal" class="form-control" value="{{ material.alert_threshold|round|int if material.alert_threshold is not none else '0' }}">
         </div>
         <div class="span-6">
           <label for="avgCostInput" class="form-label mb-1">Coût d'achat moyen</label>
-          <input name="avg_cost" id="avgCostInput" type="text" inputmode="decimal" class="form-control" value="{{ material.avg_cost }}">
+          <input name="avg_cost" id="avgCostInput" type="text" inputmode="decimal" class="form-control" value="{{ material.avg_cost|round|int if material.avg_cost is not none else '0' }}">
         </div>
         <div class="span-6">
           <label for="salePriceKg" class="form-label mb-1">Prix de vente par kg</label>
-          <input id="salePriceKg" name="sale_price" type="text" inputmode="decimal" class="form-control" value="{{ material.sale_price }}">
+          <input id="salePriceKg" name="sale_price" type="text" inputmode="decimal" class="form-control" value="{{ material.sale_price|round|int if material.sale_price is not none else '0' }}">
         </div>
         <div class="span-12">
           <div class="raw-edit-note">
@@ -92,7 +92,7 @@
 
   function syncPricePreview(){
     const v = parseFloat(priceKg?.value || 0); 
-    document.getElementById('kgPrev').textContent = v.toFixed(2); 
+    document.getElementById('kgPrev').textContent = v.toFixed(0); 
     
     let weight = 50.0;
     const unitVal = (unitSelect?.value || '').toLowerCase();
@@ -102,14 +102,14 @@
         weight = parseFloat(match[1]);
       }
     }
-    document.getElementById('sacPrev').textContent = (v * weight).toFixed(2); 
+    document.getElementById('sacPrev').textContent = (v * weight).toFixed(0); 
     const label = weight !== 50 || unitVal !== 'sac' ? `1 sac (${weight}kg)` : '1 sac';
     const sacLabelSpan = document.getElementById('sacLabelSpan');
     if (sacLabelSpan) {
       sacLabelSpan.textContent = label;
     }
 
-    document.getElementById('qtPrev').textContent = (v * 100).toFixed(2);
+    document.getElementById('qtPrev').textContent = (v * 100).toFixed(0);
   }
 
   priceKg?.addEventListener('input', syncPricePreview);

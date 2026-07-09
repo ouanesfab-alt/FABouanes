@@ -1,23 +1,21 @@
 from __future__ import annotations
 
 import csv
+import decimal
 import io
 import json
-import threading
-from collections import deque
+import time
+import asyncio
 from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
 from app.core.request_state import get_state_value
 
-import time
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_sessionmaker
 from app.core.helpers import async_compat
-
-import asyncio
 
 _AUDIT_QUEUE: asyncio.Queue | None = None
 _AUDIT_TASK: asyncio.Task | None = None
@@ -68,7 +66,7 @@ async def _audit_flusher_task() -> None:
                     batch.append(queue.get_nowait())
                 except asyncio.QueueEmpty:
                     break
-            
+
             try:
                 async with get_async_sessionmaker()() as session:
                     for row in batch:
@@ -129,8 +127,6 @@ SENSITIVE_TOKENS = {
     "authorization",
 }
 
-
-import decimal
 
 def row_to_dict(row: Any) -> Any:
     if row is None:

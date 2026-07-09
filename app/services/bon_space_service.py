@@ -361,7 +361,7 @@ async def _list_bon_space_documents_impl(
     limit = max(20, min(int(limit or DEFAULT_LIMIT), 200))
     source_limit = max(limit, 80)
     documents: list[dict] = []
-    
+
     await _append_purchase_documents(documents, source_limit, db)
     await _append_sale_documents(documents, source_limit, db)
     await _append_payment_documents(documents, source_limit, db)

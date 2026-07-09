@@ -46,7 +46,7 @@ async def api_purchases(request: Request, db: AsyncSession = Depends(get_async_s
         page=page,
         page_size=page_size
     )
-    
+
     meta = {
         "page": page,
         "page_size": page_size,

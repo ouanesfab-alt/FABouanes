@@ -1,57 +1,400 @@
 {% extends 'base.html' %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;900&display=swap');
   .dashboard-shell{display:flex;flex-direction:column;gap:20px; animation: staggerFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;}
   @keyframes staggerFade { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-  .dash-hero{position:relative;overflow:hidden;border-radius:16px;padding:20px;background:linear-gradient(135deg,#f8fbff 0%,#eef4ff 50%,#eefcf3 100%);border:1px solid rgba(148,163,184,.15);box-shadow:var(--shadow-lg);display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,280px);gap:20px;align-items:center;justify-content:space-between;}
-  .dash-hero > *{min-width:0;}
-  .dash-hero::before{content:'';position:absolute;right:-70px;top:-70px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.08),transparent 70%);}
-  .dash-hero::after{content:'';position:absolute;left:-60px;bottom:-90px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(34,197,94,.08),transparent 70%);}
-  .dash-logo-card{position:relative;z-index:1;min-height:200px;border-radius:12px;padding:16px;background:rgba(255,255,255,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.8);display:grid;place-items:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),var(--shadow);}
-  .dash-logo-frame{position:relative;width:min(100%,760px);aspect-ratio:1408/768;display:grid;place-items:center;border-radius:10px;background:#fff;box-shadow:var(--shadow-lg);overflow:hidden;}
-  .dash-logo{display:block;width:100%;height:100%;object-fit:contain;filter:none;transition:transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);}
-  .dash-logo-frame:hover .dash-logo{transform:scale(1.02);}
-  .dash-connect-card{position:relative;z-index:1;display:grid;gap:14px;justify-items:center;padding:20px;border-radius:12px;background:rgba(255,255,255,.85);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.6);box-shadow:var(--shadow);text-align:center;}
-  .dash-connect-card.is-disabled{justify-items:stretch;text-align:left;}
-  .dash-connect-label{margin:0;font-size:1.05rem;font-weight:800;color:var(--text);letter-spacing:0.01em;}
-  .dash-connect-url{font-size:.88rem;color:var(--muted);word-break:break-word;line-height:1.45;}
-  .dash-connect-status{font-size:.95rem;font-weight:700;color:var(--muted);}
-  .dash-qr-frame{display:grid;place-items:center;width:min(100%,220px);padding:14px;border-radius:12px;background:#fff;border:1px solid rgba(148,163,184,.15);box-shadow:var(--shadow);}
-  .dash-qr{display:block;width:100%;height:auto;object-fit:contain;}
   .dashboard-switch-stack{display:flex;flex-direction:column;gap:18px;}
   .dashboard-panel-title{margin:0 0 6px;font-size:1.1rem;font-weight:800;letter-spacing:-0.01em;}
   .dashboard-panel-subtitle{margin:0 0 16px;color:var(--muted);font-size:.92rem;line-height:1.5;}
-  [data-theme="dark"] .dash-hero, [data-theme="windows-dark"] .dash-hero{background:linear-gradient(135deg,#0f172a 0%,#111827 52%,#0b1220 100%);border-color:#1e293b;box-shadow:0 22px 50px rgba(0,0,0,.4);}
-  [data-theme="dark"] .dash-hero::before, [data-theme="windows-dark"] .dash-hero::before{background:radial-gradient(circle,rgba(96,165,250,.15),transparent 70%);}
-  [data-theme="dark"] .dash-hero::after, [data-theme="windows-dark"] .dash-hero::after{background:radial-gradient(circle,rgba(74,222,128,.10),transparent 70%);}
-  [data-theme="dark"] .dash-logo-card, [data-theme="windows-dark"] .dash-logo-card{background:rgba(15,23,42,.6);border-color:rgba(255,255,255,.05);box-shadow:inset 0 1px 0 rgba(255,255,255,.02),0 16px 30px rgba(0,0,0,.3);}
-  [data-theme="dark"] .dash-logo-frame, [data-theme="windows-dark"] .dash-logo-frame{background:linear-gradient(180deg,#ffffff,#f1f5f9);box-shadow:0 24px 46px rgba(0,0,0,.4);}
-  [data-theme="dark"] .dash-connect-card, [data-theme="windows-dark"] .dash-connect-card{background:rgba(15,23,42,.7);border-color:rgba(255,255,255,.05);box-shadow:var(--shadow-lg);}
-  @media(max-width:1199px){.dash-hero{grid-template-columns:1fr}}
-  @media(max-width:991px){.dash-hero{padding:18px;gap:18px}.dash-logo-card{min-height:170px}.dash-logo-frame{width:min(100%,640px)}}
-  @media(max-width:767px){.dash-hero{padding:16px;border-radius:12px}.dash-logo-card{min-height:138px;border-radius:10px;padding:12px}.dash-logo-frame{width:100%;border-radius:8px}.dash-connect-card{padding:18px}.dash-qr-frame{width:min(100%,190px)}}
+
+  /* ─── GOOGLE-STYLE HERO SECTION ─── */
+  .fab-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 36px 16px 20px;
+    gap: 24px;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .fab-hero.chat-active {
+    padding: 12px 16px 8px;
+    gap: 10px;
+  }
+  .fab-hero.chat-active .fab-logo-text {
+    font-size: 1.3rem;
+  }
+  .fab-hero.chat-active .fab-logo-sub {
+    display: none;
+  }
+
+  /* Logo (Native HTML Text styled exactly as the logo) */
+  .fab-logo-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    transition: all 0.3s ease;
+    width: 100%;
+  }
+  .fab-logo-text-main {
+    font-family: 'Outfit', 'Google Sans', 'Product Sans', system-ui, -apple-system, sans-serif;
+    font-size: 3.8rem;
+    font-weight: 900;
+    color: #001a80;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    user-select: none;
+    transition: all 0.3s ease;
+  }
+  .fab-logo-text-sub {
+    font-family: 'Outfit', 'Google Sans', 'Product Sans', system-ui, -apple-system, sans-serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #001a80;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 2px;
+    margin-bottom: 6px;
+    user-select: none;
+    transition: all 0.3s ease;
+    text-align: center;
+  }
+  .fab-hero.chat-active .fab-logo-text-main {
+    font-size: 1.8rem;
+  }
+  .fab-hero.chat-active .fab-logo-text-sub {
+    font-size: 0.55rem;
+    letter-spacing: 0.1em;
+    margin-top: 0px;
+    margin-bottom: 2px;
+  }
+  [data-theme="dark"] .fab-logo-text-main, [data-theme="windows-dark"] .fab-logo-text-main {
+    color: #0d6efd;
+  }
+  [data-theme="dark"] .fab-logo-text-sub, [data-theme="windows-dark"] .fab-logo-text-sub {
+    color: var(--text-secondary);
+  }
+  
+  .g-blue { color: #4285F4; }
+  .g-red { color: #EA4335; }
+  .g-yellow { color: #FBBC05; }
+  .g-green { color: #34A853; }
+  
+  .fab-logo-sub {
+    font-size: 0.88rem;
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    transition: all 0.2s ease;
+  }
+
+  /* Search Bar (Google-style) */
+  .fab-search-row {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    max-width: 620px;
+    transition: max-width 0.3s ease;
+  }
+  .fab-hero.chat-active .fab-search-row {
+    max-width: 740px;
+  }
+  .fab-search-bar {
+    display: flex;
+    align-items: center;
+    background: var(--bg-secondary);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 6px 10px 6px 14px;
+    width: 100%;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: var(--shadow-sm);
+    gap: 6px;
+  }
+  .fab-search-bar:hover {
+    box-shadow: var(--shadow-md);
+  }
+  .fab-search-bar:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12);
+  }
+  .fab-search-bar textarea {
+    flex: 1;
+    border: none !important;
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    font-size: 0.95rem;
+    padding: 6px 4px;
+    resize: none;
+    height: 36px;
+    outline: none !important;
+    box-shadow: none !important;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  .fab-bar-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+  .fab-bar-btn:hover {
+    color: var(--accent);
+    background: rgba(0, 122, 255, 0.08);
+  }
+  .fab-bar-btn.btn-send {
+    background: var(--accent);
+    color: white;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+  }
+  .fab-bar-btn.btn-send:hover {
+    background: #0068D6;
+  }
+  .fab-bar-btn.btn-stop {
+    background: #ef4444;
+    color: white;
+  }
+  .fab-bar-divider {
+    width: 1px;
+    height: 22px;
+    background: var(--line);
+    margin: 0 2px;
+    flex-shrink: 0;
+  }
+
+  /* Settings and Clear buttons inside the bar */
+  #fabClearChatBtn:hover {
+    color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.08);
+  }
+  #fabSettingsToggle:hover {
+    color: var(--accent) !important;
+    background: rgba(0, 122, 255, 0.08);
+  }
+  .segmented-switch {
+    display: inline-flex;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 0;
+    width: 100%;
+  }
+  .segmented-switch input[type="radio"] {
+    display: none;
+  }
+  .segmented-switch label {
+    flex: 1;
+    text-align: center;
+    padding: 6px 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    color: var(--muted);
+  }
+  .segmented-switch input:checked + label {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ─── CHAT WINDOW ─── */
+  .fab-chat-area {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 740px;
+    max-height: 380px;
+    overflow-y: auto;
+    padding: 12px 8px;
+    margin-bottom: 4px;
+    scroll-behavior: smooth;
+  }
+  .fab-chat-area.active {
+    display: flex;
+  }
+  .fab-chat-bubble {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    line-height: 1.5;
+    font-size: 0.9rem;
+    word-wrap: break-word;
+  }
+  .fab-chat-bubble.user {
+    align-self: flex-end;
+    background: linear-gradient(180deg, var(--accent) 0%, #0068D6 100%);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .fab-chat-bubble.model {
+    align-self: flex-start;
+    background: var(--bg-secondary);
+    border: 1px solid var(--line);
+    color: var(--text-primary);
+    border-bottom-left-radius: 4px;
+  }
+  .fab-chat-bubble.system {
+    align-self: center;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    font-size: 0.82rem;
+    border-radius: 10px;
+    text-align: center;
+    max-width: 90%;
+  }
+  .fab-chat-bubble pre { background: rgba(0,0,0,0.04); padding: 8px; border-radius: 6px; overflow-x: auto; margin-top: 6px; }
+  .fab-chat-bubble code { font-family: monospace; font-size: 0.82rem; }
+  .fab-chat-bubble table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .fab-chat-bubble th, .fab-chat-bubble td { border: 1px solid var(--glass-border); padding: 6px; font-size: 0.82rem; }
+  .fab-chat-bubble th { background: rgba(0,0,0,0.02); }
+
+  .fab-bubble-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    opacity: 0.4;
+    transition: opacity 0.15s;
+  }
+  .fab-chat-bubble:hover .fab-bubble-actions { opacity: 1; }
+  .fab-bubble-btn {
+    background: transparent;
+    border: none;
+    font-size: 0.74rem;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .fab-bubble-btn:hover { background: rgba(0,0,0,0.04); color: var(--text-primary); }
+
+  /* Loading Dots */
+  .fab-typing { align-self: flex-start; display: flex; gap: 4px; padding: 10px 14px; background: var(--bg-secondary); border-radius: 14px; border: 1px solid var(--line); }
+  .fab-dot { width: 6px; height: 6px; background: var(--text-secondary); border-radius: 50%; animation: fabDot 1.4s infinite ease-in-out both; }
+  .fab-dot:nth-child(1) { animation-delay: -0.32s; }
+  .fab-dot:nth-child(2) { animation-delay: -0.16s; }
+  @keyframes fabDot { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+
+  /* Soundwave */
+  .fab-soundwave { display: none; align-items: center; gap: 3px; }
+  .fab-sw-bar { width: 3px; height: 16px; background: var(--accent); border-radius: 2px; animation: fabBounce 0.8s infinite ease-in-out; }
+  .fab-sw-bar:nth-child(2) { animation-delay: 0.15s; }
+  .fab-sw-bar:nth-child(3) { animation-delay: 0.3s; }
+  .fab-sw-bar:nth-child(4) { animation-delay: 0.45s; }
+  @keyframes fabBounce { 0%, 100% { transform: scaleY(0.4); } 50% { transform: scaleY(1.3); } }
+
+  /* File preview chip */
+  .fab-file-chip {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.04);
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    max-width: 620px;
+    width: 100%;
+  }
+  .fab-file-chip.show { display: flex; }
+
+  /* Clear chat top-right button */
+  .fab-clear-chat {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    z-index: 10;
+  }
+
+  @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
+  .animate-pulse { animation: pulse 1.5s infinite ease-in-out; display: inline-block; }
 </style>
 
 <div class="dashboard-shell">
-  <section class="dash-hero">
-    <div class="dash-logo-card">
-      <div class="dash-logo-frame">
-        <img src="{{ url_for('static', filename='dashboard.webp') }}" alt="Logo FABOuanes - Tableau de bord" class="dash-logo" loading="lazy" decoding="async">
-      </div>
+
+  <!-- ═══ GOOGLE-STYLE HERO ═══ -->
+  <section class="fab-hero" id="fabHero">
+
+    <!-- Logo rendered natively as HTML text -->
+    <div class="fab-logo-wrap">
+      <div class="fab-logo-text-main">fabouanes</div>
+      <div class="fab-logo-text-sub">FABRICATION D'ALIMENTS DE BETAIL</div>
+      <div class="fab-logo-sub"><i class="bi bi-stars animate-pulse me-1 text-primary"></i> Sabrina — Assistante IA</div>
     </div>
-    <div class="dash-connect-card {{ '' if mobile_connect_available else 'is-disabled' }}">
-      <p class="dash-connect-label">{{ mobile_connect_status }}</p>
-      {% if mobile_connect_available %}
-      <div class="dash-qr-frame">
-        <img src="{{ mobile_connect_qr_uri }}" alt="QR connexion mobile" class="dash-qr" loading="lazy" decoding="async">
+
+    <!-- Chat Window (hidden by default, shows above bar) -->
+    <div class="fab-chat-area" id="fabChatArea" style="position: relative;">
+      <!-- Settings form will be injected directly as a bubble inside here -->
+    </div>
+
+    <!-- File preview chip -->
+    <div class="fab-file-chip" id="fabFileChip">
+      <span id="fabFileIcon"><i class="bi bi-file-earmark-fill text-primary"></i></span>
+      <span id="fabFileName" class="text-truncate flex-grow-1" style="color: var(--text-primary); font-weight: 500;">document.pdf</span>
+      <button type="button" id="fabRemoveFile" class="btn btn-sm btn-link text-danger p-0 border-0"><i class="bi bi-x-circle-fill"></i></button>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="fab-search-row">
+      <div class="fab-search-bar">
+        <!-- Mic -->
+        <button id="fabMicBtn" class="fab-bar-btn" type="button" title="Parler">
+          <i class="bi bi-mic"></i>
+        </button>
+        <div id="fabSoundwave" class="fab-soundwave">
+          <div class="fab-sw-bar"></div><div class="fab-sw-bar"></div><div class="fab-sw-bar"></div><div class="fab-sw-bar"></div>
+        </div>
+
+        <div class="fab-bar-divider"></div>
+
+        <!-- File attach -->
+        <button id="fabAttachBtn" class="fab-bar-btn" type="button" title="Joindre un fichier" {% if not has_key %}disabled{% endif %}>
+          <i class="bi bi-paperclip"></i>
+        </button>
+        <input type="file" id="fabFileInput" accept="image/*,application/pdf,.xlsx,.xlsm" style="display:none;">
+
+        <textarea id="fabChatInput" placeholder="Posez une question à Sabrina..." rows="1" {% if not has_key %}disabled{% endif %}></textarea>
+
+        <!-- Clear chat (trash) -->
+        <button type="button" class="fab-bar-btn" id="fabClearChatBtn" title="Effacer la discussion">
+          <i class="bi bi-trash"></i>
+        </button>
+
+        <!-- Settings link -->
+        <a href="/admin?focus=sabrina" class="fab-bar-btn d-inline-flex align-items-center justify-content-center text-decoration-none" id="fabSettingsToggle" title="Paramètres de Sabrina">
+          <i class="bi bi-sliders"></i>
+        </a>
+
+        <!-- Send -->
+        <button id="fabSendBtn" class="fab-bar-btn btn-send" title="Envoyer" {% if not has_key %}disabled{% endif %}>
+          <i class="bi bi-arrow-up-short" style="font-size: 1.2rem;"></i>
+        </button>
+        <!-- Stop -->
+        <button id="fabStopBtn" class="fab-bar-btn btn-stop" style="display:none;" title="Arrêter">
+          <i class="bi bi-stop-fill"></i>
+        </button>
       </div>
-      <div class="dash-connect-url">{{ mobile_connect_url }}</div>
-      {% else %}
-      <div class="dash-connect-status">{% if mobile_connect_url %}{{ mobile_connect_url }}{% else %}Serveur réseau indisponible sur cette session.{% endif %}</div>
-      {% endif %}
     </div>
   </section>
 
+  <!-- ═══ KPIs ═══ -->
   <div class="dashboard-kpis">
     <div class="card kpi-card" role="button" tabindex="0" onclick="openKpiSheet('sales','Ventes')" onkeydown="if(event.key==='Enter'||event.key===' ') openKpiSheet('sales','Ventes')">
       <div class="kpi-icon"><i class="bi bi-graph-up-arrow"></i></div>
@@ -192,7 +535,6 @@
 
     <section id="dashboardStock" class="fab-switch-panel" hidden>
       <div class="row g-3">
-        <!-- Matières premières -->
         <div class="col-lg-6">
           <div class="card p-3 h-100">
             <h5 class="dashboard-panel-title">Matières premières</h5>
@@ -217,8 +559,6 @@
             {% endif %}
           </div>
         </div>
-
-        <!-- Produits finaux -->
         <div class="col-lg-6">
           <div class="card p-3 h-100">
             <h5 class="dashboard-panel-title">Produits finaux</h5>
@@ -264,6 +604,7 @@
 {% endblock %}
 {% block scripts %}
 <script nonce="{{ csp_nonce }}">
+  // ─── KPI SHEET ───
   let currentKpiKey = null;
   let currentKpiLabel = null;
   function openKpiSheet(key, label){
@@ -311,7 +652,486 @@
     if(event.key === 'Escape'){
       const overlay = document.getElementById('kpiSheetOverlay');
       if(overlay && overlay.classList.contains('open')) closeKpiSheet();
+      // Also close settings
+      document.getElementById('fabSettingsOverlay')?.classList.remove('show');
     }
   });
+
+  // ─── SABRINA ASSISTANT WIDGET ───
+  (function() {
+    const hero = document.getElementById('fabHero');
+    const chatArea = document.getElementById('fabChatArea');
+    const input = document.getElementById('fabChatInput');
+    const sendBtn = document.getElementById('fabSendBtn');
+    const stopBtn = document.getElementById('fabStopBtn');
+    const clearBtn = document.getElementById('fabClearChatBtn');
+    const micBtn = document.getElementById('fabMicBtn');
+    const soundwave = document.getElementById('fabSoundwave');
+    const attachBtn = document.getElementById('fabAttachBtn');
+    const fileInput = document.getElementById('fabFileInput');
+    const fileChip = document.getElementById('fabFileChip');
+    const fileName = document.getElementById('fabFileName');
+    const fileIcon = document.getElementById('fabFileIcon');
+    const removeFile = document.getElementById('fabRemoveFile');
+    const settingsToggle = document.getElementById('fabSettingsToggle');
+
+    let history = [];
+    let threads = [];
+    let activeThreadId = null;
+    let abortController = null;
+    let selectedFile = null;
+
+    // ── Save Settings AJAX Helper ──
+    async function saveSettingsAJAX(model, apiKey) {
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || "";
+      const formData = new FormData();
+      formData.append('csrf_token', csrfToken);
+      if (model) formData.append('gemini_model', model);
+      if (apiKey) formData.append('gemini_api_key', apiKey);
+      try {
+        const res = await fetch('/assistant/settings', {
+          method: 'POST', body: formData,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        return res.ok;
+      } catch { return false; }
+    }
+
+    // Force-clear local storage key to start fresh as requested by user
+    localStorage.removeItem('fab_gemini_api_key');
+
+    // ── Thread Management ──
+    function loadActiveThread() {
+      try {
+        const saved = localStorage.getItem('fab_assistant_threads');
+        const activeId = localStorage.getItem('fab_assistant_active_thread_id');
+        if (saved) threads = JSON.parse(saved);
+        if (activeId && threads.some(t => t.id === activeId)) {
+          activeThreadId = activeId;
+        } else if (threads.length > 0) {
+          activeThreadId = threads[0].id;
+        }
+        const thread = threads.find(t => t.id === activeThreadId);
+        history = thread ? (thread.history || []) : [];
+      } catch (e) {}
+    }
+
+    function saveActiveThread() {
+      try {
+        let thread = threads.find(t => t.id === activeThreadId);
+        if (!thread) {
+          thread = { id: 'thread_' + Date.now(), title: 'Nouvelle discussion 💬', history: [] };
+          threads.unshift(thread);
+          activeThreadId = thread.id;
+          localStorage.setItem('fab_assistant_active_thread_id', activeThreadId);
+        }
+        thread.history = history;
+        if (thread.title === 'Nouvelle discussion 💬' && history.length > 0) {
+          const first = history.find(m => m.role === 'user');
+          if (first) {
+            const t = first.parts[0].text;
+            thread.title = t.substring(0, 24) + (t.length > 24 ? '...' : '');
+          }
+        }
+        localStorage.setItem('fab_assistant_threads', JSON.stringify(threads));
+      } catch (e) {}
+    }
+
+    // ── Chat UI ──
+    function showChatView() {
+      hero.classList.add('chat-active');
+      chatArea.classList.add('active');
+    }
+
+    function scrollToBottom() {
+      chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
+    }
+
+    function appendMessage(role, text) {
+      const bubble = document.createElement('div');
+      bubble.className = `fab-chat-bubble ${role}`;
+      const content = document.createElement('div');
+      content.className = 'bubble-content';
+      content.innerHTML = parseMarkdown(text);
+      bubble.appendChild(content);
+
+      if (role === 'model') {
+        const actions = document.createElement('div');
+        actions.className = 'fab-bubble-actions';
+        actions.innerHTML = `
+          <button class="fab-bubble-btn btn-copy"><i class="bi bi-clipboard"></i> Copier</button>
+          <button class="fab-bubble-btn btn-speak"><i class="bi bi-volume-up"></i> Lire</button>
+        `;
+        bubble.appendChild(actions);
+      }
+
+      chatArea.appendChild(bubble);
+      scrollToBottom();
+      return bubble;
+    }
+
+    function appendTypingIndicator() {
+      const el = document.createElement('div');
+      el.className = 'fab-typing align-items-center gap-2';
+      el.innerHTML = `
+        <div class="spinner-border spinner-border-sm text-primary" role="status" style="width: 0.85rem; height: 0.85rem; border-width: 0.12em; color: var(--accent) !important; flex-shrink: 0;"></div>
+        <span class="fab-status-text small" style="font-size: 0.82rem; color: var(--text-secondary); font-weight: 500; line-height: 1;">Sabrina réfléchit...</span>
+      `;
+      chatArea.appendChild(el);
+      scrollToBottom();
+      return el;
+    }
+
+    function renderHistory() {
+      chatArea.innerHTML = '';
+      history.forEach(msg => appendMessage(msg.role, msg.parts[0].text));
+    }
+
+    function parseMarkdown(md) {
+      if (!md) return "";
+      let c = md.replace(/\[REDIRECT:[^\]]+\]/gi, '').replace(/\[THEME:[^\]]+\]/gi, '').trim();
+      let h = c.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="fw-semibold text-primary text-decoration-underline">$1</a>');
+      h = h.replace(/```(sql|json|text|html|)?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+      h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
+      h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      h = h.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      h = h.replace(/\n/g, '<br>');
+      return h;
+    }
+
+    // ── Confirmation Bubble ──
+    function appendConfirmationBubble(query, messageText) {
+      const bubble = document.createElement('div');
+      bubble.className = 'fab-chat-bubble system p-3 border-warning';
+      bubble.style.cssText = 'background: rgba(255, 193, 7, 0.08); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 12px; margin: 10px 0; width: 100%; box-sizing: border-box;';
+      
+      bubble.innerHTML = `
+        <div class="fw-bold text-warning mb-2" style="font-size:0.9rem;"><i class="bi bi-shield-lock-fill"></i> Confirmation requise</div>
+        <p class="small mb-2" style="color:var(--text-primary); font-size:0.82rem;">${messageText}</p>
+        <pre class="p-2 bg-dark text-light rounded mb-3" style="font-size:0.75rem; overflow-x:auto; font-family: monospace; border:1px solid rgba(255,255,255,0.1);"><code>${query}</code></pre>
+        <div class="d-flex gap-2">
+          <button class="btn btn-warning btn-sm fw-bold btn-confirm-write" style="font-size:0.78rem; padding: 6px 12px; border-radius: 6px; color: #212529 !important;"><i class="bi bi-check2"></i> Confirmer</button>
+          <button class="btn btn-outline-secondary btn-sm btn-cancel-write" style="font-size:0.78rem; padding: 6px 12px; border-radius: 6px;">Annuler</button>
+        </div>
+      `;
+      chatArea.appendChild(bubble);
+      scrollToBottom();
+      
+      return new Promise((resolve) => {
+        bubble.querySelector('.btn-confirm-write').addEventListener('click', () => {
+          bubble.remove();
+          resolve(true);
+        });
+        bubble.querySelector('.btn-cancel-write').addEventListener('click', () => {
+          bubble.remove();
+          resolve(false);
+        });
+      });
+    }
+
+    // ── Send Message ──
+    async function sendMessage(text, confirmedQuery = null) {
+      if (!text || text.trim() === "") return;
+      loadActiveThread();
+      showChatView();
+      localStorage.setItem('fab_chat_expanded', 'true');
+
+      let fileData = null;
+      if (!confirmedQuery) {
+        if (selectedFile) {
+          fileData = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              resolve({ mime_type: selectedFile.type, name: selectedFile.name, data: e.target.result.split(',')[1] });
+            };
+            reader.readAsDataURL(selectedFile);
+          });
+        }
+
+        appendMessage('user', text);
+        input.value = '';
+        input.style.height = '36px';
+
+        // Clear file preview
+        selectedFile = null;
+        if (fileInput) fileInput.value = '';
+        fileChip.classList.remove('show');
+      }
+
+      sendBtn.style.display = 'none';
+      stopBtn.style.display = 'inline-flex';
+
+      let indicator = appendTypingIndicator();
+      abortController = new AbortController();
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || "";
+
+      try {
+        const response = await fetch('/assistant/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrfToken },
+          body: JSON.stringify({ 
+            message: text, 
+            history: history, 
+            file: fileData, 
+            confirmed_query: confirmedQuery,
+            gemini_api_key: localStorage.getItem('fab_gemini_api_key') || ''
+          }),
+          signal: abortController.signal
+        });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+
+        let streamBubble = null;
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            const cl = line.trim();
+            if (!cl.startsWith('data: ')) continue;
+            let event;
+            try { event = JSON.parse(cl.substring(6)); } catch { continue; }
+
+            if (event.type === 'status') {
+              if (indicator) {
+                const statusEl = indicator.querySelector('.fab-status-text');
+                if (statusEl) {
+                  statusEl.textContent = event.message;
+                  scrollToBottom();
+                }
+              }
+            } else if (event.type === 'confirmation_required') {
+              if (indicator) {
+                indicator.remove();
+                indicator = null;
+              }
+              // Reset buttons for pause
+              sendBtn.style.display = 'inline-flex';
+              stopBtn.style.display = 'none';
+
+              if (event.history) {
+                history = event.history;
+              }
+
+              const confirmed = await appendConfirmationBubble(event.query, event.message);
+              if (confirmed) {
+                sendMessage(text, event.query);
+              } else {
+                appendMessage('system', "Opération d'écriture annulée.");
+              }
+              return;
+            } else if (event.type === 'text_chunk') {
+              if (indicator) {
+                indicator.remove();
+                indicator = null;
+              }
+              if (!streamBubble) streamBubble = appendMessage('model', '');
+              const cd = streamBubble.querySelector('.bubble-content');
+              if (cd) {
+                const cur = streamBubble.getAttribute('data-raw-text') || '';
+                const nw = cur + event.text;
+                streamBubble.setAttribute('data-raw-text', nw);
+                cd.innerHTML = parseMarkdown(nw);
+                scrollToBottom();
+              }
+            } else if (event.type === 'final_response') {
+              if (indicator) {
+                indicator.remove();
+                indicator = null;
+              }
+              const raw = event.text || "";
+              if (streamBubble) {
+                const cd = streamBubble.querySelector('.bubble-content');
+                if (cd) cd.innerHTML = parseMarkdown(raw);
+              } else {
+                appendMessage('model', raw);
+              }
+              streamBubble = null;
+
+              let historyText = text;
+              if (fileData) historyText = `[Fichier: ${fileData.name}] ${text}`;
+              history.push({ role: 'user', parts: [{ text: historyText }] });
+              history.push({ role: 'model', parts: [{ text: raw }] });
+              saveActiveThread();
+
+              const themeMatch = raw.match(/\[THEME:(dark|light)\]/i);
+              if (themeMatch) {
+                const requestedTheme = themeMatch[1].toLowerCase();
+                const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+                if (currentTheme !== requestedTheme) {
+                  const toggleBtn = document.getElementById('themeToggleBtnNavbar');
+                  if (toggleBtn) {
+                    toggleBtn.click();
+                  } else {
+                    document.documentElement.setAttribute('data-theme', requestedTheme);
+                    localStorage.setItem('fab_theme', requestedTheme);
+                  }
+                }
+              }
+
+              const redirect = raw.match(/\[REDIRECT:([^\]]+)\]/i);
+              if (redirect) {
+                appendMessage('system', `Redirection vers : ${redirect[1].trim()}...`);
+                setTimeout(() => { window.location.href = redirect[1].trim(); }, 1200);
+              }
+            } else if (event.type === 'error') {
+              if (indicator) {
+                indicator.remove();
+                indicator = null;
+              }
+              appendMessage('system', event.error || "Erreur.");
+            }
+          }
+        }
+      } catch (err) {
+        indicator?.remove();
+        if (err.name === 'AbortError') {
+          appendMessage('system', "Génération interrompue.");
+        } else {
+          appendMessage('system', "Erreur de connexion avec Sabrina.");
+        }
+      } finally {
+        sendBtn.style.display = 'inline-flex';
+        stopBtn.style.display = 'none';
+        abortController = null;
+        scrollToBottom();
+      }
+    }
+
+    // ── Event Bindings ──
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(this.value); }
+    });
+    input.addEventListener('input', function() {
+      this.style.height = '36px';
+      this.style.height = Math.min(100, this.scrollHeight) + 'px';
+    });
+    sendBtn.addEventListener('click', () => sendMessage(input.value));
+    stopBtn.addEventListener('click', () => abortController?.abort());
+
+    function clearChat() {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      history = [];
+      saveActiveThread();
+      chatArea.innerHTML = '';
+      localStorage.setItem('fab_chat_expanded', 'false');
+      localStorage.setItem('fab_chat_show_settings', 'false');
+      hero.classList.remove('chat-active');
+      chatArea.classList.remove('active');
+    }
+    clearBtn?.addEventListener('click', clearChat);
+
+    // File handling
+    attachBtn?.addEventListener('click', () => fileInput?.click());
+    fileInput?.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      selectedFile = file;
+      fileName.textContent = file.name;
+      if (file.type.startsWith('image/')) {
+        fileIcon.innerHTML = '<i class="bi bi-file-earmark-image-fill text-success"></i>';
+      } else if (file.type === 'application/pdf') {
+        fileIcon.innerHTML = '<i class="bi bi-file-earmark-pdf-fill text-danger"></i>';
+      } else {
+        fileIcon.innerHTML = '<i class="bi bi-file-earmark-excel-fill text-success"></i>';
+      }
+      fileChip.classList.add('show');
+    });
+    removeFile?.addEventListener('click', () => {
+      selectedFile = null;
+      fileInput.value = '';
+      fileChip.classList.remove('show');
+    });
+
+    // Copy & Speech bubble click delegation
+    chatArea.addEventListener('click', function(e) {
+      const copyBtn = e.target.closest('.btn-copy');
+      if (copyBtn) {
+        const bubble = copyBtn.closest('.fab-chat-bubble');
+        if (!bubble) return;
+        const t = bubble.innerText.replace(/[\n\s]*Copier[\n\s]*Lire/g, '').trim();
+        navigator.clipboard.writeText(t).then(() => {
+          const orig = copyBtn.innerHTML;
+          copyBtn.innerHTML = '<i class="bi bi-check2 text-success"></i> Copié';
+          setTimeout(() => copyBtn.innerHTML = orig, 2000);
+        });
+      }
+      const speakBtn = e.target.closest('.btn-speak');
+      if (speakBtn) {
+        const bubble = speakBtn.closest('.fab-chat-bubble');
+        if (!bubble) return;
+        const t = bubble.innerText.replace(/[\n\s]*Copier[\n\s]*Lire/g, '').trim();
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+          speakBtn.innerHTML = '<i class="bi bi-volume-up"></i> Lire';
+        } else {
+          const u = new SpeechSynthesisUtterance(t);
+          u.lang = 'fr-FR';
+          u.onend = () => speakBtn.innerHTML = '<i class="bi bi-volume-up"></i> Lire';
+          window.speechSynthesis.speak(u);
+          speakBtn.innerHTML = '<i class="bi bi-volume-mute"></i> Arrêter';
+        }
+      }
+    });
+
+    // Voice Recognition
+    let recognition = null, isRecording = false;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SR) {
+      recognition = new SR();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'fr-FR';
+      recognition.onstart = () => {
+        isRecording = true;
+        micBtn.innerHTML = '<i class="bi bi-mic-fill text-danger animate-pulse"></i>';
+        soundwave.style.display = 'flex';
+        input.placeholder = "Je vous écoute...";
+      };
+      recognition.onend = () => {
+        isRecording = false;
+        micBtn.innerHTML = '<i class="bi bi-mic"></i>';
+        soundwave.style.display = 'none';
+        input.placeholder = "Posez une question à Sabrina...";
+      };
+      recognition.onresult = (event) => {
+        const tr = event.results[0][0].transcript;
+        if (tr.trim().length > 0) {
+          input.value = tr;
+          setTimeout(() => sendMessage(tr), 500);
+        }
+      };
+      recognition.onerror = () => {
+        isRecording = false;
+        micBtn.innerHTML = '<i class="bi bi-mic"></i>';
+        soundwave.style.display = 'none';
+      };
+      micBtn.addEventListener('click', () => isRecording ? recognition.stop() : recognition.start());
+    } else {
+      micBtn.style.display = 'none';
+    }
+
+    // Auto-restore chat and settings state on page load
+    loadActiveThread();
+    if (localStorage.getItem('fab_chat_expanded') === 'true') {
+      showChatView();
+      renderHistory();
+    }
+
+    input.addEventListener('focus', function() {
+      loadActiveThread();
+      showChatView();
+      if (history.length > 0) {
+        renderHistory();
+      }
+    });
+  })();
 </script>
 {% endblock %}

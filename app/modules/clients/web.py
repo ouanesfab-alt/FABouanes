@@ -147,7 +147,7 @@ async def edit_client_submit(
     try:
         data = {k: v for k, v in form.items()}
         validated = ClientUpdateSchema(**data)
-        updated = await service.update_client(client_id, validated)
+        await service.update_client(client_id, validated)
         flash(request, "Client modifié avec succès.", "success")
         return RedirectResponse(
             f"/contacts/clients/{client_id}", status_code=303

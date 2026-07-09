@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable
 from functools import wraps
 
@@ -162,8 +163,6 @@ def normalize_role(role: str | None) -> str:
     return ROLE_OPERATOR
 
 
-import threading
-
 _dynamic_permissions_cache: dict[str, set[str]] | None = None
 _dynamic_lock = threading.Lock()
 
@@ -171,11 +170,11 @@ def _get_dynamic_permissions(role: str) -> set[str]:
     global _dynamic_permissions_cache
     if _dynamic_permissions_cache is not None:
         return _dynamic_permissions_cache.get(role, set())
-        
+
     with _dynamic_lock:
         if _dynamic_permissions_cache is not None:
             return _dynamic_permissions_cache.get(role, set())
-            
+
         cache = {}
         try:
             from app.core.registry import get_enabled_modules
@@ -198,11 +197,11 @@ def has_permission(user, permission: str | None) -> bool:
     if not user:
         return False
     role = normalize_role(user.get("role") if isinstance(user, dict) else getattr(user, "role", None))
-    
+
     # L'admin a le droit de tout faire, y compris sur les modules dynamiques
     if role == ROLE_ADMIN:
         return True
-    
+
     if role == ROLE_MANAGER:
         if permission not in MANAGER_PERMISSIONS:
             return False
@@ -216,15 +215,15 @@ def has_permission(user, permission: str | None) -> bool:
                 if query_params.get("type") == "purchase" or query_params.get("mode") == "achat":
                     return False
         return True
-        
+
     # Les autres rôles doivent avoir la permission explicite ou héritée
     if permission in ROLE_PERMISSIONS.get(role, set()):
         return True
-        
+
     # Vérification des permissions dynamiques déclarées par les modules (cache O(1))
     if permission in _get_dynamic_permissions(role):
         return True
-        
+
     return False
 
 

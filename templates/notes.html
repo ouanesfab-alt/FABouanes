@@ -1,158 +1,1209 @@
 {% extends "base.html" %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
-  .notes-grid{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:14px;align-items:start}
-  .notes-grid,.notes-grid > *{min-width:0}
-  .notes-textarea{
-    font-family:var(--font-main);font-size:.93rem;resize:none;
-    line-height:1.6;border:1px solid var(--line);border-radius:var(--radius);
-    padding:.7rem .8rem;background:var(--card);color:var(--text);
-    width:100%;box-sizing:border-box;overflow:hidden;
-    min-height:40px;transition:border-color .15s
+  /* --- macOS/Apple Notes Style Overhaul --- */
+  .notes-container {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    min-height: calc(100vh - var(--nav-h, 60px) - 20px);
+    background: var(--bg);
+    border-radius: var(--radius-lg, 16px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
   }
-  .notes-textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(59,130,246,.1)}
-  .notes-textarea[readonly]{background:rgba(148,163,184,.05);color:var(--muted);cursor:default}
-  .hist-item{display:flex;align-items:center;justify-content:space-between;padding:.48rem .6rem;
-    border-radius:var(--radius);font-size:.81rem;gap:6px;border:1px solid transparent;
-    transition:background .12s;text-decoration:none;color:var(--text)}
-  .hist-item:hover{background:var(--bg);border-color:var(--line)}
-  .hist-item.v-active{background:rgba(59,130,246,.07);border-color:rgba(59,130,246,.25);color:var(--accent)}
-  .char-counter{font-size:.77rem;color:var(--muted)}
-  @media(max-width:991px){.notes-grid{grid-template-columns:1fr}}
+
+  /* --- Sidebar Left Pane --- */
+  .notes-sidebar {
+    background: var(--sidebar-bg, rgba(246, 246, 246, 0.6));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-right: 1px solid var(--glass-border);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .notes-sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--glass-border);
+  }
+  .notes-search-wrap {
+    position: relative;
+    margin-top: 10px;
+  }
+  .notes-search-input {
+    width: 100%;
+    padding: 8px 12px 8px 32px;
+    font-size: 0.88rem;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition: all 0.2s ease;
+  }
+  .notes-search-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.15);
+  }
+  .notes-search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+  .notes-list-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 8px;
+  }
+  .notes-list-section-title {
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text);
+    opacity: 0.7;
+    padding: 6px 8px;
+    margin-top: 10px;
+  }
+  .note-item {
+    display: block;
+    padding: 10px 12px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--text);
+    margin-bottom: 4px;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+    position: relative;
+    cursor: pointer;
+  }
+  .note-item:hover {
+    background: rgba(0, 0, 0, 0.03);
+  }
+  [data-theme="dark"] .note-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .note-item.active {
+    background: var(--accent);
+    color: #fff !important;
+  }
+  .note-item.active .note-item-snippet,
+  .note-item.active .note-item-meta {
+    color: rgba(255, 255, 255, 0.9) !important;
+    opacity: 1 !important;
+  }
+  .note-item-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .note-color-badge {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .note-item-meta {
+    font-size: 0.75rem;
+    color: var(--text);
+    opacity: 0.65;
+    font-weight: 600;
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+  .note-item-snippet {
+    font-size: 0.8rem;
+    color: var(--text);
+    opacity: 0.85;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 2px;
+  }
+  .pinned-badge {
+    position: absolute;
+    right: 10px;
+    top: 12px;
+    font-size: 0.75rem;
+    opacity: 0.7;
+  }
+  .note-item.active .pinned-badge {
+    opacity: 1;
+  }
+
+  /* --- Editor & Preview Pane --- */
+  .notes-editor-pane {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--surface);
+  }
+  .editor-header-bar {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--glass-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .editor-status-indicator {
+    font-size: 0.78rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .editor-status-indicator .spinner-border {
+    width: 12px;
+    height: 12px;
+  }
+  .editor-title-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--text);
+    outline: none;
+    padding: 16px 20px 8px 20px;
+  }
+  
+  /* --- macOS Sticky Note Themes --- */
+  .color-selector {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .color-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+  }
+  .color-dot:hover {
+    transform: scale(1.15);
+  }
+  .color-dot.active {
+    border-color: var(--accent);
+    transform: scale(1.1);
+  }
+  
+  /* Note colors config */
+  .color-yellow { background: #fef08a; }
+  .color-rose { background: #fbcfe8; }
+  .color-mint { background: #bbf7d0; }
+  .color-blue { background: #bfdbfe; }
+  .color-lavender { background: #e9d5ff; }
+  .color-black { background: #1a1a1a; }
+
+  [data-theme="dark"] .color-yellow { background: #713f12; }
+  [data-theme="dark"] .color-rose { background: #701a75; }
+  [data-theme="dark"] .color-mint { background: #14532d; }
+  [data-theme="dark"] .color-blue { background: #1e3a8a; }
+  [data-theme="dark"] .color-lavender { background: #581c87; }
+  [data-theme="dark"] .color-black { background: #000000; border: 1px solid rgba(255, 255, 255, 0.2); }
+
+  /* --- Rich Formatting Toolbar --- */
+  .formatting-toolbar {
+    background: var(--bg);
+    border-bottom: 1px solid var(--glass-border);
+    padding: 8px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .toolbar-btn {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .toolbar-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+  [data-theme="dark"] .toolbar-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .toolbar-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--glass-border);
+  }
+
+  /* --- Editor Layout & split view --- */
+  .editor-workspace {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    height: 100%;
+    overflow: hidden;
+  }
+  .editor-workspace.single-pane {
+    grid-template-columns: 1fr;
+  }
+  .editor-textarea-wrap,
+  .editor-preview-wrap {
+    height: 100%;
+    overflow-y: auto;
+    padding: 16px 24px;
+    display: flex;
+    flex-direction: column;
+  }
+  .editor-textarea-wrap {
+    border-right: 1px solid var(--glass-border);
+  }
+  .editor-workspace.single-pane .editor-textarea-wrap {
+    border-right: none;
+  }
+  .editor-textarea {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    resize: none;
+    outline: none;
+    font-family: var(--font-main);
+    font-size: 0.95rem;
+    line-height: 1.7;
+    padding: 0;
+  }
+  
+  /* --- Markdown Render Styling --- */
+  .editor-preview {
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 0.95rem;
+  }
+  .editor-preview h1, .editor-preview h2, .editor-preview h3 {
+    margin-top: 20px;
+    margin-bottom: 12px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .editor-preview h1 { font-size: 1.45rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 6px; }
+  .editor-preview h2 { font-size: 1.25rem; }
+  .editor-preview h3 { font-size: 1.1rem; }
+  .editor-preview p { margin-bottom: 12px; }
+  .editor-preview ul, .editor-preview ol {
+    margin-bottom: 14px;
+    padding-left: 20px;
+  }
+  .editor-preview li {
+    margin-bottom: 4px;
+  }
+  .editor-preview code {
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.88rem;
+    font-family: monospace;
+  }
+  .editor-preview pre {
+    background: var(--bg);
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin-bottom: 14px;
+  }
+  .editor-preview pre code {
+    background: transparent;
+    padding: 0;
+  }
+  .editor-preview blockquote {
+    border-left: 4px solid var(--accent);
+    padding-left: 14px;
+    color: var(--muted);
+    margin-left: 0;
+    margin-bottom: 14px;
+    font-style: italic;
+  }
+  .editor-preview table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+  .editor-preview th, .editor-preview td {
+    border: 1px solid var(--glass-border);
+    padding: 8px 12px;
+    font-size: 0.88rem;
+  }
+  .editor-preview th {
+    background: var(--bg);
+    font-weight: 600;
+  }
+  /* Interactive checklists preview */
+  .preview-checklist-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .preview-checklist-checkbox {
+    margin-top: 5px;
+    cursor: pointer;
+  }
+  .preview-checklist-text {
+    flex: 1;
+  }
+  .preview-checklist-text.checked {
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+
+  /* --- Empty State View --- */
+  .editor-empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    padding: 40px;
+    text-align: center;
+  }
+  .editor-empty-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+
+  /* --- Toggle View Buttons for Mobile/Split --- */
+  .view-selector-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--glass-border);
+    background: var(--bg);
+  }
+  .view-tab {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    border: none;
+    background: transparent;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .view-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  @media(max-width: 768px) {
+    .notes-container {
+      grid-template-columns: 1fr;
+      min-height: auto;
+    }
+    .notes-sidebar {
+      border-right: none;
+      border-bottom: 1px solid var(--glass-border);
+      max-height: 250px;
+    }
+    .editor-workspace {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  /* --- Print layout styling --- */
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    #printArea, #printArea * {
+      visibility: visible;
+    }
+    #printArea {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      padding: 20px;
+      color: #000;
+      background: #fff;
+    }
+    .no-print {
+      display: none !important;
+    }
+  }
 </style>
 
-<div class="entity-form-page">
-  <div class="page-hero mb-0">
-    <div>
-      <h2 class="section-title mb-1">Bloc-note</h2>
-      {% if updated_at %}<div class="text-muted small">Dernière sauvegarde : <strong>{{ updated_at }}</strong></div>{% endif %}
+<div class="entity-form-page no-print">
+  <div class="notes-container">
+    
+    <!-- LEFT PANEL: Note List & Search -->
+    <div class="notes-sidebar">
+      <div class="notes-sidebar-header">
+        <div class="d-flex justify-content-between align-items-center">
+          <h5 class="m-0 fw-bold" style="color: var(--text);">Bloc-notes</h5>
+          <button class="btn btn-sm btn-dark d-flex align-items-center gap-1" id="btnCreateNote">
+            <i class="bi bi-plus-lg"></i> Nouveau
+          </button>
+        </div>
+        <div class="notes-search-wrap">
+          <i class="bi bi-search notes-search-icon"></i>
+          <input type="search" class="notes-search-input" id="notesSearchInput" placeholder="Rechercher des notes...">
+        </div>
+      </div>
+      
+      <div class="notes-list-scroll">
+        <!-- Pinned Section -->
+        <div id="sectionPinned">
+          <div class="notes-list-section-title">Épinglées 📌</div>
+          <div id="listPinned"></div>
+        </div>
+        
+        <!-- General Section -->
+        <div id="sectionNotes">
+          <div class="notes-list-section-title">Notes 📄</div>
+          <div id="listNotes"></div>
+        </div>
+      </div>
     </div>
-    {% if view_version %}
-    <a href="{{ url_for('notes_page') }}" class="btn btn-outline-secondary">Version courante</a>
-    {% endif %}
-  </div>
 
-  <div class="notes-grid">
-    <div class="card p-3">
-      {% if view_version %}
-      <div id="notesForm">
-        <textarea name="content" class="notes-textarea" id="notesArea"
-          placeholder="Écrivez vos notes ici"
-          {% if view_version %}readonly{% endif %}>{{ content }}</textarea>
-        <div class="d-flex justify-content-between align-items-center mt-2 gap-2 flex-wrap">
-          <span class="char-counter" id="charCount"></span>
-          <div class="d-flex gap-2">
-            <form method="post" class="d-inline">
-              <input type="hidden" name="action" value="restore">
-              <input type="hidden" name="version_file" value="{{ view_version }}">
-              <button type="submit" class="btn btn-warning btn-sm"
-                onclick="return confirm('Restaurer cette version comme note courante ?')">
-                Restaurer
-              </button>
-            </form>
+    <!-- RIGHT PANEL: Editor Workspace -->
+    <div class="notes-editor-pane">
+      <div id="editorContent" style="display: none; flex: 1; flex-direction: column;">
+        <!-- Top Toolbar -->
+        <div class="editor-header-bar">
+          <!-- Color Picker -->
+          <div class="d-flex align-items-center gap-2">
+            <span class="small text-muted fw-semibold">Thème :</span>
+            <div class="color-selector">
+              <div class="color-dot color-yellow" data-color="yellow" title="Jaune"></div>
+              <div class="color-dot color-rose" data-color="rose" title="Rose"></div>
+              <div class="color-dot color-mint" data-color="mint" title="Menthe"></div>
+              <div class="color-dot color-blue" data-color="blue" title="Bleu"></div>
+              <div class="color-dot color-lavender" data-color="lavender" title="Lavande"></div>
+              <div class="color-dot color-black" data-color="black" title="Noir"></div>
+            </div>
+          </div>
+
+          <!-- Action buttons -->
+          <div class="d-flex align-items-center gap-2">
+            <div class="editor-status-indicator me-2" id="saveStatus">
+              <i class="bi bi-check-circle-fill text-success"></i> Sauvegardé
+            </div>
+            
+            <button class="btn btn-sm btn-outline-secondary" id="btnPinToggle" title="Épingler la note">
+              <i class="bi bi-pin-angle"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" id="btnPrintNote" title="Imprimer la note">
+              <i class="bi bi-printer"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" id="btnDeleteNote" title="Supprimer la note">
+              <i class="bi bi-trash3"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Markdown Formatting buttons -->
+        <div class="formatting-toolbar">
+          <button class="toolbar-btn" data-action="bold" title="Gras (Ctrl+B)">
+            <i class="bi bi-type-bold"></i> Gras
+          </button>
+          <button class="toolbar-btn" data-action="italic" title="Italique (Ctrl+I)">
+            <i class="bi bi-type-italic"></i> Italique
+          </button>
+          <button class="toolbar-btn" data-action="header" title="Titre 2">
+            <i class="bi bi-type-h2"></i> Titre
+          </button>
+          <div class="toolbar-divider"></div>
+          <button class="toolbar-btn" data-action="todo" title="Tâche à faire">
+            <i class="bi bi-check-square"></i> Checklist
+          </button>
+          <button class="toolbar-btn" data-action="bullet" title="Liste à puces">
+            <i class="bi bi-list-ul"></i> Liste
+          </button>
+          <button class="toolbar-btn" data-action="quote" title="Citation">
+            <i class="bi bi-quote"></i> Citation
+          </button>
+          <button class="toolbar-btn" data-action="table" title="Tableau">
+            <i class="bi bi-table"></i> Tableau
+          </button>
+          <div class="toolbar-divider"></div>
+          <button class="toolbar-btn text-danger ms-auto" data-action="clear" title="Effacer tout">
+            <i class="bi bi-eraser"></i> Effacer
+          </button>
+        </div>
+
+        <!-- Mobile view tabs (Editor / Preview / Split) -->
+        <div class="view-selector-tabs d-md-none">
+          <button class="view-tab active" data-view="edit">Éditer</button>
+          <button class="view-tab" data-view="preview">Aperçu</button>
+        </div>
+
+        <!-- Title & Content Input Grid -->
+        <input type="text" class="editor-title-input" id="noteTitle" placeholder="Titre de la note...">
+        
+        <div class="editor-workspace" id="editorWorkspace">
+          <!-- Textarea area -->
+          <div class="editor-textarea-wrap" id="paneEditor">
+            <textarea class="editor-textarea" id="noteTextArea" placeholder="Écrivez vos notes ici (Markdown supporté)..."></textarea>
+            <div class="char-counter mt-2 text-muted" id="noteCharCounter">0 caractères</div>
+          </div>
+          
+          <!-- Live Preview area -->
+          <div class="editor-preview-wrap" id="panePreview">
+            <div class="editor-preview" id="notePreviewArea"></div>
           </div>
         </div>
       </div>
-      {% else %}
-      <form method="post" id="notesForm">
-        <input type="hidden" name="action" value="save">
-        <textarea name="content" class="notes-textarea" id="notesArea"
-          placeholder="Écrivez vos notes ici">{{ content }}</textarea>
-        <div class="d-flex justify-content-between align-items-center mt-2 gap-2 flex-wrap">
-          <span class="char-counter" id="charCount"></span>
-          <div class="d-flex gap-2">
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="clearBtn">Effacer</button>
-            <button type="submit" class="btn btn-dark btn-sm">Enregistrer</button>
-          </div>
-        </div>
-      </form>
-      {% endif %}
+
+      <!-- Empty state -->
+      <div id="editorEmptyState" class="editor-empty-state">
+        <i class="bi bi-journal-text editor-empty-icon"></i>
+        <h4>Aucune note sélectionnée</h4>
+        <p>Sélectionnez une note existante ou créez-en une nouvelle pour commencer à écrire.</p>
+        <button class="btn btn-dark btn-sm mt-2" id="btnEmptyCreateNote">Créer une note</button>
+      </div>
     </div>
 
-    <div class="card p-3">
-      <div class="fw-bold small mb-2" style="text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">
-        Versions
-      </div>
-
-      {% if not view_version %}
-      <div class="hist-item v-active mb-1">
-        <span class="fw-semibold small">Courante</span>
-        <span class="badge bg-success" style="font-size:.68rem">Active</span>
-      </div>
-      {% else %}
-      <a href="{{ url_for('notes_page') }}" class="hist-item mb-1">
-        <span class="small">Courante</span>
-      </a>
-      {% endif %}
-
-      {% if history %}
-      <hr class="my-2">
-      {% for ver in history %}
-      <a href="{{ url_for('notes_page', v=ver.filename) }}"
-         class="hist-item {{ 'v-active' if view_version == ver.filename else '' }}">
-        <span style="font-size:.79rem;line-height:1.25">{{ ver.label }}</span>
-        {% if view_version == ver.filename %}<i class="bi bi-eye-fill" style="font-size:.7rem;opacity:.6"></i>{% endif %}
-      </a>
-      {% endfor %}
-      {% else %}
-      <div class="text-muted mt-2" style="font-size:.79rem">Aucune version.</div>
-      {% endif %}
-    </div>
   </div>
+</div>
+
+<!-- Raw HTML container for Print view -->
+<div id="printArea" class="d-none">
+  <h1 id="printTitle" style="font-size: 2rem; font-weight: 800; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 20px;"></h1>
+  <div id="printContent" class="editor-preview"></div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script nonce="{{ csp_nonce }}">
 (function(){
-  const area = document.getElementById('notesArea');
-  const counter = document.getElementById('charCount');
-  const form = document.getElementById('notesForm');
-  const clearBtn = document.getElementById('clearBtn');
+  // Notes state
+  let notesList = {{ notes|tojson|safe if notes else '[]' }};
+  let activeNoteId = null;
+  let saveTimeout = null;
+  let isMobileView = window.innerWidth < 768;
 
-  function autoResize(){
-    if(!area) return;
-    area.style.height = 'auto';
-    area.style.height = Math.max(40, area.scrollHeight) + 'px';
-  }
-  function updateCount(){
-    if(!area||!counter) return;
-    const n = (area.value||'').length;
-    const lines = (area.value||'').split('\n').length;
-    counter.textContent = n.toLocaleString('fr-FR') + ' car. | ' + lines + ' ligne' + (lines>1?'s':'');
+  // DOM cache
+  const listPinned = document.getElementById('listPinned');
+  const listNotes = document.getElementById('listNotes');
+  const sectionPinned = document.getElementById('sectionPinned');
+  const sectionNotes = document.getElementById('sectionNotes');
+  const editorContent = document.getElementById('editorContent');
+  const editorEmptyState = document.getElementById('editorEmptyState');
+  const noteTitle = document.getElementById('noteTitle');
+  const noteTextArea = document.getElementById('noteTextArea');
+  const notePreviewArea = document.getElementById('notePreviewArea');
+  const noteCharCounter = document.getElementById('noteCharCounter');
+  const btnPinToggle = document.getElementById('btnPinToggle');
+  const saveStatus = document.getElementById('saveStatus');
+  const notesSearchInput = document.getElementById('notesSearchInput');
+  const editorWorkspace = document.getElementById('editorWorkspace');
+  const paneEditor = document.getElementById('paneEditor');
+  const panePreview = document.getElementById('panePreview');
+
+  // Load first note if list is not empty
+  if (notesList.length > 0) {
+    selectNote(notesList[0].id);
+  } else {
+    renderNoteList();
   }
 
-  if(area){
-    area.addEventListener('input', ()=>{ autoResize(); updateCount(); });
-    autoResize();
-    updateCount();
+  // --- Note Selection & Rendering ---
+  function renderNoteList() {
+    const query = notesSearchInput.value.toLowerCase().trim();
+    const filtered = notesList.filter(note => {
+      return note.title.toLowerCase().includes(query) || note.content.toLowerCase().includes(query);
+    });
+
+    const pinnedNotes = filtered.filter(n => n.pinned);
+    const generalNotes = filtered.filter(n => !n.pinned);
+
+    listPinned.innerHTML = '';
+    listNotes.innerHTML = '';
+
+    if (pinnedNotes.length > 0) {
+      sectionPinned.style.display = 'block';
+      pinnedNotes.forEach(note => listPinned.appendChild(createNoteItemHTML(note)));
+    } else {
+      sectionPinned.style.display = 'none';
+    }
+
+    if (generalNotes.length > 0) {
+      sectionNotes.style.display = 'block';
+      generalNotes.forEach(note => listNotes.appendChild(createNoteItemHTML(note)));
+    } else {
+      sectionNotes.style.display = 'none';
+      if (pinnedNotes.length === 0) {
+        listNotes.innerHTML = '<div class="text-center text-muted small p-4">Aucune note trouvée</div>';
+      }
+    }
   }
 
-  document.addEventListener('keydown', e=>{
-    if((e.ctrlKey||e.metaKey) && e.key==='s'){
+  function createNoteItemHTML(note) {
+    const item = document.createElement('a');
+    item.className = `note-item ${note.id === activeNoteId ? 'active' : ''}`;
+    item.dataset.id = note.id;
+
+    // Date formatting helper
+    let dateStr = 'Récemment';
+    if (note.updated_at) {
+      const d = new Date(note.updated_at * 1000);
+      const today = new Date();
+      if (d.toDateString() === today.toDateString()) {
+        dateStr = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      } else {
+        dateStr = d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+      }
+    }
+
+    // Get plain text snippet (strip markdown)
+    const rawSnippet = note.content || '';
+    const cleanSnippet = rawSnippet.replace(/[#*`_\[\]-]/g, '').trim().substring(0, 45);
+
+    let noteColor = note.color || 'yellow';
+    if (noteColor === 'gray') noteColor = 'black';
+
+    item.innerHTML = `
+      <div class="note-item-title">
+        <span class="note-color-badge color-${noteColor}"></span>
+        <span>${escapeHTML(note.title)}</span>
+      </div>
+      <div class="note-item-meta">${dateStr}</div>
+      <div class="note-item-snippet">${escapeHTML(cleanSnippet || 'Pas de contenu')}</div>
+      ${note.pinned ? '<i class="bi bi-pin-fill pinned-badge"></i>' : ''}
+    `;
+
+    item.addEventListener('click', (e) => {
       e.preventDefault();
-      if(form && area && !area.readOnly) form.submit();
+      selectNote(note.id);
+    });
+
+    return item;
+  }
+
+  function selectNote(id) {
+    activeNoteId = id;
+    const note = notesList.find(n => n.id === id);
+    if (!note) {
+      editorContent.style.display = 'none';
+      editorEmptyState.style.display = 'flex';
+      return;
+    }
+
+    editorContent.style.display = 'flex';
+    editorEmptyState.style.display = 'none';
+
+    // Populate values
+    noteTitle.value = note.title;
+    noteTextArea.value = note.content;
+    
+    let noteColor = note.color || 'yellow';
+    if (noteColor === 'gray') noteColor = 'black';
+
+    // Set active color dot
+    document.querySelectorAll('.color-dot').forEach(dot => {
+      dot.classList.toggle('active', dot.dataset.color === noteColor);
+    });
+
+    // Update pin state button icon
+    updatePinButtonUI(note.pinned);
+
+    // Update UI elements
+    updatePreview();
+    updateCharCount();
+    updateSaveIndicator('saved');
+
+    // Update active row in list
+    document.querySelectorAll('.note-item').forEach(item => {
+      item.classList.toggle('active', item.dataset.id === id);
+    });
+
+    // Reset workspace layouts
+    if (!isMobileView) {
+      editorWorkspace.classList.remove('single-pane');
+      paneEditor.style.display = 'flex';
+      panePreview.style.display = 'flex';
+    } else {
+      // Restore mobile default view state
+      setMobileView('edit');
+    }
+  }
+
+  function updatePinButtonUI(isPinned) {
+    if (isPinned) {
+      btnPinToggle.className = 'btn btn-sm btn-dark';
+      btnPinToggle.innerHTML = '<i class="bi bi-pin-fill"></i>';
+      btnPinToggle.title = 'Désépingler la note';
+    } else {
+      btnPinToggle.className = 'btn btn-sm btn-outline-secondary';
+      btnPinToggle.innerHTML = '<i class="bi bi-pin-angle"></i>';
+      btnPinToggle.title = 'Épingler la note';
+    }
+  }
+
+  // --- Auto Save & API Sync ---
+  function triggerAutoSave() {
+    updateSaveIndicator('saving');
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(saveCurrentNoteData, 600);
+  }
+
+  async function saveCurrentNoteData() {
+    if (!activeNoteId) return;
+
+    const note = notesList.find(n => n.id === activeNoteId);
+    if (!note) return;
+
+    // Grab current form values
+    const currentTitle = noteTitle.value.trim() || 'Sans titre';
+    const currentContent = noteTextArea.value;
+    const currentColor = document.querySelector('.color-dot.active')?.dataset.color || 'yellow';
+    const currentPinned = note.pinned;
+
+    // Update local state first for immediate UI responsiveness
+    note.title = currentTitle;
+    note.content = currentContent;
+    note.color = currentColor;
+    note.updated_at = Date.now() / 1000;
+    
+    renderNoteList();
+
+    // Call API
+    const formData = new FormData();
+    formData.append('id', activeNoteId);
+    formData.append('title', currentTitle);
+    formData.append('content', currentContent);
+    formData.append('color', currentColor);
+    formData.append('pinned', currentPinned ? 'true' : 'false');
+    formData.append('csrf_token', '{{ csrf_token }}');
+
+    try {
+      const response = await fetch('/notes/api/save', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await response.json();
+      if (data.success) {
+        updateSaveIndicator('saved');
+        // Sync back exact updated_at timestamp from server if returned
+        if (data.note && data.note.updated_at) {
+          note.updated_at = data.note.updated_at;
+          renderNoteList();
+        }
+      } else {
+        updateSaveIndicator('error');
+      }
+    } catch (e) {
+      updateSaveIndicator('error');
+    }
+  }
+
+  function updateSaveIndicator(status) {
+    if (status === 'saving') {
+      saveStatus.innerHTML = '<div class="spinner-border spinner-border-sm text-secondary" role="status"></div><span class="text-muted">Enregistrement...</span>';
+    } else if (status === 'saved') {
+      saveStatus.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i> <span class="text-success fw-medium">Sauvegardé</span>';
+    } else {
+      saveStatus.innerHTML = '<i class="bi bi-exclamation-triangle-fill text-danger"></i> <span class="text-danger fw-medium">Erreur</span>';
+    }
+  }
+
+  // --- Create & Delete Note ---
+  async function createNewNote() {
+    const formData = new FormData();
+    formData.append('title', 'Sans titre');
+    formData.append('content', '');
+    formData.append('color', 'yellow');
+    formData.append('csrf_token', '{{ csrf_token }}');
+
+    try {
+      const response = await fetch('/notes/api/create', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await response.json();
+      if (data.success && data.note) {
+        notesList.unshift(data.note);
+        renderNoteList();
+        selectNote(data.note.id);
+        setTimeout(() => noteTitle.focus(), 100);
+      }
+    } catch (e) {
+      alert("Erreur lors de la création de la note.");
+    }
+  }
+
+  async function deleteCurrentNote() {
+    if (!activeNoteId) return;
+    if (!confirm('Supprimer définitivement cette note ?')) return;
+
+    const formData = new FormData();
+    formData.append('id', activeNoteId);
+    formData.append('csrf_token', '{{ csrf_token }}');
+
+    try {
+      const response = await fetch('/notes/api/delete', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await response.json();
+      if (data.success) {
+        notesList = notesList.filter(n => n.id !== activeNoteId);
+        renderNoteList();
+        if (notesList.length > 0) {
+          selectNote(notesList[0].id);
+        } else {
+          activeNoteId = null;
+          editorContent.style.display = 'none';
+          editorEmptyState.style.display = 'flex';
+        }
+      }
+    } catch (e) {
+      alert("Erreur lors de la suppression.");
+    }
+  }
+
+  // --- Pin / Unpin Note ---
+  function togglePin() {
+    const note = notesList.find(n => n.id === activeNoteId);
+    if (!note) return;
+
+    note.pinned = !note.pinned;
+    updatePinButtonUI(note.pinned);
+    
+    // Immediate save
+    saveCurrentNoteData();
+  }
+
+  // --- Interactive Markdown Parser ---
+  function updatePreview() {
+    const content = noteTextArea.value || '';
+    notePreviewArea.innerHTML = parseMarkdown(content);
+    
+    // Attach event listeners to preview checkboxes so they update the raw editor
+    const checkboxes = notePreviewArea.querySelectorAll('.preview-checklist-checkbox');
+    checkboxes.forEach(cb => {
+      cb.addEventListener('change', function() {
+        const index = parseInt(this.dataset.index);
+        toggleCheckboxInEditor(index, this.checked);
+      });
+    });
+  }
+
+  function parseMarkdown(text) {
+    if (!text) return '<p class="text-muted small">Écrivez du texte pour voir l\'aperçu...</p>';
+
+    // Escape basic tags to prevent XSS
+    let html = escapeHTML(text);
+
+    let lines = html.split('\n');
+    let output = [];
+    let inList = false;
+    let inOrderedList = false;
+    let inBlockquote = false;
+    let checklistIndex = 0; // tracking for interactive check states
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i];
+
+      // Blockquotes
+      if (line.startsWith('&gt; ')) {
+        if (!inBlockquote) {
+          inBlockquote = true;
+          output.push('<blockquote>');
+        }
+        output.push(line.substring(5) + '<br>');
+        continue;
+      } else if (inBlockquote && !line.startsWith('&gt; ')) {
+        inBlockquote = false;
+        output.push('</blockquote>');
+      }
+
+      // Checklists: `- [ ]` or `- [x]`
+      const todoMatch = line.match(/^-\s+\[( |x)\]\s+(.*)/i);
+      if (todoMatch) {
+        const isChecked = todoMatch[1].toLowerCase() === 'x';
+        const lineContent = todoMatch[2];
+        
+        // Render custom interactive checkbox block
+        output.push(`
+          <div class="preview-checklist-item">
+            <input type="checkbox" class="preview-checklist-checkbox" data-index="${checklistIndex}" ${isChecked ? 'checked' : ''}>
+            <div class="preview-checklist-text ${isChecked ? 'checked' : ''}">${inlineFormat(lineContent)}</div>
+          </div>
+        `);
+        checklistIndex++;
+        continue;
+      }
+
+      // Bullet Lists: `- ` or `* `
+      const bulletMatch = line.match(/^([-\*])\s+(.*)/);
+      if (bulletMatch) {
+        if (!inList) {
+          inList = true;
+          output.push('<ul>');
+        }
+        output.push(`<li>${inlineFormat(bulletMatch[2])}</li>`);
+        continue;
+      } else if (inList && !bulletMatch) {
+        inList = false;
+        output.push('</ul>');
+      }
+
+      // Headings
+      if (line.startsWith('### ')) {
+        output.push(`<h3>${inlineFormat(line.substring(4))}</h3>`);
+      } else if (line.startsWith('## ')) {
+        output.push(`<h2>${inlineFormat(line.substring(3))}</h2>`);
+      } else if (line.startsWith('# ')) {
+        output.push(`<h1>${inlineFormat(line.substring(2))}</h1>`);
+      } 
+      // Empty lines
+      else if (line.trim() === '') {
+        output.push('<br>');
+      } 
+      // Paragraph lines
+      else {
+        output.push(`<p>${inlineFormat(line)}</p>`);
+      }
+    }
+
+    // Clean unclosed lists
+    if (inList) output.push('</ul>');
+    if (inBlockquote) output.push('</blockquote>');
+
+    return output.join('');
+  }
+
+  function inlineFormat(str) {
+    // Bold: **text**
+    str = str.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Italic: *text*
+    str = str.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    // Code inline: `code`
+    str = str.replace(/`(.*?)`/g, '<code>$1</code>');
+    return str;
+  }
+
+  // Update check/uncheck status in the raw textarea markdown
+  function toggleCheckboxInEditor(targetIndex, checked) {
+    const rawContent = noteTextArea.value;
+    const lines = rawContent.split('\n');
+    let currentIndex = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].match(/^-\s+\[( |x)\]\s+/i)) {
+        if (currentIndex === targetIndex) {
+          const content = lines[i].replace(/^-\s+\[( |x)\]\s+/i, '');
+          lines[i] = `- [${checked ? 'x' : ' '}] ${content}`;
+          break;
+        }
+        currentIndex++;
+      }
+    }
+
+    noteTextArea.value = lines.join('\n');
+    updatePreview();
+    triggerAutoSave();
+  }
+
+  function escapeHTML(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Word & character counts
+  function updateCharCount() {
+    const text = noteTextArea.value || '';
+    const charCount = text.length;
+    const wordCount = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+    noteCharCounter.textContent = `${charCount.toLocaleString('fr-FR')} caractères | ${wordCount} mots`;
+  }
+
+  // --- Formatting toolbar actions ---
+  function insertFormat(action) {
+    const start = noteTextArea.selectionStart;
+    const end = noteTextArea.selectionEnd;
+    const text = noteTextArea.value;
+    const selected = text.substring(start, end);
+    let replacement = '';
+    let cursorOffset = 0;
+
+    switch (action) {
+      case 'bold':
+        replacement = `**${selected || 'texte'}**`;
+        cursorOffset = selected ? 0 : -2;
+        break;
+      case 'italic':
+        replacement = `*${selected || 'texte'}*`;
+        cursorOffset = selected ? 0 : -1;
+        break;
+      case 'header':
+        replacement = `\n## ${selected || 'Titre'}\n`;
+        break;
+      case 'todo':
+        replacement = `\n- [ ] ${selected || 'Tâche'}\n`;
+        break;
+      case 'bullet':
+        replacement = `\n- ${selected || 'Élément'}\n`;
+        break;
+      case 'quote':
+        replacement = `\n> ${selected || 'Citation'}\n`;
+        break;
+      case 'table':
+        replacement = `\n| Titre 1 | Titre 2 |\n|---|---|\n| Ligne 1 | Valeur |\n`;
+        break;
+      case 'clear':
+        if (confirm('Effacer tout le contenu ?')) {
+          noteTextArea.value = '';
+          updatePreview();
+          updateCharCount();
+          triggerAutoSave();
+        }
+        return;
+    }
+
+    noteTextArea.value = text.substring(0, start) + replacement + text.substring(end);
+    noteTextArea.focus();
+    
+    // Reposition cursor
+    const newCursorPos = start + replacement.length + cursorOffset;
+    noteTextArea.setSelectionRange(newCursorPos, newCursorPos);
+
+    updatePreview();
+    updateCharCount();
+    triggerAutoSave();
+  }
+
+  // --- Events Listeners Binding ---
+  btnPinToggle.addEventListener('click', togglePin);
+  document.getElementById('btnCreateNote').addEventListener('click', createNewNote);
+  document.getElementById('btnEmptyCreateNote').addEventListener('click', createNewNote);
+  document.getElementById('btnDeleteNote').addEventListener('click', deleteCurrentNote);
+  
+  notesSearchInput.addEventListener('input', renderNoteList);
+  
+  noteTitle.addEventListener('input', () => {
+    const note = notesList.find(n => n.id === activeNoteId);
+    if (note) {
+      note.title = noteTitle.value.trim() || 'Sans titre';
+      renderNoteList();
+    }
+    triggerAutoSave();
+  });
+
+  noteTextArea.addEventListener('input', () => {
+    updatePreview();
+    updateCharCount();
+    triggerAutoSave();
+  });
+
+  // Tab support inside editor textarea
+  noteTextArea.addEventListener('keydown', function(e) {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = this.selectionStart;
+      const end = this.selectionEnd;
+      this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
+      this.selectionStart = this.selectionEnd = start + 2;
+      updatePreview();
+      updateCharCount();
+      triggerAutoSave();
     }
   });
 
-  if(area && !area.readOnly){
-    area.addEventListener('keydown', e=>{
-      if(e.key==='Tab'){
-        e.preventDefault();
-        const s=area.selectionStart, en=area.selectionEnd;
-        area.value = area.value.substring(0,s)+'  '+area.value.substring(en);
-        area.selectionStart = area.selectionEnd = s+2;
-        autoResize(); updateCount();
+  // Handle Ctrl+S
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      if (activeNoteId) {
+        clearTimeout(saveTimeout);
+        saveCurrentNoteData();
       }
+    }
+  });
+
+  // Handle Format Buttons
+  document.querySelectorAll('.toolbar-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const action = this.dataset.action;
+      if (action) insertFormat(action);
     });
+  });
+
+  // Color Selection Clicks
+  document.querySelectorAll('.color-dot').forEach(dot => {
+    dot.addEventListener('click', function() {
+      document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+      this.classList.add('active');
+      
+      const note = notesList.find(n => n.id === activeNoteId);
+      if (note) {
+        note.color = this.dataset.color;
+        renderNoteList();
+      }
+      triggerAutoSave();
+    });
+  });
+
+  // Mobile View selector tabs
+  document.querySelectorAll('.view-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      setMobileView(this.dataset.view);
+    });
+  });
+
+  function setMobileView(view) {
+    if (view === 'edit') {
+      paneEditor.style.display = 'flex';
+      panePreview.style.display = 'none';
+      editorWorkspace.classList.add('single-pane');
+    } else {
+      paneEditor.style.display = 'none';
+      panePreview.style.display = 'block';
+      editorWorkspace.classList.add('single-pane');
+    }
   }
 
-  if(clearBtn){
-    clearBtn.addEventListener('click', ()=>{
-      if(!confirm('Effacer tout le contenu ?')) return;
-      area.value=''; autoResize(); updateCount();
-    });
-  }
+  // --- Print Note ---
+  document.getElementById('btnPrintNote').addEventListener('click', () => {
+    const note = notesList.find(n => n.id === activeNoteId);
+    if (!note) return;
+
+    document.getElementById('printTitle').textContent = note.title;
+    document.getElementById('printContent').innerHTML = parseMarkdown(note.content);
+    window.print();
+  });
+
+  // Handle Window Resize (adapt grid structure)
+  window.addEventListener('resize', () => {
+    const nextIsMobile = window.innerWidth < 768;
+    if (nextIsMobile !== isMobileView) {
+      isMobileView = nextIsMobile;
+      if (!isMobileView && activeNoteId) {
+        selectNote(activeNoteId);
+      }
+    }
+  });
 })();
 </script>
 {% endblock %}

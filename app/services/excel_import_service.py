@@ -88,7 +88,7 @@ def parse_client_history_excel(file_path: str) -> dict:
         montant_achat = _to_float(row.get("montant_achat_raw"))
         montant_verse = _to_float(row.get("montant_verse_raw"))
         solde_cumule  = _to_float(row.get("solde_cumule_raw"))
-        
+
         designation   = str(row.get("designation", "")).strip()
         if designation.lower() in ("nan", "none"):
             designation = ""
@@ -312,3 +312,172 @@ def parse_excel_client_file(file_path) -> dict:
         "history_count": history_count,
         "source_file": Path(file_path).name,
     }
+
+
+def parse_excel_bulk_clients(file_path: str) -> list[dict]:
+    try:
+        import openpyxl
+    except Exception as exc:
+        raise RuntimeError("Le module openpyxl est requis pour l'import Excel.") from exc
+
+    workbook = openpyxl.load_workbook(file_path, data_only=True)
+    sheet = workbook[workbook.sheetnames[0]]
+
+    def cell_str(value: Any) -> str:
+        return str(value).strip() if value is not None else ""
+
+    header_row = None
+    headers_map = {}
+
+    for row_index, row in enumerate(sheet.iter_rows(values_only=True), start=1):
+        values = [cell_str(value).lower() for value in row]
+        if any("nom" in val or "client" in val or "raison" in val for val in values):
+            header_row = row_index
+            for col_idx, val in enumerate(values):
+                if not val:
+                    continue
+                if "nom" in val or "client" in val or "raison" in val:
+                    headers_map["name"] = col_idx
+                elif "tel" in val or "tél" in val or "phone" in val or "mobile" in val or "gsm" in val:
+                    headers_map["phone"] = col_idx
+                elif "adresse" in val or "ville" in val or "location" in val:
+                    headers_map["address"] = col_idx
+                elif "solde" in val or "credit" in val or "crédit" in val or "initial" in val:
+                    headers_map["opening_credit"] = col_idx
+                elif "note" in val or "remarque" in val or "obs" in val:
+                    headers_map["notes"] = col_idx
+            break
+
+    if header_row is None:
+        header_row = 1
+        headers_map = {
+            "name": 0,
+            "phone": 1,
+            "address": 2,
+            "opening_credit": 3,
+            "notes": 4
+        }
+
+    clients = []
+    for row in sheet.iter_rows(min_row=header_row + 1, values_only=True):
+        row_vals = list(row)
+        if not row_vals or not any(val is not None and str(val).strip() for val in row_vals):
+            continue
+
+        name_idx = headers_map.get("name")
+        name = cell_str(row_vals[name_idx]) if name_idx is not None and name_idx < len(row_vals) else ""
+        if not name or name.lower() in ["total", "somme"]:
+            continue
+
+        phone_idx = headers_map.get("phone")
+        phone = cell_str(row_vals[phone_idx]) if phone_idx is not None and phone_idx < len(row_vals) else ""
+
+        addr_idx = headers_map.get("address")
+        address = cell_str(row_vals[addr_idx]) if addr_idx is not None and addr_idx < len(row_vals) else ""
+
+        credit_idx = headers_map.get("opening_credit")
+        credit_val = row_vals[credit_idx] if credit_idx is not None and credit_idx < len(row_vals) else 0.0
+        opening_credit = parse_flexible_amount(credit_val)
+
+        notes_idx = headers_map.get("notes")
+        notes = cell_str(row_vals[notes_idx]) if notes_idx is not None and notes_idx < len(row_vals) else ""
+
+        clients.append({
+            "name": name,
+            "phone": phone,
+            "address": address,
+            "opening_credit": round(opening_credit, 2),
+            "notes": notes or f"Importé en masse depuis {Path(file_path).name}"
+        })
+
+    return clients
+
+
+def parse_excel_bulk_products(file_path: str) -> list[dict]:
+    try:
+        import openpyxl
+    except Exception as exc:
+        raise RuntimeError("Le module openpyxl est requis pour l'import Excel.") from exc
+
+    workbook = openpyxl.load_workbook(file_path, data_only=True)
+    sheet = workbook[workbook.sheetnames[0]]
+
+    def cell_str(value: Any) -> str:
+        return str(value).strip() if value is not None else ""
+
+    header_row = None
+    headers_map = {}
+
+    for row_index, row in enumerate(sheet.iter_rows(values_only=True), start=1):
+        values = [cell_str(value).lower() for value in row]
+        if any("nom" in val or "designation" in val or "désignation" in val or "produit" in val or "article" in val for val in values):
+            header_row = row_index
+            for col_idx, val in enumerate(values):
+                if not val:
+                    continue
+                if "nom" in val or "designation" in val or "désignation" in val or "produit" in val or "article" in val:
+                    headers_map["name"] = col_idx
+                elif "unite" in val or "unité" in val or "unit" in val or "mesure" in val:
+                    headers_map["unit"] = col_idx
+                elif "stock" in val or "quantite" in val or "quantité" in val or "qte" in val or "qté" in val:
+                    headers_map["stock_qty"] = col_idx
+                elif "prix" in val or "vente" in val or "tarif" in val or "sale" in val:
+                    headers_map["sale_price"] = col_idx
+                elif "cout" in val or "coût" in val or "achat" in val or "cost" in val:
+                    headers_map["avg_cost"] = col_idx
+                elif "seuil" in val or "alerte" in val or "alert" in val:
+                    headers_map["alert_threshold"] = col_idx
+            break
+
+    if header_row is None:
+        header_row = 1
+        headers_map = {
+            "name": 0,
+            "unit": 1,
+            "stock_qty": 2,
+            "sale_price": 3,
+            "avg_cost": 4,
+            "alert_threshold": 5
+        }
+
+    products = []
+    for row in sheet.iter_rows(min_row=header_row + 1, values_only=True):
+        row_vals = list(row)
+        if not row_vals or not any(val is not None and str(val).strip() for val in row_vals):
+            continue
+
+        name_idx = headers_map.get("name")
+        name = cell_str(row_vals[name_idx]) if name_idx is not None and name_idx < len(row_vals) else ""
+        if not name or name.lower() in ["total", "somme"]:
+            continue
+
+        unit_idx = headers_map.get("unit")
+        unit = cell_str(row_vals[unit_idx]) if unit_idx is not None and unit_idx < len(row_vals) else "kg"
+
+        qty_idx = headers_map.get("stock_qty")
+        qty_val = row_vals[qty_idx] if qty_idx is not None and qty_idx < len(row_vals) else 0.0
+        stock_qty = parse_flexible_amount(qty_val)
+
+        price_idx = headers_map.get("sale_price")
+        price_val = row_vals[price_idx] if price_idx is not None and price_idx < len(row_vals) else 0.0
+        sale_price = parse_flexible_amount(price_val)
+
+        cost_idx = headers_map.get("avg_cost")
+        cost_val = row_vals[cost_idx] if cost_idx is not None and cost_idx < len(row_vals) else 0.0
+        avg_cost = parse_flexible_amount(cost_val)
+
+        alert_idx = headers_map.get("alert_threshold")
+        alert_val = row_vals[alert_idx] if alert_idx is not None and alert_idx < len(row_vals) else 0.0
+        alert_threshold = parse_flexible_amount(alert_val)
+
+        products.append({
+            "name": name,
+            "unit": unit or "kg",
+            "stock_qty": round(stock_qty, 2),
+            "sale_price": round(sale_price, 2),
+            "avg_cost": round(avg_cost, 2),
+            "alert_threshold": round(alert_threshold, 2)
+        })
+
+    return products
+

@@ -42,7 +42,7 @@ def get_friendly_error_message(exc: Exception) -> str:
         return exc.message
     if isinstance(exc, (ValueError, AssertionError)):
         return str(exc)
-    
+
     err_msg = str(exc).lower()
     if "foreign key" in err_msg or "violates foreign key constraint" in err_msg or "clé étrangère" in err_msg or "foreignkey" in err_msg:
         return "Action impossible : cet élément est lié à d'autres opérations enregistrées dans le système et ne peut pas être modifié ou supprimé."
@@ -50,5 +50,5 @@ def get_friendly_error_message(exc: Exception) -> str:
         return "Action impossible : cette valeur existe déjà. Veuillez utiliser un nom ou un identifiant unique."
     if "numeric value out of range" in err_msg or "valeur numérique en dehors des limites" in err_msg or "out of range" in err_msg or "numeric_value_out_of_range" in err_msg:
         return "Action impossible : un des montants ou quantités saisis dépasse les limites numériques autorisées."
-    
+
     return f"Une erreur s'est produite : {type(exc).__name__}"

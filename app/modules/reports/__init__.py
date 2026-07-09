@@ -1,17 +1,17 @@
 """Module Rapports & Statistiques — Tableaux de bord analytiques."""
 from app.modules.base import ModuleBase
 from app.modules.reports.web import router as web_router
-from app.core.registry import ModuleDescriptor, register
+from app.core.registry import register
 
 class ReportsModule(ModuleBase):
     @property
     def name(self) -> str:
         return "reports"
-    
+
     @property
     def label(self) -> str:
         return "Rapports"
-    
+
     @property
     def icon(self) -> str:
         return "bi-bar-chart-line"
@@ -37,4 +37,3 @@ class ReportsModule(ModuleBase):
 
 # Registration
 register(ReportsModule())
-

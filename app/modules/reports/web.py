@@ -31,20 +31,21 @@ async def reports_page(
         return denied
     date_from = request.query_params.get("date_from", "")
     date_to = request.query_params.get("date_to", "")
-    
+
     async def _load_context():
         dto = await reports_service.build_reports_context(date_from or None, date_to or None)
         return dto.model_dump()
-        
+
     ctx = await async_cached_result(
         ("dashboard", "reports", date_from or "", date_to or ""),
         _load_context,
         ttl_seconds=300.0,
     )
-    
+
     fmt = request.query_params.get("format", "").lower()
     if fmt == "csv":
-        import io, csv
+        import io
+        import csv
         from datetime import date
         output = io.StringIO()
         writer = csv.writer(output, delimiter=";")
@@ -57,7 +58,7 @@ async def reports_page(
         writer.writerow(["Total Achats", ctx["summary"]["total_purchases"]])
         writer.writerow(["Total Versements", ctx["summary"]["total_payments"]])
         writer.writerow([])
-        
+
         writer.writerow(["=== BALANCES CLIENTS / RETARDS ==="])
         writer.writerow(["Client", "Total Dû", "Dépassement", "Dernier Versement", "Retard (jours)"])
         for c in ctx.get("client_debts", []):
@@ -84,16 +85,17 @@ async def reports_page(
         )
 
     elif fmt == "xlsx":
-        import io, openpyxl
+        import io
+        import openpyxl
         from openpyxl.styles import Font
         from datetime import date
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Rapport"
-        
+
         ws.append(["RAPPORT DÉCISIONNEL FABOUANES"])
         ws.append([])
-        
+
         ws.append(["=== RÉSUMÉ GLOBAL ==="])
         ws.append(["Indicateur", "Valeur"])
         ws.append(["Total Ventes", ctx["summary"]["total_sales"]])
@@ -103,7 +105,7 @@ async def reports_page(
         ws.append(["Total Achats", ctx["summary"]["total_purchases"]])
         ws.append(["Total Versements", ctx["summary"]["total_payments"]])
         ws.append([])
-        
+
         ws.append(["=== BALANCES CLIENTS / RETARDS ==="])
         ws.append(["Client", "Total Dû", "Dépassement", "Dernier Versement", "Retard (jours)"])
         for c in ctx.get("client_debts", []):
@@ -122,7 +124,7 @@ async def reports_page(
             ws.append([c["name"], c["revenue"], c["profit"], c["count"]])
 
         ws.freeze_panes = "A4"
-        
+
         bold_font = Font(bold=True)
         # Bold on major headings/sections
         sections = [1, 3, 12, 12 + len(ctx.get("client_debts", [])) + 2, 12 + len(ctx.get("client_debts", [])) + 2 + len(ctx["top_products"]) + 2]
@@ -137,7 +139,7 @@ async def reports_page(
             max_len = max(len(str(cell.value or '')) for cell in col)
             col_letter = openpyxl.utils.get_column_letter(col[0].column)
             ws.column_dimensions[col_letter].width = max(max_len + 3, 10)
-            
+
         filename = f"report_{date.today().isoformat()}.xlsx"
         out_buf = io.BytesIO()
         wb.save(out_buf)
@@ -147,7 +149,7 @@ async def reports_page(
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
-    
+
     return templates.TemplateResponse("reports_dashboard.html", template_context(
         request, title="Rapports & Statistiques", **ctx,
     ))
@@ -164,11 +166,11 @@ async def export_csv(
         return denied
     date_from = request.query_params.get("date_from", "")
     date_to = request.query_params.get("date_to", "")
-    
+
     async def _load_context():
         dto = await reports_service.build_reports_context(date_from or None, date_to or None)
         return dto.model_dump()
-        
+
     ctx = await async_cached_result(
         ("dashboard", "reports", date_from or "", date_to or ""),
         _load_context,

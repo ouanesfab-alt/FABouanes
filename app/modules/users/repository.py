@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select, update, insert, func
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_sessionmaker
 from app.core.helpers import db_task_compat

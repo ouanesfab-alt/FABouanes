@@ -38,7 +38,7 @@ class ClientService:
         res = await self.repo.session.execute(stmt)
         row = res.mappings().first()
         key = base64.b64decode(row["encryption_key"]) if row and row.get("encryption_key") else None
-        
+
         client.phone = decrypt_val(client.phone, key)
         client.address = decrypt_val(client.address, key)
         return client
@@ -49,16 +49,16 @@ class ClientService:
         client_ids = [c.id for c in clients if c.id]
         if not client_ids:
             return clients
-            
+
         import base64
         from app.core.security import decrypt_val
-        
+
         stmt = select(ClientKey.client_id, ClientKey.encryption_key).where(ClientKey.client_id.in_(client_ids))
         res = await self.repo.session.execute(stmt)
         keys_map = {}
         for row in res.all():
             keys_map[row[0]] = base64.b64decode(row[1])
-            
+
         for client in clients:
             key = keys_map.get(client.id)
             client.phone = decrypt_val(client.phone, key)
@@ -70,19 +70,19 @@ class ClientService:
         client = await self.repo.get_by_id(client_id)
         if not client:
             return False
-            
+
         # Delete key
         await self.repo.session.execute(
             delete(ClientKey).where(ClientKey.client_id == client_id)
         )
-        
+
         # Set phone & address to "[SHREDDED]"
         client.phone = "[SHREDDED]"
         client.address = "[SHREDDED]"
-        
+
         await self.repo.update(client)
         invalidate_client_cache(client_id)
-        
+
         emit(
             DomainEvent(
                 "update",
@@ -100,14 +100,14 @@ class ClientService:
         return await self._decrypt_client(client)
 
     async def list_clients(
-        self, search: Optional[str] = None, page: int = 1, page_size: int = 50
+        self, search: Optional[str] = None, page: int = 1, page_size: int = 25
     ) -> Tuple[List[Client], int]:
         """List paginated clients."""
         clients, total = await self.repo.list_clients(search, page, page_size)
         return await self._decrypt_clients(clients), total
 
     async def list_clients_with_stats(
-        self, search: Optional[str] = None, page: int = 1, page_size: int = 50
+        self, search: Optional[str] = None, page: int = 1, page_size: int = 25
     ) -> Tuple[List[dict], int]:
         """Lists clients with calculated statistics and balance from the database view."""
         from sqlalchemy import text
@@ -117,39 +117,39 @@ class ClientService:
             literal_column("total_sales"),
             literal_column("total_payments")
         ).select_from(text("clients_with_stats"))
-        
+
         if search:
             stmt = stmt.where(literal_column("search_vector").op("@@")(func.plainto_tsquery('french', search)))
-            
+
         stmt = stmt.add_columns(func.count().over().label("_total_count"))
-        
+
         offset = (page - 1) * page_size
         stmt = (
             stmt.order_by(literal_column("name"))
             .offset(offset)
             .limit(page_size)
         )
-        
+
         res = await self.repo.session.execute(stmt)
         rows = [dict(row._mapping) for row in res.fetchall()]
-        
+
         if rows:
             client_ids = [c["id"] for c in rows if c.get("id")]
             if client_ids:
                 import base64
                 from app.core.security import decrypt_val
-                
+
                 stmt_keys = select(ClientKey.client_id, ClientKey.encryption_key).where(ClientKey.client_id.in_(client_ids))
                 res_keys = await self.repo.session.execute(stmt_keys)
                 keys_map = {}
                 for row in res_keys.all():
                     keys_map[row[0]] = base64.b64decode(row[1])
-                    
+
                 for client in rows:
                     key = keys_map.get(client["id"])
                     client["phone"] = decrypt_val(client["phone"], key)
                     client["address"] = decrypt_val(client["address"], key)
-                    
+
         total = int(rows[0]["_total_count"]) if rows else 0
         return rows, total
 
@@ -168,7 +168,7 @@ class ClientService:
         import base64
         key = os.urandom(32)
         b64_key = base64.b64encode(key).decode("utf-8")
-        
+
         ck = ClientKey(client_id=created.id, encryption_key=b64_key)
         self.repo.session.add(ck)
         await self.repo.session.commit()
@@ -176,7 +176,7 @@ class ClientService:
         from app.core.security import encrypt_val
         created.phone = encrypt_val(schema.phone, key)
         created.address = encrypt_val(schema.address, key)
-        
+
         updated = await self.repo.update(created)
         decrypted = await self._decrypt_client(updated)
 
@@ -493,7 +493,7 @@ class ClientService:
                     duplicates.append(parsed["name"])
                     continue
                 seen.add(name_key)
-                
+
                 existing = await self.repo.find_by_name(str(parsed["name"]))
                 parsed_rows.append(
                     {
@@ -574,7 +574,7 @@ class ClientService:
             stmt = select(Client)
             res = await self.repo.session.execute(stmt)
             all_clients = res.scalars().all()
-            
+
             # Decrypt existing clients to compare phone and address
             clients_list = list(all_clients)
             await self._decrypt_clients(clients_list)
@@ -615,7 +615,7 @@ class ClientService:
             errors.append(f"Import annule: {exc}")
             created = 0
             updated = 0
-        
+
         if not errors:
             from app.core.storage import mark_backup_needed
             mark_backup_needed("import_excel")

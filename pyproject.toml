@@ -12,6 +12,7 @@ dependencies = [
   "fastapi>=0.115",
   "uvicorn>=0.34",
   "sqlalchemy>=2.0",
+  "sqlmodel>=0.0.22",
   "alembic>=1.16",
   "python-multipart>=0.0.20",
   "Werkzeug>=3.0",
@@ -21,9 +22,13 @@ dependencies = [
   "openpyxl>=3.1",
   "pywebview>=5.0",
   "pg8000>=1.31",
+  "asyncpg>=0.29",
   "gunicorn>=22.0",
   "qrcode[pil]>=8.0",
   "Pillow>=10.0",
+  "slowapi>=0.1.9",
+  "pandas>=2.0",
+  "apscheduler>=3.10.0",
   "prometheus-fastapi-instrumentator>=7.0.0",
   "PyJWT>=2.8",
   "structlog>=24.0",
@@ -32,6 +37,7 @@ dependencies = [
   "opentelemetry-instrumentation-fastapi>=0.46b0",
   "opentelemetry-instrumentation-sqlalchemy>=0.46b0",
   "cryptography>=46.0",
+  "sqlglot>=30.0",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +46,9 @@ dev = [
   "httpx>=0.27",
   "pyinstaller>=6.0",
   "pytest-cov",
+  "pytest-timeout",
+  "ruff",
+  "mypy",
 ]
 
 [tool.pytest.ini_options]

@@ -43,11 +43,11 @@ async def _transactions_context_impl(
 ) -> dict:
     queries = []
     params: dict[str, Any] = {}
-    
+
     name_filter = (filter_name or "").strip().lower()
     date_filter = (filter_date or "").strip()
     operation_filter = (filter_operation or "").strip().lower()
-    
+
     db_date_filter = None
     if date_filter:
         from datetime import datetime as dt_class
@@ -55,7 +55,7 @@ async def _transactions_context_impl(
             db_date_filter = dt_class.strptime(date_filter.strip(), "%Y-%m-%d").date()
         except ValueError:
             pass
-    
+
     # 1. Purchases query
     if filter_type in ("all", "purchase"):
         p_where = []
@@ -68,16 +68,16 @@ async def _transactions_context_impl(
         if operation_filter:
             p_where.append("lower('Achat') LIKE :operation_filter")
             params["operation_filter"] = f"%{operation_filter}%"
-            
+
         p_where_str = " AND ".join(p_where)
         p_where_clause = f"WHERE {p_where_str}" if p_where else ""
-        
+
         p_query = f"""
             SELECT 'Achat' AS tx_type, 'purchase' AS tx_kind, p.id, p.purchase_date AS tx_date,
-                   COALESCE(s.name, '-') AS partner_name, 
-                   CASE 
+                   COALESCE(s.name, '-') AS partner_name,
+                   CASE
                        WHEN p.finished_product_id IS NOT NULL THEN fp.name
-                       ELSE r.name 
+                       ELSE r.name
                    END AS designation,
                     CASE
                         WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) LIKE 'sac%%' THEN p.quantity / COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, r.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
@@ -98,7 +98,7 @@ async def _transactions_context_impl(
             {p_where_clause}
         """
         queries.append(p_query)
- 
+
     # 2. Sales query (finished + raw)
     if filter_type in ("all", "sale"):
         s_where = []
@@ -111,10 +111,10 @@ async def _transactions_context_impl(
         if operation_filter:
             s_where.append("lower('Vente') LIKE :operation_filter")
             params["operation_filter"] = f"%{operation_filter}%"
-            
+
         s_where_str = " AND ".join(s_where)
         s_where_clause = f"WHERE {s_where_str}" if s_where else ""
-        
+
         s_query = f"""
             SELECT 'Vente' AS tx_type,
                    CASE WHEN x.row_kind='finished' THEN 'sale_finished' ELSE 'sale_raw' END AS tx_kind,
@@ -130,7 +130,7 @@ async def _transactions_context_impl(
             {s_where_clause}
         """
         queries.append(s_query)
- 
+
     # 3. Payments query
     if filter_type in ("all", "payment"):
         pay_where = []
@@ -143,10 +143,10 @@ async def _transactions_context_impl(
         if operation_filter:
             pay_where.append("lower(CASE WHEN p.payment_type='avance' THEN 'Avance' ELSE 'Versement' END) LIKE :operation_filter")
             params["operation_filter"] = f"%{operation_filter}%"
-            
+
         pay_where_str = " AND ".join(pay_where)
         pay_where_clause = f"WHERE {pay_where_str}" if pay_where else ""
-        
+
         pay_query = f"""
             SELECT CASE WHEN p.payment_type='avance' THEN 'Avance' ELSE 'Versement' END AS tx_type, 'payment' AS tx_kind, p.id, p.payment_date AS tx_date,
                    c.name AS partner_name,
@@ -160,32 +160,32 @@ async def _transactions_context_impl(
             {pay_where_clause}
         """
         queries.append(pay_query)
-        
+
     if not queries:
         union_query = "SELECT CAST(NULL AS varchar) AS tx_type LIMIT 0"
     else:
         union_query = " UNION ALL ".join(queries)
-        
+
     full_query = f"""
         SELECT * FROM (
             {union_query}
         ) t
         ORDER BY tx_date DESC, tx_created_at DESC, id DESC
     """
-    
+
     requested_size = int((args or {}).get("page_size", 0) or 0)
     page, page_size, offset = parse_pagination(args)
     if requested_size > MAX_PAGE_SIZE:
         page_size = requested_size
-        
+
     count_res = await db.execute(text(f"SELECT COUNT(*) AS c FROM ({full_query}) paginated_query"), params)
     count_row = count_res.first()
     total = int(count_row.c if count_row else 0)
-    
+
     limit_params = {**params, "limit": page_size, "offset": offset}
     rows_res = await db.execute(text(f"{full_query} LIMIT :limit OFFSET :offset"), limit_params)
     rows = rows_res.all()
-    
+
     formatted_rows = []
     for row in rows:
         row_dict = dict(row._mapping)
@@ -197,9 +197,9 @@ async def _transactions_context_impl(
         else:
             row_dict["tx_time"] = ""
         formatted_rows.append(row_dict)
-        
+
     pagination = pagination_context(path, args, total=total, page=page, page_size=page_size)
-    
+
     return {
         "transactions": formatted_rows,
         "filter_type": filter_type,
@@ -233,7 +233,7 @@ async def _update_production_notes_impl(
 ) -> None:
     if not batch_id:
         raise ValueError("Identifiant manquant.")
-        
+
     before_res = await db.execute(
         text("SELECT * FROM production_batches WHERE id = :batch_id"),
         {"batch_id": batch_id},
@@ -242,12 +242,12 @@ async def _update_production_notes_impl(
     if not before_row:
         raise ValueError("Production introuvable.")
     before = dict(before_row._mapping)
-    
+
     updates = {}
     if production_date:
         updates["production_date"] = production_date
     updates["notes"] = notes
-    
+
     ALLOWED_KEYS = {"production_date", "notes"}
     for key in updates:
         if key not in ALLOWED_KEYS:
@@ -256,13 +256,13 @@ async def _update_production_notes_impl(
     sets = ", ".join(f"{key}=:{key}" for key in updates)
     values = {**updates, "batch_id": batch_id}
     await db.execute(text(f"UPDATE production_batches SET {sets} WHERE id = :batch_id"), values)
-    
+
     after_res = await db.execute(
         text("SELECT * FROM production_batches WHERE id = :batch_id"),
         {"batch_id": batch_id},
     )
     after = dict(after_res.first()._mapping)
-    
+
     log_activity("edit_production_notes", "production", batch_id, f"date={production_date}")
     audit_event("edit_production_notes", "production", batch_id, before=before, after=after)
     backup_database("edit_production_notes")

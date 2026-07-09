@@ -4,9 +4,8 @@ from __future__ import annotations
 from datetime import date, timedelta
 import time
 from typing import Any
-from decimal import Decimal
 
-from sqlalchemy import select, union_all, func, case, cast, literal_column, String, Numeric, or_, text, true
+from sqlalchemy import select, union_all, func, case, cast, literal_column, String, Numeric, text, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_sessionmaker
 from app.core.helpers import db_task_compat
@@ -381,7 +380,7 @@ async def _build_dashboard_snapshot(today: str, db: AsyncSession) -> dict:
     target_day = date.fromisoformat(today)
     cutoff_30d = (target_day - timedelta(days=30)).isoformat()
     week_iso = (target_day - timedelta(days=7)).isoformat()
-    
+
     daily_sum = await _dashboard_daily_summary(today, week_iso, db)
     cum_sum = await _dashboard_cumulative_summary(db)
     summary = {**daily_sum, **cum_sum}
@@ -391,7 +390,7 @@ async def _build_dashboard_snapshot(today: str, db: AsyncSession) -> dict:
         low_stock_query = select(RawMaterial).where(RawMaterial.stock_qty <= RawMaterial.alert_threshold).order_by(RawMaterial.stock_qty.asc())
         res = await db.execute(low_stock_query)
         return [r.model_dump() for r in res.scalars().all()]
-        
+
     low_stock = await async_cached_result(
         ("dashboard", "low_stock"),
         load_low_stock,
@@ -417,7 +416,7 @@ async def _build_dashboard_snapshot(today: str, db: AsyncSession) -> dict:
             .limit(15)
             .subquery()
         )
-        
+
         raw_sub = (
             select(
                 RawSale.sale_date,
@@ -435,7 +434,7 @@ async def _build_dashboard_snapshot(today: str, db: AsyncSession) -> dict:
             .limit(15)
             .subquery()
         )
-        
+
         recent_query = (
             select(
                 finished_sub.c.sale_date,
@@ -480,7 +479,7 @@ async def _build_dashboard_snapshot(today: str, db: AsyncSession) -> dict:
         res = await db.execute(counts_query)
         row = res.first()
         return dict(row._mapping) if row else {}
-        
+
     counts = await async_cached_result(
         ("dashboard", "counts"),
         load_counts,
@@ -497,7 +496,7 @@ async def _build_dashboard_snapshot(today: str, db: AsyncSession) -> dict:
             func.sum(Sale.balance_due).label("total_due"),
             func.sum(Sale.profit_amount).label("total_profit")
         ).group_by(Sale.sale_date)
-        
+
         r_sub = select(
             RawSale.sale_date,
             func.count().label("nb_sales"),
@@ -506,9 +505,9 @@ async def _build_dashboard_snapshot(today: str, db: AsyncSession) -> dict:
             func.sum(RawSale.balance_due).label("total_due"),
             func.sum(RawSale.profit_amount).label("total_profit")
         ).group_by(RawSale.sale_date)
-        
+
         union_sub = union_all(f_sub, r_sub).subquery("union_sub")
-        
+
         sales_summary_query = select(
             union_sub.c.sale_date,
             func.sum(union_sub.c.nb_sales).label("nb_sales"),
@@ -517,7 +516,7 @@ async def _build_dashboard_snapshot(today: str, db: AsyncSession) -> dict:
             func.sum(union_sub.c.total_due).label("total_due"),
             func.sum(union_sub.c.total_profit).label("total_profit")
         ).group_by(union_sub.c.sale_date).order_by(union_sub.c.sale_date.desc()).limit(15)
-        
+
         res = await db.execute(sales_summary_query)
         return [dict(r._mapping) for r in res.all()]
 
@@ -540,7 +539,7 @@ async def _build_dashboard_snapshot(today: str, db: AsyncSession) -> dict:
         stock_products_query = select(FinishedProduct).order_by(FinishedProduct.name).limit(10)
         res = await db.execute(stock_products_query)
         return [r.model_dump() for r in res.scalars().all()]
-        
+
     stock_products = await async_cached_result(
         ("dashboard", "stock_products"),
         load_stock_products,
@@ -608,24 +607,24 @@ async def _build_stock_materials(cutoff_30d: str, db: AsyncSession) -> list[dict
         (func.lower(RawSale.unit).in_(['qt', 'quintal']), RawSale.quantity * 100),
         else_=RawSale.quantity
     )
-    
+
     raw_sale_sub = select(
         RawSale.raw_material_id,
         raw_sale_qty_expr.label("qty")
     ).where(RawSale.sale_date >= cutoff_date)
-    
+
     prod_sub = select(
         ProductionBatchItem.raw_material_id,
         ProductionBatchItem.quantity.label("qty")
     ).join(ProductionBatch, ProductionBatch.id == ProductionBatchItem.batch_id).where(ProductionBatch.production_date >= cutoff_date)
-    
+
     source_union = union_all(raw_sale_sub, prod_sub).subquery("source_union")
-    
+
     consumed_sub = select(
         source_union.c.raw_material_id,
         func.sum(source_union.c.qty).label("consumed_30d")
     ).group_by(source_union.c.raw_material_id).subquery("consumed")
-    
+
     stock_materials_query = select(
         *RawMaterial.__table__.columns,
         func.coalesce(consumed_sub.c.consumed_30d, 0).label("consumed_30d")
@@ -653,23 +652,23 @@ async def _build_debt_by_client(db: AsyncSession) -> list:
         return [dict(r._mapping) for r in res.all()]
     except Exception:
         pass
-    
+
     finished_totals = select(
         Sale.client_id,
         func.sum(Sale.total).label("credit_total")
-    ).where(Sale.client_id != None, Sale.sale_type == 'credit').group_by(Sale.client_id).cte("finished_totals")
-    
+    ).where(Sale.client_id.is_not(None), Sale.sale_type == 'credit').group_by(Sale.client_id).cte("finished_totals")
+
     raw_totals = select(
         RawSale.client_id,
         func.sum(RawSale.total).label("credit_total")
-    ).where(RawSale.client_id != None, RawSale.sale_type == 'credit').group_by(RawSale.client_id).cte("raw_totals")
-    
+    ).where(RawSale.client_id.is_not(None), RawSale.sale_type == 'credit').group_by(RawSale.client_id).cte("raw_totals")
+
     payment_totals = select(
         Payment.client_id,
         func.sum(case((Payment.payment_type == 'versement', Payment.amount), else_=0)).label("versements"),
         func.sum(case((Payment.payment_type == 'avance', Payment.amount), else_=0)).label("avances")
     ).group_by(Payment.client_id).cte("payment_totals")
-    
+
     balance_expr = (
         Client.opening_credit +
         func.coalesce(finished_totals.c.credit_total, 0) +
@@ -677,7 +676,7 @@ async def _build_debt_by_client(db: AsyncSession) -> list:
         func.coalesce(payment_totals.c.versements, 0) +
         func.coalesce(payment_totals.c.avances, 0)
     )
-    
+
     fallback_query = select(
         Client.id,
         Client.name,
@@ -702,13 +701,13 @@ async def refresh_client_balances_view(db: AsyncSession | None = None) -> None:
     global _LAST_REFRESH_TIME_IN_MEM
     import logging
     logger = logging.getLogger("fabouanes")
-    
+
     now = time.time()
     if now - _LAST_REFRESH_TIME_IN_MEM < 10.0:
         logger.debug("Materialized view refresh debounced (in-memory lock active)")
         return
     _LAST_REFRESH_TIME_IN_MEM = now
-        
+
     try:
         if db is None:
             async with get_async_sessionmaker()() as session:
@@ -731,7 +730,7 @@ async def _dashboard_daily_summary(today: str, week_iso: str, db: AsyncSession) 
     tp_cash = select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.payment_date == today_date).scalar_subquery()
     ws_sales = select(func.coalesce(func.sum(Sale.total), 0)).where(Sale.sale_date == week_iso_date).scalar_subquery()
     wrs_sales = select(func.coalesce(func.sum(RawSale.total), 0)).where(RawSale.sale_date == week_iso_date).scalar_subquery()
-    
+
     daily_query = select(
         (ts_sales + trs_sales).label("sales_today"),
         (ws_sales + wrs_sales).label("sales_week_ago"),
@@ -754,28 +753,28 @@ async def _dashboard_daily_summary(today: str, week_iso: str, db: AsyncSession) 
 
 async def _dashboard_cumulative_summary(db: AsyncSession) -> dict[str, float]:
     total_receivables_sub = select(func.coalesce(func.sum(literal_column("balance")), 0)).select_from(text("mv_client_balances")).scalar_subquery()
-    
+
     total_profit_sub = select(
         func.coalesce(select(func.sum(Sale.profit_amount)).scalar_subquery(), 0) +
         func.coalesce(select(func.sum(RawSale.profit_amount)).scalar_subquery(), 0)
     ).scalar_subquery()
-    
+
     revenue_sub = select(
         func.coalesce(select(func.sum(Sale.total)).scalar_subquery(), 0) +
         func.coalesce(select(func.sum(RawSale.total)).scalar_subquery(), 0)
     ).scalar_subquery()
-    
+
     raw_sale_cog_expr = case(
         (func.lower(RawSale.unit).like('sac%'), RawSale.quantity * func.coalesce(func.nullif(func.regexp_replace(RawSale.unit, '[^0-9.]', '', 'g'), '').cast(Numeric), 50)),
         (func.lower(RawSale.unit).in_(['qt', 'quintal']), RawSale.quantity * 100),
         else_=RawSale.quantity
     ) * RawSale.cost_price_snapshot
-    
+
     cost_of_goods_sub = select(
         func.coalesce(select(func.sum(Sale.quantity * Sale.cost_price_snapshot)).scalar_subquery(), 0) +
         func.coalesce(select(func.sum(raw_sale_cog_expr)).scalar_subquery(), 0)
     ).scalar_subquery()
-    
+
     cumulative_query = select(
         total_receivables_sub.label("total_receivables"),
         total_profit_sub.label("total_profit"),
@@ -805,7 +804,7 @@ async def _build_kpis_for_date(target_date: str, db: AsyncSession) -> dict[str, 
     s_cte = select(func.coalesce(func.sum(Sale.total), 0).label("sales_total"), func.coalesce(func.sum(Sale.profit_amount), 0).label("profit")).where(Sale.sale_date == target_date_obj).cte("s")
     rs_cte = select(func.coalesce(func.sum(RawSale.total), 0).label("sales_total"), func.coalesce(func.sum(RawSale.profit_amount), 0).label("profit")).where(RawSale.sale_date == target_date_obj).cte("rs")
     p_cte = select(func.coalesce(func.sum(Payment.amount), 0).label("cash")).where(Payment.payment_date == target_date_obj).cte("p")
-    
+
     receivables_val = (
         select(func.coalesce(func.sum(Client.opening_credit), 0)).scalar_subquery() +
         select(func.coalesce(func.sum(Sale.total), 0)).where(Sale.sale_type == 'credit', Sale.sale_date <= target_date_obj).scalar_subquery() +
@@ -813,7 +812,7 @@ async def _build_kpis_for_date(target_date: str, db: AsyncSession) -> dict[str, 
         select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.payment_type == 'versement', Payment.payment_date <= target_date_obj).scalar_subquery() +
         select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.payment_type == 'avance', Payment.payment_date <= target_date_obj).scalar_subquery()
     )
-    
+
     kpi_query = select(
         (s_cte.c.sales_total + rs_cte.c.sales_total).label("sales"),
         p_cte.c.cash.label("cash"),
@@ -840,7 +839,7 @@ async def list_recent_operations(
     date_to: str | None = None,
     kind: str | None = None,
     page: int = 1,
-    page_size: int = 50,
+    page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
     if db is None:
@@ -924,7 +923,7 @@ async def _list_recent_operations_impl(
 
     # Combine using union_all
     union_stmt = union_all(s1, s2, s3, s4, s5).subquery("x")
-    
+
     stmt = select(union_stmt)
     if search:
         search_pat = f"%{search}%"
@@ -936,21 +935,20 @@ async def _list_recent_operations_impl(
                 func.coalesce(union_stmt.c.operation_label, '')
             ).like(search_pat.lower())
         )
-        
+
     if date_from:
         stmt = stmt.where(union_stmt.c.event_date >= date_from)
     if date_to:
         stmt = stmt.where(union_stmt.c.event_date <= date_to)
     if kind in {"sale", "payment", "purchase", "production"}:
         stmt = stmt.where(union_stmt.c.operation_type == kind)
-        
+
     stmt = stmt.add_columns(func.count().over().label("_total_count"))
-    
+
     # Order by event_date desc, row_id desc
     stmt = stmt.order_by(union_stmt.c.event_date.desc(), union_stmt.c.row_id.desc()).offset((page - 1) * page_size).limit(page_size)
-    
+
     res = await db.execute(stmt)
     rows = [dict(row._mapping) for row in res.fetchall()]
     total = int(rows[0]["_total_count"]) if rows else 0
     return rows, total
-

@@ -30,7 +30,7 @@ VALID_ROLES = {ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR}
 async def attempt_login(username: str, password: str, request: Request | None = None):
     normalized = (username or "").strip()
     ip = client_ip()
-    
+
     # 1. Check IP lockout first
     if is_locked_out(ip):
         audit_event(
@@ -55,7 +55,7 @@ async def attempt_login(username: str, password: str, request: Request | None = 
             meta={"reason": "rate_limited"},
         )
         return {"ok": False, "status": 429, "message": "Trop de tentatives de connexion. Réessayez dans 5 minutes."}
-        
+
     user = await get_user_by_username(normalized)
     if user and int(user.get("is_active", 1) or 0) and check_password_hash(user["password_hash"], password or ""):
         clear_login_failures(ip)  # Clear failures on success
@@ -63,10 +63,9 @@ async def attempt_login(username: str, password: str, request: Request | None = 
         user = await get_user_by_username(normalized)
         log_activity("login", "user", user["id"], f"Connexion de {normalized}")
         audit_event("login", "user", user["id"], after={"username": normalized, "role": user["role"]})
-        
+
         # Rotation de session pour empêcher la fixation de session
         if request and hasattr(request, "session"):
-            old_data = dict(request.session)
             request.session.clear()
             import secrets
             from app.core.security import get_client_fingerprint
@@ -78,7 +77,7 @@ async def attempt_login(username: str, password: str, request: Request | None = 
 
         return {"ok": True, "user": user}
 
-        
+
     # Failed attempt
     record_login_failure(ip)
     reason = "inactive" if user and not int(user.get("is_active", 1) or 0) else "invalid_credentials"

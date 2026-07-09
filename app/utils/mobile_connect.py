@@ -49,7 +49,7 @@ def _get_all_ips() -> list[str]:
                 ips.append(ip)
     except OSError:
         pass
-        
+
     return ips
 
 
@@ -102,7 +102,7 @@ def resolve_mobile_connect_urls(request: Request) -> list[dict[str, str]]:
     env_host = str(os.environ.get("FAB_HOST", "")).strip()
 
     networks = []
-    
+
     # Check if the current Host header is public/remote
     if current_host and not _is_local_host(current_host):
         networks.append({"name": "Domaine actuel", "url": _compose_url(scheme, current_host, port)})
@@ -115,7 +115,7 @@ def resolve_mobile_connect_urls(request: Request) -> list[dict[str, str]]:
         url = _compose_url(scheme, ip, port)
         if any(n["url"] == url for n in networks):
             continue
-        
+
         name = "Réseau Local (LAN / Wi-Fi)"
         if ip.startswith("100."):
             name = "Réseau VPN (Tailscale)"
@@ -123,7 +123,7 @@ def resolve_mobile_connect_urls(request: Request) -> list[dict[str, str]]:
             pass # Keep Local
         else:
             name = "Réseau Externe"
-            
+
         networks.append({"name": name, "url": url})
 
     return networks
@@ -155,7 +155,7 @@ def build_mobile_connect_qr_data_uri(url: str) -> str:
 
 def build_mobile_connect_context(request: Request) -> dict:
     networks_info = resolve_mobile_connect_urls(request)
-    
+
     networks = []
     for net in networks_info:
         qr = build_mobile_connect_qr_data_uri(net["url"])

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from fastapi import APIRouter, Request
 
 from app.api.deps import api_success, require_api_user

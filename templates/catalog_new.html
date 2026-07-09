@@ -94,7 +94,7 @@
 
   function syncPricePreview(){
     const v = parseFloat(priceKg?.value || 0); 
-    document.getElementById('kgPrev').textContent = v.toFixed(2); 
+    document.getElementById('kgPrev').textContent = v.toFixed(0); 
     
     let weight = 50.0;
     const unitVal = (unitSelect?.value || '').toLowerCase();
@@ -104,14 +104,14 @@
         weight = parseFloat(match[1]);
       }
     }
-    document.getElementById('sacPrev').textContent = (v * weight).toFixed(2); 
+    document.getElementById('sacPrev').textContent = (v * weight).toFixed(0); 
     const label = weight !== 50 || unitVal !== 'sac' ? `1 sac (${weight}kg)` : '1 sac';
     const sacLabelSpan = document.getElementById('sacLabelSpan');
     if (sacLabelSpan) {
       sacLabelSpan.textContent = label;
     }
 
-    document.getElementById('qtPrev').textContent = (v * 100).toFixed(2);
+    document.getElementById('qtPrev').textContent = (v * 100).toFixed(0);
   }
 
   function renderSuggestions(){

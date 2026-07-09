@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
-from sqlmodel import select, func, case, literal_column, and_, or_
+from sqlmodel import select, func, case, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Payment, Client
@@ -17,8 +17,8 @@ class PaymentRepository(AsyncRepository[Payment]):
 
     async def get_by_id(self, payment_id: int) -> Optional[Dict[str, Any]]:
         sale_ref_expr = case(
-            (and_(Payment.sale_kind == 'finished', Payment.sale_id != None), func.concat('Produit #', Payment.sale_id)),
-            (and_(Payment.sale_kind == 'raw', Payment.raw_sale_id != None), func.concat('Matière #', Payment.raw_sale_id)),
+            (and_(Payment.sale_kind == 'finished', Payment.sale_id.is_not(None)), func.concat('Produit #', Payment.sale_id)),
+            (and_(Payment.sale_kind == 'raw', Payment.raw_sale_id.is_not(None)), func.concat('Matière #', Payment.raw_sale_id)),
             else_='-'
         )
         stmt = (
@@ -42,14 +42,14 @@ class PaymentRepository(AsyncRepository[Payment]):
         date_to: Optional[str] = None,
         kind: Optional[str] = None,
         page: int = 1,
-        page_size: int = 50,
+        page_size: int = 25,
     ) -> Tuple[List[Dict[str, Any]], int]:
         sale_ref_expr = case(
-            (and_(Payment.sale_kind == 'finished', Payment.sale_id != None), func.concat('Produit #', Payment.sale_id)),
-            (and_(Payment.sale_kind == 'raw', Payment.raw_sale_id != None), func.concat('Matière #', Payment.raw_sale_id)),
+            (and_(Payment.sale_kind == 'finished', Payment.sale_id.is_not(None)), func.concat('Produit #', Payment.sale_id)),
+            (and_(Payment.sale_kind == 'raw', Payment.raw_sale_id.is_not(None)), func.concat('Matière #', Payment.raw_sale_id)),
             else_='-'
         )
-        
+
         stmt = (
             select(
                 *Payment.__table__.columns,
@@ -135,7 +135,7 @@ async def list_payments(
     date_to: str | None = None,
     kind: str | None = None,
     page: int = 1,
-    page_size: int = 50,
+    page_size: int = 25,
 ) -> tuple[list[dict], int]:
     async with get_async_sessionmaker()() as session:
         repo = PaymentRepository(session)
@@ -147,4 +147,3 @@ async def list_payments(
             page=page,
             page_size=page_size
         )
-

@@ -7,9 +7,9 @@
       0 résultat
     {% endif %}
   </div>
-  <div class="btn-group" role="group" aria-label="Pagination">
+  <div class="d-flex align-items-center gap-2" role="navigation" aria-label="Pagination">
     <a class="btn btn-sm btn-outline-secondary{% if not pagination.has_prev %} disabled{% endif %}" href="{{ pagination.prev_url or '#' }}">Précédent</a>
-    <span class="btn btn-sm btn-outline-secondary disabled">Page {{ pagination.page }} / {{ pagination.pages }}</span>
+    <span class="btn btn-sm btn-outline-secondary disabled" style="opacity: 0.85; pointer-events: none; border-color: var(--separator);">Page {{ pagination.page }}/{{ pagination.pages }}</span>
     <a class="btn btn-sm btn-outline-secondary{% if not pagination.has_next %} disabled{% endif %}" href="{{ pagination.next_url or '#' }}">Suivant</a>
   </div>
 </div>

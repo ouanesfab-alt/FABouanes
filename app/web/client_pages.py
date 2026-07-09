@@ -107,7 +107,7 @@ async def import_clients_submit(request: Request, db: AsyncSession = Depends(get
     form = await request.form()
     action = str(form.get("action", "import") or "import").strip()
     service = ClientService(db)
-    
+
     if action == "confirm_preview":
         result = await service.import_clients_from_preview(str(form.get("preview_token", "") or ""))
         for err in result["errors"][:5]:

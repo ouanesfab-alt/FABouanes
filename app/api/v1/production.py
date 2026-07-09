@@ -37,23 +37,23 @@ async def api_get_production_batches(request: Request):
 @router.post("/production-batches", status_code=201)
 async def api_create_production_batch(request: Request, payload: ProductionCreateSchema):
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_WRITE)
-    
+
     # Use by_alias=True to map "raw_material_ids" to "raw_material_id[]", and "quantities" to "quantity[]"
     data_dict = payload.model_dump(by_alias=True)
-    
+
     # In case the user passed raw_material_ids instead of raw_material_id[] in JSON, handle it:
     if "raw_material_id[]" not in data_dict or data_dict["raw_material_id[]"] is None:
         data_dict["raw_material_id[]"] = []
     if "quantity[]" not in data_dict or data_dict["quantity[]"] is None:
         data_dict["quantity[]"] = []
-        
+
     form_data = payload_to_form_data(data_dict)
-    
+
     try:
         result = await create_production_from_form(form_data)
     except ValueError as e:
         api_error("invalid_value", str(e), 400)
-        
+
     batch = await production_payload(result["batch_id"])
     return json_response(api_success({"batch": batch, "recipe_id": result["recipe_id"]}, status_code=201))
 

@@ -17,6 +17,8 @@ database.db
 tests/_runtime/
 tests/_runtime_debug/
 tests/_runtime_fastapi/
+app/runtime/
+simulation_debug.log
 
 # Desktop / build artefacts
 dist/

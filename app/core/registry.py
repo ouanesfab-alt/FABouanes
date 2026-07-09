@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi import APIRouter
+    from app.modules.base import ModuleBase
 
 logger = logging.getLogger("fabouanes.registry")
 
@@ -68,7 +69,7 @@ def register(module: ModuleDescriptor | "ModuleBase") -> None:
         descriptor = module
     else:
         raise TypeError(f"Expected ModuleBase or ModuleDescriptor, got {type(module)}")
-        
+
     _modules[descriptor.name] = descriptor
     logger.info("Module registered: %s (%s)", descriptor.name, descriptor.label)
 

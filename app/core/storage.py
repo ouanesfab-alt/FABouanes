@@ -97,7 +97,7 @@ def mark_backup_needed(reason: str = "event") -> None:
         """,
         (BACKUP_NEEDED_SETTING, json.dumps(payload, ensure_ascii=True, sort_keys=True)),
     )
-    
+
     # Broadcast to connected clients for real-time operations refresh
     try:
         from app.core.websockets import manager
@@ -195,8 +195,9 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
         tmp_sql = Path(tmp.name)
 
     try:
+        pg_dump_bin = get_setting("pg_dump_path", "").strip() or "pg_dump"
         cmd = [
-            "pg_dump",
+            pg_dump_bin,
             "-h", host, "-p", str(port), "-U", username,
             "-F", "p",          # format texte (plain SQL)
             "--no-password",
@@ -355,11 +356,11 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
         with open(tmp_sql2, "rb") as fi, gzip.open(gz_tmp2, "wb", compresslevel=6) as fo:
             shutil.copyfileobj(fi, fo)
         tmp_sql2.unlink(missing_ok=True)
-        
+
         enc_tmp2 = gz_tmp2.with_suffix(".sql.gz.enc")
         _encrypt_file(gz_tmp2, enc_tmp2)
         gz_tmp2.unlink(missing_ok=True)
-        
+
         enc_tmp2.rename(final_path)
         return final_path
 

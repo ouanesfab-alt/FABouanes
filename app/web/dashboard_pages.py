@@ -8,6 +8,8 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from app.utils.mobile_connect import build_mobile_connect_context
 from app.web.deps import get_current_user, template_context, templates
 from app.modules.reports.repository import get_dashboard_snapshot, get_kpis_for_date
+from app.modules.assistant.service import get_gemini_api_key
+from app.core.db_helpers import db_manager
 
 
 router = APIRouter()
@@ -15,10 +17,21 @@ router = APIRouter()
 
 def _money(value):
     try:
-        amount = float(value or 0)
+        amount = int(round(float(value or 0)))
     except Exception:
-        amount = 0.0
-    return f"{amount:,.2f} DA".replace(",", " ")
+        amount = 0
+    return f"{amount:,} DA".replace(",", " ")
+
+
+def _assistant_context():
+    """Build context variables for the inline Sabrina assistant widget."""
+    api_key = get_gemini_api_key()
+    selected_model = db_manager.get_setting("gemini_model", "gemini-3.1-flash-lite").strip()
+    if not selected_model:
+        selected_model = "gemini-3.1-flash-lite"
+    is_local = selected_model.lower() in ("local", "ollama")
+    has_key = bool(api_key) or is_local
+    return {"has_key": has_key, "selected_model": selected_model}
 
 
 @router.get("/", name="index")
@@ -27,6 +40,7 @@ async def index(request: Request):
         return RedirectResponse("/login", status_code=303)
     context = await get_dashboard_snapshot()
     context.update(build_mobile_connect_context(request))
+    context.update(_assistant_context())
     return templates.TemplateResponse("dashboard.html", template_context(request, **context))
 
 
@@ -36,6 +50,7 @@ async def dashboard(request: Request):
         return RedirectResponse("/login", status_code=303)
     context = await get_dashboard_snapshot()
     context.update(build_mobile_connect_context(request))
+    context.update(_assistant_context())
     return templates.TemplateResponse("dashboard.html", template_context(request, **context))
 
 

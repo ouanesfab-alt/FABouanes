@@ -9,7 +9,6 @@ from werkzeug.security import generate_password_hash
 
 from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME
 from app.core.storage import ensure_runtime_dirs
-from app.core.db_helpers import list_columns, connect_database
 
 FIRST_ADMIN_PASSWORD_FILE = APP_DATA_DIR / "first_admin_password.txt"
 OTHER_OPERATION_NAME = "AUTRE"

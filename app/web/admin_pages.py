@@ -40,6 +40,9 @@ async def admin_panel_submit(request: Request):
     await csrf_protect(request)
     form = await request.form()
     action = form.get("action", "create_user")
+    import logging
+    logging.getLogger("uvicorn.error").info(f"[DEBUG ADMIN POST] action={action}, form_keys={list(form.keys())}")
+    print(f"[DEBUG ADMIN POST] action={action}, form_keys={list(form.keys())}")
     if action == "create_user":
         result = await create_user_account(form.get("username", ""), form.get("password", ""), form.get("role", "operator"))
     elif action == "update_user":
@@ -51,6 +54,23 @@ async def admin_panel_submit(request: Request):
         )
     elif action == "save_backup_settings":
         result = await save_backup_settings_from_form(dict(form))
+    elif action == "save_sabrina_settings":
+        api_key = form.get("gemini_api_key", "").strip()
+        selected_model = form.get("gemini_model", "").strip()
+        chat_mode = form.get("chat_mode", "").strip()
+        from app.core.db_helpers import db_manager
+        if chat_mode == "local":
+            db_manager.set_setting("gemini_model", "local")
+        else:
+            if selected_model:
+                db_manager.set_setting("gemini_model", selected_model)
+        if api_key:
+            if not api_key.startswith("••••"):
+                from app.core.security import encrypt_val
+                from app.modules.assistant.schema_context import get_encryption_key
+                encrypted_key = encrypt_val(api_key, get_encryption_key())
+                db_manager.set_setting("gemini_api_key", encrypted_key)
+        result = {"ok": True, "message": "Paramètres de Sabrina enregistrés avec succès."}
     elif action == "backup_now":
         result = await create_manual_backup()
     elif action == "restore_backup":

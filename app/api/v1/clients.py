@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException, Response, Depends
-import asyncio
-from sqlalchemy import select, union_all, func, case, literal_column, text, table
+from sqlalchemy import select, union_all, func, case, literal_column, table
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_error, api_success, require_api_user
@@ -11,7 +10,6 @@ from app.api.v1._common import (
     client_payload,
     finished_product_payload,
     json_response,
-    payload_to_form_data,
     raw_material_payload,
     supplier_payload,
     add_cache_headers,
@@ -19,7 +17,6 @@ from app.api.v1._common import (
 from app.modules.catalog.repository import list_suppliers, list_raw_materials, list_finished_products
 from app.core.activity import log_activity
 from app.core.audit import audit_event
-from app.core.db_access import execute_db_async, query_db_async
 from app.core.async_db import get_async_session
 from app.core.models import Client, ClientHistory, Sale, RawSale, Payment, Supplier
 
@@ -77,7 +74,8 @@ async def export_clients_csv(request: Request, db: AsyncSession = Depends(get_as
     dernière opération. Format CSV téléchargeable.
     """
     require_api_user(request, PERMISSION_CONTACTS_READ)
-    import csv, io
+    import csv
+    import io
     from datetime import date
     async def _build_export():
         sub_sales = select(func.max(Sale.sale_date).label("d")).where(Sale.client_id == Client.id)
@@ -96,10 +94,10 @@ async def export_clients_csv(request: Request, db: AsyncSession = Depends(get_as
             derniere_vente_expr.label("derniere_vente"),
             dernier_paiement_expr.label("dernier_paiement")
         ).select_from(table("clients_with_stats").alias("c")).order_by(literal_column("current_balance").desc())
-        
+
         res = await db.execute(stmt)
         rows = [dict(row._mapping) for row in res.fetchall()]
-        
+
         buf = io.StringIO()
         writer = csv.DictWriter(buf, fieldnames=[
             "id", "nom", "solde_actuel",
@@ -187,18 +185,18 @@ async def _fetch_client_history(client_id: int, page: int, page_size: int, db: A
         case((ClientHistory.source == 'app', ClientHistory.operation_date), else_=None),
         case((ClientHistory.source == 'app', ClientHistory.id), else_=None)
     ).offset(offset).limit(page_size)
-    
+
     res = await db.execute(stmt)
     rows = res.scalars().all()
-    
+
     # 3. Process only the paginated rows
     processed_rows = []
-    
+
     for r in rows:
         m_achat = float(r.montant_achat or 0)
         m_verse = float(r.montant_verse or 0)
         solde = float(r.solde_cumule or 0)
-            
+
         designation = r.designation or ""
         ordre = r.ordre_import or 0
         if r.source == "import_excel" and ordre == 0 and "ancien" in designation.lower():
@@ -214,7 +212,7 @@ async def _fetch_client_history(client_id: int, page: int, page_size: int, db: A
                 type_op = "mixte"
         else:
             type_op = "achat"
-            
+
         processed_rows.append({
             "operation_date": str(r.operation_date),
             "designation": designation,
@@ -226,7 +224,7 @@ async def _fetch_client_history(client_id: int, page: int, page_size: int, db: A
             "type_operation": type_op,
             "created_at": r.created_at.isoformat() if r.created_at else None,
         })
-        
+
     return processed_rows, total
 
 
@@ -240,7 +238,7 @@ async def import_client_history(
     require_api_user(request, PERMISSION_CONTACTS_WRITE)
     import tempfile
     import os
-    
+
     suffix = os.path.splitext(file.filename)[1]
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         content = await file.read()
@@ -286,7 +284,7 @@ async def api_client_history(
     rows, total = await _fetch_client_history(client_id, page, page_size, db)
     import math
     total_pages = math.ceil(total / page_size) if page_size > 0 else 1
-    
+
     res_data = api_success({
         "client_id": client_id,
         "rows": rows,
@@ -520,7 +518,9 @@ async def bulk_import_client_history(
     Importe chaque fichier et retourne un rapport global.
     """
     require_api_user(request, PERMISSION_CONTACTS_WRITE)
-    import tempfile, zipfile, os
+    import tempfile
+    import zipfile
+    import os
 
     # Enforce a strict 50MB file size limit for ZIP uploads
     MAX_SIZE = 50 * 1024 * 1024

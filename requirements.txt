@@ -1,6 +1,7 @@
 fastapi>=0.115
 uvicorn>=0.34
 sqlalchemy>=2.0
+sqlmodel>=0.0.22
 alembic>=1.16
 python-multipart>=0.0.20
 Werkzeug>=3.0
@@ -10,6 +11,7 @@ itsdangerous>=2.2
 openpyxl>=3.1
 pywebview>=5.0
 pg8000>=1.31
+asyncpg>=0.29
 gunicorn>=22.0
 qrcode[pil]>=8.0
 Pillow>=10.0

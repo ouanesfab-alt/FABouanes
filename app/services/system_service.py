@@ -7,7 +7,6 @@ from pathlib import Path
 from app.core.config import APP_DATA_DIR, DATABASE_URL
 from app.core.db import connect_database, postgres_pool_status
 from app.core.activity import write_text_log
-import asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_sessionmaker
@@ -39,7 +38,7 @@ async def _get_system_status_impl(db: AsyncSession) -> dict:
         db_message = str(exc)
 
     backups = list_restore_backups()
-    
+
     latest_job = None
     try:
         latest_job_res = await db.execute(text("SELECT * FROM backup_jobs ORDER BY id DESC LIMIT 1"))
@@ -56,7 +55,7 @@ async def _get_system_status_impl(db: AsyncSession) -> dict:
         )
         index_row = index_row_res.first()
         index_count = int(index_row.c if index_row else 0)
-        
+
         # explain query plan: we can execute it via text explain on the session!
         query_plan_res = await db.execute(text("EXPLAIN SELECT id, name FROM clients ORDER BY name LIMIT 50"))
         for row in query_plan_res.all():
@@ -65,7 +64,7 @@ async def _get_system_status_impl(db: AsyncSession) -> dict:
             plan_lines.append(str(detail))
     except Exception:
         pass
-        
+
     pending_marker = get_pending_backup_marker()
     data_dir = Path(APP_DATA_DIR)
     backup_dir = Path(LOCAL_BACKUP_DIR)
@@ -74,7 +73,7 @@ async def _get_system_status_impl(db: AsyncSession) -> dict:
     from app.services.backup_service import BACKGROUND_STATE
     write_status = await _probe_db_write(db)
     backup_write_status = _probe_dir_write(backup_dir)
-    
+
     return {
         "version": VERSION_LABEL,
         "background_jobs": {

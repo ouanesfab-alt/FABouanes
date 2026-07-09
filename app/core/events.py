@@ -439,7 +439,7 @@ def startup():
     """Démarre le planificateur de tâches en arrière-plan et le listener de base de données Pub/Sub."""
     global _db_listener_thread, _db_listener_running
     import threading
-    
+
     # Start DB Pub/Sub listener
     if not _db_listener_running:
         # Nettoyer les anciens événements au démarrage pour garder la table légère
@@ -478,7 +478,7 @@ def shutdown():
             logger.info("Scheduler APScheduler arrêté.")
         except Exception as e:
             logger.error("Erreur lors de l'arrêt du scheduler : %s", e)
-            
+
     if _db_listener_running:
         _db_listener_running = False
         logger.info("DB Pub/Sub Event Bus listener arrêté.")

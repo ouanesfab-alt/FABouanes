@@ -52,15 +52,15 @@
         </div>
         <div class="span-4">
           <label for="stockInput" class="form-label mb-1">Stock</label>
-          <input name="stock_qty" id="stockInput" type="text" inputmode="decimal" class="form-control" value="{{ product.stock_qty }}">
+          <input name="stock_qty" id="stockInput" type="text" inputmode="decimal" class="form-control" value="{{ product.stock_qty|round|int if product.stock_qty is not none else '0' }}">
         </div>
         <div class="span-4">
           <label for="salePriceKg" class="form-label mb-1">Prix de vente par kg</label>
-          <input id="salePriceKg" name="sale_price" type="text" inputmode="decimal" class="form-control" value="{{ product.sale_price }}">
+          <input id="salePriceKg" name="sale_price" type="text" inputmode="decimal" class="form-control" value="{{ product.sale_price|round|int if product.sale_price is not none else '0' }}">
         </div>
         <div class="span-12">
           <label for="avgCostKg" class="form-label mb-1">Prix de production / coût moyen par kg</label>
-          <input id="avgCostKg" name="avg_cost" type="text" inputmode="decimal" class="form-control" value="{{ product.avg_cost }}">
+          <input id="avgCostKg" name="avg_cost" type="text" inputmode="decimal" class="form-control" value="{{ product.avg_cost|round|int if product.avg_cost is not none else '0' }}">
         </div>
         <div class="span-12">
           <div class="product-edit-note">
@@ -88,7 +88,7 @@
 
   function syncPricePreview(){
     const v = parseFloat(priceKg?.value || 0); 
-    document.getElementById('kgPrev').textContent = v.toFixed(2); 
+    document.getElementById('kgPrev').textContent = v.toFixed(0); 
     
     let weight = 50.0;
     const unitVal = (unitSelect?.value || '').toLowerCase();
@@ -98,14 +98,14 @@
         weight = parseFloat(match[1]);
       }
     }
-    document.getElementById('sacPrev').textContent = (v * weight).toFixed(2); 
+    document.getElementById('sacPrev').textContent = (v * weight).toFixed(0); 
     const label = weight !== 50 || unitVal !== 'sac' ? `1 sac (${weight}kg)` : '1 sac';
     const sacLabelSpan = document.getElementById('sacLabelSpan');
     if (sacLabelSpan) {
       sacLabelSpan.textContent = label;
     }
 
-    document.getElementById('qtPrev').textContent = (v * 100).toFixed(2);
+    document.getElementById('qtPrev').textContent = (v * 100).toFixed(0);
   }
 
   priceKg?.addEventListener('input', syncPricePreview);
@@ -119,7 +119,7 @@
 </script>
 <style nonce="{{ csp_nonce }}">
   .preset-badge {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--bg);
     border: 1px solid var(--line);
     border-radius: 20px;
     padding: 4px 12px;

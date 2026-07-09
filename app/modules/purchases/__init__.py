@@ -7,11 +7,11 @@ class PurchasesModule(ModuleBase):
     @property
     def name(self) -> str:
         return "purchases"
-    
+
     @property
     def label(self) -> str:
         return "Achats"
-    
+
     @property
     def icon(self) -> str:
         return "bi-bag"

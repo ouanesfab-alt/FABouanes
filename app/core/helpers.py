@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.request_state import get_state_value
 
 def async_compat(func):

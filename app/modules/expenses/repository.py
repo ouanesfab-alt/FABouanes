@@ -72,11 +72,12 @@ async def create_expense(db: AsyncSession, date: Any, category: str, description
         parsed_date = d_cls.fromisoformat(date)
     else:
         parsed_date = date
+    from decimal import Decimal
     entity = Expense(
         date=parsed_date,
         category=category,
         description=description,
-        amount=amount,
+        amount=Decimal(str(amount)),
         payment_method=method
     )
     repo = ExpenseRepository(db)
@@ -94,7 +95,8 @@ async def update_expense(db: AsyncSession, expense_id: int, date: Any, category:
             entity.date = date
         entity.category = category
         entity.description = description
-        entity.amount = amount
+        from decimal import Decimal
+        entity.amount = Decimal(str(amount))
         entity.payment_method = method
         entity.updated_at = datetime.utcnow()
         await repo.update(entity)

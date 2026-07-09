@@ -40,7 +40,7 @@ async def operations_page(request: Request):
     denied = require_permission(request, PERMISSION_OPERATIONS_READ)
     if denied:
         return denied
-    
+
     fmt = request.query_params.get("format", "").lower()
     if fmt in ("csv", "xlsx"):
         large_args = dict(request.query_params)
@@ -54,7 +54,7 @@ async def operations_page(request: Request):
             path=request.url.path,
         )
         data = context["transactions"]
-        
+
         if fmt == "csv":
             output = io.StringIO()
             fieldnames = ["tx_type", "tx_date", "partner_name", "designation", "quantity", "unit", "unit_price", "total", "paid", "due"]
@@ -69,31 +69,31 @@ async def operations_page(request: Request):
                 media_type="text/csv; charset=utf-8",
                 headers={"Content-Disposition": f'attachment; filename="{filename}"'},
             )
-            
+
         elif fmt == "xlsx":
             import openpyxl
             from openpyxl.styles import Font
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Transactions"
-            
+
             headers = ["TYPE", "DATE", "TIERS", "DÉSIGNATION", "QUANTITÉ", "UNITÉ", "PRIX UNITAIRE", "TOTAL", "PAYÉ", "DU"]
             ws.append(headers)
-            
+
             fieldnames = ["tx_type", "tx_date", "partner_name", "designation", "quantity", "unit", "unit_price", "total", "paid", "due"]
             for row in data:
                 ws.append([str(row.get(f) or "") if row.get(f) is not None else "" for f in fieldnames])
-                
+
             ws.freeze_panes = "A2"
             bold_font = Font(bold=True)
             for cell in ws[1]:
                 cell.font = bold_font
-                
+
             for col in ws.columns:
                 max_len = max(len(str(cell.value or '')) for cell in col)
                 col_letter = openpyxl.utils.get_column_letter(col[0].column)
                 ws.column_dimensions[col_letter].width = max(max_len + 3, 10)
-                
+
             filename = f"transactions_{date.today().isoformat()}.xlsx"
             out_buf = io.BytesIO()
             wb.save(out_buf)
@@ -120,25 +120,25 @@ async def new_operation_page(request: Request, db: AsyncSession = Depends(get_as
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
-    
+
     from app.modules.purchases.service import PurchaseService
     from app.modules.sales.service import SalesService
     from app.services.payment_service import new_payment_context
     from app.core.db_access import query_db
- 
+
     p_ctx = await PurchaseService(db).purchase_form_context()
     s_ctx = await SalesService(db).sale_form_context()
     pay_ctx = await new_payment_context()
-    
+
     context = {}
     context.update(p_ctx)
     context.update(s_ctx)
     context.update(pay_ctx)
-    
+
     context["clients"] = query_db("SELECT * FROM clients ORDER BY name")
     context["suppliers"] = query_db("SELECT * FROM suppliers ORDER BY name")
     context["mode"] = request.query_params.get("mode", "achat")
-    
+
     return templates.TemplateResponse("operation_new.html", template_context(request, **context))
 
 

@@ -8,7 +8,7 @@ T = TypeVar("T", bound=SQLModel)
 
 class AsyncRepository(Generic[T]):
     """Generic asynchronous repository providing common CRUD operations using SQLModel."""
-    
+
     def __init__(self, session: AsyncSession, model_cls: Type[T]):
         self.session = session
         self.model_cls = model_cls

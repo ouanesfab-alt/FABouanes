@@ -48,8 +48,6 @@
               href="{{ url_for('bons_space') }}"><i class="bi bi-receipt me-2"></i>Espace bons</a></li>
           <li><a class="dropdown-item {{ 'active' if request.endpoint == 'mobile_connect' else '' }}"
               href="{{ url_for('mobile_connect') }}"><i class="bi bi-qr-code me-2"></i>Connexion mobile</a></li>
-          <li><hr class="dropdown-divider"></li>
-          <li><a class="dropdown-item {{ 'active' if request.endpoint in ['assistant_chat_page'] else '' }}" href="{{ url_for('assistant_chat_page') }}"><span style="background: rgba(136, 108, 245, 0.15); color: #886cf5; font-weight: 700; border-radius: 4px; padding: 1px 4px; font-size: 0.75rem; margin-right: 8px; border: 1px solid rgba(136, 108, 245, 0.3); font-family: system-ui, sans-serif; display: inline-flex; align-items: center; justify-content: center; height: 18px; width: 22px; line-height: 1;">S<sup style="font-size: 0.5rem; margin-left: 0.5px;">ia</sup></span>Sabrina</a></li>
         </ul>
       </div>
     </div>

@@ -15,11 +15,13 @@
   html:has(.assistant-wrapper),
   body:has(.assistant-wrapper) {
     height: 100vh !important;
+    height: 100dvh !important;
     overflow: hidden !important;
   }
 
   body:has(.assistant-wrapper) .app-content {
     height: calc(100vh - var(--nav-h, 56px)) !important;
+    height: calc(100dvh - var(--nav-h, 56px)) !important;
     padding: 16px !important;
     display: flex !important;
     flex-direction: column !important;
@@ -29,8 +31,16 @@
 
   @media (max-width: 991px) {
     body:has(.assistant-wrapper) .app-content {
-      height: calc(100vh - var(--nav-h, 56px) - var(--bot-h, 56px)) !important;
+      height: calc(100vh - var(--nav-h, 56px)) !important;
+      height: calc(100dvh - var(--nav-h, 56px)) !important;
       padding: 10px 8px !important;
+    }
+  }
+
+  @media (max-width: 767px) {
+    body:has(.assistant-wrapper) .app-content {
+      height: calc(100vh - var(--nav-h, 56px) - var(--bot-h, 64px) - env(safe-area-inset-bottom, 0px)) !important;
+      height: calc(100dvh - var(--nav-h, 56px) - var(--bot-h, 64px) - env(safe-area-inset-bottom, 0px)) !important;
     }
   }
 
@@ -46,6 +56,63 @@
     align-items: stretch;
     min-height: 0;
     overflow: hidden;
+  }
+
+  /* Thread List Styling */
+  .thread-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    background: transparent;
+  }
+  .thread-item:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
+  [data-theme="dark"] .thread-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .thread-item.active {
+    background: var(--accent);
+    color: white !important;
+  }
+  .thread-title-wrap {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .thread-delete-btn {
+    opacity: 0;
+    transition: opacity 0.2s;
+    background: transparent;
+    border: none;
+    padding: 0 4px;
+    color: inherit;
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.95rem;
+  }
+  .thread-item:hover .thread-delete-btn {
+    opacity: 0.7;
+  }
+  .thread-item:hover .thread-delete-btn:hover {
+    opacity: 1;
+    color: #ef4444;
+  }
+  .thread-item.active .thread-delete-btn {
+    opacity: 0.8;
   }
 
   .assistant-sidebar {
@@ -77,14 +144,21 @@
       top: 0;
       left: 0;
       height: 100vh !important;
+      height: 100dvh !important;
       width: 280px !important;
       z-index: 2500;
       transform: translateX(-100%);
       visibility: hidden;
       opacity: 0;
       border-radius: 0 16px 16px 0;
-      background: var(--bg-primary);
+      background: var(--bg-primary) !important;
       box-shadow: 0 0 24px rgba(0, 0, 0, 0.3);
+      backdrop-filter: none !important;
+      filter: none !important;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      -webkit-transform-style: preserve-3d;
+      transform-style: preserve-3d;
     }
     .assistant-sidebar.open {
       transform: translateX(0);
@@ -98,8 +172,8 @@
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: none !important;
     z-index: 2400;
   }
   .sidebar-overlay.show {
@@ -617,6 +691,19 @@
     </div>
     <p class="text-secondary small mb-3">Votre assistante commerciale intelligente.</p>
 
+    <!-- Actions Discussion -->
+    <button type="button" class="btn btn-primary btn-sm w-100 mb-2 d-flex align-items-center justify-content-center gap-2" id="newChatBtn" style="font-weight: 600; border-radius: 8px; padding: 8px 12px; background: var(--accent); border: none; color: white;">
+      <i class="bi bi-chat-left-text-fill"></i> Nouvelle discussion
+    </button>
+
+    <!-- Historique des discussions -->
+    <div class="mb-2 d-flex flex-column" style="min-height: 0; max-height: 220px;">
+      <label class="small fw-bold text-secondary mb-1" style="font-size: 0.78rem;">Discussions récentes :</label>
+      <div id="threadsListContainer" class="d-flex flex-column gap-1" style="overflow-y: auto; max-height: 180px; padding-right: 4px;">
+        <!-- Rendu dynamique en JS -->
+      </div>
+    </div>
+
     <!-- Contrôle bascule en ligne / local -->
     <div class="segmented-switch mb-3">
       <input type="radio" name="model_mode" id="modeOnline" value="online" {% if selected_model != 'local' and selected_model != 'ollama' %}checked{% endif %}>
@@ -635,8 +722,7 @@
         <select name="gemini_model" class="form-select" id="geminiModelSelect" style="font-size: 0.82rem; border-radius: 8px; cursor: pointer;" onchange="this.form.submit()">
           <option value="gemini-3.1-flash-lite" {% if selected_model == 'gemini-3.1-flash-lite' or not selected_model %}selected{% endif %}>Gemini 3.1 Flash Lite (Par défaut)</option>
           <option value="gemini-2.5-flash" {% if selected_model == 'gemini-2.5-flash' %}selected{% endif %}>Gemini 2.5 Flash</option>
-          <option value="gemini-1.5-pro" {% if selected_model == 'gemini-1.5-pro' %}selected{% endif %}>Gemini 1.5 Pro (Performance)</option>
-          <option value="gemini-1.5-flash" {% if selected_model == 'gemini-1.5-flash' %}selected{% endif %}>Gemini 1.5 Flash</option>
+          <option value="gemini-3.5-flash" {% if selected_model == 'gemini-3.5-flash' %}selected{% endif %}>Gemini 3.5 Flash</option>
         </select>
       </div>
 
@@ -651,6 +737,9 @@
             placeholder="{% if has_key %}•••••••• (Sauvegardée){% else %}AIzaSy...{% endif %}"
             {% if not has_key and selected_model != 'local' and selected_model != 'ollama' %}required{% endif %}>
           <button class="btn btn-outline-secondary" type="submit" style="font-size: 0.82rem; border-radius: 0 8px 8px 0;">Sauver</button>
+        </div>
+        <div class="mt-1 text-muted" style="font-size: 0.72rem; line-height: 1.25;">
+          <i class="bi bi-info-circle-fill me-1"></i> Astuce : Entrez plusieurs clés séparées par des virgules (,) pour alterner automatiquement.
         </div>
         {% if not has_key %}
         <div class="mt-1 text-danger small" style="font-size: 0.72rem;">
@@ -695,6 +784,11 @@
           </div>
           <h3 class="fw-bold">Je suis Sabrina, votre assistante commerciale.</h3>
           <p class="text-secondary small">Comment puis-je vous aider aujourd'hui ? Posez vos questions pour gérer vos clients, ventes, stocks ou dépenses.</p>
+          <div class="mt-3">
+            <button class="btn btn-outline-primary btn-sm rounded-pill px-3 py-1.5" id="btnLoadBriefing">
+              <i class="bi bi-sun-fill me-1 text-warning"></i> Voir le résumé du jour
+            </button>
+          </div>
         </div>
         <div class="row g-3 welcome-grid">
           <div class="col-md-6">
@@ -808,31 +902,8 @@
 <script nonce="{{ csp_nonce }}">
   document.addEventListener('DOMContentLoaded', function () {
 
-    // Automatic backup and restore of API Key using localStorage
-    const serverHasKey = {{ 'true' if has_key else 'false' }};
-    const localKey = localStorage.getItem('fab_gemini_api_key');
-    
-    // Save to localStorage on submit (handled via AJAX below)
-
-    // Auto-restore key if server lost it (e.g. database reset)
-    if (!serverHasKey && localKey) {
-      const formData = new FormData();
-      formData.append('gemini_api_key', localKey);
-      const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || "";
-      formData.append('csrf_token', csrfToken);
-
-      fetch('/assistant/settings', {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      }).then(response => {
-        if (response.ok) {
-          window.location.reload();
-        }
-      });
-    }
+    // Force-clear local storage key to start fresh as requested by user
+    localStorage.removeItem('fab_gemini_api_key');
 
     const chatMessages = document.getElementById('chatMessages');
     const chatInput = document.getElementById('chatInput');
@@ -860,7 +931,12 @@
     // Create the sidebar overlay element dynamically
     const sidebarOverlay = document.createElement('div');
     sidebarOverlay.className = 'sidebar-overlay';
-    document.body.appendChild(sidebarOverlay);
+    const wrapper = document.querySelector('.assistant-wrapper');
+    if (wrapper) {
+      wrapper.appendChild(sidebarOverlay);
+    } else {
+      document.body.appendChild(sidebarOverlay);
+    }
 
     if (toggleSidebarBtn) {
       toggleSidebarBtn.addEventListener('click', function() {
@@ -887,6 +963,200 @@
 
     let history = [];
     let abortController = null;
+    let threads = [];
+    let activeThreadId = null;
+
+    // Load all conversations (threads) from localStorage
+    function loadThreads() {
+      try {
+        const savedThreads = localStorage.getItem('fab_assistant_threads');
+        if (savedThreads) {
+          threads = JSON.parse(savedThreads);
+        }
+      } catch (e) {
+        console.error("Error loading threads:", e);
+      }
+
+      // Backward compatibility: migrate old single-chat history if it exists and no threads exist
+      if (threads.length === 0) {
+        try {
+          const oldSaved = localStorage.getItem('fab_assistant_history');
+          if (oldSaved) {
+            const oldHistory = JSON.parse(oldSaved);
+            if (oldHistory && oldHistory.length > 0) {
+              const mainThread = {
+                id: 'thread_main',
+                title: 'Discussion Importée 💬',
+                history: oldHistory,
+                created_at: Date.now()
+              };
+              threads.push(mainThread);
+              localStorage.setItem('fab_assistant_threads', JSON.stringify(threads));
+              // Clear old key
+              localStorage.removeItem('fab_assistant_history');
+            }
+          }
+        } catch (e) {}
+      }
+
+      // If still no threads, create a default first one
+      if (threads.length === 0) {
+        const defaultThread = {
+          id: 'thread_' + Date.now(),
+          title: 'Nouvelle discussion 💬',
+          history: [],
+          created_at: Date.now()
+        };
+        threads.push(defaultThread);
+        localStorage.setItem('fab_assistant_threads', JSON.stringify(threads));
+      }
+
+      // Sort threads by date descending
+      threads.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+
+      // Select first thread by default
+      const savedActiveId = localStorage.getItem('fab_assistant_active_thread_id');
+      if (savedActiveId && threads.some(t => t.id === savedActiveId)) {
+        activeThreadId = savedActiveId;
+      } else {
+        activeThreadId = threads[0].id;
+        localStorage.setItem('fab_assistant_active_thread_id', activeThreadId);
+      }
+    }
+
+    function saveThreads() {
+      try {
+        localStorage.setItem('fab_assistant_threads', JSON.stringify(threads));
+        localStorage.setItem('fab_assistant_active_thread_id', activeThreadId);
+      } catch (e) {}
+    }
+
+    // Render threads list in sidebar
+    function renderThreadsList() {
+      const container = document.getElementById('threadsListContainer');
+      if (!container) return;
+      
+      container.innerHTML = '';
+      
+      threads.forEach(thread => {
+        const item = document.createElement('div');
+        item.className = `thread-item ${thread.id === activeThreadId ? 'active' : ''}`;
+        item.dataset.id = thread.id;
+        
+        item.innerHTML = `
+          <div class="thread-title-wrap">
+            <i class="bi bi-chat-left-text"></i>
+            <span class="thread-title">${escapeHTML(thread.title)}</span>
+          </div>
+          <button class="thread-delete-btn" title="Supprimer la discussion">
+            <i class="bi bi-trash"></i>
+          </button>
+        `;
+        
+        // Select thread click handler
+        item.addEventListener('click', (e) => {
+          if (e.target.closest('.thread-delete-btn')) return; // handled below
+          selectThread(thread.id);
+        });
+        
+        // Delete thread click handler
+        const deleteBtn = item.querySelector('.thread-delete-btn');
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteThread(thread.id);
+        });
+        
+        container.appendChild(item);
+      });
+    }
+
+    function selectThread(id) {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      activeThreadId = id;
+      localStorage.setItem('fab_assistant_active_thread_id', id);
+      
+      const thread = threads.find(t => t.id === id);
+      if (thread) {
+        history = thread.history || [];
+      } else {
+        history = [];
+      }
+      
+      // Update sidebar UI selection
+      document.querySelectorAll('.thread-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.id === id);
+      });
+      
+      // Clear message display and re-render
+      chatMessages.innerHTML = '';
+      if (history.length > 0) {
+        if (welcomeContainer) welcomeContainer.style.display = 'none';
+        renderHistory();
+      } else {
+        if (welcomeContainer) welcomeContainer.style.display = 'flex';
+      }
+      
+      // Hide suggestion chips if history is loaded, show if empty
+      const suggestionChips = document.getElementById('suggestionChips');
+      if (suggestionChips) {
+        if (history.length > 0) {
+          suggestionChips.classList.add('d-none');
+        } else {
+          suggestionChips.classList.remove('d-none');
+        }
+      }
+      
+      // Auto-focus input
+      chatInput?.focus();
+    }
+
+    function createNewThread() {
+      const newId = 'thread_' + Date.now();
+      const newThread = {
+        id: newId,
+        title: 'Nouvelle discussion 💬',
+        history: [],
+        created_at: Date.now()
+      };
+      
+      threads.unshift(newThread);
+      saveThreads();
+      renderThreadsList();
+      selectThread(newId);
+    }
+
+    function deleteThread(id) {
+      if (threads.length <= 1) {
+        // Don't delete the only thread, just clear it
+        const thread = threads.find(t => t.id === id);
+        if (thread) {
+          thread.title = 'Nouvelle discussion 💬';
+          thread.history = [];
+          saveThreads();
+          renderThreadsList();
+          selectThread(id);
+        }
+        return;
+      }
+      
+      if (!confirm('Supprimer cette discussion ?')) return;
+      
+      threads = threads.filter(t => t.id !== id);
+      saveThreads();
+      renderThreadsList();
+      
+      // If we deleted the active thread, select the first remaining
+      if (activeThreadId === id) {
+        selectThread(threads[0].id);
+      }
+    }
+
+    function escapeHTML(str) {
+      return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
 
     // Helper to scroll page and container to bottom smoothly
     function scrollToBottom() {
@@ -1072,17 +1342,45 @@
       }
     });
 
-    // Load saved conversation history
+    // Function to load the Morning Briefing from the server
+    function loadMorningBriefing() {
+      welcomeContainer.style.display = 'none';
+      const indicator = appendTypingIndicator();
+      fetch('/assistant/briefing')
+        .then(response => response.json())
+        .then(data => {
+          removeTypingIndicator(indicator);
+          if (data && data.has_briefing && data.markdown) {
+            appendMessage('model', data.markdown);
+            history.push({ role: 'model', parts: [{ text: data.markdown }] });
+            saveHistory();
+          } else {
+            welcomeContainer.style.display = 'flex';
+          }
+        })
+        .catch(err => {
+          removeTypingIndicator(indicator);
+          welcomeContainer.style.display = 'flex';
+          console.error("Erreur lors du chargement du briefing:", err);
+        });
+    }
+
+    // Attach click listener for manually requesting briefing
+    const btnLoadBriefing = document.getElementById('btnLoadBriefing');
+    btnLoadBriefing?.addEventListener('click', loadMorningBriefing);
+
+    // Load saved conversation history & threads list
     try {
-      const saved = localStorage.getItem('fab_assistant_history');
-      if (saved) {
-        history = JSON.parse(saved);
-        if (history.length > 0) {
-          welcomeContainer.style.display = 'none';
-          renderHistory();
-        }
-      }
-    } catch (e) { }
+      loadThreads();
+      renderThreadsList();
+      selectThread(activeThreadId);
+    } catch (e) {
+      loadMorningBriefing();
+    }
+
+    // Attach click listener for New Chat button
+    const newChatBtn = document.getElementById('newChatBtn');
+    newChatBtn?.addEventListener('click', createNewThread);
 
     // Auto textarea height
     chatInput?.addEventListener('input', function () {
@@ -1215,7 +1513,8 @@
             message: text, 
             history: history,
             file: fileData,
-            confirmed_query: confirmedQuery
+            confirmed_query: confirmedQuery,
+            gemini_api_key: localStorage.getItem('fab_gemini_api_key') || ''
           }),
           signal: abortController.signal
         });
@@ -1264,6 +1563,10 @@
               // Reset buttons for pause
               sendBtn.style.display = 'inline-flex';
               stopBtn.style.display = 'none';
+              
+              if (event.history) {
+                history = event.history;
+              }
               
               const confirmed = await appendConfirmationBubble(event.query, event.message);
               if (confirmed) {
@@ -1511,7 +1814,20 @@
 
     function saveHistory() {
       try {
-        localStorage.setItem('fab_assistant_history', JSON.stringify(history));
+        const thread = threads.find(t => t.id === activeThreadId);
+        if (thread) {
+          thread.history = history;
+          // Auto-generate title from the first user question if it's currently default
+          if (thread.title === 'Nouvelle discussion 💬' && history.length > 0) {
+            const firstUserMessage = history.find(m => m.role === 'user');
+            if (firstUserMessage) {
+              const text = firstUserMessage.parts[0].text;
+              thread.title = text.substring(0, 24) + (text.length > 24 ? '...' : '');
+            }
+          }
+          saveThreads();
+          renderThreadsList();
+        }
       } catch (e) { }
     }
 
@@ -1562,7 +1878,8 @@
     let hasShownMicError = false; // prevent duplicate mic error messages
 
     try {
-      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const isSecure = window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (isSecure && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
         recognition.continuous = false;
@@ -1590,7 +1907,10 @@
           if (!hasShownMicError) {
             hasShownMicError = true;
             if (event.error === 'not-allowed') {
-              appendMessage('system', "⚠️ Microphone bloqué. Ouvrez l'application dans Chrome ou Edge à l'adresse " + window.location.origin + " puis autorisez le microphone.");
+              appendMessage('system', "⚠️ Le microphone n'a pas pu être activé. Veuillez vérifier :\n\n" +
+                "1. **Autorisations du navigateur** : Cliquez sur le cadenas ou l'icône de paramètres à gauche de l'URL (**http://localhost:5000**) et vérifiez que le Microphone est bien sur **Autoriser**.\n" +
+                "2. **Confidentialité du système (Windows/macOS)** : Allez dans les paramètres système de votre ordinateur (sous Windows : *Paramètres > Confidentialité et sécurité > Microphone*) et assurez-vous que l'accès au micro est activé globalement et autorisé pour votre navigateur (Chrome/Edge).\n" +
+                "3. **Utilisation exclusive** : Fermez toute autre application (Zoom, Teams, etc.) qui pourrait utiliser votre microphone en arrière-plan.");
             } else if (event.error === 'no-speech') {
               // Reset silencieux, pas de message
             } else if (event.error === 'network') {
@@ -1646,6 +1966,7 @@
               stopRecording();
             }
           } else {
+            hasShownMicError = false; // Reset error display flag to allow subsequent errors to be shown
             try {
               if (micBtn) {
                 micBtn.innerHTML = '<i class="bi bi-mic-fill text-warning"></i>';

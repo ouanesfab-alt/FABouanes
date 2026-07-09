@@ -91,6 +91,16 @@ var
   LabelPgDbName: TNewStaticText;
   LabelPgInfo: TNewStaticText;
 
+  // --- Page choix de l'IA ---
+  PageAiChoice: TWizardPage;
+  RadioAiGemini: TNewRadioButton;
+  RadioAiOllama: TNewRadioButton;
+  RadioAiBoth: TNewRadioButton;
+  LabelAiTitle: TNewStaticText;
+  LabelAiGeminiDesc: TNewStaticText;
+  LabelAiOllamaDesc: TNewStaticText;
+  LabelAiBothDesc: TNewStaticText;
+
 function GetDbChoice(): Integer;
 begin
   if RadioPgServer.Checked then
@@ -508,6 +518,91 @@ begin
 end;
 
 
+// ---- Check if Ollama is installed ----
+function IsOllamaInstalled(): Boolean;
+var
+  OllamaPath: String;
+begin
+  OllamaPath := ExpandConstant('{localappdata}') + '\Programs\Ollama\ollama.exe';
+  if FileExists(OllamaPath) then
+  begin
+    Result := True;
+    Exit;
+  end;
+  Result := False;
+end;
+
+
+// ---- Automatically download and install Ollama silently ----
+function InstallOllamaAutomatically(): Boolean;
+var
+  ResultCode: Integer;
+  PsCommand: String;
+begin
+  WizardForm.StatusLabel.Caption := 'Téléchargement de Ollama (environ 180 Mo)...';
+  WizardForm.ProgressGauge.Style := npbstMarquee;
+
+  PsCommand := '-NoProfile -ExecutionPolicy Bypass -Command "' +
+    'Write-Host ''[FABOuanes] Téléchargement de Ollama...''; ' +
+    '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ' +
+    'try { ' +
+    '  Invoke-WebRequest -Uri ''https://ollama.com/download/OllamaSetup.exe'' -OutFile ''$env:TEMP\ollama_installer.exe''; ' +
+    '} catch { ' +
+    '  Write-Error ''Échec du téléchargement''; ' +
+    '  exit 1; ' +
+    '} ' +
+    'Write-Host ''[FABOuanes] Installation silencieuse de Ollama...''; ' +
+    'Start-Process -FilePath ''$env:TEMP\ollama_installer.exe'' -ArgumentList ''/silent'' -Wait; ' +
+    'exit 0;' +
+    '"';
+
+  Result := Exec('powershell.exe', PsCommand, '', SW_SHOW, ewWaitUntilTerminated, ResultCode);
+  WizardForm.ProgressGauge.Style := npbstNormal;
+
+  if not Result or (ResultCode <> 0) then
+  begin
+    MsgBox('Le téléchargement ou l''installation automatique de Ollama a échoué.', mbError, MB_OK);
+    Result := False;
+  end
+  else
+  begin
+    Result := True;
+  end;
+end;
+
+
+// ---- Pull local AI model with visual progress ----
+function PullOllamaModel(): Boolean;
+var
+  ResultCode: Integer;
+  PsCommand: String;
+begin
+  MsgBox('L''installateur va maintenant lancer Ollama et télécharger le modèle d''IA locale (qwen2.5:7b).' + #13#10 +
+         'Cette opération peut prendre du temps (taille du modèle : 4.7 Go).' + #13#10 +
+         'Une fenêtre PowerShell va s''ouvrir pour afficher la progression.', mbInformation, MB_OK);
+
+  PsCommand := '-NoProfile -ExecutionPolicy Bypass -Command "' +
+    'Write-Host ''[FABOuanes] Lancement du service Ollama...''; ' +
+    'Start-Process -FilePath ''$env:LOCALAPPDATA\Programs\Ollama\ollama.exe'' -ArgumentList ''serve'' -NoNewWindow; ' +
+    'Start-Sleep -Seconds 5; ' +
+    'Write-Host ''[FABOuanes] Téléchargement du modèle d''IA (qwen2.5:7b)...''; ' +
+    '& ''$env:LOCALAPPDATA\Programs\Ollama\ollama.exe'' pull qwen2.5:7b; ' +
+    'exit 0;' +
+    '"';
+
+  Result := Exec('powershell.exe', PsCommand, '', SW_SHOW, ewWaitUntilTerminated, ResultCode);
+  if not Result or (ResultCode <> 0) then
+  begin
+    MsgBox('Le téléchargement du modèle a échoué. Vous pourrez le relancer plus tard manuellement en tapant "ollama pull qwen2.5:7b" dans un terminal.', mbError, MB_OK);
+    Result := False;
+  end
+  else
+  begin
+    Result := True;
+  end;
+end;
+
+
 // ---- Called at each installation step ----
 procedure CurStepChanged(CurStep: TSetupStep);
 var
@@ -523,6 +618,26 @@ begin
       if not InstallPostgresAutomatically(EditPgPass.Text) then
       begin
         RaiseException('L''installation de PostgreSQL a échoué. PostgreSQL est requis pour cette application.');
+      end;
+    end;
+
+    // Check and install Ollama if local or hybrid mode chosen
+    if RadioAiOllama.Checked or RadioAiBoth.Checked then
+    begin
+      if not IsOllamaInstalled() then
+      begin
+        MsgBox('Ollama n''a pas été détecté sur cette machine.' + #13#10 +
+               'L''installateur va maintenant le télécharger et l''installer automatiquement.', mbInformation, MB_OK);
+        if not InstallOllamaAutomatically() then
+        begin
+          MsgBox('L''installation de Ollama a échoué. Vous pourrez l''installer plus tard depuis https://ollama.com/.', mbError, MB_OK);
+        end;
+      end;
+
+      // Pull the model if Ollama installed successfully
+      if IsOllamaInstalled() then
+      begin
+        PullOllamaModel();
       end;
     end;
 
@@ -542,9 +657,100 @@ begin
 end;
 
 
+// ---- Create the AI choice page ----
+procedure CreateAiChoicePage();
+var
+  TopPos: Integer;
+begin
+  PageAiChoice := CreateCustomPage(
+    PagePgConfig.ID,
+    'Choix de l''Intelligence Artificielle',
+    'Choisissez le mode de fonctionnement de l''IA Sabrina.'
+  );
+
+  TopPos := 0;
+
+  LabelAiTitle := TNewStaticText.Create(PageAiChoice);
+  LabelAiTitle.Parent := PageAiChoice.Surface;
+  LabelAiTitle.Caption := 'Quel assistant IA souhaitez-vous configurer ?';
+  LabelAiTitle.Font.Style := [fsBold];
+  LabelAiTitle.Font.Size := 10;
+  LabelAiTitle.Left := 0;
+  LabelAiTitle.Top := TopPos;
+  LabelAiTitle.AutoSize := True;
+  TopPos := TopPos + 32;
+
+  // --- Option 1: Gemini ---
+  RadioAiGemini := TNewRadioButton.Create(PageAiChoice);
+  RadioAiGemini.Parent := PageAiChoice.Surface;
+  RadioAiGemini.Caption := '1. Google Gemini — Assistant en ligne (recommande)';
+  RadioAiGemini.Font.Style := [fsBold];
+  RadioAiGemini.Left := 8;
+  RadioAiGemini.Top := TopPos;
+  RadioAiGemini.Width := PageAiChoice.SurfaceWidth - 16;
+  RadioAiGemini.Checked := True;
+  TopPos := TopPos + 22;
+
+  LabelAiGeminiDesc := TNewStaticText.Create(PageAiChoice);
+  LabelAiGeminiDesc.Parent := PageAiChoice.Surface;
+  LabelAiGeminiDesc.Caption :=
+    '     Necessite une connexion Internet et une cle API Gemini.' + #13#10 +
+    '     Ultra-rapide, consomme tres peu de processeur et de memoire.';
+  LabelAiGeminiDesc.Left := 8;
+  LabelAiGeminiDesc.Top := TopPos;
+  LabelAiGeminiDesc.AutoSize := True;
+  LabelAiGeminiDesc.Font.Color := clGray;
+  TopPos := TopPos + 42;
+
+  // --- Option 2: Ollama ---
+  RadioAiOllama := TNewRadioButton.Create(PageAiChoice);
+  RadioAiOllama.Parent := PageAiChoice.Surface;
+  RadioAiOllama.Caption := '2. Ollama — Assistant 100% local et prive (sans Internet)';
+  RadioAiOllama.Font.Style := [fsBold];
+  RadioAiOllama.Left := 8;
+  RadioAiOllama.Top := TopPos;
+  RadioAiOllama.Width := PageAiChoice.SurfaceWidth - 16;
+  RadioAiOllama.Checked := False;
+  TopPos := TopPos + 22;
+
+  LabelAiOllamaDesc := TNewStaticText.Create(PageAiChoice);
+  LabelAiOllamaDesc.Parent := PageAiChoice.Surface;
+  LabelAiOllamaDesc.Caption :=
+    '     Execution locale privee sur votre PC (Ollama).' + #13#10 +
+    '     Necessite un telechargement du modele (qwen2.5:7b, 4.7 Go) lors de l''installation.';
+  LabelAiOllamaDesc.Left := 8;
+  LabelAiOllamaDesc.Top := TopPos;
+  LabelAiOllamaDesc.AutoSize := True;
+  LabelAiOllamaDesc.Font.Color := clGray;
+  TopPos := TopPos + 42;
+
+  // --- Option 3: Les deux (mode hybride) ---
+  RadioAiBoth := TNewRadioButton.Create(PageAiChoice);
+  RadioAiBoth.Parent := PageAiChoice.Surface;
+  RadioAiBoth.Caption := '3. Les deux — Mode hybride (Cloud + Local)';
+  RadioAiBoth.Font.Style := [fsBold];
+  RadioAiBoth.Left := 8;
+  RadioAiBoth.Top := TopPos;
+  RadioAiBoth.Width := PageAiChoice.SurfaceWidth - 16;
+  RadioAiBoth.Checked := False;
+  TopPos := TopPos + 22;
+
+  LabelAiBothDesc := TNewStaticText.Create(PageAiChoice);
+  LabelAiBothDesc.Parent := PageAiChoice.Surface;
+  LabelAiBothDesc.Caption :=
+    '     Installe Ollama localement ET configure le support Gemini.' + #13#10 +
+    '     Permet de basculer librement de l''un a l''autre dans l''application.';
+  LabelAiBothDesc.Left := 8;
+  LabelAiBothDesc.Top := TopPos;
+  LabelAiBothDesc.AutoSize := True;
+  LabelAiBothDesc.Font.Color := clGray;
+end;
+
+
 // ---- Initialize custom pages ----
 procedure InitializeWizard();
 begin
   CreateDbChoicePage();
   CreatePgConfigPage();
+  CreateAiChoicePage();
 end;

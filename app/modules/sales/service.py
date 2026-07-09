@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.events import DomainEvent, emit
 from app.core.exceptions import ValidationError, ConflictError, NotFoundError
 from app.core.helpers import unit_choices
-from app.services.stock_service import qty_to_kg, unit_price_to_kg
+from app.core.request_state import get_state_value
+from app.services.stock_service import qty_to_kg
 from app.core.document_numbering import next_doc_number
 from app.core.perf_cache import invalidate_cache_domains
 from app.core.models import Sale, RawSale, SaleDocument, StockMovement, Payment, FinishedProduct, RawMaterial
@@ -34,7 +35,7 @@ class SalesService:
         kind: Optional[str] = None,
         status: Optional[str] = None,
         page: int = 1,
-        page_size: int = 50,
+        page_size: int = 25,
     ) -> Tuple[List[Dict[str, Any]], int]:
         return await self.sale_repo.list_sales_paginated(
             search=search,
@@ -134,7 +135,6 @@ class SalesService:
 
         if item_kind == "finished":
             qty_kg = qty_to_kg(qty, unit)
-            unit_price_kg = unit_price_to_kg(unit_price, unit)
             # Fetch and lock finished product
             stmt = select(FinishedProduct).where(FinishedProduct.id == item_id).with_for_update()
             res = await self.session.execute(stmt)
@@ -209,7 +209,6 @@ class SalesService:
             custom_item_name = ""
 
         qty_kg = qty_to_kg(qty, unit)
-        unit_price_kg = unit_price_to_kg(unit_price, unit)
         stock_before = float(item.stock_qty)
         if qty_kg > stock_before:
             raise ValidationError(
@@ -371,8 +370,8 @@ class SalesService:
 
         res_f = await self.session.execute(
             text("""
-                SELECT COUNT(*) AS line_count, COALESCE(SUM(total), 0) AS total_amount, 
-                       COALESCE(SUM(amount_paid), 0) AS paid_amount, COALESCE(SUM(balance_due), 0) AS due_amount 
+                SELECT COUNT(*) AS line_count, COALESCE(SUM(total), 0) AS total_amount,
+                       COALESCE(SUM(amount_paid), 0) AS paid_amount, COALESCE(SUM(balance_due), 0) AS due_amount
                 FROM sales WHERE document_id = :doc_id
             """),
             {"doc_id": document_id}
@@ -381,8 +380,8 @@ class SalesService:
 
         res_r = await self.session.execute(
             text("""
-                SELECT COUNT(*) AS line_count, COALESCE(SUM(total), 0) AS total_amount, 
-                       COALESCE(SUM(amount_paid), 0) AS paid_amount, COALESCE(SUM(balance_due), 0) AS due_amount 
+                SELECT COUNT(*) AS line_count, COALESCE(SUM(total), 0) AS total_amount,
+                       COALESCE(SUM(amount_paid), 0) AS paid_amount, COALESCE(SUM(balance_due), 0) AS due_amount
                 FROM raw_sales WHERE document_id = :doc_id
             """),
             {"doc_id": document_id}
@@ -446,9 +445,6 @@ class SalesService:
 
         use_document = len(lines) > 1
 
-        from app.core.request_state import get_state_value
-        actor = get_state_value("user")
-        user_id = int(actor["id"]) if actor else None
         newly_unlocked = []
 
         if not use_document:

@@ -8,7 +8,6 @@ Toutes les routes sont protégées sauf /ping et /auth/token.
 # 2. Exécution systématique de toutes les fonctions de repositories et services synchrones via asyncio.to_thread pour ne pas bloquer la boucle d'événements.
 
 from __future__ import annotations
-import asyncio
 import logging
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -49,7 +48,7 @@ async def mobile_login(request: Request):
     username = ""
     password = ""
     content_type = request.headers.get("content-type", "")
-    
+
     if "application/json" in content_type:
         try:
             body = await request.json()
@@ -102,7 +101,7 @@ async def mobile_refresh(request: Request):
     """Renouvelle l'access_token depuis un refresh_token valide (JSON or Form)."""
     refresh_token = ""
     content_type = request.headers.get("content-type", "")
-    
+
     if "application/json" in content_type:
         try:
             body = await request.json()

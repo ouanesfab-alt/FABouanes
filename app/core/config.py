@@ -82,14 +82,16 @@ class Settings:
                 "DEFAULT_ADMIN_PASSWORD cannot be 'admin' in production server mode. Set a strong password in your .env file."
             )
 
-        # Force secure session cookies in non-desktop production environments by default
-        # BUT respect explicit SESSION_COOKIE_SECURE environment overrides!
+        # In non-desktop production, default session cookies to HTTPS-only.
+        # Explicit SESSION_COOKIE_SECURE=0 remains available for local HTTP deployments.
         if self.env == "production" and not self.desktop_mode:
             env_val = os.getenv("SESSION_COOKIE_SECURE", "").strip().lower()
             if env_val in ("1", "true", "yes", "on"):
                 self.session_cookie_secure = True
-            else:
+            elif env_val in ("0", "false", "no", "off"):
                 self.session_cookie_secure = False
+            else:
+                self.session_cookie_secure = True
 
     @property
     def database_url(self) -> str:

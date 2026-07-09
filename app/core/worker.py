@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import json
-import logging
 import asyncio
 from typing import Any, Callable
 
@@ -38,9 +37,9 @@ async def generate_invoice_pdf_task(ctx: dict[str, Any], payload: dict[str, Any]
 
     from app.services.print_service import generate_invoice_pdf
     await update_task_progress(job_id, 40, "Génération des layouts de facturation...")
-    
-    pdf_buf = await asyncio.to_thread(generate_invoice_pdf, payload, username)
-    
+
+    await asyncio.to_thread(generate_invoice_pdf, payload, username)
+
     await update_task_progress(job_id, 90, "Finalisation de l'écriture du flux PDF...")
     await asyncio.sleep(0.2)
     await update_task_progress(job_id, 100, "PDF généré avec succès.")
@@ -56,19 +55,19 @@ async def import_excel_task(ctx: dict[str, Any], file_path: str, client_id: int 
     from app.core.async_db import get_async_sessionmaker
     from app.modules.clients.service import ClientService
     await update_task_progress(job_id, 50, "Insertion et rapprochement en base de données...")
-    
+
     async with get_async_sessionmaker()() as session:
         service = ClientService(session)
         result = await service.import_client_history_from_excel(file_path, client_id, force_reimport)
-    
+
     await update_task_progress(job_id, 100, f"Import terminé. {result.get('nb_lignes', 0)} lignes insérées.")
-    
+
     try:
          if os.path.exists(file_path):
              os.unlink(file_path)
     except Exception as exc:
          logger.warning("Failed to clean up temporary Excel file in worker", path=file_path, error=str(exc))
-         
+
     return result
 
 
@@ -80,9 +79,9 @@ async def run_database_backup_task(ctx: dict[str, Any], reason: str) -> str:
 
     from app.core.storage import capture_local_backup_snapshot
     await update_task_progress(job_id, 60, "Écriture du dump PostgreSQL...")
-    
+
     await asyncio.to_thread(capture_local_backup_snapshot, reason)
-    
+
     await update_task_progress(job_id, 100, "Sauvegarde de la base de données terminée.")
     return "backup_completed"
 
@@ -93,7 +92,7 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
     runs the default local handlers, and marks them as processed.
     """
     from app.core.db_access import db_transaction
-    
+
     events_processed = 0
     try:
         with db_transaction() as conn:
@@ -102,25 +101,25 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
             )
             rows = cur.fetchall()
             cur.close()
-            
+
             if not rows:
                 return 0
-                
+
             from app.core.events import _deserialize_event, _trigger_local_handlers
-            
+
             for row in rows:
                 event_id = row["id"]
                 payload_str = row["payload"]
                 retry_cnt = row["retry_count"] or 0
                 event_type = row["event_type"]
-                
+
                 res = _deserialize_event(payload_str)
                 success = True
                 error_msg = ""
-                
+
                 if res:
                     event, sender_id = res
-                    
+
                     # 1. Run local default handlers
                     try:
                         _trigger_local_handlers(event, skip_default=False)
@@ -128,7 +127,7 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
                         success = False
                         error_msg = str(e)
                         logger.error("Failed to run local handlers for outbox event", event_id=event_id, error=error_msg)
-                    
+
                     # 2. Publish to DB Pub/Sub for other worker nodes
                     if success:
                         try:
@@ -142,7 +141,7 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
                     success = False
                     error_msg = "Deserialization failed"
                     logger.error("Failed to deserialize event payload", event_id=event_id)
-                            
+
                 if success:
                     conn.execute(
                         "UPDATE outbox_events SET processed_at = CURRENT_TIMESTAMP WHERE id = %s",
@@ -165,18 +164,18 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
                             "UPDATE outbox_events SET retry_count = %s, last_error = %s WHERE id = %s",
                             (new_retry_cnt, error_msg, event_id)
                         )
-                
+
             conn.commit()
     except Exception as exc:
         logger.error("Error in dispatch_outbox_events_task", error=str(exc))
-        
+
     return events_processed
 
 
 async def replay_dead_letter_events_task(ctx: dict[str, Any]) -> int:
     """Replays all events from dead_letter_events table."""
     from app.core.db_access import db_transaction
-    
+
     events_replayed = 0
     try:
         with db_transaction() as conn:
@@ -185,15 +184,15 @@ async def replay_dead_letter_events_task(ctx: dict[str, Any]) -> int:
             )
             rows = cur.fetchall()
             cur.close()
-            
+
             if not rows:
                 return 0
-                
+
             for row in rows:
                 dlq_id = row["id"]
                 event_type = row["event_type"]
                 payload = row["payload"]
-                
+
                 conn.execute(
                     "INSERT INTO outbox_events (event_type, payload, retry_count, last_error) VALUES (%s, %s, 0, NULL)",
                     (event_type, payload)
@@ -203,11 +202,11 @@ async def replay_dead_letter_events_task(ctx: dict[str, Any]) -> int:
                     (dlq_id,)
                 )
                 events_replayed += 1
-                
+
             conn.commit()
     except Exception as exc:
         logger.error("Error in replay_dead_letter_events_task", error=str(exc))
-        
+
     return events_replayed
 
 

@@ -57,7 +57,7 @@ async def new_expense_submit(request: Request, db: AsyncSession = Depends(get_as
         return denied
     await csrf_protect(request)
     form = await request.form()
-    
+
     try:
         data = ExpenseCreateSchema(
             date=form.get("date"),
@@ -74,7 +74,7 @@ async def new_expense_submit(request: Request, db: AsyncSession = Depends(get_as
             request, expense=form, categories=get_categories(),
             payment_methods=get_payment_methods(), title="Nouvelle dépense",
         ))
-        
+
     try:
         await add_expense(
             db=db,
@@ -117,12 +117,12 @@ async def edit_expense_submit(request: Request, expense_id: int, db: AsyncSessio
     if denied:
         return denied
     await csrf_protect(request)
-    
+
     expense = await get_expense(db, expense_id)
     if not expense:
         flash(request, "Dépense introuvable.", "danger")
         return RedirectResponse("/expenses", status_code=303)
-        
+
     form = await request.form()
     try:
         data = ExpenseCreateSchema(
@@ -142,7 +142,7 @@ async def edit_expense_submit(request: Request, expense_id: int, db: AsyncSessio
             request, expense=form_dict, categories=get_categories(),
             payment_methods=get_payment_methods(), title="Modifier la dépense",
         ))
-        
+
     try:
         await modify_expense(
             db=db,

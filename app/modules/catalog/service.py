@@ -21,11 +21,11 @@ from app.modules.catalog.schemas_validation import (
 
 # Constants
 RAW_MATERIAL_PRESETS = [
-    "Maïs", 
-    "Orge", 
-    "Son", 
-    "Soya", 
-    "CMV", 
+    "Maïs",
+    "Orge",
+    "Son",
+    "Soya",
+    "CMV",
     "Phosphate",
     "Soja",
     "Son de blé",

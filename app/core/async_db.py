@@ -66,7 +66,7 @@ class LoopBoundSessionLocal:
     """Dynamic sessionmaker that forwards calls to the current loop-safe sessionmaker."""
     def __call__(self, *args, **kwargs):
         return get_async_sessionmaker()(*args, **kwargs)
-        
+
     def configure(self, *args, **kwargs):
         return get_async_sessionmaker().configure(*args, **kwargs)
 

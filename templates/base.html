@@ -17,6 +17,14 @@
     })();
   </script>
   {% include 'partials/_head.html' %}
+  <style nonce="{{ csp_nonce }}">
+    /* Mobile app-content bottom padding to prevent fixed bot-nav overlap */
+    @media(max-width:767px) {
+      .app-content {
+        padding-bottom: calc(var(--bot-h, 60px) + env(safe-area-inset-bottom, 0px) + 24px) !important;
+      }
+    }
+  </style>
 </head>
 {% set is_print_view = request.path.startswith('/print/') or request.endpoint in ['print_client_history'] %}
 
@@ -77,6 +85,10 @@
     </div>
     {% block content %}{% endblock %}
   </div>
+
+  {# ── Page-level modals rendered OUTSIDE .app-content so they are not
+     affected by the page-hidden opacity transition ── #}
+  {% block modals %}{% endblock %}
 
   {% if g.user and not is_print_view %}
   <!-- -- Context Menu -- -->

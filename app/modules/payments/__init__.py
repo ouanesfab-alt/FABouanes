@@ -7,11 +7,11 @@ class PaymentsModule(ModuleBase):
     @property
     def name(self) -> str:
         return "payments"
-    
+
     @property
     def label(self) -> str:
         return "Paiements"
-    
+
     @property
     def icon(self) -> str:
         return "bi-cash-coin"

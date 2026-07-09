@@ -1,18 +1,18 @@
 """Module Dépenses & Charges — Suivi des frais de l'entreprise."""
 from app.modules.base import ModuleBase
 from app.modules.expenses.web import router as web_router
-from app.core.registry import ModuleDescriptor, register
+from app.core.registry import register
 from app.modules.expenses.schema import TABLES
 
 class ExpensesModule(ModuleBase):
     @property
     def name(self) -> str:
         return "expenses"
-    
+
     @property
     def label(self) -> str:
         return "Dépenses"
-    
+
     @property
     def icon(self) -> str:
         return "bi-wallet2"
@@ -42,4 +42,3 @@ class ExpensesModule(ModuleBase):
 
 # Registration
 register(ExpensesModule())
-

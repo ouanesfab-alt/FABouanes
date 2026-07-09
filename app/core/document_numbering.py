@@ -9,7 +9,7 @@ def next_doc_number(doc_type: str, year: int) -> str:
     """
     db = get_db()
     key = f"seq_{doc_type}_{year}"
-    
+
     # 1. Self-healing : Déterminer la séquence maximale existant réellement dans les tables de documents
     max_seq = 0
     if doc_type == 'BA':
@@ -62,7 +62,7 @@ def next_doc_number(doc_type: str, year: int) -> str:
         cur.close()
         seq = int(row["value"])
         candidate = f"{doc_type}-{year}-{seq:05d}"
-        
+
         # Double vérification finale anti-collision
         if doc_type == 'BA':
             cur = db.execute("SELECT id FROM purchase_documents WHERE doc_number = %s", (candidate,))
@@ -72,6 +72,6 @@ def next_doc_number(doc_type: str, year: int) -> str:
             cur = db.execute("SELECT id FROM sale_documents WHERE doc_number = %s", (candidate,))
             exists = cur.fetchone()
             cur.close()
-            
+
         if not exists:
             return candidate

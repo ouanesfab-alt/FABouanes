@@ -19,7 +19,7 @@ class ClientRepository(AsyncRepository[Client]):
         return await self.get(client_id)
 
     async def list_clients(
-        self, search: Optional[str] = None, page: int = 1, page_size: int = 50
+        self, search: Optional[str] = None, page: int = 1, page_size: int = 25
     ) -> Tuple[List[Client], int]:
         """Fetch paginated clients with optional search filter."""
         offset = (page - 1) * page_size
