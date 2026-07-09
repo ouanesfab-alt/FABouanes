@@ -1143,6 +1143,61 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "type": "OBJECT",
                         "properties": {}
                     }
+                },
+                {
+                    "name": "save_backup_settings",
+                    "description": "Enregistre la configuration des sauvegardes (dossier Google Drive local, rétentions, heure du snapshot quotidien et chemin de l'utilitaire pg_dump).",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "gdrive_backup_dir": {
+                                "type": "STRING",
+                                "description": "Chemin local du dossier synchronisé par Google Drive Desktop."
+                            },
+                            "backup_snapshot_time": {
+                                "type": "STRING",
+                                "description": "Heure du snapshot quotidien au format HH:MM (ex: 02:00)."
+                            },
+                            "backup_local_retention": {
+                                "type": "INTEGER",
+                                "description": "Nombre de jours de rétention pour les sauvegardes de nuit locales."
+                            },
+                            "backup_event_retention": {
+                                "type": "INTEGER",
+                                "description": "Nombre maximal d'événements de sauvegarde à conserver."
+                            },
+                            "pg_dump_path": {
+                                "type": "STRING",
+                                "description": "Chemin absolu vers l'exécutable pg_dump (optionnel)."
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "update_app_user",
+                    "description": "Modifie les paramètres d'un utilisateur existant (rôle, statut actif/inactif, ou nouveau code PIN de mot de passe).",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "user_id": {
+                                "type": "INTEGER",
+                                "description": "L'identifiant unique de l'utilisateur à modifier."
+                            },
+                            "role": {
+                                "type": "STRING",
+                                "description": "Nouveau rôle de l'utilisateur (admin, manager, operator)."
+                            },
+                            "is_active": {
+                                "type": "BOOLEAN",
+                                "description": "Définir à True pour activer le compte, False pour le désactiver."
+                            },
+                            "new_password": {
+                                "type": "STRING",
+                                "description": "Nouveau code PIN de 4 chiffres pour réinitialiser le mot de passe (optionnel)."
+                            }
+                        },
+                        "required": ["user_id", "role", "is_active"]
+                    }
                 }
             ]
         }

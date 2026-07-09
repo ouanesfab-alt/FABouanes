@@ -1217,4 +1217,31 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
         result = run_database_maintenance()
         return {"success": result.get("ok", False), "message": result.get("message", "Maintenance complétée.")}
 
+    elif func_name == "save_backup_settings":
+        from app.services.backup_service import save_backup_configuration
+        payload = {
+            "gdrive_backup_dir": func_args.get("gdrive_backup_dir", ""),
+            "backup_snapshot_time": func_args.get("backup_snapshot_time", "02:00"),
+            "backup_local_retention": func_args.get("backup_local_retention", 30),
+            "backup_event_retention": func_args.get("backup_event_retention", 100),
+            "pg_dump_path": func_args.get("pg_dump_path", ""),
+        }
+        await save_backup_configuration(payload)
+        return {"success": True, "message": "Configuration des sauvegardes enregistrée avec succès."}
+
+    elif func_name == "update_app_user":
+        from app.services.admin_service import update_user_account
+        user_id = int(func_args.get("user_id") or 0)
+        role = func_args.get("role", "").strip()
+        is_active = bool(func_args.get("is_active"))
+        new_password = func_args.get("new_password", "").strip()
+        
+        await update_user_account(
+            user_id=user_id,
+            role=role,
+            is_active=is_active,
+            new_password=new_password
+        )
+        return {"success": True, "message": f"Utilisateur #{user_id} mis à jour avec succès."}
+
     return {"error": f"Outil '{func_name}' non géré."}
