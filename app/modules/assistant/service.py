@@ -724,7 +724,7 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
                 })
 
             messages.append({
-                "role": "user",
+                "role": "function",
                 "parts": [{
                     "functionResponse": {
                         "name": func_name,
