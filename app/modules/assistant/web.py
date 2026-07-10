@@ -75,13 +75,22 @@ async def assistant_chat(request: Request):
             return JSONResponse({"success": False, "error": "Message vide."})
 
         # Check if the message is a recorded audio note
-        # Format: [AUDIO:base64_data|transcript]
-        import re
+        # Format: [AUDIO:data:audio/webm;base64,...|transcript]
+        import re, base64 as _b64
         audio_match = re.match(r"^\[AUDIO:([^|]+)\|(.*)\]$", message)
+        audio_inline = None
         if audio_match:
-            message_text_for_llm = audio_match.group(2).strip()
-            if not message_text_for_llm:
-                message_text_for_llm = "Message vocal (audio note)"
+            data_url   = audio_match.group(1).strip()  # e.g. data:audio/webm;base64,AAA…
+            transcript = audio_match.group(2).strip()
+            # Extract mime type and raw base64 from the data URL
+            if data_url.startswith("data:") and ";base64," in data_url:
+                meta, b64_data = data_url.split(";base64,", 1)
+                mime_type_audio = meta.split("data:")[1]  # e.g. audio/webm
+                audio_inline = {"mimeType": mime_type_audio, "data": b64_data}
+            if transcript:
+                message_text_for_llm = transcript
+            else:
+                message_text_for_llm = "Transcris ce message audio et réponds en conséquence."
         else:
             message_text_for_llm = message
 
@@ -90,6 +99,9 @@ async def assistant_chat(request: Request):
             "role": "user",
             "parts": [{"text": message_text_for_llm}]
         }
+        # Attach audio inline data so Gemini can transcribe and understand the voice note
+        if audio_inline:
+            new_message["parts"].append({"inlineData": audio_inline})
 
         if file_obj and isinstance(file_obj, dict):
             mime_type = file_obj.get("mime_type")

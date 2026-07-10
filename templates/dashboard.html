@@ -928,7 +928,9 @@
           });
 
           if (audio.paused) {
-            audio.play().catch(() => {});
+            audio.volume = 1;
+            audio.muted = false;
+            audio.play().catch(err => console.warn('Audio play failed:', err));
             playIcon.className = 'bi bi-pause-fill';
           } else {
             audio.pause();

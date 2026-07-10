@@ -1,4 +1,4 @@
-const VERSION = "fabouanes-v46-offline";
+const VERSION = "fabouanes-v47-offline";
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const OFFLINE_URL = "/static/offline.html";
@@ -20,8 +20,6 @@ const PRECACHE = [
 
   "/static/fonts/PlusJakartaSans-Regular.ttf",
   "/static/fonts/PlusJakartaSans-Bold.ttf",
-  "/static/fonts/PlusJakartaSans-Regular.woff2",
-  "/static/fonts/PlusJakartaSans-Bold.woff2",
   "/static/app.css",
   "/static/css/tokens.css",
   "/static/css/components.css",
