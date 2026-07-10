@@ -1,5 +1,5 @@
 <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js', v='20260526-v1') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/main.js', v='20260710-ripple-v9') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/main.js', v='20260710-ripple-v8') }}"></script>
 
 <script nonce="{{ csp_nonce }}">
   document.addEventListener('DOMContentLoaded', () => {
@@ -100,13 +100,13 @@
 
 
 
-  // Dark mode toggle dans le menu user
+  // Thème toggle : Clair -> Sable -> Sombre
   (function () {
     const THEME_KEY = 'fab_theme';
     const themes = ['light', 'sable', 'dark'];
 
     function applyTheme(t) {
-      if (t === 'auto' || !themes.includes(t)) {
+      if (!themes.includes(t)) {
         t = 'light';
       }
       document.documentElement.setAttribute('data-theme', t);
@@ -118,18 +118,21 @@
         const icon = btn.querySelector('.bi');
         if (icon) {
           if (t === 'light') {
-            icon.className = 'bi bi-sun';
+            icon.className = 'bi bi-palette'; // Clic va vers Sable
+            btn.setAttribute('title', 'Passer au Thème Sable');
           } else if (t === 'sable') {
-            icon.className = 'bi bi-palette';
+            icon.className = 'bi bi-moon'; // Clic va vers Dark
+            btn.setAttribute('title', 'Passer au Thème Sombre');
           } else {
-            icon.className = 'bi bi-moon';
+            icon.className = 'bi bi-sun'; // Clic va vers Clair
+            btn.setAttribute('title', 'Passer au Thème Clair');
           }
         }
       }
     }
 
     let current = localStorage.getItem(THEME_KEY) || 'light';
-    if (current === 'auto' || !themes.includes(current)) {
+    if (!themes.includes(current)) {
       current = 'light';
       localStorage.setItem(THEME_KEY, 'light');
     }
@@ -140,9 +143,8 @@
       
       if (toggleBtn) {
         e.preventDefault();
-        const currentIndex = themes.indexOf(current);
-        const nextIndex = (currentIndex + 1) % themes.length;
-        current = themes[nextIndex];
+        const nextIdx = (themes.indexOf(current) + 1) % themes.length;
+        current = themes[nextIdx];
         applyTheme(current);
       }
     });
