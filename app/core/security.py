@@ -78,7 +78,7 @@ def security_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-XSS-Protection", "1; mode=block")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-    response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+    response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(self), camera=()")
 
     # Enable HSTS only in non-desktop production environments
     if settings.env == "production" and not settings.desktop_mode:
