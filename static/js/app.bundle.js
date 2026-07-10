@@ -933,3 +933,106 @@ window.openInvoice = window.openInvoice || function (event, url) {
 })();
 
 
+
+// --- ripple.js ---
+// Ripple effect au clic sur tous les boutons .btn et .dropdown-item
+(function () {
+  'use strict';
+
+  // Détecte si le bouton est "clair" (fond blanc/gris) pour adapter la couleur du ripple
+  function isLightButton(btn) {
+    return btn.classList.contains('btn-secondary') ||
+           btn.classList.contains('btn-outline-secondary') ||
+           btn.classList.contains('btn-outline-primary') ||
+           btn.classList.contains('btn-light') ||
+           btn.classList.contains('btn-page-action-secondary') ||
+           btn.classList.contains('btn-outline-danger');
+  }
+
+  function createRipple(event) {
+    const btn = event.currentTarget;
+
+    // Ne pas créer un ripple sur un bouton désactivé
+    if (btn.disabled || btn.classList.contains('disabled')) return;
+
+    const circle = document.createElement('span');
+    const diameter = Math.max(btn.clientWidth, btn.clientHeight);
+    const radius = diameter / 2;
+
+    const rect = btn.getBoundingClientRect();
+    const x = (event.clientX - rect.left) - radius;
+    const y = (event.clientY - rect.top) - radius;
+
+    circle.style.width = circle.style.height = diameter + 'px';
+    circle.style.left = x + 'px';
+    circle.style.top = y + 'px';
+    circle.classList.add('btn-ripple');
+
+    // Couleur selon le type de bouton
+    if (isLightButton(btn)) {
+      circle.style.background = 'rgba(0, 0, 0, 0.10)';
+    } else if (btn.classList.contains('dropdown-item')) {
+      circle.style.background = 'rgba(0, 122, 255, 0.12)';
+    } else if (btn.classList.contains('btn-danger')) {
+      circle.style.background = 'rgba(255, 255, 255, 0.30)';
+    } else {
+      circle.style.background = 'rgba(255, 255, 255, 0.35)';
+    }
+
+    // Supprimer les anciens ripples résiduels
+    const existing = btn.querySelector('.btn-ripple');
+    if (existing) existing.remove();
+
+    btn.appendChild(circle);
+
+    // Nettoyer après l'animation
+    circle.addEventListener('animationend', function () {
+      circle.remove();
+    });
+  }
+
+  function attachRipple(root) {
+    const targets = (root || document).querySelectorAll(
+      '.btn:not([data-ripple-bound]), .dropdown-item:not([data-ripple-bound])'
+    );
+    targets.forEach(function (btn) {
+      btn.setAttribute('data-ripple-bound', '1');
+      btn.addEventListener('click', createRipple);
+    });
+  }
+
+  // Attacher au chargement initial
+  document.addEventListener('DOMContentLoaded', function () {
+    attachRipple(document);
+  });
+
+  // Re-attacher si du contenu est ajouté dynamiquement (modals, htmx, etc.)
+  document.addEventListener('fab:panel-open', function (event) {
+    if (event.detail && event.detail.panel) {
+      attachRipple(event.detail.panel);
+    }
+  });
+
+  // Attacher immédiatement pour les éléments déjà présents
+  attachRipple(document);
+
+  // Observer les nouveaux boutons ajoutés dynamiquement
+  if (window.MutationObserver) {
+    const observer = new MutationObserver(function (mutations) {
+      mutations.forEach(function (mutation) {
+        mutation.addedNodes.forEach(function (node) {
+          if (node.nodeType === 1) {
+            attachRipple(node);
+            if (node.matches && (node.matches('.btn') || node.matches('.dropdown-item'))) {
+              if (!node.getAttribute('data-ripple-bound')) {
+                node.setAttribute('data-ripple-bound', '1');
+                node.addEventListener('click', createRipple);
+              }
+            }
+          }
+        });
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+})();

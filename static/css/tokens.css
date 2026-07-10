@@ -372,9 +372,8 @@ h1, h2, h3, h4, h5, h6, .section-title {
   padding: 7px 16px !important;
   transition: all 0.2s var(--ease-spring) !important;
   letter-spacing: -0.01em;
-}
-.btn:active {
-  transform: scale(0.97) !important;
+  position: relative !important;
+  overflow: hidden !important;
 }
 
 /* Primary — filled blue */
@@ -595,10 +594,7 @@ h1, h2, h3, h4, h5, h6, .section-title {
   box-shadow: var(--shadow-glass-hover), var(--shadow-md) !important;
 }
 
-/* Micro-feedback spring scale-down on active button press */
-.btn:active, .dropdown-item:active {
-  transform: scale(0.96) !important;
-}
+/* Ripple effect — géré par JS (app.bundle.js) */
 
 /* Spring transition hover for interactive items */
 .nav-link, .sidebar-link, .dropdown-item, .btn {
@@ -866,9 +862,7 @@ html[data-theme="windows-dark"] textarea {
   transition: all 0.12s ease-in-out !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
-.btn:active {
-  transform: scale(0.98) !important;
-}
+/* .btn:active scale retiré — remplacé par ripple JS */
 
 .btn-primary, .btn-premium {
   background: linear-gradient(to bottom, #3498ff, #0076f6) !important;
@@ -881,7 +875,7 @@ html[data-theme="windows-dark"] textarea {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 118, 246, 0.2) !important;
 }
 .btn-primary:active, .btn-premium:active {
-  background: #0060cc !important;
+  background: #0060cc !important; /* couleur maintenue, scale supprimé */
 }
 
 .btn-secondary, .btn-outline-secondary, .btn-page-action-secondary, .btn-outline-primary {
