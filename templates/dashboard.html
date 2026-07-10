@@ -1304,107 +1304,114 @@
       }
     });
 
-    // 🎤 Voice Input — SpeechRecognition only (no getUserMedia / MediaRecorder)
-    // This avoids Windows audio driver exclusive-mode conflicts (Conexant, Realtek, etc.)
-    let recognition = null;
+    // 🎤 Voice Input — getUserMedia + MediaRecorder
+    // SpeechRecognition (webkitSpeechRecognition) is blocked on http://127.0.0.1 in Chrome 115+
+    // so we use MediaRecorder to capture audio and send the blob to the server.
+    let mediaRecorder = null;
+    let audioChunks = [];
     let isRecording = false;
-    let micTimeout = null;
-    let hasShownMicError = false;
+    let recordTimer = null;
+    let recordDuration = 0;
+    let localStream = null;
 
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     const isSecure = window.isSecureContext ||
                      window.location.hostname === 'localhost' ||
                      window.location.hostname === '127.0.0.1';
+    const hasMediaSupport = isSecure &&
+                            !!(navigator.mediaDevices &&
+                               navigator.mediaDevices.getUserMedia &&
+                               window.MediaRecorder);
 
-    if (!SR || !isSecure) {
-      // Browser doesn't support SpeechRecognition — hide mic button
+    if (!hasMediaSupport) {
       if (micBtn) micBtn.style.display = 'none';
-    } else {
-      recognition = new SR();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = navigator.language || 'fr-FR';
+    }
 
-      recognition.onstart = () => {
+    function showMicError(msg) {
+      if (micBtn)    micBtn.innerHTML = '<i class="bi bi-mic"></i>';
+      if (soundwave) soundwave.style.display = 'none';
+      if (input) {
+        input.disabled = false;
+        input.placeholder = msg;
+        setTimeout(() => { input.placeholder = 'Posez une question à Sabrina...'; }, 5000);
+      }
+      isRecording = false;
+      clearInterval(recordTimer);
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+      }
+    }
+
+    async function startRecording() {
+      if (isRecording || !hasMediaSupport) return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        localStream = stream;
+
+        // Pick best supported format
+        const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg']
+          .find(t => MediaRecorder.isTypeSupported(t)) || '';
+        mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            // Server reads the transcript field; audio blob is included for future STT use
+            sendMessage(`[AUDIO:${reader.result}|]`);
+          };
+          reader.readAsDataURL(blob);
+          if (localStream) {
+            localStream.getTracks().forEach(t => t.stop());
+            localStream = null;
+          }
+        };
+
+        mediaRecorder.start();
         isRecording = true;
-        hasShownMicError = false;
-        if (micTimeout) clearTimeout(micTimeout);
+
+        // UI Feedback
         micBtn.innerHTML = '<i class="bi bi-stop-circle-fill text-danger animate-pulse"></i>';
         soundwave.style.display = 'flex';
         input.disabled = true;
         input.value = '';
-        input.placeholder = '🎤 Parlez maintenant…';
-        // Auto-stop after 10s if no result
-        micTimeout = setTimeout(() => {
-          if (isRecording) stopRecording();
-        }, 10000);
-      };
 
-      recognition.onresult = (event) => {
-        if (micTimeout) clearTimeout(micTimeout);
-        const transcript = (event.results[0][0].transcript || '').trim();
-        if (transcript.length > 0) {
-          input.value = transcript;
-          input.dispatchEvent(new Event('input'));
-          stopRecording();
-          setTimeout(() => sendMessage(transcript), 300);
+        const fmt = s => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+        recordDuration = 0;
+        input.placeholder = `🎤 Enregistrement... ${fmt(recordDuration)}`;
+        recordTimer = setInterval(() => {
+          recordDuration++;
+          input.placeholder = `🎤 Enregistrement... ${fmt(recordDuration)}`;
+          if (recordDuration >= 60) stopRecording(); // max 60s
+        }, 1000);
+
+      } catch (err) {
+        console.error('getUserMedia error:', err.name, err.message);
+        const n = err.name || '';
+        if (n === 'NotAllowedError' || n === 'PermissionDeniedError') {
+          showMicError('⚠️ Micro refusé — rechargez la page et autorisez le micro.');
+        } else if (n === 'NotFoundError' || n === 'DevicesNotFoundError') {
+          showMicError('⚠️ Aucun micro détecté — vérifiez votre matériel.');
+        } else if (n === 'NotReadableError' || n === 'TrackStartError') {
+          showMicError('⚠️ Micro utilisé par une autre app — fermez Zoom/Teams/etc. et réessayez.');
         } else {
-          stopRecording();
+          showMicError(`⚠️ Erreur micro : ${n || err.message}`);
         }
-      };
-
-      recognition.onerror = (event) => {
-        if (micTimeout) clearTimeout(micTimeout);
-        console.error('SpeechRecognition error:', event.error);
-        stopRecording();
-        if (!hasShownMicError && event.error !== 'no-speech' && event.error !== 'aborted') {
-          hasShownMicError = true;
-          if (event.error === 'not-allowed') {
-            input.placeholder = '⚠️ Micro refusé — cliquez sur le cadenas et autorisez le micro.';
-          } else if (event.error === 'audio-capture') {
-            input.placeholder = '⚠️ Micro introuvable — vérifiez que votre micro est branché.';
-          } else if (event.error === 'network') {
-            input.placeholder = '⚠️ Réseau requis pour la reconnaissance vocale (Google).';
-          } else {
-            input.placeholder = `⚠️ Erreur vocale : ${event.error}`;
-          }
-          setTimeout(() => {
-            input.placeholder = 'Posez une question à Sabrina...';
-          }, 5000);
-        }
-      };
-
-      recognition.onend = () => {
-        if (micTimeout) clearTimeout(micTimeout);
-        // Only reset if still showing recording state
-        if (isRecording) stopRecording();
-      };
-    }
-
-    function startRecording() {
-      if (!recognition || isRecording) return;
-      hasShownMicError = false;
-      try {
-        recognition.start();
-      } catch (e) {
-        console.warn('recognition.start() failed:', e);
-        // Recognition might already be running — stop and retry once
-        try { recognition.stop(); } catch (_) {}
-        setTimeout(() => {
-          try { recognition.start(); } catch (e2) {
-            console.error('recognition.start() retry failed:', e2);
-          }
-        }, 300);
       }
     }
 
     function stopRecording() {
-      if (micTimeout) clearTimeout(micTimeout);
+      clearInterval(recordTimer);
       isRecording = false;
-      if (recognition) {
-        try { recognition.stop(); } catch (_) {}
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
       }
-      if (micBtn) micBtn.innerHTML = '<i class="bi bi-mic"></i>';
+      if (micBtn)    micBtn.innerHTML = '<i class="bi bi-mic"></i>';
       if (soundwave) soundwave.style.display = 'none';
       if (input) {
         input.disabled = false;
