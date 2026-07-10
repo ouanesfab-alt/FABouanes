@@ -1314,7 +1314,10 @@
     let recognitionTranscript = "";
     let localStream = null;
 
-    const hasMediaSupport = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+    const isSecure = window.isSecureContext ||
+                     window.location.hostname === 'localhost' ||
+                     window.location.hostname === '127.0.0.1';
+    const hasMediaSupport = isSecure && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!hasMediaSupport) {
@@ -1400,7 +1403,25 @@
 
       } catch (err) {
         console.error("Erreur d'accès au microphone :", err);
-        alert("Impossible d'accéder au microphone. Veuillez vérifier les permissions dans votre navigateur.");
+        // Reset UI without blocking alert
+        micBtn.innerHTML = '<i class="bi bi-mic"></i>';
+        soundwave.style.display = 'none';
+        input.disabled = false;
+        input.placeholder = "Posez une question à Sabrina...";
+        isRecording = false;
+
+        // Show friendly inline message
+        const name = err.name || '';
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+          input.placeholder = "⚠️ Microphone refusé — autorisez-le dans les paramètres du navigateur.";
+        } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+          input.placeholder = "⚠️ Aucun microphone détecté sur cet appareil.";
+        } else {
+          input.placeholder = "⚠️ Microphone inaccessible. Vérifiez vos permissions.";
+        }
+        setTimeout(() => {
+          input.placeholder = "Posez une question à Sabrina...";
+        }, 4000);
       }
     }
 
