@@ -205,64 +205,64 @@
 
 /* ── Theme Sable (Sand/Oasis) ── */
 [data-theme="sable"] {
-  --bg: #F4EFE6;
-  --bg-primary: #F4EFE6;
-  --bg-secondary: #FAF6EE;
-  --bg-tertiary: #EBE4D5;
-  --bg-grouped: #E3DBCA;
-  --bg-th-opaque: #EBE4D5;
+  --bg: #E8DCC4;
+  --bg-primary: #E8DCC4;
+  --bg-secondary: #F3EBDD;
+  --bg-tertiary: #DCCFB4;
+  --bg-grouped: #D2C4A5;
+  --bg-th-opaque: #DCCFB4;
 
-  --text: #322A20;
-  --text-primary: #322A20;
-  --text-secondary: #7A6956;
-  --text-tertiary: #9C8C7A;
-  --muted: #7A6956;
+  --text: #453625;
+  --text-primary: #453625;
+  --text-secondary: #7F6A51;
+  --text-tertiary: #9E8B75;
+  --muted: #7F6A51;
 
-  --line: rgba(80, 60, 40, 0.10);
-  --separator: rgba(80, 60, 40, 0.15);
-  --separator-opaque: #D6CAB8;
+  --line: rgba(90, 70, 50, 0.12);
+  --separator: rgba(90, 70, 50, 0.18);
+  --separator-opaque: #C8B89C;
 
-  /* Glass Materials - Sandy Warmth */
-  --glass-ultra-thin: rgba(250, 246, 238, 0.35);
-  --glass-thin: rgba(250, 246, 238, 0.50);
-  --glass-regular: rgba(250, 246, 238, 0.65);
-  --glass-thick: rgba(250, 246, 238, 0.85);
-  --glass-chrome: rgba(250, 246, 238, 0.95);
-  --glass-sidebar: rgba(244, 239, 230, 0.75);
-  --glass-border: rgba(130, 100, 70, 0.12);
-  --glass-border-light: rgba(255, 255, 255, 0.60);
-  --glass-highlight: linear-gradient(180deg, rgba(255, 255, 255, 0.40) 0%, rgba(255, 255, 255, 0) 50%);
+  /* Glass Materials - Warm Dune Glass */
+  --glass-ultra-thin: rgba(243, 235, 221, 0.35);
+  --glass-thin: rgba(243, 235, 221, 0.50);
+  --glass-regular: rgba(243, 235, 221, 0.65);
+  --glass-thick: rgba(243, 235, 221, 0.85);
+  --glass-chrome: rgba(243, 235, 221, 0.95);
+  --glass-sidebar: rgba(232, 220, 196, 0.75);
+  --glass-border: rgba(120, 95, 70, 0.15);
+  --glass-border-light: rgba(255, 255, 255, 0.55);
+  --glass-highlight: linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 50%);
   --glass-bg: var(--glass-thick);
   --glass-shadow: var(--shadow-glass);
 
   --card: var(--glass-thick);
   --surface: var(--glass-regular);
 
-  /* Warm Desert System Colors */
-  --system-blue: #C28D38; /* Dune Gold Accent */
-  --system-green: #2E7D32;
-  --system-orange: #EF6C00;
-  --system-red: #C62828;
-  --system-yellow: #F9A825;
-  --system-purple: #6A1B9A;
-  --system-pink: #AD1457;
-  --system-teal: #00838F;
-  --system-indigo: #283593;
+  /* Warm Accent (Desert Dune Gold / Sienna) */
+  --system-blue: #C58B35;
+  --system-green: #3B7A57;
+  --system-orange: #D96B27;
+  --system-red: #B23B3B;
+  --system-yellow: #E6AD12;
+  --system-purple: #7B3F80;
+  --system-pink: #A83B65;
+  --system-teal: #1F8A94;
+  --system-indigo: #3D488E;
   --accent: var(--system-blue);
 
-  /* Warm Easing and Shadows */
-  --shadow-sm: 0 0.5px 1px rgba(80, 60, 40, 0.05), 0 1px 2px rgba(80, 60, 40, 0.08);
-  --shadow-md: 0 2px 8px rgba(80, 60, 40, 0.08), 0 4px 16px rgba(80, 60, 40, 0.06);
-  --shadow-lg: 0 8px 28px rgba(80, 60, 40, 0.10), 0 2px 8px rgba(80, 60, 40, 0.06);
-  --shadow-xl: 0 16px 48px rgba(80, 60, 40, 0.15), 0 4px 12px rgba(80, 60, 40, 0.08);
-  --shadow-glass: 0 4px 24px rgba(80, 60, 40, 0.08), inset 0 0.5px 0 rgba(255, 255, 255, 0.60), inset 0 -0.5px 0 rgba(80, 60, 40, 0.05);
-  --shadow-glass-hover: 0 8px 32px rgba(80, 60, 40, 0.12), inset 0 0.5px 0 rgba(255, 255, 255, 0.70), inset 0 -0.5px 0 rgba(80, 60, 40, 0.08);
+  /* Warm Shadows */
+  --shadow-sm: 0 0.5px 1px rgba(90, 70, 50, 0.08), 0 1px 2px rgba(90, 70, 50, 0.12);
+  --shadow-md: 0 2px 8px rgba(90, 70, 50, 0.12), 0 4px 16px rgba(90, 70, 50, 0.08);
+  --shadow-lg: 0 8px 28px rgba(90, 70, 50, 0.15), 0 2px 8px rgba(90, 70, 50, 0.08);
+  --shadow-xl: 0 16px 48px rgba(90, 70, 50, 0.20), 0 4px 12px rgba(90, 70, 50, 0.10);
+  --shadow-glass: 0 4px 24px rgba(90, 70, 50, 0.10), inset 0 0.5px 0 rgba(255, 255, 255, 0.55), inset 0 -0.5px 0 rgba(90, 70, 50, 0.08);
+  --shadow-glass-hover: 0 8px 32px rgba(90, 70, 50, 0.15), inset 0 0.5px 0 rgba(255, 255, 255, 0.65), inset 0 -0.5px 0 rgba(90, 70, 50, 0.12);
 
-  /* Sandy Sequoia ambient */
-  --sequoia-color-1: rgba(244, 219, 186, 0.35);
-  --sequoia-color-2: rgba(220, 185, 140, 0.20);
-  --sequoia-color-3: rgba(194, 141, 56, 0.15);
-  --sequoia-color-4: rgba(130, 90, 40, 0.10);
+  /* Sandy Sequoia Wallpaper backdrop */
+  --sequoia-color-1: rgba(232, 190, 130, 0.35);
+  --sequoia-color-2: rgba(210, 160, 100, 0.20);
+  --sequoia-color-3: rgba(185, 120, 45, 0.15);
+  --sequoia-color-4: rgba(110, 70, 30, 0.10);
 }
 
 /* ── Font preference overrides ── */
