@@ -389,7 +389,7 @@ def open_ui(url: str) -> None:
             setup_webview_permissions,
             window,
             gui="edgechromium",
-            debug=False,
+            debug=True,
             private_mode=False,
             storage_path=str(WEBVIEW_STORAGE_DIR),
             icon=str(icon_path) if icon_path is not None else None,

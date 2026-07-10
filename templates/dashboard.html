@@ -1214,41 +1214,29 @@
     const nonce = document.querySelector('script[nonce]')?.getAttribute('nonce') || '';
 
     function loadGoogleFont(fontName) {
-      return new Promise((resolve) => {
-        const fontId = `gfont-${fontName.replace(/\s+/g, '-').toLowerCase()}`;
-        if (document.getElementById(fontId) || loadedFonts.has(fontName)) {
-          resolve(true);
-          return;
-        }
+      const fontId = `gfont-${fontName.replace(/\s+/g, '-').toLowerCase()}`;
+      if (document.getElementById(fontId) || loadedFonts.has(fontName)) {
+        return;
+      }
 
-        const link = document.createElement('link');
-        link.id = fontId;
-        link.rel = 'stylesheet';
-        link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:wght@400;700;900&display=swap`;
-        if (nonce) {
-          link.setAttribute('nonce', nonce);
-        }
-
-        link.onload = () => {
-          loadedFonts.add(fontName);
-          resolve(true);
-        };
-        link.onerror = () => {
-          // Resolve anyway to prevent blocking UI if network or CDN is offline
-          resolve(false);
-        };
-        document.head.appendChild(link);
-      });
+      const link = document.createElement('link');
+      link.id = fontId;
+      link.rel = 'stylesheet';
+      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:wght@400;700;900&display=swap`;
+      if (nonce) {
+        link.setAttribute('nonce', nonce);
+      }
+      document.head.appendChild(link);
+      loadedFonts.add(fontName);
     }
 
-    async function rotateFont() {
+    function rotateFont() {
       // 1. Pick a random font from the pool
       const randomIdx = Math.floor(Math.random() * FONTS_POOL.length);
       const nextFont = FONTS_POOL[randomIdx];
 
-      // 2. Load the font from Google Fonts in parallel
-      const success = await loadGoogleFont(nextFont);
-      if (!success) return;
+      // 2. Load the font from Google Fonts (non-blocking)
+      loadGoogleFont(nextFont);
 
       // 3. Smooth transition: fade out logo slightly
       logoText.style.opacity = '0.08';
