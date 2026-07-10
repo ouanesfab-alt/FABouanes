@@ -71,12 +71,17 @@ export async function syncPendingOperations() {
 export async function cacheReferenceData() {
   if (!navigator.onLine) return;
   try {
+    const opts = { credentials: 'include' };
     const [clientsRes, catalogRes, suppliersRes, rawMaterialsRes] = await Promise.all([
-      fetch('/api/v1/clients?limit=500'),
-      fetch('/api/v1/sellable-items'),
-      fetch('/api/v1/suppliers?limit=500'),
-      fetch('/api/v1/raw-materials?limit=500'),
+      fetch('/api/v1/clients?limit=500', opts),
+      fetch('/api/v1/sellable-items', opts),
+      fetch('/api/v1/suppliers?limit=500', opts),
+      fetch('/api/v1/raw-materials?limit=500', opts),
     ]);
+    // Silently abort if not authenticated (user not logged in yet)
+    if ([clientsRes, catalogRes, suppliersRes, rawMaterialsRes]
+        .some(r => r.status === 401 || r.status === 403)) return;
+
     if (clientsRes.ok) {
       const data = await clientsRes.json();
       await cacheRefData('clients', data.data || data);
