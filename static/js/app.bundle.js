@@ -932,107 +932,71 @@ window.openInvoice = window.openInvoice || function (event, url) {
   window.addEventListener('resize',hide);
 })();
 
-
-
-// --- ripple.js ---
-// Ripple effect au clic sur tous les boutons .btn et .dropdown-item
+/* ══════════════════════════════════════════════════════════════════
+   RIPPLE ENGINE — injecte l'effet ripple (200 ms) sur TOUS
+   les boutons de TOUTES les pages, dynamiquement
+   ══════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
 
-  // Détecte si le bouton est "clair" (fond blanc/gris) pour adapter la couleur du ripple
-  function isLightButton(btn) {
-    return btn.classList.contains('btn-secondary') ||
-           btn.classList.contains('btn-outline-secondary') ||
-           btn.classList.contains('btn-outline-primary') ||
-           btn.classList.contains('btn-light') ||
-           btn.classList.contains('btn-page-action-secondary') ||
-           btn.classList.contains('btn-outline-danger');
+  var RIPPLE_SELECTOR = [
+    '.btn',
+    'button',
+    '[type="submit"]',
+    '[type="button"]',
+    '[type="reset"]',
+    '.dropdown-item',
+    '.nav-link',
+    '.sidebar-link',
+    '.list-group-item-action',
+    '.fab-action-btn',
+    '.icon-btn',
+    '.quick-action-btn',
+    '.action-btn',
+    '.nav-item > a',
+    '.page-link'
+  ].join(',');
+
+  var DURATION = 200;
+
+  function createRipple(element, event) {
+    var rect = element.getBoundingClientRect();
+    var clientX = (event.clientX !== undefined) ? event.clientX
+                : (event.touches && event.touches[0]) ? event.touches[0].clientX
+                : rect.left + rect.width / 2;
+    var clientY = (event.clientY !== undefined) ? event.clientY
+                : (event.touches && event.touches[0]) ? event.touches[0].clientY
+                : rect.top + rect.height / 2;
+
+    var x    = clientX - rect.left;
+    var y    = clientY - rect.top;
+    var size = Math.max(rect.width, rect.height) * 2;
+
+    var ripple = document.createElement('span');
+    ripple.className   = 'ripple-wave';
+    ripple.style.width  = size + 'px';
+    ripple.style.height = size + 'px';
+    ripple.style.left   = (x - size / 2) + 'px';
+    ripple.style.top    = (y - size / 2) + 'px';
+
+    element.appendChild(ripple);
+
+    setTimeout(function () {
+      if (ripple.parentNode) ripple.parentNode.removeChild(ripple);
+    }, DURATION + 50);
   }
 
-  function createRipple(event) {
-    const btn = event.currentTarget;
-
-    // Ne pas créer un ripple sur un bouton désactivé
-    if (btn.disabled || btn.classList.contains('disabled')) return;
-
-    const circle = document.createElement('span');
-    const diameter = Math.max(btn.clientWidth, btn.clientHeight);
-    const radius = diameter / 2;
-
-    const rect = btn.getBoundingClientRect();
-    const x = (event.clientX - rect.left) - radius;
-    const y = (event.clientY - rect.top) - radius;
-
-    circle.style.width = circle.style.height = diameter + 'px';
-    circle.style.left = x + 'px';
-    circle.style.top = y + 'px';
-    circle.classList.add('btn-ripple');
-
-    // Couleur selon le type de bouton
-    if (isLightButton(btn)) {
-      circle.style.background = 'rgba(0, 0, 0, 0.10)';
-    } else if (btn.classList.contains('dropdown-item')) {
-      circle.style.background = 'rgba(0, 122, 255, 0.12)';
-    } else if (btn.classList.contains('btn-danger')) {
-      circle.style.background = 'rgba(255, 255, 255, 0.30)';
-    } else {
-      circle.style.background = 'rgba(255, 255, 255, 0.35)';
-    }
-
-    // Supprimer les anciens ripples résiduels
-    const existing = btn.querySelector('.btn-ripple');
-    if (existing) existing.remove();
-
-    btn.appendChild(circle);
-
-    // Nettoyer après l'animation
-    circle.addEventListener('animationend', function () {
-      circle.remove();
-    });
+  function handleRipple(event) {
+    var el  = event.target;
+    var btn = el.closest ? el.closest(RIPPLE_SELECTOR) : null;
+    if (!btn) return;
+    createRipple(btn, event);
   }
 
-  function attachRipple(root) {
-    const targets = (root || document).querySelectorAll(
-      '.btn:not([data-ripple-bound]), .dropdown-item:not([data-ripple-bound])'
-    );
-    targets.forEach(function (btn) {
-      btn.setAttribute('data-ripple-bound', '1');
-      btn.addEventListener('click', createRipple);
-    });
-  }
+  document.addEventListener('mousedown', handleRipple, true);
+  document.addEventListener('touchstart', handleRipple, { passive: true, capture: true });
 
-  // Attacher au chargement initial
-  document.addEventListener('DOMContentLoaded', function () {
-    attachRipple(document);
-  });
-
-  // Re-attacher si du contenu est ajouté dynamiquement (modals, htmx, etc.)
-  document.addEventListener('fab:panel-open', function (event) {
-    if (event.detail && event.detail.panel) {
-      attachRipple(event.detail.panel);
-    }
-  });
-
-  // Attacher immédiatement pour les éléments déjà présents
-  attachRipple(document);
-
-  // Observer les nouveaux boutons ajoutés dynamiquement
-  if (window.MutationObserver) {
-    const observer = new MutationObserver(function (mutations) {
-      mutations.forEach(function (mutation) {
-        mutation.addedNodes.forEach(function (node) {
-          if (node.nodeType === 1) {
-            attachRipple(node);
-            if (node.matches && (node.matches('.btn') || node.matches('.dropdown-item'))) {
-              if (!node.getAttribute('data-ripple-bound')) {
-                node.setAttribute('data-ripple-bound', '1');
-                node.addEventListener('click', createRipple);
-              }
-            }
-          }
-        });
-      });
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-  }
 })();
+
+
+

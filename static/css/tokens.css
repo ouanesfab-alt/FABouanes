@@ -372,8 +372,9 @@ h1, h2, h3, h4, h5, h6, .section-title {
   padding: 7px 16px !important;
   transition: all 0.2s var(--ease-spring) !important;
   letter-spacing: -0.01em;
-  position: relative !important;
-  overflow: hidden !important;
+}
+.btn:active {
+  transform: scale(0.97) !important;
 }
 
 /* Primary — filled blue */
@@ -594,11 +595,70 @@ h1, h2, h3, h4, h5, h6, .section-title {
   box-shadow: var(--shadow-glass-hover), var(--shadow-md) !important;
 }
 
-/* Ripple effect — géré par JS (app.bundle.js) */
+/* Micro-feedback spring scale-down on active button press */
+.btn:active, .dropdown-item:active {
+  transform: scale(0.96) !important;
+}
 
 /* Spring transition hover for interactive items */
 .nav-link, .sidebar-link, .dropdown-item, .btn {
   transition: all 0.25s var(--ease-spring) !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   RIPPLE EFFECT — Global button click animation (200ms)
+   Covers ALL .btn, button, [type=submit], [type=button],
+   .dropdown-item, .nav-link, .sidebar-link, .list-group-item
+   ══════════════════════════════════════════════════════════ */
+
+/* Every ripple-capable element must clip its overflow */
+.btn,
+button,
+[type="submit"],
+[type="button"],
+[type="reset"],
+.dropdown-item,
+.nav-link,
+.sidebar-link,
+.list-group-item-action,
+.fab-action-btn,
+.icon-btn,
+.quick-action-btn,
+.action-btn {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+/* The ripple span injected by JS */
+.ripple-wave {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transform: scale(0);
+  animation: ripple-expand 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Dark-theme ripple: slightly brighter overlay */
+html[data-theme="dark"]  .ripple-wave,
+html[data-theme="windows-dark"] .ripple-wave {
+  background: rgba(255, 255, 255, 0.20);
+}
+
+/* Light buttons (secondary/outline) get a darker ripple */
+.btn-secondary      .ripple-wave,
+.btn-outline-secondary .ripple-wave,
+.btn-outline-primary   .ripple-wave,
+.btn-light             .ripple-wave,
+.btn-page-action-secondary .ripple-wave {
+  background: rgba(0, 0, 0, 0.10);
+}
+
+@keyframes ripple-expand {
+  0%   { transform: scale(0); opacity: 1; }
+  80%  { transform: scale(2.5); opacity: 0.4; }
+  100% { transform: scale(3);   opacity: 0; }
 }
 
 /* ── Additional Premium macOS Sequoia Styles ── */
@@ -862,7 +922,9 @@ html[data-theme="windows-dark"] textarea {
   transition: all 0.12s ease-in-out !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
-/* .btn:active scale retiré — remplacé par ripple JS */
+.btn:active {
+  transform: scale(0.98) !important;
+}
 
 .btn-primary, .btn-premium {
   background: linear-gradient(to bottom, #3498ff, #0076f6) !important;
@@ -875,7 +937,7 @@ html[data-theme="windows-dark"] textarea {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 118, 246, 0.2) !important;
 }
 .btn-primary:active, .btn-premium:active {
-  background: #0060cc !important; /* couleur maintenue, scale supprimé */
+  background: #0060cc !important;
 }
 
 .btn-secondary, .btn-outline-secondary, .btn-page-action-secondary, .btn-outline-primary {
