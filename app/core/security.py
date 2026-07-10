@@ -89,7 +89,8 @@ def security_headers(response):
         csp = (
             f"default-src 'self'; "
             f"script-src 'self' 'nonce-{nonce}'; "
-            f"style-src 'self' 'nonce-{nonce}'; "
+            f"style-src 'self' 'nonce-{nonce}' https://fonts.googleapis.com; "
+            f"font-src 'self' https://fonts.gstatic.com; "
             f"img-src 'self' data: blob:; "
             f"connect-src 'self';"
         )
@@ -97,7 +98,8 @@ def security_headers(response):
         csp = (
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline'; "
-            "style-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: blob:; "
             "connect-src 'self';"
         )
