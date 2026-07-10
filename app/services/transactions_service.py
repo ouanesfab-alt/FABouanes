@@ -189,7 +189,8 @@ async def _transactions_context_impl(
     formatted_rows = []
     for row in rows:
         row_dict = dict(row._mapping)
-        tx_created = row_dict.get("tx_created_at")
+        from app.core.model_utils import to_gmt1
+        tx_created = to_gmt1(row_dict.get("tx_created_at"))
         if hasattr(tx_created, "strftime"):
             row_dict["tx_time"] = tx_created.strftime("%H:%M")
         elif isinstance(tx_created, str):

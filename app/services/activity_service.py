@@ -63,6 +63,8 @@ ENTITY_LABELS = {
 
 
 def _display_date(value) -> str:
+    from app.core.model_utils import to_gmt1
+    value = to_gmt1(value)
     if hasattr(value, "strftime"):
         return value.strftime("%d/%m/%Y %H:%M")
     raw = str(value or "").strip()
@@ -71,6 +73,7 @@ def _display_date(value) -> str:
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
         try:
             parsed = datetime.strptime(raw[:19], fmt)
+            parsed = to_gmt1(parsed)
             return parsed.strftime("%d/%m/%Y %H:%M")
         except ValueError:
             continue

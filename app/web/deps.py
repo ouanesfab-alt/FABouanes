@@ -329,6 +329,8 @@ def template_context(request: Request, **context: Any) -> dict[str, Any]:
 def _dt_filter(value: Any, length: int = 16) -> str:
     if value is None:
         return ""
+    from app.core.model_utils import to_gmt1
+    value = to_gmt1(value)
     if hasattr(value, "strftime"):
         if length <= 10:
             return value.strftime("%Y-%m-%d")
