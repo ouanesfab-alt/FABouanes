@@ -624,10 +624,11 @@ button,
 .btn-page-action, .btn-page-action-secondary,
 .btn-achat-submit, .btn-vente-submit, .btn-payment-submit,
 /* Navbar & layout */
+.nav-brand, .nav-links a,
 .nav-btn, .nav-btn-primary, .nav-link-menu,
-.nav-hamburger, .side-nav-toggle, .bot-tab-add,
+.nav-hamburger, .side-nav-toggle, .bot-tab-add, .bot-tab,
 .nav-link, .nav-drawer-close,
-.drawer-link, .drawer-link-btn,
+.drawer-link, .drawer-link-btn, .drawer-sublink,
 /* Dropdowns & menus */
 .dropdown-item, .dropdown-toggle,
 /* Lists & tabs */
@@ -669,12 +670,17 @@ html[data-theme="windows-dark"] .ripple-wave {
 }
 
 /* Navbar buttons: ripple adapté (fond clair ou transparent) */
+.nav-brand .ripple-wave,
+.nav-links a .ripple-wave,
 .nav-btn .ripple-wave,
 .nav-btn-primary .ripple-wave,
 .nav-link-menu .ripple-wave,
 .nav-hamburger .ripple-wave,
 .side-nav-toggle .ripple-wave,
-.bot-tab-add .ripple-wave {
+.bot-tab-add .ripple-wave,
+.bot-tab .ripple-wave,
+.drawer-link .ripple-wave,
+.drawer-sublink .ripple-wave {
   background: rgba(255, 255, 255, 0.30);
 }
 

@@ -18,10 +18,11 @@ const RIPPLE_SELECTOR = [
   '.btn-page-action', '.btn-page-action-secondary',
   '.btn-achat-submit', '.btn-vente-submit', '.btn-payment-submit',
   /* Navbar & layout */
+  '.nav-brand', '.nav-links a',
   '.nav-btn', '.nav-btn-primary', '.nav-link-menu',
-  '.nav-hamburger', '.side-nav-toggle', '.bot-tab-add',
+  '.nav-hamburger', '.side-nav-toggle', '.bot-tab-add', '.bot-tab',
   '.nav-link', '.nav-drawer-close',
-  '.drawer-link', '.drawer-link-btn',
+  '.drawer-link', '.drawer-link-btn', '.drawer-sublink',
   /* Dropdowns */
   '.dropdown-item', '.dropdown-toggle',
   /* Lists & tabs */
