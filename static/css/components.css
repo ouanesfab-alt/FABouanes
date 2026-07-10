@@ -201,7 +201,9 @@ h1, h2, h3, h4, h5, h6, .brand-title, .title-premium {
   transform: translateY(-1px);
 }
 
-/* .btn-premium:active scale retiré — remplacé par ripple */
+.btn-premium:active {
+  /* scale removed — ripple effect only */
+}
 
 /* 💀 SKELETON LOADERS & SHIMMER EFFECTS */
 @keyframes shimmer {
@@ -464,48 +466,7 @@ body.kpi-modal-open { overflow: hidden; }
   background: linear-gradient(135deg, #9a3412, #b45309) !important;
   box-shadow: 0 6px 16px rgba(124, 45, 18, 0.4) !important;
 }
-/* .btn-brown:active scale retiré — remplacé par ripple */
-
-
-/* ═══════════════════════════════════════════════
-   RIPPLE EFFECT — Animation au clic de bouton
-   ═══════════════════════════════════════════════ */
-
-/* Tous les boutons doivent avoir overflow:hidden pour contenir le ripple */
-.btn, .btn-premium, .btn-brown, .btn-primary, .btn-secondary,
-.btn-danger, .btn-success, .btn-warning, .btn-info,
-.btn-outline-primary, .btn-outline-secondary, .btn-outline-danger,
-.dropdown-item {
-  position: relative !important;
-  overflow: hidden !important;
+.btn-brown:active {
+  /* scale removed — ripple effect only */
 }
 
-/* L'élément ripple lui-même */
-.btn-ripple {
-  position: absolute;
-  border-radius: 50%;
-  transform: scale(0);
-  animation: fab-ripple-expand 550ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  pointer-events: none;
-  background: rgba(255, 255, 255, 0.35);
-}
-
-/* Sur les boutons clairs, couleur foncée */
-.btn-secondary .btn-ripple,
-.btn-outline-secondary .btn-ripple,
-.btn-outline-primary .btn-ripple,
-.btn-light .btn-ripple,
-.btn-page-action-secondary .btn-ripple {
-  background: rgba(0, 0, 0, 0.10);
-}
-
-/* Sur les items de dropdown */
-.dropdown-item .btn-ripple {
-  background: rgba(0, 122, 255, 0.12);
-}
-
-@keyframes fab-ripple-expand {
-  0%   { transform: scale(0); opacity: 0.85; }
-  60%  { transform: scale(2.5); opacity: 0.4; }
-  100% { transform: scale(4); opacity: 0; }
-}
