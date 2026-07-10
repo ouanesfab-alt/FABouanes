@@ -1453,6 +1453,17 @@
       }
     });
 
+    input.addEventListener('blur', function() {
+      // Small timeout to let clicks on buttons or uploads execute first
+      setTimeout(() => {
+        if (input.value.trim() === "" && history.length === 0) {
+          hero.classList.remove('chat-active');
+          chatArea.classList.remove('active');
+          localStorage.setItem('fab_chat_expanded', 'false');
+        }
+      }, 200);
+    });
+
     // Auto-collapse empty assistant when clicking outside
     document.addEventListener('mousedown', function(e) {
       if (hero && !hero.contains(e.target)) {
