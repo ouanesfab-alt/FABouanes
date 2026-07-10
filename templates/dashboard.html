@@ -1314,8 +1314,14 @@
     let recognitionTranscript = "";
     let localStream = null;
 
+    const hasMediaSupport = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SR) {
+
+    if (!hasMediaSupport) {
+      if (micBtn) micBtn.style.display = 'none';
+    }
+
+    if (SR && hasMediaSupport) {
       recognition = new SR();
       recognition.continuous = false;
       recognition.interimResults = false;
@@ -1517,6 +1523,8 @@
     // Cache the original font name
     const defaultFont = "Outfit";
     let loadedFonts = new Set([defaultFont]);
+    let currentFontIdx = -1;
+    let currentColorIdx = -1;
 
     // Apply CSS transition properties for beautiful fluid transitions (including color)
     logoText.style.transition = 'opacity 0.3s ease, font-family 0.3s ease, color 0.8s ease';
@@ -1524,44 +1532,65 @@
     // Retrieve script CSP nonce if present
     const nonce = document.querySelector('script[nonce]')?.getAttribute('nonce') || '';
 
-    function loadGoogleFont(fontName) {
-      const fontId = `gfont-${fontName.replace(/\s+/g, '-').toLowerCase()}`;
-      if (document.getElementById(fontId) || loadedFonts.has(fontName)) {
+    function rotateFont() {
+      if (FONTS_POOL.length <= 1) return;
+      let randomIdx;
+      do {
+        randomIdx = Math.floor(Math.random() * FONTS_POOL.length);
+      } while (randomIdx === currentFontIdx);
+      currentFontIdx = randomIdx;
+      const nextFont = FONTS_POOL[randomIdx];
+
+      const fontId = `gfont-${nextFont.replace(/\s+/g, '-').toLowerCase()}`;
+      
+      const applyFontChange = () => {
+        logoText.style.opacity = '0.08';
+        setTimeout(() => {
+          logoText.style.fontFamily = `"${nextFont}", system-ui, sans-serif`;
+          logoText.style.opacity = '1';
+        }, 300);
+      };
+
+      // If already loaded, transition directly
+      if (document.getElementById(fontId) || loadedFonts.has(nextFont)) {
+        applyFontChange();
         return;
       }
 
+      // Load dynamically
       const link = document.createElement('link');
       link.id = fontId;
       link.rel = 'stylesheet';
-      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:wght@400;700;900&display=swap`;
+      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(nextFont)}:wght@400;700;900&display=swap`;
       if (nonce) {
         link.setAttribute('nonce', nonce);
       }
+
+      link.onload = () => {
+        loadedFonts.add(nextFont);
+        if (document.fonts && document.fonts.load) {
+          document.fonts.load(`900 1em "${nextFont}"`)
+            .then(applyFontChange)
+            .catch(applyFontChange);
+        } else {
+          applyFontChange();
+        }
+      };
+
+      link.onerror = () => {
+        applyFontChange();
+      };
+
       document.head.appendChild(link);
-      loadedFonts.add(fontName);
-    }
-
-    function rotateFont() {
-      // 1. Pick a random font from the pool
-      const randomIdx = Math.floor(Math.random() * FONTS_POOL.length);
-      const nextFont = FONTS_POOL[randomIdx];
-
-      // 2. Load the font from Google Fonts (non-blocking)
-      loadGoogleFont(nextFont);
-
-      // 3. Smooth transition: fade out logo slightly
-      logoText.style.opacity = '0.08';
-
-      // 4. Wait for fade out to complete, then change font-family
-      setTimeout(() => {
-        logoText.style.fontFamily = `"${nextFont}", system-ui, sans-serif`;
-        // 5. Fade back in
-        logoText.style.opacity = '1';
-      }, 300);
     }
 
     function rotateColor() {
-      const randomIdx = Math.floor(Math.random() * COLORS_POOL.length);
+      if (COLORS_POOL.length <= 1) return;
+      let randomIdx;
+      do {
+        randomIdx = Math.floor(Math.random() * COLORS_POOL.length);
+      } while (randomIdx === currentColorIdx);
+      currentColorIdx = randomIdx;
       const nextColor = COLORS_POOL[randomIdx];
       // Inline color style overrides both stylesheet color and dark mode colors
       logoText.style.setProperty('color', nextColor, 'important');
