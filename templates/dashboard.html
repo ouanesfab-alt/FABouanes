@@ -867,42 +867,77 @@
       content.className = 'bubble-content';
 
       // Check if message is a voice note
-      const audioMatch = text.match(/^\[AUDIO:([^|]+)\|(.*)\]$/);
+      const audioMatch = text.match(/^\[AUDIO:([^|]+)\|(.*)]\s*$/s) ||
+                         text.match(/^\[AUDIO:([^|]+)\|(.*)\]$/);
       if (audioMatch) {
-        const audioUrl = audioMatch[1];
-        const transcript = audioMatch[2];
+        const dataUrl   = audioMatch[1];
+        const transcript = (audioMatch[2] || '').trim();
 
-        content.innerHTML = `
-          <div class="voice-note-bubble">
-            <button class="voice-play-btn" type="button">
-              <i class="bi bi-play-fill"></i>
-            </button>
-            <div class="voice-wave-container"></div>
-            <span class="voice-duration">0:00</span>
-            <audio src="${audioUrl}" preload="metadata"></audio>
-          </div>
-          ${transcript ? `<div class="voice-transcript-text">🎤 ${parseMarkdown(transcript)}</div>` : ''}
-        `;
+        // Build the voice-note bubble using DOM APIs (NOT innerHTML) so the
+        // base64 data URL isn't corrupted by the HTML parser.
+        const vnBubble   = document.createElement('div');
+        vnBubble.className = 'voice-note-bubble';
+
+        const playBtn = document.createElement('button');
+        playBtn.className = 'voice-play-btn';
+        playBtn.type = 'button';
+        const playIcon = document.createElement('i');
+        playIcon.className = 'bi bi-play-fill';
+        playBtn.appendChild(playIcon);
+
+        const waveContainer = document.createElement('div');
+        waveContainer.className = 'voice-wave-container';
+
+        const durationText = document.createElement('span');
+        durationText.className = 'voice-duration';
+        durationText.textContent = '0:00';
+
+        // Convert base64 data URL → Blob → Object URL for reliable playback
+        const audio = document.createElement('audio');
+        audio.preload = 'metadata';
+        try {
+          if (dataUrl.startsWith('data:') && dataUrl.includes(';base64,')) {
+            const [meta, b64] = dataUrl.split(';base64,');
+            const mimeType = meta.replace('data:', '');
+            const byteChars = atob(b64);
+            const byteArr = new Uint8Array(byteChars.length);
+            for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+            const blob = new Blob([byteArr], { type: mimeType });
+            audio.src = URL.createObjectURL(blob);
+          } else {
+            audio.src = dataUrl;
+          }
+        } catch (e) {
+          console.warn('Audio decode error:', e);
+          audio.src = dataUrl;
+        }
+
+        vnBubble.appendChild(playBtn);
+        vnBubble.appendChild(waveContainer);
+        vnBubble.appendChild(durationText);
+        vnBubble.appendChild(audio);
+        content.appendChild(vnBubble);
+
+        if (transcript) {
+          const txDiv = document.createElement('div');
+          txDiv.className = 'voice-transcript-text';
+          txDiv.innerHTML = '🎤 ' + parseMarkdown(transcript);
+          content.appendChild(txDiv);
+        }
+
         bubble.appendChild(content);
-
-        const waveContainer = content.querySelector('.voice-wave-container');
-        const playBtn = content.querySelector('.voice-play-btn');
-        const playIcon = playBtn.querySelector('i');
-        const durationText = content.querySelector('.voice-duration');
-        const audio = content.querySelector('audio');
 
         // Draw 18 waves with random heights for visual style
         for (let i = 0; i < 18; i++) {
           const bar = document.createElement('div');
           bar.className = 'voice-wave-bar';
-          const height = Math.floor(Math.random() * 12) + 6;
-          bar.style.height = `${height}px`;
+          bar.style.height = `${Math.floor(Math.random() * 12) + 6}px`;
           waveContainer.appendChild(bar);
         }
 
         // Format duration helper
         const formatTime = (secs) => {
-          if (isNaN(secs)) return '0:00';
+          if (!secs || isNaN(secs)) return '0:00';
           const m = Math.floor(secs / 60);
           const s = Math.floor(secs % 60);
           return `${m}:${s < 10 ? '0' : ''}${s}`;
@@ -945,11 +980,7 @@
           const bars = waveContainer.querySelectorAll('.voice-wave-bar');
           const activeCount = Math.floor(pct * bars.length);
           bars.forEach((bar, idx) => {
-            if (idx <= activeCount) {
-              bar.classList.add('active');
-            } else {
-              bar.classList.remove('active');
-            }
+            bar.classList.toggle('active', idx <= activeCount);
           });
         });
 
