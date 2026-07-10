@@ -33,7 +33,7 @@ def get_async_engine() -> AsyncEngine:
 
     with _ENGINES_LOCK:
         if loop not in _async_engines:
-            _async_engines[loop] = create_async_engine(
+            engine = create_async_engine(
                 async_database_url,
                 echo=False,
                 future=True,
@@ -41,6 +41,17 @@ def get_async_engine() -> AsyncEngine:
                 pool_size=int(os.environ.get("FAB_PG_POOL_SIZE", "10")),
                 max_overflow=int(os.environ.get("FAB_PG_POOL_MAX_OVERFLOW", "10")),
             )
+            from sqlalchemy import event
+            @event.listens_for(engine.sync_engine, "connect")
+            def set_async_connection_timezone(dbapi_connection, connection_record):
+                cursor = dbapi_connection.cursor()
+                try:
+                    cursor.execute("SET TIME ZONE 'UTC'")
+                except Exception:
+                    pass
+                finally:
+                    cursor.close()
+            _async_engines[loop] = engine
         return _async_engines[loop]
 
 async def close_async_engine() -> None:

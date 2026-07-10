@@ -5,8 +5,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Any
 
 def _now() -> datetime:
-    """Retourne l'heure courante UTC avec fuseau horaire (timezone-aware)."""
-    return datetime.now(timezone.utc)
+    """Retourne l'heure courante UTC sans timezone (naïve) pour compatibilité avec les colonnes TIMESTAMP."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 def to_gmt1(dt: Any) -> Any:
     """Convertit un datetime (naïf supposé UTC ou conscient) vers le fuseau GMT+1 (Algérie)."""

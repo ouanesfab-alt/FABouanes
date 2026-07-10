@@ -262,6 +262,18 @@ class DatabaseManager:
             pool_timeout=self._env_int("FAB_PG_POOL_TIMEOUT", 30, 1, 300),
             pool_recycle=self._env_int("FAB_PG_POOL_RECYCLE_SECONDS", 1800, 60, 86400),
         )
+        
+        from sqlalchemy import event
+        @event.listens_for(engine, "connect")
+        def set_connection_timezone(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            try:
+                cursor.execute("SET TIME ZONE 'UTC'")
+            except Exception:
+                pass
+            finally:
+                cursor.close()
+                
         try:
             from app.core.observability import instrument_sqlalchemy
             instrument_sqlalchemy(engine)
