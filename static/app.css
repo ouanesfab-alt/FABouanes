@@ -5233,8 +5233,9 @@ html:not([data-theme="light"]) .nav-links > .dropdown > .nav-link-menu:hover {
 }
 html:not([data-theme="light"]) .nav-links > a.active,
 html:not([data-theme="light"]) .nav-links > .dropdown > .nav-link-menu.active {
-  color: #0a84ff !important; /* macOS Vibrant Blue active indicator */
-  background: rgba(10, 132, 255, 0.08) !important;
+  color: #ffffff !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 html:not([data-theme="light"]) .nav-links > a::after,
 html:not([data-theme="light"]) .nav-links > .dropdown > .nav-link-menu::after {

@@ -100,13 +100,13 @@
 
 
 
-  // Thème toggle : Clair -> Sable -> Sombre
+  // Dark mode toggle dans le menu user
   (function () {
     const THEME_KEY = 'fab_theme';
-    const themes = ['light', 'sable', 'dark'];
+    const themes = ['light', 'dark'];
 
     function applyTheme(t) {
-      if (!themes.includes(t)) {
+      if (t === 'auto' || !themes.includes(t)) {
         t = 'light';
       }
       document.documentElement.setAttribute('data-theme', t);
@@ -117,22 +117,13 @@
       if (btn) {
         const icon = btn.querySelector('.bi');
         if (icon) {
-          if (t === 'light') {
-            icon.className = 'bi bi-palette'; // Clic va vers Sable
-            btn.setAttribute('title', 'Passer au Thème Sable');
-          } else if (t === 'sable') {
-            icon.className = 'bi bi-moon'; // Clic va vers Dark
-            btn.setAttribute('title', 'Passer au Thème Sombre');
-          } else {
-            icon.className = 'bi bi-sun'; // Clic va vers Clair
-            btn.setAttribute('title', 'Passer au Thème Clair');
-          }
+          icon.className = 'bi ' + (t === 'light' ? 'bi-moon' : 'bi-sun');
         }
       }
     }
 
     let current = localStorage.getItem(THEME_KEY) || 'light';
-    if (!themes.includes(current)) {
+    if (current === 'auto') {
       current = 'light';
       localStorage.setItem(THEME_KEY, 'light');
     }
@@ -143,8 +134,7 @@
       
       if (toggleBtn) {
         e.preventDefault();
-        const nextIdx = (themes.indexOf(current) + 1) % themes.length;
-        current = themes[nextIdx];
+        current = current === 'light' ? 'dark' : 'light';
         applyTheme(current);
       }
     });
