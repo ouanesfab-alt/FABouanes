@@ -1446,6 +1446,18 @@
         renderHistory();
       }
     });
+
+    // Auto-collapse empty assistant when clicking outside
+    document.addEventListener('mousedown', function(e) {
+      if (hero && !hero.contains(e.target)) {
+        // Only collapse if the text area is empty and there is no active chat history
+        if (input.value.trim() === "" && history.length === 0) {
+          hero.classList.remove('chat-active');
+          chatArea.classList.remove('active');
+          localStorage.setItem('fab_chat_expanded', 'false');
+        }
+      }
+    });
   })();
 </script>
 
