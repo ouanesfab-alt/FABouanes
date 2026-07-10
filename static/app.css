@@ -747,6 +747,18 @@ iframe {
   transform: rotate(180deg);
 }
 
+/* ── Digital Clock (navbar center) ── */
+.nav-clock {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-family: "Outfit", system-ui, sans-serif;
+  color: #ffffff;
+  user-select: none;
+  transition: opacity 0.3s ease, color 0.8s ease, font-family 0.3s ease;
+  white-space: nowrap;
+}
+
 .nav-links .dropdown-menu {
   margin-top: 10px;
   min-width: 220px;

@@ -1,5 +1,5 @@
 <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js', v='20260526-v1') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/main.js', v='20260710-ripple-v10') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/main.js', v='20260710-ripple-v11') }}"></script>
 
 <script nonce="{{ csp_nonce }}">
   document.addEventListener('DOMContentLoaded', () => {
@@ -416,6 +416,110 @@
       // Rotate style every 5 minutes (300,000ms)
       setInterval(applyRandomStyle, 300000);
     });
+  })();
+
+  // 🕐 Digital Clock — same font+color animation as FABouanes logo
+  (function navClockRotator() {
+    const CLOCK_FONTS = [
+      'Outfit','Inter','Roboto','Montserrat','Lato','Poppins','Nunito','Raleway','Ubuntu','Quicksand',
+      'Exo 2','Work Sans','Rubik','Dosis','Cabin','Fira Sans','Kanit','Manrope','Plus Jakarta Sans',
+      'Lexend','Comfortaa','Josefin Sans','Fredoka','Signika','Secular One','Varela Round','Jost','Sen',
+      'Catamaran','Oswald','Bebas Neue','Teko','Russo One','Orbitron','Audiowide','Megrim','VT323',
+      'Press Start 2P','Share Tech Mono','Roboto Mono','Source Code Pro','IBM Plex Mono','Courier Prime',
+      'Inconsolata','Space Mono','Fira Code','DM Mono','JetBrains Mono','Noto Sans Mono','Anonymous Pro',
+      'Oxanium','Rajdhani','Barlow Condensed','Pathway Gothic One','Arimo','Asap','Eczar','Faustina',
+      'Libre Franklin','Nunito Sans','Open Sans Condensed','PT Sans','Scada','Tajawal','Yantramanav',
+      'Jura','Sora','Mulish','DM Sans','Be Vietnam Pro','Figtree','Bricolage Grotesque','Albert Sans',
+      'Funnel Sans','Geist','Geist Mono','Parkinsans','Rethink Sans','Instrument Sans','Onest','Epilogue',
+      'Urbanist','Syne','Space Grotesk','Cabinet Grotesk','Clash Display','Neue Montreal','Satoshi',
+      'Playfair Display','Lora','Merriweather','Cinzel','Libre Baskerville','Cardo','EB Garamond',
+      'Cormorant Garamond','Fraunces','Abril Fatface','Anton','Bangers','Staatliches','Luckiest Guy',
+      'Righteous','Black Ops One','Monoton','Faster One','Acme','Patua One','Alfa Slab One','Titan One',
+      'Lilita One','Sigmar One','Bowlby One SC','Ultra','Paytone One','Concert One','Carter One',
+      'Changa One','Chewy','Fredericka the Great','Vampiro One','New Rocker','Barrio','Germania One',
+      'Trade Winds','Metal Mania','Rye','Sancreek','Codystar','Pirata One','Nova Cut','Wallpoet',
+      'Geostar','Akronim','Shojumaru','Sirin Stencil','Bigelow Rules','Kenia','Life Savers','Ewert',
+      'Plaster','Eater','Nosifer','Butcherman','Ranchers','Henny Penny','Jolly Lodger','Aladin',
+      'Stint Ultra Condensed','Stint Ultra Expanded','Macondo','Crete Round','Overlock','Sniglet',
+      'Leckerli One','Grand Hotel','Niconne','Montez','Rochester','Tangerine','Marck Script',
+      'Pacifico','Dancing Script','Sacramento','Great Vibes','Satisfy','Kaushan Script','Caveat',
+      'Indie Flower','Courgette','Cookie','Yellowtail','Alex Brush','Allura','Italianno','Parisienne',
+      'Gloria Hallelujah','Architects Daughter','Schoolbell','Rock Salt','Special Elite','Permanent Marker',
+      'Creepster','Shadows Into Light','Covered By Your Grace','Patrick Hand','Gochi Hand','Coming Soon',
+      'Short Stack','Neucha','Pangolin','Zeyada','Kalam','Handlee','Amita','Beth Ellen'
+    ];
+    const CLOCK_COLORS = [
+      '#2563EB','#3B82F6','#0284C7','#0EA5E9','#06B6D4','#0D9488','#10B981','#16A34A','#84CC16','#EAB308',
+      '#F59E0B','#D97706','#EA580C','#F97316','#EF4444','#DC2626','#E11D48','#F43F5E','#EC4899','#D946EF',
+      '#C084FC','#A855F7','#8B5CF6','#6366F1','#4F46E5','#0D6EFD','#198754','#DC3545','#FFC107','#0DCAF0',
+      '#6610F2','#D63384','#FD7E14','#20C997','#008080','#00FFFF','#FF7F50','#6495ED','#FF8C00','#2E8B57'
+    ];
+
+    const clock = document.getElementById('navClock');
+    if (!clock) return;
+
+    let currentFontIdx = -1;
+    let currentColorIdx = -1;
+    let loadedFonts = new Set(['Outfit']);
+    const nonce = document.querySelector('script[nonce]')?.getAttribute('nonce') || '';
+
+    // Tick every second
+    function tick() {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const ss = String(now.getSeconds()).padStart(2, '0');
+      clock.textContent = `${hh}:${mm}:${ss}`;
+    }
+
+    function rotateClockColor() {
+      let idx;
+      do { idx = Math.floor(Math.random() * CLOCK_COLORS.length); }
+      while (idx === currentColorIdx && CLOCK_COLORS.length > 1);
+      currentColorIdx = idx;
+      clock.style.color = CLOCK_COLORS[idx];
+    }
+
+    function rotateClockFont() {
+      let idx;
+      do { idx = Math.floor(Math.random() * CLOCK_FONTS.length); }
+      while (idx === currentFontIdx && CLOCK_FONTS.length > 1);
+      currentFontIdx = idx;
+      const fontName = CLOCK_FONTS[idx];
+      const fontId = `gfont-clock-${fontName.replace(/\s+/g,'-').toLowerCase()}`;
+
+      const applyFont = () => {
+        clock.style.opacity = '0.08';
+        setTimeout(() => {
+          clock.style.fontFamily = `"${fontName}", system-ui, monospace`;
+          clock.style.opacity = '1';
+        }, 300);
+      };
+
+      if (document.getElementById(fontId) || loadedFonts.has(fontName)) {
+        applyFont();
+        return;
+      }
+
+      const link = document.createElement('link');
+      link.id = fontId;
+      link.rel = 'stylesheet';
+      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:wght@400;700;900&display=swap`;
+      if (nonce) link.setAttribute('nonce', nonce);
+      link.onload = () => { loadedFonts.add(fontName); applyFont(); };
+      link.onerror = applyFont;
+      document.head.appendChild(link);
+    }
+
+    // Start ticking immediately
+    tick();
+    setInterval(tick, 1000);
+
+    // Same intervals as FABouanes logo (60s font / 50s color)
+    rotateClockFont();
+    rotateClockColor();
+    setInterval(rotateClockFont, 60000);
+    setInterval(rotateClockColor, 50000);
   })();
 </script>
 <!-- Éléments masqués pour compatibilité avec les tests et scripts génériques -->
