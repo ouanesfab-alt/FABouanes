@@ -4304,15 +4304,7 @@ html.theme-changing .btn {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-.btn:active,
-.btn-sm:active,
-.nav-btn:active,
-.nav-btn-primary:active,
-.nav-hamburger:active,
-.fab-switch-btn:active,
-.drawer-link-btn:active {
-  transform: scale(0.97) !important;
-}
+/* scale removed — ripple effect only */
 
 [data-theme="dark"] .btn-page-action {
   background: #050505 !important;

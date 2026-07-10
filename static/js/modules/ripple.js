@@ -12,17 +12,22 @@ const RIPPLE_SELECTOR = [
   '[type="reset"]',
   '.dropdown-item',
   '.nav-link',
+  '.nav-btn',
+  '.nav-btn-primary',
+  '.nav-link-menu',
+  '.nav-hamburger',
+  '.side-nav-toggle',
+  '.bot-tab-add',
   '.sidebar-link',
   '.list-group-item-action',
   '.fab-action-btn',
   '.icon-btn',
   '.quick-action-btn',
   '.action-btn',
-  '.nav-item > a',
   '.page-link'
 ].join(',');
 
-const DURATION = 200; // ms
+const DURATION = 500; // ms
 
 function createRipple(element, event) {
   const rect = element.getBoundingClientRect();
