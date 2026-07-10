@@ -94,8 +94,21 @@ async def compress_history_if_needed(messages: List[Dict[str, Any]], api_key: st
             return messages
 
 
+def _ensure_thought_signatures(contents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Garantit que chaque appel de fonction dans l'historique contient un thoughtSignature pour les modèles de raisonnement."""
+    for msg in contents:
+        if msg.get("role") == "model":
+            parts = msg.get("parts", [])
+            if isinstance(parts, list):
+                for part in parts:
+                    if isinstance(part, dict) and "functionCall" in part:
+                        if "thoughtSignature" not in part and "thought_signature" not in part:
+                            part["thoughtSignature"] = "EjQKMgERTTIPSleTFwevyxEQZ0DfJeePXihcsxw9SDCz8z1PoTv6LqiCDtlT6kV/cpeGKGUa"
+    return contents
+
 async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_name: str = "gemini-flash-latest") -> Dict[str, Any]:
     """Appelle l'API Gemini avec les messages et outils définis (non-streamed fallback/utility)."""
+    contents = _ensure_thought_signatures(contents)
     tools = get_gemini_tools()
     system_instruction = get_sabrina_system_prompt(model_name)
 
@@ -163,6 +176,7 @@ def _extract_json_objects(text: str) -> List[Tuple[str, int, int]]:
 
 async def call_gemini_api_generator(contents: List[Dict[str, Any]], api_key: str, model_name: str = "gemini-flash-latest"):
     """Appelle l'API Gemini en mode streaming et produit des événements."""
+    contents = _ensure_thought_signatures(contents)
     tools = get_gemini_tools()
     system_instruction = get_sabrina_system_prompt(model_name)
 

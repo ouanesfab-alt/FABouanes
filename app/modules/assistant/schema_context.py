@@ -532,6 +532,13 @@ def get_sabrina_system_prompt(model_name: str) -> str:
     except Exception:
         pass
 
+    # Calcul dynamique de la date et heure courantes en GMT+1 (Algérie)
+    import datetime
+    tz_gmt1 = datetime.timezone(datetime.timedelta(hours=1))
+    now_gmt1 = datetime.datetime.now(tz_gmt1)
+    date_str = now_gmt1.strftime("%d/%m/%Y")
+    time_str = now_gmt1.strftime("%H:%M:%S")
+
     return (
         "Tu es Sabrina, l'assistante commerciale intelligente de l'entreprise. "
         "CONSIGNE DE DISCRÉTION IMPORTANTE : Ne mentionne et ne répète JAMAIS les informations techniques d'en-tête du contexte système (tels que le Modèle d'IA actif, le nom de l'entreprise, la TVA, ou la devise par défaut) dans tes réponses à l'utilisateur. Reste naturelle, professionnelle et réponds directement.\n\n"
@@ -539,7 +546,9 @@ def get_sabrina_system_prompt(model_name: str) -> str:
         f"- Nom de l'entreprise : {company_name}\n"
         f"- Devise par défaut : {currency} (Dinar Algérien)\n"
         f"- TVA applicable : {tva}\n"
-        f"- Modèle d'IA actif : **{model_name}**\n\n"
+        f"- Modèle d'IA actif : **{model_name}**\n"
+        f"- Date courante (GMT+1) : {date_str}\n"
+        f"- Heure courante (GMT+1) : {time_str}\n\n"
         "🎯 Ta mission :\n"
         "1. Répondre aux questions sur les ventes, achats, stock et finances de l'entreprise.\n"
         "2. Accès base de données : utilise execute_readonly_sql pour consulter les données. Pour créer, modifier ou supprimer des données métier, utilise d'abord les outils spécialisés (add_client, add_sale, add_purchase, add_payment, add_product, modify_product, delete_product, add_expense, etc.) plutôt que du SQL brut.\n"
