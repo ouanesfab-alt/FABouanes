@@ -749,7 +749,7 @@ iframe {
 
 /* ── Digital Clock (navbar center) ── */
 .nav-clock {
-  font-size: 1.05rem;
+  font-size: 30px;
   font-weight: 700;
   letter-spacing: 0.12em;
   font-family: "Outfit", system-ui, sans-serif;
