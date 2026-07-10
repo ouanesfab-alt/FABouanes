@@ -40,7 +40,7 @@
   }
   .fab-logo-text-main {
     font-family: 'Outfit', 'Google Sans', 'Product Sans', system-ui, -apple-system, sans-serif;
-    font-size: 3.8rem;
+    font-size: 70px;
     font-weight: 900;
     color: #001a80;
     letter-spacing: -0.04em;
@@ -62,7 +62,7 @@
     text-align: center;
   }
   .fab-hero.chat-active .fab-logo-text-main {
-    font-size: 1.8rem;
+    font-size: 40px;
   }
   .fab-hero.chat-active .fab-logo-text-sub {
     font-size: 0.55rem;
@@ -1200,6 +1200,15 @@
       'Neucha', 'Pangolin', 'Zeyada', 'Beth Ellen', 'Loved by the King', 'Amita', 'Kalam', 'Handlee'
     ];
 
+    // 50 premium, modern design colors
+    const COLORS_POOL = [
+      '#2563EB', '#3B82F6', '#0284C7', '#0EA5E9', '#06B6D4', '#0D9488', '#10B981', '#16A34A', '#84CC16', '#EAB308',
+      '#F59E0B', '#D97706', '#EA580C', '#F97316', '#EF4444', '#DC2626', '#E11D48', '#F43F5E', '#EC4899', '#D946EF',
+      '#C084FC', '#A855F7', '#8B5CF6', '#7C3AED', '#6366F1', '#4F46E5', '#4338CA', '#312E81', '#1E3A8A', '#0F172A',
+      '#0D6EFD', '#198754', '#DC3545', '#FFC107', '#0DCAF0', '#6610F2', '#6F42C1', '#D63384', '#FD7E14', '#20C997',
+      '#008080', '#00FFFF', '#FF00FF', '#FF7F50', '#6495ED', '#FF8C00', '#483D8B', '#2E8B57', '#8B008B', '#5F9EA0'
+    ];
+
     const logoText = document.querySelector('.fab-logo-text-main');
     if (!logoText) return;
 
@@ -1207,8 +1216,8 @@
     const defaultFont = "Outfit";
     let loadedFonts = new Set([defaultFont]);
 
-    // Apply CSS transition properties for beautiful fluid transitions
-    logoText.style.transition = 'opacity 0.3s ease, font-family 0.3s ease';
+    // Apply CSS transition properties for beautiful fluid transitions (including color)
+    logoText.style.transition = 'opacity 0.3s ease, font-family 0.3s ease, color 0.8s ease';
 
     // Retrieve script CSP nonce if present
     const nonce = document.querySelector('script[nonce]')?.getAttribute('nonce') || '';
@@ -1249,11 +1258,22 @@
       }, 300);
     }
 
+    function rotateColor() {
+      const randomIdx = Math.floor(Math.random() * COLORS_POOL.length);
+      const nextColor = COLORS_POOL[randomIdx];
+      // Inline color style overrides both stylesheet color and dark mode colors
+      logoText.style.setProperty('color', nextColor, 'important');
+    }
+
     // Trigger immediately on load
     rotateFont();
+    rotateColor();
 
     // Rotates the font every 20 seconds
     setInterval(rotateFont, 20000);
+
+    // Rotates the color every 30 seconds
+    setInterval(rotateColor, 30000);
   })();
 </script>
 {% endblock %}
