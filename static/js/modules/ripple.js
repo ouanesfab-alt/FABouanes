@@ -44,7 +44,7 @@ const RIPPLE_SELECTOR = [
   '.fab-action-btn', '.icon-btn', '.quick-action-btn', '.action-btn'
 ].join(',');
 
-const DURATION = 500; // ms
+const DURATION = 700; // ms
 
 function createRipple(element, event) {
   const rect = element.getBoundingClientRect();
