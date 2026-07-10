@@ -608,11 +608,7 @@ iframe {
   margin: auto;
 }
 
-@media(min-width: 768px) {
-  html:not([data-nav="vertical"]) .nav-inner {
-    padding-left: 64px; /* Shift the horizontal layout navbar to the right */
-  }
-}
+
 
 .nav-brand {
   display: flex;
