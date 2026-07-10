@@ -313,6 +313,97 @@
   }
   .fab-file-chip.show { display: flex; }
 
+  /* 🎤 Voice Note Bubble Player Styles */
+  .voice-note-bubble {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    width: 250px;
+    background: linear-gradient(135deg, #f5f5f7 0%, #e8e8ed 100%);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 18px;
+    color: #1d1d1f;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    margin: 4px 0;
+  }
+  
+  [data-theme="dark"] .voice-note-bubble, 
+  [data-theme="windows-dark"] .voice-note-bubble {
+    background: linear-gradient(135deg, #2c2c2e 0%, #1c1c1e 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #f5f5f7;
+  }
+  
+  .voice-play-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: transform 0.2s, background-color 0.2s;
+    flex-shrink: 0;
+    padding: 0;
+  }
+  .voice-play-btn:hover {
+    transform: scale(1.06);
+    background: #006ddb;
+  }
+  .voice-play-btn i {
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .voice-play-btn .bi-play-fill {
+    margin-left: 2px; /* optical center adjustment */
+  }
+  
+  .voice-wave-container {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    gap: 2.5px;
+    height: 24px;
+  }
+  .voice-wave-bar {
+    flex-grow: 1;
+    width: 2.5px;
+    background: rgba(134, 134, 139, 0.4);
+    border-radius: 1.5px;
+    transition: background-color 0.15s, height 0.15s;
+  }
+  .voice-wave-bar.active {
+    background: var(--accent) !important;
+  }
+  .voice-duration {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    min-width: 32px;
+    text-align: right;
+    font-family: monospace;
+    flex-shrink: 0;
+  }
+  .voice-transcript-text {
+    font-size: 0.76rem;
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.85);
+    margin-top: 4px;
+    line-height: 1.3;
+    opacity: 0.95;
+    word-break: break-word;
+  }
+  .fab-chat-bubble.model .voice-transcript-text {
+    color: var(--text-secondary);
+  }
+
   /* Clear chat top-right button */
   .fab-clear-chat {
     position: absolute;
@@ -770,10 +861,107 @@
     function appendMessage(role, text, shouldScroll = true) {
       const bubble = document.createElement('div');
       bubble.className = `fab-chat-bubble ${role}`;
+      bubble.setAttribute('data-raw-text', text);
+
       const content = document.createElement('div');
       content.className = 'bubble-content';
-      content.innerHTML = parseMarkdown(text);
-      bubble.appendChild(content);
+
+      // Check if message is a voice note
+      const audioMatch = text.match(/^\[AUDIO:([^|]+)\|(.*)\]$/);
+      if (audioMatch) {
+        const audioUrl = audioMatch[1];
+        const transcript = audioMatch[2];
+
+        content.innerHTML = `
+          <div class="voice-note-bubble">
+            <button class="voice-play-btn" type="button">
+              <i class="bi bi-play-fill"></i>
+            </button>
+            <div class="voice-wave-container"></div>
+            <span class="voice-duration">0:00</span>
+            <audio src="${audioUrl}" preload="metadata"></audio>
+          </div>
+          ${transcript ? `<div class="voice-transcript-text">🎤 ${parseMarkdown(transcript)}</div>` : ''}
+        `;
+        bubble.appendChild(content);
+
+        const waveContainer = content.querySelector('.voice-wave-container');
+        const playBtn = content.querySelector('.voice-play-btn');
+        const playIcon = playBtn.querySelector('i');
+        const durationText = content.querySelector('.voice-duration');
+        const audio = content.querySelector('audio');
+
+        // Draw 18 waves with random heights for visual style
+        for (let i = 0; i < 18; i++) {
+          const bar = document.createElement('div');
+          bar.className = 'voice-wave-bar';
+          const height = Math.floor(Math.random() * 12) + 6;
+          bar.style.height = `${height}px`;
+          waveContainer.appendChild(bar);
+        }
+
+        // Format duration helper
+        const formatTime = (secs) => {
+          if (isNaN(secs)) return '0:00';
+          const m = Math.floor(secs / 60);
+          const s = Math.floor(secs % 60);
+          return `${m}:${s < 10 ? '0' : ''}${s}`;
+        };
+
+        // Load metadata duration
+        audio.addEventListener('loadedmetadata', () => {
+          durationText.textContent = formatTime(audio.duration);
+        });
+
+        // Toggle playback
+        playBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          // Stop other playing audios
+          document.querySelectorAll('audio').forEach(a => {
+            if (a !== audio) {
+              a.pause();
+              const pBtn = a.closest('.voice-note-bubble')?.querySelector('.voice-play-btn i');
+              if (pBtn) pBtn.className = 'bi bi-play-fill';
+            }
+          });
+
+          if (audio.paused) {
+            audio.play().catch(() => {});
+            playIcon.className = 'bi bi-pause-fill';
+          } else {
+            audio.pause();
+            playIcon.className = 'bi bi-play-fill';
+          }
+        });
+
+        // Time updates
+        audio.addEventListener('timeupdate', () => {
+          durationText.textContent = formatTime(audio.currentTime || 0);
+          const pct = audio.currentTime / audio.duration;
+          const bars = waveContainer.querySelectorAll('.voice-wave-bar');
+          const activeCount = Math.floor(pct * bars.length);
+          bars.forEach((bar, idx) => {
+            if (idx <= activeCount) {
+              bar.classList.add('active');
+            } else {
+              bar.classList.remove('active');
+            }
+          });
+        });
+
+        // Audio finished
+        audio.addEventListener('ended', () => {
+          playIcon.className = 'bi bi-play-fill';
+          durationText.textContent = formatTime(audio.duration);
+          waveContainer.querySelectorAll('.voice-wave-bar').forEach(b => b.classList.remove('active'));
+        });
+
+      } else {
+        content.innerHTML = parseMarkdown(text);
+        bubble.appendChild(content);
+      }
 
       if (role === 'model') {
         const actions = document.createElement('div');
@@ -1079,7 +1267,13 @@
       if (copyBtn) {
         const bubble = copyBtn.closest('.fab-chat-bubble');
         if (!bubble) return;
-        const t = bubble.innerText.replace(/[\n\s]*Copier[\n\s]*Lire/g, '').trim();
+        let t = bubble.getAttribute('data-raw-text') || bubble.innerText;
+        const audioMatch = t.match(/^\[AUDIO:([^|]+)\|(.*)\]$/);
+        if (audioMatch) {
+          t = audioMatch[2] || "Message vocal";
+        } else {
+          t = t.replace(/[\n\s]*Copier[\n\s]*Lire/g, '').trim();
+        }
         navigator.clipboard.writeText(t).then(() => {
           const orig = copyBtn.innerHTML;
           copyBtn.innerHTML = '<i class="bi bi-check2 text-success"></i> Copié';
@@ -1090,7 +1284,13 @@
       if (speakBtn) {
         const bubble = speakBtn.closest('.fab-chat-bubble');
         if (!bubble) return;
-        const t = bubble.innerText.replace(/[\n\s]*Copier[\n\s]*Lire/g, '').trim();
+        let t = bubble.getAttribute('data-raw-text') || bubble.innerText;
+        const audioMatch = t.match(/^\[AUDIO:([^|]+)\|(.*)\]$/);
+        if (audioMatch) {
+          t = audioMatch[2] || "Message vocal";
+        } else {
+          t = t.replace(/[\n\s]*Copier[\n\s]*Lire/g, '').trim();
+        }
         if (window.speechSynthesis.speaking) {
           window.speechSynthesis.cancel();
           speakBtn.innerHTML = '<i class="bi bi-volume-up"></i> Lire';
@@ -1104,42 +1304,132 @@
       }
     });
 
-    // Voice Recognition
-    let recognition = null, isRecording = false;
+    // 🎤 Integrated Voice Recorder & Speech Recognition
+    let recognition = null;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+    let recordTimer = null;
+    let recordDuration = 0;
+    let recognitionTranscript = "";
+    let localStream = null;
+
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SR) {
       recognition = new SR();
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = 'fr-FR';
-      recognition.onstart = () => {
-        isRecording = true;
-        micBtn.innerHTML = '<i class="bi bi-mic-fill text-danger animate-pulse"></i>';
-        soundwave.style.display = 'flex';
-        input.placeholder = "Je vous écoute...";
-      };
-      recognition.onend = () => {
-        isRecording = false;
-        micBtn.innerHTML = '<i class="bi bi-mic"></i>';
-        soundwave.style.display = 'none';
-        input.placeholder = "Posez une question à Sabrina...";
-      };
+
       recognition.onresult = (event) => {
-        const tr = event.results[0][0].transcript;
-        if (tr.trim().length > 0) {
-          input.value = tr;
-          setTimeout(() => sendMessage(tr), 500);
+        if (event.results && event.results[0] && event.results[0][0]) {
+          recognitionTranscript = event.results[0][0].transcript;
         }
       };
-      recognition.onerror = () => {
-        isRecording = false;
-        micBtn.innerHTML = '<i class="bi bi-mic"></i>';
-        soundwave.style.display = 'none';
-      };
-      micBtn.addEventListener('click', () => isRecording ? recognition.stop() : recognition.start());
-    } else {
-      micBtn.style.display = 'none';
     }
+
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        localStream = stream;
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            audioChunks.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64Audio = reader.result;
+            const transcript = recognitionTranscript.trim() || "";
+            const audioMsg = `[AUDIO:${base64Audio}|${transcript}]`;
+            sendMessage(audioMsg);
+          };
+          reader.readAsDataURL(blob);
+
+          // Stop all audio tracks to release the microphone device
+          if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+          }
+        };
+
+        // Start Speech Recognition if supported
+        recognitionTranscript = "";
+        if (recognition) {
+          try {
+            recognition.start();
+          } catch (e) {
+            console.warn("SpeechRecognition already started or failed:", e);
+          }
+        }
+
+        // Start Media Recorder
+        mediaRecorder.start();
+        isRecording = true;
+
+        // UI Feedback & Animations
+        micBtn.innerHTML = '<i class="bi bi-stop-circle-fill text-danger animate-pulse"></i>';
+        soundwave.style.display = 'flex';
+        input.disabled = true;
+        input.value = "";
+
+        const formatTime = (secs) => {
+          const m = Math.floor(secs / 60);
+          const s = secs % 60;
+          return `${m}:${s < 10 ? '0' : ''}${s}`;
+        };
+
+        recordDuration = 0;
+        input.placeholder = `🎤 Enregistrement... ${formatTime(recordDuration)}`;
+        recordTimer = setInterval(() => {
+          recordDuration++;
+          input.placeholder = `🎤 Enregistrement... ${formatTime(recordDuration)}`;
+        }, 1000);
+
+      } catch (err) {
+        console.error("Erreur d'accès au microphone :", err);
+        alert("Impossible d'accéder au microphone. Veuillez vérifier les permissions dans votre navigateur.");
+      }
+    }
+
+    function stopRecording() {
+      if (!isRecording) return;
+
+      // Stop Media Recorder
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+
+      // Stop Speech Recognition
+      if (recognition) {
+        try {
+          recognition.stop();
+        } catch (e) {}
+      }
+
+      // Reset UI & Timer
+      clearInterval(recordTimer);
+      isRecording = false;
+      micBtn.innerHTML = '<i class="bi bi-mic"></i>';
+      soundwave.style.display = 'none';
+      input.disabled = false;
+      input.placeholder = "Posez une question à Sabrina...";
+    }
+
+    micBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    });
 
     // Auto-restore chat and settings state on page load
     loadActiveThread();

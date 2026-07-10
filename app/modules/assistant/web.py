@@ -74,10 +74,21 @@ async def assistant_chat(request: Request):
         if not message:
             return JSONResponse({"success": False, "error": "Message vide."})
 
+        # Check if the message is a recorded audio note
+        # Format: [AUDIO:base64_data|transcript]
+        import re
+        audio_match = re.match(r"^\[AUDIO:([^|]+)\|(.*)\]$", message)
+        if audio_match:
+            message_text_for_llm = audio_match.group(2).strip()
+            if not message_text_for_llm:
+                message_text_for_llm = "Message vocal (audio note)"
+        else:
+            message_text_for_llm = message
+
         # Construire le message utilisateur au format Gemini API
         new_message = {
             "role": "user",
-            "parts": [{"text": message}]
+            "parts": [{"text": message_text_for_llm}]
         }
 
         if file_obj and isinstance(file_obj, dict):
