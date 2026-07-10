@@ -92,6 +92,7 @@ def security_headers(response):
             f"style-src 'self' 'nonce-{nonce}' https://fonts.googleapis.com; "
             f"font-src 'self' https://fonts.gstatic.com; "
             f"img-src 'self' data: blob:; "
+            f"media-src 'self' blob: data:; "
             f"connect-src 'self';"
         )
     else:
@@ -101,6 +102,7 @@ def security_headers(response):
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: blob:; "
+            "media-src 'self' blob: data:; "
             "connect-src 'self';"
         )
     response.headers["Content-Security-Policy"] = csp
