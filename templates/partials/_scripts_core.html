@@ -1,5 +1,5 @@
 <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js', v='20260526-v1') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/main.js', v='20260710-ripple-v8') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/main.js', v='20260710-ripple-v9') }}"></script>
 
 <script nonce="{{ csp_nonce }}">
   document.addEventListener('DOMContentLoaded', () => {
@@ -387,6 +387,35 @@
         lastToday = currentToday;
       }
     }, 60000); // Check every minute
+  })();
+
+  // 🧭 Dynamic active-style rotation every 5 minutes (300,000ms)
+  (function activeStyleRotator() {
+    const STYLES = ['minimalist', 'capsule', 'border', 'subtle'];
+    
+    function applyRandomStyle() {
+      const navLinks = document.querySelector('.nav-links');
+      if (!navLinks) return;
+      
+      const current = navLinks.getAttribute('data-active-style') || 'minimalist';
+      let next;
+      do {
+        next = STYLES[Math.floor(Math.random() * STYLES.length)];
+      } while (next === current && STYLES.length > 1);
+      
+      navLinks.setAttribute('data-active-style', next);
+      localStorage.setItem('fab_nav_active_style', next);
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      const navLinks = document.querySelector('.nav-links');
+      if (navLinks) {
+        const saved = localStorage.getItem('fab_nav_active_style') || 'minimalist';
+        navLinks.setAttribute('data-active-style', saved);
+      }
+      // Rotate style every 5 minutes (300,000ms)
+      setInterval(applyRandomStyle, 300000);
+    });
   })();
 </script>
 <!-- Éléments masqués pour compatibilité avec les tests et scripts génériques -->

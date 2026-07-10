@@ -5231,14 +5231,57 @@ html:not([data-theme="light"]) .nav-links > .dropdown > .nav-link-menu:hover {
   color: #ffffff !important;
   background: rgba(255, 255, 255, 0.05) !important;
 }
-html:not([data-theme="light"]) .nav-links > a.active,
-html:not([data-theme="light"]) .nav-links > .dropdown > .nav-link-menu.active {
+/* Style 1: Minimaliste Chic (minimalist) */
+html:not([data-theme="light"]) .nav-links[data-active-style="minimalist"] > a.active,
+html:not([data-theme="light"]) .nav-links[data-active-style="minimalist"] > .dropdown > .nav-link-menu.active {
   color: #ffffff !important;
   background: transparent !important;
   box-shadow: none !important;
+  border: 1px solid transparent !important;
 }
-html:not([data-theme="light"]) .nav-links > a::after,
-html:not([data-theme="light"]) .nav-links > .dropdown > .nav-link-menu::after {
+html:not([data-theme="light"]) .nav-links[data-active-style="minimalist"] > a.active::after,
+html:not([data-theme="light"]) .nav-links[data-active-style="minimalist"] > .dropdown > .nav-link-menu.active::after {
+  transform: scaleX(1) !important;
+  background: #0a84ff !important;
+}
+
+/* Style 2: Capsule iOS (capsule) */
+html:not([data-theme="light"]) .nav-links[data-active-style="capsule"] > a.active,
+html:not([data-theme="light"]) .nav-links[data-active-style="capsule"] > .dropdown > .nav-link-menu.active {
+  color: #ffffff !important;
+  background: #0a84ff !important;
+  box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3) !important;
+  border: 1px solid transparent !important;
+}
+html:not([data-theme="light"]) .nav-links[data-active-style="capsule"] > a.active::after,
+html:not([data-theme="light"]) .nav-links[data-active-style="capsule"] > .dropdown > .nav-link-menu.active::after {
+  transform: scaleX(0) !important; /* Hide underline */
+}
+
+/* Style 3: Bordure Fine (border) */
+html:not([data-theme="light"]) .nav-links[data-active-style="border"] > a.active,
+html:not([data-theme="light"]) .nav-links[data-active-style="border"] > .dropdown > .nav-link-menu.active {
+  color: #0a84ff !important;
+  background: transparent !important;
+  border: 1.5px solid rgba(10, 132, 255, 0.6) !important;
+  box-shadow: none !important;
+}
+html:not([data-theme="light"]) .nav-links[data-active-style="border"] > a.active::after,
+html:not([data-theme="light"]) .nav-links[data-active-style="border"] > .dropdown > .nav-link-menu.active::after {
+  transform: scaleX(0) !important; /* Hide underline */
+}
+
+/* Style 4: Fond Subtil (subtle) - Original Dark Mode active style */
+html:not([data-theme="light"]) .nav-links[data-active-style="subtle"] > a.active,
+html:not([data-theme="light"]) .nav-links[data-active-style="subtle"] > .dropdown > .nav-link-menu.active {
+  color: #0a84ff !important;
+  background: rgba(10, 132, 255, 0.08) !important;
+  box-shadow: none !important;
+  border: 1px solid transparent !important;
+}
+html:not([data-theme="light"]) .nav-links[data-active-style="subtle"] > a.active::after,
+html:not([data-theme="light"]) .nav-links[data-active-style="subtle"] > .dropdown > .nav-link-menu.active::after {
+  transform: scaleX(1) !important;
   background: #0a84ff !important;
 }
 

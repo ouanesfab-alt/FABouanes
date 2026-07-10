@@ -11,7 +11,7 @@
       {% block page_title %}{% endblock %}
     </div>
     <!-- Desktop nav -->
-    <div class="nav-links d-none d-md-flex">
+    <div class="nav-links d-none d-md-flex" data-active-style="minimalist">
       <a href="{{ url_for('contacts') }}" class="{{ 'active' if contacts_nav_active else '' }}"><i
           class="bi bi-people me-1"></i>Contacts</a>
       <a href="{{ url_for('catalog') }}"
