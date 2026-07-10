@@ -1416,9 +1416,7 @@ iframe {
   transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.bot-tab-add:active {
-  transform: scale(0.92);
-}
+/* scale removed — ripple only */
 
 @media(max-width:767px) {
   .bot-nav {
@@ -3659,9 +3657,7 @@ body.desktop-app .table-scroll {
   transition: transform .2s cubic-bezier(.34, 1.56, .64, 1), box-shadow .2s ease;
 }
 
-.kpi-card:active {
-  transform: scale(.96);
-}
+/* scale removed — ripple only */
 
 .kpi-grid .kpi-card {
   animation: popIn .3s cubic-bezier(.34, 1.56, .64, 1) both;
@@ -3697,9 +3693,7 @@ body.desktop-app .table-scroll {
   transition: all .15s cubic-bezier(.34, 1.56, .64, 1);
 }
 
-.btn:active {
-  transform: scale(.95) !important;
-}
+/* scale removed — ripple only */
 
 .btn-dark:hover {
   transform: translateY(-1px);
@@ -3747,9 +3741,7 @@ body.desktop-app .table-scroll {
   transition: background .15s ease, color .15s ease, transform .15s ease;
 }
 
-.drawer-link:active {
-  transform: scale(.97);
-}
+/* scale removed — ripple only */
 
 /* Bottom sheets */
 .fab-sheet {
@@ -4839,9 +4831,7 @@ th.sort-desc .sort-icon::before { content: "\F229"; } /* bi-chevron-down */
 .glass-segmented-control label:hover {
   color: var(--text);
 }
-.glass-segmented-control label:active {
-  transform: scale(0.97);
-}
+/* scale removed — ripple only */
 .glass-segmented-control input[type="radio"]:checked + label {
   color: #fff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -5040,9 +5030,7 @@ main, .entity-form-page, .container, .dashboard-container, .card, .page-hero {
   overflow: hidden !important;
   border: 1px solid transparent !important;
 }
-.btn:active {
-  transform: scale(0.96) !important;
-}
+/* scale removed — ripple only */
 
 .btn-primary {
   background: 
@@ -5753,9 +5741,7 @@ html:not([data-theme="light"]) .btn-dark:hover,
   transform: translateY(-1px) !important;
   color: #fff !important;
 }
-.btn-achat-submit:active {
-  transform: scale(0.97) !important;
-}
+/* scale removed — ripple only */
 
 .btn-vente-submit {
   background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
@@ -5771,9 +5757,7 @@ html:not([data-theme="light"]) .btn-dark:hover,
   transform: translateY(-1px) !important;
   color: #fff !important;
 }
-.btn-vente-submit:active {
-  transform: scale(0.97) !important;
-}
+/* scale removed — ripple only */
 
 .btn-payment-submit {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
@@ -5789,9 +5773,7 @@ html:not([data-theme="light"]) .btn-dark:hover,
   transform: translateY(-1px) !important;
   color: #fff !important;
 }
-.btn-payment-submit:active {
-  transform: scale(0.97) !important;
-}
+/* scale removed — ripple only */
 
 /* Custom totals colors matching the active segment theme colors in Operation New */
 #purchaseDocumentTotal {
@@ -5838,9 +5820,7 @@ html:not([data-theme="light"]) #saleDocumentTotal,
   transform: translateY(-1px) !important;
 }
 
-.btn-premium:active {
-  transform: scale(0.96) !important;
-}
+/* scale removed — ripple only */
 
 /* Global Page Transitions (SPA Feeling) */
 html.js-transitions .app-content {
@@ -5925,9 +5905,7 @@ html[data-theme="windows-dark"] .nav-links a:not(.active):hover {
   transition: var(--transition-smooth) !important;
   font-weight: 500 !important;
 }
-.btn:active {
-  transform: scale(0.97) !important;
-}
+/* scale removed — ripple only */
 
 /* 🍏 macOS Springy Tab Transitions (Sequoia style) */
 @keyframes macPanelFadeIn {
@@ -6196,9 +6174,7 @@ html:not([data-theme="light"]) textarea {
   font-weight: 500 !important;
   transition: all 0.15s var(--ease-spring) !important;
 }
-.btn:active {
-  transform: scale(0.97) !important;
-}
+/* scale removed — ripple only */
 .btn-primary, .btn-premium {
   background: linear-gradient(to bottom, #3498ff, #0076f6) !important;
   border: 0.5px solid rgba(0, 0, 0, 0.15) !important;
@@ -6347,9 +6323,7 @@ html:not([data-theme="light"]) .table tbody tr:hover > th {
 .form-check-input {
   transition: transform 0.2s var(--ease-bounce), background-color 0.15s ease, border-color 0.15s ease !important;
 }
-.form-check-input:active {
-  transform: scale(0.85) !important;
-}
+/* scale removed — ripple only */
 
 /* 🖥️ 3. macOS Sheet Modals (Slide down from top) */
 .modal.fade .modal-dialog {
@@ -7170,6 +7144,4 @@ body::before {
   box-shadow: 0 6px 16px rgba(124, 45, 18, 0.4) !important;
   color: #ffffff !important;
 }
-.btn-brown:active {
-  transform: scale(0.98) !important;
-}
+/* scale removed — ripple only */

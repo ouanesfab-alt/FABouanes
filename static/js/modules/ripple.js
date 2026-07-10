@@ -1,30 +1,46 @@
 /**
- * Ripple Effect Module — 200ms
- * Injecte un effet ripple sur TOUS les boutons de toutes les pages
- * via un seul event listener global (mousedown + touchstart)
+ * Ripple Effect Module — 500ms
+ * Sélecteur exhaustif couvrant TOUS les boutons de TOUTES les pages
  */
 
 const RIPPLE_SELECTOR = [
-  '.btn',
-  'button',
-  '[type="submit"]',
-  '[type="button"]',
-  '[type="reset"]',
-  '.dropdown-item',
-  '.nav-link',
-  '.nav-btn',
-  '.nav-btn-primary',
-  '.nav-link-menu',
-  '.nav-hamburger',
-  '.side-nav-toggle',
-  '.bot-tab-add',
+  /* Natifs */
+  '.btn', 'button', '[type="submit"]', '[type="button"]', '[type="reset"]',
+  /* Bootstrap variants */
+  '.btn-primary', '.btn-secondary', '.btn-danger', '.btn-success',
+  '.btn-warning', '.btn-dark', '.btn-link', '.btn-lg', '.btn-sm',
+  '.btn-outline-primary', '.btn-outline-secondary', '.btn-outline-danger',
+  '.btn-outline-success', '.btn-outline-dark',
+  /* App-specific */
+  '.btn-premium', '.btn-brown', '.btn-login',
+  '.btn-cancel-write', '.btn-confirm-write',
+  '.btn-copy', '.btn-send', '.btn-speak', '.btn-stop',
+  '.btn-page-action', '.btn-page-action-secondary',
+  '.btn-achat-submit', '.btn-vente-submit', '.btn-payment-submit',
+  /* Navbar & layout */
+  '.nav-btn', '.nav-btn-primary', '.nav-link-menu',
+  '.nav-hamburger', '.side-nav-toggle', '.bot-tab-add',
+  '.nav-link', '.nav-drawer-close',
+  '.drawer-link', '.drawer-link-btn',
+  /* Dropdowns */
+  '.dropdown-item', '.dropdown-toggle',
+  /* Lists & tabs */
+  '.list-group-item-action', '.page-link',
+  '.search-tab', '.view-tab', '.category-tab',
   '.sidebar-link',
-  '.list-group-item-action',
-  '.fab-action-btn',
-  '.icon-btn',
-  '.quick-action-btn',
-  '.action-btn',
-  '.page-link'
+  /* Misc interactive */
+  '.fab-bar-btn', '.fab-bubble-btn', '.fab-sheet-close', '.fab-switch-btn',
+  '.kpi-quick-btn', '.kpi-sheet-close',
+  '.mac-btn', '.mac-modal-close',
+  '.toolbar-btn', '.pin-toggle', '.toggle-pass',
+  '.bubble-action-btn', '.chat-send-btn',
+  '.flash-toast-close', '.btn-close',
+  '.doc-line-remove', '.remove-row',
+  '.js-theme', '.js-font', '.js-nav-layout',
+  '.search-result-item',
+  '.cm-print', '.thread-delete-btn',
+  '.contacts-link',
+  '.fab-action-btn', '.icon-btn', '.quick-action-btn', '.action-btn'
 ].join(',');
 
 const DURATION = 500; // ms
