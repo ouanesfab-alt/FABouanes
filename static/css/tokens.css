@@ -652,6 +652,12 @@ button,
   overflow: hidden !important;
 }
 
+/* Absolute position override for elements that need to be absolute inside wraps */
+.pin-toggle,
+.toggle-pass {
+  position: absolute !important;
+}
+
 /* The ripple span injected by JS */
 .ripple-wave {
   position: absolute;
