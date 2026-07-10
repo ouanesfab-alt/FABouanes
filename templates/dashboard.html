@@ -763,11 +763,11 @@
       chatArea.classList.add('active');
     }
 
-    function scrollToBottom() {
-      chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
+    function scrollToBottom(smooth = true) {
+      chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
     }
 
-    function appendMessage(role, text) {
+    function appendMessage(role, text, shouldScroll = true) {
       const bubble = document.createElement('div');
       bubble.className = `fab-chat-bubble ${role}`;
       const content = document.createElement('div');
@@ -786,7 +786,9 @@
       }
 
       chatArea.appendChild(bubble);
-      scrollToBottom();
+      if (shouldScroll) {
+        scrollToBottom();
+      }
       return bubble;
     }
 
@@ -804,7 +806,8 @@
 
     function renderHistory() {
       chatArea.innerHTML = '';
-      history.forEach(msg => appendMessage(msg.role, msg.parts[0].text));
+      history.forEach(msg => appendMessage(msg.role, msg.parts[0].text, false));
+      scrollToBottom(false);
     }
 
     function parseMarkdown(md) {
@@ -952,14 +955,14 @@
                 indicator.remove();
                 indicator = null;
               }
-              if (!streamBubble) streamBubble = appendMessage('model', '');
+              if (!streamBubble) streamBubble = appendMessage('model', '', false);
               const cd = streamBubble.querySelector('.bubble-content');
               if (cd) {
                 const cur = streamBubble.getAttribute('data-raw-text') || '';
                 const nw = cur + event.text;
                 streamBubble.setAttribute('data-raw-text', nw);
                 cd.innerHTML = parseMarkdown(nw);
-                scrollToBottom();
+                scrollToBottom(false);
               }
             } else if (event.type === 'final_response') {
               if (indicator) {
@@ -1146,9 +1149,10 @@
     }
 
     input.addEventListener('focus', function() {
+      const wasActive = chatArea.classList.contains('active');
       loadActiveThread();
       showChatView();
-      if (history.length > 0) {
+      if (!wasActive && history.length > 0) {
         renderHistory();
       }
     });
