@@ -10,6 +10,18 @@ FABOuanes est une application de bureau et serveur de gestion commerciale haut d
 
 ---
 
+## 🚀 Démarrage rapide
+
+Plusieurs modes d'exécution sont disponibles selon votre besoin :
+
+- Mode web local : `python -m uvicorn app.main:app --host 0.0.0.0 --port 5000 --reload`
+- Client bureau : `python launcher.py`
+- Déploiement conteneurisé : `docker compose up --build`
+
+Le projet embarque déjà les fichiers nécessaires pour démarrer rapidement avec PostgreSQL, un service web FastAPI et pgAdmin via Docker Compose.
+
+---
+
 ## 🏛️ Architecture & Structure du Projet
 
 L'application suit une structure modulaire inspirée du modèle de conception de l'Architecture Propre (Clean Architecture), isolant la persistance, la logique métier et la couche de présentation.
@@ -38,8 +50,11 @@ FABouanes/
 │   ├── printing/               # Tests de rendu et d'impression des documents
 │   └── conftest.py             # Fixtures pytest et initialisation de base de données de test
 ├── alembic/                    # Gestion des migrations de base de données relationnelle
-├── launcher/                   # Scripts de lancement rapide du serveur
+├── deploy/                     # Configurations de déploiement et Docker production
 ├── installer/                  # Packaging desktop Windows (PyInstaller, Inno Setup)
+├── docker-compose.yml          # Déploiement local avec PostgreSQL et pgAdmin
+├── Dockerfile                  # Image de l'application web FastAPI
+├── launcher.py                 # Lanceur desktop avec bootstrap de la base
 └── README.md                   # Ce document explicatif
 ```
 
