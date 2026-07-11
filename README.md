@@ -225,6 +225,16 @@ Pour pousser proprement vos développements locaux sur GitHub :
 Exécutez la commande d'automatisation suivante à la racine :
 
 ```powershell
+git add .
+git commit -m "your message"
+git push origin main
+```
+
+Le dépôt GitHub associé au projet est :
+- https://github.com/ouanesfab-alt/FABouanes
+
+
+```powershell
 PUSH_GITHUB.bat
 ```
 
