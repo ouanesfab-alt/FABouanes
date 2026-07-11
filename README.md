@@ -6,7 +6,7 @@
 [![UI Style](https://img.shields.io/badge/UI--Style-macOS%20Sequoia-grey?logo=apple&logoColor=white)](https://github.com/ouanesfab-alt/FABouanes)
 [![License](https://img.shields.io/badge/License-Proprietary-red)](#)
 
-FABOuanes est une application de bureau et serveur de gestion commerciale haut de gamme conçue pour la facturation, le suivi d'inventaire, le relevé de compte client et l'archivage de documents. Initialement développée sous Flask, la plateforme a été entièrement migrée vers **FastAPI** tout en préservant ses fonctionnalités métiers critiques, ses interfaces utilisateur enrichies et sa compatibilité avec l'écosystème réseau et mobile.
+FABOuanes est une application de bureau et serveur de gestion commerciale haut de gamme conçue pour la facturation, le suivi d'inventaire, le relevé de compte client et l'archivage de documents. Initialement développée sous Flask, la plateforme a été entièrement migrée vers **FastAPI** tout en préservant ses fonctionnalités métiers critiques, ses interfaces utilisateur enrichies et sa compatibilité avec l'écosystème réseau et mobile. Sabrina est également intégrée dans l'écosystème du projet comme assistant de support et d'assistance fonctionnelle.
 
 ---
 
@@ -18,7 +18,7 @@ Plusieurs modes d'exécution sont disponibles selon votre besoin :
 - Client bureau : `python launcher.py`
 - Déploiement conteneurisé : `docker compose up --build`
 
-Le projet embarque déjà les fichiers nécessaires pour démarrer rapidement avec PostgreSQL, un service web FastAPI et pgAdmin via Docker Compose.
+Le projet embarque déjà les fichiers nécessaires pour démarrer rapidement avec PostgreSQL, un service web FastAPI, pgAdmin, ainsi que l'environnement d'assistance Sabrina via l'application principale.
 
 ---
 
