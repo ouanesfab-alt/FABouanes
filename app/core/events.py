@@ -48,7 +48,7 @@ class EventJSONEncoder(json.JSONEncoder):  # pragma: no cover
         if isinstance(obj, (datetime.date, datetime.datetime)):
             return obj.isoformat()
         if isinstance(obj, decimal.Decimal):
-            return float(obj)
+            return str(obj)
         if isinstance(obj, set):
             return list(obj)
         try:
@@ -155,7 +155,7 @@ def emit(event: DomainEvent) -> None:
     force_outbox = os.getenv("FAB_FORCE_OUTBOX") == "1"
     if force_outbox:
         try:
-            from app.core.db_access import execute_db
+            from app.core.db_helpers import execute_db
             payload = _serialize_event(event, WORKER_ID)
             execute_db(
                 "INSERT INTO outbox_events (event_type, payload) VALUES (%s, %s)",
@@ -173,7 +173,7 @@ def emit(event: DomainEvent) -> None:
     # 2. Publish to DB Pub/Sub
     if not is_testing:
         try:
-            from app.core.db_access import execute_db
+            from app.core.db_helpers import execute_db
             payload = _serialize_event(event, WORKER_ID)
             execute_db(
                 "INSERT INTO pubsub_events (channel, payload, sender_worker_id) VALUES (%s, %s, %s)",
@@ -335,7 +335,7 @@ def _db_event_listener_loop():
     global _db_listener_running, _last_seen_pubsub_id
     import time
     import select
-    from app.core.db_access import execute_db, query_db
+    from app.core.db_helpers import execute_db, query_db
 
     # Initialize last seen ID to current max
     try:
@@ -444,7 +444,7 @@ def startup():
     if not _db_listener_running:
         # Nettoyer les anciens événements au démarrage pour garder la table légère
         try:
-            from app.core.db_access import execute_db
+            from app.core.db_helpers import execute_db
             execute_db("DELETE FROM pubsub_events WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'")
         except Exception:
             pass

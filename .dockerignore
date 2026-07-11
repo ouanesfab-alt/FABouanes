@@ -50,3 +50,7 @@ test.pdf
 test_facture.pdf
 test_print.html
 *.log
+sabrina_audit.jsonl
+sabrina_failures.jsonl
+scratch/
+.agents/

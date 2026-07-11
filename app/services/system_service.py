@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app.core.config import APP_DATA_DIR, DATABASE_URL
-from app.core.db import connect_database, postgres_pool_status
+from app.core.db_helpers import connect_database, postgres_pool_status
 from app.core.activity import write_text_log
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession

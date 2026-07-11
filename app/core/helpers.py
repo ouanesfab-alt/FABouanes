@@ -200,9 +200,15 @@ def parse_excel_client_file(file_path) -> dict:
 
 
 def parse_excel_client_history(file_path) -> dict:
-    from app.services.excel_import_service import parse_excel_client_history as _parse_excel_client_history
-
-    return _parse_excel_client_history(file_path)
+    from app.services.excel_import_service import parse_client_history_excel
+    try:
+        data = parse_client_history_excel(file_path)
+        rows = data.get("rows", [])
+        last_date = rows[-1]["date"] if rows else None
+        last_balance = data.get("solde_final", 0.0)
+        return {"last_date": last_date, "last_balance": last_balance}
+    except Exception:
+        return {"last_date": None, "last_balance": 0.0}
 
 
 def init_db() -> None:

@@ -75,7 +75,7 @@ class ConnectionManager:
     def broadcast_sync(self, message: str):
         """Broadcast global."""
         try:
-            from app.core.db_access import execute_db
+            from app.core.db_helpers import execute_db
             payload = json.dumps({"type": "global", "message": message, "sender_id": WORKER_ID})
             execute_db(
                 "INSERT INTO pubsub_events (channel, payload, sender_worker_id) VALUES (%s, %s, %s)",
@@ -90,7 +90,7 @@ class ConnectionManager:
     def broadcast_to_user(self, user_id: int, message: str):
         """Envoie un message uniquement aux connexions de cet utilisateur."""
         try:
-            from app.core.db_access import execute_db
+            from app.core.db_helpers import execute_db
             payload = json.dumps({"type": "user", "user_id": user_id, "message": message, "sender_id": WORKER_ID})
             execute_db(
                 "INSERT INTO pubsub_events (channel, payload, sender_worker_id) VALUES (%s, %s, %s)",

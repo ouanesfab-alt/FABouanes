@@ -194,7 +194,8 @@ TABLE_SCHEMAS = {
 
 def get_schema() -> Dict[str, Any]:
     """Retourne la description de la structure de la base de données."""
-    return {"schema": TABLE_SCHEMAS}
+    from app.core.perf_cache import cached_result
+    return cached_result(("sabrina_schema",), lambda: {"schema": TABLE_SCHEMAS}, ttl_seconds=300.0)
 
 # Mapping: table → lien de formulaire de création et de liste
 FORM_LINKS = {

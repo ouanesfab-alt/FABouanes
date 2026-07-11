@@ -402,8 +402,18 @@
     margin: {{ print_layout.page_margin_mm }}mm;
   }
   
+  /* Desktop: apply screen scale via zoom (unchanged) */
   @media screen and (min-width:768px){
     .print-doc-shell{zoom:var(--print-screen-scale);}
+  }
+  /* Mobile: JS handles scale via CSS variable --mobile-doc-scale (see script) */
+  @media screen and (max-width:767px){
+    .print-doc-shell{
+      transform-origin: top center;
+      transform: scale(var(--mobile-doc-scale, 1));
+      /* Compensate height so page doesn't leave empty space */
+      margin-bottom: calc((var(--mobile-doc-scale, 1) - 1) * var(--print-paper-height));
+    }
   }
   
   @media print{
@@ -411,6 +421,7 @@
     .no-print,.app-navbar,.page-hero,.table-toolbar,.context-menu,.btn,.dropdown,.alert{display:none !important;}
     body{padding-top:0 !important;}
     .app-content{padding:0 !important;}
+    .app-content > * {opacity:1 !important; visibility:visible !important; animation:none !important; transition:none !important;}
     .print-doc-paper{box-shadow:none !important;border:0 !important;border-radius:0 !important;min-height:auto !important;}
     .print-doc-shell{width:var(--print-content-width) !important;max-width:none !important;gap:0 !important;zoom:1 !important;}
     .print-doc-header,.print-doc-top-grid,.print-doc-client-box,.print-doc-summary,.print-doc-footer{break-inside:avoid-page;page-break-inside:avoid;}
@@ -451,6 +462,67 @@
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
+  }
+
+  /* Enforce clean colors for PDF generation */
+  body.is-generating-pdf,
+  body.is-generating-pdf * {
+    color-scheme: light !important;
+    color: #1e293b !important;
+    border-color: #cbd5e1 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    animation: none !important;
+    transition: none !important;
+  }
+  body.is-generating-pdf i {
+    color: #0284c7 !important;
+  }
+  body.is-generating-pdf .app-content {
+    background: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  body.is-generating-pdf .app-content > * {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+  body.is-generating-pdf .print-doc-paper {
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+  body.is-generating-pdf .print-doc-invoice-title-wrap {
+    background: #f8fafc !important;
+    border-left: 4px solid #0284c7 !important;
+  }
+  body.is-generating-pdf .print-doc-invoice-title {
+    color: #0f172a !important;
+  }
+  body.is-generating-pdf .print-doc-invoice-box,
+  body.is-generating-pdf .print-doc-summary-box {
+    background: #f8fafc !important;
+  }
+  body.is-generating-pdf .print-doc-table thead th {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    border-bottom: 2px solid #0f172a !important;
+  }
+  body.is-generating-pdf .print-doc-client-tab {
+    background: #0f172a !important;
+    color: #fff !important;
+  }
+  body.is-generating-pdf .print-doc-table tbody tr:nth-child(even) {
+    background-color: #f8fafc !important;
+  }
+  body.is-generating-pdf .print-doc-summary-row.total strong {
+    color: #0284c7 !important;
   }
 </style>
 
@@ -558,7 +630,7 @@
     <button class="btn btn-outline-secondary" id="btnBack"><i class="bi bi-arrow-left me-1"></i>Retour</button>
     <div class="d-flex gap-2 flex-wrap">
       <button class="btn btn-outline-dark" type="button" onclick="window.print()"><i class="bi bi-printer me-2"></i>Imprimer la page</button>
-      <a href="?format=pdf" class="btn btn-dark" id="btnPrint" target="_blank"><i class="bi bi-file-earmark-pdf me-2"></i>Télécharger PDF</a>
+      <button type="button" class="btn btn-dark" id="btnDownloadPDF" onclick="downloadPDF()"><i class="bi bi-file-earmark-pdf me-2"></i>Télécharger PDF</button>
     </div>
   </div>
   {% endif %}
@@ -581,5 +653,90 @@
     window.location.href = '{{ url_for('transactions') }}';
   });
 })();
+
+// ── Mobile: scale invoice to fit viewport width ──
+(function() {
+  function applyMobileDocScale() {
+    if (window.matchMedia('(min-width: 768px)').matches) return;
+    const shell = document.querySelector('.print-doc-shell');
+    if (!shell) return;
+    // Content width in px (190mm at 96 dpi = ~718px)
+    const docWidthPx = shell.scrollWidth || 718;
+    const vpWidth = window.innerWidth;
+    const padding = 16; // 8px each side
+    const scale = Math.min(1, (vpWidth - padding) / docWidthPx);
+    document.documentElement.style.setProperty('--mobile-doc-scale', scale);
+    // Adjust wrapper height so nothing overlaps below the scaled document
+    const scaled = shell.scrollHeight * scale;
+    shell.style.marginBottom = ((scale - 1) * shell.scrollHeight) + 'px';
+  }
+  document.addEventListener('DOMContentLoaded', applyMobileDocScale);
+  window.addEventListener('resize', applyMobileDocScale);
+})();
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/html2pdf.bundle.min.js') }}"></script>
+<script nonce="{{ csp_nonce }}">
+async function downloadPDF() {
+  const btn = document.getElementById('btnDownloadPDF');
+  const originalText = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Génération...';
+    btn.disabled = true;
+  }
+  
+  // Add class to body to force clean print styles
+  document.body.classList.add('is-generating-pdf');
+  
+  const element = document.querySelector('.print-doc-paper');
+  const filename = '{{ doc.number }}.pdf';
+  const opt = {
+    margin:       [10, 10, 10, 10], // top, left, bottom, right in mm
+    filename:     filename,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { 
+      scale: 2, 
+      useCORS: true, 
+      logging: false,
+      letterRendering: true,
+      scrollX: 0,
+      scrollY: 0
+    },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+  };
+  
+  try {
+    // Reset mobile zoom before PDF capture so the PDF is at full resolution
+    document.documentElement.style.setProperty('--mobile-doc-scale', '1');
+    const shell = document.querySelector('.print-doc-shell');
+    if (shell) shell.style.marginBottom = '';
+
+    await html2pdf().set(opt).from(element).save();
+  } catch (err) {
+    console.error('PDF Generation Error:', err);
+    alert('Une erreur est survenue lors de la génération du PDF.');
+  } finally {
+    // Restore styling AND re-apply mobile scale
+    document.body.classList.remove('is-generating-pdf');
+    if (btn) {
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    }
+    // Re-apply mobile zoom
+    if (!window.matchMedia('(min-width: 768px)').matches) {
+      const shell = document.querySelector('.print-doc-shell');
+      if (shell) {
+        const docWidthPx = shell.scrollWidth || 718;
+        const vpWidth = window.innerWidth;
+        const scale = Math.min(1, (vpWidth - 16) / docWidthPx);
+        document.documentElement.style.setProperty('--mobile-doc-scale', scale);
+        shell.style.marginBottom = ((scale - 1) * shell.scrollHeight) + 'px';
+      }
+    }
+  }
+}
 </script>
 {% endblock %}

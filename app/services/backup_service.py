@@ -16,7 +16,7 @@ import asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_sessionmaker
-from app.core.db import connect_database
+from app.core.db_helpers import connect_database
 from app.core.helpers import async_compat
 
 logger = logging.getLogger("fabouanes")
@@ -501,9 +501,14 @@ async def _purge_old_logs() -> None:
                 if table not in ALLOWED_LOG_TABLES:
                     raise ValueError(f"Table {table} is not allowed for log purge")
                 await session.execute(text(f"DELETE FROM {table} WHERE created_at < NOW() - INTERVAL '7 days'"))
+            # Purge pubsub_events and processed outbox_events older than 7 days
+            await session.execute(text("DELETE FROM pubsub_events WHERE created_at < NOW() - INTERVAL '7 days'"))
+            await session.execute(text("DELETE FROM outbox_events WHERE processed_at IS NOT NULL AND processed_at < NOW() - INTERVAL '7 days'"))
+            # Purge rate limit events older than 1 day
+            await session.execute(text("DELETE FROM rate_limit_events WHERE hit_at < NOW() - INTERVAL '1 day'"))
             await session.commit()
-    except Exception:
-        logger.debug("Log purge skipped (table may not exist yet)")
+    except Exception as e:
+        logger.debug("Log purge skipped or failed: %s", e)
 
     # Nettoyer les clés d'idempotence expirées (> 7 jours) pour éviter la croissance illimitée
     try:
@@ -585,7 +590,7 @@ def _background_loop(app) -> None:
                 loop_counter = BACKGROUND_STATE.get("loop_counter", 0) + 1
                 BACKGROUND_STATE["loop_counter"] = loop_counter
             if loop_counter % 20 == 0:
-                from app.core.db import postgres_pool_status
+                from app.core.db_helpers import postgres_pool_status
                 stats = postgres_pool_status(DATABASE_URL)
                 logger.debug("PG Pool status: %s", stats)
 

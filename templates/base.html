@@ -124,7 +124,9 @@
 
   {% include 'partials/_scripts_core.html' %}
   {% include 'partials/_websocket.html' %}
+  {% if not is_print_view %}
   {% include 'partials/_transitions.html' %}
+  {% endif %}
   {% block scripts %}{% endblock %}
 </body>
 </html>

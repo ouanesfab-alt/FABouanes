@@ -204,7 +204,7 @@ def _resolve_actor(user_id: int | None = None, actor: Any = None) -> tuple[int |
 
     if resolved_id and (not resolved_username or not resolved_role):
         try:
-            from app.core.db_access import query_db
+            from app.core.db_helpers import query_db
             user_row = query_db("SELECT username, role FROM users WHERE id = %s", (int(resolved_id),), one=True)
             if user_row:
                 resolved_username = resolved_username or user_row.get("username")
@@ -267,10 +267,17 @@ def audit_event(
         )
     else:
         try:
-            loop = asyncio.get_running_loop()
-            loop.call_soon_threadsafe(queue.put_nowait, params)
-        except RuntimeError:
-            queue.put_nowait(params)
+            try:
+                loop = asyncio.get_running_loop()
+                loop.call_soon_threadsafe(queue.put_nowait, params)
+            except RuntimeError:
+                queue.put_nowait(params)
+        except (asyncio.QueueFull, Exception) as exc:
+            _AUDIT_DROPPED += 1
+            import logging
+            logging.getLogger("fabouanes.audit").error(
+                "Failed to queue audit event: %s. Total dropped = %d", exc, _AUDIT_DROPPED
+            )
 
         q_len = queue.qsize()
         if q_len > 5000:

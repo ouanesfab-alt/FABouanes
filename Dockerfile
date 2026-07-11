@@ -32,6 +32,7 @@ WORKDIR /app
 # Copy application code
 COPY alembic/ alembic/
 COPY alembic.ini .
+COPY pyproject.toml .
 COPY app/ app/
 COPY templates/ templates/
 COPY static/ static/

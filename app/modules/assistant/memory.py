@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, Any
 
-from app.core.db import db_manager
+from app.core.db_helpers import db_manager
 
 logger = logging.getLogger("fabouanes.assistant.memory")
 

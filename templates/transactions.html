@@ -44,8 +44,23 @@
       <a href="{{ url_for('operations', type='purchase') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='purchase' else 'btn-outline-secondary' }}">Achats</a>
       <a href="{{ url_for('operations', type='sale') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='sale' else 'btn-outline-secondary' }}">Ventes</a>
       <a href="{{ url_for('operations', type='payment') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='payment' else 'btn-outline-secondary' }}">Versements / avances</a>
-      <button type="button" onclick="exportTransactions('csv')" class="btn btn-outline-success"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV</button>
-      <button type="button" onclick="exportTransactions('xlsx')" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Exporter Excel</button>
+      <div class="dropdown">
+        <button type="button" class="btn btn-outline-success dropdown-toggle w-100" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-download me-1"></i>Exporter
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown">
+          <li>
+            <button class="dropdown-item" type="button" onclick="exportTransactions('xlsx')">
+              <i class="bi bi-file-earmark-excel me-2 text-success"></i>Exporter Excel (.xlsx)
+            </button>
+          </li>
+          <li>
+            <button class="dropdown-item" type="button" onclick="exportTransactions('csv')">
+              <i class="bi bi-file-earmark-spreadsheet me-2 text-primary"></i>Exporter CSV (.csv)
+            </button>
+          </li>
+        </ul>
+      </div>
     </div>
   </div>
 

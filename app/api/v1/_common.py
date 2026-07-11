@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 # Also export core database functions as some files import them from here
-from app.core.db_access import (
+from app.core.db_helpers import (
     query_db,
     query_db_async,
 )

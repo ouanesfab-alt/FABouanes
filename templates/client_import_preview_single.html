@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prévisualisation Client - {{ row.name }}</title>
+  <link rel="stylesheet" href="/static/bootstrap.min.css" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css'">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #2563eb;
+      --green: #16a34a;
+      --red: #dc2626;
+      --amber: #d97706;
+    }
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: #334155;
+      --primary: #3b82f6;
+      --green: #22c55e;
+      --red: #ef4444;
+      --amber: #f59e0b;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 16px;
+      font-size: 0.9rem;
+    }
+    .preview-header {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+    .stat-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .stat-value {
+      font-size: 1.1rem;
+      font-weight: 800;
+    }
+    .text-primary { color: var(--primary) !important; }
+    .text-success { color: var(--green) !important; }
+    .text-danger { color: var(--red) !important; }
+    .text-warning { color: var(--amber) !important; }
+
+    .table-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+    
+    /* Excel Spreadsheet "Style de feuille" */
+    .excel-sheet-table {
+      border-collapse: collapse !important;
+      border: 1px solid var(--border) !important;
+      width: 100% !important;
+    }
+    .excel-sheet-table thead th {
+      background: var(--bg) !important;
+      color: var(--muted) !important;
+      border: 1px solid var(--border) !important;
+      font-size: 0.78rem !important;
+      font-weight: 700 !important;
+      padding: 8px 12px !important;
+      text-transform: none !important;
+      letter-spacing: normal !important;
+    }
+    .excel-sheet-table tbody td {
+      border: 1px solid var(--border) !important;
+      padding: 6px 12px !important;
+      font-size: 0.82rem !important;
+      vertical-align: middle;
+    }
+    .excel-sheet-table tbody td.num-cell {
+      font-family: monospace, monospace !important;
+      font-weight: 600 !important;
+    }
+    .badge-status {
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+  </style>
+  <script>
+    // Sync theme with parent
+    try {
+      const parentTheme = window.parent.document.documentElement.getAttribute('data-theme');
+      if (parentTheme) {
+        document.documentElement.setAttribute('data-theme', parentTheme);
+      }
+    } catch(e) {}
+  </script>
+</head>
+<body>
+
+  <div class="preview-header">
+    <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+      <div>
+        <div class="text-uppercase font-monospace text-primary fw-bold mb-1" style="font-size: 0.72rem; letter-spacing: 0.1em;">
+          Fichier : {{ row.filename }}
+        </div>
+        <h1 class="h4 fw-extrabold mb-1" style="letter-spacing: -0.02em;">{{ row.name }}</h1>
+        <p class="text-muted small mb-0">
+          {% if row.phone %}<i class="bi bi-telephone me-1"></i>{{ row.phone }}{% endif %}
+          {% if row.phone and row.address %} &nbsp;·&nbsp; {% endif %}
+          {% if row.address %}<i class="bi bi-geo-alt me-1"></i>{{ row.address }}{% endif %}
+          {% if not row.phone and not row.address %}<i class="bi bi-info-circle me-1"></i>Aucune coordonnée{% endif %}
+        </p>
+      </div>
+      <span class="badge-status {{ 'bg-primary-subtle text-primary' if row.status == 'create' else 'bg-info-subtle text-info' }}">
+        {{ "Nouveau Client" if row.status == "create" else "Client Existant (Mise à jour)" }}
+      </span>
+    </div>
+  </div>
+
+  {% set total_achat = 0.0 %}
+  {% set total_verse = 0.0 %}
+  {% for r in row.history_rows %}
+    {% set total_achat = total_achat + (r.montant_achat|float) %}
+    {% set total_verse = total_verse + (r.montant_verse|float) %}
+  {% endfor %}
+  {% set solde_final = row.opening_credit %}
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-label">Ouverture</div>
+      <div class="stat-value text-secondary">
+        {% if row.history_rows %}
+          {{ "%.2f"|format(row.history_rows[0].solde_cumule|float) }} DA
+        {% else %}
+          {{ "%.2f"|format(row.opening_credit|float) }} DA
+        {% endif %}
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Achats</div>
+      <div class="stat-value text-danger">{{ "%.2f"|format(total_achat) }} DA</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Versements</div>
+      <div class="stat-value text-success">{{ "%.2f"|format(total_verse) }} DA</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Reste à Payer</div>
+      <div class="stat-value {{ 'text-danger' if solde_final > 0 else 'text-success' }}">
+        {{ "%.2f"|format(solde_final|float) }} DA
+      </div>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <div class="p-3 bg-light-subtle border-bottom fw-bold d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-clock-history me-2"></i>Mouvements du client</span>
+      <span class="text-muted small font-monospace">{{ row.history_rows|length }} ligne(s)</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table mb-0 align-middle excel-sheet-table">
+        <thead>
+          <tr>
+            <th style="width: 120px;">Date</th>
+            <th>Désignation</th>
+            <th class="text-end" style="width: 125px;">Achat</th>
+            <th class="text-end" style="width: 125px;">Versement</th>
+            <th class="text-end" style="width: 140px;">Solde Cumulé</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if row.history_rows %}
+            {% for r in row.history_rows %}
+              <tr>
+                <td class="num-cell text-muted">{{ r.date }}</td>
+                <td>{{ r.designation }}</td>
+                <td class="text-end text-danger num-cell">
+                  {% if r.montant_achat|float > 0 %}{{ "%.2f"|format(r.montant_achat|float) }} DA{% else %}-{% endif %}
+                </td>
+                <td class="text-end text-success num-cell">
+                  {% if r.montant_verse|float > 0 %}{{ "%.2f"|format(r.montant_verse|float) }} DA{% else %}-{% endif %}
+                </td>
+                <td class="text-end num-cell {{ 'text-danger' if r.solde_cumule|float > 0 else 'text-success' }}">
+                  {{ "%.2f"|format(r.solde_cumule|float) }} DA
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="5" class="text-center py-4 text-muted">
+                <i class="bi bi-inbox me-1" style="font-size: 1.5rem;"></i><br>
+                Aucune ligne d'historique trouvée dans ce fichier.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</body>
+</html>

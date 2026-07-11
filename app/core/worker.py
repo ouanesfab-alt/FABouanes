@@ -91,7 +91,7 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
     Polls the outbox_events table for unprocessed events, publishes them to DB Pub/Sub,
     runs the default local handlers, and marks them as processed.
     """
-    from app.core.db_access import db_transaction
+    from app.core.db_helpers import db_transaction
 
     events_processed = 0
     try:
@@ -174,7 +174,7 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
 
 async def replay_dead_letter_events_task(ctx: dict[str, Any]) -> int:
     """Replays all events from dead_letter_events table."""
-    from app.core.db_access import db_transaction
+    from app.core.db_helpers import db_transaction
 
     events_replayed = 0
     try:

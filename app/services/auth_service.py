@@ -31,8 +31,10 @@ async def attempt_login(username: str, password: str, request: Request | None = 
     normalized = (username or "").strip()
     ip = client_ip()
 
+    from app.core.config import settings
+
     # 1. Check IP lockout first
-    if is_locked_out(ip):
+    if not settings.desktop_mode and is_locked_out(ip):
         audit_event(
             action="login",
             entity_type="user",
@@ -45,7 +47,7 @@ async def attempt_login(username: str, password: str, request: Request | None = 
 
     # 2. Check standard rate limit (réduit à 5 tentatives / 5 minutes)
     login_key = f"login:{ip}:{normalized.lower()}"
-    if not consume_rate_limit(login_key, 5, 300):
+    if not settings.desktop_mode and not consume_rate_limit(login_key, 5, 300):
         audit_event(
             action="login",
             entity_type="user",

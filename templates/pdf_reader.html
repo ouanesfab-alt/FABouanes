@@ -322,6 +322,7 @@
             <th style="width: 15%;">Numéro</th>
             <th>Description / Client</th>
             <th style="width: 18%; text-align: right;">Montant</th>
+            <th style="width: 10%; text-align: center;">Action</th>
           </tr>
         </thead>
         <tbody id="bonsTableBody">
@@ -363,10 +364,19 @@
               <span class="text-muted">—</span>
               {% endif %}
             </td>
+            <td style="text-align: center;">
+              {% if doc.pdf_url %}
+              <a href="{{ doc.pdf_url }}" target="_blank" class="btn btn-sm btn-link p-0 text-accent js-no-transition" title="Télécharger le PDF" style="font-size: 1.1rem;">
+                <i class="bi bi-file-earmark-pdf"></i>
+              </a>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
           </tr>
           {% else %}
           <tr>
-            <td colspan="5" class="text-center py-5 text-muted small">
+            <td colspan="6" class="text-center py-5 text-muted small">
               <i class="bi bi-folder2-open d-block mb-2" style="font-size:2rem; opacity:.45;"></i>
               Aucun document trouvé.
             </td>
@@ -403,8 +413,8 @@
       </div>
       <div class="mac-modal-actions-wrap">
         <a class="btn btn-sm btn-outline-secondary js-no-transition" id="modalSourceLink" href="#" title="Aller à la source"><i class="bi bi-box-arrow-up-right"></i></a>
-        <a class="btn btn-sm btn-outline-dark js-no-transition" id="modalPdfLink" href="#" target="_blank" title="Télécharger le PDF"><i class="bi bi-file-earmark-pdf"></i></a>
-        <a class="btn btn-sm btn-dark js-no-transition" id="modalOpenLink" href="#" target="_blank" title="Plein écran"><i class="bi bi-arrows-fullscreen"></i></a>
+        <a class="btn btn-sm btn-outline-secondary js-no-transition" id="modalPdfLink" href="#" target="_blank" title="Télécharger le PDF"><i class="bi bi-file-earmark-pdf"></i></a>
+        <button class="btn btn-sm btn-dark js-no-transition" id="modalPrintBtn" title="Imprimer"><i class="bi bi-printer"></i></button>
         <form method="post" action="{{ url_for('bons_space') }}" class="m-0 d-inline-block" onsubmit="return confirm('Supprimer ce PDF ?')" id="modalDeleteForm">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <input type="hidden" name="action" value="delete">
@@ -443,7 +453,30 @@
   const modalSubtitleText = document.getElementById('modalSubtitleText');
   const modalSourceLink = document.getElementById('modalSourceLink');
   const modalPdfLink = document.getElementById('modalPdfLink');
-  const modalOpenLink = document.getElementById('modalOpenLink');
+  modalPdfLink?.addEventListener('click', function(e) {
+    if (modalIframe && modalIframe.contentWindow && typeof modalIframe.contentWindow.downloadPDF === 'function') {
+      e.preventDefault();
+      modalIframe.contentWindow.downloadPDF();
+    } else if (this.getAttribute('href') === '#') {
+      e.preventDefault();
+      alert("Le téléchargement de ce document n'est pas disponible ou est en cours de préparation.");
+    }
+  });
+  const modalPrintBtn = document.getElementById('modalPrintBtn');
+  modalPrintBtn?.addEventListener('click', function() {
+    if (modalIframe && modalIframe.contentWindow) {
+      try {
+        modalIframe.contentWindow.focus();
+        modalIframe.contentWindow.print();
+      } catch (err) {
+        console.error("Print error, opening in new window:", err);
+        const printUrl = modalIframe.src;
+        if (printUrl && printUrl !== 'about:blank' && printUrl !== '#') {
+          window.open(printUrl, '_blank');
+        }
+      }
+    }
+  });
   const modalDeleteForm = document.getElementById('modalDeleteForm');
   const modalDeleteFilename = document.getElementById('modalDeleteFilename');
 
@@ -472,17 +505,13 @@
     if (modalPdfLink) {
       if (data.pdfUrl && data.pdfUrl !== 'None') {
         modalPdfLink.href = data.pdfUrl;
-        modalPdfLink.style.display = 'inline-flex';
       } else {
-        modalPdfLink.style.display = 'none';
+        modalPdfLink.href = '#';
       }
+      modalPdfLink.style.display = 'inline-flex';
     }
     
-    // Update Open URL (embed format)
-    if (modalOpenLink) {
-      const embedUrl = data.viewUrl + (data.viewUrl.includes('?') ? '&' : '?') + 'embed=1';
-      modalOpenLink.href = embedUrl;
-    }
+
     
     // Update Delete Form
     if (modalDeleteForm && modalDeleteFilename) {

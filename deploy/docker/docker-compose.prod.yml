@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: fabouanes_prod_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fabouanes
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Definissez POSTGRES_PASSWORD dans votre .env}"
+      POSTGRES_DB: fabouanes
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fabouanes -d fabouanes"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    container_name: fabouanes_prod_web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://fabouanes:${POSTGRES_PASSWORD}@db:5432/fabouanes"
+      SECRET_KEY: "${SECRET_KEY:?Definissez SECRET_KEY dans votre .env}"
+      SESSION_COOKIE_SECURE: "${SESSION_COOKIE_SECURE:-1}"
+      DEFAULT_ADMIN_USERNAME: "${DEFAULT_ADMIN_USERNAME:-admin}"
+      DEFAULT_ADMIN_PASSWORD: "${DEFAULT_ADMIN_PASSWORD:-}"
+      WEB_CONCURRENCY: "1"
+      FAB_PG_POOL_SIZE: "15"
+      FAB_PG_POOL_MAX_OVERFLOW: "10"
+      FAB_REQUEST_TIMEOUT_SECONDS: "30"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+    ports:
+      - "${FAB_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: fabouanes_prod_prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    depends_on:
+      - web
+
+volumes:
+  pgdata_prod:
+  prometheus_data:

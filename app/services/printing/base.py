@@ -113,4 +113,12 @@ def _fmt_money_pdf(value) -> str:
 def _logo_cell(logo_path: Path, width_cm: float, height_cm: float):
     if logo_path.exists():
         return RLImage(str(logo_path), width=width_cm * cm, height=height_cm * cm)
+    
+    # Fallback to .webp if the requested .png doesn't exist
+    if logo_path.suffix.lower() == '.png':
+        webp_path = logo_path.with_suffix('.webp')
+        if webp_path.exists():
+            return RLImage(str(webp_path), width=width_cm * cm, height=height_cm * cm)
+            
     return Spacer(width_cm * cm, height_cm * cm)
+

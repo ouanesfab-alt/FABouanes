@@ -98,7 +98,7 @@ async def update_expense(db: AsyncSession, expense_id: int, date: Any, category:
         from decimal import Decimal
         entity.amount = Decimal(str(amount))
         entity.payment_method = method
-        entity.updated_at = datetime.utcnow()
+        entity.updated_at = datetime.now()
         await repo.update(entity)
 
 

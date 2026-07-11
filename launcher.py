@@ -2,7 +2,6 @@
 import os
 os.environ["FAB_DESKTOP"] = "1"
 import json
-import os
 import shutil
 import sys
 import time

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import require_api_user, api_error
 from app.core.permissions import PERMISSION_OPERATIONS_WRITE
 from app.services.payment_service import create_payment_from_form
-from app.core.db_access import db_transaction
+from app.core.db_helpers import db_transaction
 from app.core.async_db import get_async_session
 from app.core.idempotency import check_idempotency, save_idempotency
 from app.core.exceptions import ValidationError, ConflictError

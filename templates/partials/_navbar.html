@@ -94,7 +94,855 @@
     </div>
   </div>
 </nav>
-<button type="button" class="side-nav-toggle" id="sideNavToggle" aria-label="Masquer la barre verticale"
-  aria-controls="appNavbar" aria-expanded="true" hidden>
-  <i class="bi bi-list"></i>
-</button>
+
+<!-- ===== MODAL GUIDE & RACCOURCIS (Alt+?) ===== -->
+<div id="shortcutsHelpModal" class="shortcuts-modal-backdrop" role="dialog" aria-modal="true" aria-label="Guide de l'utilisateur">
+  <div class="shortcuts-modal-card book-layout" role="document">
+    <div class="shortcuts-modal-header">
+      <h2 class="shortcuts-modal-title"><i class="bi bi-book-half me-2"></i>Manuel de Référence et d'Utilisation FABOuanes</h2>
+      <button class="shortcuts-modal-close" id="shortcutsModalClose" aria-label="Fermer"><i class="bi bi-x-lg"></i></button>
+    </div>
+    
+    <div class="book-container">
+      <!-- Left sidebar: Table of Contents -->
+      <aside class="book-sidebar">
+        <ul class="book-toc">
+          <li class="toc-module-title">1. Démarrage &amp; Accès</li>
+          <li class="toc-item active" data-chapter="1-1">📖 1.1 Démarrage rapide</li>
+          <li class="toc-item" data-chapter="1-2">🔐 1.2 Connexion &amp; Session</li>
+          <li class="toc-item" data-chapter="1-3">📲 1.3 QR Code Mobile Link</li>
+          
+          <li class="toc-module-title">2. Tableau de Bord &amp; IA</li>
+          <li class="toc-item" data-chapter="2-1">📊 2.1 Les KPIs Financiers</li>
+          <li class="toc-item" data-chapter="2-2">📈 2.2 Graphiques &amp; Analyse</li>
+          <li class="toc-item" data-chapter="2-3">💬 2.3 Sabrina (Assistante IA)</li>
+          
+          <li class="toc-module-title">3. Contacts &amp; Import</li>
+          <li class="toc-item" data-chapter="3-1">👥 3.1 Clients (CRUD complet)</li>
+          <li class="toc-item" data-chapter="3-2">📥 3.2 Importateur Excel (Sheet)</li>
+          <li class="toc-item" data-chapter="3-3">⏸️ 3.3 Barre de Progrès Windows</li>
+          
+          <li class="toc-module-title">4. Opérations &amp; Ventes</li>
+          <li class="toc-item" data-chapter="4-1">🛒 4.1 Ventes &amp; Versements</li>
+          <li class="toc-item" data-chapter="4-2">📦 4.2 Achats &amp; Fournisseurs</li>
+          <li class="toc-item" data-chapter="4-3">🗑️ 4.3 Édition &amp; Annulations</li>
+          
+          <li class="toc-module-title">5. Production industrielle</li>
+          <li class="toc-item" data-chapter="5-1">📋 5.1 Fiches techniques Recettes</li>
+          <li class="toc-item" data-chapter="5-2">🏭 5.2 Lancement de Production</li>
+          <li class="toc-item" data-chapter="5-3">📦 5.3 Suivi des Stocks Alerte</li>
+          
+          <li class="toc-module-title">6. Outils &amp; Utilitaires</li>
+          <li class="toc-item" data-chapter="6-1">💸 6.1 Dépenses Annexes</li>
+          <li class="toc-item" data-chapter="6-2">📝 6.2 Bloc-Notes &amp; Mémos</li>
+          <li class="toc-item" data-chapter="6-3">🗃️ 6.3 Catalogue d'Articles</li>
+          
+          <li class="toc-module-title">7. Espace Bons &amp; Édition</li>
+          <li class="toc-item" data-chapter="7-1">📂 7.1 Explorateur de Bons</li>
+          <li class="toc-item" data-chapter="7-2">🖨️ 7.2 Formats A4 &amp; A5 PDF</li>
+          <li class="toc-item" data-chapter="7-3">📥 7.3 Exportation Excel / CSV</li>
+          
+          <li class="toc-module-title">8. Paramètres &amp; Admin</li>
+          <li class="toc-item" data-chapter="8-1">🛠️ 8.1 Configuration de l'IA</li>
+          <li class="toc-item" data-chapter="8-2">💾 8.2 Maintenance &amp; Backups</li>
+          <li class="toc-item" data-chapter="8-3">🔑 8.3 Comptes &amp; Droits</li>
+          
+          <li class="toc-module-title">9. FAQ &amp; Raccourcis</li>
+          <li class="toc-item" data-chapter="9-1">❓ 9.1 FAQ / Guide Dépannage</li>
+          <li class="toc-item" data-chapter="9-2">💬 9.2 Questions &amp; Réponses</li>
+          <li class="toc-item" data-chapter="9-3">⌨️ 9.3 Raccourcis Clavier</li>
+        </ul>
+      </aside>
+      
+      <!-- Right content: Book pages -->
+      <main class="book-content">
+        
+        <!-- Module 1.1 -->
+        <section id="page-1-1" class="book-page active">
+          <h3>📖 1.1 Démarrage rapide</h3>
+          <p><strong>Chemin d'accès :</strong> S'ouvre par le raccourci <kbd>Alt + ?</kbd> sur n'importe quel écran.</p>
+          <p>FABOuanes orchestre les ventes, achats, encaissements et la fabrication de manière unifiée. Le système s'appuie sur une base de données relationnelle locale SQLite pour une vitesse de traitement instantanée.</p>
+          <h4>Schéma du flux de travail :</h4>
+          <div class="book-example text-center py-2" style="font-family:monospace; line-height:1.2; font-size:0.75rem;">
+[Fichiers Excel] ---> (1) Importateur ---> [Base de Données] <---> (2) Dashboard
+                                                 |
+                                                 v
+                                    (3) Génération de Bons PDF
+          </div>
+          <p>Toutes les données transitent par le backend en Python (FastAPI) pour garantir la validation des soldes et du stock avant écriture.</p>
+        </section>
+
+        <!-- Module 1.2 -->
+        <section id="page-1-2" class="book-page">
+          <h3>🔐 1.2 Connexion &amp; Session (login.html)</h3>
+          <p><strong>Chemin d'accès :</strong> S'affiche automatiquement à la racine de l'application si l'utilisateur n'est pas connecté.</p>
+          <p>Le template <code>login.html</code> authentifie les utilisateurs de l'application. Elle enregistre un cookie de session crypté et sécurisé dans le navigateur.</p>
+          
+          <!-- Simulation Interactive Login -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2 text-center" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.75rem;">
+            <div class="fw-bold mb-2">Simulateur de Connexion</div>
+            <input type="text" class="form-control form-control-sm mb-2" placeholder="Nom d'utilisateur" value="admin" disabled>
+            <input type="password" class="form-control form-control-sm mb-2" placeholder="Mot de passe" value="••••••••" disabled>
+            <button class="btn btn-dark btn-sm w-100 py-0" onclick="alert('Connexion réussie !')">Se connecter</button>
+          </div>
+          <p>Les connexions sont protégées par des jetons de sécurité CSRF pour bloquer le piratage.</p>
+        </section>
+
+        <!-- Module 1.3 -->
+        <section id="page-1-3" class="book-page">
+          <h3>📲 1.3 QR Code Mobile Link (mobile_link.html)</h3>
+          <p><strong>Chemin d'accès :</strong> Profil (navbar supérieure droite) > <strong>Connexion Mobile</strong>.</p>
+          <p>Le template de connexion mobile génère un lien crypté sous forme de QR Code pour coupler rapidement vos smartphones de vente.</p>
+          
+          <!-- Simulation Interactive Phone/QR -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2 text-center" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.72rem;">
+            <div class="fw-bold mb-2"><i class="bi bi-phone me-1"></i>Mobile Link Simulator</div>
+            <div class="bg-dark text-white p-3 rounded mb-2 d-flex align-items-center justify-content-center" style="height: 100px;">
+              <i class="bi bi-qr-code fs-1 animate-pulse text-success"></i>
+            </div>
+            <div class="text-muted" style="font-size:0.65rem;">Scannez pour coupler votre mobile</div>
+          </div>
+          <p>Le jeton de session expire automatiquement après 2 minutes pour préserver l'accès.</p>
+        </section>
+
+        <!-- Module 2.1 -->
+        <section id="page-2-1" class="book-page">
+          <h3>📊 2.1 Les KPIs Financiers (dashboard.html)</h3>
+          <p><strong>Chemin d'accès :</strong> Accueil / Cliquez sur le logo en haut à gauche.</p>
+          <p>Le tableau de bord (<code>dashboard.html</code>) consolide en temps réel les indicateurs de santé financière de votre entreprise.</p>
+          
+          <!-- Simulation Interactive KPIs -->
+          <div class="row g-2 my-2 text-center" style="font-family:system-ui; font-size:0.7rem;">
+            <div class="col-6">
+              <div class="border rounded p-2 bg-light shadow-sm">
+                <div class="text-muted" style="font-size:0.6rem;">VENTES DU JOUR</div>
+                <div class="fw-bold text-primary">150 000 DA</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="border rounded p-2 bg-light shadow-sm">
+                <div class="text-muted" style="font-size:0.6rem;">BÉNÉFICES NETS</div>
+                <div class="fw-bold text-success">45 000 DA</div>
+              </div>
+            </div>
+          </div>
+          <p>Ces compteurs agrègent instantanément l'intégralité des factures, règlements et dépenses saisis.</p>
+        </section>
+
+        <!-- Module 2.2 -->
+        <section id="page-2-2" class="book-page">
+          <h3>📈 2.2 Graphiques &amp; Analyse</h3>
+          <p><strong>Chemin d'accès :</strong> Partie centrale du Dashboard (<code>dashboard.html</code>).</p>
+          <p>Le dashboard intègre des graphiques basés sur Chart.js. Les dimensions ont été optimisées pour s'adapter aux écrans FHD 1080p.</p>
+          
+          <!-- Simulation SVG Chart -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2 text-center" style="max-width:320px; margin:0 auto;">
+            <div class="fw-bold mb-2" style="font-size:0.7rem;">Simulateur de Graphique</div>
+            <svg viewBox="0 0 100 40" class="w-100" style="max-height:80px;">
+              <path d="M 0 35 Q 25 15 50 25 T 100 5" fill="none" stroke="#2563eb" stroke-width="2"></path>
+              <line x1="0" y1="38" x2="100" y2="38" stroke="#cbd5e1" stroke-width="1"></line>
+            </svg>
+            <div class="text-muted" style="font-size:0.6rem;">Courbe de rentabilité journalière</div>
+          </div>
+          <p>Les courbes s'actualisent de manière asynchrone sans nécessiter de recharger la page.</p>
+        </section>
+
+        <!-- Module 2.3 -->
+        <section id="page-2-3" class="book-page">
+          <h3>💬 2.3 Sabrina (Assistante IA)</h3>
+          <p><strong>Chemin d'accès :</strong> Volet coulissant sur la bordure droite de l'écran.</p>
+          <p>Sabrina traite les questions comptables en langage naturel. Si vous lui demandez de créer une opération, elle génère un badge de validation interactif pour sécuriser l'écriture.</p>
+          
+          <!-- Simulation Interactive d'Alerte Sabrina -->
+          <div class="sim-toast-alert border rounded p-2 bg-warning-subtle text-warning-emphasis d-flex align-items-center justify-content-between shadow-sm my-2" style="max-width: 320px; margin: 0 auto; font-family: system-ui; font-size: 0.72rem;">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-exclamation-triangle-fill fs-6 text-warning"></i>
+              <div>
+                <div class="fw-bold">Sabrina : Action en attente</div>
+                <div style="font-size: 0.65rem;">Ajouter client Karim ?</div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-warning btn-sm py-0 px-2 fw-bold" style="font-size:0.65rem;" onclick="alert('Client créé dans la simulation !')">Valider</button>
+          </div>
+          <p>Son historique de discussion reste conservé après un rechargement de page ou un changement d'onglet.</p>
+        </section>
+
+        <!-- Module 3.1 -->
+        <section id="page-3-1" class="book-page">
+          <h3>👥 3.1 Clients (contacts.html)</h3>
+          <p><strong>Chemin d'accès :</strong> Barre supérieure > Contacts > Onglet Clients.</p>
+          <p>La page permet de gérer l'intégralité des tiers commerciaux.</p>
+          
+          <!-- Simulation Client Form -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.72rem;">
+            <div class="fw-bold mb-2 text-center">Formulaire Contact</div>
+            <div class="mb-1 text-start">Nom : <span class="badge bg-secondary">Lotfi</span></div>
+            <div class="mb-1 text-start">Dette Initiale : <span class="badge bg-primary">5 000 DA</span></div>
+            <button class="btn btn-dark btn-sm w-100 py-0 mt-2" onclick="alert('Contact créé !')">Créer</button>
+          </div>
+          <p>La suppression est interdite si le contact possède un historique financier lié.</p>
+        </section>
+
+        <!-- Module 3.2 -->
+        <section id="page-3-2" class="book-page">
+          <h3>📥 3.2 Importateur Excel (client_import.html)</h3>
+          <p><strong>Chemin d'accès :</strong> Contacts > Bouton "Importer Excel".</p>
+          <p>Le template parse vos fichiers Excel. Le tableau intermédiaire utilise un style de feuille de calcul avec quadrillage.</p>
+          
+          <!-- Simulation Excel Sheet Grid -->
+          <div class="sim-excel-sheet border rounded my-2 overflow-hidden shadow-sm" style="font-family: monospace; font-size: 0.72rem; max-width: 400px; margin: 0 auto;">
+            <table class="table table-bordered mb-0 text-center" style="background: var(--card-bg);">
+              <thead>
+                <tr class="table-secondary text-muted">
+                  <th style="width: 25px; background: #e2e8f0;"></th>
+                  <th style="background: #f1f5f9;">A (Client)</th>
+                  <th style="background: #f1f5f9;">B (Crédit)</th>
+                  <th style="background: #f1f5f9;">C (Statut)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="background: #e2e8f0;">1</td>
+                  <td class="text-start">Eurl Ouanes</td>
+                  <td class="text-end">15 000.00</td>
+                  <td class="text-center text-success fw-bold">Valide</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Cliquez sur "Voir" pour prévisualiser l'historique complet d'un client avant de valider l'importation.</p>
+        </section>
+
+        <!-- Module 3.3 -->
+        <section id="page-3-3" class="book-page">
+          <h3>⏸️ 3.3 Barre de Progrès Windows</h3>
+          <p><strong>Chemin d'accès :</strong> S'affiche automatiquement pendant le téléversement des fichiers Excel.</p>
+          <p>L'importateur dispose d'une modale de progression imitant les fenêtres de transfert de fichiers Windows.</p>
+          
+          <!-- Simulation Interactive Progress Windows -->
+          <div class="sim-windows-progress border rounded p-3 bg-body-tertiary shadow-sm my-2" style="max-width: 320px; margin: 0 auto; font-family: system-ui;">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-semibold small" style="font-size: 0.65rem;">Importation en cours...</span>
+              <span class="badge bg-primary text-white" style="font-size:0.6rem;" id="sim-pct-2">45%</span>
+            </div>
+            <div class="progress mb-2" style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow:hidden;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 45%" id="sim-progress-bar-2"></div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="text-muted" style="font-size: 0.6rem;">Statut: En cours</span>
+              <button class="btn btn-outline-secondary py-0 px-2" style="font-size:0.65rem;" id="sim-btn-pause" onclick="toggleSimPause()">Pause</button>
+            </div>
+          </div>
+          <p>La barre peut être réduite en mini-widget pour vous laisser continuer votre travail sur l'application.</p>
+        </section>
+
+        <!-- Module 4.1 -->
+        <section id="page-4-1" class="book-page">
+          <h3>🛒 4.1 Ventes &amp; Versements (transactions.html)</h3>
+          <p><strong>Chemin d'accès :</strong> Barre supérieure > Opérations.</p>
+          <p>Le template <code>transactions.html</code> regroupe la liste des écritures comptables ventes, achats et règlements.</p>
+          
+          <!-- Simulation Vente -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2 text-center" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.72rem;">
+            <div class="fw-bold mb-2">Simulation d'Écriture</div>
+            <div class="d-flex justify-content-between text-muted mb-1">
+              <span>Biscuit Chocolat x10</span>
+              <span class="fw-bold text-danger">+10 000 DA</span>
+            </div>
+            <div class="d-flex justify-content-between text-muted mb-1">
+              <span>Versement reçu (Cash)</span>
+              <span class="fw-bold text-success">-6 000 DA</span>
+            </div>
+            <div class="border-top pt-1 fw-bold d-flex justify-content-between">
+              <span>Crédit Résiduel client</span>
+              <span class="text-primary">4 000 DA</span>
+            </div>
+          </div>
+          <p>Le solde cumulé est calculé automatiquement à chaque opération commerciale.</p>
+        </section>
+
+        <!-- Module 4.2 -->
+        <section id="page-4-2" class="book-page">
+          <h3>📦 4.2 Achats &amp; Fournisseurs</h3>
+          <p><strong>Chemin d'accès :</strong> Opérations > Bouton <strong>Ajouter</strong> > Sélectionnez <strong>Nouvel Achat</strong>.</p>
+          <p>Permet d'ajouter des stocks de matières premières ou produits finis auprès de fournisseurs répertoriés.</p>
+          
+          <!-- Simulation Achat Form -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.72rem;">
+            <div class="fw-bold mb-2 text-center">Bon de réception Fournisseur</div>
+            <div class="mb-1 text-start">Fournisseur : <span class="badge bg-secondary">Moulins d'Alger</span></div>
+            <div class="mb-1 text-start">Farine de blé : <span class="badge bg-primary">50 Sacs</span></div>
+            <button class="btn btn-dark btn-sm w-100 py-0 mt-2" onclick="alert('Stock Fournisseur actualisé !')">Valider Bon</button>
+          </div>
+          <p>La validation met à jour le stock disponible et actualise le prix moyen pondéré.</p>
+        </section>
+
+        <!-- Module 4.3 -->
+        <section id="page-4-3" class="book-page">
+          <h3>🗑️ 4.3 Édition &amp; Annulations</h3>
+          <p><strong>Chemin d'accès :</strong> Opérations > Ligne de transaction > Bouton de suppression.</p>
+          <p>Toutes les transactions peuvent être modifiées ou supprimées en cas d'erreur de saisie.</p>
+          
+          <!-- Simulation Recalcul -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2 text-center" style="max-width:320px; margin:0 auto; font-family:monospace; font-size:0.7rem;">
+            <div>[Vente 1: 5000] -> [Versement: 3000]</div>
+            <div class="text-danger fw-bold my-1">❌ Annulation Vente 1</div>
+            <div>[Versement: 3000] -> Solde recalculé: -3000 DA</div>
+          </div>
+          <p>Le système lance un recalcul en cascade pour restaurer les soldes antérieurs des contacts.</p>
+        </section>
+
+        <!-- Module 5.1 -->
+        <section id="page-5-1" class="book-page">
+          <h3>📋 5.1 Fiches techniques Recettes</h3>
+          <p><strong>Chemin d'accès :</strong> Barre supérieure > Production > Onglet Recettes.</p>
+          <p>Le module de recettes définit les ingrédients de production requis pour concevoir une unité de produit fini.</p>
+          
+          <!-- Simulation Recette -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.72rem;">
+            <div class="fw-bold mb-2 text-center">Fiche Technique : Paquet Gaufrettes</div>
+            <div class="d-flex justify-content-between mb-1"><span>Farine de Blé</span><span>400g</span></div>
+            <div class="d-flex justify-content-between mb-1"><span>Sucre Glace</span><span>150g</span></div>
+            <div class="progress" style="height: 6px;"><div class="progress-bar bg-success" style="width: 80%"></div></div>
+          </div>
+          <p>Les formules sont enregistrées dans le catalogue d'articles.</p>
+        </section>
+
+        <!-- Module 5.2 -->
+        <section id="page-5-2" class="book-page">
+          <h3>🏭 5.2 Lancement de Production (production.html)</h3>
+          <p><strong>Chemin d'accès :</strong> Cliquez sur <strong>Production</strong> > Bouton <strong>Lancer une production</strong>.</p>
+          <p>Le template <code>production.html</code> convertit les matières premières en produits finis selon la fiche technique.</p>
+          
+          <!-- Simulation Lancement -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2 text-center" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.72rem;">
+            <div class="fw-bold mb-2">Machine de Production</div>
+            <div class="text-muted mb-2">Recette sélectionnée: Paquet Gaufrettes</div>
+            <button class="btn btn-success btn-sm w-100 py-0" onclick="alert('Production lancée ! Stocks déduits.')">Lancer Fabrication</button>
+          </div>
+          <p>Le système bloque l'ordre de production si les stocks de matières premières sont insuffisants.</p>
+        </section>
+
+        <!-- Module 5.3 -->
+        <section id="page-5-3" class="book-page">
+          <h3>📦 5.3 Suivi des Stocks Alerte</h3>
+          <p><strong>Chemin d'accès :</strong> Automatique (notifications poussées par le serveur).</p>
+          <p>Le système surveille les seuils de stock et pousse des alertes en temps réel via des connexions WebSocket.</p>
+          
+          <!-- Simulation Alerte Stock -->
+          <div class="sim-toast-alert border rounded p-2 bg-danger-subtle text-danger-emphasis d-flex align-items-center justify-content-between shadow-sm my-2" style="max-width: 320px; margin: 0 auto; font-family: system-ui; font-size: 0.75rem;">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-exclamation-octagon-fill fs-5 text-danger animate-pulse"></i>
+              <div>
+                <div class="fw-bold">Alerte Stock Critique</div>
+                <div style="font-size: 0.65rem;">Farine de blé épuisée. (Stock: 2 kg)</div>
+              </div>
+            </div>
+            <button type="button" class="btn-close" style="font-size: 0.65rem;" onclick="this.parentElement.style.display='none'"></button>
+          </div>
+          <p>Le code javascript de la navbar dédoublonne les alertes pour ne pas polluer votre écran.</p>
+        </section>
+
+        <!-- Module 6.1 -->
+        <section id="page-6-1" class="book-page">
+          <h3>💸 6.1 Dépenses Annexes (expenses.html)</h3>
+          <p><strong>Chemin d'accès :</strong> Barre supérieure > Outils > Dépenses.</p>
+          <p>Le template <code>expenses.html</code> recense les frais fixes et variables d'exploitation de l'entreprise.</p>
+          
+          <!-- Simulation Dépense Form -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.72rem;">
+            <div class="fw-bold mb-2 text-center">Frais généraux</div>
+            <div class="mb-1 text-start">Motif : <span class="badge bg-secondary">Facture Sonelgaz</span></div>
+            <div class="mb-1 text-start">Montant : <span class="badge bg-danger">12 500 DA</span></div>
+            <button class="btn btn-dark btn-sm w-100 py-0 mt-2" onclick="alert('Dépense enregistrée !')">Enregistrer</button>
+          </div>
+          <p>Ces charges externes sont directement soustraites des calculs de bénéfice du Dashboard.</p>
+        </section>
+
+        <!-- Module 6.2 -->
+        <section id="page-6-2" class="book-page">
+          <h3>📝 6.2 Bloc-Notes &amp; Mémos (notes.html)</h3>
+          <p><strong>Chemin d'accès :</strong> Barre supérieure > Outils > Bloc-Notes.</p>
+          <p>Le bloc-notes (<code>notes.html</code>) permet de rédiger des mémos à la volée.</p>
+          
+          <!-- Simulation Note Card -->
+          <div class="border rounded p-3 bg-warning-subtle text-warning-emphasis shadow-sm my-2" style="max-width:280px; margin:0 auto; font-family:system-ui; font-size:0.72rem;">
+            <div class="fw-bold border-bottom pb-1 mb-1 d-flex justify-content-between">
+              <span>📌 Note de rappel</span>
+              <i class="bi bi-trash" style="cursor:pointer;" onclick="alert('Note supprimée !')"></i>
+            </div>
+            <div>Contacter le transporteur demain matin à 8h pour la livraison de farine.</div>
+          </div>
+          <p>Les mémos sont enregistrés en base de données et liés à votre profil utilisateur.</p>
+        </section>
+
+        <!-- Module 6.3 -->
+        <section id="page-6-3" class="book-page">
+          <h3>🗃️ 6.3 Catalogue d'Articles (catalog.html)</h3>
+          <p><strong>Chemin d'accès :</strong> Outils > Catalogue d'Articles.</p>
+          <p>Le catalogue centralise la désignation, les prix d'achat, de vente et les seuils d'alerte de chaque référence.</p>
+          
+          <!-- Simulation Catalogue Row -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2 d-flex align-items-center justify-content-between" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.72rem;">
+            <div>
+              <div class="fw-bold">Carton de Biscuits (Fini)</div>
+              <div class="text-muted" style="font-size:0.65rem;">Stock: 120 Cartons | Alerte: 10</div>
+            </div>
+            <span class="badge bg-success">1 200 DA</span>
+          </div>
+          <p>Chaque article est identifié par un code-barres pour accélérer les opérations de vente.</p>
+        </section>
+
+        <!-- Module 7.1 -->
+        <section id="page-7-1" class="book-page">
+          <h3>📂 7.1 Explorateur de Bons (bons.html)</h3>
+          <p><strong>Chemin d'accès :</strong> Barre supérieure > Espace Bons.</p>
+          <p>L'espace bons (<code>bons.html</code>) archive tous les documents commerciaux générés au format PDF.</p>
+          
+          <!-- Simulation Bons List -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.72rem;">
+            <div class="fw-bold mb-2 text-center">Fichiers PDF disponibles</div>
+            <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
+              <span>📄 BL-2026-004.pdf (Lotfi)</span>
+              <button class="btn btn-outline-dark btn-sm py-0" style="font-size:0.6rem;" onclick="alert('PDF en cours de chargement...')">Télécharger</button>
+            </div>
+          </div>
+          <p>Vous pouvez filtrer la liste par date ou nom de client pour retrouver un ancien bon.</p>
+        </section>
+
+        <!-- Module 7.2 -->
+        <section id="page-7-2" class="book-page">
+          <h3>🖨️ 7.2 Formats A4 &amp; A5 PDF</h3>
+          <p><strong>Chemin d'accès :</strong> Fenêtre d'aperçu de bon > Cliquez sur imprimer.</p>
+          <p>Les justificatifs peuvent être imprimés sous deux formats distincts selon vos besoins.</p>
+          
+          <!-- Simulation Paper Overlay -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2 text-center" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.72rem;">
+            <div class="fw-bold mb-2">Simulateur de format de papier</div>
+            <div class="d-flex justify-content-center gap-2">
+              <div class="border p-2 bg-white text-muted" style="width: 60px; height: 85px; font-size: 0.55rem;">
+                <strong>A4 Standard</strong><br>Facture longue
+              </div>
+              <div class="border p-2 bg-white text-muted" style="width: 60px; height: 50px; font-size: 0.55rem; align-self: flex-end;">
+                <strong>A5 Petit</strong><br>Reçu rapide
+              </div>
+            </div>
+          </div>
+          <p>Le format A5 permet d'éditer des bons condensés en économisant de l'encre et du papier.</p>
+        </section>
+
+        <!-- Module 7.3 -->
+        <section id="page-7-3" class="book-page">
+          <h3>📥 7.3 Exportation Excel / CSV</h3>
+          <p><strong>Chemin d'accès :</strong> Opérations > Cliquez sur le bouton unique <strong>Exporter</strong>.</p>
+          <p>La page des opérations intègre un bouton dropdown unique d'exportation de données pour simplifier la transmission des rapports de ventes à votre comptable.</p>
+          
+          <!-- Simulation Interactive Bouton Export Dropdown -->
+          <div class="sim-export-dropdown py-2 text-center" style="max-width: 250px; margin: 0 auto;">
+            <div class="dropdown">
+              <button class="btn btn-sm btn-dark dropdown-toggle" type="button" id="simExportBtn2" onclick="toggleSimDropdown()">
+                <i class="bi bi-download me-1"></i>Exporter
+              </button>
+              <ul class="dropdown-menu" id="simExportMenu2" style="position: absolute; display: none; margin: 0px; transform: translate(45px, 5px); font-size: 0.78rem; z-index: 10;">
+                <li><a class="dropdown-item" href="#" onclick="alert('Export Excel simulé !'); toggleSimDropdown();"><i class="bi bi-file-earmark-excel text-success me-2"></i>Format Excel (.xlsx)</a></li>
+                <li><a class="dropdown-item" href="#" onclick="alert('Export CSV simulé !'); toggleSimDropdown();"><i class="bi bi-file-earmark-spreadsheet text-info me-2"></i>Format CSV (.csv)</a></li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- Module 8.1 -->
+        <section id="page-8-1" class="book-page">
+          <h3>🛠️ 8.1 Configuration de l'IA (admin.html)</h3>
+          <p><strong>Chemin d'accès :</strong> Barre supérieure > Admin > Paramètres IA.</p>
+          <p>Le module d'administration permet de choisir le connecteur d'IA de Sabrina.</p>
+          
+          <!-- Simulation IA settings -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2 text-center" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.72rem;">
+            <div class="fw-bold mb-2">Réglages Sabrina</div>
+            <div class="form-check text-start mb-1">
+              <input class="form-check-input" type="radio" checked disabled>
+              <label class="form-check-label">Google Gemini (Cloud)</label>
+            </div>
+            <div class="form-check text-start">
+              <input class="form-check-input" type="radio" disabled>
+              <label class="form-check-label">Ollama (Local hors-ligne)</label>
+            </div>
+          </div>
+          <p>L'utilisation d'Ollama évite le recours aux requêtes externes et fonctionne 100% hors-ligne.</p>
+        </section>
+
+        <!-- Module 8.2 -->
+        <section id="page-8-2" class="book-page">
+          <h3>💾 8.2 Maintenance &amp; Backups</h3>
+          <p><strong>Chemin d'accès :</strong> Administration > Maintenance.</p>
+          <p>Sauvegardez vos données comptables pour prévenir les sinistres matériels.</p>
+          
+          <!-- Simulation Backup Log -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.72rem;">
+            <div class="fw-bold mb-2 text-center">Historique des sauvegardes</div>
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>db_backup_2026.sql</span>
+              <span class="text-muted" style="font-size:0.65rem;">12.4 Ko</span>
+            </div>
+            <button class="btn btn-dark btn-sm w-100 py-0 mt-2" onclick="alert('Sauvegarde lancée !')">Créer Sauvegarde</button>
+          </div>
+          <p>Vous pouvez restaurer une base vierge ou réimporter un dump SQL existant.</p>
+        </section>
+
+        <!-- Module 8.3 -->
+        <section id="page-8-3" class="book-page">
+          <h3>🔑 8.3 Comptes &amp; Droits</h3>
+          <p><strong>Chemin d'accès :</strong> Administration > Gestion Comptes.</p>
+          <p>Permet de créer des accès distincts pour vos collaborateurs.</p>
+          
+          <!-- Simulation Privileges Table -->
+          <div class="border rounded p-2 bg-light shadow-sm my-2" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.7rem;">
+            <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+              <span><strong>Administrateur</strong></span>
+              <span class="badge bg-success">Accès total</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center py-1">
+              <span><strong>Vendeur</strong></span>
+              <span class="badge bg-secondary">Accès caisse</span>
+            </div>
+          </div>
+          <p>Les privilèges restreignent l'accès aux opérations comptables avancées.</p>
+        </section>
+
+        <!-- Module 9.1 -->
+        <section id="page-9-1" class="book-page">
+          <h3>❓ 9.1 FAQ / Guide Dépannage</h3>
+          <p><strong>Chemin d'accès :</strong> Onglet Support / FAQ du menu d'aide.</p>
+          <p>Résolutions rapides des dysfonctionnements système de premier niveau.</p>
+          
+          <!-- Simulation Bug Schema -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2 text-center" style="max-width:320px; margin:0 auto; font-family:monospace; font-size:0.7rem;">
+[ Problème Réseau ] ---> [ Basculer IA Locale ] ---> [ Sabrina OK ]
+          </div>
+          <p>En cas d'anomalie de connexion, purgez le cache du navigateur Chrome.</p>
+        </section>
+
+        <!-- Module 9.2 -->
+        <section id="page-9-2" class="book-page">
+          <h3>💬 9.2 Questions &amp; Réponses</h3>
+          <p><strong>Chemin d'accès :</strong> FAQ > Q&amp;A.</p>
+          <p>Voici des réponses directes aux interrogations courantes de vos vendeurs.</p>
+          
+          <!-- Simulation Chat QA -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.72rem;">
+            <div class="text-primary fw-bold">Q : Comment corriger un reste à payer client sans recréer toutes les ventes ?</div>
+            <div class="text-success mt-1">R : Enregistrez simplement un paiement sur la fiche client, le solde cumulé se recalculera automatiquement.</div>
+          </div>
+        </section>
+
+        <!-- Module 9.3 -->
+        <section id="page-9-3" class="book-page">
+          <h3>⌨️ 9.3 Raccourcis Clavier</h3>
+          <p><strong>Chemin d'accès :</strong> Actif sur n'importe quel écran.</p>
+          <p>Pense-bête des touches d'accès rapide pour piloter FABOuanes en toute simplicité.</p>
+          
+          <!-- Simulation Keyboard Keypress -->
+          <div class="border rounded p-3 bg-light shadow-sm my-2 text-center" style="max-width:320px; margin:0 auto; font-family:system-ui; font-size:0.72rem;">
+            <div class="fw-bold mb-2">Simulateur de Raccourcis</div>
+            <div class="d-flex justify-content-center gap-1 mb-1">
+              <kbd class="bg-dark text-white">Alt</kbd><span>+</span><kbd class="bg-primary text-white">S</kbd>
+            </div>
+            <div class="text-muted" style="font-size:0.65rem;">Ouvre la fenêtre nouvelle vente</div>
+          </div>
+        </section>
+        
+      </main>
+    </div>
+  </div>
+</div>
+
+<style>
+.shortcuts-modal-backdrop {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s ease;
+}
+.shortcuts-modal-backdrop.show {
+  opacity: 1; pointer-events: all;
+}
+.shortcuts-modal-card.book-layout {
+  background: var(--surface, #1e1e2a);
+  border: 1px solid var(--line, rgba(255,255,255,.12));
+  border-radius: 20px;
+  padding: 0;
+  width: 95% !important;
+  max-width: 1200px !important;
+  height: 90vh !important;
+  max-height: 840px !important;
+  box-shadow: 0 32px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06);
+  transform: translateY(16px) scale(.97);
+  transition: transform .25s cubic-bezier(.4,0,.2,1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.shortcuts-modal-backdrop.show .shortcuts-modal-card {
+  transform: translateY(0) scale(1);
+}
+.shortcuts-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--line, rgba(255,255,255,.1));
+}
+.shortcuts-modal-title {
+  font-size: 1.1rem; font-weight: 700; margin: 0;
+  color: var(--text, #fff);
+}
+.shortcuts-modal-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--muted, rgba(255,255,255,.5));
+  font-size: 1.1rem; padding: 4px 8px; border-radius: 8px;
+  transition: background .2s, color .2s;
+}
+.shortcuts-modal-close:hover { background: rgba(255,255,255,.1); color: var(--text,#fff); }
+
+/* Book Layout structures */
+.book-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: calc(100% - 55px);
+}
+.book-sidebar {
+  width: 250px;
+  background: var(--bg-tertiary, rgba(255,255,255,0.03));
+  border-right: 1px solid var(--line, rgba(255,255,255,0.08));
+  padding: 12px 6px;
+  overflow-y: auto;
+}
+.book-toc {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.toc-module-title {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-top: 12px;
+  margin-bottom: 4px;
+  padding-left: 10px;
+}
+.toc-module-title:first-child {
+  margin-top: 0;
+}
+.toc-item {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  margin-left: 4px;
+}
+.toc-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+[data-theme="dark"] .toc-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.toc-item.active {
+  background: var(--system-blue, #2563eb) !important;
+  color: white !important;
+  font-weight: 600;
+}
+.book-content {
+  flex: 1;
+  padding: 24px 32px;
+  overflow-y: auto;
+  background: var(--bg-secondary, #1e1e2a);
+}
+.book-page {
+  display: none;
+  animation: pageFadeIn 0.25s var(--ease-spring, ease-out);
+}
+.book-page.active {
+  display: block;
+}
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Typography styles inside the book */
+.book-page h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+  color: var(--text);
+  border-bottom: 2px solid var(--system-blue, #2563eb);
+  padding-bottom: 6px;
+}
+.book-page h4 {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin-top: 14px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+.book-page p {
+  line-height: 1.5;
+  font-size: 0.82rem;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+.book-page ul, .book-page ol {
+  padding-left: 18px;
+  margin-bottom: 10px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.book-page li {
+  margin-bottom: 4px;
+}
+.book-callout {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(0, 122, 255, 0.05);
+  border-left: 4px solid var(--system-blue, #2563eb);
+  margin-bottom: 12px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+.book-callout.warning {
+  background: rgba(255, 149, 0, 0.05);
+  border-left-color: var(--system-orange, #ff9500);
+}
+.book-callout.success {
+  background: rgba(52, 199, 89, 0.05);
+  border-left-color: var(--system-green, #34c759);
+}
+kbd {
+  background: rgba(120,120,120,0.15);
+  border: 1px solid rgba(120,120,120,0.25);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+  color: var(--text);
+}
+
+/* Keyboard Shortcut List block in chapter 8 */
+.shortcuts-group-label {
+  font-size: .68rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 8px;
+  margin-top: 8px;
+}
+.shortcuts-list { display: flex; flex-direction: column; gap: 4px; }
+.shortcut-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 10px; border-radius: 8px;
+  transition: background .15s;
+}
+.shortcut-row:hover { background: rgba(0,0,0,.03); }
+[data-theme="dark"] .shortcut-row:hover { background: rgba(255,255,255,.03); }
+.shortcut-row span { font-size: .8rem; color: var(--text); display: flex; align-items: center; }
+.shortcut-keys { display: flex; align-items: center; gap: 3px; }
+.shortcut-keys span { color: var(--muted); font-size: .75rem; }
+
+@media (max-width: 768px) {
+  .shortcuts-modal-card.book-layout { max-width: calc(100% - 24px); height: 90vh; margin: 12px; }
+  .book-container { flex-direction: column; }
+  .book-sidebar { width: 100%; height: 160px; border-right: none; border-bottom: 1px solid var(--line); }
+  .book-toc { flex-direction: row; overflow-x: auto; white-space: nowrap; padding-bottom: 6px; }
+  .toc-item { display: inline-flex; }
+}
+</style>
+<script>
+(function() {
+  document.addEventListener('DOMContentLoaded', function() {
+    const closeBtn = document.getElementById('shortcutsModalClose');
+    const backdrop = document.getElementById('shortcutsHelpModal');
+    const openBtn  = document.getElementById('shortcutsHelpBtn');
+    if (closeBtn) closeBtn.addEventListener('click', function() { backdrop.classList.remove('show'); });
+    if (backdrop) backdrop.addEventListener('click', function(e) { if (e.target === backdrop) backdrop.classList.remove('show'); });
+    if (openBtn)  openBtn.addEventListener('click', function() { backdrop.classList.toggle('show'); });
+
+    // Table of contents navigation
+    const tocItems = document.querySelectorAll('.toc-item');
+    const pages = document.querySelectorAll('.book-page');
+    tocItems.forEach(item => {
+      item.addEventListener('click', function() {
+        tocItems.forEach(i => i.classList.remove('active'));
+        pages.forEach(p => p.classList.remove('active'));
+        
+        item.classList.add('active');
+        const chapter = item.getAttribute('data-chapter');
+        const targetPage = document.getElementById('page-' + chapter);
+        if (targetPage) {
+          targetPage.classList.add('active');
+          document.querySelector('.book-content').scrollTop = 0; // scroll back to top
+        }
+      });
+    });
+  });
+})();
+
+// Simulated Tools Scripts
+let simInterval = null;
+let simPercent = 45;
+let simPaused = false;
+
+function startSimProgress() {
+  if (simInterval) clearInterval(simInterval);
+  simInterval = setInterval(() => {
+    if (simPaused) return;
+    simPercent += 1;
+    if (simPercent > 100) simPercent = 0;
+    
+    const bar = document.getElementById('sim-progress-bar-2');
+    const pct = document.getElementById('sim-pct-2');
+    if (bar && pct) {
+      bar.style.width = simPercent + '%';
+      pct.textContent = simPercent + '%';
+    }
+  }, 400);
+}
+
+function toggleSimPause() {
+  simPaused = !simPaused;
+  const btn = document.getElementById('sim-btn-pause');
+  if (btn) btn.textContent = simPaused ? 'Reprendre' : 'Pause';
+}
+
+function resetSimProgress() {
+  simPercent = 0;
+  const bar = document.getElementById('sim-progress-bar-2');
+  const pct = document.getElementById('sim-pct-2');
+  if (bar && pct) {
+    bar.style.width = '0%';
+    pct.textContent = '0%';
+  }
+}
+
+function toggleSimDropdown() {
+  const m = document.getElementById('simExportMenu2');
+  if (m) {
+    m.style.display = m.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  startSimProgress();
+});
+</script>

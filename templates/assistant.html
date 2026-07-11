@@ -1646,12 +1646,23 @@
 
               const redirectMatch = rawResponse.match(/\[REDIRECT:([^\]]+)\]/i);
 
-              let historyText = text;
-              if (localFileObj) {
-                historyText = `[Fichier joint: ${localFileObj.name}] ${text}`;
+              if (event.history) {
+                history = event.history;
+                // Double check if the final response is in history
+                const lastMsg = history[history.length - 1];
+                const textPart = (lastMsg && lastMsg.parts && lastMsg.parts.find(p => p.text)) ? lastMsg.parts.find(p => p.text).text : "";
+                const msgText = lastMsg ? (lastMsg.content || textPart || "") : "";
+                if (!lastMsg || (lastMsg.role !== 'model' && lastMsg.role !== 'assistant') || !msgText) {
+                  history.push({ role: 'model', parts: [{ text: rawResponse }] });
+                }
+              } else {
+                let historyText = text;
+                if (localFileObj) {
+                  historyText = `[Fichier joint: ${localFileObj.name}] ${text}`;
+                }
+                history.push({ role: 'user', parts: [{ text: historyText }] });
+                history.push({ role: 'model', parts: [{ text: rawResponse }] });
               }
-              history.push({ role: 'user', parts: [{ text: historyText }] });
-              history.push({ role: 'model', parts: [{ text: rawResponse }] });
               saveHistory();
 
               if (redirectMatch) {
@@ -1849,8 +1860,16 @@
           if (thread.title === 'Nouvelle discussion 💬' && history.length > 0) {
             const firstUserMessage = history.find(m => m.role === 'user');
             if (firstUserMessage) {
-              const text = firstUserMessage.parts[0].text;
-              thread.title = text.substring(0, 24) + (text.length > 24 ? '...' : '');
+              let text = "";
+              if (firstUserMessage.content) {
+                text = firstUserMessage.content;
+              } else if (firstUserMessage.parts && firstUserMessage.parts.length > 0) {
+                const textPart = firstUserMessage.parts.find(p => p.text);
+                if (textPart) text = textPart.text;
+              }
+              if (text) {
+                thread.title = text.substring(0, 24) + (text.length > 24 ? '...' : '');
+              }
             }
           }
           saveThreads();
@@ -1861,7 +1880,18 @@
 
     function renderHistory() {
       history.forEach(msg => {
-        appendMessage(msg.role, msg.parts[0].text, null, false);
+        let text = "";
+        if (msg.content) {
+          text = msg.content;
+        } else if (msg.parts && msg.parts.length > 0) {
+          const textPart = msg.parts.find(p => p.text);
+          if (textPart) text = textPart.text;
+        }
+        
+        if (!text) return;
+        
+        const role = (msg.role === 'assistant' || msg.role === 'model') ? 'model' : 'user';
+        appendMessage(role, text, null, false);
       });
       scrollToBottom(false);
     }

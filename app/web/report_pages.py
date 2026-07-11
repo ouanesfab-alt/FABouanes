@@ -99,7 +99,23 @@ async def notes_api_delete(request: Request):
 
 @router.get("/sw.js", name="service_worker")
 async def service_worker():
-    return FileResponse(paths.static_dir / "sw.js", media_type="application/javascript")
+    from app.version import APP_VERSION
+    from fastapi import Response
+    sw_path = paths.static_dir / "sw.js"
+    headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+    if sw_path.exists():
+        try:
+            with open(sw_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            # Remplace la version statique par la version dynamique de l'application
+            content = content.replace(
+                'const VERSION = "fabouanes-v47-offline";',
+                f'const VERSION = "fabouanes-{APP_VERSION}-offline";'
+            )
+            return Response(content, media_type="application/javascript", headers=headers)
+        except Exception as e:
+            logger.warning("Erreur lors de l'injection de version dans sw.js: %s", e)
+    return FileResponse(sw_path, media_type="application/javascript", headers=headers)
 
 
 @router.get("/pdf-reader", name="pdf_reader")

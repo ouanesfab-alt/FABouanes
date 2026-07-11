@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from app.core.config import APP_DATA_DIR, DATABASE_URL, settings
 from app.core.activity import write_text_log
-from app.core.db_access import execute_db, get_setting
+from app.core.db_helpers import execute_db, get_setting
 from app.core.request_state import get_state_value
 
 BACKUP_DIR = APP_DATA_DIR / "backups"
@@ -229,7 +229,7 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
     # Génération via pg8000 dans une transaction READ ONLY pour cohérence.
     # On utilise COPY TO STDOUT … pour éviter les TRUNCATE CASCADE risqués.
     try:
-        from app.core.db import connect_database
+        from app.core.db_helpers import connect_database
 
         conn = connect_database(DATABASE_URL)
         try:
@@ -406,7 +406,7 @@ def restore_database_from(path_str: str) -> None:
     stored_sha256 = _get_stored_sha256(path)
     verify_backup_file(path, expected_sha256=stored_sha256)
 
-    from app.core.db import connect_database
+    from app.core.db_helpers import connect_database
     from app.core.db_helpers import split_sql_script
 
     # Lire le SQL (déchiffrement puis décompression si applicable)
@@ -455,7 +455,7 @@ def _get_stored_sha256(backup_path: Path) -> str | None:
 def _query_backup_sha256(filename: str):
     """Cherche le job de sauvegarde correspondant au nom de fichier."""
     try:
-        from app.core.db_access import query_db
+        from app.core.db_helpers import query_db
         # La colonne local_path contient le chemin complet
         rows = query_db(
             "SELECT context_json FROM backup_jobs WHERE local_path LIKE %s ORDER BY id DESC LIMIT 1",

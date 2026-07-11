@@ -21,11 +21,43 @@ from app.modules.assistant.intent import classify_intent
 logger = logging.getLogger("fabouanes.assistant")
 
 
+_gemini_client: httpx.AsyncClient | None = None
+_ollama_client: httpx.AsyncClient | None = None
+
+
+def get_gemini_client() -> httpx.AsyncClient:
+    global _gemini_client
+    if _gemini_client is None:
+        _gemini_client = httpx.AsyncClient(timeout=60.0)
+    return _gemini_client
+
+
+def get_ollama_client() -> httpx.AsyncClient:
+    global _ollama_client
+    if _ollama_client is None:
+        _ollama_client = httpx.AsyncClient(timeout=180.0, trust_env=False)
+    return _ollama_client
+
+
+async def close_http_clients() -> None:
+    """Ferme proprement les clients HTTP globaux lors du shutdown."""
+    global _gemini_client, _ollama_client
+    for name, client in [("gemini", _gemini_client), ("ollama", _ollama_client)]:
+        if client is not None:
+            try:
+                await client.aclose()
+                logger.info("Client HTTP %s fermé.", name)
+            except Exception as e:
+                logger.warning("Erreur lors de la fermeture du client HTTP %s: %s", name, e)
+    _gemini_client = None
+    _ollama_client = None
+
+
 async def compress_history_if_needed(messages: List[Dict[str, Any]], api_key: str, is_local: bool) -> List[Dict[str, Any]]:
-    if len(messages) <= 12:
+    if len(messages) <= 18:
         return messages
-    to_summarize = messages[:-6]
-    to_keep = messages[-6:]
+    to_summarize = messages[:-8]
+    to_keep = messages[-8:]
     summary_prompt = (
         "Fais un résumé très condensé en français des actions, discussions et opérations mentionnées ci-dessous. "
         "Sois précis sur les chiffres, les noms de clients et les produits créés. Ne dépasse pas 150 mots."
@@ -51,19 +83,19 @@ async def compress_history_if_needed(messages: List[Dict[str, Any]], api_key: st
             "stream": False
         }
         try:
-            async with httpx.AsyncClient() as client:
-                res = await client.post(f"{OLLAMA_URL}/api/chat", json=payload, timeout=60.0)
-                res.raise_for_status()
-                data = res.json()
-                summary_text = data["message"]["content"]
+            client = get_ollama_client()
+            res = await client.post(f"{OLLAMA_URL}/api/chat", json=payload, timeout=60.0)
+            res.raise_for_status()
+            data = res.json()
+            summary_text = data["message"]["content"]
 
-                new_messages = []
-                new_messages.append({
-                    "role": "user",
-                    "content": f"[CONTEXTE DES DISCUSSIONS PRÉCÉDENTES : {summary_text.strip()}]"
-                })
-                new_messages.extend(to_keep)
-                return new_messages
+            new_messages = []
+            new_messages.append({
+                "role": "user",
+                "content": f"[CONTEXTE DES DISCUSSIONS PRÉCÉDENTES : {summary_text.strip()}]"
+            })
+            new_messages.extend(to_keep)
+            return new_messages
         except Exception as e:
             logger.warning("Ollama history summarization failed: %s", e)
             return messages
@@ -76,19 +108,19 @@ async def compress_history_if_needed(messages: List[Dict[str, Any]], api_key: st
             ]
         }
         try:
-            async with httpx.AsyncClient() as client:
-                res = await client.post(url, json=payload, headers=headers, timeout=30.0)
-                res.raise_for_status()
-                data = res.json()
-                summary_text = data["candidates"][0]["content"]["parts"][0]["text"]
+            client = get_gemini_client()
+            res = await client.post(url, json=payload, headers=headers, timeout=30.0)
+            res.raise_for_status()
+            data = res.json()
+            summary_text = data["candidates"][0]["content"]["parts"][0]["text"]
 
-                new_messages = []
-                new_messages.append({
-                    "role": "user",
-                    "parts": [{"text": f"[CONTEXTE DES DISCUSSIONS PRÉCÉDENTES : {summary_text.strip()}]"}]
-                })
-                new_messages.extend(to_keep)
-                return new_messages
+            new_messages = []
+            new_messages.append({
+                "role": "user",
+                "parts": [{"text": f"[CONTEXTE DES DISCUSSIONS PRÉCÉDENTES : {summary_text.strip()}]"}]
+            })
+            new_messages.extend(to_keep)
+            return new_messages
         except Exception as e:
             logger.warning("Gemini history summarization failed: %s", e)
             return messages
@@ -130,10 +162,10 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_na
     max_retries = 2
     for attempt in range(max_retries):
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(url, json=payload, headers=headers, timeout=60.0)
-                response.raise_for_status()
-                return response.json()
+            client = get_gemini_client()
+            response = await client.post(url, json=payload, headers=headers, timeout=60.0)
+            response.raise_for_status()
+            return response.json()
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 429 and attempt < max_retries - 1:
                 wait_time = 1.5
@@ -198,38 +230,38 @@ async def call_gemini_api_generator(contents: List[Dict[str, Any]], api_key: str
     max_retries = 2
     for attempt in range(max_retries):
         try:
-            async with httpx.AsyncClient() as client:
-                async with client.stream("POST", url, json=payload, headers=headers, timeout=60.0) as response:
-                    if response.status_code != 200:
-                        err_text = await response.aread()
-                        logger.error("streamGenerateContent failed status %d: %s", response.status_code, err_text)
-                        raise httpx.HTTPStatusError(
-                            f"HTTP Error {response.status_code}",
-                            request=response.request,
-                            response=response
-                        )
+            client = get_gemini_client()
+            async with client.stream("POST", url, json=payload, headers=headers, timeout=60.0) as response:
+                if response.status_code != 200:
+                    err_text = await response.aread()
+                    logger.error("streamGenerateContent failed status %d: %s", response.status_code, err_text)
+                    raise httpx.HTTPStatusError(
+                        f"HTTP Error {response.status_code}",
+                        request=response.request,
+                        response=response
+                    )
 
-                    buffer = ""
-                    async for chunk in response.aiter_text():
-                        buffer += chunk
-                        objs = _extract_json_objects(buffer)
-                        if objs:
-                            last_end = objs[-1][2]
-                            for obj_text, _, _ in objs:
-                                try:
-                                    data = json.loads(obj_text)
-                                    candidates = data.get("candidates", [])
-                                    if candidates:
-                                        content_parts = candidates[0].get("content", {}).get("parts", [])
-                                        for part in content_parts:
-                                            yield {"type": "raw_part", "part": part}
-                                            if "text" in part:
-                                                yield {"type": "text_chunk", "text": part["text"]}
-                                            if "functionCall" in part:
-                                                yield {"type": "function_call", "functionCall": part["functionCall"]}
-                                except Exception:
-                                    pass
-                            buffer = buffer[last_end:]
+                buffer = ""
+                async for chunk in response.aiter_text():
+                    buffer += chunk
+                    objs = _extract_json_objects(buffer)
+                    if objs:
+                        last_end = objs[-1][2]
+                        for obj_text, _, _ in objs:
+                            try:
+                                data = json.loads(obj_text)
+                                candidates = data.get("candidates", [])
+                                if candidates:
+                                    content_parts = candidates[0].get("content", {}).get("parts", [])
+                                    for part in content_parts:
+                                        yield {"type": "raw_part", "part": part}
+                                        if "text" in part:
+                                            yield {"type": "text_chunk", "text": part["text"]}
+                                        if "functionCall" in part:
+                                            yield {"type": "function_call", "functionCall": part["functionCall"]}
+                            except Exception:
+                                pass
+                        buffer = buffer[last_end:]
             break
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 429 and attempt < max_retries - 1:
@@ -276,13 +308,13 @@ def start_ollama() -> bool:
 async def is_ollama_available() -> bool:
     """Vérifie si le serveur Ollama local est actif."""
     try:
-        async with httpx.AsyncClient(trust_env=False) as client:
-            r = await client.get(f"{OLLAMA_URL}/api/tags", timeout=2.0)
-            return r.status_code == 200
+        client = get_ollama_client()
+        r = await client.get(f"{OLLAMA_URL}/api/tags", timeout=2.0)
+        return r.status_code == 200
     except Exception:
         return False
 
-async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_query: str | None = None):
+async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_query: str | None = None, user_role: str = "operator"):
     """Boucle d'agent asynchrone génératrice pour Ollama local."""
     if not await is_ollama_available():
         yield {"type": "status", "message": "Démarrage automatique de l'IA locale (Ollama)..."}
@@ -458,31 +490,31 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
         content = ""
         tool_calls = []
         try:
-            async with httpx.AsyncClient(trust_env=False) as client:
-                async with client.stream(
-                    "POST",
-                    f"{OLLAMA_URL}/api/chat",
-                    json=payload,
-                    timeout=180.0
-                ) as response:
-                    response.raise_for_status()
-                    async for line in response.aiter_lines():
-                        if not line.strip():
-                            continue
-                        try:
-                            chunk = json.loads(line)
-                            msg = chunk.get("message", {})
+            client = get_ollama_client()
+            async with client.stream(
+                "POST",
+                f"{OLLAMA_URL}/api/chat",
+                json=payload,
+                timeout=180.0
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.strip():
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                        msg = chunk.get("message", {})
 
-                            chunk_content = msg.get("content", "")
-                            if chunk_content:
-                                content += chunk_content
-                                yield {"type": "text_chunk", "text": chunk_content}
+                        chunk_content = msg.get("content", "")
+                        if chunk_content:
+                            content += chunk_content
+                            yield {"type": "text_chunk", "text": chunk_content}
 
-                            chunk_tool_calls = msg.get("tool_calls", [])
-                            for tc in chunk_tool_calls:
-                                tool_calls.append(tc)
-                        except Exception:
-                            pass
+                        chunk_tool_calls = msg.get("tool_calls", [])
+                        for tc in chunk_tool_calls:
+                            tool_calls.append(tc)
+                    except Exception:
+                        pass
         except Exception as e:
             yield {"type": "error", "error": f"⚠️ Erreur IA locale (Ollama) : {str(e)}"}
             return
@@ -509,7 +541,8 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
             messages.append({"role": "model", "parts": gemini_parts})
 
         if not tool_calls:
-            yield {"type": "final_response", "text": content if content.strip() else "Pas de réponse."}
+            messages.append({"role": "model", "parts": [{"text": content}]})
+            yield {"type": "final_response", "text": content if content.strip() else "Pas de réponse.", "history": messages}
             return
 
         for tc in tool_calls:
@@ -576,7 +609,17 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
                         return
 
                 yield {"type": "status", "message": f"Exécution de l'action '{func_name}' (local)..."}
-                output = await execute_tool_action(func_name, func_args)
+                output = await execute_tool_action(func_name, func_args, user_role=user_role)
+
+            if isinstance(output, dict) and "error" in output:
+                if func_name in ("execute_readonly_sql", "execute_write_sql"):
+                    sql_errors_count += 1
+                    if sql_errors_count >= 3:
+                        yield {"type": "error", "error": f"⚠️ Auto-correction SQL locale échouée après 3 tentatives. Dernière erreur : {output['error']}"}
+                        return
+                else:
+                    yield {"type": "error", "error": f"⚠️ L'action '{func_name}' a échoué : {output['error']}"}
+                    return
 
             messages.append({
                 "role": "function",
@@ -587,12 +630,6 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
                     }
                 }]
             })
-
-            if isinstance(output, dict) and "error" in output and func_name in ("execute_readonly_sql", "execute_write_sql"):
-                sql_errors_count += 1
-                if sql_errors_count >= 3:
-                    yield {"type": "error", "error": f"⚠️ Auto-correction SQL locale échouée après 3 tentatives. Dernière erreur : {output['error']}"}
-                    return
 
             ollama_messages.append({
                 "role": "tool",
@@ -612,7 +649,7 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
             return event.get("error", "")
     return final_text
 
-async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key: str, confirmed_query: str | None = None):
+async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key: str, confirmed_query: str | None = None, user_role: str = "operator"):
     """Orchestre la boucle d'agent sous forme de générateur asynchrone d'événements."""
     yield {"type": "status", "message": "Sabrina analyse votre demande..."}
 
@@ -668,7 +705,7 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
             if func_name == "execute_write_sql":
                 output = execute_write_sql(func_args.get("query", ""))
             else:
-                output = await execute_tool_action(func_name, func_args)
+                output = await execute_tool_action(func_name, func_args, user_role=user_role)
         except Exception as e:
             output = {"error": str(e)}
 
@@ -679,13 +716,25 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
             messages = list(messages)
             last_msg_is_model_call = False
             tool_call_id = "call_confirmed"
-            if messages and messages[-1].get("role") == "assistant" and "tool_calls" in messages[-1]:
-                for tc in messages[-1]["tool_calls"]:
-                    func = tc.get("function", {})
-                    if func.get("name") == func_name:
-                        last_msg_is_model_call = True
-                        tool_call_id = tc.get("id") or "call_confirmed"
-                        break
+            if messages:
+                last_msg = messages[-1]
+                role = last_msg.get("role")
+                if role in ("assistant", "model"):
+                    if "tool_calls" in last_msg:
+                        for tc in last_msg["tool_calls"]:
+                            func = tc.get("function", {})
+                            if func.get("name") == func_name:
+                                last_msg_is_model_call = True
+                                tool_call_id = tc.get("id") or "call_confirmed"
+                                break
+                    if not last_msg_is_model_call and "parts" in last_msg:
+                        parts = last_msg["parts"]
+                        if isinstance(parts, list):
+                            for p in parts:
+                                if "functionCall" in p and p["functionCall"].get("name") == func_name:
+                                    last_msg_is_model_call = True
+                                    tool_call_id = "call_confirmed"
+                                    break
 
             if not last_msg_is_model_call:
                 messages.append({
@@ -710,12 +759,22 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
         else:
             messages = list(messages)
             last_msg_is_model_call = False
-            if messages and messages[-1].get("role") == "model":
-                parts = messages[-1].get("parts", [])
-                if isinstance(parts, list):
-                    last_msg_is_model_call = any(
-                        "functionCall" in p and p["functionCall"].get("name") == func_name for p in parts
-                    )
+            if messages:
+                last_msg = messages[-1]
+                role = last_msg.get("role")
+                if role in ("model", "assistant"):
+                    if "parts" in last_msg:
+                        parts = last_msg["parts"]
+                        if isinstance(parts, list):
+                            last_msg_is_model_call = any(
+                                "functionCall" in p and p["functionCall"].get("name") == func_name for p in parts
+                            )
+                    if not last_msg_is_model_call and "tool_calls" in last_msg:
+                        for tc in last_msg["tool_calls"]:
+                            func = tc.get("function", {})
+                            if func.get("name") == func_name:
+                                last_msg_is_model_call = True
+                                break
 
             if not last_msg_is_model_call:
                 messages.append({
@@ -735,7 +794,7 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
             confirmed_query = None
 
     if user_model.lower() in ("local", "ollama"):
-        async for event in run_ollama_agent_generator(messages, confirmed_query):
+        async for event in run_ollama_agent_generator(messages, confirmed_query, user_role=user_role):
             yield event
         return
 
@@ -763,7 +822,11 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
         has_tool_call = False
         res_ok = False
 
-        is_mocked = hasattr(call_gemini_api, "mock_calls") or hasattr(call_gemini_api, "return_value")
+        try:
+            from unittest.mock import Mock
+            is_mocked = isinstance(call_gemini_api, Mock) or hasattr(call_gemini_api, "_mock_self")
+        except ImportError:
+            is_mocked = False
 
         for model in candidate_models:
             for current_key in keys:
@@ -860,7 +923,7 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
         tool_calls = accumulated_tool_calls
 
         if not tool_calls:
-            yield {"type": "final_response", "text": accumulated_text}
+            yield {"type": "final_response", "text": accumulated_text, "history": contents}
             return
 
         function_responses = []
@@ -932,12 +995,16 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
                     _confirmed_tools.add(normalized_call)
 
                 yield {"type": "status", "message": f"Exécution de l'action '{func_name}'..."}
-                output = await execute_tool_action(func_name, func_args)
+                output = await execute_tool_action(func_name, func_args, user_role=user_role)
 
-            if isinstance(output, dict) and "error" in output and func_name in ("execute_readonly_sql", "execute_write_sql"):
-                sql_errors_count += 1
-                if sql_errors_count >= 3:
-                    yield {"type": "error", "error": f"⚠️ Auto-correction SQL échouée après 3 tentatives. Dernière erreur : {output['error']}"}
+            if isinstance(output, dict) and "error" in output:
+                if func_name in ("execute_readonly_sql", "execute_write_sql"):
+                    sql_errors_count += 1
+                    if sql_errors_count >= 3:
+                        yield {"type": "error", "error": f"⚠️ Auto-correction SQL échouée après 3 tentatives. Dernière erreur : {output['error']}"}
+                        return
+                else:
+                    yield {"type": "error", "error": f"⚠️ L'action '{func_name}' a échoué : {output['error']}"}
                     return
 
             function_responses.append({

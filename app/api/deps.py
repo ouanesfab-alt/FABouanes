@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.core.permissions import PERMISSION_API_ACCESS, has_permission
 from app.core.audit import audit_event
 import asyncio
-from app.core.db_access import execute_db_async, query_db_async
+from app.core.db_helpers import execute_db_async, query_db_async
 from app.modules.users.repository import get_user_by_id
 
 
@@ -59,7 +59,8 @@ def decode_access_token(raw_token: str):
         raise HTTPException(status_code=401, detail={"code": "access_token_expired", "message": "Le jeton d'acces a expire."}) from exc
     except BadSignature as exc:
         raise HTTPException(status_code=401, detail={"code": "access_token_invalid", "message": "Jeton d'acces invalide."}) from exc
-    user = get_user_by_id(int(payload.get("sub", 0) or 0))
+    from app.core.db_helpers import query_db
+    user = query_db("SELECT * FROM users WHERE id = %s", (int(payload.get("sub", 0) or 0),), one=True)
     if not user or not int(user.get("is_active", 1) or 0):
         raise HTTPException(status_code=401, detail={"code": "unauthorized", "message": "Utilisateur indisponible."})
     return user

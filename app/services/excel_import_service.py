@@ -13,10 +13,9 @@ def parse_client_history_excel(file_path: str) -> dict:
     Parse un grand livre client au format Excel FABOuanes.
 
     Structure attendue du fichier :
-      - iloc[0, 1] : nom du client
-      - iloc[1]    : ligne vide
-      - iloc[2]    : en-têtes (Date | Designation | Montant a Payer | Versement | Reste a Payer)
-      - iloc[3+]   : lignes de données
+      - iloc[0, 1] : nom du client (ou recherché dans la première ligne)
+      - Ligne d'en-tête (Date | Designation | Montant a Payer | Versement | Reste a Payer) détectée dynamiquement
+      - Lignes de données suivantes
 
     Retourne un dict avec :
       {
@@ -37,6 +36,7 @@ def parse_client_history_excel(file_path: str) -> dict:
         "total_achats": float,
         "total_verses": float,
         "nb_lignes": int,
+        "history_count": int,
         "nb_dates_hors_ordre": int,
       }
     """
@@ -49,16 +49,39 @@ def parse_client_history_excel(file_path: str) -> dict:
     if raw.shape[0] < 3 or raw.shape[1] < 2:
         raise ValueError("Le fichier Excel ne respecte pas le format attendu (trop petit).")
 
+    # Recherche du nom du client (nettoyé) dans la ligne 0
     client_name = str(raw.iloc[0, 1]).strip()
     if client_name.lower() in ("nan", "none", ""):
-        client_name = "Client inconnu"
+        # Fallback : chercher la première cellule non vide sur la première ligne
+        for col_idx in range(raw.shape[1]):
+            val = str(raw.iloc[0, col_idx]).strip()
+            if val and val.lower() not in ("nan", "none"):
+                client_name = val
+                break
+        else:
+            client_name = "Client inconnu"
 
-    # === Lecture des données ===
+    # Enlever les infos de téléphone de la chaîne du nom si présente
+    if "tel" in client_name.lower():
+        client_name = re.split(r"(?i)\s+tel\s*", client_name)[0].strip()
+
+    # Détection dynamique de la ligne d'en-tête
+    header_row_idx = None
+    for idx, row in raw.iterrows():
+        row_vals = [str(val).strip().lower() for val in row]
+        if any("designation" in val for val in row_vals):
+            header_row_idx = idx
+            break
+
+    if header_row_idx is None:
+        header_row_idx = 2  # Fallback par défaut
+
+    # === Lecture des données à partir de l'en-tête ===
     try:
         df = pd.read_excel(
             file_path,
-            skiprows=2,  # saute ligne nom + ligne vide
-            header=0,    # la ligne 3 (index 2) est l'en-tête
+            skiprows=header_row_idx,
+            header=0,
             usecols=[0, 1, 2, 3, 4],
             names=["date_raw", "designation", "montant_achat_raw",
                    "montant_verse_raw", "solde_cumule_raw"],
@@ -71,18 +94,18 @@ def parse_client_history_excel(file_path: str) -> dict:
     ordre = 0
 
     for _, row in df.iterrows():
-        date_str = str(row.get("date_raw", "")).strip()
+        date_raw_val = row.get("date_raw")
+        if pd.isna(date_raw_val):
+            continue
+        date_str = str(date_raw_val).strip()
 
         # Ignorer les lignes sans date valide ou lignes d'en-tête répétées
         if not date_str or date_str.lower() in ("nan", "none", "date", ""):
             continue
 
-        # Parser la date (format JJ/MM/AAAA)
-        try:
-            date_parsed = pd.to_datetime(
-                date_str, dayfirst=True, errors="raise"
-            ).date().isoformat()
-        except Exception:
+        # Parser la date (format JJ/MM/AAAA) avec détection de fautes (ex: 203 -> 2023)
+        date_parsed = parse_flexible_date(date_str, fallback_to_today=False)
+        if not date_parsed:
             continue  # ignorer les lignes avec date illisible
 
         montant_achat = _to_float(row.get("montant_achat_raw"))
@@ -92,6 +115,10 @@ def parse_client_history_excel(file_path: str) -> dict:
         designation   = str(row.get("designation", "")).strip()
         if designation.lower() in ("nan", "none"):
             designation = ""
+
+        # Ignorer les lignes avec Montant a Payer = 0 ET Versement = 0 (sauf si ouverture / solde d'ouverture)
+        if montant_achat == 0 and montant_verse == 0 and "ancien" not in designation.lower():
+            continue
 
         # Déterminer le type d'opération
         type_op = _classify_operation(
@@ -125,6 +152,7 @@ def parse_client_history_excel(file_path: str) -> dict:
         "total_achats":       sum(r["montant_achat"] for r in rows),
         "total_verses":       sum(r["montant_verse"] for r in rows),
         "nb_lignes":          len(rows),
+        "history_count":      len(rows),
         "nb_dates_hors_ordre": nb_hors_ordre,
     }
 
@@ -171,23 +199,46 @@ def _classify_operation(
 
 # === FONCTIONS ORIGINALES RESTAURÉES ===
 
-def parse_flexible_date(value) -> str:
+def parse_flexible_date(value, fallback_to_today: bool = True) -> str | None:
     if isinstance(value, datetime):
         return value.date().isoformat()
     if isinstance(value, date):
         return value.isoformat()
     text = str(value).strip() if value is not None else ""
-    if not text or text.lower() in {"none", "nan"}:
-        return date.today().isoformat()
-    for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "%m/%d/%Y", "%d/%m/%y", "%Y/%m/%d"):
+    if not text or text.lower() in {"none", "nan", ""}:
+        return date.today().isoformat() if fallback_to_today else None
+
+    # Standardisation des séparateurs
+    text = text.replace("-", "/").replace(".", "/").replace("\\", "/")
+
+    for fmt in ("%d/%m/%Y", "%Y/%m/%d", "%d/%m/%y", "%Y/%m/%d %H:%M:%S", "%d/%m/%Y %H:%M:%S"):
         try:
             return datetime.strptime(text, fmt).date().isoformat()
         except Exception:
             pass
+
+    # Gestion de l'année sur 3 chiffres (ex: 27/06/203 -> 27/06/2023)
+    match = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{2,4})(?:\s+.*)?$", text)
+    if match:
+        day, month, year = match.groups()
+        if len(year) == 3:
+            year = "202" + year[2]
+        try:
+            return date(int(year), int(month), int(day)).isoformat()
+        except Exception:
+            pass
+
     try:
         return datetime.fromisoformat(text).date().isoformat()
     except Exception:
-        return date.today().isoformat()
+        pass
+
+    try:
+        return pd.to_datetime(text, dayfirst=True, errors="raise").date().isoformat()
+    except Exception:
+        pass
+
+    return date.today().isoformat() if fallback_to_today else None
 
 
 def parse_flexible_amount(value) -> float:
@@ -201,44 +252,6 @@ def parse_flexible_amount(value) -> float:
     return float(match.group(0)) if match else 0.0
 
 
-def parse_excel_client_history(file_path) -> dict:
-    try:
-        import openpyxl
-    except Exception as exc:  # pragma: no cover
-        raise RuntimeError("Le module openpyxl est requis.") from exc
-
-    workbook = openpyxl.load_workbook(file_path, data_only=True)
-    sheet = workbook[workbook.sheetnames[0]]
-
-    def cell_str(value):
-        return str(value).strip() if value is not None else ""
-
-    header_row = None
-    for row_index, row in enumerate(sheet.iter_rows(values_only=True), start=1):
-        values = [cell_str(value).lower() for value in row]
-        joined = " | ".join(values)
-        if "designation" in joined and ("montant" in joined or "reste" in joined or "versement" in joined):
-            header_row = row_index
-            break
-    if not header_row:
-        return {"last_date": None, "last_balance": 0.0}
-
-    last_date = None
-    last_balance = 0.0
-    for row in sheet.iter_rows(min_row=header_row + 1, values_only=True):
-        cells = (list(row) + [None] * 6)[:6]
-        raw_date, designation, amount, payment, balance = cells[:5]
-        if not any(
-            value is not None and str(value).strip() and str(value).strip().lower() not in {"none", "nan"}
-            for value in (raw_date, designation, amount, payment, balance)
-        ):
-            continue
-        if raw_date is not None and str(raw_date).strip() and str(raw_date).strip().lower() not in {"none", "nan"}:
-            last_date = parse_flexible_date(raw_date)
-        balance_value = parse_flexible_amount(balance)
-        if balance_value > 0:
-            last_balance = round(balance_value, 2)
-    return {"last_date": last_date, "last_balance": last_balance}
 
 
 def parse_excel_client_file(file_path) -> dict:

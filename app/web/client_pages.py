@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Request, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_session
 from app.modules.clients.service import ClientService
@@ -94,7 +94,33 @@ async def import_clients_page(request: Request):
     denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
     if denied:
         return denied
-    return templates.TemplateResponse("client_import.html", template_context(request))
+    
+    token = request.query_params.get("preview_token", "").strip()
+    preview = None
+    if token:
+        try:
+            from app.modules.clients.service import ClientService
+            service = ClientService(None)
+            rows = service._load_client_import_preview(token)
+            if rows:
+                seen = set()
+                duplicates = []
+                for row in rows:
+                    name_key = str(row["name"]).strip().casefold()
+                    if name_key in seen:
+                        duplicates.append(row["name"])
+                    seen.add(name_key)
+                
+                preview = {
+                    "rows": rows,
+                    "errors": [],
+                    "duplicates": duplicates,
+                    "token": token
+                }
+        except Exception:
+            pass
+            
+    return templates.TemplateResponse("client_import.html", template_context(request, preview=preview))
 
 
 @router.post("/contacts/clients/import-excel", name="import_clients_excel")
@@ -144,6 +170,157 @@ async def import_clients_submit(request: Request, db: AsyncSession = Depends(get
     level = "success" if (result["created"] or result["updated"]) else "warning"
     flash(request, f"Import terminé : {result['created']} client(s) créés, {result['updated']} mis à jour avec dernier solde.", level)
     return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
+
+
+@router.get("/contacts/clients/import/preview-client")
+async def preview_client_import(request: Request):
+    denied = require_permission(request, PERMISSION_CONTACTS_READ)
+    if denied:
+        return denied
+    token = request.query_params.get("token", "").strip()
+    index = int(request.query_params.get("index", "-1"))
+    if not token or index < 0:
+        return HTMLResponse("Paramètres invalides", status_code=400)
+    
+    try:
+        from app.modules.clients.service import ClientService
+        # On initialise le service sans session puisqu'on ne fait que lire le JSON de preview
+        service = ClientService(None)
+        rows = service._load_client_import_preview(token)
+        if index >= len(rows):
+            return HTMLResponse("Index hors limites", status_code=404)
+        
+        row = rows[index]
+        return templates.TemplateResponse("client_import_preview_single.html", template_context(request, row=row))
+    except Exception as e:
+        return HTMLResponse(f"Erreur: {e}", status_code=500)
+
+
+@router.post("/contacts/clients/import/import-single-file")
+async def import_single_client_file(request: Request, db: AsyncSession = Depends(get_async_session)):
+    denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
+    if denied:
+        return JSONResponse({"success": False, "error": "Non autorisé"}, status_code=403)
+    await csrf_protect(request)
+    
+    form = await request.form()
+    file_obj = form.get("excel_file")
+    if not file_obj or not file_obj.filename:
+        return JSONResponse({"success": False, "error": "Aucun fichier fourni"}, status_code=400)
+    
+    from app.modules.clients.service import ClientService
+    service = ClientService(db)
+    result = await service.import_clients_from_files([file_obj])
+    
+    if result["errors"]:
+        return JSONResponse({"success": False, "errors": result["errors"]})
+    
+    status_type = "create" if result["created"] > 0 else "update"
+    return JSONResponse({
+        "success": True,
+        "filename": file_obj.filename,
+        "status": status_type,
+        "created": result["created"],
+        "updated": result["updated"]
+    })
+
+
+@router.post("/contacts/clients/import/import-preview-single-row")
+async def import_preview_single_row(request: Request, db: AsyncSession = Depends(get_async_session)):
+    denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
+    if denied:
+        return JSONResponse({"success": False, "error": "Non autorisé"}, status_code=403)
+    await csrf_protect(request)
+    
+    body = await request.json()
+    token = body.get("token", "").strip()
+    index = int(body.get("index", "-1"))
+    
+    if not token or index < 0:
+        return JSONResponse({"success": False, "error": "Paramètres invalides"}, status_code=400)
+    
+    from app.modules.clients.service import ClientService
+    service = ClientService(db)
+    try:
+        rows = service._load_client_import_preview(token)
+        if index >= len(rows):
+            return JSONResponse({"success": False, "error": "Index hors limites"}, status_code=404)
+        
+        row = rows[index]
+        result = await service._import_parsed_client_rows([row])
+        if result["errors"]:
+            return JSONResponse({"success": False, "errors": result["errors"]})
+        
+        status_type = "create" if result["created"] > 0 else "update"
+        return JSONResponse({
+            "success": True,
+            "client_name": row["name"],
+            "status": status_type
+        })
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+@router.post("/contacts/clients/import/clear-preview")
+async def clear_preview_token(request: Request):
+    denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
+    if denied:
+        return JSONResponse({"success": False, "error": "Non autorisé"}, status_code=403)
+    await csrf_protect(request)
+    body = await request.json()
+    token = body.get("token", "").strip()
+    if token:
+        from app.modules.clients.service import ClientService
+        service = ClientService(None)
+        service._discard_client_import_preview(token)
+    return JSONResponse({"success": True})
+
+
+@router.post("/contacts/clients/import/preview-single-file")
+async def preview_single_client_file(request: Request, db: AsyncSession = Depends(get_async_session)):
+    denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
+    if denied:
+        return JSONResponse({"success": False, "error": "Non autorisé"}, status_code=403)
+    await csrf_protect(request)
+    
+    form = await request.form()
+    file_obj = form.get("excel_file")
+    if not file_obj or not file_obj.filename:
+        return JSONResponse({"success": False, "error": "Aucun fichier fourni"}, status_code=400)
+    
+    from app.modules.clients.service import ClientService
+    service = ClientService(db)
+    try:
+        result = await service.preview_clients_from_files([file_obj])
+        if result["errors"]:
+            return JSONResponse({"success": False, "error": result["errors"][0]})
+        if not result["rows"]:
+            return JSONResponse({"success": False, "error": "Fichier vide ou invalide"})
+        
+        return JSONResponse({
+            "success": True,
+            "row": result["rows"][0]
+        })
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+@router.post("/contacts/clients/import/save-preview-token")
+async def save_preview_token_endpoint(request: Request):
+    denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
+    if denied:
+        return JSONResponse({"success": False, "error": "Non autorisé"}, status_code=403)
+    await csrf_protect(request)
+    
+    body = await request.json()
+    rows = body.get("rows")
+    if not rows:
+        return JSONResponse({"success": False, "error": "Aucune donnée de prévisualisation"}, status_code=400)
+        
+    from app.modules.clients.service import ClientService
+    service = ClientService(None)
+    token = service._save_client_import_preview(rows)
+    return JSONResponse({"success": True, "token": token})
 
 
 @router.get("/clients/{client_id}", name="compat_client_detail")

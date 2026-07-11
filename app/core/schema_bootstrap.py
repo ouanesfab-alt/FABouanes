@@ -5,7 +5,7 @@ from __future__ import annotations
 
 
 from app.core.config import settings
-from app.core.db import connect_database
+from app.core.db_helpers import connect_database
 from app.core.schema.core import SCHEMA_CORE
 from app.core.schema.contacts import SCHEMA_CONTACTS
 from app.core.schema.catalog import SCHEMA_CATALOG
@@ -109,6 +109,7 @@ def bootstrap_schema() -> None:
         CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
         CREATE INDEX IF NOT EXISTS idx_audit_logs_status ON audit_logs(status);
         CREATE INDEX IF NOT EXISTS idx_activity_logs_entity ON activity_logs(entity_type, entity_id);
+        CREATE INDEX IF NOT EXISTS idx_performance_logs_created_at ON performance_logs(created_at);
         """)
 
         # Then discover and execute module schemas
@@ -123,7 +124,7 @@ def bootstrap_schema() -> None:
             logging.getLogger("fabouanes").warning("Failed to bootstrap module schemas: %s", e)
 
         # Auto-migrate existing database for operations time tracking and finished product purchases
-        from app.core.db import list_columns
+        from app.core.db_helpers import list_columns
         for table in ["purchases", "sales", "raw_sales", "payments"]:
             try:
                 cols = list_columns(conn, table)

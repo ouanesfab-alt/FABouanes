@@ -57,6 +57,58 @@
           searchInput.select();
         }
       }
+
+      // Raccourcis clavier d'opérations (Alt + Touche) - Ignorés si l'utilisateur saisit du texte
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
+          return;
+        }
+        const key = e.key;
+        const keyLower = key.toLowerCase();
+        // Alt + ? => Aide raccourcis
+        if (key === '?' || key === '/') {
+          e.preventDefault();
+          const m = document.getElementById('shortcutsHelpModal');
+          if (m) { m.classList.toggle('show'); }
+          return;
+        }
+        let targetUrl = "";
+        switch (keyLower) {
+          // ---- CRÉATION RAPIDE ----
+          case 'a': targetUrl = '/quick-add'; break;           // Alt+A → Ajout rapide
+          case 's': targetUrl = '/operations/sales/new'; break; // Alt+S → nouvelle Vente (Sale)
+          case 'b': targetUrl = '/operations/purchases/new'; break; // Alt+B → nouvel Achat (Buy)
+          case 'p': targetUrl = '/operations/payments/new'; break; // Alt+P → nouveau Paiement
+          case 'r': targetUrl = '/production/new'; break;      // Alt+R → nouvelle pRoduction
+          case 'd': targetUrl = '/expenses/new'; break;        // Alt+D → nouvelle Dépense
+          case 'n': targetUrl = '/notes'; break;               // Alt+N → bloc-Note
+
+          // ---- CONTACTS ----
+          case 'm': targetUrl = '/contacts/clients/new'; break;  // Alt+M → nouveau client (Membre)
+          case 'f': targetUrl = '/contacts/suppliers/new'; break; // Alt+F → nouveau Fournisseur
+
+          // ---- CATALOGUE ----
+          case 'k': targetUrl = '/catalog/new'; break;         // Alt+K → nouveau produit catalogue
+
+          // ---- NAVIGATION DIRECTE ----
+          case 'o': targetUrl = '/operations'; break;          // Alt+O → Opérations (vue globale)
+          case 'c': targetUrl = '/contacts'; break;            // Alt+C → Contacts (vue globale)
+          case 'x': targetUrl = '/reports'; break;             // Alt+X → Rapports (eXport)
+          case 'h': targetUrl = '/bons'; break;                // Alt+H → Historique bons/PDF
+          case 'u': targetUrl = '/contacts?type=supplier'; break; // Alt+U → foUrnissteurs (Upstream)
+          case 'g': targetUrl = '/admin'; break;               // Alt+G → Gestion/admin
+        }
+        if (targetUrl) {
+          e.preventDefault();
+          window.location.href = targetUrl;
+        }
+      }
+      // Escape => fermer modal raccourcis
+      if (e.key === 'Escape') {
+        const m = document.getElementById('shortcutsHelpModal');
+        if (m && m.classList.contains('show')) { m.classList.remove('show'); }
+      }
     });
 
     // Validation live des champs obligatoires et montants
@@ -389,34 +441,17 @@
     }, 60000); // Check every minute
   })();
 
-  // 🧭 Dynamic active-style rotation every 5 minutes (300,000ms)
-  (function activeStyleRotator() {
-    const STYLES = ['minimalist', 'capsule', 'border', 'subtle'];
-    
-    function applyRandomStyle() {
-      const navLinks = document.querySelector('.nav-links');
-      if (!navLinks) return;
-      
-      const current = navLinks.getAttribute('data-active-style') || 'minimalist';
-      let next;
-      do {
-        next = STYLES[Math.floor(Math.random() * STYLES.length)];
-      } while (next === current && STYLES.length > 1);
-      
-      navLinks.setAttribute('data-active-style', next);
-      localStorage.setItem('fab_nav_active_style', next);
-    }
-    
+  // 🧭 Enforce Minimaliste Chic (minimalist) active style
+  (function activeStyleEnforcer() {
     document.addEventListener('DOMContentLoaded', () => {
       const navLinks = document.querySelector('.nav-links');
       if (navLinks) {
-        const saved = localStorage.getItem('fab_nav_active_style') || 'minimalist';
-        navLinks.setAttribute('data-active-style', saved);
+        navLinks.setAttribute('data-active-style', 'minimalist');
+        localStorage.setItem('fab_nav_active_style', 'minimalist');
       }
-      // Rotate style every 5 minutes (300,000ms)
-      setInterval(applyRandomStyle, 300000);
     });
   })();
+
 
   // 🕐 Digital Clock — same font+color animation as FABouanes logo
   (function navClockRotator() {

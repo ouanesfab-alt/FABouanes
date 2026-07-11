@@ -5,6 +5,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Dict
 
+import sqlglot
+
 from app.core.db_helpers import db_manager
 from app.modules.assistant.sql_guard import validate_readonly_sql as guard_readonly_sql
 from app.modules.assistant.sql_guard import validate_write_sql as guard_write_sql
@@ -49,11 +51,12 @@ def dry_run_sql(query: str) -> str:
 
         try:
             with db_manager.db_transaction() as conn:
+                # Limiter le temps d'exécution des requêtes IA à 10s
+                conn.execute("SET LOCAL statement_timeout = '10000'")
                 # Récupérer les soldes clients avant
                 client_balances_before = {}
                 if "clients" in table_names:
-                    from sqlalchemy import text
-                    rows = conn.execute(text("SELECT id, name, current_balance FROM clients_with_stats")).fetchall()
+                    rows = conn.execute("SELECT id, name, current_balance FROM clients_with_stats").fetchall()
                     client_balances_before = {r[0]: (r[1], r[2]) for r in rows}
 
                 cur = conn.execute(query_to_run)
@@ -72,8 +75,7 @@ def dry_run_sql(query: str) -> str:
                 # Récupérer les soldes clients après
                 client_balances_after = {}
                 if "clients" in table_names:
-                    from sqlalchemy import text
-                    rows = conn.execute(text("SELECT id, name, current_balance FROM clients_with_stats")).fetchall()
+                    rows = conn.execute("SELECT id, name, current_balance FROM clients_with_stats").fetchall()
                     client_balances_after = {r[0]: r[2] for r in rows}
 
                 res_info = {
@@ -118,11 +120,17 @@ def execute_readonly_sql(query: str) -> Dict[str, Any]:
     sql_to_run = validation.sql_to_run or query
 
     try:
-        rows = db_manager.query_db(sql_to_run)
+        # SET LOCAL must run inside the same transaction as the query to have effect
+        with db_manager.db_transaction() as conn:
+            conn.execute("SET LOCAL statement_timeout = '10000'")
+            rows = conn.execute(sql_to_run).fetchall()
         return {"rows": serialize_for_json([dict(r) for r in rows])}
     except Exception as e:
         logger.error("execute_readonly_sql error for query %s: %s", sql_to_run, e, exc_info=True)
-        return {"error": f"Erreur SQL : {str(e)}"}
+        err_msg = str(e)
+        if "statement timeout" in err_msg.lower() or "57014" in err_msg:
+            return {"error": "⚠️ La requête a pris trop de temps (>10s). Essayez d'ajouter des filtres WHERE ou LIMIT."}
+        return {"error": f"Erreur SQL : {err_msg}"}
 
 
 def execute_write_sql(query: str) -> Dict[str, Any]:
@@ -142,28 +150,33 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
         # Auto-évaluation pour UPDATE et DELETE
         if stmt.__class__.__name__.lower() in ("update", "delete"):
             try:
-                table_name = str(stmt.this)
-                where_node = stmt.args.get("where")
-                where_str = f" WHERE {where_node.this}" if where_node else ""
-                select_query = f"SELECT * FROM {table_name}{where_str}"
+                tbl_expr = stmt.find(sqlglot.exp.Table)
+                if tbl_expr:
+                    select_stmt = sqlglot.exp.select("*").from_(tbl_expr)
+                    where_node = stmt.args.get("where")
+                    if where_node:
+                        select_stmt = select_stmt.where(where_node.this)
+                    select_stmt = select_stmt.limit(100)
+                    select_query = select_stmt.sql(dialect="postgres")
 
-                eval_rows = db_manager.query_db(select_query)
+                    eval_rows = db_manager.query_db(select_query)
 
-                preview_sample = []
-                for r in eval_rows[:5]:
-                    try:
-                        preview_sample.append(dict(r))
-                    except Exception:
-                        preview_sample.append(list(r))
+                    preview_sample = []
+                    for r in eval_rows[:5]:
+                        try:
+                            preview_sample.append(dict(r))
+                        except Exception:
+                            preview_sample.append(list(r))
 
-                auto_eval_reports.append({
-                    "table_name": table_name,
-                    "where_clause": where_str.strip() or "Aucune restriction (toutes les lignes !)",
-                    "rows_affected_preview": len(eval_rows),
-                    "preview_sample": serialize_for_json(preview_sample)
-                })
-                if len(eval_rows) > 0 and not where_node:
-                    logger.warning("ATTENTION : Modification SQL d'écriture sans clause WHERE sur la table %s (%s lignes ciblées)", table_name, len(eval_rows))
+                    where_clause_str = where_node.sql(dialect="postgres").strip() if where_node else "Aucune restriction (toutes les lignes !)"
+                    auto_eval_reports.append({
+                        "table_name": tbl_expr.sql(dialect="postgres"),
+                        "where_clause": where_clause_str,
+                        "rows_affected_preview": len(eval_rows),
+                        "preview_sample": serialize_for_json(preview_sample)
+                    })
+                    if len(eval_rows) > 0 and not where_node:
+                        logger.warning("ATTENTION : Modification SQL d'écriture sans clause WHERE sur la table %s (%s lignes ciblées)", tbl_expr.sql(dialect="postgres"), len(eval_rows))
             except Exception as eval_err:
                 logger.error("Auto-évaluation SQL échouée : %s", eval_err)
 
@@ -172,6 +185,8 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
 
     try:
         with db_manager.db_transaction() as conn:
+            # Limiter le temps d'exécution des requêtes IA à 10s
+            conn.execute("SET LOCAL statement_timeout = '10000'")
             cur = conn.execute(query_to_run)
             inserted_id = None
             if has_returning:

@@ -59,6 +59,13 @@
       function showToast(message, category = "info", autoRefresh = false) {
           const container = document.getElementById('toastContainer');
           if(!container) return;
+
+          // Ne pas afficher si une notification est déjà en cours d'affichage
+          const activeToasts = container.querySelectorAll('.toast.show, .toast.showing');
+          if (activeToasts.length > 0) {
+              return;
+          }
+
           const toastEl = document.createElement('div');
           const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
@@ -92,9 +99,15 @@
 
           container.appendChild(toastEl);
           const t = new bootstrap.Toast(toastEl);
+
+          // Nettoyer le DOM à la fermeture de la notification
+          toastEl.addEventListener('hidden.bs.toast', function() {
+              toastEl.remove();
+          });
+
           t.show();
           if(!autoRefresh) {
-              setTimeout(() => { t.hide(); setTimeout(() => toastEl.remove(), 500); }, 5000);
+              setTimeout(() => { t.hide(); }, 5000);
           }
       }
       

@@ -124,7 +124,7 @@ async def new_operation_page(request: Request, db: AsyncSession = Depends(get_as
     from app.modules.purchases.service import PurchaseService
     from app.modules.sales.service import SalesService
     from app.services.payment_service import new_payment_context
-    from app.core.db_access import query_db
+    from app.core.db_helpers import query_db
 
     p_ctx = await PurchaseService(db).purchase_form_context()
     s_ctx = await SalesService(db).sale_form_context()

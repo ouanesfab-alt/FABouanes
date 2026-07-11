@@ -1,0 +1,23 @@
+
+================================================================================
+  RAPPORT FINAL DU STRESS TEST HTTP
+================================================================================
+  Total : 578 | ✅ Réussis : 578 | ❌ Échoués : 0
+
+  Détail par module :
+    ✅ M1-Auth                                  Pass: 35  Fail:  0
+    ✅ M10-Contacts                             Pass: 90  Fail:  0
+    ✅ M11-History                              Pass: 70  Fail:  0
+    ✅ M12-Import/Export                        Pass: 40  Fail:  0
+    ✅ M13-Notes                                Pass: 20  Fail:  0
+    ✅ M14-Sabrina                              Pass:  5  Fail:  0
+    ✅ M15-Admin                                Pass: 50  Fail:  0
+    ✅ M2-Dashboard                             Pass: 50  Fail:  0
+    ✅ M3-Catalog                               Pass: 60  Fail:  0
+    ✅ M4-Sales                                 Pass: 20  Fail:  0
+    ✅ M5-Purchases                             Pass: 20  Fail:  0
+    ✅ M6-Payments                              Pass: 50  Fail:  0
+    ✅ M7-Expenses                              Pass: 38  Fail:  0
+    ✅ M8-Stocks                                Pass: 10  Fail:  0
+    ✅ M9-Production                            Pass: 20  Fail:  0
+================================================================================

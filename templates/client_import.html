@@ -96,6 +96,52 @@
   [data-theme="dark"] .alert-danger { background: rgba(220,38,38,.1) !important; border-color: rgba(220,38,38,.2) !important; color: #f87171 !important; }
   [data-theme="dark"] .alert-warning { background: rgba(217,119,6,.1) !important; border-color: rgba(217,119,6,.2) !important; color: #fbbf24 !important; }
   [data-theme="dark"] .form-text { color: var(--muted) !important; }
+
+  /* Force remove any blur effects for modals on this page */
+  .modal, .modal-backdrop, .modal-content {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Opaque mini progress widget (not transparent) */
+  #miniProgressWidget {
+    background: #ffffff !important;
+    opacity: 1 !important;
+  }
+  [data-theme="dark"] #miniProgressWidget {
+    background: #1e293b !important;
+    border-color: rgba(255,255,255,.15) !important;
+  }
+
+  /* Excel Spreadsheet "Style de feuille" */
+  .excel-sheet-table {
+    border-collapse: collapse !important;
+    border: 1px solid var(--line) !important;
+    width: 100% !important;
+  }
+  .excel-sheet-table thead th {
+    background: rgba(0, 0, 0, 0.03) !important;
+    color: var(--muted) !important;
+    border: 1px solid var(--line) !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    padding: 8px 12px !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+  }
+  [data-theme="dark"] .excel-sheet-table thead th {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: var(--line) !important;
+  }
+  .excel-sheet-table tbody td {
+    border: 1px solid var(--line) !important;
+    padding: 6px 12px !important;
+    font-size: 0.82rem !important;
+  }
+  .excel-sheet-table tbody td.num-cell {
+    font-family: monospace, monospace !important;
+    font-weight: 600 !important;
+  }
 </style>
 
 <div class="import-shell">
@@ -175,23 +221,22 @@
 
           {% if preview.rows %}
             {% if preview.token %}
-              <form method="post" class="mb-3">
-                <input type="hidden" name="action" value="confirm_preview">
-                <input type="hidden" name="preview_token" value="{{ preview.token }}">
-                <button type="submit" class="btn btn-dark w-100" style="border-radius:10px;">
+              <div class="mb-3">
+                <button type="button" class="btn btn-dark w-100" style="border-radius:10px;" onclick="startBatchPreviewImport('{{ preview.token }}', {{ preview.rows|length }})">
                   <i class="bi bi-check2-circle me-1"></i>Confirmer cet import
                 </button>
-              </form>
+              </div>
             {% endif %}
             <div class="table-responsive" style="border-radius:10px; overflow:hidden;">
-              <table class="table table-sm align-middle mb-0">
+              <table class="table table-sm align-middle mb-0 excel-sheet-table">
                 <thead>
                   <tr>
                     <th>Fichier</th>
                     <th>Client</th>
-                    <th class="text-end">Solde</th>
-                    <th class="text-center">Lignes</th>
-                    <th class="text-center">Action</th>
+                    <th class="text-end" style="width: 110px;">Solde</th>
+                    <th class="text-center" style="width: 80px;">Lignes</th>
+                    <th class="text-center" style="width: 120px;">Statut</th>
+                    <th class="text-center" style="width: 80px;">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -202,12 +247,17 @@
                         <div class="fw-semibold">{{ row.name }}</div>
                         <div class="text-muted small">{{ row.phone or row.address or "-" }}</div>
                       </td>
-                      <td class="text-end fw-semibold">{{ "%.2f"|format(row.opening_credit) }}</td>
-                      <td class="text-center">{{ row.history_count }}</td>
+                      <td class="text-end num-cell">{{ "%.2f"|format(row.opening_credit) }}</td>
+                      <td class="text-center num-cell">{{ row.history_count }}</td>
                       <td class="text-center">
                         <span class="badge {{ 'text-bg-primary' if row.status == 'create' else 'text-bg-info' }}" style="border-radius:6px;">
                           {{ "Créer" if row.status == "create" else "Mettre à jour" }}
                         </span>
+                      </td>
+                      <td class="text-center">
+                        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none fw-bold" onclick="openClientPreview('{{ preview.token }}', {{ loop.index0 }})">
+                          <i class="bi bi-eye me-1"></i>Voir
+                        </button>
                       </td>
                     </tr>
                   {% endfor %}
@@ -246,14 +296,103 @@
           </div>
           <div class="mac-tip">
             <i class="bi bi-lightbulb-fill"></i>
-            <span>L'historique détaillé n'est pas importé. Seul le solde final est repris.</span>
+            <span>L'historique détaillé est entièrement conservé pour assurer un suivi client continu et transparent.</span>
           </div>
         </div>
       {% endif %}
     </div>
   </div>
 </div>
+{% endblock %}
 
+{% block modals %}
+<!-- ========================================== -->
+<!-- MODAL: WINDOWS COPY-PASTE PROGRESS -->
+<!-- ========================================== -->
+<div class="modal fade" id="progressModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+    <div class="modal-content" style="border-radius: 12px; border: 1px solid var(--line); overflow: hidden; box-shadow: 0 16px 48px rgba(0,0,0,0.15);">
+      <div class="modal-body p-4" style="background: var(--card);">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h5 class="modal-title fw-bold mb-1" id="progressModalTitle" style="font-size: 1rem;">Importation des clients...</h5>
+            <p class="text-muted small mb-0" id="progressModalSubtitle">Préparation...</p>
+          </div>
+          <div class="fw-bold text-primary font-monospace" id="progressPercentage" style="font-size: 1.5rem;">0%</div>
+        </div>
+        
+        <div class="progress mb-3" style="height: 6px; border-radius: 3px; background: var(--border);">
+          <div class="progress-bar progress-bar-striped progress-bar-animated" id="progressProgressBar" role="progressbar" style="width: 0%; background: #2563eb;"></div>
+        </div>
+
+        <div class="d-flex justify-content-center gap-2 mb-3">
+          <button type="button" class="btn btn-outline-secondary btn-xs py-1 px-2" id="progressPauseBtn" onclick="togglePauseResume()" style="font-size: 0.75rem; border-radius: 6px;">
+            <i class="bi bi-pause-fill" id="progressPauseIcon"></i> <span id="progressPauseText">Pause</span>
+          </button>
+          <button type="button" class="btn btn-outline-danger btn-xs py-1 px-2" id="progressCancelBtn" onclick="cancelProgress()" style="font-size: 0.75rem; border-radius: 6px;">
+            <i class="bi bi-x-circle-fill"></i> Annuler
+          </button>
+          <button type="button" class="btn btn-outline-primary btn-xs py-1 px-2" id="progressBgBtn" onclick="continueInBackground()" style="font-size: 0.75rem; border-radius: 6px;">
+            <i class="bi bi-arrow-down-left-circle"></i> Arrière-plan
+          </button>
+        </div>
+        
+        <div class="text-center mb-3">
+          <button type="button" class="btn btn-link text-decoration-none btn-sm p-0 text-muted small" id="toggleDetailsBtn" onclick="toggleProgressLogs()" style="font-size: 0.8rem; font-weight: 600; color: var(--muted);">
+            <i class="bi bi-chevron-down me-1" id="toggleDetailsIcon"></i><span id="toggleDetailsText">Afficher les détails</span>
+          </button>
+        </div>
+
+        <div class="text-muted small mb-3" style="display: none; max-height: 120px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: monospace; background: var(--bg);" id="progressLogs">
+          <div>[Système] Prêt à l'importation.</div>
+        </div>
+        
+        <div class="d-flex justify-content-end gap-2 d-none" id="progressCloseContainer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="progressCloseBtn" data-bs-dismiss="modal">Fermer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: CLIENT DETAILED IFRAME PREVIEW -->
+<!-- ========================================== -->
+<div class="modal fade" id="previewClientModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 800px;">
+    <div class="modal-content" style="border-radius: 14px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 12px 36px rgba(0,0,0,0.12);">
+      <div class="modal-header py-3 px-4 border-bottom" style="background: var(--card);">
+        <h5 class="modal-title fw-bold" style="font-size: 1rem;"><i class="bi bi-eye me-2 text-primary"></i>Détail du Fichier Client</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0" style="height: 550px; background: var(--bg);">
+        <iframe id="previewClientIframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- FLOATING MINI-PROGRESS WIDGET -->
+<!-- ========================================== -->
+<div id="miniProgressWidget" style="display: none; position: fixed; bottom: 20px; left: 20px; width: 300px; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); z-index: 9999; padding: 16px;">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <span class="fw-bold small" id="miniProgressTitle" style="font-size: 0.8rem; font-weight: 700;">Importation en cours...</span>
+    <span class="fw-bold text-primary font-monospace small" id="miniProgressPercentage" style="font-size: 0.85rem;">0%</span>
+  </div>
+  <div class="progress mb-2" style="height: 4px; border-radius: 2px; background: var(--border);">
+    <div class="progress-bar progress-bar-striped progress-bar-animated" id="miniProgressProgressBar" role="progressbar" style="width: 0%; background: #2563eb;"></div>
+  </div>
+  <div class="d-flex justify-content-between align-items-center">
+    <span class="text-muted small" id="miniProgressSubtitle" style="font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;">Préparation...</span>
+    <button type="button" class="btn btn-link text-decoration-none btn-sm p-0 text-primary fw-bold" onclick="showMainProgressModal()" style="font-size: 0.72rem;">
+      <i class="bi bi-fullscreen"></i> Ouvrir
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script nonce="{{ csp_nonce }}">
   // Drag & drop support
   const zone = document.getElementById('uploadZone');
@@ -273,6 +412,390 @@
       label.style.display = 'block';
       label.innerHTML = '<i class="bi bi-check-circle text-success me-1"></i>' + input.files.length + ' fichier(s) sélectionné(s)';
     }
+  }
+
+  // Open single client iframe preview
+  function openClientPreview(token, index) {
+    const iframe = document.getElementById('previewClientIframe');
+    iframe.src = '/contacts/clients/import/preview-client?token=' + token + '&index=' + index;
+    const modal = new bootstrap.Modal(document.getElementById('previewClientModal'));
+    modal.show();
+  }
+
+  // Windows Copy-Paste Style Modal variables
+  let progressModal = null;
+  const csrfToken = '{{ csrf_token }}';
+  
+  let isPaused = false;
+  let isCanceled = false;
+  let inBackground = false;
+  let isTransferActive = false;
+
+  window.addEventListener('beforeunload', function(e) {
+    if (isTransferActive) {
+      e.preventDefault();
+      e.returnValue = 'Un import ou une prévisualisation est en cours. Si vous quittez la page, le transfert sera interrompu.';
+      return e.returnValue;
+    }
+  });
+
+  function toggleProgressLogs() {
+    const logs = document.getElementById('progressLogs');
+    const icon = document.getElementById('toggleDetailsIcon');
+    const text = document.getElementById('toggleDetailsText');
+    if (logs.style.display === 'none') {
+      logs.style.display = 'block';
+      icon.className = 'bi bi-chevron-up me-1';
+      text.textContent = 'Masquer les détails';
+    } else {
+      logs.style.display = 'none';
+      icon.className = 'bi bi-chevron-down me-1';
+      text.textContent = 'Afficher les détails';
+    }
+  }
+
+  function togglePauseResume() {
+    isPaused = !isPaused;
+    const icon = document.getElementById('progressPauseIcon');
+    const text = document.getElementById('progressPauseText');
+    const pauseBtn = document.getElementById('progressPauseBtn');
+    
+    if (isPaused) {
+      icon.className = 'bi bi-play-fill';
+      text.innerText = 'Reprendre';
+      pauseBtn.classList.remove('btn-outline-secondary');
+      pauseBtn.classList.add('btn-outline-success');
+      logProgress('[Système] Transfert mis en pause.');
+    } else {
+      icon.className = 'bi bi-pause-fill';
+      text.innerText = 'Pause';
+      pauseBtn.classList.remove('btn-outline-success');
+      pauseBtn.classList.add('btn-outline-secondary');
+      logProgress('[Système] Reprise du transfert.');
+    }
+  }
+
+  function cancelProgress() {
+    if (confirm('Voulez-vous vraiment annuler l\'opération en cours ?')) {
+      isCanceled = true;
+      isTransferActive = false;
+      logProgress('[Système] Opération annulée par l\'utilisateur.');
+      document.getElementById('progressProgressBar').style.backgroundColor = '#dc2626';
+      document.getElementById('miniProgressProgressBar').style.backgroundColor = '#dc2626';
+      document.getElementById('progressCancelBtn').disabled = true;
+      document.getElementById('progressPauseBtn').disabled = true;
+      document.getElementById('progressBgBtn').disabled = true;
+      
+      // Hide mini widget if open
+      document.getElementById('miniProgressWidget').style.display = 'none';
+      
+      // Show close button
+      document.getElementById('progressCloseContainer').classList.remove('d-none');
+    }
+  }
+
+  function continueInBackground() {
+    inBackground = true;
+    progressModal.hide();
+    document.getElementById('miniProgressWidget').style.display = 'block';
+  }
+
+  function showMainProgressModal() {
+    inBackground = false;
+    document.getElementById('miniProgressWidget').style.display = 'none';
+    progressModal.show();
+  }
+
+  function checkPauseCancel() {
+    return new Promise((resolve, reject) => {
+      function check() {
+        if (isCanceled) {
+          reject(new Error('canceled'));
+        } else if (isPaused) {
+          setTimeout(check, 100);
+        } else {
+          resolve();
+        }
+      }
+      check();
+    });
+  }
+
+  function logProgress(msg) {
+    const logs = document.getElementById('progressLogs');
+    const div = document.createElement('div');
+    div.textContent = msg;
+    logs.appendChild(div);
+    logs.scrollTop = logs.scrollHeight;
+    
+    // Update mini widget subtitle
+    document.getElementById('miniProgressSubtitle').innerText = msg;
+  }
+
+  function updateProgressBar(percentage, subtitle) {
+    // Main modal
+    document.getElementById('progressPercentage').innerText = percentage + '%';
+    document.getElementById('progressProgressBar').style.width = percentage + '%';
+    document.getElementById('progressModalSubtitle').innerText = subtitle;
+    
+    // Mini widget
+    document.getElementById('miniProgressPercentage').innerText = percentage + '%';
+    document.getElementById('miniProgressProgressBar').style.width = percentage + '%';
+    document.getElementById('miniProgressSubtitle').innerText = subtitle;
+  }
+
+  // AJAX file-by-file upload or preview flow
+  document.getElementById('importForm').addEventListener('submit', function(e) {
+    const action = e.submitter ? e.submitter.value : '';
+    if (action !== 'import' && action !== 'preview') return;
+
+    e.preventDefault();
+
+    const files = fileInput.files;
+    if (files.length === 0) return;
+
+    // Reset controls
+    isPaused = false;
+    isCanceled = false;
+    inBackground = false;
+    isTransferActive = true;
+    document.getElementById('progressCancelBtn').disabled = false;
+    document.getElementById('progressPauseBtn').disabled = false;
+    document.getElementById('progressBgBtn').disabled = false;
+    document.getElementById('progressCloseContainer').classList.add('d-none');
+    document.getElementById('progressProgressBar').style.backgroundColor = '#2563eb';
+    document.getElementById('miniProgressProgressBar').style.backgroundColor = '#2563eb';
+    document.getElementById('miniProgressWidget').style.display = 'none';
+
+    progressModal = new bootstrap.Modal(document.getElementById('progressModal'));
+    progressModal.show();
+    
+    document.getElementById('progressLogs').innerHTML = '';
+
+    if (action === 'preview') {
+      logProgress('[Système] Démarrage de l\'analyse des fichiers...');
+      document.getElementById('progressModalTitle').innerText = 'Analyse des fichiers...';
+      document.getElementById('miniProgressTitle').innerText = 'Analyse des fichiers...';
+      updateProgressBar(0, 'Préparation...');
+      
+      let completed = 0;
+      const total = files.length;
+      const previewRows = [];
+
+      async function previewNext() {
+        try {
+          await checkPauseCancel();
+        } catch(err) {
+          return; // Aborted
+        }
+
+        if (completed >= total) {
+          logProgress('[Système] Analyse complétée. Génération du rendu...');
+          updateProgressBar(100, 'Génération...');
+          
+          try {
+            const res = await fetch('/contacts/clients/import/save-preview-token', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+              },
+              body: JSON.stringify({ rows: previewRows })
+            });
+            const data = await res.json();
+            if (data.success) {
+              isTransferActive = false;
+              document.getElementById('miniProgressWidget').style.display = 'none';
+              window.location.href = '/contacts/clients/import-excel?preview_token=' + data.token;
+            } else {
+              isTransferActive = false;
+              logProgress('  ❌ Erreur de génération: ' + data.error);
+              document.getElementById('progressCloseContainer').classList.remove('d-none');
+            }
+          } catch(err) {
+            isTransferActive = false;
+            logProgress('  ❌ Erreur réseau lors de la génération');
+            document.getElementById('progressCloseContainer').classList.remove('d-none');
+          }
+          return;
+        }
+
+        const file = files[completed];
+        logProgress('Analyse de: ' + file.name + '...');
+        updateProgressBar(Math.round((completed / total) * 100), 'Analyse ' + (completed + 1) + '/' + total);
+
+        const formData = new FormData();
+        formData.append('excel_file', file);
+
+        try {
+          const res = await fetch('/contacts/clients/import/preview-single-file', {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': csrfToken
+            },
+            body: formData
+          });
+          const data = await res.json();
+          if (data.success) {
+            logProgress('  ✅ Fichier analysé: ' + file.name);
+            previewRows.push(data.row);
+          } else {
+            logProgress('  ❌ Erreur sur ' + file.name + ': ' + data.error);
+          }
+        } catch(err) {
+          logProgress('  ❌ Échec réseau pour ' + file.name);
+        }
+
+        completed++;
+        setTimeout(previewNext, 200);
+      }
+
+      previewNext();
+    } else {
+      // Action === 'import'
+      logProgress('[Système] Démarrage de l\'importation en lot...');
+      document.getElementById('progressModalTitle').innerText = 'Importation des clients...';
+      document.getElementById('miniProgressTitle').innerText = 'Importation des clients...';
+      updateProgressBar(0, 'Préparation...');
+
+      let completed = 0;
+      const total = files.length;
+
+      async function uploadNext() {
+        try {
+          await checkPauseCancel();
+        } catch(err) {
+          return; // Aborted
+        }
+
+        if (completed >= total) {
+          logProgress('[Système] Importation complétée avec succès !');
+          updateProgressBar(100, 'Terminé');
+          setTimeout(() => {
+            isTransferActive = false;
+            document.getElementById('miniProgressWidget').style.display = 'none';
+            window.location.href = '/contacts?type=client';
+          }, 1500);
+          return;
+        }
+
+        const file = files[completed];
+        logProgress('Importation de: ' + file.name + '...');
+        updateProgressBar(Math.round((completed / total) * 100), 'Fichier ' + (completed + 1) + '/' + total);
+
+        const formData = new FormData();
+        formData.append('excel_file', file);
+
+        try {
+          const res = await fetch('/contacts/clients/import/import-single-file', {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': csrfToken
+            },
+            body: formData
+          });
+          const data = await res.json();
+          
+          if (data.success) {
+            logProgress('  ✅ Succès: ' + file.name + ' (' + (data.status === 'create' ? 'créé' : 'mis à jour') + ')');
+          } else {
+            logProgress('  ❌ Erreur sur ' + file.name + ': ' + (data.errors ? data.errors.join(', ') : data.error));
+          }
+        } catch (err) {
+          logProgress('  ❌ Échec de connexion réseau pour ' + file.name);
+        }
+
+        completed++;
+        setTimeout(uploadNext, 200); // Léger délai visuel fluide
+      }
+
+      uploadNext();
+    }
+  });
+
+  // AJAX row-by-row batch import flow (Confirmer cet import)
+  function startBatchPreviewImport(token, rowCount) {
+    isPaused = false;
+    isCanceled = false;
+    inBackground = false;
+    isTransferActive = true;
+    document.getElementById('progressCancelBtn').disabled = false;
+    document.getElementById('progressPauseBtn').disabled = false;
+    document.getElementById('progressBgBtn').disabled = false;
+    document.getElementById('progressCloseContainer').classList.add('d-none');
+    document.getElementById('progressProgressBar').style.backgroundColor = '#2563eb';
+    document.getElementById('miniProgressProgressBar').style.backgroundColor = '#2563eb';
+    document.getElementById('miniProgressWidget').style.display = 'none';
+
+    progressModal = new bootstrap.Modal(document.getElementById('progressModal'));
+    progressModal.show();
+    
+    document.getElementById('progressLogs').innerHTML = '';
+    logProgress('[Système] Démarrage de l\'intégration de la prévisualisation...');
+    document.getElementById('progressModalTitle').innerText = 'Importation des clients...';
+    document.getElementById('miniProgressTitle').innerText = 'Importation des clients...';
+
+    let completed = 0;
+    const total = rowCount;
+
+    async function importNext() {
+      try {
+        await checkPauseCancel();
+      } catch(err) {
+        return; // Aborted
+      }
+
+      if (completed >= total) {
+        logProgress('[Système] Intégration terminée. Nettoyage...');
+        updateProgressBar(100, 'Finalisation...');
+        
+        // Clean preview file
+        await fetch('/contacts/clients/import/clear-preview', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          body: JSON.stringify({ token: token })
+        });
+
+        logProgress('[Système] Importation complétée ! Redirection...');
+        setTimeout(() => {
+          isTransferActive = false;
+          document.getElementById('miniProgressWidget').style.display = 'none';
+          window.location.href = '/contacts?type=client';
+        }, 1500);
+        return;
+      }
+
+      logProgress('Intégration du client #' + (completed + 1) + '...');
+      updateProgressBar(Math.round((completed / total) * 100), 'Client ' + (completed + 1) + '/' + total);
+
+      try {
+        const res = await fetch('/contacts/clients/import/import-preview-single-row', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          body: JSON.stringify({ token: token, index: completed })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          logProgress('  ✅ ' + data.client_name + ' (' + (data.status === 'create' ? 'créé' : 'mis à jour') + ')');
+        } else {
+          logProgress('  ❌ Échec client #' + (completed + 1) + ': ' + (data.errors ? data.errors.join(', ') : data.error));
+        }
+      } catch (err) {
+        logProgress('  ❌ Erreur réseau pour le client #' + (completed + 1));
+      }
+
+      completed++;
+      setTimeout(importNext, 200);
+    }
+
+    importNext();
   }
 </script>
 {% endblock %}

@@ -31,6 +31,6 @@ async def api_acknowledge_alert(request: Request, alert_id: int, db: AsyncSessio
     if not alert:
         api_error("not_found", "Alerte introuvable.", 404)
     if alert.acknowledged_at is None:
-        alert.acknowledged_at = datetime.utcnow()
+        alert.acknowledged_at = datetime.now()
         await db.commit()
     return json_response(api_success({"acknowledged": True}))

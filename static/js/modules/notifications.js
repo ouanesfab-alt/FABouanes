@@ -25,7 +25,7 @@ export function initNotificationsModule() {
   });
   
   if (!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.register('/static/sw.js').then(function (registration) {
+  navigator.serviceWorker.register('/sw.js').then(function (registration) {
     if (registration.waiting) {
       waitingWorker = registration.waiting;
       show('Une nouvelle version est prête. Recharge pour l\'appliquer.');

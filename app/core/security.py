@@ -7,7 +7,7 @@ from app.core.request_state import get_state_value
 
 class _RlStoreCompat:
     def clear(self):
-        from app.core.db_access import execute_db
+        from app.core.db_helpers import execute_db
         try:
             execute_db("DELETE FROM rate_limit_events")
         except Exception:

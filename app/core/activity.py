@@ -1,29 +1,27 @@
 from __future__ import annotations
 
 import json
+import logging
 import traceback
 from datetime import datetime
 
 from app.core.config import APP_DATA_DIR
-from app.core.db import execute_db
+from app.core.db_helpers import execute_db
 from app.core.request_state import get_state_value
 
+logger = logging.getLogger("fabouanes.activity")
 LOG_DIR = APP_DATA_DIR / 'logs'
-
-
-def now_str() -> str:
-    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
 def write_text_log(filename: str, message: str) -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     with (LOG_DIR / filename).open('a', encoding='utf-8') as f:
-        f.write(f"[{now_str()}] {message}\n")
+        f.write(f"[{ts}] {message}\n")
 
 
 def _current_user():
-    user = get_state_value("user")
-    return user if user else None
+    return get_state_value("user")
 
 
 def safe_username() -> str:
@@ -94,11 +92,8 @@ def log_activity(
                 _request_ip(),
             ),
         )
-    except Exception:
-        execute_db(
-            "INSERT INTO activity_logs (username, action, entity_type, entity_id, details, created_at) VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)",
-            (username, action, entity_type, entity_id, details),
-        )
+    except Exception as exc:
+        logger.warning("log_activity DB write failed: %s", exc)
     write_text_log("activity.log", f"{username} | {action} | {entity_type}#{entity_id or '-'} | {details}")
 
 

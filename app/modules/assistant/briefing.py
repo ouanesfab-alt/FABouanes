@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, Any
 
-from app.core.db import db_manager
+from app.core.db_helpers import db_manager
 
 logger = logging.getLogger("fabouanes.assistant.briefing")
 
@@ -37,13 +37,17 @@ def generate_briefing() -> Dict[str, Any]:
             for r in stock_alerts:
                 try:
                     row = dict(r)
+                    # Normalize field name: raw_materials uses 'unit', finished_products uses 'default_unit'
+                    # The UNION aliases it as 'default_unit' — but on fallback we handle both
+                    if "default_unit" not in row and "unit" in row:
+                        row["default_unit"] = row["unit"]
                 except Exception:
                     row = {"name": r[0], "stock_qty": r[1], "alert_threshold": r[2], "default_unit": r[3], "type": r[4]}
 
                 icon = "🔴" if float(row.get("stock_qty", 0)) == 0 else "🟡"
                 alerts_md.append(
                     f"{icon} **{row['name']}** ({row['type']}) — "
-                    f"Stock: {row.get('stock_qty', 0)} {row.get('default_unit', '')} "
+                    f"Stock: {row.get('stock_qty', 0)} {row.get('default_unit') or row.get('unit', '')} "
                     f"(seuil: {row.get('alert_threshold', 0)})"
                 )
             sections.append({

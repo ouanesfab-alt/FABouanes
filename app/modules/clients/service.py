@@ -16,7 +16,7 @@ from app.core.perf_cache import invalidate_client_cache
 from app.modules.clients.repository import ClientRepository
 from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
 from app.core.storage import IMPORT_DIR, ensure_runtime_dirs
-from app.core.helpers import parse_excel_client_file, parse_excel_client_history
+from app.core.helpers import parse_excel_client_file
 from app.services.excel_import_service import parse_client_history_excel
 
 _IMPORT_PREVIEW_TTL_SECONDS = 30 * 60
@@ -483,28 +483,35 @@ class ClientService:
             try:
                 self._save_uploaded_file(uploaded, temp_path)
                 parsed = parse_excel_client_file(temp_path)
-                last = parse_excel_client_history(temp_path)
-                opening = last["last_balance"] if last["last_balance"] > 0 else parsed["opening_credit"]
-                name_key = str(parsed["name"]).strip().casefold()
-                if not name_key:
+                data = parse_client_history_excel(str(temp_path))
+                
+                rows = data.get("rows", [])
+                opening = rows[0]["solde_cumule"] if rows else data.get("solde_final", 0.0)
+                if opening <= 0 and parsed.get("opening_credit", 0.0) > 0:
+                    opening = parsed["opening_credit"]
+                
+                client_name_val = parsed["name"] or data["client_name"] or "Client inconnu"
+                name_key = str(client_name_val).strip().casefold()
+                if not name_key or name_key == "client inconnu":
                     errors.append(f"{filename}: nom client introuvable")
                     continue
                 if name_key in seen:
-                    duplicates.append(parsed["name"])
+                    duplicates.append(client_name_val)
                     continue
                 seen.add(name_key)
 
-                existing = await self.repo.find_by_name(str(parsed["name"]))
+                existing = await self.repo.find_by_name(name_key)
                 parsed_rows.append(
                     {
                         "filename": filename,
-                        "name": parsed["name"],
+                        "name": client_name_val,
                         "phone": parsed["phone"],
                         "address": parsed["address"],
                         "opening_credit": opening,
-                        "history_count": int(last.get("history_count", 0) or 0),
+                        "history_count": data["history_count"],
                         "status": "update" if existing else "create",
                         "existing_id": int(existing.id) if existing else None,
+                        "history_rows": rows,
                     }
                 )
             except Exception as exc:
@@ -585,6 +592,7 @@ class ClientService:
                 key = str(c.name).strip().casefold()
                 clients_by_name[key] = c
 
+            from datetime import date
             for row in rows:
                 name_key = str(row["name"]).strip().casefold()
                 existing = clients_by_name.get(name_key)
@@ -601,6 +609,7 @@ class ClientService:
                     )
                     await self.update_client(existing_id, schema)
                     updated += 1
+                    client_id = existing_id
                 else:
                     schema = ClientCreateSchema(
                         name=row["name"],
@@ -609,8 +618,41 @@ class ClientService:
                         notes="",
                         opening_credit=row["opening_credit"]
                     )
-                    await self.create_client(schema)
+                    created_client = await self.create_client(schema)
                     created += 1
+                    client_id = created_client.id
+
+                # Save history rows if present
+                if "history_rows" in row and row["history_rows"]:
+                    # Supprimer l'ancien historique Excel importé
+                    await self.repo.session.execute(
+                        delete(ClientHistory).where(
+                            ClientHistory.client_id == client_id,
+                            ClientHistory.source == 'import_excel'
+                        )
+                    )
+                    history_objs = []
+                    for r in row["history_rows"]:
+                        dt_val = r["date"]
+                        if isinstance(dt_val, str):
+                            op_date = date.fromisoformat(dt_val.strip())
+                        else:
+                            op_date = dt_val
+                        
+                        history_objs.append(
+                            ClientHistory(
+                                client_id=client_id,
+                                operation_date=op_date,
+                                designation=r["designation"],
+                                montant_achat=r["montant_achat"],
+                                montant_verse=r["montant_verse"],
+                                solde_cumule=r["solde_cumule"],
+                                ordre_import=r["ordre_import"],
+                                source='import_excel'
+                            )
+                        )
+                    self.repo.session.add_all(history_objs)
+            await self.repo.session.commit()
         except Exception as exc:
             errors.append(f"Import annule: {exc}")
             created = 0
@@ -653,8 +695,10 @@ class ClientService:
         # 1. Parser le fichier Excel
         data = parse_client_history_excel(file_path)
         client_name = data["client_name"]
-        solde_final = data["solde_final"]
         rows = data["rows"]
+        
+        # Le premier solde de l'historique correspond à l'opening_credit (solde d'ouverture)
+        opening_credit = rows[0]["solde_cumule"] if rows else 0.0
 
         # 2. Résoudre ou créer le client
         if client_id is not None:
@@ -668,13 +712,13 @@ class ClientService:
             if client:
                 client_id = client.id
             else:
-                # Créer le client avec le solde final comme opening_credit
+                # Créer le client avec le solde de départ comme opening_credit
                 schema = ClientCreateSchema(
                     name=client_name,
                     phone="",
                     address="",
                     notes="",
-                    opening_credit=solde_final
+                    opening_credit=opening_credit
                 )
                 created = await self.create_client(schema)
                 client_id = created.id
@@ -705,7 +749,7 @@ class ClientService:
         # 4. Mettre à jour le solde (opening_credit) du client
         client_to_update = await self.repo.get_by_id(client_id)
         if client_to_update:
-            client_to_update.opening_credit = solde_final
+            client_to_update.opening_credit = opening_credit
             self.repo.session.add(client_to_update)
 
         # 5. Insérer en lot les nouvelles lignes dans client_history (batch INSERT)
@@ -746,6 +790,7 @@ class ClientService:
         # Commit to persist
         await self.repo.session.commit()
 
+        solde_final = rows[-1]["solde_cumule"] if rows else opening_credit
         return {
             "client_id": client_id,
             "client_name": client_name,

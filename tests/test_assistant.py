@@ -139,7 +139,7 @@ async def test_compress_history_if_needed():
     with patch("httpx.AsyncClient.post", return_value=mock_response) as mock_post:
         msgs = [{"role": "user", "parts": [{"text": f"Message {i}"}]} for i in range(20)]
         compressed = await compress_history_if_needed(msgs, "fake_key", is_local=False)
-        assert len(compressed) <= 7
+        assert len(compressed) <= 9
         assert "[CONTEXTE" in compressed[0]["parts"][0]["text"]
         mock_post.assert_called_once()
 
@@ -285,13 +285,13 @@ async def test_commercial_tools_reject_missing_item_before_service_call():
 @pytest.mark.asyncio
 async def test_admin_user_tools_report_validation_errors():
     with patch("app.services.admin_service.create_user_account", new_callable=AsyncMock, return_value={"ok": False, "message": "Role invalide."}) as mock_create:
-        res = await execute_tool_action("create_app_user", {"username": "ab", "password": "1", "role": "invalid"})
+        res = await execute_tool_action("create_app_user", {"username": "ab", "password": "1", "role": "invalid"}, user_role="admin")
         assert "error" in res
         assert "Role invalide" in res["error"]
         mock_create.assert_awaited_once()
 
     with patch("app.services.auth_service.get_user_by_username", new_callable=AsyncMock) as mock_get_user:
-        res = await execute_tool_action("change_app_user_password", {"username": "admin", "new_password": "12"})
+        res = await execute_tool_action("change_app_user_password", {"username": "admin", "new_password": "12"}, user_role="admin")
         assert "error" in res
         mock_get_user.assert_not_awaited()
 
@@ -682,6 +682,39 @@ async def test_delete_operation_tool_action():
                 res_payment = await execute_tool_action("delete_operation", {"tx_kind": "payment", "tx_id": 222})
                 assert res_payment["success"] is True
                 mock_payments_service.delete_payment_by_id.assert_called_with(222)
+
+
+@pytest.mark.asyncio
+async def test_admin_tools_role_security():
+    from app.modules.assistant.tool_actions import execute_tool_action
+    from unittest.mock import MagicMock, AsyncMock, patch
+    
+    # 1. An operator attempting to call create_app_user should be blocked
+    res_blocked = await execute_tool_action(
+        "create_app_user",
+        {"username": "hacker", "password": "123", "role": "admin"},
+        user_role="operator"
+    )
+    assert "error" in res_blocked
+    assert "réservée aux administrateurs" in res_blocked["error"].lower()
+
+    # 2. An admin attempting to call create_app_user should be allowed (mock service)
+    fake_session = AsyncMock()
+    fake_cm = MagicMock()
+    fake_cm.__aenter__ = AsyncMock(return_value=fake_session)
+    fake_cm.__aexit__ = AsyncMock(return_value=None)
+    fake_session_maker = MagicMock(return_value=fake_cm)
+
+    with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
+        with patch("app.services.admin_service.create_user_account", new_callable=AsyncMock, return_value={"ok": True, "message": "created"}) as mock_create:
+            res_allowed = await execute_tool_action(
+                "create_app_user",
+                {"username": "new_user", "password": "password", "role": "operator"},
+                user_role="admin"
+            )
+            assert "success" in res_allowed
+            assert res_allowed["success"] is True
+            mock_create.assert_awaited_once_with("new_user", "password", "operator")
 
 
 

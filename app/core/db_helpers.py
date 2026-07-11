@@ -159,6 +159,8 @@ class CompatConnection:
         self._closed = False
 
     def execute(self, query: str, params: tuple = ()):
+        if not isinstance(query, str):
+            query = str(query)
         retried = False
         cleaned_params = _clean_params(params)
         while True:
@@ -228,6 +230,7 @@ class DatabaseManager:
         self._perf_worker_lock = threading.Lock()
         self._perf_conn = None
         self._perf_conn_lock = threading.Lock()
+        self._perf_shutdown = False
 
         # Engine pool management
         self._engines: dict[str, Engine] = {}
@@ -448,10 +451,24 @@ class DatabaseManager:
     def _guard_pagination(self, query: str) -> str:
         """Ajoute un LIMIT de sécurité aux SELECT sans LIMIT pour prévenir les OOM."""
         q = query.strip().lower()
-        if not q.startswith("select"):
+        if not q.startswith("select") and not q.startswith("("):
             return query
-        # Ne pas toucher les agrégations, sous-requêtes, COUNT, EXISTS, unions
-        if any(kw in q for kw in ("count(", "exists(", "limit ", "limit\n", "for update", "for share")):
+        # Éviter le parsing complexe pour les requêtes COUNT simples très fréquentes
+        if "count(*)" in q or "count(1)" in q:
+            return query
+        try:
+            import sqlglot
+            from sqlglot import exp
+            parsed = sqlglot.parse_one(query, read="postgres")
+            if isinstance(parsed, (exp.Select, exp.Union)):
+                if not parsed.args.get("limit"):
+                    logger.debug("[PAGINATION GUARD] Auto-LIMIT %d via sqlglot appliqué.", self.MAX_UNPAGINATED_ROWS)
+                    return parsed.limit(self.MAX_UNPAGINATED_ROWS).sql(dialect="postgres")
+        except Exception as exc:
+            logger.warning("[PAGINATION GUARD] Fallback sur erreur de parsing sqlglot: %s", exc)
+
+        # Fallback classique par chaîne de caractères
+        if any(kw in q for kw in ("limit ", "limit\n", "for update", "for share")):
             return query
         logger.debug("[PAGINATION GUARD] Auto-LIMIT %d appliqué à: %s", self.MAX_UNPAGINATED_ROWS, query[:120])
         return f"{query.rstrip().rstrip(';')} LIMIT {self.MAX_UNPAGINATED_ROWS}"
@@ -700,9 +717,11 @@ class DatabaseManager:
                 raise
 
     def _performance_worker(self) -> None:
-        while True:
+        while not self._perf_shutdown:
             self._perf_event.wait(timeout=2.0)
             self._perf_event.clear()
+            if self._perf_shutdown:
+                break
             while True:
                 batch = self._pop_performance_batch()
                 if not batch:
@@ -711,6 +730,27 @@ class DatabaseManager:
                     self._write_performance_batch(batch)
                 except Exception:
                     _PERF_LOGGER.exception("Unable to persist performance log batch")
+
+    def shutdown(self) -> None:
+        """Drains the performance log queue and closes resources on shutdown."""
+        self._perf_shutdown = True
+        self._perf_event.set()
+        try:
+            # Drain remaining logs
+            while True:
+                batch = self._pop_performance_batch(limit=100)
+                if not batch:
+                    break
+                self._write_performance_batch(batch)
+        except Exception as e:
+            logger.warning("Error draining performance logs: %s", e)
+        with self._perf_conn_lock:
+            if self._perf_conn is not None:
+                try:
+                    self._perf_conn.close()
+                except Exception:
+                    pass
+                self._perf_conn = None
 
     def pending_performance_event_count(self) -> int:
         with self._perf_lock:

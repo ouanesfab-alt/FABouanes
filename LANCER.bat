@@ -3,6 +3,8 @@ title FABOuanes
 cd /d %~dp0
 echo.
 echo  Demarrage de FABOuanes...
+echo  AZUL ...
+echo  (Accessible localement et sur le reseau Wi-Fi local pour l'application Android)
 echo.
 
 set "PY_CMD="

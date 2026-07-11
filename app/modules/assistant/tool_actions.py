@@ -46,17 +46,25 @@ def log_sabrina_action(action: str, args: dict, confirmed: bool, success: bool, 
         logger.error("Failed to write sabrina audit log: %s", e)
 
 
-async def execute_tool_action(func_name: str, func_args: dict) -> Dict[str, Any]:
+async def execute_tool_action(func_name: str, func_args: dict, user_role: str = "operator") -> Dict[str, Any]:
+    ADMIN_ONLY_TOOLS = {
+        "create_app_user", "change_app_user_password", "delete_app_user",
+        "create_app_backup", "list_app_backups", "restore_app_backup"
+    }
+    if func_name in ADMIN_ONLY_TOOLS and user_role != "admin":
+        return {"error": "Sécurité : Cette action d'administration est réservée aux administrateurs."}
+
     from app.core.async_db import get_async_sessionmaker
     session_maker = get_async_sessionmaker()
     try:
-        res = await _execute_tool_action_inner(func_name, func_args, session_maker)
+        res = await _execute_tool_action_inner(func_name, func_args, session_maker, user_role=user_role)
         if isinstance(res, dict) and "error" in res:
             log_structured_failure(func_name, res["error"], func_args)
         else:
             summary = res.get("message") or res.get("print_url") or "Opération réussie"
             log_sabrina_action(func_name, func_args, confirmed=True, success=True, result_summary=str(summary))
-        return res
+        from app.modules.assistant.sql_tools import serialize_for_json
+        return serialize_for_json(res)
     except Exception as e:
         logger.error("Error executing agent action %s with args %s: %s", func_name, func_args, e, exc_info=True)
         log_structured_failure(func_name, str(e), func_args)
@@ -164,7 +172,7 @@ async def search_web(query: str) -> Dict[str, Any]:
     return await async_cached_result(("assistant", "search_web", query), builder, ttl_seconds=300.0)
 
 
-async def _execute_tool_action_inner(func_name: str, func_args: dict, session_maker) -> Dict[str, Any]:
+async def _execute_tool_action_inner(func_name: str, func_args: dict, session_maker, user_role: str = "operator") -> Dict[str, Any]:
     from app.core.config import BASE_DIR
     import os
 
@@ -320,6 +328,7 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
             notes = str(notes).strip()
         from app.modules.clients.service import ClientService
         from app.modules.clients.schemas_validation import ClientUpdateSchema
+        success = False
         async with session_maker() as session:
             service = ClientService(session)
             if not name:
@@ -327,17 +336,25 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
                 if existing:
                     name = existing.name
             schema = ClientUpdateSchema(name=name, phone=phone, address=address, notes=notes)
-            await service.update_client(client_id, schema)
-            await session.commit()
+            updated = await service.update_client(client_id, schema)
+            if updated:
+                success = True
+                await session.commit()
+        if not success:
+            return {"error": f"Client {client_id} introuvable."}
         return {"success": True, "message": f"Client {client_id} modifié."}
 
     elif func_name == "delete_client":
         client_id = int(func_args.get("client_id"))
         from app.modules.clients.service import ClientService
+        success = False
         async with session_maker() as session:
             service = ClientService(session)
-            await service.delete_client(client_id)
-            await session.commit()
+            success = await service.delete_client(client_id)
+            if success:
+                await session.commit()
+        if not success:
+            return {"error": f"Client {client_id} introuvable ou lié à des opérations."}
         return {"success": True, "message": f"Client {client_id} supprimé."}
 
     elif func_name == "add_supplier":
@@ -570,6 +587,7 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
     elif func_name == "delete_operation":
         tx_kind = func_args.get("tx_kind")
         tx_id = int(func_args.get("tx_id"))
+        success = False
         async with session_maker() as session:
             if tx_kind in ("sale_finished", "sale_raw", "sale"):
                 from app.modules.sales.service import SalesService
@@ -583,16 +601,19 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
                     before_finished = await service.sale_repo.get_sale_detail("finished", tx_id)
                     if not before_finished:
                         kind = "raw"
-                await service.delete_sale_by_id(kind, tx_id)
+                success = await service.delete_sale_by_id(kind, tx_id)
             elif tx_kind == "purchase":
                 from app.modules.purchases.service import PurchaseService
                 service = PurchaseService(session)
-                await service.delete_purchase_by_id(tx_id)
+                success = await service.delete_purchase_by_id(tx_id)
             elif tx_kind == "payment":
                 from app.modules.payments.service import PaymentsService
                 service = PaymentsService(session)
-                await service.delete_payment_by_id(tx_id)
-            await session.commit()
+                success = await service.delete_payment_by_id(tx_id)
+            if success:
+                await session.commit()
+        if not success:
+            return {"error": f"Opération {tx_kind} {tx_id} introuvable."}
         return {"success": True, "message": f"Opération {tx_kind} {tx_id} supprimée."}
 
     elif func_name == "add_expense":
@@ -675,9 +696,13 @@ async def _execute_tool_action_inner(func_name: str, func_args: dict, session_ma
     elif func_name == "delete_expense":
         expense_id = int(func_args.get("expense_id"))
         from app.modules.expenses.service import remove_expense
+        success = False
         async with session_maker() as session:
-            await remove_expense(db=session, expense_id=expense_id)
-            await session.commit()
+            success = await remove_expense(db=session, expense_id=expense_id)
+            if success:
+                await session.commit()
+        if not success:
+            return {"error": f"Dépense {expense_id} introuvable."}
         return {"success": True, "message": f"Dépense {expense_id} supprimée."}
 
     elif func_name == "add_production_batch":

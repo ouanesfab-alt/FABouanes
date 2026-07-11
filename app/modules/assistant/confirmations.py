@@ -6,12 +6,13 @@ from app.modules.assistant.sql_tools import dry_run_sql
 READ_ONLY_TOOL_NAMES = frozenset({
     "change_theme",
     "execute_readonly_sql",
-    "forget",
     "get_active_alerts",
     "get_business_insights",
     "get_current_weather",
     "get_enum_values",
+    "get_export_link",
     "get_print_link",
+    "get_recent_activity_logs",
     "get_schema",
     "get_user_note",
     "list_app_backups",
@@ -22,10 +23,10 @@ READ_ONLY_TOOL_NAMES = frozenset({
     "recall",
     "redirect_to",
     "remember",
+    "run_system_maintenance",
     "search_clients",
     "search_products",
     "search_web",
-    "get_recent_activity_logs",
 })
 
 
@@ -119,4 +120,6 @@ def get_tool_confirmation_message(name: str, args: dict) -> str:
         return f"Enregistrer la configuration des sauvegardes (répertoire: `{args.get('gdrive_backup_dir', '-')}`) ?"
     elif name == "update_app_user":
         return f"Mettre à jour l'utilisateur ID `{args.get('user_id')}` (rôle: `{args.get('role', '-')}`) ?"
+    elif name == "forget":
+        return f"Supprimer définitivement le souvenir ID #{args.get('memory_id')} de la mémoire de Sabrina ?"
     return f"Confirmer l'opération '{name}' avec les paramètres : {args}"

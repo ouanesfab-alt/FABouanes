@@ -3,6 +3,7 @@ intent.py — Intent classification and model routing logic for Sabrina.
 """
 from __future__ import annotations
 
+import re
 import logging
 
 logger = logging.getLogger("fabouanes.assistant.intent")
@@ -28,15 +29,15 @@ def classify_intent(user_query: str) -> str:
         return "lite"
     
     query_lower = user_query.lower()
+    words = set(re.findall(r'\w+', query_lower))
     
-    # If the user query is very short (under 15 chars), it's likely a simple greeting or acknowledgment
+    # Check if any complex keyword matches a full word in the query
+    if words & COMPLEX_KEYWORDS:
+        return "full"
+        
+    # If the user query is very short (under 15 chars) and has no business keywords, it's likely a simple greeting
     if len(user_query.strip()) < 15:
         return "lite"
         
-    # Check if any complex keyword is in the query text
-    for kw in COMPLEX_KEYWORDS:
-        if kw in query_lower:
-            return "full"
-            
     # Default to lite for simple chat queries if no business keywords match
     return "lite"

@@ -27,7 +27,7 @@ from app.core.async_db import close_async_engine
 from app.core.audit import start_audit_worker, stop_audit_worker
 from app.core.config import settings, validate_single_worker_runtime
 from app.core.database import bootstrap_and_migrate, create_request_connection
-from app.core.db_access import execute_db
+from app.core.db_helpers import execute_db
 from app.core.logging import configure_logging
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.registry import discover_modules, get_enabled_modules, mount_api_routes, mount_web_routes
@@ -141,6 +141,18 @@ async def lifespan(_: FastAPI):
             shutdown_background_services(app)
         except Exception as e:
             logger.warning("Erreur pendant le shutdown: %s", e)
+
+        try:
+            from app.modules.assistant.service import close_http_clients
+            await close_http_clients()
+        except Exception as e:
+            logger.warning("Erreur lors de la fermeture des clients HTTP Sabrina: %s", e)
+
+        try:
+            from app.core.db_helpers import db_manager
+            db_manager.shutdown()
+        except Exception as e:
+            logger.warning("Erreur lors de l'arrêt du db_manager: %s", e)
 
         try:
             await close_async_engine()
@@ -417,7 +429,20 @@ async def health_check():
     except Exception:
         checks["disk"] = "unknown"
 
-    status = "ok" if all(v == "ok" for k, v in checks.items() if k not in ["disk_free_mb", "last_run_age_s", "last_backup_age_h", "version"]) else "degraded"
+    # Cache and Performance queue stats
+    try:
+        from app.core.perf_cache import cache_entry_count
+        checks["cache_entries"] = str(cache_entry_count())
+    except Exception:
+        checks["cache_entries"] = "unknown"
+
+    try:
+        from app.core.db_helpers import db_manager
+        checks["perf_queue_size"] = str(db_manager.pending_performance_event_count())
+    except Exception:
+        checks["perf_queue_size"] = "unknown"
+
+    status = "ok" if all(v == "ok" for k, v in checks.items() if k not in ["disk_free_mb", "last_run_age_s", "last_backup_age_h", "version", "cache_entries", "perf_queue_size"]) else "degraded"
     code = 200 if status == "ok" else 503
     return JSONResponse({"status": status, **checks}, status_code=code)
 

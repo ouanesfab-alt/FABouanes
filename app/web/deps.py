@@ -115,6 +115,8 @@ def app_url_for(request: Request, name: str, **params: Any) -> str:
     if name == "static":
         filename = str(params.get("filename", "")).lstrip("/")
         query_params = {key: value for key, value in params.items() if key != "filename"}
+        from app.version import APP_VERSION
+        query_params["v"] = APP_VERSION
         return _append_query(f"/static/{filename}", query_params)
     route_params = _route_param_names(request.app, name)
     try:
@@ -275,7 +277,7 @@ def load_user_from_session(request: Request):
 
     if not user_id:
         return None
-    from app.core.db_access import query_db
+    from app.core.db_helpers import query_db
     try:
         user_row = query_db("SELECT id, username, password_hash, role, must_change_password, is_active FROM users WHERE id = %s", (int(user_id),), one=True)
         user = dict(user_row) if user_row else None

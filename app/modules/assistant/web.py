@@ -144,13 +144,18 @@ async def assistant_chat(request: Request):
                 })
 
         # Retourner un StreamingResponse pour le flux d'événements (SSE)
+        from app.web.deps import get_current_user
+        user = get_current_user(request)
+        user_role = getattr(user, "role", "operator")
+
         async def chat_event_generator():
             try:
                 messages_to_send = history if confirmed_query else history + [new_message]
                 async for event in run_assistant_agent_generator(
                     messages_to_send,
                     api_key or "",
-                    confirmed_query
+                    confirmed_query,
+                    user_role=user_role
                 ):
                     yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
             except Exception as e:

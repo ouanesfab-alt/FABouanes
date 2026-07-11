@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Any
 
-from app.core.db_access import query_db_async, execute_db_async
+from app.core.db_helpers import query_db_async, execute_db_async
 
 logger = logging.getLogger("fabouanes.idempotency")
 

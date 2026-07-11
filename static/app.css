@@ -1486,6 +1486,10 @@ body.desktop-app .app-content {
   overscroll-behavior: contain;
 }
 
+html[data-nav="vertical"] body.desktop-app .app-content {
+  height: 100vh;
+}
+
 @media(max-width:575px) {
   .app-content {
     padding: 10px 8px;
@@ -3118,15 +3122,37 @@ html:not([data-theme="dark"]):not([data-theme="windows-dark"]) .bg-warning-subtl
     display: none !important;
   }
 
+  html,
   body {
+    height: auto !important;
+    overflow: visible !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
     background: #fff !important;
   }
 
+  /* Force content visibility during printing, overriding page transitions opacity:0 */
+  html.js-transitions .app-content,
   .app-content {
+    opacity: 1 !important;
+    transform: none !important;
+    visibility: visible !important;
     max-width: none !important;
     padding: 0 !important;
+    margin: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .app-content > * {
+    opacity: 1 !important;
+    visibility: visible !important;
+    animation: none !important;
+    transition: none !important;
   }
 }
 
@@ -5253,46 +5279,6 @@ html:not([data-theme="light"]) .nav-links[data-active-style="minimalist"] > .dro
   background: #0a84ff !important;
 }
 
-/* Style 2: Capsule iOS (capsule) */
-html:not([data-theme="light"]) .nav-links[data-active-style="capsule"] > a.active,
-html:not([data-theme="light"]) .nav-links[data-active-style="capsule"] > .dropdown > .nav-link-menu.active {
-  color: #ffffff !important;
-  background: #0a84ff !important;
-  box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3) !important;
-  border: 1px solid transparent !important;
-}
-html:not([data-theme="light"]) .nav-links[data-active-style="capsule"] > a.active::after,
-html:not([data-theme="light"]) .nav-links[data-active-style="capsule"] > .dropdown > .nav-link-menu.active::after {
-  transform: scaleX(0) !important; /* Hide underline */
-}
-
-/* Style 3: Bordure Fine (border) */
-html:not([data-theme="light"]) .nav-links[data-active-style="border"] > a.active,
-html:not([data-theme="light"]) .nav-links[data-active-style="border"] > .dropdown > .nav-link-menu.active {
-  color: #0a84ff !important;
-  background: transparent !important;
-  border: 1.5px solid rgba(10, 132, 255, 0.6) !important;
-  box-shadow: none !important;
-}
-html:not([data-theme="light"]) .nav-links[data-active-style="border"] > a.active::after,
-html:not([data-theme="light"]) .nav-links[data-active-style="border"] > .dropdown > .nav-link-menu.active::after {
-  transform: scaleX(0) !important; /* Hide underline */
-}
-
-/* Style 4: Fond Subtil (subtle) - Original Dark Mode active style */
-html:not([data-theme="light"]) .nav-links[data-active-style="subtle"] > a.active,
-html:not([data-theme="light"]) .nav-links[data-active-style="subtle"] > .dropdown > .nav-link-menu.active {
-  color: #0a84ff !important;
-  background: rgba(10, 132, 255, 0.08) !important;
-  box-shadow: none !important;
-  border: 1px solid transparent !important;
-}
-html:not([data-theme="light"]) .nav-links[data-active-style="subtle"] > a.active::after,
-html:not([data-theme="light"]) .nav-links[data-active-style="subtle"] > .dropdown > .nav-link-menu.active::after {
-  transform: scaleX(1) !important;
-  background: #0a84ff !important;
-}
-
 /* Topbar search & user actions in Dark Mode */
 html:not([data-theme="light"]) .nav-btn {
   background: rgba(255, 255, 255, 0.04) !important;
@@ -7197,3 +7183,164 @@ body::before {
   color: #ffffff !important;
 }
 /* scale removed — ripple only */
+
+/* --- Mobile navbar adjustments and Spotlight Search fixes --- */
+.app-navbar a,
+.bot-nav a,
+.nav-drawer a,
+.drawer-link,
+.drawer-sublink,
+.bot-tab,
+.bot-tab-add {
+  text-decoration: none !important;
+}
+.app-navbar a:hover,
+.bot-nav a:hover,
+.nav-drawer a:hover,
+.drawer-link:hover,
+.drawer-sublink:hover,
+.bot-tab:hover {
+  text-decoration: none !important;
+}
+
+/* Hide search category filters in spotlight overlay */
+.search-tabs {
+  display: none !important;
+}
+
+/* Hide ESC keyboard shortcut badge on mobile */
+@media (max-width: 767px) {
+  .search-kbd {
+    display: none !important;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   LAPTOP FHD 1920x1080 16/9 OPTIMIZATION SYSTEM
+   Capped content width, reduced vertical margins, and compact table layout.
+   ────────────────────────────────────────────────────────────── */
+
+@media (min-width: 1200px) {
+  /* Prevent excessive stretching on wide FHD screens */
+  .app-content {
+    max-width: 1420px !important;
+  }
+}
+
+@media (min-width: 992px) and (max-height: 960px) {
+  /* Optimize vertical space on 16/9 scaled laptop viewports */
+  :root {
+    --nav-h: 46px !important; 
+    --space-xs: 3px !important;
+    --space-sm: 6px !important;
+    --space-md: 10px !important; 
+    --space-lg: 16px !important;
+    --space-xl: 22px !important;
+  }
+
+  .app-content {
+    padding: 10px 16px !important;
+  }
+
+  /* Compact top navigation bar */
+  .top-nav {
+    height: var(--nav-h) !important;
+  }
+  .nav-inner {
+    height: 100% !important;
+  }
+  body {
+    padding-top: calc(var(--nav-h) + 10px) !important;
+  }
+
+  /* Compact headings & spacing */
+  .page-hero {
+    margin-bottom: 8px !important;
+    gap: 8px !important;
+  }
+  .section-title {
+    font-size: 1.3rem !important;
+    margin-bottom: 2px !important;
+  }
+  .page-hero p.text-muted {
+    font-size: 0.8rem !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Denser cards */
+  .card, .glass-panel, .table-card {
+    padding: 12px 14px !important;
+    margin-bottom: 10px !important;
+  }
+
+  /* High density data tables */
+  .table, .table-responsive, .transactions-table {
+    font-size: 0.82rem !important;
+  }
+  .table th, .table td, 
+  .table-responsive th, .table-responsive td,
+  .transactions-table th, .transactions-table td {
+    padding: 6px 8px !important;
+    line-height: 1.3 !important;
+  }
+  .table th {
+    font-size: 0.78rem !important;
+  }
+
+  /* Compact transaction badges */
+  .tx-type {
+    min-width: 66px !important;
+    padding: 5px 8px !important;
+    font-size: 0.72rem !important;
+  }
+
+  /* Tighter Forms for editing & creation */
+  .form-label {
+    margin-bottom: 2px !important;
+    font-size: 0.8rem !important;
+  }
+  .form-control, .form-select, .form-control-sm, .form-select-sm {
+    padding: 4px 8px !important;
+    font-size: 0.82rem !important;
+    height: auto !important;
+    border-radius: var(--radius-sm) !important;
+  }
+  .btn, .btn-sm {
+    padding: 5px 10px !important;
+    font-size: 0.82rem !important;
+  }
+
+  /* Compact Dashboard & Reports */
+  .rpt-kpis, .kpi-grid {
+    gap: 10px !important;
+  }
+  .rpt-kpi, .kpi-card {
+    padding: 12px 14px !important;
+    gap: 2px !important;
+  }
+  .rpt-kpi-label, .kpi-title {
+    font-size: 0.7rem !important;
+  }
+  .rpt-kpi-value, .kpi-value {
+    font-size: 1.25rem !important;
+  }
+  .rpt-kpi-sub {
+    font-size: 0.7rem !important;
+  }
+  .rpt-chart-card, .rpt-top-card {
+    padding: 14px 16px !important;
+  }
+  .rpt-chart-title, .rpt-top-title {
+    font-size: 0.85rem !important;
+    margin-bottom: 8px !important;
+  }
+  .rpt-chart-wrap {
+    height: 220px !important;
+  }
+
+  /* Adjust Sabrina (IA) Assistant Sidebar UI */
+  .chat-bubble {
+    padding: 8px 12px !important;
+    font-size: 0.85rem !important;
+  }
+}
