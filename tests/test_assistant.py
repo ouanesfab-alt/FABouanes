@@ -752,5 +752,90 @@ def test_sql_guard_where_clause_enforcement():
     assert res8.ok is True
 
 
+@pytest.mark.asyncio
+async def test_new_specialized_assistant_tools():
+    from unittest.mock import MagicMock
+    # 1. Test generate_quote
+    quote_res = await execute_tool_action(
+        "generate_quote",
+        {
+            "client_name": "Client Test",
+            "lines": [
+                {"item_name": "Produit A", "quantity": 10.0, "unit": "sac", "unit_price": 1500.0}
+            ],
+            "notes": "Validité 30 jours"
+        }
+    )
+    assert quote_res["success"] is True
+    assert quote_res["total"] == 15000.0
+    assert quote_res["client_name"] == "Client Test"
+
+    # 2. Test get_stock_status
+    fake_session = AsyncMock()
+    from sqlmodel import select
+    from app.core.models import FinishedProduct, RawMaterial
+    
+    mock_finished = FinishedProduct(id=1, name="Finished A", stock_qty=5.0, default_unit="kg", avg_cost=100.0, sale_price=150.0, alert_threshold=10.0)
+    mock_raw = RawMaterial(id=1, name="Raw A", stock_qty=20.0, unit="kg", avg_cost=50.0, alert_threshold=5.0)
+
+    class FakeResult:
+        def __init__(self, items):
+            self._items = items
+        def all(self):
+            return self._items
+    
+    class FakeExecution:
+        def __init__(self, result):
+            self._result = result
+        def scalars(self):
+            return self._result
+
+    fake_session.execute = AsyncMock()
+    fake_session.execute.side_effect = [
+        FakeExecution(FakeResult([mock_finished])),
+        FakeExecution(FakeResult([mock_raw]))
+    ]
+    
+    fake_cm = MagicMock()
+    fake_cm.__aenter__ = AsyncMock(return_value=fake_session)
+    fake_cm.__aexit__ = AsyncMock(return_value=None)
+    fake_session_maker = MagicMock(return_value=fake_cm)
+
+    with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
+        status_res = await execute_tool_action("get_stock_status", {"product_type": "all"})
+        assert status_res["success"] is True
+        assert len(status_res["finished_products"]) == 1
+        assert status_res["finished_products"][0]["is_low_stock"] is True
+        assert status_res["low_stock_alert"] is True
+
+    # 3. Test get_financial_report
+    fake_session = AsyncMock()
+    class ScalarResult:
+        def __init__(self, val):
+            self._val = val
+        def scalar(self):
+            return self._val
+            
+    fake_session.execute = AsyncMock()
+    fake_session.execute.side_effect = [
+        ScalarResult(50000.0),
+        ScalarResult(20000.0),
+        ScalarResult(5000.0)
+    ]
+    fake_cm = MagicMock()
+    fake_cm.__aenter__ = AsyncMock(return_value=fake_session)
+    fake_cm.__aexit__ = AsyncMock(return_value=None)
+    fake_session_maker = MagicMock(return_value=fake_cm)
+
+    with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
+        report_res = await execute_tool_action("get_financial_report", {"start_date": "2026-07-01", "end_date": "2026-07-31"})
+        assert report_res["success"] is True
+        assert report_res["total_sales"] == 50000.0
+        assert report_res["total_purchases"] == 20000.0
+        assert report_res["total_expenses"] == 5000.0
+        assert report_res["net_profit"] == 25000.0
+
+
+
 
 

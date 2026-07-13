@@ -1242,6 +1242,153 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         },
                         "required": ["export_type"]
                     }
+                },
+                {
+                    "name": "create_invoice_document",
+                    "description": "Crée une facture multi-lignes pour un client avec une liste d'articles vendus.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "client_id": {
+                                "type": "INTEGER",
+                                "description": "L'identifiant du client (optionnel)."
+                            },
+                            "lines": {
+                                "type": "ARRAY",
+                                "description": "La liste des lignes de facture.",
+                                "items": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "item_key": {
+                                            "type": "STRING",
+                                            "description": "Clé de l'article au format 'finished:ID' ou 'raw:ID'."
+                                        },
+                                        "quantity": {
+                                            "type": "NUMBER",
+                                            "description": "Quantité vendue."
+                                        },
+                                        "unit": {
+                                            "type": "STRING",
+                                            "description": "Unité de mesure (ex: kg, sac, Qt)."
+                                        },
+                                        "unit_price": {
+                                            "type": "NUMBER",
+                                            "description": "Prix unitaire."
+                                        },
+                                        "custom_item_name": {
+                                            "type": "STRING",
+                                            "description": "Précision pour la ligne AUTRE (optionnel)."
+                                        }
+                                    },
+                                    "required": ["item_key", "quantity", "unit", "unit_price"]
+                                }
+                            },
+                            "notes": {
+                                "type": "STRING",
+                                "description": "Remarques (optionnel)."
+                            },
+                            "sale_date": {
+                                "type": "STRING",
+                                "description": "Date de la vente au format YYYY-MM-DD (optionnel)."
+                            }
+                        },
+                        "required": ["lines"]
+                    }
+                },
+                {
+                    "name": "generate_quote",
+                    "description": "Génère un devis ou une facture proforma estimative sans modifier les stocks ni les finances.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "client_name": {
+                                "type": "STRING",
+                                "description": "Nom du client destinataire du devis (optionnel)."
+                            },
+                            "lines": {
+                                "type": "ARRAY",
+                                "description": "La liste des lignes de devis.",
+                                "items": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "item_name": {
+                                            "type": "STRING",
+                                            "description": "Nom du produit ou description de l'article."
+                                        },
+                                        "quantity": {
+                                            "type": "NUMBER",
+                                            "description": "Quantité."
+                                        },
+                                        "unit": {
+                                            "type": "STRING",
+                                            "description": "Unité de mesure."
+                                        },
+                                        "unit_price": {
+                                            "type": "NUMBER",
+                                            "description": "Prix unitaire estimé."
+                                        }
+                                    },
+                                    "required": ["item_name", "quantity", "unit", "unit_price"]
+                                }
+                            },
+                            "notes": {
+                                "type": "STRING",
+                                "description": "Notes ou conditions de validité (optionnel)."
+                            }
+                        },
+                        "required": ["lines"]
+                    }
+                },
+                {
+                    "name": "get_stock_status",
+                    "description": "Consulte l'état du stock des produits et signale les articles en rupture ou sous le seuil d'alerte.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "product_type": {
+                                "type": "STRING",
+                                "description": "Filtre par type de produit : 'finished' (produits finis), 'raw' (matières premières) ou 'all' (tous)."
+                            },
+                            "product_name": {
+                                "type": "STRING",
+                                "description": "Recherche par nom partiel (optionnel)."
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "get_payment_status",
+                    "description": "Vérifie les règlements, le solde dû d'un client ou le statut de paiement d'une facture spécifique.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "client_id": {
+                                "type": "INTEGER",
+                                "description": "L'identifiant du client (optionnel)."
+                            },
+                            "document_id": {
+                                "type": "INTEGER",
+                                "description": "L'identifiant de la facture (optionnel)."
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "get_financial_report",
+                    "description": "Génère un rapport financier dynamique synthétisant les ventes, achats, dépenses et bénéfices nets sur une période.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "start_date": {
+                                "type": "STRING",
+                                "description": "Date de début de la période au format YYYY-MM-DD (optionnel)."
+                            },
+                            "end_date": {
+                                "type": "STRING",
+                                "description": "Date de fin de la période au format YYYY-MM-DD (optionnel)."
+                            }
+                        }
+                    }
                 }
             ]
         }

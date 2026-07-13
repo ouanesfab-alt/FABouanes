@@ -319,7 +319,248 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             }
             
         return {"error": f"Type d'export '{et}' non reconnu."}
-    
-        return {"error": f"Outil '{func_name}' non géré."}
+
+    elif func_name == "create_invoice_document":
+        client_id = func_args.get("client_id")
+        if client_id:
+            client_id = int(client_id)
+        notes = str(func_args.get("notes", "")).strip()
+        sale_date_str = func_args.get("sale_date")
+        
+        from datetime import datetime, date
+        sale_date = date.today()
+        if sale_date_str:
+            try:
+                sale_date = datetime.strptime(sale_date_str, "%Y-%m-%d").date()
+            except Exception:
+                return {"error": "Format de date invalide (sale_date). Utilisez YYYY-MM-DD."}
+
+        lines_input = func_args.get("lines") or []
+        if not lines_input:
+            return {"error": "Une facture doit comporter au moins une ligne."}
+
+        from app.modules.sales.schemas_validation import SaleFormSchema, SaleLineSchema
+        lines = []
+        for line in lines_input:
+            item_key = line.get("item_key")
+            quantity = sanitize_numeric(line.get("quantity"))
+            unit = str(line.get("unit", "kg")).strip().lower()
+            unit_price = sanitize_numeric(line.get("unit_price"))
+            custom_item_name = str(line.get("custom_item_name", "")).strip()
+            lines.append(
+                SaleLineSchema(
+                    item_key=item_key,
+                    quantity=quantity,
+                    unit=unit,
+                    unit_price=unit_price,
+                    custom_item_name=custom_item_name
+                )
+            )
+
+        schema = SaleFormSchema(client_id=client_id, notes=notes, lines=lines, sale_date=sale_date)
+        from app.modules.sales.service import SalesService
+        async with session_maker() as session:
+            service = SalesService(session)
+            res = await service.create_sale_from_form(schema)
+            await session.commit()
+
+        doc_id = res.get("document_id") or res.get("first_line_id")
+        doc_type = res.get("print_doc_type") or "sale_document"
+        print_url = f"/print/{doc_type}/{doc_id}"
+        return {
+            "success": True,
+            "message": f"Facture créée avec succès pour {len(lines)} ligne(s).",
+            "document_id": doc_id,
+            "print_url": print_url,
+            "pdf_url": f"{print_url}?format=pdf"
+        }
+
+    elif func_name == "generate_quote":
+        client_name = func_args.get("client_name") or "Client Proforma"
+        lines_input = func_args.get("lines") or []
+        notes = str(func_args.get("notes", "")).strip()
+
+        lines_out = []
+        total = 0.0
+        for line in lines_input:
+            item_name = line.get("item_name") or line.get("item_key") or "Article"
+            quantity = sanitize_numeric(line.get("quantity"))
+            unit = str(line.get("unit", "kg")).strip().lower()
+            unit_price = sanitize_numeric(line.get("unit_price"))
+            line_total = round(quantity * unit_price, 2)
+            total += line_total
+            lines_out.append({
+                "item_name": item_name,
+                "quantity": quantity,
+                "unit": unit,
+                "unit_price": unit_price,
+                "total": line_total
+            })
+
+        return {
+            "success": True,
+            "client_name": client_name,
+            "lines": lines_out,
+            "total": total,
+            "notes": notes,
+            "message": f"Devis proforma généré avec succès pour un montant total de {total:,.2f} DA."
+        }
+
+    elif func_name == "get_stock_status":
+        product_type = str(func_args.get("product_type", "all")).strip().lower()
+        product_name = str(func_args.get("product_name", "")).strip().lower()
+
+        from sqlmodel import select
+        from app.core.models import FinishedProduct, RawMaterial
+
+        finished_list = []
+        raw_list = []
+
+        async with session_maker() as session:
+            if product_type in ("finished", "all"):
+                stmt = select(FinishedProduct)
+                if product_name:
+                    stmt = stmt.where(FinishedProduct.name.like(f"%{product_name}%"))
+                res = await session.execute(stmt)
+                for item in res.scalars().all():
+                    finished_list.append({
+                        "id": item.id,
+                        "name": item.name,
+                        "stock_qty": float(item.stock_qty),
+                        "unit": getattr(item, "default_unit", getattr(item, "unit", "kg")),
+                        "avg_cost": float(item.avg_cost),
+                        "price": float(getattr(item, "sale_price", getattr(item, "price", 0))),
+                        "alert_threshold": float(item.alert_threshold or 0),
+                        "is_low_stock": float(item.stock_qty) <= float(item.alert_threshold or 0)
+                    })
+            if product_type in ("raw", "all"):
+                stmt = select(RawMaterial)
+                if product_name:
+                    stmt = stmt.where(RawMaterial.name.like(f"%{product_name}%"))
+                res = await session.execute(stmt)
+                for item in res.scalars().all():
+                    raw_list.append({
+                        "id": item.id,
+                        "name": item.name,
+                        "stock_qty": float(item.stock_qty),
+                        "unit": item.unit,
+                        "avg_cost": float(item.avg_cost),
+                        "alert_threshold": float(item.alert_threshold or 0),
+                        "is_low_stock": float(item.stock_qty) <= float(item.alert_threshold or 0)
+                    })
+
+        return {
+            "success": True,
+            "finished_products": finished_list,
+            "raw_materials": raw_list,
+            "low_stock_alert": any(p["is_low_stock"] for p in finished_list) or any(r["is_low_stock"] for r in raw_list)
+        }
+
+    elif func_name == "get_payment_status":
+        client_id = func_args.get("client_id")
+        document_id = func_args.get("document_id")
+        if client_id:
+            client_id = int(client_id)
+        if document_id:
+            document_id = int(document_id)
+
+        from sqlmodel import select
+        from app.core.models import Payment, Client
+        from app.core.models_pkg.sales import SaleDocument
+
+        payments_list = []
+        client_info = None
+        invoice_info = None
+
+        async with session_maker() as session:
+            if client_id:
+                cl_obj = await session.get(Client, client_id)
+                if cl_obj:
+                    client_info = {
+                        "id": cl_obj.id,
+                        "name": cl_obj.name,
+                        "balance": float(cl_obj.balance or 0)
+                    }
+            if document_id:
+                doc_obj = await session.get(SaleDocument, document_id)
+                if doc_obj:
+                    invoice_info = {
+                        "id": doc_obj.id,
+                        "client_id": doc_obj.client_id,
+                        "total": float(doc_obj.total or 0),
+                        "amount_paid": float(doc_obj.amount_paid or 0),
+                        "balance_due": float(doc_obj.balance_due or 0)
+                    }
+
+            # Fetch payments
+            stmt = select(Payment)
+            if client_id:
+                stmt = stmt.where(Payment.client_id == client_id)
+            if document_id:
+                stmt = stmt.where(Payment.sale_id == document_id)
+
+            res = await session.execute(stmt)
+            for item in res.scalars().all():
+                payments_list.append({
+                    "id": item.id,
+                    "client_id": item.client_id,
+                    "amount": float(item.amount),
+                    "payment_type": item.payment_type,
+                    "payment_date": str(item.payment_date),
+                    "notes": item.notes
+                })
+
+        return {
+            "success": True,
+            "client": client_info,
+            "invoice": invoice_info,
+            "payments": payments_list
+        }
+
+    elif func_name == "get_financial_report":
+        from datetime import datetime, date
+        start_date_str = func_args.get("start_date")
+        end_date_str = func_args.get("end_date")
+
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date() if start_date_str else date(date.today().year, date.today().month, 1)
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date() if end_date_str else date.today()
+        except Exception:
+            return {"error": "Format de date invalide. Utilisez YYYY-MM-DD."}
+
+        from sqlmodel import select, func
+        from app.core.models import Sale, Purchase, Expense
+
+        async with session_maker() as session:
+            # Sales total
+            sales_res = await session.execute(
+                select(func.sum(Sale.total)).where(Sale.sale_date >= start_date, Sale.sale_date <= end_date)
+            )
+            sales_total = float(sales_res.scalar() or 0)
+
+            # Purchases total
+            purchases_res = await session.execute(
+                select(func.sum(Purchase.total)).where(Purchase.purchase_date >= start_date, Purchase.purchase_date <= end_date)
+            )
+            purchases_total = float(purchases_res.scalar() or 0)
+
+            # Expenses total
+            expenses_res = await session.execute(
+                select(func.sum(Expense.amount)).where(Expense.date >= start_date, Expense.date <= end_date)
+            )
+            expenses_total = float(expenses_res.scalar() or 0)
+
+        net_profit = sales_total - purchases_total - expenses_total
+
+        return {
+            "success": True,
+            "start_date": str(start_date),
+            "end_date": str(end_date),
+            "total_sales": sales_total,
+            "total_purchases": purchases_total,
+            "total_expenses": expenses_total,
+            "net_profit": net_profit
+        }
 
     return None
+
