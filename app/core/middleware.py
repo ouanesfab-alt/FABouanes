@@ -56,11 +56,10 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 return FormData(cleaned_items)
             request.form = sanitized_form
 
-        db = create_request_connection()
         csp_nonce = secrets.token_hex(16)
         token = push_request_state(
             request=request,
-            db=db,
+            db=None,  # Lazily created on demand via db_manager
             session=request.session,
             request_id=secrets.token_hex(12),
             audit_source="api" if request.url.path.startswith("/api/v1/") else "web",
@@ -77,15 +76,21 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
         finally:
             try:
-                db.close()
-            except Exception:
-                pass
-            try:
                 from app.core.request_state import get_request_state
                 state = get_request_state()
-                read_db = getattr(state, "read_db", None) if state is not None else None
-                if read_db is not None:
-                    read_db.close()
+                if state is not None:
+                    write_db = getattr(state, "db", None)
+                    if write_db is not None:
+                        try:
+                            write_db.close()
+                        except Exception:
+                            pass
+                    read_db = getattr(state, "read_db", None)
+                    if read_db is not None:
+                        try:
+                            read_db.close()
+                        except Exception:
+                            pass
             except Exception:
                 pass
             reset_request_state(token)

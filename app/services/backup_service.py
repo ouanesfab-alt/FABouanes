@@ -584,6 +584,10 @@ def _background_loop(app) -> None:
             success &= await _safe_run_async("trigger_nightly_snapshot_if_due", trigger_nightly_snapshot_if_due)
             success &= await _safe_run_async("purge_old_logs", _purge_old_logs)
             success &= await _safe_run_async("weekly_vacuum", _weekly_vacuum)
+            
+            # Dispatch outbox events to ensure transactional events are processed
+            from app.core.worker import dispatch_outbox_events_task
+            success &= await _safe_run_async("dispatch_outbox_events", dispatch_outbox_events_task, ctx={})
 
             # Log pool stats every ~15 minutes (20 loops of 45s)
             with BACKGROUND_LOCK:

@@ -32,7 +32,7 @@ export async function syncPendingOperations() {
   for (const op of pending) {
     try {
       // Clé d'idempotence unique et reproductible pour éviter les doublons sur retry
-      const idempotencyKey = `fab-${op.id}-${Date.parse(op.created_at || new Date().toISOString())}`;
+      const idempotencyKey = `fab-${op.uuid || (op.id + '-' + Date.parse(op.created_at || new Date().toISOString()))}`;
       // Récupère le token CSRF depuis la meta tag
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
       const res = await fetch(SYNC_ENDPOINT, {

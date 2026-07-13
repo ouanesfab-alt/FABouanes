@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict, List, Optional, Tuple, Set
 from sqlmodel import select, func, case, literal, union_all, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.models import Sale, RawSale, SaleDocument, FinishedProduct, Client, RawMaterial, Payment
 from app.core.base_repository import AsyncRepository
@@ -40,7 +41,12 @@ class SaleRepository(AsyncRepository[Sale]):
         super().__init__(session, Sale)
 
     async def get_by_id(self, sale_id: int) -> Optional[Sale]:
-        return await self.get(sale_id)
+        stmt = select(Sale).where(Sale.id == sale_id).options(
+            selectinload(Sale.client),
+            selectinload(Sale.finished_product)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_sale_detail(self, kind: str, row_id: int) -> Optional[Dict[str, Any]]:
         if kind == "finished":
@@ -267,6 +273,14 @@ class RawSaleRepository(AsyncRepository[RawSale]):
     def __init__(self, session: AsyncSession):
         super().__init__(session, RawSale)
 
+    async def get_by_id(self, sale_id: int) -> Optional[RawSale]:
+        stmt = select(RawSale).where(RawSale.id == sale_id).options(
+            selectinload(RawSale.client),
+            selectinload(RawSale.raw_material)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
 
 class SaleDocumentRepository(AsyncRepository[SaleDocument]):
     """Asynchronous repository for the SaleDocument model."""
@@ -275,7 +289,11 @@ class SaleDocumentRepository(AsyncRepository[SaleDocument]):
         super().__init__(session, SaleDocument)
 
     async def get_by_id(self, doc_id: int) -> Optional[SaleDocument]:
-        return await self.get(doc_id)
+        stmt = select(SaleDocument).where(SaleDocument.id == doc_id).options(
+            selectinload(SaleDocument.client)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def list_lines(self, doc_id: int) -> List[Dict[str, Any]]:
         stmt_finished = (

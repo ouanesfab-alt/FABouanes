@@ -91,7 +91,26 @@ class CustomMockSession:
         if "from raw_materials" in stmt_str or "rawmaterial" in stmt_str or "from finished_products" in stmt_str or "finishedproduct" in stmt_str:
             mock_res.scalar_one_or_none.return_value = self.item
         elif "from purchases" in stmt_str or "purchase" in stmt_str or "from production_batches" in stmt_str or "productionbatch" in stmt_str:
-            mock_res.fetchall.return_value = [MockRow(line) for line in self.lines]
+            if "sum(" in stmt_str or "coalesce(" in stmt_str:
+                if "purchases" in stmt_str or "purchase" in stmt_str:
+                    from app.services.stock_service import qty_to_kg
+                    total_qty_kg = sum(qty_to_kg(float(line["quantity"]), line["unit"]) for line in self.lines)
+                    total_value = sum(float(line["quantity"]) * float(line["unit_price"]) for line in self.lines)
+                    row_mock = MagicMock()
+                    row_mock.total_qty_kg = total_qty_kg
+                    row_mock.total_value = total_value
+                    mock_res.first.return_value = row_mock
+                    mock_res.fetchone.return_value = row_mock
+                else:
+                    total_qty = sum(float(line["output_quantity"]) for line in self.lines)
+                    total_cost = sum(float(line["production_cost"]) for line in self.lines)
+                    row_mock = MagicMock()
+                    row_mock.total_qty = total_qty
+                    row_mock.total_cost = total_cost
+                    mock_res.first.return_value = row_mock
+                    mock_res.fetchone.return_value = row_mock
+            else:
+                mock_res.fetchall.return_value = [MockRow(line) for line in self.lines]
         return mock_res
 
     def add(self, instance, *args, **kwargs):

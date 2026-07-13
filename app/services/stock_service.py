@@ -5,7 +5,7 @@ from datetime import date
 import re
 from decimal import Decimal
 
-from sqlalchemy import select, func, update, delete
+from sqlalchemy import select, func, update, delete, case
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_sessionmaker
 from app.core.request_state import get_state_value
@@ -114,21 +114,33 @@ async def _recalc_raw_material_avg_cost_impl(material_id: int, db: AsyncSession)
         return
     stock_qty = float(material.stock_qty)
 
-    purchases_res = await db.execute(
-        select(Purchase.quantity, Purchase.unit, Purchase.unit_price)
-        .where(Purchase.raw_material_id == material_id)
-        .order_by(Purchase.purchase_date, Purchase.id)
+    unit_lower = func.lower(func.trim(Purchase.unit))
+    factor = case(
+        (unit_lower.like("sac%"),
+         case(
+             (unit_lower.like("%50%"), 50.0),
+             (unit_lower.like("%40%"), 40.0),
+             (unit_lower.like("%25%"), 25.0),
+             else_=50.0
+         )),
+        (unit_lower.in_(["qt", "quintal"]), 100.0),
+        else_=1.0
     )
-    purchases = [r._mapping for r in purchases_res.fetchall()]
+    qty_in_kg = Purchase.quantity * factor
 
-    purchased_qty_kg = sum(qty_to_kg(float(row["quantity"]), row["unit"]) for row in purchases)
+    res = await db.execute(
+        select(
+            func.coalesce(func.sum(qty_in_kg), 0).label("total_qty_kg"),
+            func.coalesce(func.sum(Purchase.total), 0).label("total_value")
+        ).where(Purchase.raw_material_id == material_id)
+    )
+    row = res.first()
+    purchased_qty_kg = float(row.total_qty_kg) if row else 0.0
+    purchased_value = float(row.total_value) if row else 0.0
+
     base_qty = max(0.0, stock_qty - purchased_qty_kg)
-    total_qty = base_qty
-    total_value = base_qty * float(material.avg_cost)
-    for row in purchases:
-        qty_kg = qty_to_kg(float(row["quantity"]), row["unit"])
-        total_qty += qty_kg
-        total_value += qty_kg * unit_price_to_kg(float(row["unit_price"]), row["unit"])
+    total_qty = base_qty + purchased_qty_kg
+    total_value = base_qty * float(material.avg_cost) + purchased_value
 
     await db.execute(
         update(RawMaterial)
@@ -155,20 +167,19 @@ async def _recalc_finished_product_avg_cost_impl(product_id: int, db: AsyncSessi
         return
     stock_qty = float(product.stock_qty)
 
-    productions_res = await db.execute(
-        select(ProductionBatch.output_quantity, ProductionBatch.production_cost)
-        .where(ProductionBatch.finished_product_id == product_id)
-        .order_by(ProductionBatch.production_date, ProductionBatch.id)
+    res = await db.execute(
+        select(
+            func.coalesce(func.sum(ProductionBatch.output_quantity), 0).label("total_qty"),
+            func.coalesce(func.sum(ProductionBatch.production_cost), 0).label("total_cost")
+        ).where(ProductionBatch.finished_product_id == product_id)
     )
-    productions = [r._mapping for r in productions_res.fetchall()]
+    row = res.first()
+    produced_qty = float(row.total_qty) if row else 0.0
+    produced_cost = float(row.total_cost) if row else 0.0
 
-    produced_qty = sum(float(row["output_quantity"]) for row in productions)
     base_qty = max(0.0, stock_qty - produced_qty)
-    total_qty = base_qty
-    total_value = base_qty * float(product.avg_cost)
-    for row in productions:
-        total_qty += float(row["output_quantity"])
-        total_value += float(row["production_cost"])
+    total_qty = base_qty + produced_qty
+    total_value = base_qty * float(product.avg_cost) + produced_cost
 
     await db.execute(
         update(FinishedProduct)
@@ -278,28 +289,50 @@ async def _refresh_sale_profits_for_item_impl(item_kind: str, item_id: int, avg_
     from app.core.models import Sale, RawSale
 
     if item_kind == "raw":
-        rows_res = await db.execute(select(RawSale.id, RawSale.quantity, RawSale.unit, RawSale.unit_price).where(RawSale.raw_material_id == item_id))
-        rows = [r._mapping for r in rows_res.fetchall()]
-        for row in rows:
-            qty_kg = qty_to_kg(float(row["quantity"]), row["unit"])
-            total = float(row["quantity"]) * float(row["unit_price"])
-            await db.execute(
-                update(RawSale)
-                .where(RawSale.id == row["id"])
-                .values(cost_price_snapshot=avg_cost, profit_amount=total - qty_kg * avg_cost)
-            )
+        unit_lower = func.lower(func.trim(RawSale.unit))
+        factor = case(
+            (unit_lower.like("sac%"),
+             case(
+                 (unit_lower.like("%50%"), 50.0),
+                 (unit_lower.like("%40%"), 40.0),
+                 (unit_lower.like("%25%"), 25.0),
+                 else_=50.0
+             )),
+            (unit_lower.in_(["qt", "quintal"]), 100.0),
+            else_=1.0
+        )
+        qty_kg = RawSale.quantity * factor
+        total = RawSale.quantity * RawSale.unit_price
+        profit = total - qty_kg * avg_cost
+
+        await db.execute(
+            update(RawSale)
+            .where(RawSale.raw_material_id == item_id)
+            .values(cost_price_snapshot=avg_cost, profit_amount=profit)
+        )
         return
 
-    rows_res = await db.execute(select(Sale.id, Sale.quantity, Sale.unit, Sale.unit_price).where(Sale.finished_product_id == item_id))
-    rows = [r._mapping for r in rows_res.fetchall()]
-    for row in rows:
-        qty_kg = qty_to_kg(float(row["quantity"]), row["unit"])
-        total = float(row["quantity"]) * float(row["unit_price"])
-        await db.execute(
-            update(Sale)
-            .where(Sale.id == row["id"])
-            .values(cost_price_snapshot=avg_cost, profit_amount=total - qty_kg * avg_cost)
-        )
+    unit_lower = func.lower(func.trim(Sale.unit))
+    factor = case(
+        (unit_lower.like("sac%"),
+         case(
+             (unit_lower.like("%50%"), 50.0),
+             (unit_lower.like("%40%"), 40.0),
+             (unit_lower.like("%25%"), 25.0),
+             else_=50.0
+         )),
+        (unit_lower.in_(["qt", "quintal"]), 100.0),
+        else_=1.0
+    )
+    qty_kg = Sale.quantity * factor
+    total = Sale.quantity * Sale.unit_price
+    profit = total - qty_kg * avg_cost
+
+    await db.execute(
+        update(Sale)
+        .where(Sale.finished_product_id == item_id)
+        .values(cost_price_snapshot=avg_cost, profit_amount=profit)
+    )
 
 
 @async_compat

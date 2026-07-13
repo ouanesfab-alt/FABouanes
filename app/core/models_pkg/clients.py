@@ -5,7 +5,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Optional
 from sqlalchemy import Column, Numeric
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy.orm import relationship
 from pydantic import field_validator
 
 from app.core.model_utils import _now
@@ -23,6 +24,14 @@ class Client(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
 
+    # Relationships
+    imported_histories: list[ImportedClientHistory] = Relationship(sa_relationship=relationship("ImportedClientHistory", back_populates="client"))
+    histories: list[ClientHistory] = Relationship(sa_relationship=relationship("ClientHistory", back_populates="client"))
+    sales: list[Sale] = Relationship(sa_relationship=relationship("Sale", back_populates="client"))
+    raw_sales: list[RawSale] = Relationship(sa_relationship=relationship("RawSale", back_populates="client"))
+    payments: list[Payment] = Relationship(sa_relationship=relationship("Payment", back_populates="client"))
+    sale_documents: list[SaleDocument] = Relationship(sa_relationship=relationship("SaleDocument", back_populates="client"))
+
     @field_validator("opening_credit", mode="before")
     @classmethod
     def _coerce_opening_credit(cls, v: Any) -> Decimal:
@@ -38,6 +47,9 @@ class ImportedClientHistory(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     client_id: int = Field(foreign_key="clients.id")
     source_file: Optional[str] = Field(default=None)
+
+    # Relationships
+    client: Client = Relationship(sa_relationship=relationship("Client", back_populates="imported_histories"))
     entry_date: date  # Migré TEXT→DATE (migration 0035)
     designation: Optional[str] = Field(default=None)
     debit_amount: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
@@ -53,6 +65,9 @@ class ClientHistory(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     client_id: int = Field(foreign_key="clients.id")
     operation_date: date
+
+    # Relationships
+    client: Client = Relationship(sa_relationship=relationship("Client", back_populates="histories"))
     designation: str = Field(default="")
     montant_achat: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     montant_verse: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))

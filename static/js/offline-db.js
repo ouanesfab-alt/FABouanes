@@ -41,7 +41,11 @@ export async function queueOperation(type, payload) {
   return new Promise((resolve, reject) => {
     const tx    = db.transaction('pending_ops', 'readwrite');
     const store = tx.objectStore('pending_ops');
+    const uuid = (self.crypto && self.crypto.randomUUID) 
+      ? self.crypto.randomUUID() 
+      : (Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
     const op = {
+      uuid,
       type,
       payload,
       status: 'pending',

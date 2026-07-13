@@ -21,7 +21,6 @@ _BOOTSTRAPPED = False
 
 def create_request_connection():
     """Create a new database connection for the current request context."""
-    ensure_runtime_dirs()
     return connect_database(settings.database_url)
 
 def _load_alembic():

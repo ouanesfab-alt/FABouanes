@@ -5,7 +5,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Optional
 from sqlalchemy import Column, Numeric
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy.orm import relationship
 from pydantic import field_validator
 
 from app.core.model_utils import _now
@@ -21,6 +22,10 @@ class ProductionBatch(SQLModel, table=True):
     unit_cost: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     production_date: date
     notes: Optional[str] = Field(default=None)
+
+    # Relationships
+    finished_product: Optional["FinishedProduct"] = Relationship(sa_relationship=relationship("FinishedProduct"))
+    items: list["ProductionBatchItem"] = Relationship(sa_relationship=relationship("ProductionBatchItem", back_populates="batch"))
 
     @field_validator("production_date", mode="before")
     @classmethod
@@ -51,6 +56,10 @@ class ProductionBatchItem(SQLModel, table=True):
     unit_cost_snapshot: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     line_cost: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
 
+    # Relationships
+    batch: Optional["ProductionBatch"] = Relationship(sa_relationship=relationship("ProductionBatch", back_populates="items"))
+    raw_material: Optional["RawMaterial"] = Relationship(sa_relationship=relationship("RawMaterial"))
+
     @field_validator("quantity", "unit_cost_snapshot", "line_cost", mode="before")
     @classmethod
     def _coerce_decimals(cls, v: Any) -> Decimal:
@@ -73,6 +82,10 @@ class SavedRecipe(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
 
+    # Relationships
+    finished_product: Optional["FinishedProduct"] = Relationship(sa_relationship=relationship("FinishedProduct"))
+    items: list["SavedRecipeItem"] = Relationship(sa_relationship=relationship("SavedRecipeItem", back_populates="recipe"))
+
 
 class SavedRecipeItem(SQLModel, table=True):
     __tablename__ = "saved_recipe_items"
@@ -82,6 +95,10 @@ class SavedRecipeItem(SQLModel, table=True):
     raw_material_id: int = Field(foreign_key="raw_materials.id")
     quantity: Decimal = Field(sa_column=Column(Numeric(15, 2)))
     position: int = Field(default=0)
+
+    # Relationships
+    recipe: Optional["SavedRecipe"] = Relationship(sa_relationship=relationship("SavedRecipe", back_populates="items"))
+    raw_material: Optional["RawMaterial"] = Relationship(sa_relationship=relationship("RawMaterial"))
 
     @field_validator("quantity", mode="before")
     @classmethod

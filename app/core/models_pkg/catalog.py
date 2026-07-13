@@ -5,7 +5,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 from sqlalchemy import Column, Numeric
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy.orm import relationship
 
 from app.core.model_utils import _now
 
@@ -23,6 +24,10 @@ class RawMaterial(SQLModel, table=True):
     threshold_qty: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     updated_at: datetime = Field(default_factory=_now)
 
+    # Relationships
+    raw_sales: list[RawSale] = Relationship(sa_relationship=relationship("RawSale", back_populates="raw_material"))
+    purchases: list[Purchase] = Relationship(sa_relationship=relationship("Purchase", back_populates="raw_material"))
+
 
 class FinishedProduct(SQLModel, table=True):
     __tablename__ = "finished_products"
@@ -35,6 +40,10 @@ class FinishedProduct(SQLModel, table=True):
     avg_cost: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     alert_threshold: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     updated_at: datetime = Field(default_factory=_now)
+
+    # Relationships
+    sales: list[Sale] = Relationship(sa_relationship=relationship("Sale", back_populates="finished_product"))
+    purchases: list[Purchase] = Relationship(sa_relationship=relationship("Purchase", back_populates="finished_product"))
 
 
 class StockMovement(SQLModel, table=True):

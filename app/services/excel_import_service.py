@@ -76,19 +76,25 @@ def parse_client_history_excel(file_path: str) -> dict:
     if header_row_idx is None:
         header_row_idx = 2  # Fallback par défaut
 
-    # === Lecture des données à partir de l'en-tête ===
+    # === Lecture des données à partir de l'en-tête (optimisée sans double I/O) ===
     try:
-        df = pd.read_excel(
-            file_path,
-            skiprows=header_row_idx,
-            header=0,
-            usecols=[0, 1, 2, 3, 4],
-            names=["date_raw", "designation", "montant_achat_raw",
-                   "montant_verse_raw", "solde_cumule_raw"],
-            dtype=str,
-        )
+        # Extraire les colonnes 0 à 4 des lignes suivant l'en-tête
+        df_slice = raw.iloc[header_row_idx + 1 :, :5].copy()
+        
+        # S'assurer d'avoir 5 colonnes si le fichier en a moins
+        while df_slice.shape[1] < 5:
+            df_slice[df_slice.shape[1]] = None
+            
+        df_slice.columns = [
+            "date_raw",
+            "designation",
+            "montant_achat_raw",
+            "montant_verse_raw",
+            "solde_cumule_raw",
+        ]
+        df = df_slice.reset_index(drop=True).astype(str)
     except Exception as e:
-        raise ValueError(f"Erreur lors de la lecture des lignes de données : {e}")
+        raise ValueError(f"Erreur lors de l'extraction des lignes de données Excel : {e}")
 
     rows = []
     ordre = 0

@@ -223,13 +223,12 @@ def test_get_tool_confirmation_messages(mock_dry_run):
 # 2. Tests memory.py
 # =============================================================================
 
+@patch("app.core.db_helpers.db_manager.execute_db")
 @patch("app.core.db_helpers.db_manager.query_db")
-def test_remember_success(mock_query):
+def test_remember_success(mock_query, mock_execute):
     # Mocking: No duplicates found, insert returns id 10
-    mock_query.side_effect = [
-        [],        # duplicate search
-        [[10]]     # insert returning id
-    ]
+    mock_query.return_value = []
+    mock_execute.return_value = 10
     res = remember("Toujours arrondir les montants en DA.", category="learned", source="user_explicit")
     assert res.get("success") is True
     assert res.get("memory_id") == 10
@@ -302,25 +301,25 @@ def test_recall_exception(mock_query):
     assert "FTS index corrupt" in res["error"]
 
 
-@patch("app.core.db_helpers.db_manager.query_db")
-def test_forget_success(mock_query):
-    mock_query.return_value = [[50]]
+@patch("app.core.db_helpers.db_manager.execute_db")
+def test_forget_success(mock_execute):
+    mock_execute.return_value = 50
     res = forget(50)
     assert res.get("success") is True
     assert "supprimé" in res.get("message")
 
 
-@patch("app.core.db_helpers.db_manager.query_db")
-def test_forget_not_found(mock_query):
-    mock_query.return_value = []
+@patch("app.core.db_helpers.db_manager.execute_db")
+def test_forget_not_found(mock_execute):
+    mock_execute.return_value = 0
     res = forget(999)
     assert "error" in res
     assert "introuvable" in res["error"]
 
 
-@patch("app.core.db_helpers.db_manager.query_db")
-def test_forget_exception(mock_query):
-    mock_query.side_effect = Exception("Lock wait timeout")
+@patch("app.core.db_helpers.db_manager.execute_db")
+def test_forget_exception(mock_execute):
+    mock_execute.side_effect = Exception("Lock wait timeout")
     res = forget(12)
     assert "error" in res
     assert "Lock wait timeout" in res["error"]

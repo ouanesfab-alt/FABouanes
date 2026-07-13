@@ -29,13 +29,11 @@ def remember(content: str, category: str = "general", source: str = "user_explic
         if existing:
             return {"status": "already_known", "message": f"Je connais déjà cette information (mémoire #{existing[0][0]})."}
 
-        rows = db_manager.query_db(
+        mem_id = db_manager.execute_db(
             """INSERT INTO sabrina_memory (content, category, source)
                VALUES (%s, %s, %s) RETURNING id""",
-            (content, category, source),
-            commit=True
+            (content, category, source)
         )
-        mem_id = rows[0][0] if rows else None
         logger.info("Sabrina memory created: id=%s category=%s source=%s", mem_id, category, source)
         return {
             "success": True,
@@ -102,10 +100,10 @@ def recall(query: str, limit: int = 10) -> Dict[str, Any]:
 def forget(memory_id: int) -> Dict[str, Any]:
     """Supprime un souvenir spécifique de la mémoire de Sabrina."""
     try:
-        rows = db_manager.query_db(
-            "DELETE FROM sabrina_memory WHERE id = %s RETURNING id", (memory_id,), commit=True
+        deleted_id = db_manager.execute_db(
+            "DELETE FROM sabrina_memory WHERE id = %s RETURNING id", (memory_id,)
         )
-        if rows:
+        if deleted_id:
             logger.info("Sabrina memory deleted: id=%s", memory_id)
             return {"success": True, "message": f"Souvenir #{memory_id} supprimé."}
         return {"error": f"Souvenir #{memory_id} introuvable."}
