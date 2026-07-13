@@ -106,3 +106,54 @@ async def api_kpi_at_date(request: Request):
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception:
         return JSONResponse({"error": "Erreur interne."}, status_code=500)
+
+
+@router.get("/api/kpi-period", name="api_kpi_period")
+async def api_kpi_period(request: Request):
+    if not get_current_user(request):
+        return JSONResponse({"error": "Authentification requise."}, status_code=401)
+    period = request.query_params.get("period", "today").strip().lower()
+    if period not in ("today", "week", "month"):
+        return JSONResponse({"error": "Période invalide."}, status_code=400)
+    try:
+        from app.modules.reports.repository import get_kpis_for_period
+        kpis = await get_kpis_for_period(period)
+        return JSONResponse({
+            "success": True,
+            "sales": kpis["sales"],
+            "cash": kpis["cash"],
+            "profit": kpis["profit"],
+            "receivables": kpis["receivables"]
+        })
+    except Exception as exc:
+        import logging
+        logging.getLogger("fabouanes").error("Error fetching KPI for period %s: %s", period, exc)
+        return JSONResponse({"success": False, "error": "Erreur interne."}, status_code=500)
+
+
+@router.get("/api/kpi-history", name="api_kpi_history")
+async def api_kpi_history(request: Request):
+    if not get_current_user(request):
+        return JSONResponse({"error": "Authentification requise."}, status_code=401)
+    metric = request.query_params.get("metric", "sales").strip().lower()
+    if metric not in ("sales", "cash", "profit", "receivables"):
+        return JSONResponse({"error": "Indicateur invalide."}, status_code=400)
+    
+    try:
+        days_param = int(request.query_params.get("days", 30))
+        days_param = max(7, min(days_param, 90))  # clamp entre 7 et 90
+    except (ValueError, TypeError):
+        days_param = 30
+
+    try:
+        from app.modules.reports.repository import get_kpi_history_last_30_days
+        labels, values = await get_kpi_history_last_30_days(metric, days=days_param)
+        return JSONResponse({
+            "success": True,
+            "labels": labels,
+            "values": values
+        })
+    except Exception as exc:
+        import logging
+        logging.getLogger("fabouanes").error("Error fetching KPI history for %s: %s", metric, exc)
+        return JSONResponse({"success": False, "error": "Erreur interne."}, status_code=500)

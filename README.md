@@ -179,7 +179,7 @@ Toutes les variables sont documentées dans `.env.example`. Les plus importantes
 |---|---|---|
 | `SECRET_KEY` | Clé de session — **obligatoire en production** | auto-générée si vide |
 | `DATABASE_URL` | Connexion PostgreSQL (`postgresql://...`) | — |
-| `FAB_PASSWORD_MODE` | `pin` (4 chiffres) ou `password` (8+ car.) | `pin` |
+| `FAB_PASSWORD_MODE` | `0000` (4 chiffres) ou `password` (8+ car.) | `0000` |
 | `SESSION_COOKIE_SECURE` | Cookies HTTPS-only | `0` (auto en production) |
 | `FAB_MODULES_DISABLED` | Désactiver des modules (`expenses,reports`) | — |
 | `WEB_CONCURRENCY` | Nombre de workers uvicorn | `1` (voir limitations) |

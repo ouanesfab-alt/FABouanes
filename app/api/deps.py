@@ -116,6 +116,19 @@ async def revoke_all_user_tokens(user_id: int) -> None:
 
 
 async def validate_refresh_token(raw_token: str):
+    token_hash = refresh_token_hash(raw_token)
+    
+    # Replay attack check: check if the token exists, regardless of revoked state
+    all_row = await query_db_async(
+        "SELECT id, user_id, revoked_at FROM api_refresh_tokens WHERE token_hash = %s",
+        (token_hash,),
+        one=True,
+    )
+    if all_row and all_row.get("revoked_at") is not None:
+        # Replay attack detected! Revoke all tokens for this user immediately!
+        await revoke_all_user_tokens(int(all_row["user_id"]))
+        return None
+        
     row = await query_db_async(
         """
         SELECT id, user_id, expires_at
@@ -124,7 +137,7 @@ async def validate_refresh_token(raw_token: str):
           AND revoked_at IS NULL
           AND expires_at >= CURRENT_TIMESTAMP
         """,
-        (refresh_token_hash(raw_token),),
+        (token_hash,),
         one=True,
     )
     if not row:
@@ -133,5 +146,11 @@ async def validate_refresh_token(raw_token: str):
     if not user or not int(user.get("is_active", 1) or 0):
         await revoke_refresh_token(raw_token)
         return None
-    await execute_db_async("UPDATE api_refresh_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = %s", (int(row["id"]),))
+        
+    # Mark old token as revoked (used) during rotation!
+    await execute_db_async(
+        "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP, last_used_at = CURRENT_TIMESTAMP WHERE id = %s",
+        (int(row["id"]),)
+    )
     return user
+

@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from app.api.v1._common import add_cache_headers
 from app.core.jwt_auth import (
     create_access_token, create_refresh_token,
-    decode_token, get_current_user_id,
+    get_current_user_id, validate_mobile_refresh_token,
 )
 from app.services.auth_service import verify_credentials
 from app.modules.users.repository import get_user_by_id
@@ -130,14 +130,13 @@ async def mobile_refresh(request: Request):
 
     if not refresh_token:
         raise HTTPException(401, "Refresh token requis")
-    payload = decode_token(str(refresh_token))
-    if payload.get("type") != "refresh":
-        raise HTTPException(401, "Refresh token requis")
+    payload = validate_mobile_refresh_token(str(refresh_token))
     user = await get_user_by_id.async_(int(payload["sub"]))
     if not user:
         raise HTTPException(401, "Utilisateur introuvable")
     return {
         "access_token": create_access_token(user["id"], user["role"]),
+        "refresh_token": create_refresh_token(user["id"]),
         "token_type": "bearer",
     }
 

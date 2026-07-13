@@ -7,7 +7,7 @@ import json
 import time
 import asyncio
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from app.core.request_state import get_state_value
@@ -304,6 +304,30 @@ async def list_audit_logs(
     return await _list_audit_logs_impl(filters, limit, db)
 
 
+def safe_parse_date(val: Any) -> date | None:
+    if isinstance(val, date):
+        return val
+    if isinstance(val, datetime):
+        return val.date()
+    val_str = str(val).strip()
+    if not val_str:
+        return None
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            return datetime.strptime(val_str, fmt).date()
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(val_str).date()
+    except ValueError:
+        pass
+    try:
+        return date.fromisoformat(val_str[:10])
+    except ValueError:
+        pass
+    return None
+
+
 async def _list_audit_logs_impl(
     filters: Mapping[str, Any] | None,
     limit: int,
@@ -312,12 +336,31 @@ async def _list_audit_logs_impl(
     filters = filters or {}
     where: list[str] = []
     params: dict[str, Any] = {}
+    
     if filters.get("date_from"):
-        where.append("CAST(created_at AS DATE) >= CAST(:date_from AS DATE)")
-        params["date_from"] = str(filters["date_from"])
+        parsed = safe_parse_date(filters["date_from"])
+        if parsed:
+            where.append("CAST(created_at AS DATE) >= CAST(:date_from AS DATE)")
+            params["date_from"] = parsed
+            
     if filters.get("date_to"):
-        where.append("CAST(created_at AS DATE) <= CAST(:date_to AS DATE)")
-        params["date_to"] = str(filters["date_to"])
+        parsed = safe_parse_date(filters["date_to"])
+        if parsed:
+            where.append("CAST(created_at AS DATE) <= CAST(:date_to AS DATE)")
+            params["date_to"] = parsed
+
+    if filters.get("q"):
+        where.append(
+            "("
+            "lower(actor_username) LIKE lower(:q) OR "
+            "lower(action) LIKE lower(:q) OR "
+            "lower(entity_type) LIKE lower(:q) OR "
+            "lower(COALESCE(before_json, '')) LIKE lower(:q) OR "
+            "lower(COALESCE(after_json, '')) LIKE lower(:q)"
+            ")"
+        )
+        params["q"] = f"%{filters['q']}%"
+        
     if filters.get("actor"):
         where.append("lower(actor_username) LIKE lower(:actor)")
         params["actor"] = f"%{filters['actor']}%"

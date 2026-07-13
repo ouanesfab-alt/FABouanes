@@ -128,7 +128,7 @@
   /* Layout */
   --sidebar-w: 240px;
   --sidebar-collapsed-w: 64px;
-  --nav-h: 52px;
+  --nav-h: 70px;
   --bot-h: 64px;
   --content-max-w: 1200px;
 
@@ -1164,8 +1164,6 @@ table.record-table > thead > tr > th,
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    margin-top: 0 !important;
-    padding: 0 !important;
   }
 }
 

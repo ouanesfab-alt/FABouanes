@@ -694,18 +694,42 @@ async def _build_debt_by_client(db: AsyncSession) -> list:
 
 
 _LAST_REFRESH_TIME_IN_MEM = 0.0
+_REFRESH_PENDING = False
 
 @db_task_compat
 async def refresh_client_balances_view(db: AsyncSession | None = None) -> None:
-    """Refresh the mv_client_balances materialized view after financial mutations, debounced with a 10s lock."""
-    global _LAST_REFRESH_TIME_IN_MEM
+    """Refresh the mv_client_balances materialized view after financial mutations, throttled with a trailing call."""
+    global _LAST_REFRESH_TIME_IN_MEM, _REFRESH_PENDING
     import logging
+    import asyncio
     logger = logging.getLogger("fabouanes")
 
     now = time.time()
     if now - _LAST_REFRESH_TIME_IN_MEM < 10.0:
-        logger.debug("Materialized view refresh debounced (in-memory lock active)")
+        if not _REFRESH_PENDING:
+            _REFRESH_PENDING = True
+            logger.debug("Materialized view refresh throttled, scheduling trailing call...")
+            delay = 10.0 - (now - _LAST_REFRESH_TIME_IN_MEM) + 0.1
+            
+            async def delayed_refresh():
+                await asyncio.sleep(delay)
+                global _REFRESH_PENDING
+                _REFRESH_PENDING = False
+                await refresh_client_balances_view()
+                
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(delayed_refresh())
+            except RuntimeError:
+                import threading
+                def thread_target():
+                    time.sleep(delay)
+                    global _REFRESH_PENDING
+                    _REFRESH_PENDING = False
+                    refresh_client_balances_view.sync()
+                threading.Thread(target=thread_target, daemon=True).start()
         return
+
     _LAST_REFRESH_TIME_IN_MEM = now
 
     try:
@@ -952,3 +976,170 @@ async def _list_recent_operations_impl(
     rows = [dict(row._mapping) for row in res.fetchall()]
     total = int(rows[0]["_total_count"]) if rows else 0
     return rows, total
+
+
+@db_task_compat
+async def get_kpis_for_period(period: str, db: AsyncSession | None = None) -> dict[str, float]:
+    async def load():
+        if db is None:
+            async with get_async_sessionmaker()() as session:
+                return await _build_kpis_for_period(period, session)
+        return await _build_kpis_for_period(period, db)
+    return await async_cached_result(
+        ("dashboard_kpis_period", period),
+        load,
+        ttl_seconds=45.0,
+    )
+
+
+async def _build_kpis_for_period(period: str, db: AsyncSession) -> dict[str, float]:
+    from datetime import date, timedelta
+    today_obj = date.today()
+
+    if period == "today":
+        start_date = today_obj
+    elif period == "week":
+        start_date = today_obj - timedelta(days=today_obj.weekday())
+    elif period == "month":
+        start_date = today_obj.replace(day=1)
+    else:
+        raise ValueError(f"Invalid period: {period}")
+
+    s_sales = select(func.coalesce(func.sum(Sale.total), 0)).where(Sale.sale_date >= start_date, Sale.sale_date <= today_obj).scalar_subquery()
+    rs_sales = select(func.coalesce(func.sum(RawSale.total), 0)).where(RawSale.sale_date >= start_date, RawSale.sale_date <= today_obj).scalar_subquery()
+
+    p_cash = select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.payment_date >= start_date, Payment.payment_date <= today_obj).scalar_subquery()
+
+    s_profit = select(func.coalesce(func.sum(Sale.profit_amount), 0)).where(Sale.sale_date >= start_date, Sale.sale_date <= today_obj).scalar_subquery()
+    rs_profit = select(func.coalesce(func.sum(RawSale.profit_amount), 0)).where(RawSale.sale_date >= start_date, RawSale.sale_date <= today_obj).scalar_subquery()
+
+    total_receivables_sub = select(func.coalesce(func.sum(literal_column("balance")), 0)).select_from(text("mv_client_balances")).scalar_subquery()
+
+    query = select(
+        (s_sales + rs_sales).label("sales"),
+        p_cash.label("cash"),
+        (s_profit + rs_profit).label("profit"),
+        total_receivables_sub.label("receivables")
+    )
+
+    res = await db.execute(query)
+    row = res.first()
+    return {
+        "sales": float(row._mapping["sales"] if row else 0),
+        "cash": float(row._mapping["cash"] if row else 0),
+        "profit": float(row._mapping["profit"] if row else 0),
+        "receivables": float(row._mapping["receivables"] if row else 0),
+    }
+
+
+@db_task_compat
+async def get_kpi_history_last_30_days(metric: str, db: AsyncSession | None = None, days: int = 30) -> tuple[list[str], list[float]]:
+    async def load():
+        if db is None:
+            async with get_async_sessionmaker()() as session:
+                return await _build_kpi_history(metric, session, days=days)
+        return await _build_kpi_history(metric, db, days=days)
+    return await async_cached_result(
+        ("dashboard_kpis_history", metric, days),
+        load,
+        ttl_seconds=45.0,
+    )
+
+
+async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> tuple[list[str], list[float]]:
+    from datetime import date, timedelta
+    from app.core.models import Client
+    from sqlalchemy import cast, Date
+    
+    today_obj = date.today()
+    start_date = today_obj - timedelta(days=days - 1)
+
+    # Générer toutes les dates de la période
+    date_list = [start_date + timedelta(days=i) for i in range(days)]
+    date_strs = [d.isoformat() for d in date_list]
+
+    values = {d: 0.0 for d in date_list}
+
+    if metric == "sales":
+        q1 = select(Sale.sale_date, func.sum(Sale.total)).where(Sale.sale_date >= start_date).group_by(Sale.sale_date)
+        res1 = await db.execute(q1)
+        for d, tot in res1.all():
+            if d in values:
+                values[d] += float(tot or 0)
+        q2 = select(RawSale.sale_date, func.sum(RawSale.total)).where(RawSale.sale_date >= start_date).group_by(RawSale.sale_date)
+        res2 = await db.execute(q2)
+        for d, tot in res2.all():
+            if d in values:
+                values[d] += float(tot or 0)
+
+        # Rendre cumulatif
+        running = 0.0
+        for d in date_list:
+            running += values[d]
+            values[d] = running
+
+    elif metric == "cash":
+        q = select(Payment.payment_date, func.sum(Payment.amount)).where(Payment.payment_date >= start_date).group_by(Payment.payment_date)
+        res = await db.execute(q)
+        for d, tot in res.all():
+            if d in values:
+                values[d] = float(tot or 0)
+
+        # Rendre cumulatif
+        running = 0.0
+        for d in date_list:
+            running += values[d]
+            values[d] = running
+
+    elif metric == "profit":
+        q1 = select(Sale.sale_date, func.sum(Sale.profit_amount)).where(Sale.sale_date >= start_date).group_by(Sale.sale_date)
+        res1 = await db.execute(q1)
+        for d, tot in res1.all():
+            if d in values:
+                values[d] += float(tot or 0)
+        q2 = select(RawSale.sale_date, func.sum(RawSale.profit_amount)).where(RawSale.sale_date >= start_date).group_by(RawSale.sale_date)
+        res2 = await db.execute(q2)
+        for d, tot in res2.all():
+            if d in values:
+                values[d] += float(tot or 0)
+
+        # Rendre cumulatif
+        running = 0.0
+        for d in date_list:
+            running += values[d]
+            values[d] = running
+
+    elif metric == "receivables":
+        current_rec = float(await db.scalar(select(func.coalesce(func.sum(literal_column("balance")), 0)).select_from(text("mv_client_balances"))) or 0)
+        
+        sf_changes = select(Sale.sale_date, func.sum(Sale.total)).where(Sale.sale_type == 'credit', Sale.sale_date >= start_date).group_by(Sale.sale_date)
+        res_sf = await db.execute(sf_changes)
+        sf_map = {d: float(tot or 0) for d, tot in res_sf.all()}
+
+        sr_changes = select(RawSale.sale_date, func.sum(RawSale.total)).where(RawSale.sale_type == 'credit', RawSale.sale_date >= start_date).group_by(RawSale.sale_date)
+        res_sr = await db.execute(sr_changes)
+        sr_map = {d: float(tot or 0) for d, tot in res_sr.all()}
+
+        p_changes = select(Payment.payment_date, Payment.payment_type, func.sum(Payment.amount)).where(Payment.payment_date >= start_date).group_by(Payment.payment_date, Payment.payment_type)
+        res_p = await db.execute(p_changes)
+        p_map = {}
+        for d, ptype, amt in res_p.all():
+            if d not in p_map:
+                p_map[d] = 0.0
+            if ptype == 'versement':
+                p_map[d] -= float(amt or 0)
+            elif ptype == 'avance':
+                p_map[d] += float(amt or 0)
+
+        # Intégrer les crédits initiaux créés sur la période à leur date de création
+        oc_changes = select(cast(Client.created_at, Date), func.sum(Client.opening_credit)).where(Client.opening_credit > 0, cast(Client.created_at, Date) >= start_date).group_by(cast(Client.created_at, Date))
+        res_oc = await db.execute(oc_changes)
+        oc_map = {d: float(tot or 0) for d, tot in res_oc.all()}
+
+        running_receivables = current_rec
+        for d in reversed(date_list):
+            values[d] = running_receivables
+            change = sf_map.get(d, 0.0) + sr_map.get(d, 0.0) + p_map.get(d, 0.0) + oc_map.get(d, 0.0)
+            running_receivables -= change
+
+    return date_strs, [values[d] for d in date_list]

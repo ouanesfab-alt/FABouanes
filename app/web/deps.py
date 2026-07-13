@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import secrets
 import re
+import time
 from types import SimpleNamespace
 from typing import Any
 from urllib.parse import urlencode
@@ -19,6 +20,9 @@ from app.core.runtime_paths import paths
 
 
 from app.web.compat import COMPAT_ROUTE_MAP
+
+
+STARTUP_TIMESTAMP = str(int(time.time()))
 
 
 class TemplateRequestProxy:
@@ -115,8 +119,7 @@ def app_url_for(request: Request, name: str, **params: Any) -> str:
     if name == "static":
         filename = str(params.get("filename", "")).lstrip("/")
         query_params = {key: value for key, value in params.items() if key != "filename"}
-        from app.version import APP_VERSION
-        query_params["v"] = APP_VERSION
+        query_params["v"] = STARTUP_TIMESTAMP
         return _append_query(f"/static/{filename}", query_params)
     route_params = _route_param_names(request.app, name)
     try:

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-
+import logging
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
-
 from app.version import VERSION_LABEL
 from app.core.db import postgres_pool_status
 from app.core.runtime_paths import paths
@@ -19,6 +18,8 @@ from app.utils.tool_pages import (
     delete_user_note,
 )
 from app.web.deps import csrf_protect, flash, get_current_user, template_context, templates
+
+logger = logging.getLogger("fabouanes.web.report_pages")
 
 router = APIRouter()
 

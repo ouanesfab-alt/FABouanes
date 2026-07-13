@@ -73,6 +73,7 @@ async def _get_system_status_impl(db: AsyncSession) -> dict:
     from app.services.backup_service import BACKGROUND_STATE
     write_status = await _probe_db_write(db)
     backup_write_status = _probe_dir_write(backup_dir)
+    reconciliation = await reconcile_client_balances(db)
 
     return {
         "version": VERSION_LABEL,
@@ -116,6 +117,7 @@ async def _get_system_status_impl(db: AsyncSession) -> dict:
             "index_count": index_count,
             "sample_query_plan": " | ".join(plan_lines),
         },
+        "reconciliation": reconciliation,
     }
 
 
@@ -144,6 +146,94 @@ async def _probe_db_write(db: AsyncSession) -> dict:
         return {"ok": True, "status": "OK", "message": "Ecriture base disponible"}
     except Exception as exc:
         return {"ok": False, "status": "Erreur", "message": str(exc)}
+
+
+async def reconcile_client_balances(db: AsyncSession) -> dict:
+    import logging
+    logger = logging.getLogger("fabouanes.system")
+    stmt = text("""
+        WITH calculated AS (
+            SELECT c.id,
+                   c.name,
+                   c.opening_credit,
+                   c.opening_credit
+                     + COALESCE(s_finished.total, 0)
+                     + COALESCE(s_raw.total, 0)
+                     - COALESCE(p_versement.total, 0)
+                     + COALESCE(p_avance.total, 0) AS calculated_balance
+            FROM clients c
+            LEFT JOIN (SELECT client_id, SUM(total) AS total FROM sales WHERE sale_type='credit' GROUP BY client_id) s_finished ON s_finished.client_id = c.id
+            LEFT JOIN (SELECT client_id, SUM(total) AS total FROM raw_sales WHERE sale_type='credit' GROUP BY client_id) s_raw ON s_raw.client_id = c.id
+            LEFT JOIN (SELECT client_id, SUM(amount) AS total FROM payments WHERE payment_type='versement' GROUP BY client_id) p_versement ON p_versement.client_id = c.id
+            LEFT JOIN (SELECT client_id, SUM(amount) AS total FROM payments WHERE payment_type='avance' GROUP BY client_id) p_avance ON p_avance.client_id = c.id
+        ),
+        view_state AS (
+            SELECT id, name, current_balance FROM clients_with_stats
+        ),
+        mv_state AS (
+            SELECT client_id, name, balance FROM mv_client_balances
+        )
+        SELECT COALESCE(cal.id, vs.id, ms.client_id) AS id,
+               COALESCE(cal.name, vs.name, ms.name) AS name,
+               COALESCE(cal.calculated_balance, 0) AS calculated_balance,
+               COALESCE(vs.current_balance, 0) AS view_balance,
+               COALESCE(ms.balance, 0) AS mv_balance
+        FROM calculated cal
+        FULL JOIN view_state vs ON vs.id = cal.id
+        FULL JOIN mv_state ms ON ms.client_id = COALESCE(cal.id, vs.id)
+        WHERE ABS(COALESCE(cal.calculated_balance, 0) - COALESCE(vs.current_balance, 0)) > 0.01
+           OR ABS(COALESCE(cal.calculated_balance, 0) - COALESCE(ms.balance, 0)) > 0.01
+    """)
+    try:
+        res = await db.execute(stmt)
+        rows = res.fetchall()
+        discrepancies = []
+        for row in rows:
+            discrepancies.append({
+                "client_id": int(row[0]) if row[0] is not None else 0,
+                "name": str(row[1]) if row[1] is not None else "Inconnu",
+                "calculated": float(row[2]),
+                "view": float(row[3]),
+                "materialized_view": float(row[4])
+            })
+        
+        # Self-healing refresh if discrepancies in mv exist
+        if any(abs(d["calculated"] - d["materialized_view"]) > 0.01 for d in discrepancies):
+            try:
+                await db.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_client_balances"))
+                await db.commit()
+                # Re-run reconciliation query
+                res = await db.execute(stmt)
+                rows = res.fetchall()
+                discrepancies = []
+                for row in rows:
+                    discrepancies.append({
+                        "client_id": int(row[0]) if row[0] is not None else 0,
+                        "name": str(row[1]) if row[1] is not None else "Inconnu",
+                        "calculated": float(row[2]),
+                        "view": float(row[3]),
+                        "materialized_view": float(row[4])
+                    })
+            except Exception as inner_exc:
+                logger.warning("Could not refresh mv_client_balances during reconciliation check: %s", inner_exc)
+
+        status_label = "Conforme" if not discrepancies else "Ecart detecte"
+        return {
+            "ok": not discrepancies,
+            "status": status_label,
+            "count": len(discrepancies),
+            "discrepancies": discrepancies
+        }
+    except Exception as exc:
+        logger.error("Error executing financial reconciliation: %s", exc)
+        return {
+            "ok": False,
+            "status": "Erreur de verification",
+            "count": 0,
+            "discrepancies": [],
+            "error": str(exc)
+        }
+
 
 
 @async_compat

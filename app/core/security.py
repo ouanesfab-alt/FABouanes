@@ -80,6 +80,13 @@ def security_headers(response):
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(self), camera=()")
 
+    # En mode desktop (WebView2), désactiver tout cache disque pour éviter
+    # que WebView2 serve d'anciennes versions des pages et CSS entre navigations.
+    if settings.desktop_mode:
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+
     # Enable HSTS only in non-desktop production environments
     if settings.env == "production" and not settings.desktop_mode:
         response.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")

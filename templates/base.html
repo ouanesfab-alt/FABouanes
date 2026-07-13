@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" class="{% if is_print_view %}print-route-html{% endif %}">
 
 <head>
   <script nonce="{{ csp_nonce }}">
@@ -18,10 +18,13 @@
   </script>
   {% include 'partials/_head.html' %}
   <style nonce="{{ csp_nonce }}">
-    /* Mobile app-content bottom padding to prevent fixed bot-nav overlap */
+    /* Mobile layout: force margins and spacing to prevent navbar overlaps */
     @media(max-width:767px) {
       .app-content {
-        padding-bottom: calc(var(--bot-h, 60px) + env(safe-area-inset-bottom, 0px) + 24px) !important;
+        padding-top: 30px !important;
+        padding-bottom: 110px !important;
+        padding-left: 16px !important;
+        padding-right: 16px !important;
       }
     }
   </style>
@@ -118,6 +121,7 @@
   </div>
 
   {% include 'partials/_search_overlay.html' %}
+  <div class="desktop-bottom-border" aria-hidden="true"></div>
   {% endif %}
 
 

@@ -275,7 +275,13 @@
     const customInput = row.querySelector('.purchase-custom-name');
 
     if(prefill){
-      materialSelect.value = String(prefill.raw_material_id || materialSelect.value);
+      let targetValue = '';
+      if (prefill.finished_product_id) {
+        targetValue = 'finished:' + prefill.finished_product_id;
+      } else if (prefill.raw_material_id) {
+        targetValue = 'raw:' + prefill.raw_material_id;
+      }
+      materialSelect.value = targetValue || materialSelect.value;
       qtyInput.value = prefill.quantity ?? '';
       
       // Ensure target val is created in unitSelect options if not present

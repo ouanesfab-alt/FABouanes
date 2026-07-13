@@ -172,7 +172,95 @@ class _DbRateLimitStore:
 
 # ── Fallback setup ──────────────────────────────────────────────
 
-if _BACKEND_MODE == "db":
+_fallback_in_memory = _InMemoryRateLimitStore()
+
+
+class _RedisRateLimitStore:
+    """Redis-backed rate limiter for distributed/multi-worker deployments."""
+
+    def __init__(self, redis_url: str) -> None:
+        import redis
+        self.client = redis.from_url(redis_url)
+
+    def consume(self, key: str, limit: int, window_seconds: float) -> bool:
+        r_key = f"rate_limit:hits:{key}"
+        now = time.time()
+        try:
+            pipeline = self.client.pipeline()
+            # Remove hits outside window
+            pipeline.zremrangebyscore(r_key, 0, now - window_seconds)
+            # Count recent hits
+            pipeline.zcard(r_key)
+            # Add current hit
+            pipeline.zadd(r_key, {str(now): now})
+            # Set TTL on key
+            pipeline.expire(r_key, int(window_seconds) + 10)
+            res = pipeline.execute()
+            count = res[1]
+            if count >= limit:
+                return False
+            return True
+        except Exception:
+            # Fallback to local memory if Redis goes down (robustness!)
+            return _fallback_in_memory.consume(key, limit, window_seconds)
+
+    def record_failure(self, key: str) -> None:
+        r_key = f"rate_limit:failures:{key}"
+        now = time.time()
+        try:
+            pipeline = self.client.pipeline()
+            pipeline.zadd(r_key, {str(now): now})
+            pipeline.zremrangebyscore(r_key, 0, now - 86400) # Keep 24 hours
+            pipeline.expire(r_key, 86400)
+            pipeline.execute()
+        except Exception:
+            _fallback_in_memory.record_failure(key)
+
+    def is_locked_out(
+        self, key: str, max_attempts: int, window_s: float, lockout_s: float
+    ) -> bool:
+        r_key = f"rate_limit:failures:{key}"
+        now = time.time()
+        try:
+            # Clean up old failures
+            self.client.zremrangebyscore(r_key, 0, now - 86400)
+            # Get all recent failures
+            failures = [float(f) for f in self.client.zrangebyscore(r_key, now - window_s, now)]
+            if len(failures) < max_attempts:
+                return False
+            
+            # Exponential backoff
+            extra = len(failures) - max_attempts
+            lockout_time = lockout_s * (2 ** min(extra, 4))
+            last_failure = max(failures) if failures else 0
+            return (now - last_failure) < lockout_time
+        except Exception:
+            return _fallback_in_memory.is_locked_out(key, max_attempts, window_s, lockout_s)
+
+    def clear(self, key: str) -> None:
+        try:
+            self.client.delete(f"rate_limit:hits:{key}", f"rate_limit:failures:{key}")
+        except Exception:
+            _fallback_in_memory.clear(key)
+
+    def clear_all(self) -> None:
+        try:
+            keys = self.client.keys("rate_limit:*")
+            if keys:
+                self.client.delete(*keys)
+        except Exception:
+            _fallback_in_memory.clear_all()
+
+
+redis_url = os.environ.get("REDIS_URL", "").strip()
+
+if _BACKEND_MODE == "redis" or (_BACKEND_MODE == "memory" and redis_url):
+    try:
+        RateLimitStore = _RedisRateLimitStore(redis_url)
+    except Exception:
+        RateLimitStore = _fallback_in_memory
+elif _BACKEND_MODE == "db":
     RateLimitStore = _DbRateLimitStore()
 else:
-    RateLimitStore = _InMemoryRateLimitStore()
+    RateLimitStore = _fallback_in_memory
+

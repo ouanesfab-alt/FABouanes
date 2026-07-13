@@ -69,8 +69,7 @@
         // Alt + ? => Aide raccourcis
         if (key === '?' || key === '/') {
           e.preventDefault();
-          const m = document.getElementById('shortcutsHelpModal');
-          if (m) { m.classList.toggle('show'); }
+          window.location.href = '/admin?focus=manual';
           return;
         }
         let targetUrl = "";

@@ -66,8 +66,17 @@ async def api_auth_refresh(request: Request):
     if not user:
         api_error("refresh_token_invalid", "Jeton de renouvellement invalide.", 401)
     access_token = create_access_token(user)
+    new_refresh = await create_refresh_token(request, user)
     await asyncio.to_thread(audit_event, "api_refresh", "user", user["id"], source="api", after={"username": user["username"]})
-    return _response(api_success({"access_token": access_token, "token_type": "Bearer", "expires_in": ACCESS_TOKEN_TTL_SECONDS}))
+    return _response(
+        api_success({
+            "access_token": access_token,
+            "refresh_token": new_refresh,
+            "token_type": "Bearer",
+            "expires_in": ACCESS_TOKEN_TTL_SECONDS
+        })
+    )
+
 
 
 @router.post("/logout")

@@ -1,0 +1,420 @@
+<div class="card p-0" style="height: calc(100vh - 180px); min-height: 500px; overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--line);">
+  <div class="border-bottom p-3 d-flex align-items-center justify-content-between" style="background: var(--surface);">
+    <h5 class="m-0 fw-bold">
+      <span class="lang-fr"><i class="bi bi-journal-text me-2"></i>Manuel de Référence et d'Utilisation FABOuanes</span>
+      <span class="lang-ar" dir="rtl" style="display:none;"><i class="bi bi-journal-text ms-2"></i>دليل المرجع والاستخدام فاب وناس</span>
+    </h5>
+    <button id="btnSwitchLanguage" class="btn btn-sm btn-outline-dark" style="font-weight:600;"><i class="bi bi-translate me-1"></i>العربية</button>
+  </div>
+  
+  <div class="book-container">
+    <!-- Left sidebar: Table of Contents -->
+    <aside class="book-sidebar">
+      <ul class="book-toc">
+        <li class="toc-module-title"><span class="lang-fr">1. Démarrage &amp; Accès</span><span class="lang-ar" dir="rtl" style="display:none;">1. البدء والوصول</span></li>
+        <li class="toc-item active" data-chapter="1-1"><span class="lang-fr">📖 1.1 Démarrage rapide</span><span class="lang-ar" dir="rtl" style="display:none;">📖 1.1 البدء السريع</span></li>
+        <li class="toc-item" data-chapter="1-2"><span class="lang-fr">🔐 1.2 Connexion &amp; Session</span><span class="lang-ar" dir="rtl" style="display:none;">🔐 1.2 الدخول والجلسة</span></li>
+        <li class="toc-item" data-chapter="1-3"><span class="lang-fr">📲 1.3 QR Code Mobile Link</span><span class="lang-ar" dir="rtl" style="display:none;">📲 1.3 رابط الهاتف رمز QR</span></li>
+        <li class="toc-item" data-chapter="1-4"><span class="lang-fr">🎨 1.4 Personnalisation</span><span class="lang-ar" dir="rtl" style="display:none;">🎨 1.4 تخصيص الواجهة</span></li>
+        <li class="toc-item" data-chapter="1-5"><span class="lang-fr">🔑 1.5 Changement Mot de Passe</span><span class="lang-ar" dir="rtl" style="display:none;">🔑 1.5 تغيير كلمة المرور</span></li>
+        <li class="toc-item" data-chapter="1-6"><span class="lang-fr">🍪 1.6 Cookies &amp; Sécurité</span><span class="lang-ar" dir="rtl" style="display:none;">🍪 1.6 ملفات الارتباط والأمان</span></li>
+        
+        <li class="toc-module-title"><span class="lang-fr">2. Tableau de Bord &amp; IA</span><span class="lang-ar" dir="rtl" style="display:none;">2. لوحة القيادة والذكاء</span></li>
+        <li class="toc-item" data-chapter="2-1"><span class="lang-fr">📊 2.1 Les KPIs Financiers</span><span class="lang-ar" dir="rtl" style="display:none;">📊 2.1 المؤشرات المالية</span></li>
+        <li class="toc-item" data-chapter="2-2"><span class="lang-fr">📈 2.2 Graphiques &amp; Analyse</span><span class="lang-ar" dir="rtl" style="display:none;">📈 2.2 الرسوم البيانية</span></li>
+        <li class="toc-item" data-chapter="2-3"><span class="lang-fr">💬 2.3 Sabrina (Assistante IA)</span><span class="lang-ar" dir="rtl" style="display:none;">💬 2.3 سابرينا (المساعد الذكي)</span></li>
+        <li class="toc-item" data-chapter="2-4"><span class="lang-fr">📜 2.4 Historique Sabrina</span><span class="lang-ar" dir="rtl" style="display:none;">📜 2.4 سجل المحادثات</span></li>
+        <li class="toc-item" data-chapter="2-5"><span class="lang-fr">📉 2.5 Analyse des Tendances</span><span class="lang-ar" dir="rtl" style="display:none;">📉 2.5 تحليل الاتجاهات</span></li>
+        <li class="toc-item" data-chapter="2-6"><span class="lang-fr">🔔 2.6 Notifications WebSocket</span><span class="lang-ar" dir="rtl" style="display:none;">🔔 2.6 التنبيهات الفورية</span></li>
+        
+        <li class="toc-module-title"><span class="lang-fr">3. Contacts &amp; Import</span><span class="lang-ar" dir="rtl" style="display:none;">3. جهات الاتصال والاستيراد</span></li>
+        <li class="toc-item" data-chapter="3-1"><span class="lang-fr">👥 3.1 Clients (CRUD complet)</span><span class="lang-ar" dir="rtl" style="display:none;">👥 3.1 العملاء (إدارة كاملة)</span></li>
+        <li class="toc-item" data-chapter="3-2"><span class="lang-fr">📥 3.2 Importateur Excel</span><span class="lang-ar" dir="rtl" style="display:none;">📥 3.2 مستورد إكسل</span></li>
+        <li class="toc-item" data-chapter="3-3"><span class="lang-fr">⏸️ 3.3 Barre de Progrès</span><span class="lang-ar" dir="rtl" style="display:none;">⏸️ 3.3 شريط التقدم</span></li>
+        <li class="toc-item" data-chapter="3-4"><span class="lang-fr">🏢 3.4 Fournisseurs &amp; Soldes</span><span class="lang-ar" dir="rtl" style="display:none;">🏢 3.4 الموردون والأرصدة</span></li>
+        <li class="toc-item" data-chapter="3-5"><span class="lang-fr">🧹 3.5 Doublons &amp; Fusion</span><span class="lang-ar" dir="rtl" style="display:none;">🧹 3.5 تكرار الحسابات ودمجها</span></li>
+        <li class="toc-item" data-chapter="3-6"><span class="lang-fr">📤 3.6 Exportation Contacts</span><span class="lang-ar" dir="rtl" style="display:none;">📤 3.6 تصدير جهات الاتصال</span></li>
+        
+        <li class="toc-module-title"><span class="lang-fr">4. Opérations &amp; Ventes</span><span class="lang-ar" dir="rtl" style="display:none;">4. العمليات والمبيعات</span></li>
+        <li class="toc-item" data-chapter="4-1"><span class="lang-fr">🛒 4.1 Ventes &amp; Versements</span><span class="lang-ar" dir="rtl" style="display:none;">🛒 4.1 المبيعات والمدفوعات</span></li>
+        <li class="toc-item" data-chapter="4-2"><span class="lang-fr">📦 4.2 Achats &amp; Fournisseurs</span><span class="lang-ar" dir="rtl" style="display:none;">📦 4.2 المشتريات والموردون</span></li>
+        <li class="toc-item" data-chapter="4-3"><span class="lang-fr">🗑️ 4.3 Édition &amp; Annulations</span><span class="lang-ar" dir="rtl" style="display:none;">🗑️ 4.3 التعديل والإلغاء</span></li>
+        <li class="toc-item" data-chapter="4-4"><span class="lang-fr">📄 4.4 États de compte client</span><span class="lang-ar" dir="rtl" style="display:none;">📄 4.4 كشوف الحسابات</span></li>
+        <li class="toc-item" data-chapter="4-5"><span class="lang-fr">💵 4.5 Gestion des Acomptes</span><span class="lang-ar" dir="rtl" style="display:none;">💵 4.5 العربون والتسبيقات</span></li>
+        <li class="toc-item" data-chapter="4-6"><span class="lang-fr">📜 4.6 Historique Global</span><span class="lang-ar" dir="rtl" style="display:none;">📜 4.6 سجل العمليات العام</span></li>
+        
+        <li class="toc-module-title"><span class="lang-fr">5. Production industrielle</span><span class="lang-ar" dir="rtl" style="display:none;">5. الإنتاج الصناعي</span></li>
+        <li class="toc-item" data-chapter="5-1"><span class="lang-fr">📋 5.1 Fiches Recettes</span><span class="lang-ar" dir="rtl" style="display:none;">📋 5.1 البطاقات الفنية والوصفات</span></li>
+        <li class="toc-item" data-chapter="5-2"><span class="lang-fr">🏭 5.2 Lancement de Production</span><span class="lang-ar" dir="rtl" style="display:none;">🏭 5.2 إطلاق الإنتاج</span></li>
+        <li class="toc-item" data-chapter="5-3"><span class="lang-fr">📦 5.3 Suivi des Stocks Alerte</span><span class="lang-ar" dir="rtl" style="display:none;">📦 5.3 المخzون والتنبيهات</span></li>
+        <li class="toc-item" data-chapter="5-4"><span class="lang-fr">📜 5.4 Historique Production</span><span class="lang-ar" dir="rtl" style="display:none;">📜 5.4 سجل الإنتاج</span></li>
+        <li class="toc-item" data-chapter="5-5"><span class="lang-fr">🍂 5.5 Perte Matières Premières</span><span class="lang-ar" dir="rtl" style="display:none;">🍂 5.5 ضياع وتلف المواد</span></li>
+        <li class="toc-item" data-chapter="5-6"><span class="lang-fr">🧮 5.6 Calcul Coût de Revient</span><span class="lang-ar" dir="rtl" style="display:none;">🧮 5.6 تكلفة الإنتاج الإجمالية</span></li>
+        
+        <li class="toc-module-title"><span class="lang-fr">6. Outils &amp; Utilitaires</span><span class="lang-ar" dir="rtl" style="display:none;">6. الأدوات والمnaفع</span></li>
+        <li class="toc-item" data-chapter="6-1"><span class="lang-fr">💸 6.1 Dépenses Annexes</span><span class="lang-ar" dir="rtl" style="display:none;">💸 6.1 المصاريف الملحقة</span></li>
+        <li class="toc-item" data-chapter="6-2"><span class="lang-fr">📝 6.2 Bloc-Notes &amp; Mémos</span><span class="lang-ar" dir="rtl" style="display:none;">📝 6.2 دفتر الملاحظات</span></li>
+        <li class="toc-item" data-chapter="6-3"><span class="lang-fr">🗃️ 6.3 Catalogue d'Articles</span><span class="lang-ar" dir="rtl" style="display:none;">🗃️ 6.3 دليل السلع والمنتجات</span></li>
+        <li class="toc-item" data-chapter="6-4"><span class="lang-fr">💰 6.4 Ajustement des Tarifs</span><span class="lang-ar" dir="rtl" style="display:none;">💰 6.4 تعديل الأسعار</span></li>
+        <li class="toc-item" data-chapter="6-5"><span class="lang-fr">🔍 6.5 Recherche multicritères</span><span class="lang-ar" dir="rtl" style="display:none;">🔍 6.5 البحث المتقدم</span></li>
+        <li class="toc-item" data-chapter="6-6"><span class="lang-fr">🧮 6.6 Calculatrice Intégrée</span><span class="lang-ar" dir="rtl" style="display:none;">🧮 6.6 الحاسبة المدمجة</span></li>
+        
+        <li class="toc-module-title"><span class="lang-fr">7. Espace Bons &amp; Édition</span><span class="lang-ar" dir="rtl" style="display:none;">7. مساحة الوصولات والتحرير</span></li>
+        <li class="toc-item" data-chapter="7-1"><span class="lang-fr">📂 7.1 Explorateur de Bons</span><span class="lang-ar" dir="rtl" style="display:none;">📂 7.1 مستعرض الوصولات</span></li>
+        <li class="toc-item" data-chapter="7-2"><span class="lang-fr">🖨️ 7.2 Formats A4 &amp; A5 PDF</span><span class="lang-ar" dir="rtl" style="display:none;">🖨️ 7.2 طباعة A4 و A5 PDF</span></li>
+        <li class="toc-item" data-chapter="7-3"><span class="lang-fr">📥 7.3 Exportation Excel / CSV</span><span class="lang-ar" dir="rtl" style="display:none;">📥 7.3 تصدير إكسل و CSV</span></li>
+        <li class="toc-item" data-chapter="7-4"><span class="lang-fr">🧾 7.4 Reçus thermiques &amp; Tickets</span><span class="lang-ar" dir="rtl" style="display:none;">🧾 7.4 الوصولات الحرارية</span></li>
+        <li class="toc-item" data-chapter="7-5"><span class="lang-fr">✒️ 7.5 Entêtes &amp; Logos</span><span class="lang-ar" dir="rtl" style="display:none;">✒️ 7.5 ترويسة الوصول والشعار</span></li>
+        <li class="toc-item" data-chapter="7-6"><span class="lang-fr">✍️ 7.6 Signature &amp; Cachet</span><span class="lang-ar" dir="rtl" style="display:none;">✍️ 7.6 التوقيع والختم</span></li>
+        
+        <li class="toc-module-title"><span class="lang-fr">8. Paramètres &amp; Admin</span><span class="lang-ar" dir="rtl" style="display:none;">8. الإعدادات والإدارة</span></li>
+        <li class="toc-item" data-chapter="8-1"><span class="lang-fr">🛠️ 8.1 Configuration de l'IA</span><span class="lang-ar" dir="rtl" style="display:none;">🛠️ 8.1 إعدادات الذكاء الاصطناعي</span></li>
+        <li class="toc-item" data-chapter="8-2"><span class="lang-fr">💾 8.2 Maintenance &amp; Backups</span><span class="lang-ar" dir="rtl" style="display:none;">💾 8.2 الصيانة والنسخ الاحتياطي</span></li>
+        <li class="toc-item" data-chapter="8-3"><span class="lang-fr">🔑 8.3 Comptes &amp; Droits</span><span class="lang-ar" dir="rtl" style="display:none;">🔑 8.3 الحسابات والصلاحيات</span></li>
+        <li class="toc-item" data-chapter="8-4"><span class="lang-fr">🕵️ 8.4 Journal d'Audit</span><span class="lang-ar" dir="rtl" style="display:none;">🕵️ 8.4 سجل الرقابة والأمان</span></li>
+        <li class="toc-item" data-chapter="8-5"><span class="lang-fr">🪙 8.5 Configuration de Devise</span><span class="lang-ar" dir="rtl" style="display:none;">🪙 8.5 إعدادات العملة</span></li>
+        <li class="toc-item" data-chapter="8-6"><span class="lang-fr">🔄 8.6 Réinitialisation de l'App</span><span class="lang-ar" dir="rtl" style="display:none;">🔄 8.6 إعادة تهيئة التطبيق</span></li>
+        
+        <li class="toc-module-title"><span class="lang-fr">9. FAQ &amp; Raccourcis</span><span class="lang-ar" dir="rtl" style="display:none;">9. الأسئلة الشائعة والاختصارات</span></li>
+        <li class="toc-item" data-chapter="9-1"><span class="lang-fr">❓ 9.1 FAQ / Dépannage</span><span class="lang-ar" dir="rtl" style="display:none;">❓ 9.1 الأسئلة الشائعة وحل المشاكل</span></li>
+        <li class="toc-item" data-chapter="9-2"><span class="lang-fr">💬 9.2 Questions &amp; Réponses</span><span class="lang-ar" dir="rtl" style="display:none;">💬 9.2 أسئلة وأجوبة</span></li>
+        <li class="toc-item" data-chapter="9-3"><span class="lang-fr">⌨️ 9.3 Raccourcis Clavier</span><span class="lang-ar" dir="rtl" style="display:none;">⌨️ 9.3 اختصارات لوحة المفاتيح</span></li>
+        <li class="toc-item" data-chapter="9-4"><span class="lang-fr">📞 9.4 Support &amp; Versions</span><span class="lang-ar" dir="rtl" style="display:none;">📞 9.4 الدعم الفني والإصدارات</span></li>
+        <li class="toc-item" data-chapter="9-5"><span class="lang-fr">📱 9.5 Démarrage Rapide Mobile</span><span class="lang-ar" dir="rtl" style="display:none;">📱 9.5 دليل الهاتف السريع</span></li>
+        <li class="toc-item" data-chapter="9-6"><span class="lang-fr">📖 9.6 Lexique des termes</span><span class="lang-ar" dir="rtl" style="display:none;">📖 9.6 قاموس المصطلحات</span></li>
+      </ul>
+    </aside>
+    
+    <!-- Right content: Book pages -->
+    <main class="book-content">
+      <!-- Manual Loader -->
+      <div id="manual-loader" style="display:none;" class="text-center my-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="mt-2 text-muted">Chargement du chapitre... / جاري التحميل...</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<style>
+/* Book Layout structures */
+.book-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+  background: var(--card);
+}
+.book-sidebar {
+  width: 250px;
+  background: var(--bg-tertiary, rgba(255,255,255,0.03));
+  border-right: 1px solid var(--line, rgba(255,255,255,0.08));
+  padding: 12px 6px;
+  overflow-y: auto;
+}
+.book-toc {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.toc-module-title {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-top: 12px;
+  margin-bottom: 4px;
+  padding-left: 10px;
+}
+.toc-module-title:first-child {
+  margin-top: 0;
+}
+.toc-item {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  margin-left: 4px;
+}
+.toc-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+[data-theme="dark"] .toc-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.toc-item.active {
+  background: var(--system-blue, #2563eb) !important;
+  color: white !important;
+  font-weight: 600;
+}
+.book-content {
+  flex: 1;
+  padding: 24px 32px;
+  overflow-y: auto;
+  background: var(--bg-secondary, #1e1e2a);
+}
+.book-page {
+  display: none;
+  animation: pageFadeIn 0.25s var(--ease-spring, ease-out);
+}
+.book-page.active {
+  display: block;
+}
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Typography styles inside the book */
+.book-page h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+  color: var(--text);
+  border-bottom: 2px solid var(--system-blue, #2563eb);
+  padding-bottom: 6px;
+}
+.book-page h4 {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin-top: 14px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+.book-page p {
+  line-height: 1.5;
+  font-size: 0.82rem;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+.book-page ul, .book-page ol {
+  padding-left: 18px;
+  margin-bottom: 10px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.book-page li {
+  margin-bottom: 4px;
+}
+.book-callout {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(0, 122, 255, 0.05);
+  border-left: 4px solid var(--system-blue, #2563eb);
+  margin-bottom: 12px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+.book-callout.warning {
+  background: rgba(255, 149, 0, 0.05);
+  border-left-color: var(--system-orange, #ff9500);
+}
+.book-callout.success {
+  background: rgba(52, 199, 89, 0.05);
+  border-left-color: var(--system-green, #34c759);
+}
+kbd {
+  background: rgba(120,120,120,0.15);
+  border: 1px solid rgba(120,120,120,0.25);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+  color: var(--text);
+}
+
+/* Keyboard Shortcut List block */
+.shortcuts-group-label {
+  font-size: .68rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 8px;
+  margin-top: 8px;
+}
+.shortcuts-list { display: flex; flex-direction: column; gap: 4px; }
+.shortcut-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 10px; border-radius: 8px;
+  transition: background .15s;
+}
+.shortcut-row:hover { background: rgba(0,0,0,.03); }
+[data-theme="dark"] .shortcut-row:hover { background: rgba(255,255,255,.03); }
+.shortcut-row span { font-size: .8rem; color: var(--text); display: flex; align-items: center; }
+.shortcut-keys { display: flex; align-items: center; gap: 3px; }
+.shortcut-keys span { color: var(--muted); font-size: .75rem; }
+
+@media (max-width: 768px) {
+  .book-container { flex-direction: column; }
+  .book-sidebar { width: 100%; height: 160px; border-right: none; border-bottom: 1px solid var(--line); }
+  .book-toc { flex-direction: row; overflow-x: auto; white-space: nowrap; padding-bottom: 6px; }
+  .toc-item { display: inline-flex; }
+}
+</style>
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+  let currentLang = 'fr'; // default
+  const loadedChapters = new Map();
+  const bookContent = document.querySelector('#adminManual .book-content');
+
+  function applyLanguageToPage(pageEl) {
+    const frEls = pageEl.querySelectorAll('.lang-fr');
+    const arEls = pageEl.querySelectorAll('.lang-ar');
+    if (currentLang === 'fr') {
+      frEls.forEach(el => el.style.display = 'block');
+      arEls.forEach(el => el.style.display = 'none');
+      pageEl.removeAttribute('dir');
+    } else {
+      frEls.forEach(el => el.style.display = 'none');
+      arEls.forEach(el => el.style.display = 'block');
+      pageEl.setAttribute('dir', 'rtl');
+    }
+  }
+
+  async function loadChapter(chapterId) {
+    const targetId = 'page-' + chapterId;
+    let section = document.getElementById(targetId);
+    
+    // Deactivate all loaded pages under adminManual
+    document.querySelectorAll('#adminManual .book-page').forEach(p => p.classList.remove('active'));
+
+    if (section) {
+      section.classList.add('active');
+      applyLanguageToPage(section);
+      if (bookContent) bookContent.scrollTop = 0;
+      return;
+    }
+
+    // Show loader
+    const loader = document.getElementById('manual-loader');
+    if (loader) loader.style.display = 'block';
+
+    try {
+      const response = await fetch('/manual/chapter/' + chapterId);
+      if (!response.ok) throw new Error('Failed to load chapter');
+      const html = await response.text();
+
+      if (loader) loader.style.display = 'none';
+
+      section = document.createElement('section');
+      section.id = targetId;
+      section.className = 'book-page active';
+      section.innerHTML = html;
+
+      if (bookContent) {
+        bookContent.appendChild(section);
+        applyLanguageToPage(section);
+        bookContent.scrollTop = 0;
+      }
+
+      // Re-trigger simulators if needed (Chapter 3-3 progress bar simulator)
+      if (chapterId === '3-3' || chapterId === '7-4' || chapterId === '7-1') {
+        if (typeof startSimProgress === 'function') {
+          startSimProgress();
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      if (loader) {
+        loader.innerHTML = '<div class="alert alert-danger m-3">Erreur lors du chargement du chapitre / فشل تحميل الفصل</div>';
+      }
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Table of contents navigation
+    const tocItems = document.querySelectorAll('#adminManual .toc-item');
+    tocItems.forEach(item => {
+      item.addEventListener('click', function() {
+        tocItems.forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        const chapter = item.getAttribute('data-chapter');
+        loadChapter(chapter);
+      });
+    });
+
+    // Bilingual switch logic
+    const btnSwitch = document.getElementById('btnSwitchLanguage');
+    if (btnSwitch) {
+      btnSwitch.addEventListener('click', function() {
+        if (currentLang === 'fr') {
+          currentLang = 'ar';
+          btnSwitch.innerHTML = '<i class="bi bi-translate me-1"></i>Français';
+          if (bookContent) bookContent.setAttribute('dir', 'rtl');
+        } else {
+          currentLang = 'fr';
+          btnSwitch.innerHTML = '<i class="bi bi-translate me-1"></i>العربية';
+          if (bookContent) bookContent.removeAttribute('dir');
+        }
+        // Apply to all loaded pages
+        document.querySelectorAll('#adminManual .book-page').forEach(page => {
+          applyLanguageToPage(page);
+        });
+      });
+    }
+
+    // Auto load first chapter by default
+    loadChapter('1-1');
+  });
+})();
+
+// Simulated Tools Scripts
+let simInterval = null;
+let simPercent = 45;
+let simPaused = false;
+
+function startSimProgress() {
+  if (simInterval) clearInterval(simInterval);
+  simInterval = setInterval(() => {
+    if (simPaused) return;
+    simPercent += 1;
+    if (simPercent > 100) simPercent = 0;
+    
+    const bar = document.getElementById('sim-bar-manual');
+    const pct = document.getElementById('sim-pct-manual');
+    if (bar && pct) {
+      bar.style.width = simPercent + '%';
+      pct.textContent = simPercent + '%';
+    }
+  }, 400);
+}
+
+function toggleSimPause() {
+  simPaused = !simPaused;
+  const btn = document.getElementById('sim-btn-manual');
+  if (btn) btn.textContent = simPaused ? 'Reprendre / استئناف' : 'Pause / إيقاف';
+}
+
+function resetSimProgress() {
+  simPercent = 0;
+  const bar = document.getElementById('sim-bar-manual');
+  const pct = document.getElementById('sim-pct-manual');
+  if (bar && pct) {
+    bar.style.width = '0%';
+    pct.textContent = '0%';
+  }
+}
+
+function toggleSimDropdownManual() {
+  const m = document.getElementById('simExportMenuManual');
+  if (m) {
+    m.style.display = m.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  startSimProgress();
+});
+</script>

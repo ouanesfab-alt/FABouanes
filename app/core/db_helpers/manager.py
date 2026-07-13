@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 import os
-import re
 import logging
 import threading
-import asyncio
 from time import monotonic
 from contextlib import contextmanager
 from collections import OrderedDict
 from typing import Any, Callable
 from urllib.parse import urlparse
-
 from decimal import Decimal
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
@@ -19,66 +17,8 @@ from app.core.config import settings
 from app.core.perf_cache import invalidate_cache_domains
 from app.core.request_state import ensure_request_state, get_request_state
 
-def split_sql_script(script: str) -> list[str]:
-    statements = []
-    current = []
-    in_dollar = False
-    in_single_quote = False
-    in_double_quote = False
-
-    i = 0
-    n = len(script)
-    while i < n:
-        char = script[i]
-
-        # Parse comments ONLY when we are not inside a string or dollar block
-        if not in_dollar and not in_single_quote and not in_double_quote:
-            # Single-line comment --
-            if char == '-' and i + 1 < n and script[i+1] == '-':
-                # Skip until end of line
-                i += 2
-                while i < n and script[i] != '\n':
-                    i += 1
-                continue
-            # Multi-line comment /* ... */
-            if char == '/' and i + 1 < n and script[i+1] == '*':
-                i += 2
-                while i < n and not (script[i] == '*' and i + 1 < n and script[i+1] == '/'):
-                    i += 1
-                i += 2  # skip closing */
-                continue
-
-        if char == '$' and i + 1 < n and script[i+1] == '$':
-            in_dollar = not in_dollar
-            current.append('$$')
-            i += 2
-            continue
-
-        if not in_dollar:
-            if char == "'" and (i == 0 or script[i-1] != '\\'):
-                in_single_quote = not in_single_quote
-            elif char == '"' and (i == 0 or script[i-1] != '\\'):
-                in_double_quote = not in_double_quote
-
-        if char == ';' and not in_dollar and not in_single_quote and not in_double_quote:
-            stmt = "".join(current).strip()
-            if stmt:
-                statements.append(stmt)
-            current = []
-        else:
-            current.append(char)
-        i += 1
-
-    stmt = "".join(current).strip()
-    if stmt:
-        statements.append(stmt)
-    return statements
-
-def validate_identifier(name: str) -> None:
-    if not name or not isinstance(name, str):
-        raise ValueError("Invalid database identifier")
-    if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_\.]*$", name):
-        raise ValueError(f"Invalid database identifier: {name}")
+logger = logging.getLogger("fabouanes")
+_PERF_LOGGER = logging.getLogger("fabouanes.performance")
 
 
 class CompatRow(dict):
@@ -91,6 +31,7 @@ class CompatRow(dict):
             return self._values_tuple[key]
         return super().__getitem__(key)
 
+
 def _wrap_rows(rows, description):
     if not description:
         return rows
@@ -99,6 +40,7 @@ def _wrap_rows(rows, description):
     for row in rows:
         wrapped.append(CompatRow(OrderedDict(zip(cols, row))))
     return wrapped
+
 
 class CompatCursor:
     def __init__(self, cursor, description=None):
@@ -125,6 +67,7 @@ class CompatCursor:
     def lastrowid(self):
         return getattr(self.cursor, "lastrowid", None)
 
+
 def _clean_params(params):
     if not params:
         return params
@@ -143,6 +86,7 @@ def _clean_params(params):
         else:
             cleaned.append(p)
     return tuple(cleaned) if isinstance(params, tuple) else cleaned
+
 
 class CompatConnection:
     def __init__(
@@ -188,6 +132,7 @@ class CompatConnection:
                 raise
 
     def executescript(self, script: str):
+        from app.core.db_helpers.query import split_sql_script
         for statement in split_sql_script(script):
             if statement.strip():
                 self.execute(statement)
@@ -216,6 +161,7 @@ class CompatConnection:
         except Exception:
             pass
         self.conn = self._reconnect()
+
 
 class DatabaseManager:
     def __init__(self):
@@ -445,15 +391,12 @@ class DatabaseManager:
         if domains:
             invalidate_cache_domains(*domains)
 
-    # ── Pagination Guard ────────────────────────────────────────────────────
     MAX_UNPAGINATED_ROWS = 10_000
 
     def _guard_pagination(self, query: str) -> str:
-        """Ajoute un LIMIT de sécurité aux SELECT sans LIMIT pour prévenir les OOM."""
         q = query.strip().lower()
         if not q.startswith("select") and not q.startswith("("):
             return query
-        # Éviter le parsing complexe pour les requêtes COUNT simples très fréquentes
         if "count(*)" in q or "count(1)" in q:
             return query
         try:
@@ -467,14 +410,12 @@ class DatabaseManager:
         except Exception as exc:
             logger.warning("[PAGINATION GUARD] Fallback sur erreur de parsing sqlglot: %s", exc)
 
-        # Fallback classique par chaîne de caractères
         if any(kw in q for kw in ("limit ", "limit\n", "for update", "for share")):
             return query
         logger.debug("[PAGINATION GUARD] Auto-LIMIT %d appliqué à: %s", self.MAX_UNPAGINATED_ROWS, query[:120])
         return f"{query.rstrip().rstrip(';')} LIMIT {self.MAX_UNPAGINATED_ROWS}"
 
     def query_db(self, query: str, params: tuple = (), one: bool = False):
-        """Exécute une requête SELECT. Retente une fois sur erreur transitoire de connexion."""
         if not one:
             query = self._guard_pagination(query)
         started = monotonic()
@@ -493,9 +434,9 @@ class DatabaseManager:
                 exc_msg = str(exc).lower()
                 is_transient = (
                     "connection" in exc_msg
-                    or "57p01" in exc_msg  # admin_shutdown
-                    or "08006" in exc_msg  # connection_failure
-                    or "08001" in exc_msg  # connection_rejected
+                    or "57p01" in exc_msg
+                    or "08006" in exc_msg
+                    or "08001" in exc_msg
                 )
                 if self._tx_depth() == 0:
                     try:
@@ -504,7 +445,6 @@ class DatabaseManager:
                         logger.debug("Ignored error: %s", e2, exc_info=False)
                 if is_transient and attempt == 0 and self._tx_depth() == 0:
                     logger.warning("Transient DB error on query_db (attempt %d), retrying: %s", attempt + 1, exc)
-                    # Forcer une nouvelle connexion au prochain appel
                     state = get_request_state()
                     if state is not None and getattr(state, "read_db", None) is not None:
                         try:
@@ -516,10 +456,11 @@ class DatabaseManager:
                 raise
 
     async def query_db_async(self, query: str, params: tuple = (), one: bool = False):
+        import asyncio
         return await asyncio.to_thread(self.query_db, query, params, one)
 
     def execute_db(self, query: str, params: tuple = ()) -> int:
-        """Exécute une requête DML. Retente une fois sur erreur transitoire de connexion."""
+        import re
         for attempt in range(2):
             db = self.get_write_db()
             started = monotonic()
@@ -553,7 +494,6 @@ class DatabaseManager:
                         logger.debug("Ignored error: %s", e2, exc_info=False)
                 if is_transient and attempt == 0 and self._tx_depth() == 0:
                     logger.warning("Transient DB error on execute_db (attempt %d), retrying: %s", attempt + 1, exc)
-                    # Forcer une nouvelle connexion au prochain appel
                     state = get_request_state()
                     if state is not None and getattr(state, "db", None) is not None:
                         try:
@@ -569,13 +509,14 @@ class DatabaseManager:
                 self._record_sql_timing(query, params, (monotonic() - started) * 1000.0)
                 self._invalidate_after_write(query)
                 return int(last_id or 0)
-        return 0  # ne devrait jamais être atteint
-
+        return 0
 
     async def execute_db_async(self, query: str, params: tuple = ()) -> int:
+        import asyncio
         return await asyncio.to_thread(self.execute_db, query, params)
 
     def _postgres_last_insert_id(self, db, query: str) -> int:
+        import re
         match = re.match(r"\s*INSERT\s+INTO\s+([a-zA-Z_][a-zA-Z0-9_]*)\b", str(query or ""), flags=re.I)
         if not match:
             return 0
@@ -685,7 +626,6 @@ class DatabaseManager:
         with self._perf_conn_lock:
             now = monotonic()
             if self._perf_conn is not None:
-                # Recycle connection if it's older than 15 minutes to avoid stale connection issues
                 age = now - getattr(self, "_perf_conn_created_at", 0)
                 if age > 900:
                     try:
@@ -732,11 +672,9 @@ class DatabaseManager:
                     _PERF_LOGGER.exception("Unable to persist performance log batch")
 
     def shutdown(self) -> None:
-        """Drains the performance log queue and closes resources on shutdown."""
         self._perf_shutdown = True
         self._perf_event.set()
         try:
-            # Drain remaining logs
             while True:
                 batch = self._pop_performance_batch(limit=100)
                 if not batch:
@@ -761,72 +699,42 @@ class DatabaseManager:
         self._write_performance_batch(batch)
         return len(batch)
 
+
 db_manager = DatabaseManager()
 
-# Backwards compatibility facades
+
 class ConnectionPoolManager(DatabaseManager):
     pass
 
+
 pool_manager = db_manager
-
-logger = logging.getLogger("fabouanes")
-_PERF_LOGGER = logging.getLogger("fabouanes.performance")
-
 
 
 def get_db() -> CompatConnection:
     return db_manager.get_db()
 
+
 def connect_database(database_url: str) -> CompatConnection:
     return db_manager.connect_database(database_url)
 
-def query_db(query: str, params: tuple = (), one: bool = False):
-    return db_manager.query_db(query, params, one)
-
-async def query_db_async(query: str, params: tuple = (), one: bool = False):
-    return await db_manager.query_db_async(query, params, one)
-
-def execute_db(query: str, params: tuple = ()) -> int:
-    return db_manager.execute_db(query, params)
-
-async def execute_db_async(query: str, params: tuple = ()) -> int:
-    return await db_manager.execute_db_async(query, params)
-
-def explain_query_plan(query: str, params: tuple = ()) -> list[dict]:
-    return db_manager.explain_query_plan(query, params)
-
-@contextmanager
-def db_transaction():
-    with db_manager.db_transaction() as tx:
-        yield tx
-
-def get_setting(key: str, default: str = '') -> str:
-    return db_manager.get_setting(key, default)
-
-def set_setting(key: str, value: str) -> None:
-    db_manager.set_setting(key, value)
 
 def postgres_pool_status(database_url: str) -> dict[str, int | str]:
     return db_manager.postgres_pool_status(database_url)
 
+
 def list_columns(conn: CompatConnection, table: str) -> set[str]:
     return db_manager.list_columns(conn, table)
+
 
 def pending_performance_event_count() -> int:
     return db_manager.pending_performance_event_count()
 
+
 def drain_performance_events_once() -> int:
     return db_manager.drain_performance_events_once()
 
-def db_task(func):
-    """
-    Decorator to wrap synchronous repository or database operations.
-    Runs synchronously by default when called normally:
-        result = get_client(123)
 
-    Runs in a background thread when called via the .async_ attribute:
-        result = await get_client.async_(123)
-    """
+def db_task(func):
     import functools
     import asyncio
 
@@ -843,18 +751,15 @@ def db_task(func):
     return wrapper
 
 
-def execute_sa(query) -> int:
-    from sqlalchemy.dialects import postgresql
-    compiled = query.compile(dialect=postgresql.dialect(paramstyle="format"), compile_kwargs={"literal_binds": False})
-    sql = str(compiled)
-    params = tuple(compiled.params[name] for name in compiled.positiontup)
-    return execute_db(sql, params)
+@contextmanager
+def db_transaction():
+    with db_manager.db_transaction() as tx:
+        yield tx
 
 
-def query_sa(query, one: bool = False):
-    from sqlalchemy.dialects import postgresql
-    compiled = query.compile(dialect=postgresql.dialect(paramstyle="format"), compile_kwargs={"literal_binds": False})
-    sql = str(compiled)
-    params = tuple(compiled.params[name] for name in compiled.positiontup)
-    return query_db(sql, params, one=one)
+def get_setting(key: str, default: str = '') -> str:
+    return db_manager.get_setting(key, default)
 
+
+def set_setting(key: str, value: str) -> None:
+    db_manager.set_setting(key, value)

@@ -59,7 +59,6 @@ COMPAT_ROUTE_MAP = {
     "new_expense": "/expenses/new",
     "edit_expense": "/expenses/{expense_id}/edit",
     "delete_expense": "/expenses/{expense_id}/delete",
-    # Module: Rapports
     "reports_dashboard": "/reports",
     "reports_export_csv": "/reports/export-csv",
 }

@@ -24,14 +24,31 @@
   }
   
   html, body { overflow-x: auto !important; }
-  body.print-route .app-content { min-width: var(--print-content-width); min-width:190mm; }
   
-  /* Outer Shell styling */
+  body.print-route,
+  html body.print-route,
+  html:not([data-nav="vertical"]) body.print-route {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  
+  body.print-route .app-content {
+    min-width: var(--print-content-width);
+    min-width:190mm;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  
   .print-doc-shell {
     width: var(--print-content-width);
     min-width: var(--print-content-width);
     max-width: none;
-    margin: 0 auto;
+    margin: 0 auto !important;
+    padding-bottom: 0 !important;
     display: flex;
     flex-direction: column;
     gap: var(--print-gap);
@@ -433,6 +450,8 @@
     gap: 12px;
     flex-wrap: wrap;
     margin-top: 4mm;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
   }
 
   @page {

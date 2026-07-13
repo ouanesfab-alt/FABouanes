@@ -3,18 +3,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse, Response
 
-from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
+from app.web.deps import require_permission, template_context, templates
 from app.core.rate_limit import limiter
 from app.core.audit import export_audit_logs_csv
 from app.core.permissions import PERMISSION_AUDIT_READ, PERMISSION_SETTINGS_MANAGE, PERMISSION_USERS_MANAGE
 from app.services.admin_service import (
-    create_manual_backup,
-    create_user_account,
     get_admin_view_data,
-    restore_backup_by_value,
-    run_database_maintenance,
-    save_backup_settings_from_form,
-    update_user_account,
 )
 from app.services.system_service import export_diagnostic_report, get_system_status
 
@@ -27,60 +21,22 @@ async def admin_panel_page(request: Request):
     denied = require_permission(request, PERMISSION_SETTINGS_MANAGE)
     if denied:
         return denied
-    context = await get_admin_view_data(dict(request.query_params))
+
+    from app.modules.assistant.schema_context import get_gemini_api_key
+    from app.core.db_helpers import db_manager
+    from app.modules.assistant.service import is_ollama_available
+
+    sabrina_api_key = get_gemini_api_key()
+    selected_model = db_manager.get_setting("gemini_model", "gemini-3.1-flash-lite").strip() or "gemini-3.1-flash-lite"
+    has_key = bool(sabrina_api_key)
+    ollama_ok = await is_ollama_available()
+
+    context = {
+        "sabrina_selected_model": selected_model,
+        "sabrina_has_key": has_key,
+        "sabrina_ollama_ok": ollama_ok,
+    }
     return templates.TemplateResponse("admin.html", template_context(request, **context))
-
-
-@router.post("/admin", name="admin_panel")
-@limiter.limit("10/minute")
-async def admin_panel_submit(request: Request):
-    denied = require_permission(request, PERMISSION_SETTINGS_MANAGE)
-    if denied:
-        return denied
-    await csrf_protect(request)
-    form = await request.form()
-    action = form.get("action", "create_user")
-    import logging
-    logging.getLogger("uvicorn.error").info(f"[DEBUG ADMIN POST] action={action}, form_keys={list(form.keys())}")
-    print(f"[DEBUG ADMIN POST] action={action}, form_keys={list(form.keys())}")
-    if action == "create_user":
-        result = await create_user_account(form.get("username", ""), form.get("password", ""), form.get("role", "operator"))
-    elif action == "update_user":
-        result = await update_user_account(
-            int(form.get("user_id", "0") or 0),
-            form.get("role", "operator"),
-            form.get("is_active") == "1",
-            form.get("new_password", ""),
-        )
-    elif action == "save_backup_settings":
-        result = await save_backup_settings_from_form(dict(form))
-    elif action == "save_sabrina_settings":
-        api_key = form.get("gemini_api_key", "").strip()
-        selected_model = form.get("gemini_model", "").strip()
-        chat_mode = form.get("chat_mode", "").strip()
-        from app.core.db_helpers import db_manager
-        if chat_mode == "local":
-            db_manager.set_setting("gemini_model", "local")
-        else:
-            if selected_model:
-                db_manager.set_setting("gemini_model", selected_model)
-        if api_key:
-            if not api_key.startswith("••••"):
-                from app.core.security import encrypt_val
-                from app.modules.assistant.schema_context import get_encryption_key
-                encrypted_key = encrypt_val(api_key, get_encryption_key())
-                db_manager.set_setting("gemini_api_key", encrypted_key)
-        result = {"ok": True, "message": "Paramètres de Sabrina enregistrés avec succès."}
-    elif action == "backup_now":
-        result = await create_manual_backup()
-    elif action == "restore_backup":
-        result = await restore_backup_by_value(form.get("backup_name", ""))
-    elif action == "database_maintenance":
-        result = run_database_maintenance()
-    else:
-        result = {"ok": False, "message": "Action inconnue."}
-    flash(request, result["message"], "success" if result["ok"] else "danger")
-    return RedirectResponse("/admin", status_code=303)
 
 
 @router.get("/users", name="users")
@@ -133,3 +89,7 @@ async def admin_system_status_export(request: Request):
         media_type="application/json; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=diagnostic_report.json"},
     )
+
+
+
+

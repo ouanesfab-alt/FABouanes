@@ -1,16 +1,13 @@
 import pytest
 from unittest.mock import patch, AsyncMock
 from app.modules.assistant.service import (
-    execute_readonly_sql,
     run_assistant_agent,
-    dry_run_sql,
-    execute_tool_action,
     compress_history_if_needed,
-    get_gemini_tools,
-    get_ollama_tools,
-    sanitize_numeric,
-    tool_requires_confirmation,
 )
+from app.modules.assistant.sql_tools import execute_readonly_sql, dry_run_sql
+from app.modules.assistant.tool_actions import execute_tool_action, sanitize_numeric
+from app.modules.assistant.tool_specs import get_gemini_tools, get_ollama_tools
+from app.modules.assistant.confirmations import tool_requires_confirmation
 from app.core.sanitizer import sanitize_string, MAX_INPUT_LENGTH
 
 def test_execute_readonly_sql_validation():

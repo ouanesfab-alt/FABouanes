@@ -39,10 +39,29 @@ def create_refresh_token(user_id: int) -> str:
     expires = datetime.now(timezone.utc) + timedelta(
         days=REFRESH_TOKEN_EXPIRE_DAYS
     )
-    return pyjwt.encode(
+    token = pyjwt.encode(
         {"sub": str(user_id), "exp": expires, "type": "refresh"},
         settings.secret_key, ALGORITHM,
     )
+    
+    # Save token hash in api_refresh_tokens
+    import hashlib
+    from app.core.db_helpers import execute_db
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    expires_str = expires.strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        execute_db(
+            """
+            INSERT INTO api_refresh_tokens (user_id, token_hash, token_hint, expires_at)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (user_id, token_hash, token[-8:], expires_str)
+        )
+    except Exception as exc:
+        import logging
+        logging.getLogger("fabouanes.auth").warning("Could not persist mobile refresh token in DB: %s", exc)
+        
+    return token
 
 
 def decode_token(token: str) -> dict[str, Any]:
@@ -52,6 +71,41 @@ def decode_token(token: str) -> dict[str, Any]:
         return payload
     except PyJWTError:
         raise HTTPException(401, "Token invalide ou expiré")
+
+
+def validate_mobile_refresh_token(token: str) -> dict[str, Any]:
+    # 1. Decode to verify expiration and signature
+    payload = decode_token(token)
+    if payload.get("type") != "refresh":
+        raise HTTPException(401, "Jeton de rafraîchissement requis")
+        
+    # 2. Check in database
+    import hashlib
+    from app.core.db_helpers import query_db, execute_db
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    
+    # Reuse detection check: check if it exists in db, even if revoked
+    all_row = query_db("SELECT id, user_id, revoked_at FROM api_refresh_tokens WHERE token_hash = %s", (token_hash,), one=True)
+    
+    # If not found in DB, it is not a valid token (was never created or was deleted)
+    if not all_row:
+        raise HTTPException(401, "Jeton inconnu ou invalide")
+        
+    if all_row.get("revoked_at") is not None:
+        # Replay attack detected! Revoke all tokens for this user immediately!
+        user_id = int(all_row["user_id"])
+        execute_db(
+            "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = %s AND revoked_at IS NULL",
+            (user_id,)
+        )
+        raise HTTPException(401, "Tentative de rejeu de jeton détectée, toutes les sessions ont été invalidées")
+        
+    # Mark old token as revoked/used (since we will return a rotated one!)
+    execute_db(
+        "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP, last_used_at = CURRENT_TIMESTAMP WHERE id = %s",
+        (int(all_row["id"]),)
+    )
+    return payload
 
 
 def get_current_user_id(

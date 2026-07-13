@@ -1,6 +1,22 @@
 {% extends 'base.html' %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
+  /* Reset margins/paddings on login to ensure full screen */
+  body,
+  html body,
+  html:not([data-nav="vertical"]) body {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  
+  .app-content {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+
   .login-page {
     position: relative;
     min-height: 100vh;

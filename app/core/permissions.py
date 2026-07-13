@@ -294,3 +294,4 @@ def require_permission(permission: str | None) -> Callable:
         return wrapped
 
     return decorator
+    return decorator

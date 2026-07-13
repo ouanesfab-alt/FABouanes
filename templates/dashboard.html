@@ -762,6 +762,74 @@
 		background: rgba(10, 132, 255, 0.10);
 		border-color: rgba(10, 132, 255, 0.20);
 	}
+
+	/* ─── KPI PERIOD BAR ─── */
+	.kpi-period-bar {
+		display: flex;
+		gap: 6px;
+		margin-bottom: 10px;
+	}
+
+	.kpi-period-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		padding: 5px 14px;
+		border-radius: 20px;
+		border: 1px solid var(--line);
+		background: var(--bg-secondary);
+		color: var(--muted);
+		font-size: 0.82rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.18s ease;
+		box-shadow: var(--shadow-sm);
+	}
+
+	.kpi-period-btn:hover {
+		border-color: var(--accent);
+		color: var(--accent);
+		background: rgba(0,122,255,0.06);
+	}
+
+	.kpi-period-btn.active {
+		background: var(--accent);
+		color: #fff;
+		border-color: var(--accent);
+		box-shadow: 0 2px 8px rgba(0,122,255,0.25);
+	}
+
+	/* ─── KPI DURATION BAR (courbe) ─── */
+	.kpi-duration-bar {
+		display: flex;
+		gap: 6px;
+		justify-content: flex-end;
+		margin-bottom: 8px;
+		padding-right: 4px;
+	}
+
+	.kpi-dur-btn {
+		padding: 3px 12px;
+		border-radius: 14px;
+		border: 1px solid var(--line);
+		background: var(--bg-secondary);
+		color: var(--muted);
+		font-size: 0.78rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.kpi-dur-btn:hover {
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+
+	.kpi-dur-btn.active {
+		background: var(--accent);
+		color: #fff;
+		border-color: var(--accent);
+	}
 </style>
 
 <div class="dashboard-shell">
@@ -850,6 +918,18 @@
 	</section>
 
 	<!-- ═══ KPIs ═══ -->
+	<!-- Sélecteur de période KPI -->
+	<div class="kpi-period-bar" id="kpiPeriodBar">
+		<button class="kpi-period-btn active" data-period="today" onclick="switchKpiPeriod('today', this)">
+			<i class="bi bi-sun"></i> Aujourd'hui
+		</button>
+		<button class="kpi-period-btn" data-period="week" onclick="switchKpiPeriod('week', this)">
+			<i class="bi bi-calendar-week"></i> Semaine
+		</button>
+		<button class="kpi-period-btn" data-period="month" onclick="switchKpiPeriod('month', this)">
+			<i class="bi bi-calendar-month"></i> Mois
+		</button>
+	</div>
 	<div class="dashboard-kpis">
 		<div class="card kpi-card" role="button" tabindex="0" onclick="openKpiSheet('sales','Ventes')"
 			onkeydown="if(event.key==='Enter'||event.key===' ') openKpiSheet('sales','Ventes')">
@@ -1153,1033 +1233,245 @@
 	<div class="kpi-sheet">
 		<div class="kpi-sheet-handle"></div>
 		<div class="kpi-sheet-head">
-			<h3 class="kpi-sheet-title" id="kpiSheetTitle">Valeur à une date</h3><button type="button"
+			<h3 class="kpi-sheet-title" id="kpiSheetTitle">Progression</h3><button type="button"
 				class="kpi-sheet-close" onclick="closeKpiSheet()"><i class="bi bi-x-lg"></i></button>
 		</div>
 		<div class="kpi-sheet-body">
-			<div class="kpi-quick-btns"><button type="button" class="kpi-quick-btn"
-					onclick="setKpiDateOffset(0,this)">Aujourd'hui</button><button type="button" class="kpi-quick-btn"
-					onclick="setKpiDateOffset(1,this)">Hier</button><button type="button" class="kpi-quick-btn"
-					onclick="setKpiDateOffset(7,this)">J-7</button><button type="button" class="kpi-quick-btn"
-					onclick="setKpiDateOffset(30,this)">J-30</button></div>
-			<label for="kpiDateInput" class="form-label mb-1">Date</label>
-			<input type="date" class="form-control" id="kpiDateInput">
-			<button class="btn btn-dark w-100 mt-3" onclick="fetchKpiAtDate()">Afficher</button>
-			<div class="kpi-result" id="kpiResult">
-				<div class="kpi-result-label" id="kpiResultLabel">Valeur</div>
-				<div class="kpi-result-value" id="kpiResultValue">0</div>
-				<div class="kpi-result-date" id="kpiResultDate"></div>
+			<!-- Sélecteur de durée courbe -->
+			<div class="kpi-duration-bar" id="kpiDurationBar">
+				<button class="kpi-dur-btn" data-days="7">7 j</button>
+				<button class="kpi-dur-btn active" data-days="30">30 j</button>
+				<button class="kpi-dur-btn" data-days="90">90 j</button>
+			</div>
+			<div class="rpt-chart-wrap animate-fadeIn" style="height: 300px; position: relative; width: 100%; margin-top: 10px;">
+				<canvas id="kpiChartCanvas"></canvas>
 			</div>
 		</div>
 	</div>
 </div>
 {% endblock %}
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}" nonce="{{ csp_nonce }}"></script>
+<script src="/static/js/modules/dashboard.js" nonce="{{ csp_nonce }}"></script>
+<script src="/static/js/modules/dashboard-fonts.js" nonce="{{ csp_nonce }}"></script>
 <script nonce="{{ csp_nonce }}">
-	// ─── KPI SHEET ───
-	let currentKpiKey = null;
-	let currentKpiLabel = null;
-	function openKpiSheet(key, label) {
-		currentKpiKey = key;
-		currentKpiLabel = label;
-		document.getElementById('kpiSheetTitle').textContent = label + ' à une date';
-		const overlay = document.getElementById('kpiSheetOverlay');
-		if (overlay.parentElement !== document.body) {
-			document.body.appendChild(overlay);
+	let kpiChartInstance = null;
+	let currentChartDays = 30;
+	window._kpiKey = null;
+
+	// ─── Rendu du graphique KPI ───
+	// On remplace le canvas à chaque appel pour éviter les bugs de réutilisation Chart.js
+	async function renderKpiChart(key, days) {
+		if (!key) return;
+		if (days === undefined || days === null) days = currentChartDays;
+		currentChartDays = parseInt(days, 10) || 30;
+
+		// Remplacer le canvas par un élément frais (fix Chart.js canvas-reuse bug)
+		const wrap = document.querySelector('.rpt-chart-wrap');
+		if (!wrap) return;
+		if (kpiChartInstance) {
+			try { kpiChartInstance.destroy(); } catch(e) {}
+			kpiChartInstance = null;
 		}
-		overlay.classList.add('open');
-		document.body.classList.add('kpi-modal-open');
-		const input = document.getElementById('kpiDateInput');
-		if (!input.value) {
-			const d = new Date();
-			input.value = (new Date(d.getTime() - d.getTimezoneOffset() * 60000)).toISOString().slice(0, 10);
-		}
-		document.getElementById('kpiResult').classList.remove('show');
-		document.querySelectorAll('.kpi-quick-btn').forEach(b => b.classList.remove('active'));
-	}
-	function closeKpiSheet() {
-		document.getElementById('kpiSheetOverlay').classList.remove('open');
-		document.body.classList.remove('kpi-modal-open');
-	}
-	function setKpiDateOffset(days, btn) {
-		const d = new Date();
-		d.setDate(d.getDate() - days);
-		document.getElementById('kpiDateInput').value = (new Date(d.getTime() - d.getTimezoneOffset() * 60000)).toISOString().slice(0, 10);
-		document.querySelectorAll('.kpi-quick-btn').forEach(b => b.classList.remove('active'));
-		if (btn) btn.classList.add('active');
-	}
-	async function fetchKpiAtDate() {
-		if (!currentKpiKey) return;
-		const date = document.getElementById('kpiDateInput').value;
-		if (!date) return;
-		const res = await fetch(`/api/kpi-at-date?metric=${encodeURIComponent(currentKpiKey)}&date=${encodeURIComponent(date)}`);
-		const data = await res.json();
-		const result = document.getElementById('kpiResult');
-		document.getElementById('kpiResultLabel').textContent = currentKpiLabel;
-		document.getElementById('kpiResultValue').textContent = (data.display || '0').replace(' DA', '');
-		document.getElementById('kpiResultDate').textContent = 'Date : ' + date;
-		result.classList.add('show');
-	}
-	document.addEventListener('keydown', function (event) {
-		if (event.key === 'Escape') {
-			const overlay = document.getElementById('kpiSheetOverlay');
-			if (overlay && overlay.classList.contains('open')) closeKpiSheet();
-			// Also close settings
-			document.getElementById('fabSettingsOverlay')?.classList.remove('show');
-		}
-	});
+		const oldCanvas = document.getElementById('kpiChartCanvas');
+		if (oldCanvas) oldCanvas.remove();
+		const canvas = document.createElement('canvas');
+		canvas.id = 'kpiChartCanvas';
+		wrap.appendChild(canvas);
 
-	// ─── SABRINA ASSISTANT WIDGET ───
-	(function () {
-		const hero = document.getElementById('fabHero');
-		const chatArea = document.getElementById('fabChatArea');
-		const input = document.getElementById('fabChatInput');
-		const sendBtn = document.getElementById('fabSendBtn');
-		const stopBtn = document.getElementById('fabStopBtn');
-		const clearBtn = document.getElementById('fabClearChatBtn');
-		const micBtn = document.getElementById('fabMicBtn');
-		const soundwave = document.getElementById('fabSoundwave');
-		const attachBtn = document.getElementById('fabAttachBtn');
-		const fileInput = document.getElementById('fabFileInput');
-		const fileChip = document.getElementById('fabFileChip');
-		const fileName = document.getElementById('fabFileName');
-		const fileIcon = document.getElementById('fabFileIcon');
-		const removeFile = document.getElementById('fabRemoveFile');
-		const settingsToggle = document.getElementById('fabSettingsToggle');
+		try {
+			const res = await fetch('/api/kpi-history?metric=' + encodeURIComponent(key) + '&days=' + currentChartDays + '&_t=' + Date.now(), { cache: 'no-store' });
+			if (!res.ok) { console.error('kpi-history HTTP', res.status); return; }
+			const data = await res.json();
+			if (!data.success) { console.error('kpi-history error', data); return; }
 
-		let history = [];
-		let threads = [];
-		let activeThreadId = null;
-		let abortController = null;
-		let selectedFile = null;
+			const colorMap = {
+				sales:       { line: '#4285F4', fill: 'rgba(66,133,244,0.12)' },
+				cash:        { line: '#34A853', fill: 'rgba(52,168,83,0.12)'  },
+				profit:      { line: '#2563EB', fill: 'rgba(37,99,235,0.12)'  },
+				receivables: { line: '#EA4335', fill: 'rgba(234,67,53,0.12)'  },
+			};
+			const { line: color, fill: bgGrad } = colorMap[key] || colorMap.sales;
 
-		// ── Save Settings AJAX Helper ──
-		async function saveSettingsAJAX(model, apiKey) {
-			const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || "";
-			const formData = new FormData();
-			formData.append('csrf_token', csrfToken);
-			if (model) formData.append('gemini_model', model);
-			if (apiKey) formData.append('gemini_api_key', apiKey);
-			try {
-				const res = await fetch('/assistant/settings', {
-					method: 'POST', body: formData,
-					headers: { 'X-Requested-With': 'XMLHttpRequest' }
-				});
-				return res.ok;
-			} catch { return false; }
-		}
+			const isDark = ['dark','windows-dark'].includes(document.documentElement.getAttribute('data-theme'));
+			const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0, 0, 0, 0.05)';
+			const textColor = isDark ? '#a1a1aa' : '#71717a';
 
-		// Force-clear local storage key to start fresh as requested by user
-		localStorage.removeItem('fab_gemini_api_key');
+			const chartCtx = canvas.getContext('2d');
+			const gradient = chartCtx.createLinearGradient(0, 0, 0, 200);
+			gradient.addColorStop(0, bgGrad);
+			gradient.addColorStop(1, 'rgba(255,255,255,0)');
 
-		// ── Thread Management ──
-		function loadActiveThread() {
-			try {
-				const saved = localStorage.getItem('fab_assistant_threads');
-				const activeId = localStorage.getItem('fab_assistant_active_thread_id');
-				if (saved) threads = JSON.parse(saved);
-				if (activeId && threads.some(t => t.id === activeId)) {
-					activeThreadId = activeId;
-				} else if (threads.length > 0) {
-					activeThreadId = threads[0].id;
-				}
-				const thread = threads.find(t => t.id === activeThreadId);
-				history = thread ? (thread.history || []) : [];
-			} catch (e) { }
-		}
-
-		function saveActiveThread() {
-			try {
-				let thread = threads.find(t => t.id === activeThreadId);
-				if (!thread) {
-					thread = { id: 'thread_' + Date.now(), title: 'Nouvelle discussion 💬', history: [] };
-					threads.unshift(thread);
-					activeThreadId = thread.id;
-					localStorage.setItem('fab_assistant_active_thread_id', activeThreadId);
-				}
-				thread.history = history;
-				if (thread.title === 'Nouvelle discussion 💬' && history.length > 0) {
-					const first = history.find(m => m.role === 'user');
-					if (first) {
-						let t = "";
-						if (first.content) {
-							t = first.content;
-						} else if (first.parts && first.parts.length > 0) {
-							const textPart = first.parts.find(p => p.text);
-							if (textPart) t = textPart.text;
-						}
-						if (t) {
-							thread.title = t.substring(0, 24) + (t.length > 24 ? '...' : '');
-						}
-					}
-				}
-				localStorage.setItem('fab_assistant_threads', JSON.stringify(threads));
-			} catch (e) { }
-		}
-
-		// ── Chat UI ──
-		function showChatView() {
-			hero.classList.add('chat-active');
-			chatArea.classList.add('active');
-			localStorage.setItem('fab_chat_expanded', 'true');
-		}
-
-		function scrollToBottom(smooth = true) {
-			chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
-		}
-
-		function appendMessage(role, text, shouldScroll = true) {
-			const bubble = document.createElement('div');
-			bubble.className = `fab-chat-bubble ${role}`;
-			bubble.setAttribute('data-raw-text', text);
-
-			const content = document.createElement('div');
-			content.className = 'bubble-content';
-
-			// Check if message is a voice note
-			const audioMatch = text.match(/^\[AUDIO:([^|]+)\|(.*)]\s*$/s) ||
-				text.match(/^\[AUDIO:([^|]+)\|(.*)\]$/);
-			if (audioMatch) {
-				const dataUrl = audioMatch[1];
-				const transcript = (audioMatch[2] || '').trim();
-
-				// Build the voice-note bubble using DOM APIs (NOT innerHTML) so the
-				// base64 data URL isn't corrupted by the HTML parser.
-				const vnBubble = document.createElement('div');
-				vnBubble.className = 'voice-note-bubble';
-
-				const playBtn = document.createElement('button');
-				playBtn.className = 'voice-play-btn';
-				playBtn.type = 'button';
-				const playIcon = document.createElement('i');
-				playIcon.className = 'bi bi-play-fill';
-				playBtn.appendChild(playIcon);
-
-				const waveContainer = document.createElement('div');
-				waveContainer.className = 'voice-wave-container';
-
-				const durationText = document.createElement('span');
-				durationText.className = 'voice-duration';
-				durationText.textContent = '0:00';
-
-				// Convert base64 data URL → Blob → Object URL for reliable playback
-				const audio = document.createElement('audio');
-				audio.preload = 'metadata';
-				try {
-					if (dataUrl.startsWith('data:') && dataUrl.includes(';base64,')) {
-						const [meta, b64] = dataUrl.split(';base64,');
-						const mimeType = meta.replace('data:', '');
-						const byteChars = atob(b64);
-						const byteArr = new Uint8Array(byteChars.length);
-						for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-						const blob = new Blob([byteArr], { type: mimeType });
-						audio.src = URL.createObjectURL(blob);
-					} else {
-						audio.src = dataUrl;
-					}
-				} catch (e) {
-					console.warn('Audio decode error:', e);
-					audio.src = dataUrl;
-				}
-
-				vnBubble.appendChild(playBtn);
-				vnBubble.appendChild(waveContainer);
-				vnBubble.appendChild(durationText);
-				vnBubble.appendChild(audio);
-				content.appendChild(vnBubble);
-
-				if (transcript) {
-					const txDiv = document.createElement('div');
-					txDiv.className = 'voice-transcript-text';
-					txDiv.innerHTML = '🎤 ' + parseMarkdown(transcript);
-					content.appendChild(txDiv);
-				}
-
-				bubble.appendChild(content);
-
-				// Draw 18 waves with random heights for visual style
-				for (let i = 0; i < 18; i++) {
-					const bar = document.createElement('div');
-					bar.className = 'voice-wave-bar';
-					bar.style.height = `${Math.floor(Math.random() * 12) + 6}px`;
-					waveContainer.appendChild(bar);
-				}
-
-				// Format duration helper
-				const formatTime = (secs) => {
-					if (!secs || isNaN(secs)) return '0:00';
-					const m = Math.floor(secs / 60);
-					const s = Math.floor(secs % 60);
-					return `${m}:${s < 10 ? '0' : ''}${s}`;
-				};
-
-				// Load metadata duration
-				audio.addEventListener('loadedmetadata', () => {
-					durationText.textContent = formatTime(audio.duration);
-				});
-
-				// Toggle playback
-				playBtn.addEventListener('click', (e) => {
-					e.preventDefault();
-					e.stopPropagation();
-
-					// Stop other playing audios
-					document.querySelectorAll('audio').forEach(a => {
-						if (a !== audio) {
-							a.pause();
-							const pBtn = a.closest('.voice-note-bubble')?.querySelector('.voice-play-btn i');
-							if (pBtn) pBtn.className = 'bi bi-play-fill';
-						}
-					});
-
-					if (audio.paused) {
-						audio.volume = 1;
-						audio.muted = false;
-						audio.play().catch(err => console.warn('Audio play failed:', err));
-						playIcon.className = 'bi bi-pause-fill';
-					} else {
-						audio.pause();
-						playIcon.className = 'bi bi-play-fill';
-					}
-				});
-
-				// Time updates
-				audio.addEventListener('timeupdate', () => {
-					durationText.textContent = formatTime(audio.currentTime || 0);
-					const pct = audio.currentTime / audio.duration;
-					const bars = waveContainer.querySelectorAll('.voice-wave-bar');
-					const activeCount = Math.floor(pct * bars.length);
-					bars.forEach((bar, idx) => {
-						bar.classList.toggle('active', idx <= activeCount);
-					});
-				});
-
-				// Audio finished
-				audio.addEventListener('ended', () => {
-					playIcon.className = 'bi bi-play-fill';
-					durationText.textContent = formatTime(audio.duration);
-					waveContainer.querySelectorAll('.voice-wave-bar').forEach(b => b.classList.remove('active'));
-				});
-
-			} else {
-				content.innerHTML = parseMarkdown(text);
-				bubble.appendChild(content);
-			}
-
-			if (role === 'model') {
-				const actions = document.createElement('div');
-				actions.className = 'fab-bubble-actions';
-				actions.innerHTML = `
-					<button class="fab-bubble-btn btn-copy"><i class="bi bi-clipboard"></i> Copier</button>
-					<button class="fab-bubble-btn btn-speak"><i class="bi bi-volume-up"></i> Lire</button>
-				`;
-				bubble.appendChild(actions);
-			}
-
-			chatArea.appendChild(bubble);
-			if (shouldScroll) {
-				scrollToBottom();
-			}
-			return bubble;
-		}
-
-		function appendTypingIndicator() {
-			const el = document.createElement('div');
-			el.className = 'fab-typing align-items-center gap-2';
-			el.innerHTML = `
-				<div class="spinner-border spinner-border-sm text-primary" role="status" style="width: 0.85rem; height: 0.85rem; border-width: 0.12em; color: var(--accent) !important; flex-shrink: 0;"></div>
-				<span class="fab-status-text small" style="font-size: 0.82rem; color: var(--text-secondary); font-weight: 500; line-height: 1;">Sabrina réfléchit...</span>
-			`;
-			chatArea.appendChild(el);
-			scrollToBottom();
-			return el;
-		}
-
-		function renderHistory() {
-			chatArea.innerHTML = '';
-			history.forEach(msg => {
-				let text = "";
-				if (msg.content) {
-					text = msg.content;
-				} else if (msg.parts && msg.parts.length > 0) {
-					const textPart = msg.parts.find(p => p.text);
-					if (textPart) text = textPart.text;
-				}
-				
-				if (!text) return;
-				
-				const role = (msg.role === 'assistant' || msg.role === 'model') ? 'model' : 'user';
-				appendMessage(role, text, false);
+			const months = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
+			const labels = data.labels.map(d => {
+				const p = d.split('-');
+				return p.length === 3 ? (parseInt(p[2]) + ' ' + months[parseInt(p[1]) - 1]) : d;
 			});
-			scrollToBottom(false);
-		}
 
-		function parseMarkdown(md) {
-			if (!md) return "";
-			let c = md.replace(/\[REDIRECT:[^\]]+\]/gi, '').replace(/\[THEME:[^\]]+\]/gi, '').trim();
-			let h = c.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-			h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="fw-semibold text-primary text-decoration-underline">$1</a>');
-			h = h.replace(/```(sql|json|text|html|)?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-			h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
-			h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-			h = h.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-			h = h.replace(/\n/g, '<br>');
-			return h;
-		}
-
-		// ── Confirmation Bubble ──
-		function appendConfirmationBubble(query, messageText) {
-			const bubble = document.createElement('div');
-			bubble.className = 'fab-chat-bubble system p-3 border-warning';
-			bubble.style.cssText = 'background: rgba(255, 193, 7, 0.08); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 12px; margin: 10px 0; width: 100%; box-sizing: border-box;';
-
-			bubble.innerHTML = `
-				<div class="fw-bold text-warning mb-2" style="font-size:0.9rem;"><i class="bi bi-shield-lock-fill"></i> Confirmation requise</div>
-				<p class="small mb-2" style="color:var(--text-primary); font-size:0.82rem;">${messageText}</p>
-				<pre class="p-2 bg-dark text-light rounded mb-3" style="font-size:0.75rem; overflow-x:auto; font-family: monospace; border:1px solid rgba(255,255,255,0.1);"><code>${query}</code></pre>
-				<div class="d-flex gap-2">
-					<button class="btn btn-warning btn-sm fw-bold btn-confirm-write" style="font-size:0.78rem; padding: 6px 12px; border-radius: 6px; color: #212529 !important;"><i class="bi bi-check2"></i> Confirmer</button>
-					<button class="btn btn-outline-secondary btn-sm btn-cancel-write" style="font-size:0.78rem; padding: 6px 12px; border-radius: 6px;">Annuler</button>
-				</div>
-			`;
-			chatArea.appendChild(bubble);
-			scrollToBottom();
-
-			return new Promise((resolve) => {
-				bubble.querySelector('.btn-confirm-write').addEventListener('click', () => {
-					bubble.remove();
-					resolve(true);
-				});
-				bubble.querySelector('.btn-cancel-write').addEventListener('click', () => {
-					bubble.remove();
-					resolve(false);
-				});
-			});
-		}
-
-		// ── Send Message ──
-		async function sendMessage(text, confirmedQuery = null) {
-			if (!text || text.trim() === "") return;
-			loadActiveThread();
-			showChatView();
-			localStorage.setItem('fab_chat_expanded', 'true');
-
-			let fileData = null;
-			if (!confirmedQuery) {
-				if (selectedFile) {
-					fileData = await new Promise((resolve) => {
-						const reader = new FileReader();
-						reader.onload = (e) => {
-							resolve({ mime_type: selectedFile.type, name: selectedFile.name, data: e.target.result.split(',')[1] });
-						};
-						reader.readAsDataURL(selectedFile);
-					});
-				}
-
-				appendMessage('user', text);
-				input.value = '';
-				input.style.height = '36px';
-
-				// Clear file preview
-				selectedFile = null;
-				if (fileInput) fileInput.value = '';
-				fileChip.classList.remove('show');
-			}
-
-			sendBtn.style.display = 'none';
-			stopBtn.style.display = 'inline-flex';
-
-			let indicator = appendTypingIndicator();
-			abortController = new AbortController();
-			const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || "";
-
-			try {
-				const response = await fetch('/assistant/chat', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrfToken },
-					body: JSON.stringify({
-						message: text,
-						history: history,
-						file: fileData,
-						confirmed_query: confirmedQuery,
-						gemini_api_key: localStorage.getItem('fab_gemini_api_key') || ''
-					}),
-					signal: abortController.signal
-				});
-				if (!response.ok) throw new Error("HTTP " + response.status);
-
-				let streamBubble = null;
-				const reader = response.body.getReader();
-				const decoder = new TextDecoder();
-				let buffer = '';
-
-				while (true) {
-					const { value, done } = await reader.read();
-					if (done) break;
-					buffer += decoder.decode(value, { stream: true });
-					const lines = buffer.split('\n');
-					buffer = lines.pop();
-
-					for (const line of lines) {
-						const cl = line.trim();
-						if (!cl.startsWith('data: ')) continue;
-						let event;
-						try { event = JSON.parse(cl.substring(6)); } catch { continue; }
-
-						if (event.type === 'status') {
-							if (indicator) {
-								const statusEl = indicator.querySelector('.fab-status-text');
-								if (statusEl) {
-									statusEl.textContent = event.message;
-									scrollToBottom();
-								}
+			kpiChartInstance = new Chart(canvas, {
+				type: 'line',
+				data: {
+					labels,
+					datasets: [{
+						label: 'Montant',
+						data: data.values,
+						borderColor: color,
+						borderWidth: 2,
+						backgroundColor: gradient,
+						fill: true,
+						tension: 0.35,
+						pointRadius: 0,
+						pointHoverRadius: 5,
+						pointHoverBackgroundColor: color,
+						pointHoverBorderColor: '#fff',
+						pointHoverBorderWidth: 2,
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						legend: { display: false },
+						tooltip: {
+							mode: 'index',
+							intersect: false,
+							callbacks: {
+								label: ctx => ctx.raw.toLocaleString('fr-FR') + ' DA'
 							}
-						} else if (event.type === 'confirmation_required') {
-							if (indicator) {
-								indicator.remove();
-								indicator = null;
+						}
+					},
+					scales: {
+						x: {
+							grid: { display: false },
+							ticks: { color: textColor, font: { size: 9 }, maxTicksLimit: 8 }
+						},
+						y: {
+							grid: { color: gridColor },
+							ticks: {
+								color: textColor,
+								font: { size: 9 },
+								maxTicksLimit: 4,
+								callback: v => v.toLocaleString('fr-FR') + ' DA'
 							}
-							// Reset buttons for pause
-							sendBtn.style.display = 'inline-flex';
-							stopBtn.style.display = 'none';
-
-							if (event.history) {
-								history = event.history;
-							}
-
-							const confirmed = await appendConfirmationBubble(event.query, event.message);
-							if (confirmed) {
-								sendMessage(text, event.query);
-							} else {
-								appendMessage('system', "Opération d'écriture annulée.");
-							}
-							return;
-						} else if (event.type === 'text_chunk') {
-							if (indicator) {
-								indicator.remove();
-								indicator = null;
-							}
-							if (!streamBubble) streamBubble = appendMessage('model', '', false);
-							const cd = streamBubble.querySelector('.bubble-content');
-							if (cd) {
-								const cur = streamBubble.getAttribute('data-raw-text') || '';
-								const nw = cur + event.text;
-								streamBubble.setAttribute('data-raw-text', nw);
-								cd.innerHTML = parseMarkdown(nw);
-								scrollToBottom(false);
-							}
-						} else if (event.type === 'final_response') {
-							if (indicator) {
-								indicator.remove();
-								indicator = null;
-							}
-							const raw = event.text || "";
-							if (streamBubble) {
-								const cd = streamBubble.querySelector('.bubble-content');
-								if (cd) cd.innerHTML = parseMarkdown(raw);
-							} else {
-								appendMessage('model', raw);
-							}
-							streamBubble = null;
-
-							if (event.history) {
-								history = event.history;
-								// Double check if the final response is in history
-								const lastMsg = history[history.length - 1];
-								const textPart = (lastMsg && lastMsg.parts && lastMsg.parts.find(p => p.text)) ? lastMsg.parts.find(p => p.text).text : "";
-								const msgText = lastMsg ? (lastMsg.content || textPart || "") : "";
-								if (!lastMsg || (lastMsg.role !== 'model' && lastMsg.role !== 'assistant') || !msgText) {
-									history.push({ role: 'model', parts: [{ text: raw }] });
-								}
-							} else {
-								let historyText = text;
-								if (fileData) historyText = `[Fichier: ${fileData.name}] ${text}`;
-								history.push({ role: 'user', parts: [{ text: historyText }] });
-								history.push({ role: 'model', parts: [{ text: raw }] });
-							}
-							saveActiveThread();
-
-							const themeMatch = raw.match(/\[THEME:(dark|light)\]/i);
-							if (themeMatch) {
-								const requestedTheme = themeMatch[1].toLowerCase();
-								const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-								if (currentTheme !== requestedTheme) {
-									const toggleBtn = document.getElementById('themeToggleBtnNavbar');
-									if (toggleBtn) {
-										toggleBtn.click();
-									} else {
-										document.documentElement.setAttribute('data-theme', requestedTheme);
-										localStorage.setItem('fab_theme', requestedTheme);
-									}
-								}
-							}
-
-							const redirect = raw.match(/\[REDIRECT:([^\]]+)\]/i);
-							if (redirect) {
-								appendMessage('system', `Redirection vers : ${redirect[1].trim()}...`);
-								setTimeout(() => { window.location.href = redirect[1].trim(); }, 1200);
-							}
-						} else if (event.type === 'error') {
-							if (indicator) {
-								indicator.remove();
-								indicator = null;
-							}
-							appendMessage('system', event.error || "Erreur.");
 						}
 					}
 				}
-			} catch (err) {
-				indicator?.remove();
-				if (err.name === 'AbortError') {
-					appendMessage('system', "Génération interrompue.");
-				} else {
-					appendMessage('system', "Erreur de connexion avec Sabrina.");
-				}
-			} finally {
-				sendBtn.style.display = 'inline-flex';
-				stopBtn.style.display = 'none';
-				abortController = null;
-				scrollToBottom();
-			}
+			});
+		} catch (err) {
+			console.error('renderKpiChart error:', err);
 		}
+	}
+	window.renderKpiChart = renderKpiChart;
 
-		// ── Event Bindings ──
-		input.addEventListener('keydown', function (e) {
-			if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(this.value); }
-		});
-		input.addEventListener('input', function () {
-			this.style.height = '36px';
-			this.style.height = Math.min(100, this.scrollHeight) + 'px';
-		});
-		sendBtn.addEventListener('click', () => sendMessage(input.value));
-		stopBtn.addEventListener('click', () => abortController?.abort());
-
-		function clearChat() {
-			if (window.speechSynthesis) window.speechSynthesis.cancel();
-			history = [];
-			saveActiveThread();
-			chatArea.innerHTML = '';
-			localStorage.setItem('fab_chat_expanded', 'false');
-			localStorage.setItem('fab_chat_show_settings', 'false');
-			hero.classList.remove('chat-active');
-			chatArea.classList.remove('active');
-		}
-		clearBtn?.addEventListener('click', clearChat);
-
-		// File handling
-		attachBtn?.addEventListener('click', () => fileInput?.click());
-		fileInput?.addEventListener('change', function (e) {
-			const file = e.target.files[0];
-			if (!file) return;
-			selectedFile = file;
-			fileName.textContent = file.name;
-			if (file.type.startsWith('image/')) {
-				fileIcon.innerHTML = '<i class="bi bi-file-earmark-image-fill text-success"></i>';
-			} else if (file.type === 'application/pdf') {
-				fileIcon.innerHTML = '<i class="bi bi-file-earmark-pdf-fill text-danger"></i>';
-			} else {
-				fileIcon.innerHTML = '<i class="bi bi-file-earmark-excel-fill text-success"></i>';
-			}
-			fileChip.classList.add('show');
-		});
-		removeFile?.addEventListener('click', () => {
-			selectedFile = null;
-			fileInput.value = '';
-			fileChip.classList.remove('show');
-		});
-
-		// Copy & Speech bubble click delegation
-		chatArea.addEventListener('click', function (e) {
-			const copyBtn = e.target.closest('.btn-copy');
-			if (copyBtn) {
-				const bubble = copyBtn.closest('.fab-chat-bubble');
-				if (!bubble) return;
-				let t = bubble.getAttribute('data-raw-text') || bubble.innerText;
-				const audioMatch = t.match(/^\[AUDIO:([^|]+)\|(.*)\]$/);
-				if (audioMatch) {
-					t = audioMatch[2] || "Message vocal";
-				} else {
-					t = t.replace(/[\n\s]*Copier[\n\s]*Lire/g, '').trim();
-				}
-				navigator.clipboard.writeText(t).then(() => {
-					const orig = copyBtn.innerHTML;
-					copyBtn.innerHTML = '<i class="bi bi-check2 text-success"></i> Copié';
-					setTimeout(() => copyBtn.innerHTML = orig, 2000);
+	// ─── Initialisation globale ───
+	function initDashboardKpis() {
+		// Utilisation de la délégation d'événements pour les clics sur les boutons de durée
+		document.addEventListener('click', function(e) {
+			const btn = e.target.closest('.kpi-dur-btn');
+			if (btn) {
+				const days = parseInt(btn.getAttribute('data-days'), 10) || 30;
+				currentChartDays = days;
+				
+				document.querySelectorAll('.kpi-dur-btn').forEach(function(b) {
+					b.classList.toggle('active', b === btn);
 				});
-			}
-			const speakBtn = e.target.closest('.btn-speak');
-			if (speakBtn) {
-				const bubble = speakBtn.closest('.fab-chat-bubble');
-				if (!bubble) return;
-				let t = bubble.getAttribute('data-raw-text') || bubble.innerText;
-				const audioMatch = t.match(/^\[AUDIO:([^|]+)\|(.*)\]$/);
-				if (audioMatch) {
-					t = audioMatch[2] || "Message vocal";
+				
+				const key = window._kpiKey;
+				if (key) {
+					renderKpiChart(key, days);
 				} else {
-					t = t.replace(/[\n\s]*Copier[\n\s]*Lire/g, '').trim();
-				}
-				if (window.speechSynthesis.speaking) {
-					window.speechSynthesis.cancel();
-					speakBtn.innerHTML = '<i class="bi bi-volume-up"></i> Lire';
-				} else {
-					const u = new SpeechSynthesisUtterance(t);
-					u.lang = 'fr-FR';
-					u.onend = () => speakBtn.innerHTML = '<i class="bi bi-volume-up"></i> Lire';
-					window.speechSynthesis.speak(u);
-					speakBtn.innerHTML = '<i class="bi bi-volume-mute"></i> Arrêter';
+					console.warn('[KPI] Aucune métrique active pour recharger le graphique.');
 				}
 			}
 		});
 
-		// 🎤 Voice Input — getUserMedia + MediaRecorder
-		// SpeechRecognition (webkitSpeechRecognition) is blocked on http://127.0.0.1 in Chrome 115+
-		// so we use MediaRecorder to capture audio and send the blob to the server.
-		let mediaRecorder = null;
-		let audioChunks = [];
-		let isRecording = false;
-		let recordTimer = null;
-		let recordDuration = 0;
-		let localStream = null;
+		// openKpiSheet
+		window.openKpiSheet = function(key, label) {
+			window._kpiKey = key;
+			currentChartDays = 30;
 
-		const hasMediaSupport = !!(navigator.mediaDevices &&
-			navigator.mediaDevices.getUserMedia &&
-			window.MediaRecorder);
+			document.querySelectorAll('.kpi-dur-btn').forEach(function(b) { b.classList.remove('active'); });
+			var btn30 = document.querySelector('.kpi-dur-btn[data-days="30"]');
+			if (btn30) btn30.classList.add('active');
 
-		// Keep the mic button visible so users know the feature exists and get helpful error fallback messages
+			var title = document.getElementById('kpiSheetTitle');
+			if (title) title.textContent = 'Progression — ' + label;
 
+			var overlay = document.getElementById('kpiSheetOverlay');
+			if (!overlay) return;
+			if (overlay.parentElement !== document.body) document.body.appendChild(overlay);
+			overlay.classList.add('open');
+			document.body.classList.add('kpi-modal-open');
 
-		function showMicError(msg) {
-			if (micBtn) micBtn.innerHTML = '<i class="bi bi-mic"></i>';
-			if (soundwave) soundwave.style.display = 'none';
-			if (input) {
-				input.disabled = false;
-				input.placeholder = msg;
-				setTimeout(() => { input.placeholder = 'Posez une question à Sabrina...'; }, 5000);
-			}
-			isRecording = false;
-			clearInterval(recordTimer);
-			if (localStream) {
-				localStream.getTracks().forEach(t => t.stop());
-				localStream = null;
-			}
-		}
+			setTimeout(function() { renderKpiChart(key, 30); }, 60);
+		};
 
-		async function startRecording() {
-			if (isRecording) return;
-			if (!hasMediaSupport) {
-				showMicError('⚠️ Le micro nécessite HTTPS ou localhost.');
-				return;
-			}
-			try {
-				const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-				localStream = stream;
+		// closeKpiSheet
+		window.closeKpiSheet = function() {
+			var overlay = document.getElementById('kpiSheetOverlay');
+			if (overlay) overlay.classList.remove('open');
+			document.body.classList.remove('kpi-modal-open');
+		};
 
-				// Pick best supported format
-				const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg']
-					.find(t => MediaRecorder.isTypeSupported(t)) || '';
-				mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
-				audioChunks = [];
-
-				mediaRecorder.ondataavailable = (e) => {
-					if (e.data && e.data.size > 0) audioChunks.push(e.data);
-				};
-
-				mediaRecorder.onstop = () => {
-					const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
-					const reader = new FileReader();
-					reader.onloadend = () => {
-						// Server reads the transcript field; audio blob is included for future STT use
-						sendMessage(`[AUDIO:${reader.result}|]`);
-					};
-					reader.readAsDataURL(blob);
-					if (localStream) {
-						localStream.getTracks().forEach(t => t.stop());
-						localStream = null;
-					}
-				};
-
-				mediaRecorder.start();
-				isRecording = true;
-
-				// UI Feedback
-				micBtn.innerHTML = '<i class="bi bi-stop-circle-fill text-danger animate-pulse"></i>';
-				soundwave.style.display = 'flex';
-				input.disabled = true;
-				input.value = '';
-
-				const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-				recordDuration = 0;
-				input.placeholder = `🎤 Enregistrement... ${fmt(recordDuration)}`;
-				recordTimer = setInterval(() => {
-					recordDuration++;
-					input.placeholder = `🎤 Enregistrement... ${fmt(recordDuration)}`;
-					if (recordDuration >= 60) stopRecording(); // max 60s
-				}, 1000);
-
-			} catch (err) {
-				console.error('getUserMedia error:', err.name, err.message);
-				const n = err.name || '';
-				if (n === 'NotAllowedError' || n === 'PermissionDeniedError') {
-					showMicError('⚠️ Micro refusé — rechargez la page et autorisez le micro.');
-				} else if (n === 'NotFoundError' || n === 'DevicesNotFoundError') {
-					showMicError('⚠️ Aucun micro détecté — vérifiez votre matériel.');
-				} else if (n === 'NotReadableError' || n === 'TrackStartError') {
-					showMicError('⚠️ Micro utilisé par une autre app — fermez Zoom/Teams/etc. et réessayez.');
-				} else {
-					showMicError(`⚠️ Erreur micro : ${n || err.message}`);
-				}
-			}
-		}
-
-		function stopRecording() {
-			clearInterval(recordTimer);
-			isRecording = false;
-			if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-				mediaRecorder.stop();
-			}
-			if (micBtn) micBtn.innerHTML = '<i class="bi bi-mic"></i>';
-			if (soundwave) soundwave.style.display = 'none';
-			if (input) {
-				input.disabled = false;
-				input.placeholder = 'Posez une question à Sabrina...';
-			}
-		}
-
-		micBtn?.addEventListener('click', (e) => {
-			e.preventDefault();
-			if (isRecording) {
-				stopRecording();
-			} else {
-				startRecording();
+		// Fermeture par touche Echap
+		document.addEventListener('keydown', function(e) {
+			if (e.key === 'Escape') {
+				var overlay = document.getElementById('kpiSheetOverlay');
+				if (overlay && overlay.classList.contains('open')) closeKpiSheet();
 			}
 		});
+	}
 
-		// Auto-restore chat and settings state on page load
-		loadActiveThread();
-		if (localStorage.getItem('fab_chat_expanded') === 'true' && history.length > 0) {
-			showChatView();
-			renderHistory();
+	async function switchKpiPeriod(period, btn) {
+		const cards = document.querySelectorAll('.dashboard-kpis .kpi-card');
+		cards.forEach(c => c.style.opacity = '0.7');
+		if (btn) {
+			document.querySelectorAll('.kpi-period-btn').forEach(b => b.classList.remove('active'));
+			btn.classList.add('active');
 		}
-
-		input.addEventListener('focus', function () {
-			const wasActive = chatArea.classList.contains('active');
-			loadActiveThread();
-			showChatView();
-			if (!wasActive && history.length > 0) {
-				renderHistory();
+		try {
+			const res = await fetch('/api/kpi-period?period=' + period);
+			const data = await res.json();
+			if (data.success) {
+				const suffix = period === 'today' ? ' du jour' : period === 'week' ? ' de la semaine' : ' du mois';
+				document.querySelector('.dashboard-kpis .kpi-card:nth-child(1) .kpi-label').innerText = 'Ventes' + suffix;
+				document.querySelector('.dashboard-kpis .kpi-card:nth-child(2) .kpi-label').innerText = 'Encaisse' + suffix;
+				document.querySelector('.dashboard-kpis .kpi-card:nth-child(3) .kpi-label').innerText = 'Profit' + suffix;
+				animateKpiValue('.dashboard-kpis .kpi-card:nth-child(1) .kpi-value', data.sales);
+				animateKpiValue('.dashboard-kpis .kpi-card:nth-child(2) .kpi-value', data.cash);
+				animateKpiValue('.dashboard-kpis .kpi-card:nth-child(3) .kpi-value', data.profit);
+				animateKpiValue('.dashboard-kpis .kpi-card:nth-child(4) .kpi-value', data.receivables);
 			}
-		});
-
-		input.addEventListener('blur', function () {
-			// Small timeout to let clicks on buttons or uploads execute first
-			setTimeout(() => {
-				if (input.value.trim() === "" && history.length === 0) {
-					hero.classList.remove('chat-active');
-					chatArea.classList.remove('active');
-					localStorage.setItem('fab_chat_expanded', 'false');
-				}
-			}, 200);
-		});
-
-		// Auto-collapse empty assistant when clicking outside
-		document.addEventListener('mousedown', function (e) {
-			if (hero && !hero.contains(e.target)) {
-				// Only collapse if the text area is empty and there is no active chat history
-				if (input.value.trim() === "" && history.length === 0) {
-					hero.classList.remove('chat-active');
-					chatArea.classList.remove('active');
-					localStorage.setItem('fab_chat_expanded', 'false');
-				}
-			}
-		});
-	})();
-</script>
-
-<!-- ═══ DYNAMIC LOGO FONT ROTATOR (230+ FONTS, 20s INTERVAL) ═══ -->
-<script nonce="{{ csp_nonce }}">
-	(function () {
-		const FONTS_POOL = [
-			// Sans-serif & Modern
-			'Outfit', 'Inter', 'Roboto', 'Open Sans', 'Montserrat', 'Lato', 'Poppins', 'Nunito', 'Raleway',
-			'Ubuntu', 'Quicksand', 'Exo 2', 'Work Sans', 'Rubik', 'Dosis', 'Cabin', 'Questrial', 'Fira Sans',
-			'Titillium Web', 'Oxygen', 'Kanit', 'Manrope', 'Plus Jakarta Sans', 'Lexend', 'Comfortaa', 'Josefin Sans',
-			'Fredoka', 'Signika', 'Secular One', 'Varela Round', 'Jost', 'Sen', 'Catamaran', 'Hind Siliguri',
-			// Serif & Editorial
-			'Playfair Display', 'Lora', 'Merriweather', 'PT Serif', 'Baskervville', 'Cinzel', 'Crimson Text',
-			'Libre Baskerville', 'Cardo', 'Vollkorn', 'Domine', 'EB Garamond', 'Arvo', 'Alegreya', 'DM Serif Display',
-			'Cormorant Garamond', 'Sorts Mill Goudy', 'Noto Serif', 'Prata', 'Spectral', 'Fraunces', 'Abhaya Libre',
-			'Petrona', 'Cinzel Decorative', 'Libre Caslon Display', 'Playfair', 'Zilla Slab', 'Alegreya SC',
-			// Artistic, Display & Brand
-			'Oswald', 'Bebas Neue', 'Lobster', 'Lobster Two', 'Pacifico', 'Dancing Script', 'Amatic SC', 'Alfa Slab One',
-			'Concert One', 'Teko', 'Russo One', 'VT323', 'Luckiest Guy', 'Righteous', 'Orbitron', 'Great Vibes',
-			'Sacramento', 'Permanent Marker', 'Caveat', 'Satisfy', 'Kaushan Script', 'Shadows Into Light',
-			'Indie Flower', 'Creepster', 'Press Start 2P', 'Acme', 'Patua One', 'Abril Fatface', 'Almarai',
-			'Yellowtail', 'Cookie', 'Special Elite', 'Courgette', 'Architects Daughter', 'Bangers', 'Staatliches',
-			'Anton', 'Carter One', 'Changa One', 'Chewy', 'Paytone One', 'Titan One', 'Lilita One', 'Sigmar One',
-			'Bowlby One SC', 'Ultra', 'Spicy Rice', 'Fredericka the Great', 'Vampiro One', 'Black Ops One',
-			'Monoton', 'Audiowide', 'Megrim', 'Plaster', 'Ewert', 'Faster One', 'Fascinate Inline', 'Glass Antiqua',
-			'UnifrakturMaguntia', 'Trade Winds', 'Metal Mania', 'Rye', 'Sancreek', 'Kelly Slab', 'Codystar',
-			'Freckle Face', 'Slackey', 'Piedra', 'Eater', 'Frijole', 'Smokum', 'Snowburst One', 'Nosifer',
-			'Butcherman', 'Germania One', 'New Rocker', 'Barrio', 'Federant', 'Miniver', 'Diplomata', 'Ranchers',
-			'Henny Penny', 'Jolly Lodger', 'Geostar', 'Aladin', 'Akronim', 'Shojumaru', 'Arbutus', 'Astloch',
-			'Stint Ultra Condensed', 'Stint Ultra Expanded', 'Wallpoet', 'Macondo', 'Bigelow Rules', 'Sirin Stencil',
-			'Crete Round', 'Nova Cut', 'Pirata One', 'Overlock', 'Sniglet', 'Love Ya Like A Sister', 'Kenia',
-			'Life Savers', 'Modern Antiqua', 'Nova Slim', 'Ceviche One',
-			// Calligraphy & Handwriting
-			'Reenie Beanie', 'Loved by the King', 'Coming Soon', 'Give You Glory', 'Just Another Hand', 'Kristi',
-			'Gochi Hand', 'Patrick Hand', 'Schoolbell', 'Walter Turncoat', 'Rock Salt', 'Covered By Your Grace',
-			'Leckerli One', 'Grand Hotel', 'Niconne', 'Montez', 'Pinyon Script', 'Rochester', 'Herr Von Muellerhoff',
-			'Mrs Saint Delafield', 'Alex Brush', 'Allura', 'Italianno', 'Mr De Haviland', 'Parisienne', 'Tangerine',
-			'Marck Script', 'League Script', 'Calligraffitti', 'Bad Script', 'Cedarville Cursive', 'Homemade Apple',
-			'La Belle Aurore', 'Sue Ellen Francisco', 'Nothing You Could Do', 'Waiting for the Sunrise', 'Gloria Hallelujah',
-			'Reenie Beanie', 'Over the Rainbow', 'Dawning of a New Day', 'Short Stack', 'Architects Daughter',
-			'Neucha', 'Pangolin', 'Zeyada', 'Beth Ellen', 'Loved by the King', 'Amita', 'Kalam', 'Handlee'
-		];
-
-		// 50 premium, modern design colors
-		const COLORS_POOL = [
-			'#2563EB', '#3B82F6', '#0284C7', '#0EA5E9', '#06B6D4', '#0D9488', '#10B981', '#16A34A', '#84CC16', '#EAB308',
-			'#F59E0B', '#D97706', '#EA580C', '#F97316', '#EF4444', '#DC2626', '#E11D48', '#F43F5E', '#EC4899', '#D946EF',
-			'#C084FC', '#A855F7', '#8B5CF6', '#7C3AED', '#6366F1', '#4F46E5', '#4338CA', '#312E81', '#1E3A8A', '#0F172A',
-			'#0D6EFD', '#198754', '#DC3545', '#FFC107', '#0DCAF0', '#6610F2', '#6F42C1', '#D63384', '#FD7E14', '#20C997',
-			'#008080', '#00FFFF', '#FF00FF', '#FF7F50', '#6495ED', '#FF8C00', '#483D8B', '#2E8B57', '#8B008B', '#5F9EA0'
-		];
-
-		const logoText = document.querySelector('.fab-logo-text-main');
-		if (!logoText) return;
-
-		// Cache the original font name
-		const defaultFont = "Outfit";
-		let loadedFonts = new Set([defaultFont]);
-		let currentFontIdx = -1;
-		let currentColorIdx = -1;
-
-		// Apply CSS transition properties for beautiful fluid transitions (including color)
-		logoText.style.transition = 'opacity 0.3s ease, font-family 0.3s ease, color 0.8s ease';
-
-		// Retrieve script CSP nonce if present
-		const nonce = document.querySelector('script[nonce]')?.getAttribute('nonce') || '';
-
-		function rotateFont() {
-			if (FONTS_POOL.length <= 1) return;
-			let randomIdx;
-			do {
-				randomIdx = Math.floor(Math.random() * FONTS_POOL.length);
-			} while (randomIdx === currentFontIdx);
-			currentFontIdx = randomIdx;
-			const nextFont = FONTS_POOL[randomIdx];
-
-			const fontId = `gfont-${nextFont.replace(/\s+/g, '-').toLowerCase()}`;
-
-			const applyFontChange = () => {
-				logoText.style.opacity = '0.08';
-				setTimeout(() => {
-					logoText.style.fontFamily = `"${nextFont}", system-ui, sans-serif`;
-					logoText.style.opacity = '1';
-				}, 300);
-			};
-
-			// If already loaded, transition directly
-			if (document.getElementById(fontId) || loadedFonts.has(nextFont)) {
-				applyFontChange();
-				return;
-			}
-
-			// Load dynamically
-			const link = document.createElement('link');
-			link.id = fontId;
-			link.rel = 'stylesheet';
-			link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(nextFont)}:wght@400;700;900&display=swap`;
-			if (nonce) {
-				link.setAttribute('nonce', nonce);
-			}
-
-			link.onload = () => {
-				loadedFonts.add(nextFont);
-				if (document.fonts && document.fonts.load) {
-					document.fonts.load(`900 1em "${nextFont}"`)
-						.then(applyFontChange)
-						.catch(applyFontChange);
-				} else {
-					applyFontChange();
-				}
-			};
-
-			link.onerror = () => {
-				applyFontChange();
-			};
-
-			document.head.appendChild(link);
+		} catch(err) {
+			console.error('switchKpiPeriod error:', err);
+		} finally {
+			cards.forEach(c => c.style.opacity = '1');
 		}
+	}
+	window.switchKpiPeriod = switchKpiPeriod;
 
-		function rotateColor() {
-			if (COLORS_POOL.length <= 1) return;
-			let randomIdx;
-			do {
-				randomIdx = Math.floor(Math.random() * COLORS_POOL.length);
-			} while (randomIdx === currentColorIdx);
-			currentColorIdx = randomIdx;
-			const nextColor = COLORS_POOL[randomIdx];
-			// Inline color style overrides both stylesheet color and dark mode colors
-			logoText.style.setProperty('color', nextColor, 'important');
+	function animateKpiValue(selector, endVal) {
+		const el = document.querySelector(selector);
+		if (!el) return;
+		const startVal = parseInt(el.innerText.replace(/\s/g, '').replace('DA', '')) || 0;
+		const duration = 600;
+		const startTime = performance.now();
+		function update(now) {
+			const p = Math.min((now - startTime) / duration, 1);
+			const ease = p * (2 - p);
+			const val = Math.round(startVal + (endVal - startVal) * ease);
+			el.innerText = String(val).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+			if (p < 1) requestAnimationFrame(update);
+			else el.innerText = String(Math.round(endVal)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 		}
+		requestAnimationFrame(update);
+	}
 
-		// Trigger immediately on load
-		rotateFont();
-		rotateColor();
-
-		// Rotates the font every 60 seconds
-		setInterval(rotateFont, 60000);
-
-		// Rotates the color every 50 seconds
-		setInterval(rotateColor, 50000);
-	})();
-
-	// ─── Mobile Hero Clock ───────────────────────────────────────
-	(function mobileHeroClock() {
-		const timeEl = document.getElementById('mobileClockTime');
-		const dateEl = document.getElementById('mobileClockDate');
-		if (!timeEl && !dateEl) return;
-
-		const DAYS_FR = ['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
-		const MONTHS_FR = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
-
-		// Rotating accent colors — matches the desktop clock palette
-		const CLOCK_COLORS = [
-			'#2563EB', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#D946EF', '#8B5CF6', '#F97316', '#0D9488'
-		];
-		let colorIdx = 0;
-
-		function tick() {
-			const now = new Date();
-			const hh = String(now.getHours()).padStart(2, '0');
-			const mm = String(now.getMinutes()).padStart(2, '0');
-
-			if (timeEl) {
-				timeEl.textContent = `${hh}:${mm}`;
-				// Rotate color every minute
-				if (now.getSeconds() === 0) {
-					colorIdx = (colorIdx + 1) % CLOCK_COLORS.length;
-					timeEl.style.color = CLOCK_COLORS[colorIdx];
-					const badge = document.getElementById('mobileClockBadge');
-					if (badge) {
-						badge.style.borderColor = CLOCK_COLORS[colorIdx] + '30';
-						badge.style.background = CLOCK_COLORS[colorIdx] + '12';
-					}
-				}
-			}
-
-			if (dateEl) {
-				const day = DAYS_FR[now.getDay()];
-				const d = now.getDate();
-				const month = MONTHS_FR[now.getMonth()];
-				dateEl.textContent = `${day} ${d} ${month}`;
-			}
-		}
-
-		// Initialize immediately, then every second
-		tick();
-		setInterval(tick, 1000);
-	})();
+	// Lancement sécurisé
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', initDashboardKpis);
+	} else {
+		initDashboardKpis();
+	}
 </script>
 {% endblock %}

@@ -486,7 +486,9 @@ class ClientService:
                 data = parse_client_history_excel(str(temp_path))
                 
                 rows = data.get("rows", [])
-                opening = rows[0]["solde_cumule"] if rows else data.get("solde_final", 0.0)
+                # Le dernier solde cumulé de l'historique = le vrai solde actuel dû
+                # (rows[0] = solde d'ouverture historique, rows[-1] = dette finale réelle)
+                opening = rows[-1]["solde_cumule"] if rows else data.get("solde_final", 0.0)
                 if opening <= 0 and parsed.get("opening_credit", 0.0) > 0:
                     opening = parsed["opening_credit"]
                 
@@ -697,8 +699,9 @@ class ClientService:
         client_name = data["client_name"]
         rows = data["rows"]
         
-        # Le premier solde de l'historique correspond à l'opening_credit (solde d'ouverture)
-        opening_credit = rows[0]["solde_cumule"] if rows else 0.0
+        # Le dernier solde cumulé de l'historique = la dette actuelle réelle du client
+        # (rows[0] = solde d'ouverture initial, rows[-1] = solde final après tous mouvements)
+        opening_credit = rows[-1]["solde_cumule"] if rows else 0.0
 
         # 2. Résoudre ou créer le client
         if client_id is not None:

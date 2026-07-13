@@ -13,120 +13,91 @@
     <button type="button" class="fab-switch-btn" data-fab-switch-target="adminSabrina"
       aria-controls="adminSabrina" aria-pressed="false"><i class="bi bi-stars"></i> Sabrina (IA)</button>
     <button type="button" class="fab-switch-btn" data-fab-switch-target="adminBackups"
-      aria-controls="adminBackups" aria-pressed="false"><i class="bi bi-cloud-arrow-up"></i> Sauvegardes &amp; Drive</button>
-    <button type="button" class="fab-switch-btn" data-fab-switch-target="adminBackupJobs"
-      aria-controls="adminBackupJobs" aria-pressed="false"><i class="bi bi-clock-history"></i> Jobs de
-      sauvegarde</button>
+      aria-controls="adminBackups" aria-pressed="false"><i class="bi bi-cloud-arrow-up"></i> Sauvegardes &amp; Restauration</button>
     <button type="button" class="fab-switch-btn" data-fab-switch-target="adminLogs"
       aria-controls="adminLogs" aria-pressed="false"><i class="bi bi-shield-check"></i> Journaux &amp; Audit</button>
     <button type="button" class="fab-switch-btn" data-fab-switch-target="adminSystemLogs"
-      aria-controls="adminSystemLogs" aria-pressed="false"><i class="bi bi-cpu"></i> Système</button>
+      aria-controls="adminSystemLogs" aria-pressed="false"><i class="bi bi-cpu"></i> Système &amp; Diagnostics</button>
     <button type="button" class="fab-switch-btn" data-fab-switch-target="adminUIPrefs"
       aria-controls="adminUIPrefs" aria-pressed="false"><i class="bi bi-palette"></i> Préférences UI</button>
+    <button type="button" class="fab-switch-btn" data-fab-switch-target="adminManual"
+      aria-controls="adminManual" aria-pressed="false"><i class="bi bi-book-half"></i> Manuel d'utilisation</button>
   </div>
 
   <div id="adminSwitchPlaceholder" class="card fab-switch-placeholder">
     <strong>Choisissez un bloc</strong>
   </div>
 
+  <!-- ========================================================================= -->
+  <!-- 1. UTILISATEURS & COMPTES (ASYNCHRONE) -->
+  <!-- ========================================================================= -->
   <section id="adminUsersGroup" class="fab-switch-panel" hidden>
     <div class="row g-3">
       <!-- Créer un utilisateur -->
       <div class="col-lg-4">
-        <div class="card p-3 h-100">
+        <div class="card p-3 h-100 shadow-sm border">
           <div class="card-header-row mb-3">
             <div>
-              <h5 class="section-title">Créer un utilisateur</h5>
+              <h5 class="section-title fw-bold text-primary"><i class="bi bi-person-plus me-1"></i> Créer un utilisateur</h5>
               <div class="small text-muted mt-1">Ajouter un compte interne et définir son rôle.</div>
             </div>
           </div>
-          <form method="post" class="row g-2">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="action" value="create_user">
+          <form id="createUserForm" class="row g-2">
             <div class="col-12">
               <label for="usernameInput" class="form-label mb-1">Nom d'utilisateur</label>
-              <input name="username" id="usernameInput" class="form-control" required>
+              <input name="username" id="usernameInput" class="form-control" placeholder="ex: amine" required autocomplete="off">
             </div>
             <div class="col-12">
               <label for="pinInput" class="form-label mb-1">Code PIN (4 chiffres)</label>
               <input name="password" id="pinInput" type="password" class="form-control" inputmode="numeric" pattern="\d{4}" maxlength="4"
-                minlength="4" placeholder="1234" required>
+                minlength="4" placeholder="1234" required autocomplete="new-password">
             </div>
             <div class="col-12">
               <label for="roleInput" class="form-label mb-1">Rôle</label>
               <select name="role" id="roleInput" class="form-select">
-                <option value="operator">Operator</option>
-                <option value="manager">Manager</option>
-                <option value="admin">Admin</option>
+                <option value="operator">Operator (Opérateur)</option>
+                <option value="manager">Manager (Gestionnaire)</option>
+                <option value="admin">Admin (Administrateur)</option>
               </select>
             </div>
             <div class="col-12 mt-3">
-              <button class="btn btn-dark w-100">Créer le compte</button>
+              <button type="submit" class="btn btn-dark w-100">
+                <span class="spinner-border spinner-border-sm me-1 btn-spinner" style="display:none;"></span>
+                Créer le compte
+              </button>
             </div>
           </form>
+          <div id="createUserMsg" class="mt-2" style="display:none;"></div>
         </div>
       </div>
 
       <!-- Liste des utilisateurs -->
       <div class="col-lg-8">
-        <div class="card p-3 h-100">
-          <div class="card-header-row mb-3">
+        <div class="card p-3 h-100 shadow-sm border">
+          <div class="card-header-row mb-3 d-flex justify-content-between align-items-center">
             <div>
-              <h5 class="section-title">Utilisateurs</h5>
-              <div class="small text-muted mt-1">Actif, rôle, dernière connexion et modification du mot de passe.</div>
+              <h5 class="section-title fw-bold"><i class="bi bi-people me-1"></i> Comptes Utilisateurs</h5>
+              <div class="small text-muted mt-1">Gérer les accès, les PINs et les statuts d'activité.</div>
             </div>
+            <button class="btn btn-sm btn-outline-secondary" id="btnRefreshUsers"><i class="bi bi-arrow-clockwise"></i> Actualiser</button>
           </div>
-          <div class="table-responsive">
-            <table class="table js-datagrid align-middle">
-              <thead>
+          <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+            <table class="table align-middle table-hover">
+              <thead class="table-light sticky-top">
                 <tr>
                   <th>Utilisateur</th>
                   <th>Rôle</th>
-                  <th>Actif</th>
-                  <th>Dernière connexion</th>
+                  <th>Statut</th>
                   <th>PIN / Mot de passe</th>
                   <th>Action</th>
                 </tr>
               </thead>
-              <tbody>
-                {% for u in users %}
-                {% set user_form_id = 'adminUserForm' ~ u.id %}
+              <tbody id="usersTableBody">
                 <tr>
-                  <td>
-                    <form id="{{ user_form_id }}" method="post" class="m-0"></form>
-                    <input form="{{ user_form_id }}" type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <input form="{{ user_form_id }}" type="hidden" name="action" value="update_user">
-                    <input form="{{ user_form_id }}" type="hidden" name="user_id" value="{{ u.id }}">
-                    <div class="fw-semibold">{{ u.username }}</div>
-                    <div class="small text-muted">Créé le {{ u.created_at|dt(16) }}</div>
-                  </td>
-                  <td>
-                    <select form="{{ user_form_id }}" name="role" class="form-select form-select-sm">
-                      <option value="operator" {% if u.role=='operator' %}selected{% endif %}>operator</option>
-                      <option value="manager" {% if u.role=='manager' %}selected{% endif %}>manager</option>
-                      <option value="admin" {% if u.role=='admin' %}selected{% endif %}>admin</option>
-                    </select>
-                  </td>
-                  <td>
-                    <select form="{{ user_form_id }}" name="is_active" class="form-select form-select-sm">
-                      <option value="1" {% if u.is_active %}selected{% endif %}>Oui</option>
-                      <option value="0" {% if not u.is_active %}selected{% endif %}>Non</option>
-                    </select>
-                  </td>
-                  <td><span class="small text-muted">{{ (u.last_login_at or 'Jamais') }}</span></td>
-                  <td>
-                    <div class="d-grid gap-1" style="min-width:140px;">
-                      <input form="{{ user_form_id }}" name="new_password" type="password"
-                        class="form-control form-control-sm" autocomplete="new-password" inputmode="numeric" pattern="\d{4}"
-                        maxlength="4" minlength="4" placeholder="Nouveau PIN">
-                      <span class="small text-muted">Dernier: {{ (u.last_password_change_at or 'Jamais') }}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <button form="{{ user_form_id }}" type="submit" class="btn btn-sm btn-outline-dark w-100">Sauver</button>
+                  <td colspan="5" class="text-center py-4 text-muted">
+                    <span class="spinner-border spinner-border-sm me-2"></span> Chargement des comptes...
                   </td>
                 </tr>
-                {% endfor %}
               </tbody>
             </table>
           </div>
@@ -135,6 +106,9 @@
     </div>
   </section>
 
+  <!-- ========================================================================= -->
+  <!-- SABRINA (IA) - PRESERVE -->
+  <!-- ========================================================================= -->
   <section id="adminSabrina" class="fab-switch-panel" hidden>
     <div class="row g-3">
       <!-- Card 1: Configuration de l'IA -->
@@ -147,10 +121,7 @@
             </div>
           </div>
           
-          <form method="post" action="/admin" class="d-flex flex-column gap-3">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="action" value="save_sabrina_settings">
-
+          <form id="sabrinaSettingsForm" class="d-flex flex-column gap-3">
             <!-- Mode de fonctionnement -->
             <div>
               <label class="form-label fw-bold mb-2">Mode de fonctionnement</label>
@@ -193,9 +164,13 @@
             </div>
 
             <div>
-              <button type="submit" class="btn btn-dark w-100">Enregistrer les paramètres</button>
+              <button type="submit" class="btn btn-dark w-100">
+                <span class="spinner-border spinner-border-sm me-1 btn-spinner" style="display:none;"></span>
+                Enregistrer les paramètres
+              </button>
             </div>
           </form>
+          <div id="sabrinaSettingsMsg" class="mt-2" style="display:none;"></div>
         </div>
       </div>
 
@@ -254,425 +229,320 @@
     </div>
   </section>
 
+  <!-- ========================================================================= -->
+  <!-- 2. SAUVEGARDES & RESTAURATION (ASYNCHRONE FUSIONNÉ) -->
+  <!-- ========================================================================= -->
   <section id="adminBackups" class="fab-switch-panel" hidden>
     <div class="row g-3">
-      <!-- Actions backup -->
+      <!-- Actions et Fichiers locaux -->
       <div class="col-lg-6">
-        <div class="card p-3 h-100">
-          <div class="card-header-row mb-3">
+        <div class="card p-3 h-100 shadow-sm border">
+          <div class="card-header-row mb-3 d-flex justify-content-between align-items-center">
             <div>
-              <h5 class="section-title">Actions backup</h5>
-              <div class="small text-muted mt-1">Créer une sauvegarde ou restaurer un snapshot existant.</div>
+              <h5 class="section-title fw-bold text-primary"><i class="bi bi-sd-card me-1"></i> Sauvegardes locales</h5>
+              <div class="small text-muted mt-1">Lancer une sauvegarde instantanée ou restaurer la base.</div>
             </div>
+            <button class="btn btn-dark btn-sm" id="btnTriggerBackupNow">
+              <span class="spinner-border spinner-border-sm me-1 btn-spinner" style="display:none;"></span>
+              <i class="bi bi-plus-lg me-1"></i> Sauvegarder
+            </button>
           </div>
-          <form method="post" class="d-grid gap-2">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="action" value="backup_now">
-            <button class="btn btn-dark">Créer une sauvegarde maintenant</button>
-          </form>
-          <hr>
-          <form method="post" class="row g-2">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="action" value="restore_backup">
-            <div class="col-12">
-              <label for="restoreSelect" class="form-label mb-1">Restaurer depuis</label>
-              <select name="backup_name" id="restoreSelect" class="form-select" required>
-                <option value="">Choisir une sauvegarde...</option>
-                {% for b in backups %}
-                <option value="{{ b.value }}">{{ b.label }}</option>
-                {% endfor %}
+          
+          <div id="backupActionMsg" class="mb-3" style="display:none;"></div>
+          
+          <div class="mb-3">
+            <label for="restoreSelect" class="form-label fw-bold mb-1">Restaurer la base depuis</label>
+            <div class="d-flex gap-2">
+              <select id="restoreSelect" class="form-select">
+                <option value="">Sélectionner un fichier de sauvegarde...</option>
               </select>
+              <button class="btn btn-danger" id="btnRestoreBackup" style="min-width: 100px;">Restaurer</button>
             </div>
-            <div class="col-12 mt-2">
-              <button class="btn btn-outline-danger w-100"
-                onclick="return confirm('Restaurer la base actuelle ?')">Restaurer</button>
-            </div>
-          </form>
+            <div class="small text-muted mt-1 text-danger fw-semibold"><i class="bi bi-exclamation-triangle"></i> Attention : La restauration remplace l'intégralité des données actuelles !</div>
+          </div>
+
+          <hr>
+
+          <h6 class="fw-bold mb-2"><i class="bi bi-activity"></i> Récents travaux en arrière-plan</h6>
+          <div class="table-responsive" style="max-height: 220px; overflow-y: auto;">
+            <table class="table table-sm align-middle table-hover" style="font-size:0.8rem;">
+              <thead class="table-light">
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Statut</th>
+                  <th>Fichier</th>
+                </tr>
+              </thead>
+              <tbody id="backupJobsTableBody">
+                <tr>
+                  <td colspan="4" class="text-center py-3 text-muted">Aucun job récent.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <!-- Sauvegarde Google Drive -->
+      <!-- Configuration Google Drive & Rétention -->
       <div class="col-lg-6">
-        <div class="card p-3 h-100">
+        <div class="card p-3 h-100 shadow-sm border">
           <div class="card-header-row mb-3">
             <div>
-              <h5 class="section-title">Sauvegarde Google Drive</h5>
-              <div class="small text-muted mt-1">Choisissez un dossier local synchronisé par Google Drive Desktop pour y copier les sauvegardes.</div>
+              <h5 class="section-title fw-bold"><i class="bi bi-google me-1"></i> Synchronisation & Rétention</h5>
+              <div class="small text-muted mt-1">Configurez le dossier local partagé Google Drive Desktop.</div>
             </div>
           </div>
-          <div class="alert alert-{{ 'success' if settings.gdrive_backup_dir else 'warning' }} mb-3" role="alert">
-            {% if settings.gdrive_backup_dir %}
-            <div class="fw-semibold">Dossier Google Drive configure</div>
-            <div class="text-break">{{ settings.gdrive_backup_dir }}</div>
-            <div class="small mt-2">Les sauvegardes locales seront copiees automatiquement dans ce dossier.</div>
-            {% else %}
-            <div class="fw-semibold">Aucun dossier Google Drive configure</div>
-            <div>Les sauvegardes restent locales tant qu'aucun dossier synchronisé n'est renseigné.</div>
-            {% endif %}
-            {% if latest_backup_error %}
-            <div class="small mt-2 text-break">Dernière erreur de sauvegarde : {{ latest_backup_error.error_message }}</div>
-            {% endif %}
-          </div>
-          <form method="post" class="row g-2">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="action" value="save_backup_settings">
+
+          <form id="backupSettingsForm" class="row g-2">
             <div class="col-12">
-              <label for="gdriveDirInput" class="form-label mb-1">Dossier Google Drive local</label>
-              <input name="gdrive_backup_dir" id="gdriveDirInput" class="form-control" value="{{ settings.gdrive_backup_dir }}"
-                placeholder="Ex: C:\Users\massi\Google Drive\FABOuanes">
-              <div class="small text-muted mt-1">Choisissez ici le dossier déjà synchronisé par Google Drive sur ce PC.</div>
+              <label for="gdriveDirInput" class="form-label mb-1">Chemin Google Drive Desktop local</label>
+              <input name="gdrive_backup_dir" id="gdriveDirInput" class="form-control form-control-sm" placeholder="ex: C:\Users\massi\Google Drive\DossierPartage">
+              <div class="small text-muted mt-1">Drive Desktop transférera automatiquement les snapshots créés.</div>
             </div>
             <div class="col-12">
-              <label for="pgDumpPathInput" class="form-label mb-1">Chemin de l'utilitaire pg_dump (optionnel)</label>
-              <input name="pg_dump_path" id="pgDumpPathInput" class="form-control" value="{{ settings.pg_dump_path or '' }}"
-                placeholder="Ex: C:\Program Files\PostgreSQL\16\bin\pg_dump.exe">
-              <div class="small text-muted mt-1">Laissez vide pour utiliser la commande par défaut ou le fallback. Recommandé sous Windows si les outils PostgreSQL ne sont pas dans le PATH.</div>
+              <label for="pgDumpPathInput" class="form-label mb-1">Chemin de l'exécutable pg_dump.exe (PostgreSQL)</label>
+              <input name="pg_dump_path" id="pgDumpPathInput" class="form-control form-control-sm" placeholder="ex: C:\Program Files\PostgreSQL\16\bin\pg_dump.exe">
+              <div class="small text-muted mt-1">Recommandé pour Windows si pg_dump n'est pas configuré dans le PATH système.</div>
             </div>
             <div class="col-md-4">
-              <label for="snapshotInput" class="form-label mb-1">Snapshot</label>
-              <input name="backup_snapshot_time" id="snapshotInput" class="form-control" value="{{ settings.backup_snapshot_time }}">
+              <label for="snapshotInput" class="form-label mb-1">Heure Snapshot</label>
+              <input name="backup_snapshot_time" id="snapshotInput" class="form-control form-control-sm" placeholder="02:00">
             </div>
             <div class="col-md-4">
-              <label for="retentionNightInput" class="form-label mb-1">Retention nuit</label>
-              <input name="backup_local_retention" id="retentionNightInput" type="number" min="1" class="form-control"
-                value="{{ settings.backup_local_retention }}">
+              <label for="retentionNightInput" class="form-label mb-1">Rétention (nuits)</label>
+              <input name="backup_local_retention" id="retentionNightInput" type="number" min="1" class="form-control form-control-sm">
             </div>
             <div class="col-md-4">
-              <label for="retentionEventInput" class="form-label mb-1">Retention event</label>
-              <input name="backup_event_retention" id="retentionEventInput" type="number" min="1" class="form-control"
-                value="{{ settings.backup_event_retention }}">
+              <label for="retentionEventInput" class="form-label mb-1">Rétention (événements)</label>
+              <input name="backup_event_retention" id="retentionEventInput" type="number" min="1" class="form-control form-control-sm">
             </div>
             <div class="col-12 d-grid mt-3">
-              <button class="btn btn-outline-dark">Enregistrer la configuration</button>
+              <button type="submit" class="btn btn-outline-dark btn-sm">
+                <span class="spinner-border spinner-border-sm me-1 btn-spinner" style="display:none;"></span>
+                Enregistrer la configuration
+              </button>
             </div>
           </form>
-          <div class="small text-muted mt-2">
-            Aucune connexion Google n'est necessaire dans FABOuanes: Google Drive Desktop se charge de la synchronisation.
-          </div>
+          <div id="backupSettingsMsg" class="mt-2" style="display:none;"></div>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="adminBackupJobs" class="card p-3 fab-switch-panel" hidden>
-    <div class="card-header-row mb-3">
-      <div>
-        <h5 class="section-title">Jobs de sauvegarde</h5>
-        <div class="small text-muted mt-1">Suivi des copies locales, du dossier Drive et des erreurs recentes.</div>
-      </div>
-    </div>
-    <div class="table-responsive">
-      <table class="table js-datagrid align-middle">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Raison</th>
-            <th class="hide-mobile">Type</th>
-            <th>Statut</th>
-            <th class="hide-mobile">Copie Drive</th>
-            <th>Créé le</th>
-            <th class="hide-mobile">Erreur</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for job in backup_jobs %}
-          <tr>
-            <td>{{ job.id }}</td>
-            <td>{{ job.reason }}</td>
-            <td class="hide-mobile">{{ job.backup_type }}</td>
-            <td>{{ job.status }}</td>
-            <td class="hide-mobile">{{ job.cloud_file_name or '-' }}</td>
-            <td>{{ job.created_at|dt(16) }}</td>
-            <td class="small text-break hide-mobile">{{ job.error_message or '-' }}</td>
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="7" class="text-muted">Aucun job de sauvegarde.</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
-
+  <!-- ========================================================================= -->
+  <!-- 3. JOURNAUX & AUDIT (ASYNCHRONE AVEC RECHERCHE ET FILTRES RAPIDES) -->
+  <!-- ========================================================================= -->
   <section id="adminLogs" class="fab-switch-panel" hidden>
-    <div class="d-flex flex-column gap-3">
-      <!-- Journal d'audit -->
-      <div class="card p-3">
-        <div class="card-header-row mb-3">
-          <div>
-            <h5 class="section-title">Journal d'audit</h5>
-            <div class="small text-muted mt-1">Filtres, export CSV et details avant/apres.</div>
-          </div>
-          <a href="{{ url_for('admin_audit_export', **audit_filters) }}" class="btn btn-sm btn-outline-dark">Exporter CSV</a>
+    <div class="card p-3 shadow-sm border mb-3">
+      <div class="card-header-row mb-3 d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="section-title fw-bold text-primary"><i class="bi bi-shield-check me-1"></i> Journaux de Sécurité & d'Audit</h5>
+          <div class="small text-muted mt-1">Superviser toutes les transactions, modifications et suppressions en temps réel.</div>
         </div>
-        <form method="get" action="{{ url_for('admin_audit_page') }}" class="row g-2 mb-3">
-          <div class="col-md-2"><input type="date" name="date_from" value="{{ audit_filters.get('date_from','') }}"
-              class="form-control"></div>
-          <div class="col-md-2"><input type="date" name="date_to" value="{{ audit_filters.get('date_to','') }}"
-              class="form-control"></div>
-          <div class="col-md-2"><input type="text" name="actor" value="{{ audit_filters.get('actor','') }}"
-              class="form-control" placeholder="Acteur"></div>
-          <div class="col-md-2"><input type="text" name="action" value="{{ audit_filters.get('action','') }}"
-              class="form-control" placeholder="Action"></div>
-          <div class="col-md-2"><input type="text" name="entity_type" value="{{ audit_filters.get('entity_type','') }}"
-              class="form-control" placeholder="Entite"></div>
-          <div class="col-md-2">
-            <select name="status" class="form-select">
-              <option value="">Tous</option>
-              <option value="success" {% if audit_filters.get('status')=='success' %}selected{% endif %}>success</option>
-              <option value="failure" {% if audit_filters.get('status')=='failure' %}selected{% endif %}>failure</option>
-            </select>
-          </div>
-          <div class="col-12 d-flex gap-2">
-            <button class="btn btn-outline-secondary"><i class="bi bi-funnel me-1"></i>Filtrer</button>
-            <a href="{{ url_for('admin_audit_page') }}" class="btn btn-outline-secondary"><i class="bi bi-x-circle me-1"></i>Annuler</a>
-          </div>
-        </form>
-        <div class="table-responsive">
-          <table class="table js-datagrid align-middle">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Acteur</th>
-                <th class="hide-mobile">Source</th>
-                <th>Action</th>
-                <th>Entite</th>
-                <th>Statut</th>
-                <th class="hide-mobile">Avant / apres</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for log in audit_logs %}
-              <tr>
-                <td>{{ log.created_at|dt(16) }}</td>
-                <td>
-                  <div class="fw-semibold">{{ log.actor_username }}</div>
-                  <div class="small text-muted">{{ log.actor_role }}</div>
-                </td>
-                <td class="hide-mobile">{{ log.source }}</td>
-                <td>{{ log.action }}</td>
-                <td>{{ log.entity_type }}{% if log.entity_id %} #{{ log.entity_id }}{% endif %}</td>
-                <td>
-                  <span class="badge {{ 'bg-success' if log.status == 'success' else 'bg-danger' }}">{{ log.status }}</span>
-                </td>
-                <td class="hide-mobile">
-                  <div class="small text-muted text-break">{{ log.before_json or '-' }}</div>
-                  <div class="small text-break">{{ log.after_json or '-' }}</div>
-                </td>
-              </tr>
-              {% else %}
-              <tr>
-                <td colspan="7" class="text-muted">Aucune entree d'audit.</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <button class="btn btn-outline-dark btn-sm" id="btnExportAuditCSV"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Exporter CSV</button>
+      </div>
+
+      <!-- Filtres rapides asynchrones -->
+      <div class="row g-2 mb-3 bg-light p-3 rounded border">
+        <div class="col-md-3">
+          <label class="form-label small fw-bold">Recherche globale</label>
+          <input type="text" id="auditQueryInput" class="form-control form-control-sm" placeholder="Nom, détails, ID, action...">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-bold">Acteur / Rôle</label>
+          <input type="text" id="auditActorInput" class="form-control form-control-sm" placeholder="ex: admin">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-bold">Date de début</label>
+          <input type="date" id="auditDateFromInput" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-bold">Date de fin</label>
+          <input type="date" id="auditDateToInput" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-bold">Statut</label>
+          <select id="auditStatusSelect" class="form-select form-select-sm">
+            <option value="">Tous les statuts</option>
+            <option value="success">Success (Succès)</option>
+            <option value="failure">Failure (Échec)</option>
+          </select>
+        </div>
+        <div class="col-md-1 d-flex align-items-end">
+          <button class="btn btn-outline-secondary btn-sm w-100" id="btnClearAuditFilters" title="Réinitialiser les filtres"><i class="bi bi-x-circle"></i></button>
         </div>
       </div>
 
-      <!-- Journal d'activité -->
-      <div class="card p-3">
-        <div class="card-header-row mb-3">
-          <div>
-            <h5 class="section-title">Journal d'activité admin</h5>
-            <div class="small text-muted mt-1">Actions metier lisibles par l'administrateur.</div>
+      <!-- Tableau dynamique des logs d'audit -->
+      <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
+        <table class="table align-middle table-hover" style="font-size: 0.85rem;">
+          <thead class="table-light sticky-top">
+            <tr>
+              <th>Date</th>
+              <th>Utilisateur</th>
+              <th>Action</th>
+              <th>Cible / Entité</th>
+              <th>Statut</th>
+              <th>Détails Modifiés (Avant / Après)</th>
+            </tr>
+          </thead>
+          <tbody id="auditLogsTableBody">
+            <tr>
+              <td colspan="6" class="text-center py-4 text-muted">Veuillez patienter ou saisir un filtre...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- 4. SYSTÈME & DIAGNOSTICS (ASYNCHRONE) -->
+  <!-- ========================================================================= -->
+  <section id="adminSystemLogs" class="fab-switch-panel" hidden>
+    <div class="row g-3">
+      <!-- État général & Matrice de santé -->
+      <div class="col-lg-4">
+        <div class="card p-3 shadow-sm border h-100">
+          <div class="card-header-row mb-3">
+            <h5 class="section-title fw-bold text-primary"><i class="bi bi-cpu me-1"></i> Matrice Système</h5>
+            <div class="small text-muted mt-1">État opérationnel de l'application et de la base de données.</div>
           </div>
+          
+          <div class="d-flex flex-column gap-3 mb-3" id="systemStatusCards">
+            <!-- PostgreSQL Card -->
+            <div class="p-3 border rounded bg-light d-flex align-items-center justify-content-between">
+              <div>
+                <div class="fw-semibold">Base PostgreSQL</div>
+                <div class="small text-muted text-break" id="sysDbPath">-</div>
+              </div>
+              <span class="badge bg-secondary" id="sysDbBadge">-</span>
+            </div>
+            <!-- Backup Card -->
+            <div class="p-3 border rounded bg-light d-flex align-items-center justify-content-between">
+              <div>
+                <div class="fw-semibold">Fichiers sauvegardes</div>
+                <div class="small text-muted" id="sysBackupCount">-</div>
+              </div>
+              <span class="badge bg-secondary" id="sysBackupBadge">-</span>
+            </div>
+            <!-- Version Card -->
+            <div class="p-3 border rounded bg-light d-flex align-items-center justify-content-between">
+              <div>
+                <div class="fw-semibold">Version Applicative</div>
+                <div class="small text-muted" id="sysDataDir">-</div>
+              </div>
+              <span class="badge bg-success" id="sysVersion">-</span>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2">
+            <button class="btn btn-outline-dark" id="btnRunMaintenance">
+              <span class="spinner-border spinner-border-sm me-1 btn-spinner" style="display:none;"></span>
+              <i class="bi bi-speedometer me-1"></i> Lancer la maintenance base
+            </button>
+            <a href="/admin/system-status/export" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-arrow-down me-1"></i> Exporter rapport diagnostic</a>
+          </div>
+          <div id="maintenanceMsg" class="mt-2" style="display:none;"></div>
         </div>
-        <form method="get" action="{{ url_for('admin_panel') }}" class="row g-2 mb-3">
-          <div class="col-md-3">
-            <input type="text" name="activity_q" value="{{ activity_filters.activity_q }}" class="form-control"
-              placeholder="Recherche action, detail, entite">
+      </div>
+
+      <!-- Logs Techniques & Performances -->
+      <div class="col-lg-8">
+        <div class="card p-3 shadow-sm border h-100">
+          <div class="card-header-row mb-3 d-flex justify-content-between align-items-center">
+            <div>
+              <h5 class="section-title fw-bold"><i class="bi bi-file-text me-1"></i> Surveillance technique & performances</h5>
+              <div class="small text-muted mt-1">Superviser les requêtes lentes, les mouvements de stocks et les erreurs récentes.</div>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" id="btnRefreshSystem"><i class="bi bi-arrow-clockwise"></i> Actualiser</button>
           </div>
-          <div class="col-md-2">
-            <input type="text" name="activity_user" value="{{ activity_filters.activity_user }}" class="form-control"
-              placeholder="Utilisateur">
+
+          <ul class="nav nav-tabs mb-3" id="sysTab" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active py-1" id="sys-stock-tab" data-bs-toggle="tab" data-bs-target="#sys-stock" type="button" role="tab">Stocks</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link py-1" id="sys-perf-tab" data-bs-toggle="tab" data-bs-target="#sys-perf" type="button" role="tab">Performance (>300ms)</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link py-1" id="sys-errors-tab" data-bs-toggle="tab" data-bs-target="#sys-errors" type="button" role="tab">Erreurs</button>
+            </li>
+          </ul>
+
+          <div class="tab-content" id="sysTabContent">
+            <!-- Tab 1: Mouvements de stock -->
+            <div class="tab-pane fade show active" id="sys-stock" role="tabpanel">
+              <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                <table class="table table-sm table-hover align-middle" style="font-size:0.8rem;">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Date</th>
+                      <th>Article</th>
+                      <th>Mouvement</th>
+                      <th>Solde</th>
+                      <th>Référence</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sysStockTableBody">
+                    <tr>
+                      <td colspan="5" class="text-center text-muted py-3">Aucun mouvement récent.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Tab 2: Performances -->
+            <div class="tab-pane fade" id="sys-perf" role="tabpanel">
+              <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                <table class="table table-sm table-hover align-middle" style="font-size:0.8rem;">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Temps (ms)</th>
+                      <th>Nom de l'opération</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sysPerfTableBody">
+                    <tr>
+                      <td colspan="4" class="text-center text-muted py-3">Aucun log de performance disponible.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Tab 3: Erreurs récents -->
+            <div class="tab-pane fade" id="sys-errors" role="tabpanel">
+              <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                <table class="table table-sm table-hover align-middle" style="font-size:0.8rem;">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Date</th>
+                      <th>Niveau</th>
+                      <th>Détails Message</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sysErrorsTableBody">
+                    <tr>
+                      <td colspan="3" class="text-center text-muted py-3">Aucune erreur détectée.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
-          <div class="col-md-2">
-            <select name="activity_action" class="form-select">
-              <option value="">Toutes les actions</option>
-              {% for action_name in activity_actions %}
-              <option value="{{ action_name }}" {% if activity_filters.activity_action==action_name %}selected{% endif %}>{{
-                action_name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-2">
-            <select name="activity_type" class="form-select">
-              <option value="">Tous les types</option>
-              {% for entity_type in activity_entity_types %}
-              <option value="{{ entity_type }}" {% if activity_filters.activity_type==entity_type %}selected{% endif %}>{{
-                entity_type }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-2">
-            <input type="date" name="activity_date" value="{{ activity_filters.activity_date }}" class="form-control">
-          </div>
-          <div class="col-12 d-flex gap-2">
-            <button class="btn btn-outline-secondary"><i class="bi bi-funnel me-1"></i>Filtrer</button>
-            <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-secondary"><i class="bi bi-x-circle me-1"></i>Annuler</a>
-          </div>
-        </form>
-        <div class="table-responsive">
-          <table class="table js-datagrid align-middle">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Utilisateur</th>
-                <th>Action</th>
-                <th class="hide-mobile">Cible</th>
-                <th>Detail</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for log in activity_logs %}
-              <tr>
-                <td>{{ log.display_date }}</td>
-                <td class="fw-semibold">{{ log.username }}</td>
-                <td>{{ log.action_label }}</td>
-                <td class="hide-mobile">{{ log.target_label }}</td>
-                <td>
-                  <div>{{ log.details or '-' }}</div>
-                  <div class="small text-muted">{{ log.sentence }}</div>
-                </td>
-              </tr>
-              {% else %}
-              <tr>
-                <td colspan="5" class="text-muted">Aucune activité.</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="adminSystemLogs" class="card p-3 fab-switch-panel" hidden>
-    <div class="card-header-row">
-      <div>
-        <h5 class="section-title">Système</h5>
-        <div class="small text-muted mt-1">Logs techniques et messages récents du système.</div>
-      </div>
-      <a href="{{ url_for('admin_system_status') }}" class="btn btn-sm btn-outline-dark"><i
-          class="bi bi-clipboard2-pulse me-1"></i> État du système</a>
-    </div>
-    <form method="post" class="d-flex gap-2 flex-wrap mb-3">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <input type="hidden" name="action" value="database_maintenance">
-      <button class="btn btn-outline-dark"
-        onclick="return confirm('Confirmer la maintenance de la base de données ?')">
-        <i class="bi bi-speedometer2 me-1"></i>Maintenance de la base
-      </button>
-    </form>
-    <div class="row g-2 mb-3">
-      <div class="col-md-4">
-        <div class="border rounded-3 p-3 h-100">
-          <div class="small text-muted">Base</div>
-          <div class="fw-bold">{{ system_status.database.status }}</div>
-          <div class="small text-break">{{ system_status.database.path }}</div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="border rounded-3 p-3 h-100">
-          <div class="small text-muted">Sauvegardes</div>
-          <div class="fw-bold">{{ system_status.backups.status }}</div>
-          <div class="small">{{ system_status.backups.count }} fichier(s), dernier job: {{
-            system_status.backups.latest_job_status }}</div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="border rounded-3 p-3 h-100">
-          <div class="small text-muted">Version</div>
-          <div class="fw-bold">{{ system_status.version }}</div>
-          <div class="small text-break">{{ system_status.paths.data_dir }}</div>
-        </div>
-      </div>
-    </div>
-    <div class="table-responsive mb-3">
-      <table class="table align-middle">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Article</th>
-            <th>Mouvement</th>
-            <th class="hide-mobile">Stock</th>
-            <th>Référence</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for movement in stock_movements %}
-          <tr>
-            <td>{{ movement.created_at|dt(16) }}</td>
-            <td>{{ movement.item_kind }} #{{ movement.item_id }}</td>
-            <td>{{ movement.direction }} {{ movement.quantity|qty }} {{ movement.unit }}</td>
-            <td class="hide-mobile">{{ movement.stock_before|qty }} -> {{ movement.stock_after|qty }}</td>
-            <td>{{ movement.reference_type or '-' }}{% if movement.reference_id %} #{{ movement.reference_id }}{% endif
-              %}</td>
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="5" class="text-muted">Aucun mouvement de stock.</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <div class="table-responsive">
-      <table class="table js-datagrid align-middle">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Type</th>
-            <th>Duree</th>
-            <th>Nom</th>
-            <th class="hide-mobile">Route</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for log in performance_logs %}
-          <tr>
-            <td>{{ log.created_at|dt(16) }}</td>
-            <td>{{ log.kind }}</td>
-            <td>{{ "%.0f"|format(log.elapsed_ms) }} ms</td>
-            <td class="text-break">{{ log.name }}</td>
-            <td class="hide-mobile text-break">{{ log.route or '-' }}</td>
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="5" class="text-muted">Aucune route &gt; 300 ms ou requete SQL &gt; 100 ms.</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <div class="table-responsive">
-      <table class="table js-datagrid align-middle">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Niveau</th>
-            <th>Message</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for log in system_logs %}
-          <tr>
-            <td>{{ log.created_at|dt(16) }}</td>
-            <td>{{ log.level }}</td>
-            <td>{{ log.message }}</td>
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="3" class="text-muted">Aucun log système.</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
-
+  <!-- ========================================================================= -->
+  <!-- PRÉFÉRENCES UI - PRESERVE -->
+  <!-- ========================================================================= -->
   <section id="adminUIPrefs" class="card p-3 fab-switch-panel" hidden>
     <div class="card-header-row">
       <div>
@@ -714,14 +584,617 @@
     </div>
   </section>
 
+  <!-- Panel: Manuel d'utilisation - PRESERVE -->
+  <section id="adminManual" class="fab-switch-panel" hidden>
+    {% include 'partials/_admin_manual_content.html' %}
+  </section>
+
 </div>
 
 <script nonce="{{ csp_nonce }}">
   document.addEventListener('DOMContentLoaded', function () {
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || "";
+
+    // Helper for Toast message
+    function showAppToast(message, category = "success") {
+      const icon = category === 'success' ? 'check-circle-fill' : 'exclamation-triangle-fill';
+      const accent = category === 'success' ? '#25D366' : '#ef4444';
+      
+      const toastHtml = `
+        <div class="toast border-0 mb-2 shadow-lg flash-toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="4000">
+          <div class="toast-body p-3" style="border-left: 4px solid ${accent}; border-radius: 10px; background: var(--surface); color: var(--text);">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-${icon}" style="color:${accent}; font-size:0.95rem;"></i>
+              <div class="fw-medium flex-grow-1" style="font-size:0.9rem;">${message}</div>
+              <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Fermer" style="font-size:0.7em;"></button>
+            </div>
+          </div>
+        </div>`;
+      
+      const container = document.getElementById('toastContainer');
+      if (container) {
+        container.insertAdjacentHTML('beforeend', toastHtml);
+        const newEl = container.lastElementChild;
+        const bsToast = new bootstrap.Toast(newEl);
+        bsToast.show();
+      }
+    }
+
+    // ==========================================
+    // TABS MANAGER & FETCH DATA TRIGGERS
+    // ==========================================
+    function loadActivePanelData(target) {
+      if (target === 'adminUsersGroup') {
+        loadUsersList();
+      } else if (target === 'adminBackups') {
+        loadBackupsList();
+      } else if (target === 'adminLogs') {
+        loadAuditLogs();
+      } else if (target === 'adminSystemLogs') {
+        loadSystemStatus();
+      }
+    }
+
+    const switchRoot = document.getElementById('adminSwitchButtons');
+    if (switchRoot) {
+      switchRoot.addEventListener('click', (e) => {
+        const btn = e.target.closest('.fab-switch-btn');
+        if (!btn) return;
+        const target = btn.dataset.fabSwitchTarget;
+        loadActivePanelData(target);
+      });
+    }
+
+    // ==========================================
+    // 1. GESTION DES UTILISATEURS
+    // ==========================================
+    const usersTableBody = document.getElementById('usersTableBody');
+    const createUserForm = document.getElementById('createUserForm');
+    const createUserMsg = document.getElementById('createUserMsg');
+    const btnRefreshUsers = document.getElementById('btnRefreshUsers');
+
+    btnRefreshUsers?.addEventListener('click', loadUsersList);
+
+    async function loadUsersList() {
+      if (usersTableBody) {
+        usersTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span> Chargement...</td></tr>`;
+      }
+      try {
+        const res = await fetch('/api/admin/users');
+        const data = await res.json();
+        if (data.ok && usersTableBody) {
+          usersTableBody.innerHTML = '';
+          data.users.forEach(u => {
+            const dateStr = u.created_at ? new Date(u.created_at).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'short'}) : '-';
+            const changeDate = u.last_password_change_at ? new Date(u.last_password_change_at).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'short'}) : 'Jamais';
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>
+                <div class="fw-semibold">${u.username}</div>
+                <div class="small text-muted">Créé le ${dateStr}</div>
+              </td>
+              <td>
+                <select class="form-select form-select-sm select-role" data-uid="${u.id}" style="max-width: 140px;">
+                  <option value="operator" ${u.role === 'operator' ? 'selected' : ''}>operator</option>
+                  <option value="manager" ${u.role === 'manager' ? 'selected' : ''}>manager</option>
+                  <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option>
+                </select>
+              </td>
+              <td>
+                <select class="form-select form-select-sm select-status" data-uid="${u.id}" style="max-width: 100px;">
+                  <option value="1" ${u.is_active ? 'selected' : ''}>Oui</option>
+                  <option value="0" ${!u.is_active ? 'selected' : ''}>Non</option>
+                </select>
+              </td>
+              <td>
+                <input type="password" class="form-control form-control-sm input-pin" placeholder="Nouveau PIN" data-uid="${u.id}" style="max-width: 150px;">
+                <div class="small text-muted mt-1" style="font-size:0.7rem;">Changement : ${changeDate}</div>
+              </td>
+              <td>
+                <button class="btn btn-sm btn-outline-dark btn-save-user" data-uid="${u.id}">Sauver</button>
+              </td>
+            `;
+            usersTableBody.appendChild(tr);
+          });
+
+          // Bind Actions
+          usersTableBody.querySelectorAll('.btn-save-user').forEach(btn => {
+            btn.addEventListener('click', () => saveUserChanges(btn.dataset.uid));
+          });
+        }
+      } catch (e) {
+        console.error(e);
+        if (usersTableBody) {
+          usersTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4"><i class="bi bi-x-circle"></i> Erreur lors du chargement.</td></tr>`;
+        }
+      }
+    }
+
+    async function saveUserChanges(uid) {
+      const tr = document.querySelector(`.btn-save-user[data-uid="${uid}"]`).closest('tr');
+      const role = tr.querySelector('.select-role').value;
+      const is_active = tr.querySelector('.select-status').value === '1';
+      const new_password = tr.querySelector('.input-pin').value.trim();
+      
+      const btn = tr.querySelector('.btn-save-user');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+
+      try {
+        const response = await fetch(`/api/admin/users/${uid}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
+          },
+          body: JSON.stringify({ role, is_active, new_password })
+        });
+        const result = await response.json();
+        if (result.ok) {
+          showAppToast(result.message, "success");
+          loadUsersList();
+        } else {
+          showAppToast(result.message, "danger");
+          btn.disabled = false;
+          btn.innerHTML = 'Sauver';
+        }
+      } catch (e) {
+        showAppToast("Erreur de communication : " + e.message, "danger");
+        btn.disabled = false;
+        btn.innerHTML = 'Sauver';
+      }
+    }
+
+    createUserForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(createUserForm);
+      const username = fd.get('username').trim();
+      const password = fd.get('password').trim();
+      const role = fd.get('role');
+
+      const submitBtn = createUserForm.querySelector('button[type="submit"]');
+      const spinner = submitBtn.querySelector('.btn-spinner');
+      submitBtn.disabled = true;
+      if (spinner) spinner.style.display = 'inline-block';
+
+      try {
+        const response = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
+          },
+          body: JSON.stringify({ username, password, role })
+        });
+        const result = await response.json();
+        if (result.ok) {
+          showAppToast(result.message, "success");
+          createUserForm.reset();
+          loadUsersList();
+        } else {
+          showAppToast(result.message, "danger");
+        }
+      } catch (err) {
+        showAppToast("Erreur lors de la création : " + err.message, "danger");
+      } finally {
+        submitBtn.disabled = false;
+        if (spinner) spinner.style.display = 'none';
+      }
+    });
+
+    // ==========================================
+    // 2. SAUVEGARDES & RESTAURATION
+    // ==========================================
+    const restoreSelect = document.getElementById('restoreSelect');
+    const backupJobsTableBody = document.getElementById('backupJobsTableBody');
+    const backupSettingsForm = document.getElementById('backupSettingsForm');
+    const btnTriggerBackupNow = document.getElementById('btnTriggerBackupNow');
+    const btnRestoreBackup = document.getElementById('btnRestoreBackup');
+
+    btnTriggerBackupNow?.addEventListener('click', async () => {
+      const spinner = btnTriggerBackupNow.querySelector('.btn-spinner');
+      btnTriggerBackupNow.disabled = true;
+      if (spinner) spinner.style.display = 'inline-block';
+
+      try {
+        const res = await fetch('/api/admin/backups', {
+          method: 'POST',
+          headers: { 'X-CSRF-Token': csrfToken }
+        });
+        const data = await res.json();
+        showAppToast(data.message, data.ok ? "success" : "danger");
+        if (data.ok) {
+          loadBackupsList();
+        }
+      } catch (err) {
+        showAppToast("Erreur de sauvegarde : " + err.message, "danger");
+      } finally {
+        btnTriggerBackupNow.disabled = false;
+        if (spinner) spinner.style.display = 'none';
+      }
+    });
+
+    btnRestoreBackup?.addEventListener('click', async () => {
+      const val = restoreSelect.value;
+      if (!val) {
+        showAppToast("Veuillez sélectionner un fichier à restaurer.", "danger");
+        return;
+      }
+      if (!confirm("Attention : Restaurer la base remplacera l'intégralité des données actuelles. Confirmer ?")) {
+        return;
+      }
+
+      btnRestoreBackup.disabled = true;
+      btnRestoreBackup.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+
+      try {
+        const res = await fetch('/api/admin/backups/restore', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
+          },
+          body: JSON.stringify({ backup_name: val })
+        });
+        const data = await res.json();
+        showAppToast(data.message, data.ok ? "success" : "danger");
+        if (data.ok) {
+          setTimeout(() => { window.location.reload(); }, 2000);
+        }
+      } catch (err) {
+        showAppToast("Erreur de restauration : " + err.message, "danger");
+      } finally {
+        btnRestoreBackup.disabled = false;
+        btnRestoreBackup.innerHTML = 'Restaurer';
+      }
+    });
+
+    backupSettingsForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(backupSettingsForm);
+      const payload = {
+        gdrive_backup_dir: fd.get('gdrive_backup_dir'),
+        pg_dump_path: fd.get('pg_dump_path'),
+        backup_snapshot_time: fd.get('backup_snapshot_time'),
+        backup_local_retention: fd.get('backup_local_retention'),
+        backup_event_retention: fd.get('backup_event_retention')
+      };
+
+      const btn = backupSettingsForm.querySelector('button[type="submit"]');
+      const spinner = btn.querySelector('.btn-spinner');
+      btn.disabled = true;
+      if (spinner) spinner.style.display = 'inline-block';
+
+      try {
+        const res = await fetch('/api/admin/backups/settings', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        showAppToast(data.message, data.ok ? "success" : "danger");
+      } catch (err) {
+        showAppToast("Erreur d'enregistrement : " + err.message, "danger");
+      } finally {
+        btn.disabled = false;
+        if (spinner) spinner.style.display = 'none';
+      }
+    });
+
+    async function loadBackupsList() {
+      try {
+        const res = await fetch('/api/admin/backups');
+        const data = await res.json();
+        if (data.ok) {
+          // Remplir le select de restauration
+          if (restoreSelect) {
+            restoreSelect.innerHTML = `<option value="">Sélectionner un fichier de sauvegarde...</option>`;
+            data.backups.forEach(b => {
+              restoreSelect.insertAdjacentHTML('beforeend', `<option value="${b.value}">${b.label}</option>`);
+            });
+          }
+          // Remplir l'historique des jobs
+          if (backupJobsTableBody) {
+            backupJobsTableBody.innerHTML = '';
+            if (data.jobs.length === 0) {
+              backupJobsTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Aucun job récent.</td></tr>`;
+            } else {
+              data.jobs.forEach(j => {
+                const dateStr = j.created_at ? new Date(j.created_at).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'short'}) : '-';
+                const statusBadge = j.status === 'success' ? 'bg-success' : j.status === 'pending' ? 'bg-warning' : 'bg-danger';
+                backupJobsTableBody.insertAdjacentHTML('beforeend', `
+                  <tr>
+                    <td>${dateStr}</td>
+                    <td>${j.reason}</td>
+                    <td><span class="badge ${statusBadge}">${j.status}</span></td>
+                    <td class="text-truncate" style="max-width:140px;" title="${j.cloud_file_name || j.error_message || ''}">${j.cloud_file_name || j.error_message || '-'}</td>
+                  </tr>
+                `);
+              });
+            }
+          }
+          // Remplir les inputs de paramètres
+          if (data.settings) {
+            const gdriveDirInput = document.getElementById('gdriveDirInput');
+            const pgDumpPathInput = document.getElementById('pgDumpPathInput');
+            const snapshotInput = document.getElementById('snapshotInput');
+            const retentionNightInput = document.getElementById('retentionNightInput');
+            const retentionEventInput = document.getElementById('retentionEventInput');
+            
+            if (gdriveDirInput) gdriveDirInput.value = data.settings.gdrive_backup_dir || '';
+            if (pgDumpPathInput) pgDumpPathInput.value = data.settings.pg_dump_path || '';
+            if (snapshotInput) snapshotInput.value = data.settings.backup_snapshot_time || '02:00';
+            if (retentionNightInput) retentionNightInput.value = data.settings.backup_local_retention || 30;
+            if (retentionEventInput) retentionEventInput.value = data.settings.backup_event_retention || 100;
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // ==========================================
+    // 3. JOURNAUX & AUDIT (RECHERCHE EN DIRECT)
+    // ==========================================
+    const auditLogsTableBody = document.getElementById('auditLogsTableBody');
+    const auditQueryInput = document.getElementById('auditQueryInput');
+    const auditActorInput = document.getElementById('auditActorInput');
+    const auditDateFromInput = document.getElementById('auditDateFromInput');
+    const auditDateToInput = document.getElementById('auditDateToInput');
+    const auditStatusSelect = document.getElementById('auditStatusSelect');
+    const btnClearAuditFilters = document.getElementById('btnClearAuditFilters');
+    const btnExportAuditCSV = document.getElementById('btnExportAuditCSV');
+
+
+    let debounceTimer = null;
+    const filterInputs = [auditQueryInput, auditActorInput, auditDateFromInput, auditDateToInput, auditStatusSelect];
+    filterInputs.forEach(input => {
+      input?.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(loadAuditLogs, 300);
+      });
+      input?.addEventListener('change', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(loadAuditLogs, 300);
+      });
+    });
+
+    btnClearAuditFilters?.addEventListener('click', () => {
+      filterInputs.forEach(i => { if(i) i.value = ''; });
+      loadAuditLogs();
+    });
+
+    btnExportAuditCSV?.addEventListener('click', () => {
+      const q = buildAuditQueryString();
+      window.location.href = `/admin/audit/export?${q}`;
+    });
+
+    function buildAuditQueryString() {
+      const params = new URLSearchParams();
+      if (auditQueryInput?.value) params.append('q', auditQueryInput.value.trim());
+      if (auditActorInput?.value) params.append('actor', auditActorInput.value.trim());
+      if (auditDateFromInput?.value) params.append('date_from', auditDateFromInput.value);
+      if (auditDateToInput?.value) params.append('date_to', auditDateToInput.value);
+      if (auditStatusSelect?.value) params.append('status', auditStatusSelect.value);
+      return params.toString();
+    }
+
+    async function loadAuditLogs() {
+      if (auditLogsTableBody) {
+        auditLogsTableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span> Filtrage en cours...</td></tr>`;
+      }
+      try {
+        const q = buildAuditQueryString();
+        const res = await fetch(`/api/admin/audit?${q}`);
+        const data = await res.json();
+        if (data.ok && auditLogsTableBody) {
+          auditLogsTableBody.innerHTML = '';
+          if (data.audit_logs.length === 0) {
+            auditLogsTableBody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">Aucun journal correspondant.</td></tr>`;
+            return;
+          }
+          data.audit_logs.forEach(l => {
+            const dateStr = l.created_at ? new Date(l.created_at).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'short'}) : '-';
+            const badgeClass = l.status === 'success' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle';
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${dateStr}</td>
+              <td>
+                <div class="fw-semibold">${l.actor_username || 'Système'}</div>
+                <div class="small text-muted">${l.actor_role || ''}</div>
+              </td>
+              <td><span class="fw-medium">${l.action}</span></td>
+              <td>${l.entity_type} ${l.entity_id ? '#' + l.entity_id : ''}</td>
+              <td><span class="badge ${badgeClass}">${l.status}</span></td>
+              <td>
+                <div class="small text-muted text-break" style="max-width:300px; max-height:80px; overflow-y:auto;">
+                  <strong>Avant:</strong> ${l.before_json || '-'}<br>
+                  <strong>Après:</strong> ${l.after_json || '-'}
+                </div>
+              </td>
+            `;
+            auditLogsTableBody.appendChild(tr);
+          });
+        }
+      } catch (err) {
+        console.error(err);
+        if (auditLogsTableBody) {
+          auditLogsTableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Erreur lors de la récupération des logs.</td></tr>`;
+        }
+      }
+    }
+
+    // ==========================================
+    // 4. SYSTÈME & MAINTENANCE
+    // ==========================================
+    const sysDbPath = document.getElementById('sysDbPath');
+    const sysDbBadge = document.getElementById('sysDbBadge');
+    const sysBackupCount = document.getElementById('sysBackupCount');
+    const sysBackupBadge = document.getElementById('sysBackupBadge');
+    const sysDataDir = document.getElementById('sysDataDir');
+    const sysVersion = document.getElementById('sysVersion');
+    
+    const sysStockTableBody = document.getElementById('sysStockTableBody');
+    const sysPerfTableBody = document.getElementById('sysPerfTableBody');
+    const sysErrorsTableBody = document.getElementById('sysErrorsTableBody');
+    
+    const btnRefreshSystem = document.getElementById('btnRefreshSystem');
+    const btnRunMaintenance = document.getElementById('btnRunMaintenance');
+
+    btnRefreshSystem?.addEventListener('click', loadSystemStatus);
+    
+    btnRunMaintenance?.addEventListener('click', async () => {
+      if (!confirm("Confirmer la maintenance de la base PostgreSQL ?")) return;
+      const spinner = btnRunMaintenance.querySelector('.btn-spinner');
+      btnRunMaintenance.disabled = true;
+      if (spinner) spinner.style.display = 'inline-block';
+
+      try {
+        const res = await fetch('/api/admin/maintenance', {
+          method: 'POST',
+          headers: { 'X-CSRF-Token': csrfToken }
+        });
+        const data = await res.json();
+        showAppToast(data.message, data.ok ? "success" : "danger");
+      } catch (err) {
+        showAppToast("Erreur maintenance : " + err.message, "danger");
+      } finally {
+        btnRunMaintenance.disabled = false;
+        if (spinner) spinner.style.display = 'none';
+      }
+    });
+
+    async function loadSystemStatus() {
+      try {
+        const res = await fetch('/api/admin/system');
+        const data = await res.json();
+        if (data.ok) {
+          // Cartes
+          if (sysDbPath) sysDbPath.textContent = data.status.database.path;
+          if (sysDbBadge) {
+            sysDbBadge.textContent = data.status.database.status;
+            sysDbBadge.className = data.status.database.status.toLowerCase().includes('online') || data.status.database.status.toLowerCase().includes('connect') ? 'badge bg-success' : 'badge bg-danger';
+          }
+          if (sysBackupCount) sysBackupCount.textContent = `${data.status.backups.count} fichier(s)`;
+          if (sysBackupBadge) {
+            sysBackupBadge.textContent = data.status.backups.status;
+            sysBackupBadge.className = 'badge bg-primary';
+          }
+          if (sysDataDir) sysDataDir.textContent = data.status.paths.data_dir;
+          if (sysVersion) sysVersion.textContent = data.status.version;
+
+          // Mouvements stock
+          if (sysStockTableBody) {
+            sysStockTableBody.innerHTML = '';
+            if (data.status.stock_movements && data.status.stock_movements.length > 0) {
+              data.status.stock_movements.forEach(m => {
+                const dateStr = m.created_at ? new Date(m.created_at).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'short'}) : '-';
+                sysStockTableBody.insertAdjacentHTML('beforeend', `
+                  <tr>
+                    <td>${dateStr}</td>
+                    <td>${m.product_name || m.item_kind}</td>
+                    <td><span class="${m.flow_direction === 'out' ? 'text-danger' : 'text-success'}">${m.flow_direction === 'out' ? '-' : '+'}${m.quantity} ${m.unit}</span></td>
+                    <td>${m.stock_before} -> ${m.stock_after}</td>
+                    <td>${m.reference_type || '-'} ${m.reference_id ? '#' + m.reference_id : ''}</td>
+                  </tr>
+                `);
+              });
+            } else {
+              sysStockTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">Aucun mouvement de stock récent.</td></tr>`;
+            }
+          }
+
+          // Performances
+          if (sysPerfTableBody) {
+            sysPerfTableBody.innerHTML = '';
+            if (data.performance_logs.length > 0) {
+              data.performance_logs.forEach(p => {
+                const dateStr = p.created_at ? new Date(p.created_at).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'short'}) : '-';
+                sysPerfTableBody.insertAdjacentHTML('beforeend', `
+                  <tr>
+                    <td>${dateStr}</td>
+                    <td>${p.kind}</td>
+                    <td class="fw-bold ${p.elapsed_ms > 1000 ? 'text-danger' : 'text-warning'}">${Math.round(p.elapsed_ms)} ms</td>
+                    <td class="text-truncate" style="max-width:300px;" title="${p.name}">${p.name}</td>
+                  </tr>
+                `);
+              });
+            } else {
+              sysPerfTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Aucun log de performance récent.</td></tr>`;
+            }
+          }
+
+          // Erreurs récents
+          if (sysErrorsTableBody) {
+            sysErrorsTableBody.innerHTML = '';
+            if (data.error_logs.length > 0) {
+              data.error_logs.forEach(err => {
+                const dateStr = err.created_at ? new Date(err.created_at).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'short'}) : '-';
+                sysErrorsTableBody.insertAdjacentHTML('beforeend', `
+                  <tr>
+                    <td>${dateStr}</td>
+                    <td><span class="badge bg-danger">${err.level}</span></td>
+                    <td class="text-danger small" style="max-width:400px; text-overflow:ellipsis; overflow:hidden;" title="${err.message}">${err.message}</td>
+                  </tr>
+                `);
+              });
+            } else {
+              sysErrorsTableBody.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-3">Aucune erreur détectée.</td></tr>`;
+            }
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // ==========================================
+    // AUTO-FOCUS ON TAB OPEN FOR INITIAL ACTION
+    // ==========================================
+    const urlParams = new URLSearchParams(window.location.search);
+    const focus = urlParams.get('focus');
+    let initialTarget = 'adminUsersGroup';
+    if (focus === 'sabrina') {
+      initialTarget = 'adminSabrina';
+    } else if (focus === 'manual') {
+      initialTarget = 'adminManual';
+    } else {
+      // Check if another tab was active (restored by localStorage / layout.js)
+      try {
+        const saved = localStorage.getItem('fab_switch_adminSwitchButtons');
+        if (saved) {
+          initialTarget = saved;
+        }
+      } catch (e) {}
+    }
+
+    // Trigger initial click to align standard classes if needed or load active panel data
+    setTimeout(() => {
+      const activeBtn = document.querySelector(`[data-fab-switch-target="${initialTarget}"]`);
+      if (activeBtn) {
+        if (!activeBtn.classList.contains('is-active')) {
+          activeBtn.click();
+        } else {
+          loadActivePanelData(initialTarget);
+        }
+      } else {
+        loadUsersList();
+      }
+    }, 100);
+
+    // ==========================================
+    // SABRINA SPECIFIC ACTIONS (PRESERVE + ASYNC)
+    // ==========================================
     const adminModeOnline = document.getElementById('adminModeOnline');
     const adminModeLocal = document.getElementById('adminModeLocal');
     const adminGeminiModelGroup = document.getElementById('adminGeminiModelGroup');
     const adminApiKeyGroup = document.getElementById('adminApiKeyGroup');
+    const sabrinaSettingsForm = document.getElementById('sabrinaSettingsForm');
 
     function toggleAdminSabrinaFields() {
       if (adminModeLocal && adminModeLocal.checked) {
@@ -739,34 +1212,51 @@
       toggleAdminSabrinaFields();
     }
 
-    // Auto-focus panel from URL focus parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    const focus = urlParams.get('focus');
-    if (focus === 'sabrina') {
-      setTimeout(() => {
-        const sabrinaBtn = document.querySelector('[data-fab-switch-target="adminSabrina"]');
-        if (sabrinaBtn) {
-          sabrinaBtn.click();
-        }
-      }, 50);
-    }
+    sabrinaSettingsForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(sabrinaSettingsForm);
+      const chat_mode = fd.get('chat_mode');
+      const gemini_model = fd.get('gemini_model');
+      const gemini_api_key = fd.get('gemini_api_key');
 
-    // Tester la connexion
+      const btn = sabrinaSettingsForm.querySelector('button[type="submit"]');
+      const spinner = btn.querySelector('.btn-spinner');
+      btn.disabled = true;
+      if (spinner) spinner.style.display = 'inline-block';
+
+      try {
+        const res = await fetch('/api/admin/sabrina/settings', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
+          },
+          body: JSON.stringify({ chat_mode, gemini_model, gemini_api_key })
+        });
+        const data = await res.json();
+        showAppToast(data.message, data.ok ? "success" : "danger");
+      } catch (err) {
+        showAppToast("Erreur de sauvegarde : " + err.message, "danger");
+      } finally {
+        btn.disabled = false;
+        if (spinner) spinner.style.display = 'none';
+      }
+    });
+
     const btnTest = document.getElementById('btnTestSabrinaConn');
-    const spinner = document.getElementById('testSabrinaSpinner');
-    const icon = document.getElementById('testSabrinaIcon');
+    const testSpinner = document.getElementById('testSabrinaSpinner');
+    const testIcon = document.getElementById('testSabrinaIcon');
     const resultDiv = document.getElementById('testSabrinaResult');
 
     btnTest?.addEventListener('click', async function () {
-      if (spinner) spinner.style.display = 'inline-block';
-      if (icon) icon.style.display = 'none';
+      if (testSpinner) testSpinner.style.display = 'inline-block';
+      if (testIcon) testIcon.style.display = 'none';
       if (resultDiv) {
         resultDiv.style.display = 'none';
         resultDiv.className = 'alert mt-3 p-3';
       }
 
       try {
-        const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || "";
         const response = await fetch('/assistant/test-key', {
           method: 'POST',
           headers: {
@@ -792,8 +1282,8 @@
           resultDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i> Erreur de communication : ${e.message}`;
         }
       } finally {
-        if (spinner) spinner.style.display = 'none';
-        if (icon) icon.style.display = 'inline-block';
+        if (testSpinner) testSpinner.style.display = 'none';
+        if (testIcon) testIcon.style.display = 'inline-block';
       }
     });
   });

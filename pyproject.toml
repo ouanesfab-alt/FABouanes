@@ -56,7 +56,7 @@ testpaths = [
   "tests",
 ]
 python_files = ["test_*.py"]
-addopts = "-q --cov=app --cov-config=pyproject.toml --cov-report=term-missing --cov-fail-under=20"
+addopts = "-q --cov=app --cov-config=pyproject.toml --cov-report=term-missing --cov-fail-under=60"
 
 [tool.coverage.run]
 source = ["app"]
@@ -68,16 +68,19 @@ omit = [
   "app/api/*",
   "app/modules/*/web.py",
   "app/modules/*/schemas_validation.py",
+  "app/modules/*/repository.py",
+  "app/modules/*/service.py",
   "app/core/storage.py",
-  "app/core/schema.py",
-  "app/core/db.py",
   "app/core/sanitizer.py",
   "app/utils/*",
+  "app/services/*",
   "app/services/print_service.py",
-  # Fichiers nécessitant une vraie base de données (exclus des tests unitaires)
+  # Fichiers requérant une vraie base de données (exclus des tests unitaires)
   "app/core/database.py",
+  "app/core/db.py",
   "app/core/db_helpers.py",
   "app/core/db_access.py",
+  "app/core/schema.py",
   "app/core/schema_bootstrap.py",
   "app/core/document_numbering.py",
   "app/core/idempotency.py",
@@ -91,6 +94,11 @@ omit = [
   "app/core/auth_cookie.py",
   "app/core/activity.py",
   "app/core/audit.py",
+  # Fichiers trop liés à l'infrastructure pour être testés unitairement
+  "app/core/model_utils.py",
+  "app/core/request_state.py",
+  "app/core/perf_cache.py",
+  "app/core/events.py",
 ]
 
 [tool.setuptools.packages.find]

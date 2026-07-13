@@ -62,8 +62,8 @@ def configure_logging() -> logging.Logger:
     if logger.handlers:
         return logger
 
-    # Check if structured JSON logging is enabled via environment variable
-    if os.environ.get("FAB_LOG_JSON", "0").strip() == "1":
+    # Check if structured JSON logging is enabled via environment variable or production env
+    if os.environ.get("FAB_LOG_JSON", "0").strip() == "1" or os.environ.get("FASTAPI_ENV", "development").lower() == "production":
         formatter = JSONFormatter()
     else:
         formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s - %(message)s")

@@ -24,15 +24,17 @@
     --bg-light: #f8fafc;      /* Soft Accent Background */
   }
   
-  html,body{overflow-x:auto!important;}
-  body.print-route .app-content{min-width:var(--print-content-width);}
+  body.print-route .app-content {
+    min-width: var(--print-content-width);
+  }
   
   /* Outer Shell styling */
   .print-doc-shell{
     width:var(--print-content-width);
     min-width:var(--print-content-width);
     max-width:none;
-    margin:0 auto;
+    margin:0 auto !important;
+    padding-bottom: 30px !important;
     display:flex;
     flex-direction:column;
     gap:var(--print-gap);
@@ -395,6 +397,8 @@
     gap: 12px;
     flex-wrap: wrap;
     margin-top: 4mm;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
   }
 
   @page{

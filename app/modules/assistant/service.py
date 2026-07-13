@@ -1,4 +1,3 @@
-import os
 import json
 import logging
 import asyncio
@@ -7,14 +6,12 @@ from typing import Any, Dict, List, Tuple
 
 from app.core.db_helpers import db_manager
 from app.modules.assistant.confirmations import get_tool_confirmation_message, tool_requires_confirmation
-from app.modules.assistant.sql_tools import dry_run_sql, execute_readonly_sql, execute_write_sql
+from app.modules.assistant.sql_tools import execute_readonly_sql, execute_write_sql
 from app.modules.assistant.tool_specs import get_gemini_tools, get_ollama_tools
-from app.modules.assistant.tool_actions import execute_tool_action, sanitize_numeric
+from app.modules.assistant.tool_actions import execute_tool_action
 from app.modules.assistant.schema_context import (
     get_schema,
     get_sabrina_system_prompt,
-    get_gemini_api_key,
-    get_encryption_key,
 )
 from app.modules.assistant.intent import classify_intent
 

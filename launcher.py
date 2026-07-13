@@ -55,6 +55,23 @@ def ensure_desktop_paths() -> None:
         (DATA_DIR / folder_name).mkdir(parents=True, exist_ok=True)
 
 
+def clear_webview_http_cache() -> None:
+    """Supprime le cache HTTP de WebView2 (CSS, JS, images) sans toucher aux données.
+    Cela force le rechargement des fichiers statiques modifiés entre deux versions.
+    """
+    # WebView2 stocke son cache HTTP dans EBWebView/Default/Cache
+    cache_dirs = [
+        WEBVIEW_STORAGE_DIR / "EBWebView" / "Default" / "Cache",
+        WEBVIEW_STORAGE_DIR / "EBWebView" / "Default" / "Code Cache",
+    ]
+    for cache_dir in cache_dirs:
+        if cache_dir.exists():
+            try:
+                shutil.rmtree(cache_dir, ignore_errors=True)
+            except Exception:
+                pass
+
+
 def write_bootstrap_log(message: str) -> None:
     ensure_desktop_paths()
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -321,6 +338,12 @@ def show_startup_splash(port: int, timeout: float = 45.0) -> bool:
 def open_ui(url: str) -> None:
     try:
         import webview
+
+        # Autoriser le téléchargement de fichiers dans l'application de bureau
+        webview.settings['ALLOW_DOWNLOADS'] = True
+
+        # Vider le cache HTTP de WebView2 pour charger les CSS/JS les plus récents
+        clear_webview_http_cache()
 
         window = webview.create_window(
             APP_NAME,

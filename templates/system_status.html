@@ -6,8 +6,10 @@
     <p class="text-muted mb-0">État du système : base, sauvegardes, version, chemins et tests d'écriture.</p>
   </div>
   <div class="d-flex gap-2 flex-wrap">
-    <a href="{{ url_for('admin_system_status_export') }}" class="btn btn-outline-dark"><i class="bi bi-download me-1"></i>Exporter rapport diagnostic</a>
-    <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Paramètres</a>
+    <a href="{{ url_for('admin_system_status_export') }}" class="btn btn-outline-dark"><i
+        class="bi bi-download me-1"></i>Exporter rapport diagnostic</a>
+    <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-secondary"><i
+        class="bi bi-arrow-left me-1"></i>Paramètres</a>
   </div>
 </div>
 
@@ -54,18 +56,207 @@
   <div class="table-responsive">
     <table class="table align-middle">
       <tbody>
-        <tr><th>Dossier local</th><td class="text-break">{{ system_status.backups.local_dir }}</td></tr>
-        <tr><th>Dossier logs</th><td class="text-break">{{ system_status.paths.log_dir }}</td></tr>
-        <tr><th>Mode base</th><td>{{ system_status.database.engine }}</td></tr>
-        <tr><th>Pool PostgreSQL</th><td class="text-break">{{ system_status.database.pool }}</td></tr>
-        <tr><th>Statut écriture base</th><td>{{ system_status.database.write_status.status }} - {{ system_status.database.write_status.message }}</td></tr>
-        <tr><th>Statut sauvegarde</th><td>{{ system_status.backups.write_status.status }} - {{ system_status.backups.write_status.message }}</td></tr>
-        <tr><th>Dernière sauvegarde</th><td>{{ system_status.backups.latest_file or '-' }} {{ system_status.backups.latest_file_at }}</td></tr>
-        <tr><th>Dernier job</th><td>{{ system_status.backups.latest_job_status }} {{ system_status.backups.latest_job_reason }}</td></tr>
-        <tr><th>Backup différé</th><td>{{ system_status.backups.pending_reason or '-' }} {{ system_status.backups.pending_since }}</td></tr>
-        <tr><th>Message base</th><td>{{ system_status.database.message }}</td></tr>
-        <tr><th>Indexes performance</th><td>{{ system_status.performance.index_count }}</td></tr>
-        <tr><th>Plan requête clients</th><td class="text-break">{{ system_status.performance.sample_query_plan or '-' }}</td></tr>
+        <tr>
+          <th>Dossier local</th>
+          <td class="text-break">{{ system_status.backups.local_dir }}</td>
+        </tr>
+        <tr>
+          <th>Dossier logs</th>
+          <td class="text-break">{{ system_status.paths.log_dir }}</td>
+        </tr>
+        <tr>
+          <th>Mode base</th>
+          <td>{{ system_status.database.engine }}</td>
+        </tr>
+        <tr>
+          <th>Pool PostgreSQL</th>
+          <td class="text-break">{{ system_status.database.pool }}</td>
+        </tr>
+        <tr>
+          <th>Statut écriture base</th>
+          <td>{{ system_status.database.write_status.status }} - {{ system_status.database.write_status.message }}</td>
+        </tr>
+        <tr>
+          <th>Statut sauvegarde</th>
+          <td>{{ system_status.backups.write_status.status }} - {{ system_status.backups.write_status.message }}</td>
+        </tr>
+        <tr>
+          <th>Dernière sauvegarde</th>
+          <td>{{ system_status.backups.latest_file or '-' }} {{ system_status.backups.latest_file_at }}</td>
+        </tr>
+        <tr>
+          <th>Dernier job</th>
+          <td>{{ system_status.backups.latest_job_status }} {{ system_status.backups.latest_job_reason }}</td>
+        </tr>
+        <tr>
+          <th>Message base</th>
+          <td>{{ system_status.database.message }}</td>
+        </tr>
+        <tr>
+          <th>Indexes performance</th>
+          <td>{{ system_status.performance.index_count }}</td>
+        </tr>
+        <tr>
+          <th>Plan requête clients</th>
+          <td class="text-break">{{ system_status.performance.sample_query_plan or '-' }}</td>
+        </tr>
+        <tr>
+          <th>Réconciliation financière</th>
+          <td>
+            {% if system_status.reconciliation.ok %}
+            <span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Conforme (0 écart)</span>
+            {% elif system_status.reconciliation.status == "Erreur de verification" %}
+            <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill me-1"></i>Vérification
+              impossible (en attente d'initialisation)</span>
+            {% else %}
+            <span class="badge bg-danger"><i class="bi bi-x-circle-fill me-1"></i>{{ system_status.reconciliation.count
+              }} écart(s) détecté(s)</span>
+            {% if system_status.reconciliation.discrepancies %}
+            <div class="mt-2 small text-danger">
+              <strong>Détails :</strong>
+              <ul>
+                {% for d in system_status.reconciliation.discrepancies %}
+                <li>Client #{{ d.client_id }} ({{ d.name }}) : Attendu {{ d.calculated }} DA vs Vue {{ d.view }} DA / MV
+                  {{ d.materialized_view }} DA</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-3">
+  <div>
+    <h2 class="section-title mb-1">Diagnostic système</h2>
+    <p class="text-muted mb-0">État du système : base, sauvegardes, version, chemins et tests d'écriture.</p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('admin_system_status_export') }}" class="btn btn-outline-dark"><i
+        class="bi bi-download me-1"></i>Exporter rapport diagnostic</a>
+    <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-secondary"><i
+        class="bi bi-arrow-left me-1"></i>Paramètres</a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6 col-xl-3">
+    <div class="card p-3 h-100">
+      <div class="small text-muted">Version</div>
+      <div class="fs-4 fw-bold">{{ system_status.version }}</div>
+      <div class="small text-muted">Build client Windows</div>
+    </div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="card p-3 h-100">
+      <div class="small text-muted">Base</div>
+      <div class="fs-4 fw-bold">{{ system_status.database.status }}</div>
+      <div class="small text-break">{{ system_status.database.path }}</div>
+      <div class="small text-muted mt-1">{{ system_status.database.engine }}</div>
+      <div class="small mt-1">Écriture : {{ system_status.database.write_status.status }}</div>
+    </div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="card p-3 h-100">
+      <div class="small text-muted">Sauvegardes</div>
+      <div class="fs-4 fw-bold">{{ system_status.backups.status }}</div>
+      <div class="small">{{ system_status.backups.count }} fichier(s) disponible(s)</div>
+      <div class="small">Écriture : {{ system_status.backups.write_status.status }}</div>
+      {% if system_status.backups.pending_reason %}
+      <div class="small text-warning">Backup différé : {{ system_status.backups.pending_reason }}</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="card p-3 h-100">
+      <div class="small text-muted">Dossier données</div>
+      <div class="fs-6 fw-bold text-break">{{ system_status.paths.data_dir }}</div>
+      <div class="small">{{ 'OK' if system_status.paths.data_dir_ok else 'Introuvable' }}</div>
+      <div class="small text-break">Logs: {{ system_status.paths.log_dir }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card p-3 mt-3">
+  <h5 class="section-title">Détails sauvegarde</h5>
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <tbody>
+        <tr>
+          <th>Dossier local</th>
+          <td class="text-break">{{ system_status.backups.local_dir }}</td>
+        </tr>
+        <tr>
+          <th>Dossier logs</th>
+          <td class="text-break">{{ system_status.paths.log_dir }}</td>
+        </tr>
+        <tr>
+          <th>Mode base</th>
+          <td>{{ system_status.database.engine }}</td>
+        </tr>
+        <tr>
+          <th>Pool PostgreSQL</th>
+          <td class="text-break">{{ system_status.database.pool }}</td>
+        </tr>
+        <tr>
+          <th>Statut écriture base</th>
+          <td>{{ system_status.database.write_status.status }} - {{ system_status.database.write_status.message }}</td>
+        </tr>
+        <tr>
+          <th>Statut sauvegarde</th>
+          <td>{{ system_status.backups.write_status.status }} - {{ system_status.backups.write_status.message }}</td>
+        </tr>
+        <tr>
+          <th>Dernière sauvegarde</th>
+          <td>{{ system_status.backups.latest_file or '-' }} {{ system_status.backups.latest_file_at }}</td>
+        </tr>
+        <tr>
+          <th>Dernier job</th>
+          <td>{{ system_status.backups.latest_job_status }} {{ system_status.backups.latest_job_reason }}</td>
+        </tr>
+        <tr>
+          <th>Message base</th>
+          <td>{{ system_status.database.message }}</td>
+        </tr>
+        <tr>
+          <th>Indexes performance</th>
+          <td>{{ system_status.performance.index_count }}</td>
+        </tr>
+        <tr>
+          <th>Plan requête clients</th>
+          <td class="text-break">{{ system_status.performance.sample_query_plan or '-' }}</td>
+        </tr>
+        <tr>
+          <th>Réconciliation financière</th>
+          <td>
+            {% if system_status.reconciliation.ok %}
+            <span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Conforme (0 écart)</span>
+            {% elif system_status.reconciliation.status == "Erreur de verification" %}
+            <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill me-1"></i>Vérification
+              impossible (en attente d'initialisation)</span>
+            {% else %}
+            <span class="badge bg-danger"><i class="bi bi-x-circle-fill me-1"></i>{{ system_status.reconciliation.count
+              }} écart(s) détecté(s)</span>
+            {% if system_status.reconciliation.discrepancies %}
+            <div class="mt-2 small text-danger">
+              <strong>Détails :</strong>
+              <ul>
+                {% for d in system_status.reconciliation.discrepancies %}
+                <li>Client #{{ d.client_id }} ({{ d.name }}) : Attendu {{ d.calculated }} DA vs Vue {{ d.view }} DA / MV
+                  {{ d.materialized_view }} DA</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+            {% endif %}
+          </td>
+        </tr>
       </tbody>
     </table>
   </div>

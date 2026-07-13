@@ -100,6 +100,41 @@ from app.core.db_helpers import CompatRow
 
 def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = (), *args, **kwargs):
     q = sql.lower()
+
+    # Custom dashboard period/history mock rules
+    if "calculated_balance" in q and "view_state" in q:
+        cols = [("sales",), ("cash",), ("profit",), ("receivables",)]
+        return cols, [(300.0, 200.0, 150.0, 150.0)]
+
+    if "sales" in q and "raw_sales" in q and "payments" in q and "mv_client_balances" in q:
+        cols = [("sales",), ("cash",), ("profit",), ("receivables",)]
+        return cols, [(300.0, 200.0, 150.0, 150.0)]
+
+    if "total_sales" in q and "total_paid" in q and "total_due" in q:
+        cols = [("sale_date",), ("nb_sales",), ("total_sales",), ("total_paid",), ("total_due",), ("total_profit",)]
+        rows = [("2026-05-31", 1, 300.0, 100.0, 200.0, 150.0)]
+        return cols, rows
+
+    if "payment_type" in q and "payment_date" in q and "sum(" in q:
+        return [("payment_date",), ("payment_type",), ("amount",)], [("2026-05-31", "versement", 200.0)]
+
+    # Sales history
+    if "sum(" in q and "sale_date" in q and "sales" in q and not "client" in q and not "union" in q and not "sales_today" in q and not "stock_qty" in q and not "consumed_30d" in q and not "month" in q and not "day" in q:
+        if "profit" in q:
+            return [("sale_date",), ("profit",)], [("2026-05-31", 150.0)]
+        else:
+            return [("sale_date",), ("total",)], [("2026-05-31", 300.0)]
+
+    # Raw sales history
+    if "sum(" in q and "sale_date" in q and "raw_sales" in q and not "client" in q and not "sales_today" in q and not "stock_qty" in q and not "consumed_30d" in q and not "month" in q and not "day" in q:
+        if "profit" in q:
+            return [("sale_date",), ("profit",)], [("2026-05-31", 50.0)]
+        else:
+            return [("sale_date",), ("total",)], [("2026-05-31", 100.0)]
+
+    # Cash history
+    if "sum(" in q and "payment_date" in q and "payments" in q and not "client" in q and not "cash_today" in q:
+        return [("payment_date",), ("amount",)], [("2026-05-31", 200.0)]
     
     # 0_metadata. Column information schema
     if "information_schema.columns" in q or "column_name" in q:
@@ -174,11 +209,7 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = (), *args, **kwargs
 
 
 
-    # 0aa. Dashboard sales summary (must check first to avoid intercepting by count() or union all)
-    if "union all" in q and "nb_sales" in q:
-        cols = [("sale_date",), ("nb_sales",), ("total_sales",), ("total_paid",), ("total_due",), ("total_profit",)]
-        rows = [("2026-05-31", 1, 300.0, 100.0, 200.0, 150.0)]
-        return cols, rows
+
 
     # 0ab. Contacts directory union (must check before generic union all Rule 10)
     if "contact_type" in q or "fournisseur" in q:
@@ -253,8 +284,8 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = (), *args, **kwargs
 
     # 6. API refresh tokens
     if "api_refresh_tokens" in q or "token_hash" in q:
-        cols = [("id",), ("user_id",), ("expires_at",), ("token_hash",), ("token_hint",)]
-        rows = [(1, 1, datetime.now() + timedelta(days=7), "hash", "hint")]
+        cols = [("id",), ("user_id",), ("expires_at",), ("token_hash",), ("token_hint",), ("revoked_at",)]
+        rows = [(1, 1, datetime.now() + timedelta(days=7), "hash", "hint", None)]
         return cols, rows
 
     # 7. Backup jobs & runs
@@ -542,7 +573,7 @@ class MockRow:
         return self._dct
 
     def __getitem__(self, key):
-        if key == 0 and self.statement:
+        if key == 0 and self.statement and "sum(" not in self.statement.lower():
             stmt = self.statement.lower()
             if "production_batch" in stmt:
                 return mock_sqlmodel_instance(ProductionBatch)
@@ -832,6 +863,42 @@ class TestHTTPRoutes:
         for route in ["/", "/login", "/dashboard", "/clients", "/contacts", "/operations", "/production", "/admin", "/reports", "/api/search?q=test", "/change-password"]:
             response = client.get(route)
             assert response.status_code in (200, 303)
+        
+        # Test user manual chapter loading
+        response = client.get("/manual/chapter/1-1")
+        assert response.status_code == 200
+        assert "1.1" in response.text
+        
+        # Test non-existing manual chapter returns 404
+        response = client.get("/manual/chapter/non-existing")
+        assert response.status_code == 404
+
+    def test_api_kpi_period(self):
+        response = client.get("/api/kpi-period?period=week")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "sales" in data
+        assert "cash" in data
+        assert "profit" in data
+        assert "receivables" in data
+
+        response = client.get("/api/kpi-period?period=invalid")
+        assert response.status_code == 400
+
+    def test_api_kpi_history(self):
+        response = client.get("/api/kpi-history?metric=sales")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "labels" in data
+        assert "values" in data
+        assert len(data["labels"]) == 30
+        assert len(data["values"]) == 30
+
+        response = client.get("/api/kpi-history?metric=invalid")
+        assert response.status_code == 400
+
 
 # ── 8. Invocation Directe des Services ───────────────────────────────────────
 class TestServicesDirect:

@@ -76,7 +76,7 @@ async def assistant_chat(request: Request):
 
         # Check if the message is a recorded audio note
         # Format: [AUDIO:data:audio/webm;base64,...|transcript]
-        import re, base64 as _b64
+        import re
         audio_match = re.match(r"^\[AUDIO:([^|]+)\|(.*)\]$", message)
         audio_inline = None
         if audio_match:

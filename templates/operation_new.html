@@ -873,8 +873,13 @@ async function handlePrefillAndCache() {
         if (itemIdParam) {
           const matSelect = firstRow.querySelector('.purchase-material');
           if (matSelect) {
-            matSelect.value = itemIdParam;
-            matSelect.dispatchEvent(new Event('change'));
+            for (let option of matSelect.options) {
+              if (option.value === itemIdParam || option.value.endsWith(':' + itemIdParam)) {
+                matSelect.value = option.value;
+                matSelect.dispatchEvent(new Event('change'));
+                break;
+              }
+            }
           }
         }
         if (qtyParam) {
