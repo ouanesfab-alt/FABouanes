@@ -714,4 +714,43 @@ async def test_admin_tools_role_security():
             mock_create.assert_awaited_once_with("new_user", "password", "operator")
 
 
+def test_sql_guard_where_clause_enforcement():
+    from app.modules.assistant.sql_guard import validate_write_sql
+
+    # 1. UPDATE / DELETE without WHERE -> should fail
+    res1 = validate_write_sql("UPDATE sales SET notes = 'x'")
+    assert res1.ok is False
+    assert "WHERE est obligatoire" in res1.error
+
+    res2 = validate_write_sql("DELETE FROM sales")
+    assert res2.ok is False
+    assert "WHERE est obligatoire" in res2.error
+
+    # 2. UPDATE / DELETE with empty/trivial WHERE -> should fail
+    res3 = validate_write_sql("DELETE FROM sales WHERE TRUE")
+    assert res3.ok is False
+    assert "ne peut pas être triviale" in res3.error
+
+    res4 = validate_write_sql("UPDATE sales SET notes = 'x' WHERE 1 = 1")
+    assert res4.ok is False
+    assert "tautologie" in res4.error
+
+    res5 = validate_write_sql("DELETE FROM sales WHERE id = id")
+    assert res5.ok is False
+    assert "La clause WHERE ne peut pas comparer une colonne à elle-même" in res5.error
+
+    # 3. UPDATE / DELETE with no column reference -> should fail
+    res6 = validate_write_sql("UPDATE sales SET notes = 'x' WHERE 5 = 10")
+    assert res6.ok is False
+    assert "doit référencer au moins une colonne" in res6.error
+
+    # 4. Valid WHERE -> should succeed
+    res7 = validate_write_sql("UPDATE sales SET notes = 'x' WHERE id = 1")
+    assert res7.ok is True
+
+    res8 = validate_write_sql("DELETE FROM sales WHERE notes = 'test'")
+    assert res8.ok is True
+
+
+
 

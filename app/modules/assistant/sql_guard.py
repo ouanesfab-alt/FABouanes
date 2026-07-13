@@ -132,6 +132,44 @@ def _get_write_target_tables(statement: Any) -> set[str]:
     return tables
 
 
+def _has_valid_where_clause(statement: Any) -> tuple[bool, str | None]:
+    if not isinstance(statement, (sqlglot.exp.Update, sqlglot.exp.Delete)):
+        return True, None
+
+    where_node = statement.args.get("where")
+    if where_node is None:
+        return False, "La clause WHERE est obligatoire pour les opérations de mise à jour (UPDATE) et de suppression (DELETE)."
+
+    expr = where_node.this
+    if expr is None:
+        return False, "La clause WHERE ne peut pas être vide."
+
+    # Check for direct TRUE or literal true boolean
+    if isinstance(expr, sqlglot.exp.Boolean) and expr.this is True:
+        return False, "La clause WHERE ne peut pas être triviale (ex: WHERE TRUE)."
+
+    if isinstance(expr, (sqlglot.exp.Literal, sqlglot.exp.Null)):
+        return False, "La clause WHERE ne peut pas être triviale."
+
+    # Check for tautology comparisons (e.g. 1 = 1, 'a' = 'a')
+    if isinstance(expr, sqlglot.exp.EQ):
+        left = expr.left
+        right = expr.right
+        if isinstance(left, sqlglot.exp.Literal) and isinstance(right, sqlglot.exp.Literal):
+            if str(left.this) == str(right.this):
+                return False, "La clause WHERE ne peut pas être une tautologie (ex: WHERE 1 = 1)."
+        if isinstance(left, sqlglot.exp.Column) and isinstance(right, sqlglot.exp.Column):
+            if left.name.lower() == right.name.lower():
+                return False, "La clause WHERE ne peut pas comparer une colonne à elle-même (ex: WHERE id = id)."
+
+    # Must contain at least one column reference
+    columns = list(where_node.find_all(sqlglot.exp.Column))
+    if not columns:
+        return False, "La clause WHERE doit référencer au moins une colonne."
+
+    return True, None
+
+
 def validate_readonly_sql(query: str, default_limit: int = 100) -> SqlValidationResult:
     parsed = _parse_postgres_sql(query)
     if not parsed.ok:
@@ -219,6 +257,16 @@ def validate_write_sql(query: str) -> SqlValidationResult:
         return SqlValidationResult(
             False,
             f"Table(s) non autorisée(s) en écriture : {bad}. Seules les tables métier de l'application sont modifiables.",
+            statements=parsed.statements,
+            statement=statement,
+        )
+
+    # Mandatory WHERE clause check for UPDATE / DELETE
+    ok, err_msg = _has_valid_where_clause(statement)
+    if not ok:
+        return SqlValidationResult(
+            False,
+            err_msg,
             statements=parsed.statements,
             statement=statement,
         )
