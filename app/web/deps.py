@@ -282,7 +282,7 @@ def load_user_from_session(request: Request):
         return None
     from app.core.db_helpers import query_db
     try:
-        user_row = query_db("SELECT id, username, password_hash, role, must_change_password, is_active FROM users WHERE id = %s", (int(user_id),), one=True)
+        user_row = query_db("SELECT id, username, password_hash, role, must_change_password, is_active, custom_permissions_json FROM users WHERE id = %s", (int(user_id),), one=True)
         user = dict(user_row) if user_row else None
     except Exception:
         user = None

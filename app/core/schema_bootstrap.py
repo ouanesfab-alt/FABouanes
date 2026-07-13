@@ -125,6 +125,14 @@ def bootstrap_schema() -> None:
 
         # Auto-migrate existing database for operations time tracking and finished product purchases
         from app.core.db_helpers import list_columns
+        try:
+            cols = list_columns(conn, "users")
+            if cols and "custom_permissions_json" not in cols:
+                conn.execute("ALTER TABLE users ADD COLUMN custom_permissions_json TEXT DEFAULT '[]'")
+        except Exception:
+            import logging
+            logging.getLogger("fabouanes").debug("Auto-migration for users.custom_permissions_json skipped", exc_info=True)
+
         for table in ["purchases", "sales", "raw_sales", "payments"]:
             try:
                 cols = list_columns(conn, table)

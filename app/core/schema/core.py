@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
     is_active INTEGER NOT NULL DEFAULT 1,
     last_login_at TIMESTAMPTZ,
     last_password_change_at TIMESTAMPTZ,
+    custom_permissions_json TEXT DEFAULT '[]',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

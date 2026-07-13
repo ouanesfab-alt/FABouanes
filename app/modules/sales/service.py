@@ -124,30 +124,19 @@ class SalesService:
         requested_sale_type = sale_type.strip().lower()
         if requested_sale_type not in {"cash", "credit"}:
             requested_sale_type = "credit" if client_id else "cash"
-        if requested_sale_type == "credit" and not client_id:
-            raise ValidationError("Une vente à crédit nécessite un client.")
+
+        from app.modules.sales.validation import SalesValidator
+        SalesValidator.validate_sale_type(client_id, requested_sale_type)
+        SalesValidator.validate_quantity(qty)
 
         amount_paid = total if requested_sale_type == "cash" else max(0.0, min(amount_paid_input, total))
         balance_due = round(total - amount_paid, 2)
 
-        if qty <= 0:
-            raise ValidationError("La quantité doit être supérieure à zéro.")
-
         if item_kind == "finished":
-            qty_kg = qty_to_kg(qty, unit)
-            # Fetch and lock finished product
-            stmt = select(FinishedProduct).where(FinishedProduct.id == item_id).with_for_update()
-            res = await self.session.execute(stmt)
-            item = res.scalar_one_or_none()
-            if not item:
-                raise NotFoundError("Produit fini", item_id)
-
+            item, qty_kg = await SalesValidator.validate_stock_availability(
+                "finished", item_id, qty, unit, "", self.session
+            )
             stock_before = float(item.stock_qty)
-            if qty_kg > stock_before:
-                raise ValidationError(
-                    f"Stock produit insuffisant (disponible: {stock_before:.2f} kg, requis: {qty_kg:.2f} kg)."
-                )
-
             cost_snapshot = float(item.avg_cost)
             profit_amount = total - qty_kg * cost_snapshot
 
@@ -193,28 +182,17 @@ class SalesService:
             return "finished", row_id
 
         # Raw material sale
-        stmt = select(RawMaterial).where(RawMaterial.id == item_id).with_for_update()
+        stmt = select(RawMaterial).where(RawMaterial.id == item_id)
         res = await self.session.execute(stmt)
-        item = res.scalar_one_or_none()
-        if not item:
-            raise NotFoundError("Matière première", item_id)
-
-        custom_item_name = custom_item_name.strip()
-        is_other = str(item.name or "").strip().casefold() == "autre"
-        if is_other:
+        rm_temp = res.scalar_one_or_none()
+        if rm_temp and str(rm_temp.name or "").strip().casefold() == "autre":
             unit = "unite"
-            if not custom_item_name:
-                raise ValidationError("Précise le nom du produit pour la ligne AUTRE.")
-        else:
-            custom_item_name = ""
 
-        qty_kg = qty_to_kg(qty, unit)
+        item, qty_kg = await SalesValidator.validate_stock_availability(
+            "raw", item_id, qty, unit, custom_item_name, self.session
+        )
+        custom_item_name = custom_item_name.strip() if str(item.name or "").strip().casefold() == "autre" else ""
         stock_before = float(item.stock_qty)
-        if qty_kg > stock_before:
-            raise ValidationError(
-                f"Stock matière insuffisant (disponible: {stock_before:.2f} kg, requis: {qty_kg:.2f} kg)."
-            )
-
         cost_snapshot = float(item.avg_cost)
         profit_amount = total - qty_kg * cost_snapshot
 
@@ -432,11 +410,8 @@ class SalesService:
 
     async def create_sale_from_form(self, schema: SaleFormSchema) -> dict:
         client_id = schema.client_id
-        if client_id:
-            from app.core.models import Client
-            client_exists = await self.session.get(Client, client_id)
-            if not client_exists:
-                raise NotFoundError("Client", client_id)
+        from app.modules.sales.validation import SalesValidator
+        await SalesValidator.validate_client(client_id, self.session)
 
         sale_date = schema.sale_date
         notes = schema.notes
@@ -565,6 +540,8 @@ class SalesService:
             raise ConflictError("Cette facture est déjà liée à des versements.")
 
         client_id = schema.client_id
+        from app.modules.sales.validation import SalesValidator
+        await SalesValidator.validate_client(client_id, self.session)
         sale_date = schema.sale_date
         notes = schema.notes
         sale_type = "credit" if client_id else "cash"

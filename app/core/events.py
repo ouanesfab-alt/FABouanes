@@ -296,6 +296,27 @@ def _auto_invalidate_all_cache(event: DomainEvent) -> None:
             logger.debug("Failed to clear remote cache: %s", e)
 
 
+def _auto_check_stock_alert(event: DomainEvent) -> None:
+    """Déclenche la vérification des alertes de stock après une modification d'inventaire."""
+    if event.action == "invalidate":
+        return
+    if event.entity_type in ("sale", "purchase", "production_batch", "raw_material", "finished_product"):
+        import asyncio
+        from app.services.alert_service import check_stock_alerts
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop is not None and loop.is_running():
+            loop.create_task(check_stock_alerts())
+        else:
+            try:
+                from app.core.helpers import async_compat
+                async_compat(check_stock_alerts)()
+            except Exception:
+                pass
+
+
 # ── Enregistrement des listeners par défaut au chargement du module ──
 on("invalidate.cache", _auto_invalidate_cache)
 on("invalidate.client_cache", _auto_invalidate_client_cache)
@@ -313,6 +334,11 @@ on("delete.*", _auto_websocket)
 on("create.*", _auto_refresh_balances)
 on("update.*", _auto_refresh_balances)
 on("delete.*", _auto_refresh_balances)
+
+on("create.*", _auto_check_stock_alert)
+on("update.*", _auto_check_stock_alert)
+on("delete.*", _auto_check_stock_alert)
+
 
 
 # Choix importants :

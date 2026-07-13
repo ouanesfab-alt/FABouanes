@@ -196,6 +196,30 @@ def has_permission(user, permission: str | None) -> bool:
         return True
     if not user:
         return False
+
+    # Extract fine-grained custom permissions assigned directly to user
+    custom_perms = []
+    if isinstance(user, dict):
+        custom_perms = user.get("custom_permissions") or []
+        if not custom_perms and "custom_permissions_json" in user:
+            try:
+                import json
+                custom_perms = json.loads(user["custom_permissions_json"] or "[]")
+            except Exception:
+                pass
+    else:
+        custom_perms = getattr(user, "custom_permissions_list", [])
+        if not custom_perms:
+            custom_json = getattr(user, "custom_permissions_json", "[]")
+            try:
+                import json
+                custom_perms = json.loads(custom_json or "[]")
+            except Exception:
+                pass
+
+    if permission in custom_perms:
+        return True
+
     role = normalize_role(user.get("role") if isinstance(user, dict) else getattr(user, "role", None))
 
     # L'admin a le droit de tout faire, y compris sur les modules dynamiques

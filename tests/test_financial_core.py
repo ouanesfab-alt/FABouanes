@@ -436,6 +436,30 @@ class TestPermissionsCore:
         assert ROLE_MANAGER in ROLE_PERMISSIONS
         assert ROLE_OPERATOR in ROLE_PERMISSIONS
 
+    def test_custom_user_fine_grained_permissions(self):
+        from app.core.permissions import has_permission, PERMISSION_AUDIT_READ, PERMISSION_DASHBOARD_READ
+        # 1. Test custom permissions with user as dict
+        user_dict = {
+            "role": "operator",
+            "custom_permissions": [PERMISSION_AUDIT_READ]
+        }
+        # Operator does not have AUDIT_READ by default, but should have it due to custom list
+        assert has_permission(user_dict, PERMISSION_AUDIT_READ) is True
+        # Operator has DASHBOARD_READ by default
+        assert has_permission(user_dict, PERMISSION_DASHBOARD_READ) is True
+
+        # 2. Test custom permissions with custom_permissions_json
+        user_dict_json = {
+            "role": "operator",
+            "custom_permissions_json": '["audit.read"]'
+        }
+        assert has_permission(user_dict_json, PERMISSION_AUDIT_READ) is True
+
+        # 3. Test custom permissions with User DB object
+        from app.core.models import User
+        user_obj = User(role="operator", custom_permissions_json='["audit.read"]')
+        assert has_permission(user_obj, PERMISSION_AUDIT_READ) is True
+
     def test_dynamic_permissions_cache_reset(self):
         """_dynamic_permissions_cache can be reset externally."""
         import app.core.permissions as perm_mod

@@ -18,11 +18,20 @@ class User(SQLModel, table=True):
     role: str = Field(default="operator")
     must_change_password: bool = Field(default=False)
     is_active: bool = Field(default=True)
+    custom_permissions_json: str = Field(default="[]")
     last_login_at: Optional[datetime] = Field(default=None)
     last_password_change_at: Optional[datetime] = Field(default=None)
     created_at: datetime = Field(default_factory=_now)
     xp: int = Field(default=0)
     level: int = Field(default=1)
+
+    @property
+    def custom_permissions_list(self) -> list[str]:
+        import json
+        try:
+            return json.loads(self.custom_permissions_json or "[]")
+        except Exception:
+            return []
 
     @field_validator("must_change_password", "is_active", mode="before")
     @classmethod
