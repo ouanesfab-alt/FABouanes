@@ -101,12 +101,13 @@ from app.core.db_helpers import CompatRow
 def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = (), *args, **kwargs):
     q = sql.lower()
 
-    # Custom handling for optimized stock service sum/coalesce queries
-    if "coalesce(" in q or "sum(" in q:
-        if "purchase" in q and ("total_qty_kg" in q or "total_value" in q):
-            return [("total_qty_kg",), ("total_value",)], [(10.0, 300.0)]
-        if "production" in q and ("total_qty" in q or "total_cost" in q):
-            return [("total_qty",), ("total_cost",)], [(10.0, 100.0)]
+    if "total_qty_kg" in q or "total_value" in q:
+        cols = [("total_qty_kg",), ("total_value",)]
+        return cols, [(10.0, 100.0)]
+
+    if "total_qty" in q or "total_cost" in q:
+        cols = [("total_qty",), ("total_cost",)]
+        return cols, [(10.0, 100.0)]
 
     # Custom dashboard period/history mock rules
     if "calculated_balance" in q and "view_state" in q:
