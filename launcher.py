@@ -411,7 +411,7 @@ def open_ui(url: str) -> None:
             setup_webview_permissions,
             window,
             gui="edgechromium",
-            debug=True,
+            debug=os.getenv("FASTAPI_ENV", "production").lower() == "development",
             private_mode=False,
             storage_path=str(WEBVIEW_STORAGE_DIR),
             icon=str(icon_path) if icon_path is not None else None,

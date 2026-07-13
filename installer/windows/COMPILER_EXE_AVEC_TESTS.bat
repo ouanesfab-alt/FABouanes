@@ -84,6 +84,9 @@ if exist ".env" (
     --hidden-import "webview" ^
     --hidden-import "webview.platforms.edgechromium" ^
     --hidden-import "prometheus_fastapi_instrumentator" ^
+    --hidden-import "sqlglot" ^
+    --hidden-import "sqlmodel" ^
+    --hidden-import "apscheduler" ^
     --collect-submodules "webview" ^
     --collect-submodules "fastapi" ^
     --collect-submodules "starlette" ^
@@ -93,6 +96,9 @@ if exist ".env" (
     --collect-submodules "qrcode" ^
     --collect-submodules "PIL" ^
     --collect-submodules "prometheus_fastapi_instrumentator" ^
+    --collect-submodules "sqlglot" ^
+    --collect-submodules "sqlmodel" ^
+    --collect-submodules "apscheduler" ^
     launcher.py
 
 if errorlevel 1 (
