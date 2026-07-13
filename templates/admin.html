@@ -692,7 +692,12 @@
                 <div class="small text-muted mt-1" style="font-size:0.7rem;">Changement : ${changeDate}</div>
               </td>
               <td>
-                <button class="btn btn-sm btn-outline-dark btn-save-user" data-uid="${u.id}">Sauver</button>
+                <div class="d-flex align-items-center gap-1">
+                  <button class="btn btn-sm btn-outline-dark btn-save-user" data-uid="${u.id}">Sauver</button>
+                  <button class="btn btn-sm btn-outline-danger btn-delete-user" data-uid="${u.id}" data-username="${u.username}" title="Supprimer définitivement l'utilisateur">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
               </td>
             `;
             usersTableBody.appendChild(tr);
@@ -701,6 +706,9 @@
           // Bind Actions
           usersTableBody.querySelectorAll('.btn-save-user').forEach(btn => {
             btn.addEventListener('click', () => saveUserChanges(btn.dataset.uid));
+          });
+          usersTableBody.querySelectorAll('.btn-delete-user').forEach(btn => {
+            btn.addEventListener('click', () => deleteUserAccount(btn.dataset.uid, btn.dataset.username));
           });
         }
       } catch (e) {
@@ -743,6 +751,38 @@
         showAppToast("Erreur de communication : " + e.message, "danger");
         btn.disabled = false;
         btn.innerHTML = 'Sauver';
+      }
+    }
+
+    async function deleteUserAccount(uid, username) {
+      if (!confirm(`Voulez-vous vraiment supprimer définitivement le compte de "${username}" ?`)) {
+        return;
+      }
+      const tr = document.querySelector(`.btn-delete-user[data-uid="${uid}"]`).closest('tr');
+      const btn = tr.querySelector('.btn-delete-user');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+
+      try {
+        const response = await fetch(`/api/admin/users/${uid}`, {
+          method: 'DELETE',
+          headers: {
+            'X-CSRF-Token': csrfToken
+          }
+        });
+        const result = await response.json();
+        if (result.ok) {
+          showAppToast(result.message, "success");
+          loadUsersList();
+        } else {
+          showAppToast(result.message, "danger");
+          btn.disabled = false;
+          btn.innerHTML = `<i class="bi bi-trash"></i>`;
+        }
+      } catch (e) {
+        showAppToast("Erreur de communication : " + e.message, "danger");
+        btn.disabled = false;
+        btn.innerHTML = `<i class="bi bi-trash"></i>`;
       }
     }
 

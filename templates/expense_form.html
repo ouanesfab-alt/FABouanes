@@ -36,7 +36,7 @@
         </div>
         <div class="col-md-6">
           <label class="form-label mb-1" for="expAmount">Montant (DA) <span class="text-danger">*</span></label>
-          <input type="number" name="amount" id="expAmount" class="form-control" value="{{ expense.amount if expense else '' }}" step="0.01" min="0" required placeholder="0,00">
+          <input type="number" name="amount" id="expAmount" class="form-control" value="{{ "%.2f"|format(expense.amount|float) if expense and expense.amount is not none else '' }}" step="0.01" min="0" required placeholder="0,00">
         </div>
         <div class="col-md-6">
           <label class="form-label mb-1" for="expMethod">Méthode de paiement</label>

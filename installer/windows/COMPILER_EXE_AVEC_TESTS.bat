@@ -58,7 +58,7 @@ if exist ".env" (
 %PY_CMD% -m PyInstaller ^
     --noconfirm --clean ^
     --name "FABOuanes" ^
-    --icon "static\FABOuanes_desktop.ico" ^
+    --icon "static\FABOuanes.ico" ^
     --onedir --noconsole ^
     %PYINSTALLER_DATA_ARGS% ^
     --hidden-import "fastapi" ^

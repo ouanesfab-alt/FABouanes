@@ -159,26 +159,72 @@
 		max-width: 740px;
 	}
 
+	@keyframes borderGlowPulse {
+		0% {
+			border-color: rgba(0, 122, 255, 0.45);
+			box-shadow: 0 0 0 1px rgba(0, 122, 255, 0.25), 0 0 14px rgba(0, 122, 255, 0.18), 0 0 24px rgba(175, 82, 222, 0.08);
+		}
+		50% {
+			border-color: rgba(175, 82, 222, 0.55);
+			box-shadow: 0 0 0 1px rgba(175, 82, 222, 0.3), 0 0 20px rgba(175, 82, 222, 0.28), 0 0 30px rgba(0, 122, 255, 0.12);
+		}
+		100% {
+			border-color: rgba(0, 122, 255, 0.45);
+			box-shadow: 0 0 0 1px rgba(0, 122, 255, 0.25), 0 0 14px rgba(0, 122, 255, 0.18), 0 0 24px rgba(175, 82, 222, 0.08);
+		}
+	}
+
+	@keyframes borderShimmer {
+		0% {
+			border-color: rgba(0, 122, 255, 0.5);
+			box-shadow: 0 0 0 1px rgba(0, 122, 255, 0.3), 0 0 8px rgba(0, 122, 255, 0.2), inset 0 0 4px rgba(0, 122, 255, 0.15);
+		}
+		25% {
+			border-color: rgba(175, 82, 222, 0.65);
+			box-shadow: 0 0 0 1px rgba(175, 82, 222, 0.4), 0 0 16px rgba(175, 82, 222, 0.4), inset 0 0 8px rgba(175, 82, 222, 0.25);
+		}
+		50% {
+			border-color: rgba(255, 45, 85, 0.6);
+			box-shadow: 0 0 0 1px rgba(255, 45, 85, 0.35), 0 0 20px rgba(255, 45, 85, 0.35), inset 0 0 10px rgba(255, 45, 85, 0.2);
+		}
+		75% {
+			border-color: rgba(0, 122, 255, 0.5);
+			box-shadow: 0 0 0 1px rgba(0, 122, 255, 0.3), 0 0 12px rgba(0, 122, 255, 0.25), inset 0 0 6px rgba(0, 122, 255, 0.15);
+		}
+		100% {
+			border-color: rgba(0, 122, 255, 0.5);
+			box-shadow: 0 0 0 1px rgba(0, 122, 255, 0.3), 0 0 8px rgba(0, 122, 255, 0.2), inset 0 0 4px rgba(0, 122, 255, 0.15);
+		}
+	}
+
 	.fab-search-bar {
 		display: flex;
 		align-items: center;
-		background: var(--bg-secondary);
-		border: 1px solid var(--line);
+		background: var(--glass-regular) !important;
+		backdrop-filter: var(--backdrop-blur);
+		-webkit-backdrop-filter: var(--backdrop-blur);
+		border: 1px solid var(--glass-border) !important;
 		border-radius: 24px;
 		padding: 6px 10px 6px 14px;
 		width: 100%;
 		transition: border-color 0.2s ease, box-shadow 0.2s ease;
-		box-shadow: var(--shadow-sm);
+		box-shadow: var(--shadow-glass);
 		gap: 6px;
 	}
 
 	.fab-search-bar:hover {
-		box-shadow: var(--shadow-md);
+		box-shadow: var(--shadow-glass-hover);
+		border-color: rgba(0, 122, 255, 0.2) !important;
 	}
 
 	.fab-search-bar:focus-within {
-		border-color: var(--accent);
-		box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12);
+		animation: borderGlowPulse 4s infinite alternate ease-in-out;
+		background: var(--glass-thick) !important;
+	}
+
+	.fab-search-bar.thinking {
+		animation: borderShimmer 2.5s infinite linear !important;
+		background: var(--glass-thick) !important;
 	}
 
 	.fab-search-bar textarea {
@@ -830,6 +876,28 @@
 		color: #fff;
 		border-color: var(--accent);
 	}
+
+	#fabClearChatBtnMobile {
+		display: none !important;
+	}
+
+	@media (max-width: 576px) {
+		/* Show the clear button on mobile when the chatbot is active */
+		.chat-active #fabClearChatBtnMobile {
+			display: inline-flex !important;
+			align-items: center;
+			justify-content: center;
+			margin-bottom: 12px;
+			font-size: 0.8rem !important;
+			padding: 6px 12px !important;
+			border-radius: 20px !important;
+			background: rgba(239, 68, 68, 0.08) !important;
+			border: 1px solid var(--system-red) !important;
+			color: var(--system-red) !important;
+			align-self: center; /* Center horizontally in flex layout */
+			box-shadow: var(--shadow-sm);
+		}
+	}
 </style>
 
 <div class="dashboard-shell">
@@ -841,8 +909,6 @@
 		<div class="fab-logo-wrap">
 			<div class="fab-logo-text-main">fabouanes</div>
 			<div class="fab-logo-text-sub">FABRICATION D'ALIMENTS DE BETAIL</div>
-			<div class="fab-logo-sub"><i class="bi bi-stars animate-pulse me-1 text-primary"></i> Sabrina — Assistante
-				IA</div>
 		</div>
 
 		<!-- Mobile clock (hidden on desktop, shown on mobile via CSS) -->
@@ -856,6 +922,11 @@
 		<div class="fab-chat-area" id="fabChatArea" style="position: relative;">
 			<!-- Settings form will be injected directly as a bubble inside here -->
 		</div>
+
+		<!-- Mobile Clear Chat Button -->
+		<button type="button" class="btn btn-sm btn-outline-danger" id="fabClearChatBtnMobile" title="Effacer la discussion">
+			<i class="bi bi-trash me-1"></i>Effacer la discussion
+		</button>
 
 		<!-- File preview chip -->
 		<div class="fab-file-chip" id="fabFileChip">

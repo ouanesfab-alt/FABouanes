@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from urllib.parse import quote
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +25,7 @@ def _doc(
     category: str,
     title: str,
     number: str,
-    doc_date: str,
+    doc_date: Any,
     partner_name: str = "",
     detail: str = "",
     amount=None,
@@ -33,13 +34,21 @@ def _doc(
     source_url: str = "",
     delete_filename: str = "",
 ) -> dict:
+    from datetime import date, datetime
+    formatted_date = ""
+    if doc_date:
+        if isinstance(doc_date, (date, datetime)):
+            formatted_date = doc_date.strftime("%Y-%m-%d")
+        else:
+            formatted_date = str(doc_date)[:10]
+
     return {
         "key": key,
         "kind": kind,
         "category": category,
         "title": title,
         "number": number,
-        "doc_date": str(doc_date or ""),
+        "doc_date": formatted_date,
         "partner_name": str(partner_name or ""),
         "detail": str(detail or ""),
         "amount": amount,
@@ -49,7 +58,7 @@ def _doc(
         "delete_filename": delete_filename,
         "search_text": " ".join(
             str(part or "")
-            for part in (category, title, number, doc_date, partner_name, detail)
+            for part in (category, title, number, formatted_date, partner_name, detail)
         ).lower(),
     }
 
@@ -362,18 +371,28 @@ async def _list_bon_space_documents_impl(
     source_limit = max(limit, 80)
     documents: list[dict] = []
 
-    await _append_purchase_documents(documents, source_limit, db)
-    await _append_sale_documents(documents, source_limit, db)
-    await _append_payment_documents(documents, source_limit, db)
-    await _append_production_documents(documents, source_limit, db)
-    await _append_client_history_documents(documents, source_limit, db)
-    _append_external_pdfs(documents)
-
     normalized_kind = str(kind or "").strip().lower()
+    search_query = str(q or "").strip()
+
+    # Charger uniquement les sources demandées pour optimiser les performances
+    # et éviter de polluer la liste par défaut ("Tous") avec les historiques de tous les clients
+    if not normalized_kind or normalized_kind == "purchase":
+        await _append_purchase_documents(documents, source_limit, db)
+    if not normalized_kind or normalized_kind == "sale":
+        await _append_sale_documents(documents, source_limit, db)
+    if not normalized_kind or normalized_kind in ("payment", "advance"):
+        await _append_payment_documents(documents, source_limit, db)
+    if not normalized_kind or normalized_kind == "production":
+        await _append_production_documents(documents, source_limit, db)
+    if normalized_kind == "client_history" or (not normalized_kind and search_query):
+        await _append_client_history_documents(documents, source_limit, db)
+    if not normalized_kind or normalized_kind == "external":
+        _append_external_pdfs(documents)
+
     if normalized_kind:
         documents = [item for item in documents if item["kind"] == normalized_kind]
 
-    terms = [part.lower() for part in str(q or "").split() if part.strip()]
+    terms = [part.lower() for part in search_query.split() if part.strip()]
     if terms:
         documents = [
             item

@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 from sqlmodel import SQLModel, Field
+from pydantic import field_validator
 
 from app.core.model_utils import _now
 
@@ -22,6 +23,14 @@ class User(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now)
     xp: int = Field(default=0)
     level: int = Field(default=1)
+
+    @field_validator("must_change_password", "is_active", mode="before")
+    @classmethod
+    def _coerce_bool(cls, v: Any) -> bool:
+        """Coerce les entiers 0/1 retournés par SQLite en booléens Python."""
+        if isinstance(v, int):
+            return bool(v)
+        return v
 
 
 class UserBadge(SQLModel, table=True):

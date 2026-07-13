@@ -53,11 +53,13 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
     finished_id = int(form["finished_product_id"])
     output_qty = to_float(form.get("output_quantity"))
 
-    production_date_str = form.get("production_date")
-    if production_date_str:
-        production_date_obj = date.fromisoformat(production_date_str)
-    else:
+    production_date_val = form.get("production_date")
+    if production_date_val is None:
         production_date_obj = date.today()
+    elif isinstance(production_date_val, date):
+        production_date_obj = production_date_val
+    else:
+        production_date_obj = date.fromisoformat(str(production_date_val))
 
     notes = form.get("notes", "").strip()
     recipe_name = (form.get("recipe_name") or "").strip()

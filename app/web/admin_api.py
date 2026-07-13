@@ -15,6 +15,7 @@ from app.core.permissions import (
 from app.services.admin_service import (
     create_user_account,
     update_user_account,
+    delete_user_account,
     create_manual_backup,
     restore_backup_by_value,
     save_backup_settings_from_form,
@@ -94,6 +95,21 @@ async def api_update_user(request: Request, user_id: int):
 
     async with get_async_sessionmaker()() as session:
         result = await update_user_account(user_id, role, is_active, new_password, db=session)
+        if result.get("ok"):
+            await session.commit()
+    return result
+
+
+@router.delete("/users/{user_id}")
+async def api_delete_user(request: Request, user_id: int):
+    current_user = enforce_permission(request, PERMISSION_USERS_MANAGE)
+    
+    # Empêcher la suppression de son propre compte
+    if current_user.get("id") == user_id:
+        return {"ok": False, "message": "Vous ne pouvez pas supprimer votre propre compte en cours d'utilisation."}
+
+    async with get_async_sessionmaker()() as session:
+        result = await delete_user_account(user_id, db=session)
         if result.get("ok"):
             await session.commit()
     return result

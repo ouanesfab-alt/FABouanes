@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List, Union
@@ -40,7 +41,7 @@ class PaymentCreateSchema(BaseModel):
 class ProductionCreateSchema(BaseModel):
     finished_product_id: int = Field(..., description="ID du produit fini")
     output_quantity: Decimal = Field(..., gt=0, description="Quantité produite")
-    production_date: Optional[str] = Field(default=None, description="Date de production (YYYY-MM-DD)")
+    production_date: Optional[date] = Field(default=None, description="Date de production (YYYY-MM-DD)")
     notes: Optional[str] = Field(default="", description="Notes additionnelles")
     recipe_name: Optional[str] = Field(default="", description="Nom de la recette optionnel")
     save_recipe: Optional[Union[bool, int, str]] = Field(default=0, description="Sauvegarder comme recette")

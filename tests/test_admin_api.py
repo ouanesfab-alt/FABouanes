@@ -84,3 +84,16 @@ class TestAdminApi:
         response = client.patch("/api/admin/sabrina/settings", json=payload)
         assert response.status_code == 200
         assert response.json()["ok"] is True
+
+    def test_api_delete_user_success(self, mock_enforce):
+        with patch("app.web.admin_api.delete_user_account", new_callable=AsyncMock, return_value={"ok": True, "message": "Utilisateur supprimé."}):
+            response = client.delete("/api/admin/users/999")
+            assert response.status_code == 200
+            assert response.json()["ok"] is True
+
+    def test_api_delete_self_fails(self, mock_enforce):
+        with patch("app.web.admin_api.enforce_permission", return_value={"id": 1, "username": "admin", "role": "admin"}):
+            response = client.delete("/api/admin/users/1")
+            assert response.status_code == 200
+            assert response.json()["ok"] is False
+            assert "propre compte" in response.json()["message"]

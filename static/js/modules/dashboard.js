@@ -63,6 +63,7 @@
 		const sendBtn = document.getElementById('fabSendBtn');
 		const stopBtn = document.getElementById('fabStopBtn');
 		const clearBtn = document.getElementById('fabClearChatBtn');
+		const clearBtnMobile = document.getElementById('fabClearChatBtnMobile');
 		const micBtn = document.getElementById('fabMicBtn');
 		const soundwave = document.getElementById('fabSoundwave');
 		const attachBtn = document.getElementById('fabAttachBtn');
@@ -422,6 +423,7 @@
 
 			sendBtn.style.display = 'none';
 			stopBtn.style.display = 'inline-flex';
+			document.querySelector('.fab-search-bar')?.classList.add('thinking');
 
 			let indicator = appendTypingIndicator();
 			abortController = new AbortController();
@@ -580,6 +582,7 @@
 			} finally {
 				sendBtn.style.display = 'inline-flex';
 				stopBtn.style.display = 'none';
+				document.querySelector('.fab-search-bar')?.classList.remove('thinking');
 				abortController = null;
 				scrollToBottom();
 			}
@@ -591,10 +594,26 @@
 		});
 		input.addEventListener('input', function () {
 			this.style.height = '36px';
-			this.style.height = Math.min(100, this.scrollHeight) + 'px';
+			this.style.height = Math.min(150, this.scrollHeight) + 'px';
 		});
 		sendBtn.addEventListener('click', () => sendMessage(input.value));
 		stopBtn.addEventListener('click', () => abortController?.abort());
+
+		// Raccourci clavier universel '/' pour focaliser l'input de Sabrina
+		document.addEventListener('keydown', function (e) {
+			const activeEl = document.activeElement;
+			const isInput = activeEl && (
+				activeEl.tagName === 'INPUT' || 
+				activeEl.tagName === 'TEXTAREA' || 
+				activeEl.isContentEditable
+			);
+			if (e.key === '/' && !isInput) {
+				e.preventDefault();
+				input.focus();
+				// Placer le curseur à la fin
+				input.setSelectionRange(input.value.length, input.value.length);
+			}
+		});
 
 		function clearChat() {
 			if (window.speechSynthesis) window.speechSynthesis.cancel();
@@ -607,6 +626,7 @@
 			chatArea.classList.remove('active');
 		}
 		clearBtn?.addEventListener('click', clearChat);
+		clearBtnMobile?.addEventListener('click', clearChat);
 
 		// File handling
 		attachBtn?.addEventListener('click', () => fileInput?.click());

@@ -20,7 +20,7 @@ class Payment(SQLModel, table=True):
     sale_kind: Optional[str] = Field(default=None)
     payment_type: str = Field(default="versement")
     allocation_meta: Optional[str] = Field(default=None)
-    amount: Decimal = Field(sa_column=Column(Numeric(15, 4)))
+    amount: Decimal = Field(sa_column=Column(Numeric(15, 2)))
     payment_date: date
     notes: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=_now)

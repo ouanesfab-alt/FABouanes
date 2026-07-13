@@ -86,6 +86,42 @@ async def update_user_account(user_id: int, role: str, is_active: bool, new_pass
     return {"ok": True, "message": message}
 
 
+async def delete_user_account(user_id: int, db: AsyncSession | None = None):
+    # Récupérer l'utilisateur pour les logs
+    user = await get_user_by_id(user_id, db=db)
+    if not user:
+        return {"ok": False, "message": "Utilisateur introuvable."}
+    
+    if str(user["username"]) == DEFAULT_ADMIN_USERNAME:
+        return {"ok": False, "message": "Le compte administrateur par défaut ne peut pas être supprimé."}
+
+    from sqlalchemy.exc import IntegrityError
+    from app.modules.users.repository import delete_user
+
+    try:
+        before = dict(user)
+        # Tenter la suppression dans le repository
+        deleted = await delete_user(user_id, db=db)
+        if deleted:
+            log_activity("delete_user", "user", user_id, f"Username={user['username']}")
+            audit_event("delete_user", "user", user_id, before=before, after=None)
+            try:
+                mark_backup_needed("delete_user")
+            except Exception:
+                pass
+            return {"ok": True, "message": "Utilisateur supprimé avec succès."}
+        else:
+            return {"ok": False, "message": "Erreur lors de la suppression de l'utilisateur."}
+    except IntegrityError:
+        # En cas d'erreur de clé étrangère
+        if db is not None:
+            await db.rollback()
+        return {
+            "ok": False,
+            "message": "Cet utilisateur a des opérations comptables ou d'audit liées (ventes, achats, recettes, etc.) et ne peut pas être supprimé physiquement. Veuillez le désactiver à la place."
+        }
+
+
 @async_compat
 async def save_backup_settings_from_form(form_data: dict[str, str], db: AsyncSession | None = None):
     await save_backup_configuration(form_data, db=db)

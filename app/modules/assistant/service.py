@@ -311,6 +311,88 @@ async def is_ollama_available() -> bool:
     except Exception:
         return False
 
+
+def find_past_tool_execution(messages: List[Dict[str, Any]], func_name: str, func_args: dict) -> Any | None:
+    """
+    Parcourt l'historique des messages pour déterminer si cet appel de fonction (nom et arguments équivalents)
+    a déjà été exécuté avec succès. Si oui, retourne sa valeur de retour passée pour éviter de le re-confirmer ou ré-exécuter.
+    """
+    def normalize_val(val):
+        if isinstance(val, float):
+            return round(val, 4)
+        if isinstance(val, int):
+            return float(val)
+        if val is None or val == "":
+            return None
+        if isinstance(val, dict):
+            return {k: normalize_val(v) for k, v in val.items() if v is not None and v != ""}
+        if isinstance(val, list):
+            return [normalize_val(x) for x in val]
+        return val
+
+    normalized_args = {k: normalize_val(v) for k, v in func_args.items() if v is not None and v != ""}
+
+    # On parcourt les messages de l'historique
+    for i, msg in enumerate(messages):
+        role = msg.get("role")
+        
+        calls = []
+        if role in ("model", "assistant"):
+            parts = msg.get("parts")
+            if isinstance(parts, list):
+                for p in parts:
+                    if "functionCall" in p:
+                        calls.append(p["functionCall"])
+            tool_calls = msg.get("tool_calls")
+            if isinstance(tool_calls, list):
+                for tc in tool_calls:
+                    func = tc.get("function")
+                    if func:
+                        calls.append({"name": func.get("name"), "args": func.get("arguments") or {}})
+                        
+        for call in calls:
+            if call.get("name") == func_name:
+                call_args = call.get("args") or {}
+                if isinstance(call_args, str):
+                    try:
+                        call_args = json.loads(call_args)
+                    except Exception:
+                        pass
+                if not isinstance(call_args, dict):
+                    call_args = {}
+                normalized_call_args = {k: normalize_val(v) for k, v in call_args.items() if v is not None and v != ""}
+                
+                if normalized_call_args == normalized_args:
+                    # Trouvé l'appel ! Cherchons la réponse correspondante dans les messages suivants
+                    for j in range(i + 1, len(messages)):
+                        next_msg = messages[j]
+                        next_role = next_msg.get("role")
+                        
+                        if next_role == "function":
+                            next_parts = next_msg.get("parts")
+                            if isinstance(next_parts, list):
+                                for np in next_parts:
+                                    if "functionResponse" in np:
+                                        fr = np["functionResponse"]
+                                        if fr.get("name") == func_name:
+                                            resp = fr.get("response") or {}
+                                            if isinstance(resp, dict) and "output" in resp:
+                                                return resp["output"]
+                                            return resp
+                        elif next_role == "tool":
+                            content = next_msg.get("content")
+                            if content:
+                                try:
+                                    parsed = json.loads(content)
+                                    if isinstance(parsed, dict):
+                                        if "output" in parsed:
+                                            return parsed["output"]
+                                        return parsed
+                                except Exception:
+                                    return {"output": content}
+    return None
+
+
 async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_query: str | None = None, user_role: str = "operator"):
     """Boucle d'agent asynchrone génératrice pour Ollama local."""
     if not await is_ollama_available():
@@ -556,7 +638,13 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
 
             logger.info("Ollama Agent Call: '%s' args=%s", func_name, func_args)
 
-            if func_name == "execute_readonly_sql":
+            # Éviter de ré-exécuter/re-confiremer une action déjà effectuée dans cette conversation
+            past_output = find_past_tool_execution(messages[:-1], func_name, func_args)
+
+            if past_output is not None:
+                logger.info("Ollama Agent: Réutilisation du résultat de l'exécution passée pour '%s' pour éviter une boucle", func_name)
+                output = past_output
+            elif func_name == "execute_readonly_sql":
                 sql_query = func_args.get("query", "")
                 yield {"type": "status", "message": "Recherche dans la base de données locale (SELECT)..."}
                 output = execute_readonly_sql(sql_query)
@@ -931,7 +1019,13 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
 
             logger.info("Agent Call: Execute function '%s' with args %s", func_name, func_args)
 
-            if func_name == "get_schema":
+            # Éviter de ré-exécuter/re-confirmer une action déjà effectuée dans cette conversation
+            past_output = find_past_tool_execution(contents[:-1], func_name, func_args)
+
+            if past_output is not None:
+                logger.info("Agent: Réutilisation du résultat de l'exécution passée pour '%s' pour éviter une boucle", func_name)
+                output = past_output
+            elif func_name == "get_schema":
                 output = get_schema()
             elif func_name == "execute_readonly_sql":
                 sql_query = func_args.get("query", "")

@@ -199,3 +199,26 @@ async def _list_users_impl(db: AsyncSession):
     ).order_by(User.id.desc())
     res = await db.execute(stmt)
     return [dict(row._mapping) for row in res.all()]
+
+
+@db_task_compat
+async def delete_user(user_id: int, db: AsyncSession | None = None) -> bool:
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            res = await _delete_user_impl(user_id, session)
+            await session.commit()
+            return res
+    return await _delete_user_impl(user_id, db)
+
+
+async def _delete_user_impl(user_id: int, db: AsyncSession) -> bool:
+    from sqlalchemy import delete
+    from app.core.models_pkg.users import UserBadge
+    
+    # Supprimer d'abord les badges
+    await db.execute(delete(UserBadge).where(UserBadge.user_id == user_id))
+    
+    # Supprimer l'utilisateur
+    stmt = delete(User).where(User.id == user_id)
+    res = await db.execute(stmt)
+    return res.rowcount > 0

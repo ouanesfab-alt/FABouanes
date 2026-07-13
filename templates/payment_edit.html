@@ -50,7 +50,7 @@
         </div>
         <div class="span-6">
           <label class="form-label">Montant</label>
-          <input name="amount" type="text" inputmode="decimal" class="form-control" value="{{ payment.amount }}" required>
+          <input name="amount" type="text" inputmode="decimal" class="form-control" value="{{ "%.2f"|format(payment.amount|float) }}" required>
         </div>
         <div class="span-6">
           <label class="form-label">Date</label>

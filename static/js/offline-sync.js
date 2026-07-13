@@ -70,6 +70,8 @@ export async function syncPendingOperations() {
 /** Met en cache les données de référence (clients, catalogue) */
 export async function cacheReferenceData() {
   if (!navigator.onLine) return;
+  // Ne pas tenter de mettre en cache si l'utilisateur n'est pas connecté (évite les erreurs 401 dans la console)
+  if (document.body && document.body.classList.contains('auth-page')) return;
   try {
     const opts = { credentials: 'include' };
     const [clientsRes, catalogRes, suppliersRes, rawMaterialsRes] = await Promise.all([

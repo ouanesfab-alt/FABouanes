@@ -15,7 +15,7 @@
 
   /* --- Sidebar Left Pane --- */
   .notes-sidebar {
-    background: var(--sidebar-bg, rgba(246, 246, 246, 0.6));
+    background: var(--glass-sidebar, rgba(246, 246, 246, 0.6)) !important;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-right: 1px solid var(--glass-border);
@@ -73,8 +73,8 @@
     display: block;
     padding: 10px 12px;
     border-radius: 10px;
-    text-decoration: none;
-    color: var(--text);
+    text-decoration: none !important;
+    color: var(--text) !important;
     margin-bottom: 4px;
     transition: all 0.15s ease;
     border: 1px solid transparent;
@@ -82,15 +82,18 @@
     cursor: pointer;
   }
   .note-item:hover {
-    background: rgba(0, 0, 0, 0.03);
+    background: rgba(0, 0, 0, 0.04) !important;
+    color: var(--text) !important;
   }
   [data-theme="dark"] .note-item:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: var(--text) !important;
   }
   .note-item.active {
-    background: var(--accent);
+    background: var(--accent) !important;
     color: #fff !important;
   }
+  .note-item.active .note-item-title,
   .note-item.active .note-item-snippet,
   .note-item.active .note-item-meta {
     color: rgba(255, 255, 255, 0.9) !important;
@@ -489,30 +492,14 @@
       <div id="editorContent" style="display: none; flex: 1; flex-direction: column;">
         <!-- Top Toolbar -->
         <div class="editor-header-bar">
-          <!-- Color Picker -->
-          <div class="d-flex align-items-center gap-2">
-            <span class="small text-muted fw-semibold">Thème :</span>
-            <div class="color-selector">
-              <div class="color-dot color-yellow" data-color="yellow" title="Jaune"></div>
-              <div class="color-dot color-rose" data-color="rose" title="Rose"></div>
-              <div class="color-dot color-mint" data-color="mint" title="Menthe"></div>
-              <div class="color-dot color-blue" data-color="blue" title="Bleu"></div>
-              <div class="color-dot color-lavender" data-color="lavender" title="Lavande"></div>
-              <div class="color-dot color-black" data-color="black" title="Noir"></div>
-            </div>
-          </div>
-
           <!-- Action buttons -->
-          <div class="d-flex align-items-center gap-2">
+          <div class="d-flex align-items-center gap-2 ms-auto">
             <div class="editor-status-indicator me-2" id="saveStatus">
               <i class="bi bi-check-circle-fill text-success"></i> Sauvegardé
             </div>
             
             <button class="btn btn-sm btn-outline-secondary" id="btnPinToggle" title="Épingler la note">
               <i class="bi bi-pin-angle"></i>
-            </button>
-            <button class="btn btn-sm btn-outline-secondary" id="btnPrintNote" title="Imprimer la note">
-              <i class="bi bi-printer"></i>
             </button>
             <button class="btn btn-sm btn-outline-danger" id="btnDeleteNote" title="Supprimer la note">
               <i class="bi bi-trash3"></i>
@@ -683,7 +670,6 @@
 
     item.innerHTML = `
       <div class="note-item-title">
-        <span class="note-color-badge color-${noteColor}"></span>
         <span>${escapeHTML(note.title)}</span>
       </div>
       <div class="note-item-meta">${dateStr}</div>
@@ -1184,15 +1170,7 @@
     }
   }
 
-  // --- Print Note ---
-  document.getElementById('btnPrintNote').addEventListener('click', () => {
-    const note = notesList.find(n => n.id === activeNoteId);
-    if (!note) return;
 
-    document.getElementById('printTitle').textContent = note.title;
-    document.getElementById('printContent').innerHTML = parseMarkdown(note.content);
-    window.print();
-  });
 
   // Handle Window Resize (adapt grid structure)
   window.addEventListener('resize', () => {

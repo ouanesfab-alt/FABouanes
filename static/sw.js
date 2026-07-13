@@ -1,4 +1,4 @@
-const VERSION = "fabouanes-v62-clean";
+const VERSION = "fabouanes-v63-clean";
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const OFFLINE_URL = "/static/offline.html";

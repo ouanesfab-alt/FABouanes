@@ -16,11 +16,11 @@ class RawMaterial(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)
     unit: str = Field(default="kg")
-    stock_qty: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
-    avg_cost: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
-    sale_price: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
-    alert_threshold: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
-    threshold_qty: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    stock_qty: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
+    avg_cost: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
+    sale_price: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
+    alert_threshold: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
+    threshold_qty: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     updated_at: datetime = Field(default_factory=_now)
 
 
@@ -30,10 +30,10 @@ class FinishedProduct(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)
     default_unit: str = Field(default="kg")
-    stock_qty: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
-    sale_price: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
-    avg_cost: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
-    alert_threshold: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    stock_qty: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
+    sale_price: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
+    avg_cost: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
+    alert_threshold: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     updated_at: datetime = Field(default_factory=_now)
 
 
@@ -44,10 +44,10 @@ class StockMovement(SQLModel, table=True):
     item_kind: str
     item_id: int
     direction: str
-    quantity: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    quantity: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     unit: Optional[str] = Field(default=None)
-    stock_before: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
-    stock_after: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    stock_before: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
+    stock_after: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     reason: Optional[str] = Field(default=None)
     reference_type: Optional[str] = Field(default=None)
     reference_id: Optional[int] = Field(default=None)
@@ -62,7 +62,7 @@ class StockAlert(SQLModel, table=True):
     product_type: str
     product_id: int
     product_name: str
-    current_qty: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
-    threshold_qty: Decimal = Field(default=Decimal("0.0000"), sa_column=Column(Numeric(15, 4)))
+    current_qty: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
+    threshold_qty: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     triggered_at: datetime = Field(default_factory=_now)
     acknowledged_at: Optional[datetime] = Field(default=None)

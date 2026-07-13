@@ -4,7 +4,7 @@
 ; ===========================================================================
 
 #define MyAppName      "FABOuanes"
-#define MyAppVersion   "1.4.0"
+#define MyAppVersion   "2.1.0"
 #define MyAppPublisher "FABOuanes"
 #define MyAppExeName   "FABOuanes.exe"
 
@@ -26,7 +26,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 UsePreviousAppDir=yes
 DisableProgramGroupPage=yes
-SetupIconFile=..\..\static\FABOuanes_desktop.ico
+SetupIconFile=..\..\static\FABOuanes.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 LicenseFile=
 InfoBeforeFile=

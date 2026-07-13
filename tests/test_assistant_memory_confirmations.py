@@ -358,3 +358,71 @@ def test_get_context_memories_exception(mock_query):
     ctx = get_context_memories()
     # Should handle exceptions gracefully and return an empty string
     assert ctx == ""
+
+
+def test_find_past_tool_execution():
+    from app.modules.assistant.service import find_past_tool_execution
+
+    # Test case 1: Gemini format, matching call and response
+    messages_gemini = [
+        {"role": "user", "parts": [{"text": "ajoute client Jean"}]},
+        {
+            "role": "model",
+            "parts": [
+                {"text": "Je vais ajouter le client Jean."},
+                {"functionCall": {"name": "add_client", "args": {"name": "Jean", "phone": "0555"}}}
+            ]
+        },
+        {
+            "role": "function",
+            "parts": [
+                {
+                    "functionResponse": {
+                        "name": "add_client",
+                        "response": {"output": {"id": 123, "status": "success"}}
+                    }
+                }
+            ]
+        }
+    ]
+
+    # Matching call (exact same args)
+    res = find_past_tool_execution(messages_gemini, "add_client", {"name": "Jean", "phone": "0555"})
+    assert res == {"id": 123, "status": "success"}
+
+    # Matching call (minor arg differences like type or None)
+    res = find_past_tool_execution(messages_gemini, "add_client", {"name": "Jean", "phone": "0555", "notes": None})
+    assert res == {"id": 123, "status": "success"}
+
+    # Mismatched call (different args)
+    res = find_past_tool_execution(messages_gemini, "add_client", {"name": "Jean", "phone": "0666"})
+    assert res is None
+
+    # Test case 2: OpenAI / Ollama format
+    messages_openai = [
+        {"role": "user", "content": "Ajoute un versement"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {
+                        "name": "add_payment",
+                        "arguments": {"amount": 100.0, "client_id": 42}
+                    }
+                }
+            ]
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": '{"output": {"status": "success", "payment_id": 5}}'
+        }
+    ]
+
+    # Matching call
+    res = find_past_tool_execution(messages_openai, "add_payment", {"amount": 100, "client_id": 42})
+    assert res == {"status": "success", "payment_id": 5}
+
