@@ -40,127 +40,123 @@ def parse_client_history_excel(file_path: str) -> dict:
         "nb_dates_hors_ordre": int,
       }
     """
-    # === Lecture du nom client ===
+    import openpyxl
     try:
-        raw = pd.read_excel(file_path, header=None)
+        wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+        sheet = wb[wb.sheetnames[0]]
     except Exception as e:
         raise ValueError(f"Impossible de lire le fichier Excel : {e}")
 
-    if raw.shape[0] < 3 or raw.shape[1] < 2:
-        raise ValueError("Le fichier Excel ne respecte pas le format attendu (trop petit).")
+    try:
+        # 1. Read first row to find client name
+        row_iter = sheet.iter_rows(values_only=True)
+        first_row = next(row_iter, None)
+        if not first_row or len(first_row) < 2:
+            raise ValueError("Le fichier Excel ne respecte pas le format attendu (trop petit).")
 
-    # Recherche du nom du client (nettoyé) dans la ligne 0
-    client_name = str(raw.iloc[0, 1]).strip()
-    if client_name.lower() in ("nan", "none", ""):
-        # Fallback : chercher la première cellule non vide sur la première ligne
-        for col_idx in range(raw.shape[1]):
-            val = str(raw.iloc[0, col_idx]).strip()
-            if val and val.lower() not in ("nan", "none"):
-                client_name = val
+        client_name = str(first_row[1]).strip() if first_row[1] is not None else ""
+        if client_name.lower() in ("nan", "none", ""):
+            # Fallback : chercher la première cellule non vide sur la première ligne
+            for val in first_row:
+                if val is not None:
+                    val_str = str(val).strip()
+                    if val_str and val_str.lower() not in ("nan", "none"):
+                        client_name = val_str
+                        break
+            else:
+                client_name = "Client inconnu"
+
+        # Enlever les infos de téléphone de la chaîne du nom si présente
+        if "tel" in client_name.lower():
+            client_name = re.split(r"(?i)\s+tel\s*", client_name)[0].strip()
+
+        # Détection dynamique de la ligne d'en-tête
+        header_row_idx = None
+        header_row_iter = sheet.iter_rows(values_only=True)
+        for idx, row in enumerate(header_row_iter):
+            row_vals = [str(val).strip().lower() for val in row if val is not None]
+            if any("designation" in val for val in row_vals):
+                header_row_idx = idx
                 break
         else:
-            client_name = "Client inconnu"
+            header_row_idx = 2  # Fallback par défaut
 
-    # Enlever les infos de téléphone de la chaîne du nom si présente
-    if "tel" in client_name.lower():
-        client_name = re.split(r"(?i)\s+tel\s*", client_name)[0].strip()
+        rows = []
+        ordre = 0
 
-    # Détection dynamique de la ligne d'en-tête
-    header_row_idx = None
-    for idx, row in raw.iterrows():
-        row_vals = [str(val).strip().lower() for val in row]
-        if any("designation" in val for val in row_vals):
-            header_row_idx = idx
-            break
+        # Read data rows starting from the row after the header (1-based index)
+        data_start_row = header_row_idx + 2
+        for row in sheet.iter_rows(min_row=data_start_row, max_col=5, values_only=True):
+            row_vals = list(row)
+            while len(row_vals) < 5:
+                row_vals.append(None)
 
-    if header_row_idx is None:
-        header_row_idx = 2  # Fallback par défaut
+            date_raw_val = row_vals[0]
+            if date_raw_val is None:
+                continue
+            date_str = str(date_raw_val).strip()
 
-    # === Lecture des données à partir de l'en-tête (optimisée sans double I/O) ===
-    try:
-        # Extraire les colonnes 0 à 4 des lignes suivant l'en-tête
-        df_slice = raw.iloc[header_row_idx + 1 :, :5].copy()
-        
-        # S'assurer d'avoir 5 colonnes si le fichier en a moins
-        while df_slice.shape[1] < 5:
-            df_slice[df_slice.shape[1]] = None
-            
-        df_slice.columns = [
-            "date_raw",
-            "designation",
-            "montant_achat_raw",
-            "montant_verse_raw",
-            "solde_cumule_raw",
-        ]
-        df = df_slice.reset_index(drop=True).astype(str)
-    except Exception as e:
-        raise ValueError(f"Erreur lors de l'extraction des lignes de données Excel : {e}")
+            # Ignorer les lignes sans date valide ou lignes d'en-tête répétées
+            if not date_str or date_str.lower() in ("nan", "none", "date", ""):
+                continue
 
-    rows = []
-    ordre = 0
+            # Parser la date (format JJ/MM/AAAA) avec détection de fautes (ex: 203 -> 2023)
+            date_parsed = parse_flexible_date(date_str, fallback_to_today=False)
+            if not date_parsed:
+                continue  # ignorer les lignes avec date illisible
 
-    for _, row in df.iterrows():
-        date_raw_val = row.get("date_raw")
-        if pd.isna(date_raw_val):
-            continue
-        date_str = str(date_raw_val).strip()
+            montant_achat = _to_float(row_vals[2])
+            montant_verse = _to_float(row_vals[3])
+            solde_cumule  = _to_float(row_vals[4])
 
-        # Ignorer les lignes sans date valide ou lignes d'en-tête répétées
-        if not date_str or date_str.lower() in ("nan", "none", "date", ""):
-            continue
+            designation   = str(row_vals[1] or "").strip()
+            if designation.lower() in ("nan", "none"):
+                designation = ""
 
-        # Parser la date (format JJ/MM/AAAA) avec détection de fautes (ex: 203 -> 2023)
-        date_parsed = parse_flexible_date(date_str, fallback_to_today=False)
-        if not date_parsed:
-            continue  # ignorer les lignes avec date illisible
+            # Ignorer les lignes avec Montant a Payer = 0 ET Versement = 0 (sauf si ouverture / solde d'ouverture)
+            if montant_achat == 0 and montant_verse == 0 and "ancien" not in designation.lower():
+                continue
 
-        montant_achat = _to_float(row.get("montant_achat_raw"))
-        montant_verse = _to_float(row.get("montant_verse_raw"))
-        solde_cumule  = _to_float(row.get("solde_cumule_raw"))
+            # Déterminer le type d'opération
+            type_op = _classify_operation(
+                designation, montant_achat, montant_verse, ordre
+            )
 
-        designation   = str(row.get("designation", "")).strip()
-        if designation.lower() in ("nan", "none"):
-            designation = ""
+            rows.append({
+                "ordre_import":  ordre,
+                "date":          date_parsed,
+                "designation":   designation,
+                "montant_achat": montant_achat,
+                "montant_verse": montant_verse,
+                "solde_cumule":  solde_cumule,
+                "type_operation": type_op,
+            })
+            ordre += 1
 
-        # Ignorer les lignes avec Montant a Payer = 0 ET Versement = 0 (sauf si ouverture / solde d'ouverture)
-        if montant_achat == 0 and montant_verse == 0 and "ancien" not in designation.lower():
-            continue
+        if not rows:
+            raise ValueError("Aucune ligne de données valide trouvée dans le fichier Excel.")
 
-        # Déterminer le type d'opération
-        type_op = _classify_operation(
-            designation, montant_achat, montant_verse, ordre
-        )
+        # Compter les dates hors ordre
+        nb_hors_ordre = 0
+        for i in range(1, len(rows)):
+            if rows[i]["date"] < rows[i-1]["date"]:
+                nb_hors_ordre += 1
 
-        rows.append({
-            "ordre_import":  ordre,
-            "date":          date_parsed,
-            "designation":   designation,
-            "montant_achat": montant_achat,
-            "montant_verse": montant_verse,
-            "solde_cumule":  solde_cumule,
-            "type_operation": type_op,
-        })
-        ordre += 1
-
-    if not rows:
-        raise ValueError("Aucune ligne de données valide trouvée dans le fichier Excel.")
-
-    # Compter les dates hors ordre
-    nb_hors_ordre = 0
-    for i in range(1, len(rows)):
-        if rows[i]["date"] < rows[i-1]["date"]:
-            nb_hors_ordre += 1
-
-    return {
-        "client_name":        client_name,
-        "rows":               rows,
-        "solde_final":        rows[-1]["solde_cumule"],
-        "total_achats":       sum(r["montant_achat"] for r in rows),
-        "total_verses":       sum(r["montant_verse"] for r in rows),
-        "nb_lignes":          len(rows),
-        "history_count":      len(rows),
-        "nb_dates_hors_ordre": nb_hors_ordre,
-    }
+        return {
+            "client_name":        client_name,
+            "rows":               rows,
+            "solde_final":        rows[-1]["solde_cumule"],
+            "total_achats":       sum(r["montant_achat"] for r in rows),
+            "total_verses":       sum(r["montant_verse"] for r in rows),
+            "nb_lignes":          len(rows),
+            "history_count":      len(rows),
+            "nb_dates_hors_ordre": nb_hors_ordre,
+        }
+    finally:
+        try:
+            wb.close()
+        except Exception:
+            pass
 
 
 def _to_float(val) -> float:
