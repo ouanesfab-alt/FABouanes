@@ -44,7 +44,7 @@ async def api_sales(request: Request, db: AsyncSession = Depends(get_async_sessi
             payload = {
                 "mode": "line",
                 "kind": created["first_line_kind"],
-                "sale": await sale_payload(created["first_line_kind"], int(created["first_line_id"])),
+                "sale": await sale_payload(created["first_line_kind"], int(created["first_line_id"]), db=db),
             }
         else:
             payload = {
@@ -90,7 +90,7 @@ async def api_sale_detail(request: Request, kind: str, row_id: int, db: AsyncSes
         "DELETE": PERMISSION_OPERATIONS_DELETE,
     }[request.method]
     require_api_user(request, permission)
-    sale = await sale_payload(kind, row_id)
+    sale = await sale_payload(kind, row_id, db=db)
     if not sale:
         api_error("not_found", "Vente introuvable.", 404)
     if request.method == "PUT":
@@ -117,11 +117,11 @@ async def api_sale_detail(request: Request, kind: str, row_id: int, db: AsyncSes
                     {
                         "mode": "document",
                         "document_id": int(result["document_id"]),
-                        "document": await sale_document_payload(int(result["document_id"])),
+                        "document": await sale_document_payload(int(result["document_id"]), db=db),
                     }
                 )
             )
-        sale = (await sale_payload(result["first_line_kind"], int(result["first_line_id"]))) or sale
+        sale = (await sale_payload(result["first_line_kind"], int(result["first_line_id"]), db=db)) or sale
     elif request.method == "DELETE":
         service = SalesService(db)
         if not await service.delete_sale_by_id(kind, row_id):
@@ -137,7 +137,7 @@ async def api_sale_detail(request: Request, kind: str, row_id: int, db: AsyncSes
 @router.api_route("/sale-documents/{document_id}", methods=["GET", "PUT"])
 async def api_sale_document_detail(request: Request, document_id: int, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_OPERATIONS_WRITE if request.method == "PUT" else PERMISSION_OPERATIONS_READ)
-    document = await sale_document_payload(document_id)
+    document = await sale_document_payload(document_id, db=db)
     if not document:
         api_error("not_found", "Facture introuvable.", 404)
     if request.method == "PUT":
@@ -151,7 +151,7 @@ async def api_sale_document_detail(request: Request, document_id: int, db: Async
             if "versements" in msg.lower():
                 api_error("document_has_payments", msg, 409, {"document_id": document_id})
             api_error("sale_document_invalid", msg, 400)
-        document = await sale_document_payload(document_id)
+        document = await sale_document_payload(document_id, db=db)
     res_data = api_success(document)
     response = json_response(res_data)
     if request.method == "GET":
@@ -161,7 +161,7 @@ async def api_sale_document_detail(request: Request, document_id: int, db: Async
 
 
 @router.get("/recent-operations")
-async def api_recent_operations(request: Request):
+async def api_recent_operations(request: Request, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_OPERATIONS_READ)
     page = max(int(request.query_params.get("page", 1)), 1)
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
@@ -171,7 +171,8 @@ async def api_recent_operations(request: Request):
         date_to=request.query_params.get("date_to"),
         kind=request.query_params.get("kind"),
         page=page,
-        page_size=page_size
+        page_size=page_size,
+        db=db
     )
 
     meta = {

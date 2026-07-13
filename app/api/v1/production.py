@@ -17,7 +17,7 @@ from app.core.schema.api_validation import ProductionCreateSchema
 router = APIRouter(prefix="/api/v1", tags=["production"])
 
 @router.get("/production-batches")
-async def api_get_production_batches(request: Request):
+async def api_get_production_batches(request: Request, db: AsyncSession = Depends(get_async_session)):
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_READ)
     page = max(int(request.query_params.get("page", 1)), 1)
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
@@ -26,7 +26,8 @@ async def api_get_production_batches(request: Request):
         date_from=request.query_params.get("date_from"),
         date_to=request.query_params.get("date_to"),
         page=page,
-        page_size=page_size
+        page_size=page_size,
+        db=db
     )
     meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
     res_data = api_success(rows, meta)
@@ -35,7 +36,7 @@ async def api_get_production_batches(request: Request):
     return response
 
 @router.post("/production-batches", status_code=201)
-async def api_create_production_batch(request: Request, payload: ProductionCreateSchema):
+async def api_create_production_batch(request: Request, payload: ProductionCreateSchema, db: AsyncSession = Depends(get_async_session)):
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_WRITE)
 
     # Use by_alias=True to map "raw_material_ids" to "raw_material_id[]", and "quantities" to "quantity[]"
@@ -50,18 +51,18 @@ async def api_create_production_batch(request: Request, payload: ProductionCreat
     form_data = payload_to_form_data(data_dict)
 
     try:
-        result = await create_production_from_form(form_data)
+        result = await create_production_from_form(form_data, db=db)
     except ValueError as e:
         api_error("invalid_value", str(e), 400)
 
-    batch = await production_payload(result["batch_id"])
+    batch = await production_payload(result["batch_id"], db=db)
     return json_response(api_success({"batch": batch, "recipe_id": result["recipe_id"]}, status_code=201))
 
 @router.get("/production-batches/{batch_id}")
 async def api_get_production_batch_detail(request: Request, batch_id: int, db: AsyncSession = Depends(get_async_session)):
     import asyncio
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_READ)
-    batch = await production_payload(batch_id)
+    batch = await production_payload(batch_id, db=db)
     if not batch:
         api_error("not_found", "Production introuvable.", 404)
     stmt = select(ProductionBatchItem).where(ProductionBatchItem.batch_id == batch_id).order_by(ProductionBatchItem.id)
@@ -75,24 +76,24 @@ async def api_get_production_batch_detail(request: Request, batch_id: int, db: A
     return response
 
 @router.delete("/production-batches/{batch_id}")
-async def api_delete_production_batch(request: Request, batch_id: int):
+async def api_delete_production_batch(request: Request, batch_id: int, db: AsyncSession = Depends(get_async_session)):
     import asyncio
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_DELETE)
-    batch = await production_payload(batch_id)
+    batch = await production_payload(batch_id, db=db)
     if not batch:
         api_error("not_found", "Production introuvable.", 404)
-    success = await delete_production_by_id(batch_id)
+    success = await delete_production_by_id(batch_id, db=db)
     if not success:
         api_error("conflict", "Suppression impossible.", 409)
     return json_response(api_success({"deleted": True}))
 
 @router.get("/recipes")
-async def api_recipes(request: Request):
+async def api_recipes(request: Request, db: AsyncSession = Depends(get_async_session)):
     import asyncio
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_READ)
     page = max(int(request.query_params.get("page", 1)), 1)
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
-    rows, total = await list_recipes(page=page, page_size=page_size)
+    rows, total = await list_recipes(page=page, page_size=page_size, db=db)
     meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
     res_data = api_success(rows, meta)
     response = json_response(res_data)

@@ -16,32 +16,22 @@ def json_response(payload: dict[str, Any]) -> JSONResponse:
     status_code = int(payload.pop("_status_code", 200))
     return JSONResponse(jsonable_encoder(payload), status_code=status_code)
 
-async def _get_db_fallback(db: AsyncSession | None) -> AsyncSession:
-    if db is not None:
-        return db
-    from app.core.async_db import get_async_session
-    async for session in get_async_session():
-        return session
-
-async def client_payload(client_id: int, db: AsyncSession | None = None):
-    session = await _get_db_fallback(db)
+async def client_payload(client_id: int, db: AsyncSession):
     stmt = select(
         *Client.__table__.columns,
         literal_column("current_balance"),
         literal_column("total_sales"),
         literal_column("total_payments")
     ).select_from(table("clients_with_stats")).where(Client.id == client_id)
-    res = await session.execute(stmt)
+    res = await db.execute(stmt)
     row = res.first()
     return dict(row._mapping) if row else None
 
-async def supplier_payload(supplier_id: int, db: AsyncSession | None = None):
-    session = await _get_db_fallback(db)
-    supplier = await session.get(Supplier, supplier_id)
+async def supplier_payload(supplier_id: int, db: AsyncSession):
+    supplier = await db.get(Supplier, supplier_id)
     return supplier.model_dump() if supplier else None
 
-async def raw_material_payload(material_id: int, db: AsyncSession | None = None):
-    session = await _get_db_fallback(db)
+async def raw_material_payload(material_id: int, db: AsyncSession):
     stmt = select(
         *RawMaterial.__table__.columns,
         case(
@@ -50,28 +40,26 @@ async def raw_material_payload(material_id: int, db: AsyncSession | None = None)
         ).label("is_low_stock"),
         literal_column("'raw'").label("item_type")
     ).where(RawMaterial.id == material_id)
-    res = await session.execute(stmt)
+    res = await db.execute(stmt)
     row = res.first()
     return dict(row._mapping) if row else None
 
-async def finished_product_payload(product_id: int, db: AsyncSession | None = None):
-    session = await _get_db_fallback(db)
+async def finished_product_payload(product_id: int, db: AsyncSession):
     stmt = select(
         *FinishedProduct.__table__.columns,
         literal_column("'finished'").label("item_type")
     ).where(FinishedProduct.id == product_id)
-    res = await session.execute(stmt)
+    res = await db.execute(stmt)
     row = res.first()
     return dict(row._mapping) if row else None
 
-async def production_payload(batch_id: int, db: AsyncSession | None = None):
-    session = await _get_db_fallback(db)
+async def production_payload(batch_id: int, db: AsyncSession):
     stmt = select(
         ProductionBatch,
         FinishedProduct.name.label("product_name"),
         FinishedProduct.default_unit.label("product_unit")
     ).join(FinishedProduct, FinishedProduct.id == ProductionBatch.finished_product_id).where(ProductionBatch.id == batch_id)
-    res = await session.execute(stmt)
+    res = await db.execute(stmt)
     row = res.first()
     if row:
         dct = row[0].model_dump()
@@ -80,15 +68,14 @@ async def production_payload(batch_id: int, db: AsyncSession | None = None):
         return dct
     return None
 
-async def purchase_payload(purchase_id: int, db: AsyncSession | None = None):
-    session = await _get_db_fallback(db)
+async def purchase_payload(purchase_id: int, db: AsyncSession):
     stmt = select(
         Purchase,
         func.coalesce(Supplier.name, 'Sans fournisseur').label("supplier_name"),
         RawMaterial.name.label("material_name"),
         RawMaterial.unit.label("material_unit")
     ).join(RawMaterial, RawMaterial.id == Purchase.raw_material_id).outerjoin(Supplier, Supplier.id == Purchase.supplier_id).where(Purchase.id == purchase_id)
-    res = await session.execute(stmt)
+    res = await db.execute(stmt)
     row = res.first()
     if row:
         dct = row[0].model_dump()
@@ -98,8 +85,7 @@ async def purchase_payload(purchase_id: int, db: AsyncSession | None = None):
         return dct
     return None
 
-async def sale_payload(kind: str, row_id: int, db: AsyncSession | None = None):
-    session = await _get_db_fallback(db)
+async def sale_payload(kind: str, row_id: int, db: AsyncSession):
     if kind == "finished":
         stmt = select(
             Sale,
@@ -109,7 +95,7 @@ async def sale_payload(kind: str, row_id: int, db: AsyncSession | None = None):
             literal_column("'finished'").label("row_kind"),
             func.concat('finished:', Sale.finished_product_id).label("item_key")
         ).join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id).outerjoin(Client, Client.id == Sale.client_id).where(Sale.id == row_id)
-        res = await session.execute(stmt)
+        res = await db.execute(stmt)
         row = res.first()
         if row:
             dct = row[0].model_dump()
@@ -130,7 +116,7 @@ async def sale_payload(kind: str, row_id: int, db: AsyncSession | None = None):
             literal_column("'raw'").label("row_kind"),
             func.concat('raw:', RawSale.raw_material_id).label("item_key")
         ).join(RawMaterial, RawMaterial.id == RawSale.raw_material_id).outerjoin(Client, Client.id == RawSale.client_id).where(RawSale.id == row_id)
-        res = await session.execute(stmt)
+        res = await db.execute(stmt)
         row = res.first()
         if row:
             dct = row[0].model_dump()
@@ -167,8 +153,7 @@ async def sale_document_payload(document_id: int, db: AsyncSession):
         "has_linked_payments": bool(context["has_linked_payments"]),
     }
 
-async def payment_payload(payment_id: int, db: AsyncSession | None = None):
-    session = await _get_db_fallback(db)
+async def payment_payload(payment_id: int, db: AsyncSession):
     stmt = select(
         Payment,
         Client.name.label("client_name"),
@@ -183,7 +168,7 @@ async def payment_payload(payment_id: int, db: AsyncSession | None = None):
             else_='-'
         ).label("sale_ref")
     ).join(Client, Client.id == Payment.client_id).where(Payment.id == payment_id)
-    res = await session.execute(stmt)
+    res = await db.execute(stmt)
     row = res.first()
     if row:
         dct = row[0].model_dump()

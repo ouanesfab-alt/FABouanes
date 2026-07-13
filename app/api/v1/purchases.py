@@ -25,7 +25,7 @@ async def api_purchases(request: Request, db: AsyncSession = Depends(get_async_s
         service = PurchaseService(db)
         created = await service.create_purchase_from_form(validated)
         if created["mode"] == "line":
-            payload = {"mode": "line", "purchase": await purchase_payload(int(created["print_item_id"]))}
+            payload = {"mode": "line", "purchase": await purchase_payload(int(created["print_item_id"]), db=db)}
         else:
             payload = {
                 "mode": "document",
@@ -68,7 +68,7 @@ async def api_purchase_detail(request: Request, purchase_id: int, db: AsyncSessi
         "DELETE": PERMISSION_OPERATIONS_DELETE,
     }[request.method]
     require_api_user(request, permission)
-    purchase = await purchase_payload(purchase_id)
+    purchase = await purchase_payload(purchase_id, db=db)
     if not purchase:
         api_error("not_found", "Achat introuvable.", 404)
     if request.method == "PUT":
@@ -92,11 +92,11 @@ async def api_purchase_detail(request: Request, purchase_id: int, db: AsyncSessi
                     {
                         "mode": "document",
                         "document_id": int(result["document_id"]),
-                        "document": await purchase_document_payload(int(result["document_id"])),
+                        "document": await purchase_document_payload(int(result["document_id"]), db=db),
                     }
                 )
             )
-        purchase = await purchase_payload(int(result["print_item_id"]))
+        purchase = await purchase_payload(int(result["print_item_id"]), db=db)
     elif request.method == "DELETE":
         service = PurchaseService(db)
         if not await service.delete_purchase_by_id(purchase_id):
@@ -113,7 +113,7 @@ async def api_purchase_detail(request: Request, purchase_id: int, db: AsyncSessi
 @router.api_route("/purchase-documents/{document_id}", methods=["GET", "PUT"])
 async def api_purchase_document_detail(request: Request, document_id: int, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_OPERATIONS_WRITE if request.method == "PUT" else PERMISSION_OPERATIONS_READ)
-    document = await purchase_document_payload(document_id)
+    document = await purchase_document_payload(document_id, db=db)
     if not document:
         api_error("not_found", "Bon d'achat introuvable.", 404)
     if request.method == "PUT":
@@ -124,7 +124,7 @@ async def api_purchase_document_detail(request: Request, document_id: int, db: A
             await service.edit_purchase_document_from_form(document_id, validated)
         except Exception as exc:
             api_error("purchase_document_invalid", str(exc), 400)
-        document = await purchase_document_payload(document_id)
+        document = await purchase_document_payload(document_id, db=db)
     res_data = api_success(document)
     response = json_response(res_data)
     if request.method == "GET":
