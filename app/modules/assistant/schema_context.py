@@ -517,7 +517,7 @@ ACTION_GUIDE = (
     "    ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP\n"
 )
 
-def get_sabrina_system_prompt(model_name: str) -> str:
+def get_sabrina_system_prompt(model_name: str, rag_context: str = "") -> str:
     """Génère le prompt système personnalisé pour Sabrina avec le contexte de l'entreprise."""
     company_name = db_manager.get_setting("company_name", "FABOuanes").strip() or "FABOuanes"
     currency = "DZD"  # Devise par défaut
@@ -540,7 +540,7 @@ def get_sabrina_system_prompt(model_name: str) -> str:
     date_str = now_gmt1.strftime("%d/%m/%Y")
     time_str = now_gmt1.strftime("%H:%M:%S")
 
-    return (
+    prompt_str = (
         "Tu es Sabrina, l'assistante commerciale intelligente de l'entreprise. "
         "CONSIGNE DE DISCRÉTION IMPORTANTE : Ne mentionne et ne répète JAMAIS les informations techniques d'en-tête du contexte système (tels que le Modèle d'IA actif, le nom de l'entreprise, la TVA, ou la devise par défaut) dans tes réponses à l'utilisateur. Reste naturelle, professionnelle et réponds directement.\n\n"
         f"🏢 Contexte de l'entreprise :\n"
@@ -590,6 +590,11 @@ def get_sabrina_system_prompt(model_name: str) -> str:
         "- Catégories disponibles : 'preference', 'rule', 'context', 'learned', 'correction', 'general'.\n"
         f"{memory_context}"
     )
+
+    if rag_context:
+        prompt_str += f"\n\n📚 CONTEXTE DOCUMENTATION & GUIDE UTILISATEUR :\n{rag_context}\n"
+    
+    return prompt_str
 
 def get_encryption_key() -> bytes:
     from app.core.config import settings

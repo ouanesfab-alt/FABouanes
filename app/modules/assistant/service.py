@@ -14,8 +14,21 @@ from app.modules.assistant.schema_context import (
     get_sabrina_system_prompt,
 )
 from app.modules.assistant.intent import classify_intent
+from app.modules.assistant.rag import get_rag_context
 
 logger = logging.getLogger("fabouanes.assistant")
+
+
+def _get_last_user_query(messages: List[Dict[str, Any]]) -> str:
+    for m in reversed(messages):
+        if m.get("role") == "user":
+            parts = m.get("parts", [])
+            if isinstance(parts, list):
+                return " ".join(p.get("text", "") for p in parts if "text" in p)
+            else:
+                return str(m.get("content", "") or "")
+    return ""
+
 
 
 _gemini_client: httpx.AsyncClient | None = None
@@ -139,7 +152,10 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_na
     """Appelle l'API Gemini avec les messages et outils définis (non-streamed fallback/utility)."""
     contents = _ensure_thought_signatures(contents)
     tools = get_gemini_tools()
-    system_instruction = get_sabrina_system_prompt(model_name)
+    
+    last_query = _get_last_user_query(contents)
+    rag_ctx = get_rag_context(last_query)
+    system_instruction = get_sabrina_system_prompt(model_name, rag_context=rag_ctx)
 
     payload = {
         "contents": contents,
@@ -207,7 +223,10 @@ async def call_gemini_api_generator(contents: List[Dict[str, Any]], api_key: str
     """Appelle l'API Gemini en mode streaming et produit des événements."""
     contents = _ensure_thought_signatures(contents)
     tools = get_gemini_tools()
-    system_instruction = get_sabrina_system_prompt(model_name)
+    
+    last_query = _get_last_user_query(contents)
+    rag_ctx = get_rag_context(last_query)
+    system_instruction = get_sabrina_system_prompt(model_name, rag_context=rag_ctx)
 
     payload = {
         "contents": contents,
@@ -412,7 +431,9 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
             }
             return
 
-    system_prompt = get_sabrina_system_prompt(OLLAMA_MODEL)
+    last_query = _get_last_user_query(messages)
+    rag_ctx = get_rag_context(last_query)
+    system_prompt = get_sabrina_system_prompt(OLLAMA_MODEL, rag_context=rag_ctx)
     tools = get_ollama_tools()
 
     ollama_messages = [{"role": "system", "content": system_prompt}]

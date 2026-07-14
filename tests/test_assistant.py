@@ -836,6 +836,18 @@ async def test_new_specialized_assistant_tools():
         assert report_res["net_profit"] == 25000.0
 
 
+def test_rag_manual_search():
+    from app.modules.assistant.rag import search_manual, get_rag_context
+    results = search_manual("QR Code Mobile Link")
+    assert len(results) > 0
+    assert any("QR" in r["fr_title"] or "Mobile" in r["fr_title"] for r in results)
+
+    ctx = get_rag_context("Comment connecter mon mobile ?")
+    assert "=== CONTEXTE MANUEL UTILISATEUR" in ctx
+    assert "QR" in ctx or "Mobile" in ctx or "connexion" in ctx
+
+
+
 
 
 
