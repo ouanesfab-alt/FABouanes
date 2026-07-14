@@ -361,6 +361,39 @@ def normalize_args_dict(args: dict | None) -> dict:
     return {k: normalize_val(v) for k, v in args.items() if v is not None and v != ""}
 
 
+import time
+
+_recent_write_executions: List[Dict[str, Any]] = []
+
+def check_recent_write_execution(func_name: str, func_args: dict, ttl: float = 20.0) -> Any | None:
+    """
+    Checks if a write tool was executed with similar/identical arguments in the last TTL seconds.
+    If so, returns the cached output to prevent duplicate database operations.
+    """
+    now = time.time()
+    global _recent_write_executions
+    # Clean up expired items
+    _recent_write_executions = [x for x in _recent_write_executions if now - x["time"] < ttl]
+    
+    norm_args = normalize_args_dict(func_args)
+    for item in _recent_write_executions:
+        if item["name"] == func_name:
+            if normalize_args_dict(item["args"]) == norm_args:
+                logger.info("Idempotency: Reusing recent output for '%s' to prevent duplicate execution.", func_name)
+                return item["output"]
+    return None
+
+def save_recent_write_execution(func_name: str, func_args: dict, output: Any) -> None:
+    """Saves the output of a write tool execution to prevent duplicates within the TTL window."""
+    global _recent_write_executions
+    _recent_write_executions.append({
+        "time": time.time(),
+        "name": func_name,
+        "args": func_args,
+        "output": output
+    })
+
+
 def find_past_tool_execution(messages: List[Dict[str, Any]], func_name: str, func_args: dict) -> Any | None:
     """
     Parcourt l'historique des messages pour déterminer si cet appel de fonction (nom et arguments équivalents)
@@ -720,7 +753,11 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
                     }
                     return
                 yield {"type": "status", "message": "Modification de la base de données locale (confirmée)..."}
-                output = execute_write_sql(sql_query)
+                sql_args = {"query": sql_query}
+                output = check_recent_write_execution("execute_write_sql", sql_args)
+                if output is None:
+                    output = execute_write_sql(sql_query)
+                    save_recent_write_execution("execute_write_sql", sql_args, output)
             else:
                 is_write = tool_requires_confirmation(func_name)
                 if is_write:
@@ -749,7 +786,10 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
                         return
 
                 yield {"type": "status", "message": f"Exécution de l'action '{func_name}' (local)..."}
-                output = await execute_tool_action(func_name, func_args, user_role=user_role)
+                output = check_recent_write_execution(func_name, func_args)
+                if output is None:
+                    output = await execute_tool_action(func_name, func_args, user_role=user_role)
+                    save_recent_write_execution(func_name, func_args, output)
 
             if isinstance(output, dict) and "error" in output:
                 if func_name in ("execute_readonly_sql", "execute_write_sql"):
@@ -842,10 +882,13 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
 
         yield {"type": "status", "message": "Exécution de l'action confirmée..."}
         try:
-            if func_name == "execute_write_sql":
-                output = execute_write_sql(func_args.get("query", ""))
-            else:
-                output = await execute_tool_action(func_name, func_args, user_role=user_role)
+            output = check_recent_write_execution(func_name, func_args)
+            if output is None:
+                if func_name == "execute_write_sql":
+                    output = execute_write_sql(func_args.get("query", ""))
+                else:
+                    output = await execute_tool_action(func_name, func_args, user_role=user_role)
+                save_recent_write_execution(func_name, func_args, output)
         except Exception as e:
             output = {"error": str(e)}
 
@@ -1111,7 +1154,11 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
                 # Mark as confirmed
                 _confirmed_tools.add(normalized_call)
                 yield {"type": "status", "message": "Modification de la base de données (confirmée)..."}
-                output = execute_write_sql(sql_query)
+                sql_args = {"query": sql_query}
+                output = check_recent_write_execution("execute_write_sql", sql_args)
+                if output is None:
+                    output = execute_write_sql(sql_query)
+                    save_recent_write_execution("execute_write_sql", sql_args, output)
             else:
                 is_write = tool_requires_confirmation(func_name)
                 if is_write:
@@ -1143,7 +1190,10 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
                     _confirmed_tools.add(normalized_call)
 
                 yield {"type": "status", "message": f"Exécution de l'action '{func_name}'..."}
-                output = await execute_tool_action(func_name, func_args, user_role=user_role)
+                output = check_recent_write_execution(func_name, func_args)
+                if output is None:
+                    output = await execute_tool_action(func_name, func_args, user_role=user_role)
+                    save_recent_write_execution(func_name, func_args, output)
 
             if isinstance(output, dict) and "error" in output:
                 if func_name in ("execute_readonly_sql", "execute_write_sql"):
