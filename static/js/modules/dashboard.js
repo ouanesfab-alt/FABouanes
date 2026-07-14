@@ -408,9 +408,11 @@
 				}
 
 				appendMessage('user', text);
-				let historyText = text;
-				if (fileData) historyText = `[Fichier: ${fileData.name}] ${text}`;
-				history.push({ role: 'user', parts: [{ text: historyText }] });
+				if (!confirmedQuery) {
+					let historyText = text;
+					if (fileData) historyText = `[Fichier: ${fileData.name}] ${text}`;
+					history.push({ role: 'user', parts: [{ text: historyText }] });
+				}
 				saveActiveThread();
 				input.value = '';
 				input.style.height = '36px';
