@@ -38,6 +38,7 @@ dependencies = [
   "opentelemetry-instrumentation-sqlalchemy>=0.46b0",
   "cryptography>=46.0",
   "sqlglot>=30.0",
+  "pypdf>=6.0",
 ]
 
 [project.optional-dependencies]

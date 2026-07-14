@@ -847,6 +847,49 @@ def test_rag_manual_search():
     assert "QR" in ctx or "Mobile" in ctx or "connexion" in ctx
 
 
+def test_rag_user_document_search():
+    import os
+    from pathlib import Path
+    from reportlab.pdfgen import canvas
+    from app.core.runtime_paths import paths
+    from app.modules.assistant.rag import update_pdf_index, search_user_documents, get_rag_context
+
+    paths.pdf_reader_dir.mkdir(parents=True, exist_ok=True)
+    test_pdf_path = paths.pdf_reader_dir / "test_user_contract.pdf"
+    
+    # Create dummy PDF
+    c = canvas.Canvas(str(test_pdf_path))
+    c.drawString(100, 750, "Ceci est un contrat commercial important concernant les ventes de marchandise.")
+    c.showPage()
+    c.save()
+
+    try:
+        # Update PDF index
+        index = update_pdf_index()
+        assert "test_user_contract.pdf" in index
+        assert len(index["test_user_contract.pdf"]["chunks"]) > 0
+
+        # Search user documents
+        results = search_user_documents("contrat commercial")
+        assert len(results) > 0
+        assert results[0]["doc_name"] == "test_user_contract.pdf"
+        assert "contrat commercial" in results[0]["text"]
+
+        # Get overall RAG context
+        ctx = get_rag_context("contrat commercial")
+        assert "=== CONTEXTE DOCUMENTS UTILISATEURS" in ctx
+        assert "test_user_contract.pdf" in ctx
+        assert "contrat commercial" in ctx
+
+    finally:
+        # Clean up
+        if test_pdf_path.exists():
+            test_pdf_path.unlink()
+        index_file = paths.pdf_reader_dir / "index_rag.json"
+        if index_file.exists():
+            index_file.unlink()
+
+
 
 
 
