@@ -485,7 +485,7 @@
 
 							const confirmed = await appendConfirmationBubble(event.query, event.message);
 							if (confirmed) {
-								sendMessage(text, event.query);
+								sendMessage("Oui, je confirme.", event.query);
 							} else {
 								appendMessage('system', "Opération d'écriture annulée.");
 							}

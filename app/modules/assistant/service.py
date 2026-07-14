@@ -331,16 +331,25 @@ async def is_ollama_available() -> bool:
         return False
 
 
-def find_past_tool_execution(messages: List[Dict[str, Any]], func_name: str, func_args: dict) -> Any | None:
-    """
-    Parcourt l'historique des messages pour déterminer si cet appel de fonction (nom et arguments équivalents)
-    a déjà été exécuté avec succès. Si oui, retourne sa valeur de retour passée pour éviter de le re-confirmer ou ré-exécuter.
-    """
+def normalize_args_dict(args: dict | None) -> dict:
+    """Normalizes argument values for robust, type-independent dictionary comparison."""
+    if not args:
+        return {}
+
     def normalize_val(val):
         if isinstance(val, float):
             return round(val, 4)
         if isinstance(val, int):
             return float(val)
+        if isinstance(val, str):
+            clean = val.strip()
+            if clean.isdigit():
+                return float(clean)
+            try:
+                return float(clean)
+            except ValueError:
+                pass
+            return clean
         if val is None or val == "":
             return None
         if isinstance(val, dict):
@@ -349,7 +358,15 @@ def find_past_tool_execution(messages: List[Dict[str, Any]], func_name: str, fun
             return [normalize_val(x) for x in val]
         return val
 
-    normalized_args = {k: normalize_val(v) for k, v in func_args.items() if v is not None and v != ""}
+    return {k: normalize_val(v) for k, v in args.items() if v is not None and v != ""}
+
+
+def find_past_tool_execution(messages: List[Dict[str, Any]], func_name: str, func_args: dict) -> Any | None:
+    """
+    Parcourt l'historique des messages pour déterminer si cet appel de fonction (nom et arguments équivalents)
+    a déjà été exécuté avec succès. Si oui, retourne sa valeur de retour passée pour éviter de le re-confirmer ou ré-exécuter.
+    """
+    normalized_args = normalize_args_dict(func_args)
 
     # On parcourt les messages de l'historique
     for i, msg in enumerate(messages):
@@ -379,7 +396,7 @@ def find_past_tool_execution(messages: List[Dict[str, Any]], func_name: str, fun
                         pass
                 if not isinstance(call_args, dict):
                     call_args = {}
-                normalized_call_args = {k: normalize_val(v) for k, v in call_args.items() if v is not None and v != ""}
+                normalized_call_args = normalize_args_dict(call_args)
                 
                 if normalized_call_args == normalized_args:
                     # Trouvé l'appel ! Cherchons la réponse correspondante dans les messages suivants
@@ -700,8 +717,10 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
                         else:
                             try:
                                 cq_data = json.loads(confirmed_query)
-                                if cq_data.get("name") == func_name and cq_data.get("args") == func_args:
-                                    is_confirmed = True
+                                if cq_data.get("name") == func_name:
+                                    cq_args = cq_data.get("args") or {}
+                                    if normalize_args_dict(cq_args) == normalize_args_dict(func_args):
+                                        is_confirmed = True
                             except Exception:
                                 pass
                     if not is_confirmed:
@@ -1090,8 +1109,10 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
                         else:
                             try:
                                 cq_data = json.loads(confirmed_query)
-                                if cq_data.get("name") == func_name and cq_data.get("args") == func_args:
-                                    is_confirmed = True
+                                if cq_data.get("name") == func_name:
+                                    cq_args = cq_data.get("args") or {}
+                                    if normalize_args_dict(cq_args) == normalize_args_dict(func_args):
+                                        is_confirmed = True
                             except Exception:
                                 pass
                     if not is_confirmed:
