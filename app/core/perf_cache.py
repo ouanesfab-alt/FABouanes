@@ -285,7 +285,18 @@ class HybridCache(CacheBackend):
             pass
 
 
-_BACKEND = InMemoryCache()
+def _initialize_backend() -> CacheBackend:
+    from app.core.config import settings
+    url = settings.redis_url
+    if url:
+        try:
+            logger.info("Initializing HybridCache with Redis: %s", url)
+            return HybridCache(url)
+        except Exception as e:
+            logger.warning("Failed to initialize HybridCache: %s. Falling back to InMemoryCache.", e)
+    return InMemoryCache()
+
+_BACKEND = _initialize_backend()
 
 
 # --- Public API ---

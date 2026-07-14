@@ -49,6 +49,7 @@ class Settings:
     port: int = int(os.getenv("FAB_PORT", "5000") or "5000")
     session_max_age: int = int(os.getenv("SESSION_MAX_AGE", str(60 * 60 * 12)))
     strict_csp: bool = os.getenv("FAB_STRICT_CSP", "1") == "1"
+    redis_url: Optional[str] = os.getenv("REDIS_URL", "").strip() or None
 
     def __post_init__(self) -> None:
         if not self.secret_key:
