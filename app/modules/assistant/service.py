@@ -487,6 +487,21 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
                 if text.strip():
                     ollama_messages.append({"role": "user", "content": text})
 
+        elif role in ("tool", "function"):
+            tc_id = msg.get("tool_call_id") or f"call_unknown_{msg_idx}"
+            content = msg.get("content")
+            if not content and isinstance(parts, list):
+                for p in parts:
+                    if isinstance(p, dict) and "functionResponse" in p:
+                        fr = p["functionResponse"]
+                        content = json.dumps(fr.get("response", {}), ensure_ascii=False, default=str)
+                        break
+            ollama_messages.append({
+                "role": "tool",
+                "tool_call_id": tc_id,
+                "content": content or "{}"
+            })
+
         elif role in ("model", "assistant"):
             text = ""
             tool_calls = []
