@@ -27,6 +27,10 @@ READ_ONLY_TOOL_NAMES = frozenset({
     "search_clients",
     "search_products",
     "search_web",
+    "get_stock_status",
+    "get_payment_status",
+    "get_financial_report",
+    "generate_quote",
 })
 
 
@@ -70,6 +74,8 @@ def get_tool_confirmation_message(name: str, args: dict) -> str:
         return f"Modifier le fournisseur ID `{args.get('supplier_id')}` ?"
     elif name == "delete_supplier":
         return f"Supprimer le fournisseur ID `{args.get('supplier_id')}` ?"
+    elif name == "create_invoice_document":
+        return f"Enregistrer une facture pour le client ID `{args.get('client_id')}` de type `{args.get('sale_type', 'credit')}` avec {len(args.get('items', []))} article(s) (Montant payé: {args.get('amount_paid', 0)} DA) ?"
     elif name == "add_sale":
         return f"Enregistrer une vente de {args.get('quantity')} {args.get('unit')} à {args.get('unit_price')} DA/unit (Montant payé: {args.get('amount_paid', 0)} DA) ?"
     elif name == "add_purchase":
