@@ -225,7 +225,7 @@ async def test_commercial_tools_use_business_services():
     with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
         sale_service = MagicMock()
         sale_service.create_sale_from_form = AsyncMock(return_value={"print_item_id": 11})
-        with patch("app.modules.sales.service.SalesService", return_value=sale_service):
+        with patch("app.modules.sales.application.services.SalesService", return_value=sale_service):
             res = await execute_tool_action(
                 "add_sale",
                 {"item_kind": "finished", "item_id": 1, "quantity": 2, "unit": "kg", "unit_price": 50},
@@ -239,7 +239,7 @@ async def test_commercial_tools_use_business_services():
     with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
         purchase_service = MagicMock()
         purchase_service.create_purchase_from_form = AsyncMock(return_value={"purchase_id": 22})
-        with patch("app.modules.purchases.service.PurchaseService", return_value=purchase_service):
+        with patch("app.modules.purchases.application.services.PurchaseService", return_value=purchase_service):
             res = await execute_tool_action(
                 "add_purchase",
                 {"item_kind": "raw", "item_id": 2, "quantity": 4, "unit": "kg", "unit_price": 30},
@@ -253,7 +253,7 @@ async def test_commercial_tools_use_business_services():
     with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
         payment_service = MagicMock()
         payment_service.create_payment_from_form = AsyncMock(return_value=(33, "versement"))
-        with patch("app.modules.payments.service.PaymentsService", return_value=payment_service):
+        with patch("app.modules.payments.application.services.PaymentsService", return_value=payment_service):
             res = await execute_tool_action(
                 "add_payment",
                 {"client_id": 5, "amount": 1200, "payment_type": "versement"},
@@ -379,7 +379,7 @@ async def test_import_client_history_excel_tool():
     mock_session_maker = MagicMock()
 
     with patch("app.core.async_db.get_async_sessionmaker", return_value=mock_session_maker):
-        with patch("app.modules.clients.service.ClientService", return_value=mock_service):
+        with patch("app.modules.clients.application.services.ClientService", return_value=mock_service):
             res = await execute_tool_action("import_client_history_excel", {"filepath": "test.xlsx", "client_id": 42})
             assert "success" in res
             assert res["success"] is True
@@ -651,9 +651,9 @@ async def test_delete_operation_tool_action():
     mock_payments_service = MagicMock()
     mock_payments_service.delete_payment_by_id = AsyncMock(return_value=True)
 
-    with patch("app.modules.sales.service.SalesService", return_value=mock_sales_service):
-        with patch("app.modules.purchases.service.PurchaseService", return_value=mock_purchase_service):
-            with patch("app.modules.payments.service.PaymentsService", return_value=mock_payments_service):
+    with patch("app.modules.sales.application.services.SalesService", return_value=mock_sales_service):
+        with patch("app.modules.purchases.application.services.PurchaseService", return_value=mock_purchase_service):
+            with patch("app.modules.payments.application.services.PaymentsService", return_value=mock_payments_service):
                 # 1. Test sale_finished mapping
                 res_finished = await execute_tool_action("delete_operation", {"tx_kind": "sale_finished", "tx_id": 123})
                 assert res_finished["success"] is True
@@ -888,6 +888,104 @@ def test_rag_user_document_search():
         index_file = paths.pdf_reader_dir / "index_rag.json"
         if index_file.exists():
             index_file.unlink()
+
+
+def test_semantic_memory_search():
+    from app.modules.assistant.memory import remember, recall, cosine_similarity
+    from app.core.db_helpers import connect_database as original_connect_database
+    import app.core.db_helpers
+
+    # Test cosine similarity function
+    v1 = [1.0, 0.0, 0.0]
+    v2 = [1.0, 0.0, 0.0]
+    assert abs(cosine_similarity(v1, v2) - 1.0) < 1e-4
+
+    v3 = [0.0, 1.0, 0.0]
+    assert abs(cosine_similarity(v1, v3) - 0.0) < 1e-4
+
+    # Restore connection if globally mocked to prevent test isolation pollution
+    from app.core.db_helpers.manager import DatabaseManager, ConnectionPoolManager
+    from app.core.request_state import get_request_state
+    import app.core.db_helpers
+
+    old_conn = getattr(app.core.db_helpers.db_manager, "connect_database", None)
+    old_pool_conn = getattr(app.core.db_helpers.pool_manager, "connect_database", None)
+    
+    original_connect = DatabaseManager.connect_database.__get__(app.core.db_helpers.db_manager, DatabaseManager)
+    original_pool_connect = ConnectionPoolManager.connect_database.__get__(app.core.db_helpers.pool_manager, ConnectionPoolManager)
+
+    app.core.db_helpers.db_manager.connect_database = original_connect
+    app.core.db_helpers.pool_manager.connect_database = original_pool_connect
+
+    # Reset thread-local connection state to bypass leaking mock connections
+    state = get_request_state()
+    old_db = None
+    old_read_db = None
+    old_write_db = None
+    if state is not None:
+        old_db = getattr(state, "db", None)
+        old_read_db = getattr(state, "read_db", None)
+        old_write_db = getattr(state, "write_db", None)
+        state.db = None
+        state.read_db = None
+        state.write_db = None
+
+    # Run DB bootstrap now that connection is restored
+    from app.core.schema_bootstrap import bootstrap_schema
+    bootstrap_schema()
+
+    try:
+        app.core.db_helpers.db_manager.execute_db("""
+            CREATE TABLE IF NOT EXISTS sabrina_memory (
+                id SERIAL PRIMARY KEY,
+                category TEXT NOT NULL DEFAULT 'general',
+                content TEXT NOT NULL,
+                source TEXT NOT NULL DEFAULT 'user_explicit',
+                relevance_score REAL NOT NULL DEFAULT 1.0,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                expires_at TIMESTAMPTZ,
+                search_vector tsvector GENERATED ALWAYS AS (
+                    to_tsvector('french', content)
+                ) STORED
+            );
+        """)
+        app.core.db_helpers.db_manager.execute_db("CREATE INDEX IF NOT EXISTS idx_sabrina_memory_category ON sabrina_memory(category);")
+        app.core.db_helpers.db_manager.execute_db("CREATE INDEX IF NOT EXISTS idx_sabrina_memory_search ON sabrina_memory USING GIN(search_vector);")
+        app.core.db_helpers.db_manager.execute_db("CREATE INDEX IF NOT EXISTS idx_sabrina_memory_relevance ON sabrina_memory(relevance_score DESC);")
+    except Exception as e:
+        print("DEBUG: failed to create sabrina_memory table:", e)
+
+    try:
+        from app.core.config import settings
+        print("DEBUG: state =", state)
+        if state:
+            print("DEBUG: read_db =", getattr(state, "read_db", None))
+            print("DEBUG: db =", getattr(state, "db", None))
+        print("DEBUG: db_manager =", app.core.db_helpers.db_manager)
+        print("DEBUG: db_manager.connect_database =", app.core.db_helpers.db_manager.connect_database)
+        print("DEBUG: settings.database_url =", settings.database_url)
+        # Mock get_embedding
+        from unittest.mock import patch
+        mock_emb = [0.1, 0.2, 0.3, 0.4]
+        with patch("app.modules.assistant.memory.get_embedding", return_value=mock_emb):
+            # We remember a custom preference
+            res = remember("Le client adore les factures en DZD", category="preference")
+            assert res.get("success") is True or res.get("status") == "already_known"
+
+            # Recall with mock query embedding matching the memory
+            rec_res = recall("factures en DZD")
+            assert rec_res.get("count") > 0
+            assert any("DZD" in m["content"] for m in rec_res["memories"])
+    finally:
+        if old_conn is not None:
+            app.core.db_helpers.db_manager.connect_database = old_conn
+        if old_pool_conn is not None:
+            app.core.db_helpers.pool_manager.connect_database = old_pool_conn
+        if state is not None:
+            state.db = old_db
+            state.read_db = old_read_db
+            state.write_db = old_write_db
+
 
 
 

@@ -1253,9 +1253,9 @@ class TestSchemas:
         from pydantic import ValidationError
         with pytest.raises(ValidationError): PaymentCreate(client_id=1, amount=Decimal("100"), payment_date="31/05/2026")
 
-    # ProductionBatchCreate (core/schema/production_validation.py)
+    # ProductionBatchCreate (modules/production/api/schemas.py)
     def test_production_batch_valid(self):
-        from app.core.schema.production_validation import ProductionBatchCreate, ProductionBatchItemInput
+        from app.modules.production.api.schemas import ProductionBatchCreate, ProductionBatchItemInput
         b = ProductionBatchCreate(
             finished_product_id=1, output_quantity=Decimal("10"),
             production_date="2026-05-31",
@@ -1264,7 +1264,7 @@ class TestSchemas:
         assert b.production_date == "2026-05-31"
 
     def test_production_batch_invalid_date(self):
-        from app.core.schema.production_validation import ProductionBatchCreate, ProductionBatchItemInput
+        from app.modules.production.api.schemas import ProductionBatchCreate, ProductionBatchItemInput
         from pydantic import ValidationError
         with pytest.raises(ValidationError):
             ProductionBatchCreate(

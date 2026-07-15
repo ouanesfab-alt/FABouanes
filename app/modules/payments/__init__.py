@@ -1,6 +1,5 @@
 """Module Règlements — Gestion des versements et avances clients."""
 from app.modules.base import ModuleBase
-from app.modules.payments.web import router as web_router
 from app.core.registry import register
 
 class PaymentsModule(ModuleBase):
@@ -22,6 +21,7 @@ class PaymentsModule(ModuleBase):
 
     @property
     def web_router(self):
+        from app.modules.payments.api.web import router as web_router
         return web_router
 
     @property

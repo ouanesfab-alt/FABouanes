@@ -118,7 +118,7 @@ async def test_handle_catalog():
     mock_catalog_service = MagicMock()
     mock_catalog_service.create_finished_product = AsyncMock(return_value=mock_prod)
     
-    with patch("app.modules.catalog.service.CatalogService", return_value=mock_catalog_service):
+    with patch("app.modules.catalog.application.services.CatalogService", return_value=mock_catalog_service):
         res = await handle_catalog("add_product", {
             "name": "Aliment Mouton", "category": "finished", "price": "1400.0", "cost": "1000.0", "unit": "sac", "stock_qty": "10"
         }, session_maker)
@@ -128,7 +128,7 @@ async def test_handle_catalog():
     # 2. add_product (raw)
     mock_raw = DummyModel(id=101, name="Orge")
     mock_catalog_service.create_raw_material = AsyncMock(return_value=mock_raw)
-    with patch("app.modules.catalog.service.CatalogService", return_value=mock_catalog_service):
+    with patch("app.modules.catalog.application.services.CatalogService", return_value=mock_catalog_service):
         res = await handle_catalog("add_product", {
             "name": "Orge", "category": "raw", "price": "0", "cost": "85.0", "unit": "kg", "stock_qty": "5000", "alert_threshold": "1000"
         }, session_maker)
@@ -138,7 +138,7 @@ async def test_handle_catalog():
     # 3. modify_product (finished)
     mock_catalog_service.get_product = AsyncMock(return_value=DummyModel(name="Aliment Mouton", default_unit="sac", stock_qty=10.0, sale_price=1400.0, avg_cost=1000.0))
     mock_catalog_service.update_finished_product = AsyncMock(return_value=True)
-    with patch("app.modules.catalog.service.CatalogService", return_value=mock_catalog_service):
+    with patch("app.modules.catalog.application.services.CatalogService", return_value=mock_catalog_service):
         res = await handle_catalog("modify_product", {
             "product_id": 99, "category": "finished", "price": "1500.0"
         }, session_maker)
@@ -147,7 +147,7 @@ async def test_handle_catalog():
     # 4. modify_product (raw)
     mock_catalog_service.get_raw_material = AsyncMock(return_value=DummyModel(name="Orge", unit="kg", stock_qty=5000.0, sale_price=0.0, avg_cost=85.0, alert_threshold=1000.0))
     mock_catalog_service.update_raw_material = AsyncMock(return_value=True)
-    with patch("app.modules.catalog.service.CatalogService", return_value=mock_catalog_service):
+    with patch("app.modules.catalog.application.services.CatalogService", return_value=mock_catalog_service):
         res = await handle_catalog("modify_product", {
             "product_id": 101, "category": "raw", "cost": "88.0"
         }, session_maker)
@@ -155,7 +155,7 @@ async def test_handle_catalog():
 
     # 5. delete_product (finished)
     mock_catalog_service.delete_finished_product = AsyncMock(return_value=True)
-    with patch("app.modules.catalog.service.CatalogService", return_value=mock_catalog_service):
+    with patch("app.modules.catalog.application.services.CatalogService", return_value=mock_catalog_service):
         res = await handle_catalog("delete_product", {
             "product_id": 99, "category": "finished"
         }, session_maker)
@@ -163,7 +163,7 @@ async def test_handle_catalog():
 
     # 6. delete_product (raw)
     mock_catalog_service.delete_raw_material = AsyncMock(return_value=True)
-    with patch("app.modules.catalog.service.CatalogService", return_value=mock_catalog_service):
+    with patch("app.modules.catalog.application.services.CatalogService", return_value=mock_catalog_service):
         res = await handle_catalog("delete_product", {
             "product_id": 101, "category": "raw"
         }, session_maker)
@@ -186,7 +186,7 @@ async def test_handle_catalog():
     with patch("app.modules.assistant.tool_actions_catalog._assert_workspace_path"):
         with patch("app.services.excel_import_service.parse_excel_bulk_products", return_value=[{"name": "Orge", "unit": "kg", "stock_qty": 5000, "avg_cost": 85, "sale_price": 0, "alert_threshold": 1000}]):
             mock_catalog_service.create_raw_material = AsyncMock()
-            with patch("app.modules.catalog.service.CatalogService", return_value=mock_catalog_service):
+            with patch("app.modules.catalog.application.services.CatalogService", return_value=mock_catalog_service):
                 res = await handle_catalog("import_bulk_products_excel", {"filepath": "products.xlsx", "is_raw_material": True}, session_maker)
                 assert res["success"] is True
 
@@ -208,7 +208,7 @@ async def test_handle_contacts():
     mock_cli = DummyModel(id=42)
     mock_client_service = MagicMock()
     mock_client_service.create_client = AsyncMock(return_value=mock_cli)
-    with patch("app.modules.clients.service.ClientService", return_value=mock_client_service):
+    with patch("app.modules.clients.application.services.ClientService", return_value=mock_client_service):
         res = await handle_contacts("add_client", {
             "name": "Massi", "phone": "0555123456", "opening_credit": "5000.0"
         }, session_maker)
@@ -218,7 +218,7 @@ async def test_handle_contacts():
     # 2. modify_client
     mock_client_service.get_client = AsyncMock(return_value=DummyModel(name="Massi"))
     mock_client_service.update_client = AsyncMock(return_value=True)
-    with patch("app.modules.clients.service.ClientService", return_value=mock_client_service):
+    with patch("app.modules.clients.application.services.ClientService", return_value=mock_client_service):
         res = await handle_contacts("modify_client", {
             "client_id": 42, "phone": "0555654321"
         }, session_maker)
@@ -226,7 +226,7 @@ async def test_handle_contacts():
 
     # 3. delete_client
     mock_client_service.delete_client = AsyncMock(return_value=True)
-    with patch("app.modules.clients.service.ClientService", return_value=mock_client_service):
+    with patch("app.modules.clients.application.services.ClientService", return_value=mock_client_service):
         res = await handle_contacts("delete_client", {"client_id": 42}, session_maker)
         assert res["success"] is True
 
@@ -517,8 +517,8 @@ async def test_handle_operations():
     session_maker = get_mock_session_maker(mock_session)
 
     # 1. add_sale
-    with patch("app.modules.sales.service.SalesService.create_sale_from_form", new_callable=AsyncMock, return_value={"sale_id": 50}) as mock_create_sale:
-        with patch("app.modules.payments.service.PaymentsService.create_payment_from_form", new_callable=AsyncMock) as mock_create_pay:
+    with patch("app.modules.sales.application.services.SalesService.create_sale_from_form", new_callable=AsyncMock, return_value={"sale_id": 50}) as mock_create_sale:
+        with patch("app.modules.payments.application.services.PaymentsService.create_payment_from_form", new_callable=AsyncMock) as mock_create_pay:
             res = await handle_operations("add_sale", {
                 "client_id": 1, "finished_product_id": 2, "quantity": "10", "unit_price": "1400", "amount_paid": "5000"
             }, session_maker)
@@ -528,7 +528,7 @@ async def test_handle_operations():
             mock_create_pay.assert_called_once()
 
     # 2. add_purchase
-    with patch("app.modules.purchases.service.PurchaseService.create_purchase_from_form", new_callable=AsyncMock, return_value={"purchase_id": 60}) as mock_create_purchase:
+    with patch("app.modules.purchases.application.services.PurchaseService.create_purchase_from_form", new_callable=AsyncMock, return_value={"purchase_id": 60}) as mock_create_purchase:
         res = await handle_operations("add_purchase", {
             "supplier_id": 3, "raw_material_id": 4, "quantity": "20", "unit_price": "900"
         }, session_maker)
@@ -537,7 +537,7 @@ async def test_handle_operations():
         mock_create_purchase.assert_called_once()
 
     # 3. add_payment
-    with patch("app.modules.payments.service.PaymentsService.create_payment_from_form", new_callable=AsyncMock, return_value=(70, "Avance")) as mock_create_payment:
+    with patch("app.modules.payments.application.services.PaymentsService.create_payment_from_form", new_callable=AsyncMock, return_value=(70, "Avance")) as mock_create_payment:
         res = await handle_operations("add_payment", {
             "client_id": 1, "amount": "10000", "payment_type": "avance"
         }, session_maker)
@@ -546,7 +546,7 @@ async def test_handle_operations():
         mock_create_payment.assert_called_once()
 
     # 4. delete_operation (sale)
-    with patch("app.modules.sales.service.SalesService.delete_sale_by_id", new_callable=AsyncMock, return_value=True) as mock_del_sale:
+    with patch("app.modules.sales.application.services.SalesService.delete_sale_by_id", new_callable=AsyncMock, return_value=True) as mock_del_sale:
         res = await handle_operations("delete_operation", {
             "tx_kind": "sale_finished", "tx_id": 50
         }, session_maker)
@@ -554,7 +554,7 @@ async def test_handle_operations():
         mock_del_sale.assert_called_once_with("finished", 50)
 
     # 5. add_expense
-    with patch("app.modules.expenses.service.add_expense", new_callable=AsyncMock, return_value=80) as mock_add_exp:
+    with patch("app.modules.expenses.application.services.ExpensesService.add_expense", new_callable=AsyncMock, return_value=80) as mock_add_exp:
         res = await handle_operations("add_expense", {
             "category": "salaires", "amount": "12000", "description": "Pay", "payment_method": "ccp"
         }, session_maker)
@@ -564,8 +564,8 @@ async def test_handle_operations():
 
     # 6. modify_expense
     db_expense = DummyModel(id=80, date=datetime.date.today(), category="transport", amount=Decimal("3000"), description="Logistics", payment_method="cash")
-    with patch("app.modules.expenses.service.get_expense", new_callable=AsyncMock, return_value=db_expense):
-        with patch("app.modules.expenses.service.modify_expense", new_callable=AsyncMock) as mock_mod_exp:
+    with patch("app.modules.expenses.application.services.ExpensesService.get_expense", new_callable=AsyncMock, return_value=db_expense):
+        with patch("app.modules.expenses.application.services.ExpensesService.modify_expense", new_callable=AsyncMock) as mock_mod_exp:
             res = await handle_operations("modify_expense", {
                 "expense_id": 80, "amount": "3500"
             }, session_maker)
@@ -573,7 +573,7 @@ async def test_handle_operations():
             mock_mod_exp.assert_called_once()
 
     # 7. delete_expense
-    with patch("app.modules.expenses.service.remove_expense", new_callable=AsyncMock, return_value=True) as mock_rem_exp:
+    with patch("app.modules.expenses.application.services.ExpensesService.remove_expense", new_callable=AsyncMock, return_value=True) as mock_rem_exp:
         res = await handle_operations("delete_expense", {
             "expense_id": 80
         }, session_maker)

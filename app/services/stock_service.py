@@ -86,7 +86,7 @@ async def record_stock_movement(
     db: AsyncSession | None = None,
 ) -> None:
     try:
-        from app.modules.catalog.repository import insert_stock_movement
+        from app.modules.catalog.infrastructure.repository import insert_stock_movement
         await insert_stock_movement(
             item_kind, item_id, direction, quantity, unit,
             stock_before, stock_after, reason, reference_type,

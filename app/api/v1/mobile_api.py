@@ -19,11 +19,11 @@ from app.core.jwt_auth import (
 )
 from app.services.auth_service import verify_credentials
 from app.modules.users.repository import get_user_by_id
-from app.modules.clients.service import ClientService
-from app.api.v1.clients import _fetch_client_history
+from app.modules.clients.application.services import ClientService
+from app.modules.clients.api.endpoints import _fetch_client_history
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_session
-from app.modules.payments.service import PaymentsService
+from app.modules.payments.application.services import PaymentsService
 from app.modules.reports.repository import get_dashboard_snapshot
 from app.core.schema.payment_validation import PaymentCreate
 from app.core.rate_limit import limiter

@@ -4,8 +4,8 @@ from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_session
-from app.modules.clients.service import ClientService
-from app.modules.clients.schemas_validation import ClientCreateSchema
+from app.modules.clients.application.services import ClientService
+from app.modules.clients.api.schemas import ClientCreateSchema
 
 from app.core.permissions import PERMISSION_CONTACTS_READ, PERMISSION_CONTACTS_WRITE
 from app.core.schema.client_validation import ClientValidationSchema
@@ -99,7 +99,7 @@ async def import_clients_page(request: Request):
     preview = None
     if token:
         try:
-            from app.modules.clients.service import ClientService
+            from app.modules.clients.application.services import ClientService
             service = ClientService(None)
             rows = service._load_client_import_preview(token)
             if rows:
@@ -183,7 +183,7 @@ async def preview_client_import(request: Request):
         return HTMLResponse("Paramètres invalides", status_code=400)
     
     try:
-        from app.modules.clients.service import ClientService
+        from app.modules.clients.application.services import ClientService
         # On initialise le service sans session puisqu'on ne fait que lire le JSON de preview
         service = ClientService(None)
         rows = service._load_client_import_preview(token)
@@ -208,7 +208,7 @@ async def import_single_client_file(request: Request, db: AsyncSession = Depends
     if not file_obj or not file_obj.filename:
         return JSONResponse({"success": False, "error": "Aucun fichier fourni"}, status_code=400)
     
-    from app.modules.clients.service import ClientService
+    from app.modules.clients.application.services import ClientService
     service = ClientService(db)
     result = await service.import_clients_from_files([file_obj])
     
@@ -239,7 +239,7 @@ async def import_preview_single_row(request: Request, db: AsyncSession = Depends
     if not token or index < 0:
         return JSONResponse({"success": False, "error": "Paramètres invalides"}, status_code=400)
     
-    from app.modules.clients.service import ClientService
+    from app.modules.clients.application.services import ClientService
     service = ClientService(db)
     try:
         rows = service._load_client_import_preview(token)
@@ -270,7 +270,7 @@ async def clear_preview_token(request: Request):
     body = await request.json()
     token = body.get("token", "").strip()
     if token:
-        from app.modules.clients.service import ClientService
+        from app.modules.clients.application.services import ClientService
         service = ClientService(None)
         service._discard_client_import_preview(token)
     return JSONResponse({"success": True})
@@ -288,7 +288,7 @@ async def preview_single_client_file(request: Request, db: AsyncSession = Depend
     if not file_obj or not file_obj.filename:
         return JSONResponse({"success": False, "error": "Aucun fichier fourni"}, status_code=400)
     
-    from app.modules.clients.service import ClientService
+    from app.modules.clients.application.services import ClientService
     service = ClientService(db)
     try:
         result = await service.preview_clients_from_files([file_obj])
@@ -317,7 +317,7 @@ async def save_preview_token_endpoint(request: Request):
     if not rows:
         return JSONResponse({"success": False, "error": "Aucune donnée de prévisualisation"}, status_code=400)
         
-    from app.modules.clients.service import ClientService
+    from app.modules.clients.application.services import ClientService
     service = ClientService(None)
     token = service._save_client_import_preview(rows)
     return JSONResponse({"success": True, "token": token})

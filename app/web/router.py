@@ -7,7 +7,7 @@ from app.web.client_pages import router as client_router
 from app.web.contacts_pages import router as contacts_router
 from app.web.dashboard_pages import router as dashboard_router
 from app.web.operations_pages import router as operations_router
-from app.web.production_pages import router as production_router
+from app.modules.production.api.web import router as production_router
 from app.web.report_pages import router as report_router
 from app.web.search_pages import router as search_router
 from app.web.admin_api import router as admin_api_router

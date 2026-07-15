@@ -19,8 +19,8 @@ async def handle_catalog(func_name: str, func_args: dict, session_maker, user_ro
             stock_qty = sanitize_numeric(func_args.get("stock_qty", 0.0))
             alert_threshold = sanitize_numeric(func_args.get("alert_threshold", 0.0))
             is_finished = category in ("finished", "produit final", "produit")
-            from app.modules.catalog.service import CatalogService
-            from app.modules.catalog.schemas_validation import FinishedProductCreateSchema, RawMaterialCreateSchema
+            from app.modules.catalog.application.services import CatalogService
+            from app.modules.catalog.api.schemas import FinishedProductCreateSchema, RawMaterialCreateSchema
             async with session_maker() as session:
                 service = CatalogService(session)
                 if is_finished:
@@ -64,8 +64,8 @@ async def handle_catalog(func_name: str, func_args: dict, session_maker, user_ro
             if alert_threshold is not None:
                 alert_threshold = sanitize_numeric(alert_threshold)
             is_finished = category in ("finished", "produit final", "produit")
-            from app.modules.catalog.service import CatalogService
-            from app.modules.catalog.schemas_validation import FinishedProductUpdateSchema, RawMaterialUpdateSchema
+            from app.modules.catalog.application.services import CatalogService
+            from app.modules.catalog.api.schemas import FinishedProductUpdateSchema, RawMaterialUpdateSchema
             async with session_maker() as session:
                 service = CatalogService(session)
                 if is_finished:
@@ -100,7 +100,7 @@ async def handle_catalog(func_name: str, func_args: dict, session_maker, user_ro
             product_id = int(func_args.get("product_id"))
             category = func_args.get("category", "finished")
             is_finished = category.lower() in ("finished", "produit final", "produit")
-            from app.modules.catalog.service import CatalogService
+            from app.modules.catalog.application.services import CatalogService
             async with session_maker() as session:
                 service = CatalogService(session)
                 success = await (
@@ -150,8 +150,8 @@ async def handle_catalog(func_name: str, func_args: dict, session_maker, user_ro
             except Exception as e:
                 return {"error": f"Erreur de lecture du fichier Excel : {str(e)}"}
     
-            from app.modules.catalog.service import CatalogService
-            from app.modules.catalog.schemas_validation import RawMaterialCreateSchema, FinishedProductCreateSchema
+            from app.modules.catalog.application.services import CatalogService
+            from app.modules.catalog.api.schemas import RawMaterialCreateSchema, FinishedProductCreateSchema
     
             imported_count = 0
             async with session_maker() as session:
