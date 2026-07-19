@@ -105,7 +105,7 @@
             <th>Description</th>
             <th class="text-end" style="width:14%">Montant</th>
             <th class="hide-mobile" style="width:10%">Méthode</th>
-            <th style="width:8%">Actions</th>
+            <th class="text-end" style="width:8%">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -120,7 +120,7 @@
             <td>{{ e.description or '—' }}</td>
             <td class="text-end fw-bold text-danger">{{ e.amount|money }}</td>
             <td class="hide-mobile"><span class="expense-method">{{ e.payment_method|capitalize }}</span></td>
-            <td class="text-nowrap">
+            <td class="text-end text-nowrap">
               <a href="{{ url_for('edit_expense', expense_id=e.id) }}" class="btn btn-sm btn-outline-secondary" title="Modifier"><i class="bi bi-pencil"></i></a>
             </td>
           </tr>
