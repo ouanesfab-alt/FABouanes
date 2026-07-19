@@ -16,6 +16,13 @@ Le format s'inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) 
 
 ---
 
+## [2.0.2] — 2026-07-19
+
+### Ajouté
+- Indexation sémantique automatique du catalogue : liaison du bus d'événements (`app/core/events.py`) pour déclencher automatiquement l'indexation vectorielle en arrière-plan dès qu'un produit fini ou une matière première est créé(e) ou modifié(e).
+
+---
+
 ## [2.0.1] — 2026-07-19
 
 ### Optimisé & Sécurisé

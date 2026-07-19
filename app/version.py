@@ -16,11 +16,11 @@ def _get_version() -> str:
         if toml_path.exists():
             with open(toml_path, "rb") as f:
                 data = tomllib.load(f)
-                return data.get("project", {}).get("version", "2.0.1")
+                return data.get("project", {}).get("version", "2.0.2")
     except Exception:
         pass
 
-    return "2.0.1"  # absolute fallback
+    return "2.0.2"  # absolute fallback
 
 APP_VERSION = _get_version()
 VERSION_LABEL = f"v{APP_VERSION}"

@@ -317,6 +317,29 @@ def _auto_check_stock_alert(event: DomainEvent) -> None:
                 pass
 
 
+def _auto_rebuild_catalog_embeddings(event: DomainEvent) -> None:
+    """Déclenche la regénération des embeddings après une modification du catalogue."""
+    if event.action == "invalidate":
+        return
+    try:
+        from app.core.worker import enqueue_background_task
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop is not None and loop.is_running():
+            loop.create_task(enqueue_background_task("rebuild_catalog_embeddings_task"))
+        else:
+            try:
+                from app.core.helpers import async_compat
+                async_compat(enqueue_background_task)("rebuild_catalog_embeddings_task")
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
 # ── Enregistrement des listeners par défaut au chargement du module ──
 on("invalidate.cache", _auto_invalidate_cache)
 on("invalidate.client_cache", _auto_invalidate_client_cache)
@@ -338,6 +361,9 @@ on("delete.*", _auto_refresh_balances)
 on("create.*", _auto_check_stock_alert)
 on("update.*", _auto_check_stock_alert)
 on("delete.*", _auto_check_stock_alert)
+
+on("*.raw_material", _auto_rebuild_catalog_embeddings)
+on("*.finished_product", _auto_rebuild_catalog_embeddings)
 
 
 
