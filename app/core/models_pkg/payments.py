@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Optional
-from sqlalchemy import Column, Numeric
+from sqlalchemy import Column, Numeric, String
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.orm import relationship
 
@@ -25,7 +25,7 @@ class Payment(SQLModel, table=True):
     sale_id: Optional[int] = Field(default=None, foreign_key="sales.id")
     raw_sale_id: Optional[int] = Field(default=None, foreign_key="raw_sales.id")
     sale_kind: Optional[str] = Field(default=None)
-    payment_type: PaymentType = Field(default=PaymentType.VERSEMENT)
+    payment_type: PaymentType = Field(default=PaymentType.VERSEMENT, sa_column=Column(String, nullable=False, server_default="versement"))
     allocation_meta: Optional[str] = Field(default=None)
     amount: Decimal = Field(sa_column=Column(Numeric(15, 2)))
     payment_date: date

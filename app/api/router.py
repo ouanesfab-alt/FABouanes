@@ -3,15 +3,15 @@ from fastapi import APIRouter
 from app.api.v1.admin import router as admin_router
 from app.api.v1.alerts import router as alerts_router
 from app.api.v1.auth import router as auth_router
-from app.modules.clients.api.endpoints import router as clients_router
+from app.api.v1.clients import router as clients_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.mobile_api import router as mobile_router
 from app.api.v1.offline import router as offline_router
-from app.modules.expenses.api.endpoints import router as expenses_router
-from app.modules.payments.api.endpoints import router as payments_router
-from app.modules.production.api.endpoints import router as production_router
-from app.modules.purchases.api.endpoints import router as purchases_router
-from app.modules.sales.api.endpoints import router as sales_router
+from app.api.v1.expenses import router as expenses_router
+from app.api.v1.payments import router as payments_router
+from app.api.v1.production import router as production_router
+from app.api.v1.purchases import router as purchases_router
+from app.api.v1.sales import router as sales_router
 from app.api.ws import router as ws_router
 
 

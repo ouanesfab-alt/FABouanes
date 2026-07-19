@@ -740,13 +740,13 @@ import app.api.deps
 import app.api.v1.admin
 import app.api.v1.alerts
 import app.api.v1.auth
-import app.modules.clients.api.endpoints
+import app.api.v1.clients
 import app.api.v1.dashboard
 import app.api.v1.offline
-import app.modules.payments.api.endpoints
-import app.modules.production.api.endpoints
-import app.modules.purchases.api.endpoints
-import app.modules.sales.api.endpoints
+import app.api.v1.payments
+import app.api.v1.production
+import app.api.v1.purchases
+import app.api.v1.sales
 import app.web.deps
 import app.web.admin_pages
 import app.web.auth_pages
@@ -754,11 +754,11 @@ import app.web.client_pages
 import app.web.contacts_pages
 import app.web.dashboard_pages
 import app.web.operations_pages
-import app.modules.production.api.web
+import app.web.production_pages
 import app.web.report_pages
 import app.web.search_pages
-import app.modules.expenses.api.web
-import app.modules.expenses.api.endpoints
+import app.modules.expenses.web
+import app.api.v1.expenses
 
 # ── 6. Mock de l'authentification et CSRF pour le TestClient ─────────────────
 mock_user = {"id": 1, "username": "admin", "role": "admin", "is_active": 1}
@@ -938,13 +938,9 @@ class TestServicesDirect:
 
     @pytest.mark.asyncio
     async def test_payment_service(self):
-        from app.modules.payments.application.services import PaymentsService
-        db = MagicMock(spec=AsyncSession)
-        service = PaymentsService(db)
-        with patch.object(service.queries, "get_payment_form_context", return_value={}), \
-             patch.object(service.commands, "create_mobile_payment", return_value={"ok": True}):
-            assert await service.get_payment_form_context() is not None
-            assert await service.create_mobile_payment(1, 100.0, "2026-05-31", "notes", 1) is not None
+        from app.services.payment_service import new_payment_context, create_payment_from_form, create_mobile_payment
+        assert await new_payment_context() is not None
+        assert await create_mobile_payment(1, 100.0, "2026-05-31", "notes", 1) is not None
 
     @pytest.mark.asyncio
     async def test_stock_service(self):

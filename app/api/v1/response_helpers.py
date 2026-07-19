@@ -9,7 +9,7 @@ from sqlalchemy import select, func, case, literal_column, table
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_success
-from app.modules.sales.infrastructure.repository import build_sellable_items
+from app.modules.sales.repository import build_sellable_items
 from app.core.models import Client, Supplier, RawMaterial, FinishedProduct, ProductionBatch, Purchase, Sale, RawSale, Payment
 
 def json_response(payload: dict[str, Any]) -> JSONResponse:
@@ -131,7 +131,7 @@ async def sale_payload(kind: str, row_id: int, db: AsyncSession):
     return None
 
 async def purchase_document_payload(document_id: int, db: AsyncSession):
-    from app.modules.purchases.application.services import PurchaseService
+    from app.modules.purchases.service import PurchaseService
     context = await PurchaseService(db).get_purchase_document_context(document_id)
     if not context:
         return None
@@ -142,7 +142,7 @@ async def purchase_document_payload(document_id: int, db: AsyncSession):
     }
 
 async def sale_document_payload(document_id: int, db: AsyncSession):
-    from app.modules.sales.application.services import SalesService
+    from app.modules.sales.service import SalesService
     context = await SalesService(db).get_sale_document_context(document_id)
     if not context:
         return None
@@ -181,7 +181,7 @@ async def payment_payload(payment_id: int, db: AsyncSession):
     return None
 
 async def client_history_payload(client_id: int, db: AsyncSession):
-    from app.modules.clients.application.services import ClientService
+    from app.modules.clients.service import ClientService
     detail_context = await ClientService(db).get_client_detail_context(client_id)
     if not detail_context:
         return None

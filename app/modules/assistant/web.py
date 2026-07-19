@@ -150,7 +150,14 @@ async def assistant_chat(request: Request):
 
         async def chat_event_generator():
             try:
-                messages_to_send = history if confirmed_query else history + [new_message]
+                if confirmed_query:
+                    messages_to_send = history
+                else:
+                    # Eviter la duplication du message utilisateur si le client l'a déjà ajouté à l'historique
+                    if history and history[-1].get("role") == "user":
+                        messages_to_send = history
+                    else:
+                        messages_to_send = history + [new_message]
                 async for event in run_assistant_agent_generator(
                     messages_to_send,
                     api_key or "",

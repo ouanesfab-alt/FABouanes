@@ -16,8 +16,8 @@ async def handle_contacts(func_name: str, func_args: dict, session_maker, user_r
             address = str(func_args.get("address", "")).strip()
             notes = str(func_args.get("notes", "")).strip()
             opening_credit = sanitize_numeric(func_args.get("opening_credit"))
-            from app.modules.clients.application.services import ClientService
-            from app.modules.clients.api.schemas import ClientCreateSchema
+            from app.modules.clients.service import ClientService
+            from app.modules.clients.schemas_validation import ClientCreateSchema
             schema = ClientCreateSchema(name=name, phone=phone, address=address, notes=notes, opening_credit=opening_credit)
             async with session_maker() as session:
                 service = ClientService(session)
@@ -39,8 +39,8 @@ async def handle_contacts(func_name: str, func_args: dict, session_maker, user_r
             notes = func_args.get("notes")
             if notes:
                 notes = str(notes).strip()
-            from app.modules.clients.application.services import ClientService
-            from app.modules.clients.api.schemas import ClientUpdateSchema
+            from app.modules.clients.service import ClientService
+            from app.modules.clients.schemas_validation import ClientUpdateSchema
             success = False
             async with session_maker() as session:
                 service = ClientService(session)
@@ -59,7 +59,7 @@ async def handle_contacts(func_name: str, func_args: dict, session_maker, user_r
 
     elif func_name == "delete_client":
             client_id = int(func_args.get("client_id"))
-            from app.modules.clients.application.services import ClientService
+            from app.modules.clients.service import ClientService
             success = False
             async with session_maker() as session:
                 service = ClientService(session)
@@ -152,8 +152,8 @@ async def handle_contacts(func_name: str, func_args: dict, session_maker, user_r
                 data = parse_excel_client_file(abs_path)
             except Exception as e:
                 return {"error": f"Erreur de lecture du fichier Excel : {str(e)}"}
-            from app.modules.clients.application.services import ClientService
-            from app.modules.clients.api.schemas import ClientCreateSchema
+            from app.modules.clients.service import ClientService
+            from app.modules.clients.schemas_validation import ClientCreateSchema
             schema = ClientCreateSchema(
                 name=data["name"],
                 phone=data["phone"],
@@ -183,7 +183,7 @@ async def handle_contacts(func_name: str, func_args: dict, session_maker, user_r
             except ValueError as e:
                 return {"error": str(e)}
     
-            from app.modules.clients.application.services import ClientService
+            from app.modules.clients.service import ClientService
             async with session_maker() as session:
                 service = ClientService(session)
                 try:
@@ -211,8 +211,8 @@ async def handle_contacts(func_name: str, func_args: dict, session_maker, user_r
             except Exception as e:
                 return {"error": f"Erreur de lecture du fichier Excel : {str(e)}"}
     
-            from app.modules.clients.application.services import ClientService
-            from app.modules.clients.api.schemas import ClientCreateSchema
+            from app.modules.clients.service import ClientService
+            from app.modules.clients.schemas_validation import ClientCreateSchema
     
             imported_count = 0
             async with session_maker() as session:

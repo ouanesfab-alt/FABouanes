@@ -8,17 +8,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_api_user, api_error
 from app.core.permissions import PERMISSION_OPERATIONS_WRITE
-from app.modules.payments.application.services import PaymentsService
-from app.modules.payments.api.schemas import PaymentFormSchema
+from app.services.payment_service import create_payment_from_form
 from app.core.db_helpers import db_transaction
 from app.core.async_db import get_async_session
 from app.core.idempotency import check_idempotency, save_idempotency
 from app.core.exceptions import ValidationError, ConflictError
 from app.core.rate_limit import limiter
-from app.modules.sales.application.services import SalesService
-from app.modules.sales.api.schemas import SaleFormSchema
-from app.modules.purchases.application.services import PurchaseService
-from app.modules.purchases.api.schemas import PurchaseFormSchema
+from app.modules.sales.service import SalesService
+from app.modules.sales.schemas_validation import SaleFormSchema
+from app.modules.purchases.service import PurchaseService
+from app.modules.purchases.schemas_validation import PurchaseFormSchema
 
 logger = logging.getLogger("fabouanes.offline")
 router = APIRouter(prefix="/api/mobile/v1/offline", tags=["offline"])
@@ -56,9 +55,7 @@ async def sync_operation(request: Request, db: AsyncSession = Depends(get_async_
             result = await service.create_purchase_from_form(validated)
             res_payload = {"ok": True, "mode": result.get("mode")}
         elif op_type == "create_payment":
-            service = PaymentsService(db)
-            validated = PaymentFormSchema(**payload)
-            payment_id, payment_type = await service.create_payment_from_form(validated)
+            payment_id, payment_type = await create_payment_from_form(payload)
             res_payload = {"ok": True, "id": payment_id, "payment_type": payment_type}
         else:
             err_res = {"success": False, "error": {"code": "unknown_type", "message": f"Type inconnu : {op_type}", "details": None}}
@@ -128,9 +125,8 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
                 result = await service.create_purchase_from_form(validated)
                 res_payload = {"ok": True, "mode": result.get("mode")}
             elif op_type == "create_payment":
-                service = PaymentsService(db)
-                validated = PaymentFormSchema(**payload)
-                payment_id, payment_type = await service.create_payment_from_form(validated)
+                with db_transaction():
+                    payment_id, payment_type = await create_payment_from_form(payload)
                 res_payload = {"ok": True, "id": payment_id, "payment_type": payment_type}
             else:
                 res_payload = {"error": f"Type inconnu : {op_type}"}

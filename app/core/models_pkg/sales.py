@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Optional
-from sqlalchemy import Column, Numeric
+from sqlalchemy import Column, Numeric, String
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.orm import relationship
 
@@ -28,7 +28,7 @@ class Sale(SQLModel, table=True):
     unit: str
     unit_price: Decimal = Field(sa_column=Column(Numeric(15, 2)))
     total: Decimal = Field(sa_column=Column(Numeric(15, 2)))
-    sale_type: SaleType
+    sale_type: SaleType = Field(sa_column=Column(String, nullable=False))
     amount_paid: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     balance_due: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     cost_price_snapshot: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
@@ -55,7 +55,7 @@ class RawSale(SQLModel, table=True):
     unit: str
     unit_price: Decimal = Field(sa_column=Column(Numeric(15, 2)))
     total: Decimal = Field(sa_column=Column(Numeric(15, 2)))
-    sale_type: SaleType
+    sale_type: SaleType = Field(sa_column=Column(String, nullable=False))
     amount_paid: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     balance_due: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     cost_price_snapshot: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
@@ -78,7 +78,7 @@ class SaleDocument(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     client_id: Optional[int] = Field(default=None, foreign_key="clients.id")
     doc_number: str = Field(unique=True)
-    sale_type: SaleType
+    sale_type: SaleType = Field(sa_column=Column(String, nullable=False))
     total: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     amount_paid: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     balance_due: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))

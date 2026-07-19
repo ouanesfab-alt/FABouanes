@@ -15,7 +15,7 @@ from __future__ import annotations
 import importlib
 import logging
 import os
-from dataclasses import dataclass, field, InitVar
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -34,53 +34,12 @@ class ModuleDescriptor:
     label: str  # Nom affiché en UI (ex: "Catalogue", "Dépenses")
     icon: str = "bi-box"  # Icône Bootstrap Icons
     nav_order: int = 100  # Ordre dans la navigation (plus petit = plus à gauche)
+    web_router: APIRouter | None = None  # Routes web (pages HTML)
+    api_router: APIRouter | None = None  # Routes API REST
     schema_sql: list[str] = field(default_factory=list)  # DDL SQL du module
     permissions: list[str] = field(default_factory=list)  # Permissions déclarées
     role_permissions: dict[str, list[str]] = field(default_factory=dict)  # Permissions par rôle
     enabled: bool = True  # Peut être désactivé via env
-    _module: "ModuleBase" | None = None  # Reference module pour resolution tardive
-
-    def __init__(
-        self,
-        name: str,
-        label: str,
-        icon: str = "bi-box",
-        nav_order: int = 100,
-        schema_sql: list[str] | None = None,
-        permissions: list[str] | None = None,
-        role_permissions: dict[str, list[str]] | None = None,
-        enabled: bool = True,
-        _module: "ModuleBase" | None = None,
-        web_router: APIRouter | None = None,
-        api_router: APIRouter | None = None,
-    ):
-        self.name = name
-        self.label = label
-        self.icon = icon
-        self.nav_order = nav_order
-        self.schema_sql = schema_sql or []
-        self.permissions = permissions or []
-        self.role_permissions = role_permissions or {}
-        self.enabled = enabled
-        self._module = _module
-        self._web_router = web_router
-        self._api_router = api_router
-
-    @property
-    def web_router(self) -> APIRouter | None:
-        if self._web_router is not None:
-            return self._web_router
-        if self._module is not None:
-            return self._module.web_router
-        return None
-
-    @property
-    def api_router(self) -> APIRouter | None:
-        if self._api_router is not None:
-            return self._api_router
-        if self._module is not None:
-            return self._module.api_router
-        return None
 
     @classmethod
     def from_module(cls, module: "ModuleBase") -> ModuleDescriptor:
@@ -89,10 +48,11 @@ class ModuleDescriptor:
             label=module.label,
             icon=module.icon,
             nav_order=module.nav_order,
+            web_router=module.web_router,
+            api_router=module.api_router,
             schema_sql=module.schema_sql,
             permissions=module.permissions,
             role_permissions=getattr(module, "role_permissions", {}),
-            _module=module,
         )
 
 

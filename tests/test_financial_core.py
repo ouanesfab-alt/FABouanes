@@ -628,7 +628,7 @@ class TestApiValidationSchemas:
             pass  # strict validation is also acceptable
 
     def test_production_create_schema_valid(self):
-        from app.modules.production.api.schemas import ProductionCreateSchema
+        from app.core.schema.api_validation import ProductionCreateSchema
         p = ProductionCreateSchema(
             finished_product_id=3,
             output_quantity=150,

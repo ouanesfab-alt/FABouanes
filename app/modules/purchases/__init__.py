@@ -1,5 +1,6 @@
 """Module Achats — Gestion des approvisionnements et des bons d'achat."""
 from app.modules.base import ModuleBase
+from app.modules.purchases.web import router as web_router
 from app.core.registry import register
 
 class PurchasesModule(ModuleBase):
@@ -21,13 +22,7 @@ class PurchasesModule(ModuleBase):
 
     @property
     def web_router(self):
-        from app.modules.purchases.api.web import router as web_router
         return web_router
-
-    @property
-    def api_router(self):
-        from app.modules.purchases.api.endpoints import router as api_router
-        return api_router
 
     @property
     def permissions(self) -> list[str]:

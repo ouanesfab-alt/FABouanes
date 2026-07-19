@@ -53,7 +53,7 @@ async def import_excel_task(ctx: dict[str, Any], file_path: str, client_id: int 
     await asyncio.sleep(0.5)
 
     from app.core.async_db import get_async_sessionmaker
-    from app.modules.clients.application.services import ClientService
+    from app.modules.clients.service import ClientService
     await update_task_progress(job_id, 50, "Insertion et rapprochement en base de données...")
 
     async with get_async_sessionmaker()() as session:

@@ -193,7 +193,7 @@ async def test_recalc_finished_product_avg_cost():
 
 @pytest.mark.asyncio
 @patch("app.services.stock_service.get_state_value")
-@patch("app.modules.catalog.infrastructure.repository.insert_stock_movement")
+@patch("app.modules.catalog.repository.insert_stock_movement")
 async def test_record_stock_movement(mock_insert, mock_state):
     mock_state.return_value = {"username": "jean_test"}
     db = MagicMock(spec=AsyncSession)

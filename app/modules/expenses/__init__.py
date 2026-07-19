@@ -1,6 +1,8 @@
 """Module Dépenses & Charges — Suivi des frais de l'entreprise."""
 from app.modules.base import ModuleBase
+from app.modules.expenses.web import router as web_router
 from app.core.registry import register
+from app.modules.expenses.schema import TABLES
 
 class ExpensesModule(ModuleBase):
     @property
@@ -21,13 +23,11 @@ class ExpensesModule(ModuleBase):
 
     @property
     def web_router(self):
-        from app.modules.expenses.api.web import router as web_router
         return web_router
 
     @property
-    def api_router(self):
-        from app.modules.expenses.api.endpoints import router as api_router
-        return api_router
+    def schema_sql(self) -> list[str]:
+        return TABLES
 
     @property
     def permissions(self) -> list[str]:

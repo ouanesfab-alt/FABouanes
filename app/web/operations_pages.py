@@ -121,8 +121,8 @@ async def new_operation_page(request: Request, db: AsyncSession = Depends(get_as
     if denied:
         return denied
 
-    from app.modules.purchases.application.services import PurchaseService
-    from app.modules.sales.application.services import SalesService
+    from app.modules.purchases.service import PurchaseService
+    from app.modules.sales.service import SalesService
     from app.services.payment_service import new_payment_context
     from app.core.db_helpers import query_db
 

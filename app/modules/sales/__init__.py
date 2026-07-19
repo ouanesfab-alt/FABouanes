@@ -1,5 +1,6 @@
 """Module Ventes — Gestion des factures et lignes de vente."""
 from app.modules.base import ModuleBase
+from app.modules.sales.web import router as web_router
 from app.core.registry import register
 
 class SalesModule(ModuleBase):
@@ -21,13 +22,7 @@ class SalesModule(ModuleBase):
 
     @property
     def web_router(self):
-        from app.modules.sales.api.web import router as web_router
         return web_router
-
-    @property
-    def api_router(self):
-        from app.modules.sales.api.endpoints import router as api_router
-        return api_router
 
     @property
     def permissions(self) -> list[str]:

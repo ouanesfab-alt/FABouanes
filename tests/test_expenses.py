@@ -1,12 +1,17 @@
+"""
+Tests unitaires et d'intégration pour le module Dépenses & Charges.
+"""
 from __future__ import annotations
 
-from datetime import date
-from unittest.mock import AsyncMock, patch
 import pytest
-from decimal import Decimal
+from datetime import date
+from unittest.mock import MagicMock, patch
 
 from tests.test_services_coverage import client, MockAsyncSession
-from app.modules.expenses.infrastructure.repository import (
+from app.core.models import Expense
+from app.modules.expenses.repository import (
+    get_all_expenses,
+    get_expense_by_id,
     create_expense,
     update_expense,
     delete_expense,
@@ -14,29 +19,55 @@ from app.modules.expenses.infrastructure.repository import (
     expenses_by_category,
     expenses_by_month,
 )
-from app.modules.expenses.application.services import ExpensesService
+from app.modules.expenses.service import (
+    list_expenses,
+    get_expense,
+    add_expense,
+    modify_expense,
+    remove_expense,
+    get_categories,
+    get_payment_methods,
+)
 
 
 @pytest.mark.asyncio
 async def test_expense_repository():
     db = MockAsyncSession()
 
-    # Create
-    new_id = await create_expense(db, date.today(), "general", "Pens", 5.0, "cash")
+    # Get all expenses
+    results = await get_all_expenses(db, {"category": "transport", "date_from": "2026-01-01", "date_to": "2026-12-31", "q": "essence"})
+    assert len(results) > 0
+    assert isinstance(results[0], Expense)
+
+    # Get by id
+    res = await get_expense_by_id(db, 1)
+    assert res is not None
+    assert res.id == 1
+
+    # Create expense
+    new_id = await create_expense(db, date.today(), "transport", "Bus ticket", 2.5, "cash")
     assert new_id == 1
 
-    # Update
-    await update_expense(db, 1, date.today(), "transport", "Taxi", 15.0, "cheque")
+    # Create expense with string date
+    new_id_str = await create_expense(db, "2026-05-31", "general", "Paper", 10.0, "cash")
+    assert new_id_str == 1
 
-    # Total
-    total = await expenses_total(db)
-    assert isinstance(total, (int, float))
+    # Update expense
+    await update_expense(db, 1, date.today(), "transport", "Taxi ride", 15.0, "virement")
 
-    # By category
-    by_cat = await expenses_by_category(db)
+    # Update expense with string date
+    await update_expense(db, 1, "2026-05-31", "transport", "Taxi ride", 15.0, "virement")
+
+    # Delete expense
+    await delete_expense(db, 1)
+
+    # Expenses aggregates
+    total = await expenses_total(db, "2026-01-01", "2026-12-31")
+    assert isinstance(total, float)
+
+    by_cat = await expenses_by_category(db, "2026-01-01", "2026-12-31")
     assert isinstance(by_cat, list)
 
-    # By month
     by_month = await expenses_by_month(db)
     assert isinstance(by_month, list)
 
@@ -44,51 +75,34 @@ async def test_expense_repository():
 @pytest.mark.asyncio
 async def test_expense_service():
     db = MockAsyncSession()
-    service = ExpensesService(db)
 
     # List
-    lst = await service.list_expenses()
+    lst = await list_expenses(db)
     assert len(lst) > 0
 
     # Get
-    item = await service.get_expense(1)
+    item = await get_expense(db, 1)
     assert item is not None
 
     # Add
-    from app.modules.expenses.api.schemas import ExpenseCreateSchema
-    create_schema = ExpenseCreateSchema(
-        date=date.today(),
-        category="general",
-        description="Pens",
-        amount=5.0,
-        payment_method="cash"
-    )
-    new_id = await service.add_expense(create_schema)
+    new_id = await add_expense(db, date.today(), "general", "Pens", 5.0, "cash")
     assert new_id == 1
 
     # Modify
-    from app.modules.expenses.api.schemas import ExpenseUpdateSchema
-    update_schema = ExpenseUpdateSchema(
-        date=date.today(),
-        category="general",
-        description="Pens and notebooks",
-        amount=12.0,
-        payment_method="cash"
-    )
-    await service.modify_expense(1, update_schema)
+    await modify_expense(db, 1, date.today(), "general", "Pens and notebooks", 12.0, "cash")
 
     # Remove
-    success = await service.remove_expense(1)
+    success = await remove_expense(db, 1)
     assert success is True
 
     # Remove non-existent
-    with patch("app.modules.expenses.application.commands.get_expense_by_id", return_value=None):
-        fail_success = await service.remove_expense(999)
+    with patch("app.modules.expenses.service.get_expense_by_id", return_value=None):
+        fail_success = await remove_expense(db, 999)
         assert fail_success is False
 
     # Helpers
-    assert len(service.get_categories()) > 0
-    assert len(service.get_payment_methods()) > 0
+    assert len(get_categories()) > 0
+    assert len(get_payment_methods()) > 0
 
 
 class TestExpenseWebRoutes:
@@ -134,7 +148,7 @@ class TestExpenseWebRoutes:
             "amount": "15.50",
             "payment_method": "cash",
         }
-        with patch("app.modules.expenses.application.services.ExpensesService.add_expense", side_effect=ValueError("Duplicate entry")):
+        with patch("app.modules.expenses.web.add_expense", side_effect=ValueError("Duplicate entry")):
             response = client.post("/expenses/new", data=payload)
             assert response.status_code == 200
             assert "Duplicate entry" in response.text or "Erreur" in response.text
@@ -145,7 +159,7 @@ class TestExpenseWebRoutes:
         assert "Modifier la dépense" in response.text
 
     def test_edit_expense_page_not_found(self):
-        with patch("app.modules.expenses.application.services.ExpensesService.get_expense", return_value=None):
+        with patch("app.modules.expenses.web.get_expense", return_value=None):
             response = client.get("/expenses/999/edit", follow_redirects=False)
             assert response.status_code == 303
             assert response.headers["location"] == "/expenses"
@@ -170,7 +184,7 @@ class TestExpenseWebRoutes:
             "amount": "17.50",
             "payment_method": "cash",
         }
-        with patch("app.modules.expenses.application.services.ExpensesService.get_expense", return_value=None):
+        with patch("app.modules.expenses.web.get_expense", return_value=None):
             response = client.post("/expenses/999/edit", data=payload, follow_redirects=False)
             assert response.status_code == 303
             assert response.headers["location"] == "/expenses"
@@ -195,7 +209,7 @@ class TestExpenseWebRoutes:
             "amount": "17.50",
             "payment_method": "cash",
         }
-        with patch("app.modules.expenses.application.services.ExpensesService.modify_expense", side_effect=ValueError("Update failed")):
+        with patch("app.modules.expenses.web.modify_expense", side_effect=ValueError("Update failed")):
             response = client.post("/expenses/1/edit", data=payload)
             assert response.status_code == 200
             assert "Update failed" in response.text or "Erreur" in response.text
@@ -206,7 +220,7 @@ class TestExpenseWebRoutes:
         assert response.headers["location"] == "/expenses"
 
     def test_delete_expense_not_found(self):
-        with patch("app.modules.expenses.application.services.ExpensesService.remove_expense", return_value=False):
+        with patch("app.modules.expenses.web.remove_expense", return_value=False):
             response = client.post("/expenses/999/delete", follow_redirects=False)
             assert response.status_code == 303
             assert response.headers["location"] == "/expenses"
@@ -228,7 +242,7 @@ class TestExpenseApiEndpoints:
         assert data["data"]["id"] == 1
 
     def test_api_get_expense_detail_not_found(self):
-        with patch("app.modules.expenses.application.services.ExpensesService.get_expense", return_value=None):
+        with patch("app.api.v1.expenses.get_expense", return_value=None):
             response = client.get("/api/v1/expenses/999")
             assert response.status_code == 404
             data = response.json()
@@ -257,7 +271,7 @@ class TestExpenseApiEndpoints:
             "amount": 25.0,
             "payment_method": "cash",
         }
-        with patch("app.modules.expenses.application.services.ExpensesService.get_expense", return_value=None):
+        with patch("app.api.v1.expenses.get_expense", return_value=None):
             response = client.post("/api/v1/expenses", json=payload)
             assert response.status_code == 500
 
@@ -282,7 +296,7 @@ class TestExpenseApiEndpoints:
             "amount": 30.0,
             "payment_method": "virement",
         }
-        with patch("app.modules.expenses.application.services.ExpensesService.get_expense", return_value=None):
+        with patch("app.api.v1.expenses.get_expense", return_value=None):
             response = client.put("/api/v1/expenses/999", json=payload)
             assert response.status_code == 404
 
@@ -294,6 +308,6 @@ class TestExpenseApiEndpoints:
         assert data["data"]["deleted"] is True
 
     def test_api_delete_expense_not_found(self):
-        with patch("app.modules.expenses.application.services.ExpensesService.remove_expense", return_value=False):
+        with patch("app.api.v1.expenses.remove_expense", return_value=False):
             response = client.delete("/api/v1/expenses/999")
             assert response.status_code == 404

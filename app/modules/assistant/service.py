@@ -63,6 +63,55 @@ async def close_http_clients() -> None:
     _ollama_client = None
 
 
+def clean_unconfirmed_tool_calls(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Parcourt l'historique et nettoie les appels de fonctions qui n'ont pas reçu
+    de réponse (dangling/unconfirmed tool calls). Cela se produit si l'utilisateur
+    a reçu une demande de confirmation mais a choisi d'envoyer un autre message à la place.
+    """
+    cleaned = []
+    i = 0
+    n = len(messages)
+    while i < n:
+        msg = messages[i]
+        role = msg.get("role")
+        
+        has_calls = False
+        if role in ("model", "assistant"):
+            parts = msg.get("parts")
+            if isinstance(parts, list):
+                has_calls = any(isinstance(p, dict) and "functionCall" in p for p in parts)
+            if msg.get("tool_calls"):
+                has_calls = True
+        
+        if has_calls:
+            has_response = False
+            if i + 1 < n:
+                next_msg = messages[i + 1]
+                if next_msg.get("role") in ("function", "tool"):
+                    has_response = True
+            
+            if not has_response:
+                logger.info("Assistant: Suppression de l'appel de fonction non confirmé dans l'historique pour éviter les doublons et les erreurs API")
+                new_msg = dict(msg)
+                if "parts" in new_msg and isinstance(new_msg["parts"], list):
+                    new_parts = [p for p in new_msg["parts"] if isinstance(p, dict) and "text" in p]
+                    if new_parts:
+                        new_msg["parts"] = new_parts
+                        cleaned.append(new_msg)
+                elif "content" in new_msg and new_msg.get("content"):
+                    new_msg = dict(new_msg)
+                    if "tool_calls" in new_msg:
+                        del new_msg["tool_calls"]
+                    cleaned.append(new_msg)
+                i += 1
+                continue
+        
+        cleaned.append(msg)
+        i += 1
+    return cleaned
+
+
 async def compress_history_if_needed(messages: List[Dict[str, Any]], api_key: str, is_local: bool) -> List[Dict[str, Any]]:
     if len(messages) <= 18:
         return messages
@@ -353,12 +402,17 @@ def normalize_args_dict(args: dict | None) -> dict:
         if val is None or val == "":
             return None
         if isinstance(val, dict):
-            return {k: normalize_val(v) for k, v in val.items() if v is not None and v != ""}
+            return {k: normalize_val(v) for k, v in val.items()}
         if isinstance(val, list):
             return [normalize_val(x) for x in val]
         return val
 
-    return {k: normalize_val(v) for k, v in args.items() if v is not None and v != ""}
+    res = {}
+    for k, v in args.items():
+        norm_v = normalize_val(v)
+        if norm_v is not None and norm_v != "":
+            res[k] = norm_v
+    return res
 
 
 import time
@@ -453,10 +507,9 @@ def find_past_tool_execution(messages: List[Dict[str, Any]], func_name: str, fun
                             if content:
                                 try:
                                     parsed = json.loads(content)
-                                    if isinstance(parsed, dict):
-                                        if "output" in parsed:
-                                            return parsed["output"]
-                                        return parsed
+                                    if isinstance(parsed, dict) and "output" in parsed:
+                                        return parsed["output"]
+                                    return parsed
                                 except Exception:
                                     return {"output": content}
     return None
@@ -832,6 +885,9 @@ async def run_ollama_agent(messages: List[Dict[str, Any]], schema_text: str) -> 
 async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key: str, confirmed_query: str | None = None, user_role: str = "operator"):
     """Orchestre la boucle d'agent sous forme de générateur asynchrone d'événements."""
     yield {"type": "status", "message": "Sabrina analyse votre demande..."}
+
+    # Clean unconfirmed tool calls from history to avoid dangling calls / API errors
+    messages = clean_unconfirmed_tool_calls(messages)
 
     # 1. Compression glissante de la mémoire
     messages = await compress_history_if_needed(messages, api_key, is_local=False)

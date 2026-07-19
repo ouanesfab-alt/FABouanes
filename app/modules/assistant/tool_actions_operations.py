@@ -22,16 +22,16 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             unit_price = sanitize_numeric(func_args.get("unit_price"))
             amount_paid = sanitize_numeric(func_args.get("amount_paid", 0.0))
             notes = str(func_args.get("notes", "")).strip()
-            from app.modules.sales.application.services import SalesService
-            from app.modules.sales.api.schemas import SaleFormSchema, SaleLineSchema
+            from app.modules.sales.service import SalesService
+            from app.modules.sales.schemas_validation import SaleFormSchema, SaleLineSchema
             line = SaleLineSchema(item_key=f"{item_kind}:{item_id}", quantity=quantity, unit=unit, unit_price=unit_price)
             schema = SaleFormSchema(client_id=client_id, notes=notes, lines=[line])
             async with session_maker() as session:
                 service = SalesService(session)
                 res = await service.create_sale_from_form(schema)
                 if amount_paid > 0 and client_id:
-                    from app.modules.payments.application.services import PaymentsService
-                    from app.modules.payments.api.schemas import PaymentFormSchema
+                    from app.modules.payments.service import PaymentsService
+                    from app.modules.payments.schemas_validation import PaymentFormSchema
                     pay_service = PaymentsService(session)
                     pay_schema = PaymentFormSchema(client_id=client_id, amount=amount_paid, payment_type="versement", notes=f"Paiement partiel vente {res.get('sale_id') or res.get('document_id')}")
                     await pay_service.create_payment_from_form(pay_schema)
@@ -51,8 +51,8 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             unit = str(func_args.get("unit", "kg")).strip().lower()
             unit_price = sanitize_numeric(func_args.get("unit_price"))
             notes = str(func_args.get("notes", "")).strip()
-            from app.modules.purchases.application.services import PurchaseService
-            from app.modules.purchases.api.schemas import PurchaseFormSchema, PurchaseLineSchema
+            from app.modules.purchases.service import PurchaseService
+            from app.modules.purchases.schemas_validation import PurchaseFormSchema, PurchaseLineSchema
             line = PurchaseLineSchema(raw_material_id=f"{item_kind}:{item_id}", quantity=quantity, unit=unit, unit_price=unit_price)
             schema = PurchaseFormSchema(supplier_id=supplier_id, notes=notes, lines=[line])
             async with session_maker() as session:
@@ -69,8 +69,8 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             if payment_type not in ("versement", "avance"):
                 payment_type = "versement"
             notes = str(func_args.get("notes", "")).strip()
-            from app.modules.payments.application.services import PaymentsService
-            from app.modules.payments.api.schemas import PaymentFormSchema
+            from app.modules.payments.service import PaymentsService
+            from app.modules.payments.schemas_validation import PaymentFormSchema
             schema = PaymentFormSchema(client_id=client_id, amount=amount, payment_type=payment_type, notes=notes)
             async with session_maker() as session:
                 service = PaymentsService(session)
@@ -84,7 +84,7 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             success = False
             async with session_maker() as session:
                 if tx_kind in ("sale_finished", "sale_raw", "sale"):
-                    from app.modules.sales.application.services import SalesService
+                    from app.modules.sales.service import SalesService
                     service = SalesService(session)
                     kind = "finished"
                     if tx_kind == "sale_raw":
@@ -97,11 +97,11 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
                             kind = "raw"
                     success = await service.delete_sale_by_id(kind, tx_id)
                 elif tx_kind == "purchase":
-                    from app.modules.purchases.application.services import PurchaseService
+                    from app.modules.purchases.service import PurchaseService
                     service = PurchaseService(session)
                     success = await service.delete_purchase_by_id(tx_id)
                 elif tx_kind == "payment":
-                    from app.modules.payments.application.services import PaymentsService
+                    from app.modules.payments.service import PaymentsService
                     service = PaymentsService(session)
                     success = await service.delete_payment_by_id(tx_id)
                 if success:
@@ -132,7 +132,7 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             }
             payment_method = method_map.get(payment_method, "cash")
     
-            from app.modules.expenses.api.schemas import ExpenseCreateSchema
+            from app.modules.expenses.schemas_validation import ExpenseCreateSchema
             import datetime
             schema = ExpenseCreateSchema(
                 date=datetime.date.today(),
@@ -141,10 +141,16 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
                 amount=amount,
                 payment_method=payment_method
             )
-            from app.modules.expenses.application.services import ExpensesService
+            from app.modules.expenses.service import add_expense
             async with session_maker() as session:
-                service = ExpensesService(session)
-                expense_id = await service.add_expense(schema)
+                expense_id = await add_expense(
+                    db=session,
+                    date=schema.date.isoformat(),
+                    category=schema.category,
+                    description=schema.description,
+                    amount=schema.amount,
+                    method=schema.payment_method
+                )
                 await session.commit()
             return {"success": True, "message": "Dépense enregistrée.", "expense_id": expense_id}
 
@@ -159,11 +165,9 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             description = func_args.get("description")
             if description:
                 description = str(description).strip()
-            from app.modules.expenses.application.services import ExpensesService
-            from app.modules.expenses.api.schemas import ExpenseUpdateSchema
+            from app.modules.expenses.service import get_expense, modify_expense
             async with session_maker() as session:
-                service = ExpensesService(session)
-                db_exp = await service.get_expense(expense_id)
+                db_exp = await get_expense(session, expense_id)
                 if not db_exp:
                     return {"error": f"Dépense ID {expense_id} introuvable."}
                 new_date = db_exp.date
@@ -171,24 +175,24 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
                 new_amount = amount if amount is not None else float(db_exp.amount)
                 new_description = description if description is not None else db_exp.description
                 new_method = db_exp.payment_method
-                update_schema = ExpenseUpdateSchema(
+                await modify_expense(
+                    db=session,
+                    expense_id=expense_id,
                     date=new_date,
                     category=new_category,
-                    amount=new_amount,
                     description=new_description,
-                    payment_method=new_method
+                    amount=new_amount,
+                    method=new_method
                 )
-                await service.modify_expense(expense_id, update_schema)
                 await session.commit()
             return {"success": True, "message": f"Dépense {expense_id} modifiée."}
 
     elif func_name == "delete_expense":
             expense_id = int(func_args.get("expense_id"))
-            from app.modules.expenses.application.services import ExpensesService
+            from app.modules.expenses.service import remove_expense
             success = False
             async with session_maker() as session:
-                service = ExpensesService(session)
-                success = await service.remove_expense(expense_id)
+                success = await remove_expense(db=session, expense_id=expense_id)
                 if success:
                     await session.commit()
             if not success:
@@ -335,7 +339,7 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
         if not lines_input:
             return {"error": "Une facture doit comporter au moins une ligne."}
 
-        from app.modules.sales.api.schemas import SaleFormSchema, SaleLineSchema
+        from app.modules.sales.schemas_validation import SaleFormSchema, SaleLineSchema
         lines = []
         for line in lines_input:
             item_key = line.get("item_key")
@@ -354,7 +358,7 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             )
 
         schema = SaleFormSchema(client_id=client_id, notes=notes, lines=lines, sale_date=sale_date)
-        from app.modules.sales.application.services import SalesService
+        from app.modules.sales.service import SalesService
         async with session_maker() as session:
             service = SalesService(session)
             res = await service.create_sale_from_form(schema)

@@ -1,5 +1,6 @@
 """Module Clients — Gestion des partenaires clients."""
 from app.modules.base import ModuleBase
+from app.modules.clients.web import router as web_router
 from app.core.registry import register
 from app.modules.clients.schema import TABLES
 
@@ -22,13 +23,7 @@ class ClientsModule(ModuleBase):
 
     @property
     def web_router(self):
-        from app.modules.clients.api.web import router as web_router
         return web_router
-
-    @property
-    def api_router(self):
-        from app.modules.clients.api.endpoints import router as api_router
-        return api_router
 
     @property
     def schema_sql(self) -> list[str]:

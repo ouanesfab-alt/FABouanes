@@ -425,3 +425,65 @@ def test_find_past_tool_execution():
     res = find_past_tool_execution(messages_openai, "add_payment", {"amount": 100, "client_id": 42})
     assert res == {"status": "success", "payment_id": 5}
 
+
+def test_clean_unconfirmed_tool_calls():
+    from app.modules.assistant.service import clean_unconfirmed_tool_calls
+    
+    # 1. Test case where a tool call is followed by user message (unconfirmed)
+    messages = [
+        {"role": "user", "parts": [{"text": "Ajoute Alice"}]},
+        {"role": "model", "parts": [{"functionCall": {"name": "add_client", "args": {"name": "Alice"}}}]},
+        {"role": "user", "parts": [{"text": "Non, en fait Bob"}]}
+    ]
+    cleaned = clean_unconfirmed_tool_calls(messages)
+    assert len(cleaned) == 2
+    assert cleaned[0]["parts"][0]["text"] == "Ajoute Alice"
+    assert cleaned[1]["parts"][0]["text"] == "Non, en fait Bob"
+
+    # 2. Test case where a tool call has a response (confirmed)
+    messages_confirmed = [
+        {"role": "user", "parts": [{"text": "Ajoute Alice"}]},
+        {"role": "model", "parts": [{"functionCall": {"name": "add_client", "args": {"name": "Alice"}}}]},
+        {"role": "function", "parts": [{"functionResponse": {"name": "add_client", "response": {"output": "ok"}}}]},
+        {"role": "user", "parts": [{"text": "Super merci"}]}
+    ]
+    cleaned_confirmed = clean_unconfirmed_tool_calls(messages_confirmed)
+    assert len(cleaned_confirmed) == 4
+
+
+def test_normalize_args_dict_improvements():
+    from app.modules.assistant.service import normalize_args_dict
+    
+    # Empty strings, spaces, and Nones should be ignored/excluded after normalization
+    args1 = {"name": "  ", "notes": None, "amount": 100}
+    args2 = {"amount": "100.0"}
+    
+    assert normalize_args_dict(args1) == {"amount": 100.0}
+    assert normalize_args_dict(args2) == {"amount": 100.0}
+    assert normalize_args_dict(args1) == normalize_args_dict(args2)
+
+
+def test_find_past_tool_execution_non_dict_tool_output():
+    from app.modules.assistant.service import find_past_tool_execution
+    
+    # Ollama format with a plain string output
+    messages = [
+        {
+            "role": "assistant",
+            "tool_calls": [
+                {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "some_action", "arguments": {}}
+                }
+            ]
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": '"Action completed successfully"'
+        }
+    ]
+    res = find_past_tool_execution(messages, "some_action", {})
+    assert res == "Action completed successfully"
+

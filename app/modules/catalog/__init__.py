@@ -1,5 +1,6 @@
 """Module Catalogue — Gestion des matières premières, produits finis et recettes."""
 from app.modules.base import ModuleBase
+from app.modules.catalog.web import router as web_router
 from app.core.registry import register
 
 class CatalogModule(ModuleBase):
@@ -21,7 +22,6 @@ class CatalogModule(ModuleBase):
 
     @property
     def web_router(self):
-        from app.modules.catalog.api.web import router as web_router
         return web_router
 
     @property
