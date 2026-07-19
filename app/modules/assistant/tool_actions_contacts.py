@@ -175,14 +175,14 @@ async def handle_contacts(func_name: str, func_args: dict, session_maker, user_r
             filepath = func_args.get("filepath", "")
             client_id_val = func_args.get("client_id")
             client_id = int(client_id_val) if client_id_val is not None else None
-    
+
             abs_path = os.path.abspath(filepath)
             workspace_dir = os.path.abspath(str(BASE_DIR))
             try:
                 _assert_workspace_path(abs_path, workspace_dir)
             except ValueError as e:
                 return {"error": str(e)}
-    
+
             from app.modules.clients.service import ClientService
             async with session_maker() as session:
                 service = ClientService(session)
@@ -204,16 +204,16 @@ async def handle_contacts(func_name: str, func_args: dict, session_maker, user_r
                 _assert_workspace_path(abs_path, workspace_dir)
             except ValueError as e:
                 return {"error": str(e)}
-    
+
             from app.services.excel_import_service import parse_excel_bulk_clients
             try:
                 parsed_clients = parse_excel_bulk_clients(abs_path)
             except Exception as e:
                 return {"error": f"Erreur de lecture du fichier Excel : {str(e)}"}
-    
+
             from app.modules.clients.service import ClientService
             from app.modules.clients.schemas_validation import ClientCreateSchema
-    
+
             imported_count = 0
             async with session_maker() as session:
                 service = ClientService(session)
@@ -231,7 +231,7 @@ async def handle_contacts(func_name: str, func_args: dict, session_maker, user_r
                     except Exception as e:
                         logger.warning("Échec d'importation du client bulk %s : %s", c_data.get("name"), e)
                 await session.commit()
-    
+
             return {
                 "success": True,
                 "message": f"Importation en masse réussie : {imported_count}/{len(parsed_clients)} clients importés avec succès."

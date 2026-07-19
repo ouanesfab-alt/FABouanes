@@ -115,14 +115,14 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             amount = sanitize_numeric(func_args.get("amount"))
             description = str(func_args.get("description", "")).strip()
             payment_method = str(func_args.get("payment_method", "cash")).strip().lower()
-    
+
             # Normalize category using shared constant
             if category in EXPENSE_CATEGORY_MAP:
                 category = EXPENSE_CATEGORY_MAP[category]
             elif category not in _ALLOWED_EXPENSE_CATEGORIES:
                 # Leave it as is so ExpenseCreateSchema validation fails naturally
                 pass
-    
+
             # Normalize payment method
             method_map = {
                 "espèces": "cash", "espèce": "cash", "especes": "cash", "espece": "cash", "cash": "cash",
@@ -131,7 +131,7 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
                 "autre": "autre"
             }
             payment_method = method_map.get(payment_method, "cash")
-    
+
             from app.modules.expenses.schemas_validation import ExpenseCreateSchema
             import datetime
             schema = ExpenseCreateSchema(
@@ -269,7 +269,7 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
         et = func_args.get("export_type", "").lower().strip()
         date_from = func_args.get("date_from", "").strip()
         date_to = func_args.get("date_to", "").strip()
-        
+
         if et == "clients":
             url = "/api/v1/clients/export"
             return {
@@ -294,7 +294,7 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
                 params["date_from"] = date_from
             if date_to:
                 params["date_to"] = date_to
-            
+
             af = func_args.get("audit_filters") or {}
             if af.get("actor"):
                 params["actor"] = af["actor"].strip()
@@ -304,7 +304,7 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
                 params["entity_type"] = af["entity_type"].strip()
             if af.get("status"):
                 params["status"] = af["status"].strip()
-                
+
             query_str = f"?{urllib.parse.urlencode(params)}" if params else ""
             url = f"/admin/audit/export{query_str}"
             return {
@@ -317,7 +317,7 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
                 "export_url": url,
                 "message": f"Voici le lien pour exporter le rapport de diagnostic système en JSON :\n- [Télécharger le Rapport Diagnostic]({url})"
             }
-            
+
         return {"error": f"Type d'export '{et}' non reconnu."}
 
     elif func_name == "create_invoice_document":
@@ -326,7 +326,7 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             client_id = int(client_id)
         notes = str(func_args.get("notes", "")).strip()
         sale_date_str = func_args.get("sale_date")
-        
+
         from datetime import datetime, date
         sale_date = date.today()
         if sale_date_str:

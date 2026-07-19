@@ -75,7 +75,7 @@ def clean_unconfirmed_tool_calls(messages: List[Dict[str, Any]]) -> List[Dict[st
     while i < n:
         msg = messages[i]
         role = msg.get("role")
-        
+
         has_calls = False
         if role in ("model", "assistant"):
             parts = msg.get("parts")
@@ -83,14 +83,14 @@ def clean_unconfirmed_tool_calls(messages: List[Dict[str, Any]]) -> List[Dict[st
                 has_calls = any(isinstance(p, dict) and "functionCall" in p for p in parts)
             if msg.get("tool_calls"):
                 has_calls = True
-        
+
         if has_calls:
             has_response = False
             if i + 1 < n:
                 next_msg = messages[i + 1]
                 if next_msg.get("role") in ("function", "tool"):
                     has_response = True
-            
+
             if not has_response:
                 logger.info("Assistant: Suppression de l'appel de fonction non confirmé dans l'historique pour éviter les doublons et les erreurs API")
                 new_msg = dict(msg)
@@ -106,7 +106,7 @@ def clean_unconfirmed_tool_calls(messages: List[Dict[str, Any]]) -> List[Dict[st
                     cleaned.append(new_msg)
                 i += 1
                 continue
-        
+
         cleaned.append(msg)
         i += 1
     return cleaned
@@ -201,7 +201,7 @@ async def call_gemini_api(contents: List[Dict[str, Any]], api_key: str, model_na
     """Appelle l'API Gemini avec les messages et outils définis (non-streamed fallback/utility)."""
     contents = _ensure_thought_signatures(contents)
     tools = get_gemini_tools()
-    
+
     last_query = _get_last_user_query(contents)
     rag_ctx = get_rag_context(last_query)
     system_instruction = get_sabrina_system_prompt(model_name, rag_context=rag_ctx)
@@ -272,7 +272,7 @@ async def call_gemini_api_generator(contents: List[Dict[str, Any]], api_key: str
     """Appelle l'API Gemini en mode streaming et produit des événements."""
     contents = _ensure_thought_signatures(contents)
     tools = get_gemini_tools()
-    
+
     last_query = _get_last_user_query(contents)
     rag_ctx = get_rag_context(last_query)
     system_instruction = get_sabrina_system_prompt(model_name, rag_context=rag_ctx)
@@ -428,7 +428,7 @@ def check_recent_write_execution(func_name: str, func_args: dict, ttl: float = 2
     global _recent_write_executions
     # Clean up expired items
     _recent_write_executions = [x for x in _recent_write_executions if now - x["time"] < ttl]
-    
+
     norm_args = normalize_args_dict(func_args)
     for item in _recent_write_executions:
         if item["name"] == func_name:
@@ -458,7 +458,7 @@ def find_past_tool_execution(messages: List[Dict[str, Any]], func_name: str, fun
     # On parcourt les messages de l'historique
     for i, msg in enumerate(messages):
         role = msg.get("role")
-        
+
         calls = []
         if role in ("model", "assistant"):
             parts = msg.get("parts")
@@ -472,7 +472,7 @@ def find_past_tool_execution(messages: List[Dict[str, Any]], func_name: str, fun
                     func = tc.get("function")
                     if func:
                         calls.append({"name": func.get("name"), "args": func.get("arguments") or {}})
-                        
+
         for call in calls:
             if call.get("name") == func_name:
                 call_args = call.get("args") or {}
@@ -484,13 +484,13 @@ def find_past_tool_execution(messages: List[Dict[str, Any]], func_name: str, fun
                 if not isinstance(call_args, dict):
                     call_args = {}
                 normalized_call_args = normalize_args_dict(call_args)
-                
+
                 if normalized_call_args == normalized_args:
                     # Trouvé l'appel ! Cherchons la réponse correspondante dans les messages suivants
                     for j in range(i + 1, len(messages)):
                         next_msg = messages[j]
                         next_role = next_msg.get("role")
-                        
+
                         if next_role == "function":
                             next_parts = next_msg.get("parts")
                             if isinstance(next_parts, list):
@@ -1104,7 +1104,7 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
                 except Exception as exc:
                     last_exception = exc
                     logger.warning("Erreur avec le modèle %s (clé %s...) : %s. Essai d'une autre clé ou modèle...", model, current_key[:8], exc)
-                    
+
                     err_str = str(exc).lower()
                     if "api_key_service_blocked" in err_str or "leaked" in err_str or "invalid authentication credentials" in err_str or "unauthenticated" in err_str:
                         try:

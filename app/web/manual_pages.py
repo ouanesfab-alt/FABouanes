@@ -500,14 +500,14 @@ def enrich_chapter_content(chapter_id: str, original_html: str) -> str:
         'fr_example': 'Utilisation courante de l\'application au quotidien.',
         'ar_example': 'الاستخدام اليومي المعتاد للبرنامج.'
     })
-    
+
     # 1. Extraction du contenu français et arabe d'origine
     fr_match = re.search(r'<div class="lang-fr">(.*?)</div>', original_html, re.DOTALL)
     ar_match = re.search(r'<div class="lang-ar"[^>]*>(.*?)</div>', original_html, re.DOTALL)
-    
+
     fr_body = fr_match.group(1).strip() if fr_match else ""
     ar_body = ar_match.group(1).strip() if ar_match else ""
-    
+
     # Nettoyage des titres h3 originaux pour éviter les doublons de titres
     fr_body = re.sub(r'<h3>.*?</h3>', '', fr_body)
     ar_body = re.sub(r'<h3.*?>.*?</h3>', '', ar_body)
@@ -515,7 +515,7 @@ def enrich_chapter_content(chapter_id: str, original_html: str) -> str:
     # 2. Génération du titre propre
     title_match_fr = re.search(r'<h3>(.*?)</h3>', original_html)
     title_match_ar = re.search(r'<h3.*?>((?:(?!<\/h3>).)*)<\/h3>', original_html)
-    
+
     title_fr = title_match_fr.group(1).strip() if title_match_fr else f"Chapitre {clean_id}"
     title_ar = title_match_ar.group(1).strip() if title_match_ar else f"الفصل {clean_id}"
 
@@ -598,7 +598,7 @@ def enrich_chapter_content(chapter_id: str, original_html: str) -> str:
     # 5. Extraction des widgets interactifs d'origine s'ils existent
     widget_match = re.search(r'(<!-- Interactive Widget.*?</div>\s*</div>|<!-- Interactive Widget.*?-->.*?<div class="widget-wrapper.*?</div>\s*</div>)', original_html, re.DOTALL)
     widget_html = widget_match.group(1).strip() if widget_match else ""
-    
+
     if not widget_html:
         clean_html = re.sub(r'<div class="lang-fr">.*?</div>', '', original_html, flags=re.DOTALL)
         clean_html = re.sub(r'<div class="lang-ar"[^>]*>.*?</div>', '', clean_html, flags=re.DOTALL)
@@ -616,7 +616,7 @@ async def get_manual_chapter(chapter_id: str):
     clean_id = chapter_id.strip()
     if clean_id not in MANUAL_CHAPTERS:
         raise HTTPException(status_code=404, detail="Chapitre introuvable")
-        
+
     original_html = MANUAL_CHAPTERS[clean_id]
     # Enrich dynamically all 54 chapters with customized modular templates
     return enrich_chapter_content(clean_id, original_html)

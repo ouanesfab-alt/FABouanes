@@ -228,7 +228,7 @@ class _RedisRateLimitStore:
             failures = [float(f) for f in self.client.zrangebyscore(r_key, now - window_s, now)]
             if len(failures) < max_attempts:
                 return False
-            
+
             # Exponential backoff
             extra = len(failures) - max_attempts
             lockout_time = lockout_s * (2 ** min(extra, 4))

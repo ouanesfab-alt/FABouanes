@@ -196,7 +196,7 @@ async def reconcile_client_balances(db: AsyncSession) -> dict:
                 "view": float(row[3]),
                 "materialized_view": float(row[4])
             })
-        
+
         # Self-healing refresh if discrepancies in mv exist
         if any(abs(d["calculated"] - d["materialized_view"]) > 0.01 for d in discrepancies):
             try:

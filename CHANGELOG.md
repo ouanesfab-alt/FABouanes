@@ -11,8 +11,28 @@ Le format s'inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) 
 ## [Non publié]
 
 ### À venir
-- Augmentation du seuil de couverture de tests en CI (actuellement 20 %)
 - Backend Redis optionnel pour le cache et le rate limiting (multi-worker)
+- Import/export Excel enrichi
+
+---
+
+## [2.1.0] — 2026-07-19
+
+### Ajouté
+- Suite de tests complète : 541 tests automatisés couvrant les modules métier, les helpers, l'assistant Sabrina, les validateurs, la couche DB et la gestion des exceptions.
+- Nouveaux fichiers de tests ciblés : `test_db_helpers.py`, `test_rate_limit_store.py`, `test_exception_handlers.py`, `test_low_coverage_boost.py`, `test_coverage_final_push.py`.
+
+### Amélioré
+- Couverture de tests portée à **78 %** (seuil CI élevé de 20 % → 75 %).
+- README entièrement reécrit : badges à jour, configuration complète, section limitations, tableau des métriques de tests.
+- `.gitignore` enrichi : exclusion des logs de stress test, des rapports de couverture HTML, des audits Sabrina.
+
+### Corrigé
+- `app/core/lifespan.py` : le worker de fond (`background_jobs`) démarre désormais **après** `bootstrap_and_migrate()`, ce qui élimine l'erreur `la relation « background_jobs » n'existe pas` au premier démarrage.
+- Mocks des tests corrigés : chemins d'importation (`app.core.db_helpers.execute_db`), appel de méthode statique (`_DbRateLimitStore().clear_all()`), signatures d'exceptions (`NotFoundError`, `ValidationError`).
+
+### Nettoyé
+- Suppression des fichiers parasites de la racine du dépôt : `http_stress_test.log`, `sabrina_audit.jsonl`, `sabrina_failures.jsonl`.
 
 ---
 

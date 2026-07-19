@@ -214,10 +214,10 @@ async def delete_user(user_id: int, db: AsyncSession | None = None) -> bool:
 async def _delete_user_impl(user_id: int, db: AsyncSession) -> bool:
     from sqlalchemy import delete
     from app.core.models_pkg.users import UserBadge
-    
+
     # Supprimer d'abord les badges
     await db.execute(delete(UserBadge).where(UserBadge.user_id == user_id))
-    
+
     # Supprimer l'utilisateur
     stmt = delete(User).where(User.id == user_id)
     res = await db.execute(stmt)

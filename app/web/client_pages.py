@@ -94,7 +94,7 @@ async def import_clients_page(request: Request):
     denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
     if denied:
         return denied
-    
+
     token = request.query_params.get("preview_token", "").strip()
     preview = None
     if token:
@@ -110,7 +110,7 @@ async def import_clients_page(request: Request):
                     if name_key in seen:
                         duplicates.append(row["name"])
                     seen.add(name_key)
-                
+
                 preview = {
                     "rows": rows,
                     "errors": [],
@@ -119,7 +119,7 @@ async def import_clients_page(request: Request):
                 }
         except Exception:
             pass
-            
+
     return templates.TemplateResponse("client_import.html", template_context(request, preview=preview))
 
 
@@ -181,7 +181,7 @@ async def preview_client_import(request: Request):
     index = int(request.query_params.get("index", "-1"))
     if not token or index < 0:
         return HTMLResponse("Paramètres invalides", status_code=400)
-    
+
     try:
         from app.modules.clients.service import ClientService
         # On initialise le service sans session puisqu'on ne fait que lire le JSON de preview
@@ -189,7 +189,7 @@ async def preview_client_import(request: Request):
         rows = service._load_client_import_preview(token)
         if index >= len(rows):
             return HTMLResponse("Index hors limites", status_code=404)
-        
+
         row = rows[index]
         return templates.TemplateResponse("client_import_preview_single.html", template_context(request, row=row))
     except Exception as e:
@@ -202,19 +202,19 @@ async def import_single_client_file(request: Request, db: AsyncSession = Depends
     if denied:
         return JSONResponse({"success": False, "error": "Non autorisé"}, status_code=403)
     await csrf_protect(request)
-    
+
     form = await request.form()
     file_obj = form.get("excel_file")
     if not file_obj or not file_obj.filename:
         return JSONResponse({"success": False, "error": "Aucun fichier fourni"}, status_code=400)
-    
+
     from app.modules.clients.service import ClientService
     service = ClientService(db)
     result = await service.import_clients_from_files([file_obj])
-    
+
     if result["errors"]:
         return JSONResponse({"success": False, "errors": result["errors"]})
-    
+
     status_type = "create" if result["created"] > 0 else "update"
     return JSONResponse({
         "success": True,
@@ -231,26 +231,26 @@ async def import_preview_single_row(request: Request, db: AsyncSession = Depends
     if denied:
         return JSONResponse({"success": False, "error": "Non autorisé"}, status_code=403)
     await csrf_protect(request)
-    
+
     body = await request.json()
     token = body.get("token", "").strip()
     index = int(body.get("index", "-1"))
-    
+
     if not token or index < 0:
         return JSONResponse({"success": False, "error": "Paramètres invalides"}, status_code=400)
-    
+
     from app.modules.clients.service import ClientService
     service = ClientService(db)
     try:
         rows = service._load_client_import_preview(token)
         if index >= len(rows):
             return JSONResponse({"success": False, "error": "Index hors limites"}, status_code=404)
-        
+
         row = rows[index]
         result = await service._import_parsed_client_rows([row])
         if result["errors"]:
             return JSONResponse({"success": False, "errors": result["errors"]})
-        
+
         status_type = "create" if result["created"] > 0 else "update"
         return JSONResponse({
             "success": True,
@@ -282,12 +282,12 @@ async def preview_single_client_file(request: Request, db: AsyncSession = Depend
     if denied:
         return JSONResponse({"success": False, "error": "Non autorisé"}, status_code=403)
     await csrf_protect(request)
-    
+
     form = await request.form()
     file_obj = form.get("excel_file")
     if not file_obj or not file_obj.filename:
         return JSONResponse({"success": False, "error": "Aucun fichier fourni"}, status_code=400)
-    
+
     from app.modules.clients.service import ClientService
     service = ClientService(db)
     try:
@@ -296,7 +296,7 @@ async def preview_single_client_file(request: Request, db: AsyncSession = Depend
             return JSONResponse({"success": False, "error": result["errors"][0]})
         if not result["rows"]:
             return JSONResponse({"success": False, "error": "Fichier vide ou invalide"})
-        
+
         return JSONResponse({
             "success": True,
             "row": result["rows"][0]
@@ -311,12 +311,12 @@ async def save_preview_token_endpoint(request: Request):
     if denied:
         return JSONResponse({"success": False, "error": "Non autorisé"}, status_code=403)
     await csrf_protect(request)
-    
+
     body = await request.json()
     rows = body.get("rows")
     if not rows:
         return JSONResponse({"success": False, "error": "Aucune donnée de prévisualisation"}, status_code=400)
-        
+
     from app.modules.clients.service import ClientService
     service = ClientService(None)
     token = service._save_client_import_preview(rows)

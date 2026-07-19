@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.request_state import get_state_value
+
+logger = logging.getLogger("fabouanes.helpers")
 
 def async_compat(func):
     """Allows an async function to be called synchronously if no event loop is running."""
@@ -207,7 +210,8 @@ def parse_excel_client_history(file_path) -> dict:
         last_date = rows[-1]["date"] if rows else None
         last_balance = data.get("solde_final", 0.0)
         return {"last_date": last_date, "last_balance": last_balance}
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("parse_excel_client_history failed for %s: %s", file_path, exc)
         return {"last_date": None, "last_balance": 0.0}
 
 

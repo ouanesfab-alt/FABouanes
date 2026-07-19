@@ -1,19 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 
 from app.core.request_state import get_state_value
-
-class _RlStoreCompat:
-    def clear(self):
-        from app.core.db_helpers import execute_db
-        try:
-            execute_db("DELETE FROM rate_limit_events")
-        except Exception:
-            pass
-
-_rl_store = _RlStoreCompat()
 
 
 def consume_rate_limit(key: str, limit: int, window: float) -> bool:
@@ -65,8 +56,14 @@ def validate_password_strength(password: str, mode: str | None = None) -> tuple[
         return True, ""
 
     # Default: PIN mode
+    _TRIVIAL_PINS = {
+        "0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999",
+        "1234", "4321", "1230", "0123", "9876",
+    }
     if not p.isdigit() or len(p) != 4:
         return False, "Le code PIN doit être composé d'exactement 4 chiffres."
+    if p in _TRIVIAL_PINS:
+        return False, "Ce PIN est trop simple. Choisissez un PIN moins prévisible."
     return True, ""
 
 
@@ -116,8 +113,7 @@ def security_headers(response):
     return response
 
 
-# Lockout brute-force mechanism with exponential backoff
-_LOGIN_FAILURES = _RlStoreCompat()
+# Lockout brute-force mechanism with exponential backoff — delegates to RateLimitStore
 LOCKOUT_MAX_ATTEMPTS = 5
 LOCKOUT_WINDOW_SECONDS = 600
 LOCKOUT_DURATION_SECONDS = 900
@@ -139,7 +135,6 @@ def clear_login_failures(ip: str) -> None:
 
 
 def get_client_fingerprint(request) -> str:
-    import hashlib
     ip = client_ip()
     user_agent = request.headers.get("User-Agent", "unknown")
     fingerprint_input = f"{ip}|{user_agent}"

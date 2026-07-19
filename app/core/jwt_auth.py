@@ -43,7 +43,7 @@ def create_refresh_token(user_id: int) -> str:
         {"sub": str(user_id), "exp": expires, "type": "refresh"},
         settings.secret_key, ALGORITHM,
     )
-    
+
     # Save token hash in api_refresh_tokens
     import hashlib
     from app.core.db_helpers import execute_db
@@ -60,7 +60,7 @@ def create_refresh_token(user_id: int) -> str:
     except Exception as exc:
         import logging
         logging.getLogger("fabouanes.auth").warning("Could not persist mobile refresh token in DB: %s", exc)
-        
+
     return token
 
 
@@ -78,19 +78,19 @@ def validate_mobile_refresh_token(token: str) -> dict[str, Any]:
     payload = decode_token(token)
     if payload.get("type") != "refresh":
         raise HTTPException(401, "Jeton de rafraîchissement requis")
-        
+
     # 2. Check in database
     import hashlib
     from app.core.db_helpers import query_db, execute_db
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
-    
+
     # Reuse detection check: check if it exists in db, even if revoked
     all_row = query_db("SELECT id, user_id, revoked_at FROM api_refresh_tokens WHERE token_hash = %s", (token_hash,), one=True)
-    
+
     # If not found in DB, it is not a valid token (was never created or was deleted)
     if not all_row:
         raise HTTPException(401, "Jeton inconnu ou invalide")
-        
+
     if all_row.get("revoked_at") is not None:
         # Replay attack detected! Revoke all tokens for this user immediately!
         user_id = int(all_row["user_id"])
@@ -99,7 +99,7 @@ def validate_mobile_refresh_token(token: str) -> dict[str, Any]:
             (user_id,)
         )
         raise HTTPException(401, "Tentative de rejeu de jeton détectée, toutes les sessions ont été invalidées")
-        
+
     # Mark old token as revoked/used (since we will return a rotated one!)
     execute_db(
         "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP, last_used_at = CURRENT_TIMESTAMP WHERE id = %s",

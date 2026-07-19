@@ -138,7 +138,7 @@ async def api_kpi_history(request: Request):
     metric = request.query_params.get("metric", "sales").strip().lower()
     if metric not in ("sales", "cash", "profit", "receivables"):
         return JSONResponse({"error": "Indicateur invalide."}, status_code=400)
-    
+
     try:
         days_param = int(request.query_params.get("days", 30))
         days_param = max(7, min(days_param, 90))  # clamp entre 7 et 90

@@ -103,7 +103,7 @@ async def api_update_user(request: Request, user_id: int):
 @router.delete("/users/{user_id}")
 async def api_delete_user(request: Request, user_id: int):
     current_user = enforce_permission(request, PERMISSION_USERS_MANAGE)
-    
+
     # Empêcher la suppression de son propre compte
     if current_user.get("id") == user_id:
         return {"ok": False, "message": "Vous ne pouvez pas supprimer votre propre compte en cours d'utilisation."}
@@ -122,16 +122,16 @@ async def api_delete_user(request: Request, user_id: int):
 @router.get("/backups")
 async def api_get_backups(request: Request):
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
-    
+
     # Récupérer les sauvegardes locales
     backups = await asyncio.to_thread(list_restore_backups)
-    
+
     # Récupérer l'historique des jobs
     async with get_async_sessionmaker()() as session:
         jobs = await list_backup_jobs(limit=30, db=session)
         from app.services.backup_service import get_backup_settings
         settings = await get_backup_settings(db=session)
-        
+
     return {
         "ok": True,
         "backups": list(backups),
@@ -195,11 +195,11 @@ async def api_save_backup_settings(request: Request):
 async def api_get_audit_logs(request: Request):
     enforce_permission(request, PERMISSION_AUDIT_READ)
     query_params = dict(request.query_params)
-    
+
     # Récupérer les données avec filtrage
     async with get_async_sessionmaker()() as session:
         data = await _get_filtered_audit_data(query_params, session)
-        
+
     return {
         "ok": True,
         "audit_logs": data["audit_logs"],
@@ -211,10 +211,10 @@ async def api_get_audit_logs(request: Request):
 async def _get_filtered_audit_data(filters: dict[str, str], db) -> dict[str, Any]:
     from app.core.audit import list_audit_logs
     from app.services.activity_service import list_admin_activity, activity_filter_values
-    
+
     audit_logs = await list_audit_logs(filters, limit=150, db=db)
     activity_logs = await list_admin_activity(filters, limit=150, db=db)
-    
+
     return {
         "audit_logs": audit_logs,
         "activity_logs": activity_logs,
@@ -257,21 +257,21 @@ async def api_save_sabrina_settings(request: Request):
 @router.get("/system")
 async def api_get_system_status(request: Request):
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
-    
+
     async with get_async_sessionmaker()() as session:
         status_info = await get_system_status(db=session)
         # Récupérer aussi les logs d'erreurs et de performance
         from sqlalchemy import text
-        
+
         error_res = await session.execute(text("SELECT * FROM error_logs ORDER BY id DESC LIMIT 30"))
         error_logs = [dict(row._mapping) for row in error_res.all()]
-        
+
         perf_res = await session.execute(text("SELECT * FROM performance_logs ORDER BY id DESC LIMIT 40"))
         perf_logs = [dict(row._mapping) for row in perf_res.all()]
-        
+
         sys_res = await session.execute(text("SELECT * FROM system_logs ORDER BY id DESC LIMIT 20"))
         sys_logs = [dict(row._mapping) for row in sys_res.all()]
-        
+
     return {
         "ok": True,
         "status": status_info,

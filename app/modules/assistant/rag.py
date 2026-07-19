@@ -43,9 +43,9 @@ def search_manual(query: str, limit: int = 3) -> List[Dict[str, Any]]:
         search_blob.extend(data.get("ar_usage", []))
         search_blob.append(data.get("fr_example", ""))
         search_blob.append(data.get("ar_example", ""))
-        
+
         blob_norm = normalize_text(" ".join(search_blob))
-        
+
         for word in query_words:
             if word in blob_norm:
                 score += 1
@@ -53,13 +53,13 @@ def search_manual(query: str, limit: int = 3) -> List[Dict[str, Any]]:
                 title_norm = normalize_text(data.get("fr_title", "") + " " + data.get("ar_title", ""))
                 if word in title_norm:
                     score += 2
-                    
+
         if score > 0:
             scored_chapters.append((score, key, data))
 
     # Sort by score descending
     scored_chapters.sort(key=lambda x: x[0], reverse=True)
-    
+
     results = []
     for score, key, data in scored_chapters[:limit]:
         results.append({
@@ -99,7 +99,7 @@ def get_pdf_text_chunks(pdf_path: Path) -> List[Dict[str, Any]]:
 def update_pdf_index() -> Dict[str, Any]:
     """Sync the index_rag.json file with the actual PDFs present in the pdf_reader directory."""
     paths.pdf_reader_dir.mkdir(parents=True, exist_ok=True)
-    
+
     index_data = {}
     if INDEX_FILE.exists():
         try:
@@ -107,15 +107,15 @@ def update_pdf_index() -> Dict[str, Any]:
                 index_data = json.load(f)
         except Exception:
             index_data = {}
-            
+
     pdf_files = list(paths.pdf_reader_dir.glob("*.pdf"))
     pdf_names = {f.name for f in pdf_files}
-    
+
     # Remove deleted PDFs from index
     keys_to_delete = [k for k in index_data if k not in pdf_names]
     for k in keys_to_delete:
         del index_data[k]
-        
+
     # Index new or modified PDFs
     updated = False
     for f in pdf_files:
@@ -123,7 +123,7 @@ def update_pdf_index() -> Dict[str, Any]:
             mtime = os.path.getmtime(f)
         except Exception:
             mtime = 0.0
-            
+
         if f.name not in index_data or index_data[f.name].get("mtime") != mtime:
             chunks = get_pdf_text_chunks(f)
             index_data[f.name] = {
@@ -131,14 +131,14 @@ def update_pdf_index() -> Dict[str, Any]:
                 "chunks": chunks
             }
             updated = True
-            
+
     if updated or keys_to_delete:
         try:
             with INDEX_FILE.open("w", encoding="utf-8") as f:
                 json.dump(index_data, f, ensure_ascii=False, indent=2)
         except Exception:
             pass
-            
+
     return index_data
 
 def search_user_documents(query: str, limit: int = 3) -> List[Dict[str, Any]]:
@@ -147,10 +147,10 @@ def search_user_documents(query: str, limit: int = 3) -> List[Dict[str, Any]]:
     query_words = [w for w in query_norm.split() if len(w) > 2]
     if not query_words:
         return []
-        
+
     index_data = update_pdf_index()
     scored_chunks = []
-    
+
     for doc_name, doc_info in index_data.items():
         chunks = doc_info.get("chunks", [])
         for chunk in chunks:
@@ -167,7 +167,7 @@ def search_user_documents(query: str, limit: int = 3) -> List[Dict[str, Any]]:
                     "page": chunk.get("page", 1),
                     "text": text
                 })
-                
+
     scored_chunks.sort(key=lambda x: x["score"], reverse=True)
     return scored_chunks[:limit]
 
@@ -193,17 +193,17 @@ async def get_embedding(text: str, api_key: str) -> List[float] | None:
     import asyncio
     url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent"
     headers = {"Content-Type": "application/json"}
-    
+
     if api_key.startswith("AIzaSy") or api_key.startswith("AQ"):
         url = f"{url}?key={api_key}"
     else:
         headers["Authorization"] = f"Bearer {api_key}"
-        
+
     payload = {
         "model": "models/text-embedding-004",
         "content": {"parts": [{"text": text}]}
     }
-    
+
     retries = 3
     backoff = 1.0
     for attempt in range(retries):
@@ -230,7 +230,7 @@ async def get_embedding(text: str, api_key: str) -> List[float] | None:
 async def search_vector_catalog(query: str, api_key: str, limit: int = 5) -> List[Dict[str, Any]]:
     if not api_key:
         return []
-    
+
     from app.core.db_helpers import query_db
     has_vector = False
     try:
@@ -292,7 +292,7 @@ async def search_vector_catalog(query: str, api_key: str, limit: int = 5) -> Lis
                 "text": r["text_content"],
                 "score": sim
             })
-            
+
     return results
 
 
@@ -300,10 +300,10 @@ def get_rag_context(query: str) -> str:
     """Fetch matching manual chapters, user documents, and catalog items, and format them into a markdown block."""
     if not query:
         return ""
-        
+
     manual_matches = search_manual(query, limit=2)
     doc_matches = search_user_documents(query, limit=3)
-    
+
     catalog_matches = []
     try:
         from app.modules.assistant.schema_context import get_gemini_api_key
@@ -323,12 +323,12 @@ def get_rag_context(query: str) -> str:
     except Exception as e:
         import logging
         logging.getLogger("fabouanes.rag").debug("Semantic catalog search skipped: %s", e)
-        
+
     if not manual_matches and not doc_matches and not catalog_matches:
         return ""
-        
+
     context_lines = []
-    
+
     if catalog_matches:
         context_lines.append("\n=== CONTEXTE CATALOGUE PRODUITS (RAG VECTORIEL SEMANTIQUE) ===")
         context_lines.append("Voici les articles du catalogue sémantiquement proches de la demande :")
@@ -336,7 +336,7 @@ def get_rag_context(query: str) -> str:
             kind_str = "Produit Fini" if c["kind"] == "finished" else "Matière Première"
             context_lines.append(f"- [{kind_str} ID={c['id']}] {c['text']} (similarité: {c['score']:.2f})")
         context_lines.append("================================================================\n")
-        
+
     if manual_matches:
         context_lines.append("\n=== CONTEXTE MANUEL UTILISATEUR ERP (RAG) ===")
         context_lines.append("Voici les sections pertinentes du manuel d'utilisation de l'ERP pour guider votre réponse :")
@@ -347,14 +347,14 @@ def get_rag_context(query: str) -> str:
                 context_lines.append(f"- {step}")
             if m["fr_example"]:
                 context_lines.append(f"Exemple : {m['fr_example']}")
-                
+
             context_lines.append("Instructions d'utilisation (Arabe) :")
             for step in m["ar_usage"]:
                 context_lines.append(f"- {step}")
             if m["ar_example"]:
                 context_lines.append(f"Exemple : {m['ar_example']}")
         context_lines.append("=============================================\n")
-        
+
     if doc_matches:
         context_lines.append("\n=== CONTEXTE DOCUMENTS UTILISATEURS IMPORTÉS (RAG) ===")
         context_lines.append("Voici les passages pertinents extraits des documents PDF importés par l'utilisateur :")
@@ -362,5 +362,5 @@ def get_rag_context(query: str) -> str:
             context_lines.append(f"\nDocument : {d['doc_name']} (Page {d['page']})")
             context_lines.append(f"Extrait : {d['text']}")
         context_lines.append("======================================================\n")
-        
+
     return "\n".join(context_lines)

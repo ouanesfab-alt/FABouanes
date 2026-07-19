@@ -214,7 +214,7 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
     """Regenerates embeddings for all catalog items that do not have them yet."""
     job_id = ctx.get("job_id", "direct-run")
     await update_task_progress(job_id, 10, "Démarrage de la génération d'embeddings du catalogue...")
-    
+
     if not api_key:
         from app.modules.assistant.schema_context import get_gemini_api_key
         api_key = get_gemini_api_key()
@@ -228,7 +228,7 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
 
     raw_mats = query_db("SELECT id, name, category, unit FROM raw_materials") or []
     fin_prods = query_db("SELECT id, name, category FROM finished_products") or []
-    
+
     total_items = len(raw_mats) + len(fin_prods)
     if total_items == 0:
         await update_task_progress(job_id, 100, "Catalogue vide, aucune action requise.")
@@ -249,7 +249,7 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
         existing = query_db("SELECT 1 FROM catalog_embeddings WHERE item_kind = 'raw' AND item_id = %s", (item_id,), one=True)
         if existing:
             continue
-        
+
         text = f"Matière première: {item['name']}, catégorie: {item['category'] or 'aucune'}, unité: {item['unit'] or 'u'}"
         emb = await get_embedding(text, api_key)
         if emb:
@@ -266,7 +266,7 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
         existing = query_db("SELECT 1 FROM catalog_embeddings WHERE item_kind = 'finished' AND item_id = %s", (item_id,), one=True)
         if existing:
             continue
-        
+
         text = f"Produit fini: {item['name']}, catégorie: {item['category'] or 'aucune'}"
         emb = await get_embedding(text, api_key)
         if emb:
@@ -305,7 +305,7 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
                 staging_id = r["id"]
                 idempotency_key = r["idempotency_key"]
                 payload_str = r["payload"]
-                
+
                 if idempotency_key:
                     cached_res = await check_idempotency(idempotency_key)
                     if cached_res is not None:
@@ -320,7 +320,7 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
                     validated = SaleFormSchema(**payload)
                     await sales_service.create_sale_from_form(validated)
                     await session.commit()
-                    
+
                     if idempotency_key:
                         await save_idempotency(idempotency_key, {"content": {"ok": True}, "status_code": 200})
 
@@ -356,7 +356,7 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
                 from app.core.db_helpers import db_transaction
                 with db_transaction():
                     await create_payment_from_form(payload)
-                
+
                 if idempotency_key:
                     await save_idempotency(idempotency_key, {"content": {"ok": True}, "status_code": 200})
 
@@ -394,7 +394,7 @@ async def enqueue_background_task(task_name: str, *args: Any, **kwargs: Any) -> 
 
     from app.core.db_helpers import execute_db, query_db
     payload = json.dumps({"args": args, "kwargs": kwargs})
-    
+
     rows = query_db(
         """
         INSERT INTO background_jobs (task_name, payload, status)
@@ -406,12 +406,12 @@ async def enqueue_background_task(task_name: str, *args: Any, **kwargs: Any) -> 
     )
     job_id = str(rows["id"]) if rows else f"job-{os.urandom(4).hex()}"
     logger.info("Enqueued background task to database", task=task_name, job_id=job_id)
-    
+
     try:
         execute_db("NOTIFY background_jobs_channel")
     except Exception:
         pass
-        
+
     return job_id
 
 

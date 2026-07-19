@@ -287,8 +287,16 @@ class TestPermissions:
 class TestPasswordValidation:
     def test_pin_valid(self):
         from app.core.security import validate_password_strength
-        ok, msg = validate_password_strength("1234", mode="pin")
+        ok, msg = validate_password_strength("5823", mode="pin")
         assert ok is True and msg == ""
+
+    def test_pin_trivial_rejected(self):
+        from app.core.security import validate_password_strength
+        # Common trivial PINs must be rejected
+        for pin in ["1234", "0000", "1111", "9999", "4321"]:
+            ok, msg = validate_password_strength(pin, mode="pin")
+            assert ok is False, f"PIN {pin!r} should be rejected"
+            assert "simple" in msg.lower() or "prévisible" in msg.lower()
 
     def test_pin_too_short(self):
         from app.core.security import validate_password_strength

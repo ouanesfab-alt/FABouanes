@@ -12,39 +12,39 @@ async def handle_production(func_name: str, func_args: dict, session_maker, user
             finished_product_id = int(func_args.get("finished_product_id"))
             quantity = sanitize_numeric(func_args.get("quantity"))
             notes = str(func_args.get("notes", "")).strip()
-    
+
             from app.core.models_pkg.catalog import FinishedProduct, RawMaterial
             from app.core.models_pkg.production import ProductionBatch, ProductionBatchItem, SavedRecipe, SavedRecipeItem
             from app.services.stock_service import apply_finished_production, apply_raw_material_consumption
             from sqlmodel import select
             from decimal import Decimal
             import datetime
-    
+
             async with session_maker() as session:
                 # 1. Fetch finished product
                 prod_res = await session.execute(select(FinishedProduct).where(FinishedProduct.id == finished_product_id))
                 db_product = prod_res.scalar_one_or_none()
                 if not db_product:
                     return {"error": f"Produit final ID {finished_product_id} introuvable."}
-    
+
                 # 2. Check for a recipe
                 recipe_res = await session.execute(select(SavedRecipe).where(SavedRecipe.finished_product_id == finished_product_id))
                 db_recipe = recipe_res.scalar_one_or_none()
-    
+
                 recipe_lines = []
                 total_cost = 0.0
-    
+
                 if db_recipe:
                     # Fetch recipe ingredients
                     items_res = await session.execute(select(SavedRecipeItem).where(SavedRecipeItem.recipe_id == db_recipe.id))
                     recipe_items = items_res.scalars().all()
-    
+
                     for item in recipe_items:
                         mat_res = await session.execute(select(RawMaterial).where(RawMaterial.id == item.raw_material_id))
                         material = mat_res.scalar_one_or_none()
                         if not material:
                             return {"error": f"Matière première ID {item.raw_material_id} introuvable dans la recette."}
-    
+
                         req_qty = float(item.quantity) * quantity
                         line_cost = req_qty * float(material.avg_cost)
                         recipe_lines.append({
@@ -54,7 +54,7 @@ async def handle_production(func_name: str, func_args: dict, session_maker, user
                             "line_cost": line_cost
                         })
                         total_cost += line_cost
-    
+
                 # 3. Create the batch
                 batch = ProductionBatch(
                     finished_product_id=finished_product_id,
@@ -67,7 +67,7 @@ async def handle_production(func_name: str, func_args: dict, session_maker, user
                 session.add(batch)
                 await session.flush()
                 batch_id = batch.id
-    
+
                 # 4. Consume ingredients and add batch items
                 for line in recipe_lines:
                     item = ProductionBatchItem(
@@ -87,7 +87,7 @@ async def handle_production(func_name: str, func_args: dict, session_maker, user
                         reason="production",
                         db=session
                     )
-    
+
                 # 5. Add finished product to stock and record movement
                 await apply_finished_production(
                     product={"id": finished_product_id},
@@ -96,9 +96,9 @@ async def handle_production(func_name: str, func_args: dict, session_maker, user
                     reference_id=batch_id,
                     db=session
                 )
-    
+
                 await session.commit()
-    
+
             return {"success": True, "batch_id": batch_id}
 
     elif func_name == "delete_production":
@@ -120,7 +120,7 @@ async def handle_production(func_name: str, func_args: dict, session_maker, user
             name = func_args.get("name", "").strip()
             notes = func_args.get("notes", "").strip()
             items = func_args.get("items", [])
-            
+
             recipe_lines = []
             for it in items:
                 raw_id = int(it.get("raw_material_id") or 0)
@@ -129,7 +129,7 @@ async def handle_production(func_name: str, func_args: dict, session_maker, user
                     "material": {"id": raw_id},
                     "qty": qty
                 })
-                
+
             recipe_id = await save_recipe_definition(
                 finished_id=finished_id,
                 recipe_name=name,

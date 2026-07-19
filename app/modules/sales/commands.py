@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import date
-from typing import Any, Dict, List, Tuple
+from typing import Tuple
 from sqlmodel import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 

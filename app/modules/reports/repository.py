@@ -710,13 +710,13 @@ async def refresh_client_balances_view(db: AsyncSession | None = None) -> None:
             _REFRESH_PENDING = True
             logger.debug("Materialized view refresh throttled, scheduling trailing call...")
             delay = 10.0 - (now - _LAST_REFRESH_TIME_IN_MEM) + 0.1
-            
+
             async def delayed_refresh():
                 await asyncio.sleep(delay)
                 global _REFRESH_PENDING
                 _REFRESH_PENDING = False
                 await refresh_client_balances_view()
-                
+
             try:
                 loop = asyncio.get_running_loop()
                 loop.create_task(delayed_refresh())
@@ -1050,7 +1050,7 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
     from datetime import date, timedelta
     from app.core.models import Client
     from sqlalchemy import cast, Date
-    
+
     today_obj = date.today()
     start_date = today_obj - timedelta(days=days - 1)
 
@@ -1111,7 +1111,7 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
 
     elif metric == "receivables":
         current_rec = float(await db.scalar(select(func.coalesce(func.sum(literal_column("balance")), 0)).select_from(text("mv_client_balances"))) or 0)
-        
+
         sf_changes = select(Sale.sale_date, func.sum(Sale.total)).where(Sale.sale_type == 'credit', Sale.sale_date >= start_date).group_by(Sale.sale_date)
         res_sf = await db.execute(sf_changes)
         sf_map = {d: float(tot or 0) for d, tot in res_sf.all()}

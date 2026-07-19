@@ -1,9 +1,11 @@
 # FABOuanes
 
-**FABOuanes** est une solution de gestion commerciale et de bureau pensée pour la facturation, le suivi client, l'inventaire, la production et l'assistance métier. Le projet combine une application **FastAPI**, une interface web moderne (rendu serveur + PWA offline) et un assistant IA nommé **Sabrina** pour accompagner les utilisateurs dans leurs tâches quotidiennes.
+**FABOuanes** est une solution ERP de gestion commerciale conçue pour les PME : facturation, suivi client, gestion des stocks, production et assistant métier IA. Le projet combine une application **FastAPI** (rendu serveur + API REST), une interface web moderne (PWA installable en mode hors-ligne) et un assistant IA nommé **Sabrina** qui exécute des actions métier via le langage naturel.
 
 ![Version](https://img.shields.io/badge/version-2.0.5-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Tests](https://img.shields.io/badge/tests-541%20passed-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-78%25-green)
 ![License](https://img.shields.io/badge/license-Proprietary-lightgrey)
 
 ---
@@ -21,6 +23,7 @@
 - [Déploiement](#déploiement)
 - [Observabilité](#observabilité)
 - [Sécurité](#sécurité)
+- [Limitations connues](#limitations-connues)
 - [Contribuer](#contribuer)
 - [Changelog](#changelog)
 
@@ -28,14 +31,16 @@
 
 ## Fonctionnalités principales
 
-- **Gestion commerciale et facturation** — ventes, achats, production, catalogue
-- **Suivi des clients, fournisseurs et opérations** avec historique complet
-- **Assistant Sabrina** intégré, capable d'exécuter des actions métier via langage naturel (Gemini ou Ollama en local) avec gestion robuste des confirmations, mémoire persistance et résilience aux doublons
-- **Interface web et bureau** : rendu serveur (Jinja2), PWA installable avec mode hors-ligne, application desktop via `pywebview`
-- **API mobile** dédiée (JWT) pour une application vendeur terrain
-- **Tableaux de bord et rapports** avec KPI, alertes et export PDF
-- **Sauvegardes automatiques**, audit trail complet, cache haute performance
-- **Déploiement local ou conteneurisé** (Docker Compose)
+- **Gestion commerciale complète** — ventes cash/crédit, achats fournisseurs, facturation, production
+- **Gestion des stocks en temps réel** — alertes de seuil, traçabilité des mouvements, coût moyen pondéré
+- **Suivi clients et fournisseurs** — historique, créances, import en masse via Excel
+- **Assistant Sabrina** — IA intégrée (Gemini API ou Ollama local) qui exécute des actions métier via le langage naturel, avec mémoire persistante, garde-fou SQL et gestion des confirmations
+- **Interface web + bureau** — rendu serveur Jinja2, PWA installable avec synchronisation hors-ligne, application desktop via `pywebview`
+- **API mobile dédiée** — JWT Bearer pour une application vendeur terrain
+- **Tableaux de bord et rapports** — KPI temps réel, alertes configurable, export PDF
+- **Sauvegardes automatiques** — nightly vers dossier local ou Google Drive, rétention configurable
+- **Piste d'audit complète** — qui a fait quoi, quand, avant/après, pour chaque opération
+- **Déploiement local ou conteneurisé** — Docker Compose avec PostgreSQL + pgAdmin inclus
 
 ---
 
@@ -86,8 +91,9 @@ flowchart TB
 **Principes clés :**
 
 - **Modules auto-découverts** : chaque domaine métier (`app/modules/<nom>/`) s'enregistre lui-même via `ModuleDescriptor` ; ajouter un module ne nécessite aucune modification du core.
-- **Un seul worker applicatif** : le cache et le scheduler sont in-process ; la coordination multi-instance passe par une table `pubsub_events` PostgreSQL (voir [Limitations connues](#limitations-connues)).
+- **Worker applicatif unique** : le cache et le scheduler sont in-process ; la coordination multi-instance passe par une table `pubsub_events` PostgreSQL.
 - **Séparation web/API** : les routes HTML (`app/web/`) et les routes JSON (`app/api/v1/`) partagent les mêmes services métier.
+- **Sécurité défensive** : CSRF sur tous les formulaires, nonce CSP par requête, sanitisation XSS automatique, rate limiting configurable.
 
 ---
 
@@ -96,15 +102,15 @@ flowchart TB
 | Domaine | Technologies |
 |---|---|
 | Backend | FastAPI, SQLAlchemy 2.0, asyncpg, pg8000, Alembic |
-| Frontend | Jinja2, Bootstrap, JS modulaire (vanilla), Chart.js |
-| Base de données | PostgreSQL 16 |
+| Frontend | Jinja2, Bootstrap 5, JS modulaire (vanilla), Chart.js, HTMX, AlpineJS |
+| Base de données | PostgreSQL 16 (+ extension pgvector optionnelle) |
 | Assistant IA | Google Gemini API, Ollama (modèles locaux) |
 | Sécurité | JWT (PyJWT), CSRF, CSP, rate limiting (slowapi), RBAC |
 | Observabilité | OpenTelemetry, structlog, Prometheus |
 | Desktop | pywebview |
 | PWA | Service Worker, IndexedDB (mode hors-ligne) |
 | Conteneurisation | Docker multi-stage, Docker Compose |
-| CI/CD | GitHub Actions (lint ruff/mypy, tests pytest + coverage) |
+| CI/CD | GitHub Actions (lint ruff/mypy, tests pytest + coverage ≥ 75 %) |
 
 ---
 
@@ -134,13 +140,13 @@ python -m pip install -r requirements.txt
 copy .env.example .env
 # Éditer .env : définir DATABASE_URL, SECRET_KEY, DEFAULT_ADMIN_PASSWORD
 
-# 5. Lancer l'application (les migrations s'appliquent automatiquement au démarrage)
+# 5. Lancer l'application (migrations appliquées automatiquement au démarrage)
 python -m uvicorn app.main:app --host 0.0.0.0 --port 5000 --reload
 ```
 
-L'application est accessible sur `http://localhost:5000`. Le compte admin par défaut est créé au premier lancement (voir `.env` pour les identifiants).
+L'application est accessible sur `http://localhost:5000`. Le compte admin par défaut est créé au premier lancement — le mot de passe temporaire (PIN à 4 chiffres) est écrit dans le fichier `first_admin_password.txt` dans le dossier de données de l'application.
 
-### Lancement bureau
+### Mode bureau (desktop)
 
 ```powershell
 python launcher.py
@@ -149,10 +155,9 @@ python launcher.py
 ### Avec Docker Compose
 
 ```powershell
-# Copier et configurer les variables d'environnement
 copy .env.example .env
+# Éditez .env avec vos paramètres
 
-# Démarrer (base de données + application + pgAdmin)
 docker compose up --build
 ```
 
@@ -167,25 +172,28 @@ Services démarrés :
 curl http://localhost:5000/health
 ```
 
-Une réponse `{"status": "ok", ...}` confirme que la base de données, le scheduler et le cache sont opérationnels.
+Une réponse `{"status": "ok", ...}` confirme que la base de données, le worker de fond et le cache sont opérationnels.
 
 ---
 
 ## Configuration
 
-Toutes les variables sont documentées dans `.env.example`. Les plus importantes :
+Toutes les variables sont documentées dans [`.env.example`](./.env.example). Les plus importantes :
 
 | Variable | Rôle | Défaut |
 |---|---|---|
 | `SECRET_KEY` | Clé de session — **obligatoire en production** | auto-générée si vide |
-| `DATABASE_URL` | Connexion PostgreSQL (`postgresql://...`) | — |
-| `FAB_PASSWORD_MODE` | `0000` (4 chiffres) ou `password` (8+ car.) | `0000` |
+| `DATABASE_URL` | Connexion PostgreSQL (`postgresql://user:pass@host/db`) | — |
+| `FAB_PASSWORD_MODE` | `0000` (PIN 4 chiffres) ou `password` (8+ car.) | `0000` |
+| `DEFAULT_ADMIN_PASSWORD` | Mot de passe admin initial (éviter `1234` ou `admin`) | PIN aléatoire |
 | `SESSION_COOKIE_SECURE` | Cookies HTTPS-only | `0` (auto en production) |
 | `FAB_MODULES_DISABLED` | Désactiver des modules (`expenses,reports`) | — |
-| `WEB_CONCURRENCY` | Nombre de workers uvicorn | `1` (voir limitations) |
+| `WEB_CONCURRENCY` | Nombre de workers uvicorn | `1` |
 | `FAB_RATE_LIMIT_BACKEND` | `memory` ou `db` | `memory` |
+| `FAB_DISABLE_BACKGROUND_JOBS` | Désactiver le worker de fond (`1`) | `0` |
+| `GEMINI_API_KEY` | Clé API Google Gemini pour l'assistant Sabrina | — |
 
-> **Recommandation production** : passez `FAB_PASSWORD_MODE=password` dès qu'un accès réseau ou multi-utilisateur est activé — le mode `pin` (4 chiffres) est réservé à un usage desktop strictement local.
+> **Production** : utilisez `FAB_PASSWORD_MODE=password` dès qu'un accès réseau ou multi-utilisateur est activé — le mode PIN est réservé à un usage desktop strictement local.
 
 ---
 
@@ -195,27 +203,27 @@ Toutes les variables sont documentées dans `.env.example`. Les plus importantes
 FABouanes/
 ├── app/
 │   ├── api/            # Routes API REST (JSON) — /api/v1/*
-│   ├── core/            # Config, DB, cache, sécurité, audit, event bus
-│   ├── modules/          # Modules métier auto-découverts
-│   │   ├── assistant/    # Assistant Sabrina (IA)
-│   │   ├── catalog/      # Catalogue produits
-│   │   ├── clients/      # Gestion clients
-│   │   ├── expenses/     # Dépenses
-│   │   ├── payments/     # Paiements
-│   │   ├── production/   # Production
-│   │   ├── purchases/    # Achats
-│   │   ├── reports/      # Rapports & dashboards
-│   │   ├── sales/        # Ventes
-│   │   └── users/        # Utilisateurs & rôles
-│   ├── services/         # Services transverses (auth, backup, stock...)
-│   └── web/              # Routes HTML (rendu serveur)
-├── alembic/              # Migrations de base de données
-├── templates/            # Vues Jinja2
-├── static/               # CSS, JS, assets, PWA (manifest, service worker)
-├── tests/                # Tests automatisés (pytest)
-├── deploy/               # Fichiers de déploiement (Docker)
-├── installer/            # Scripts d'installation Windows
-└── scripts/              # Scripts utilitaires
+│   ├── core/           # Config, DB, cache, sécurité, audit, event bus
+│   ├── modules/        # Modules métier auto-découverts
+│   │   ├── assistant/  # Assistant Sabrina (IA)
+│   │   ├── catalog/    # Catalogue produits & matières premières
+│   │   ├── clients/    # Gestion clients
+│   │   ├── expenses/   # Dépenses
+│   │   ├── payments/   # Paiements clients/fournisseurs
+│   │   ├── production/ # Suivi de production
+│   │   ├── purchases/  # Achats fournisseurs
+│   │   ├── reports/    # Rapports & tableaux de bord
+│   │   ├── sales/      # Ventes & facturation
+│   │   └── users/      # Utilisateurs & rôles
+│   ├── services/       # Services transverses (auth, backup, stock...)
+│   └── web/            # Routes HTML (rendu serveur)
+├── alembic/            # Migrations de base de données
+├── templates/          # Vues Jinja2
+├── static/             # CSS, JS, assets, PWA (manifest, service worker)
+├── tests/              # Tests automatisés (pytest, ~540 tests, ≥ 75 % couverture)
+├── scripts/            # Scripts utilitaires (import, stress test, rate limit)
+├── deploy/             # Fichiers de déploiement
+└── installer/          # Scripts d'installation Windows
 ```
 
 ---
@@ -224,32 +232,47 @@ FABouanes/
 
 | Module | Rôle |
 |---|---|
-| `assistant` | Assistant IA Sabrina — classification d'intention, actions outillées, garde-fou SQL |
-| `catalog` | Gestion du catalogue produits et matières premières |
-| `clients` | Fiches clients, historique, import en masse |
-| `expenses` | Suivi des dépenses |
-| `payments` | Paiements clients/fournisseurs |
-| `production` | Suivi de production et recettes |
-| `purchases` | Achats fournisseurs |
-| `reports` | Tableaux de bord, KPI, alertes |
-| `sales` | Ventes et facturation |
-| `users` | Utilisateurs, rôles et permissions (RBAC) |
+| `assistant` | Assistant IA Sabrina — classification d'intention, actions outillées, garde-fou SQL, mémoire persistante |
+| `catalog` | Gestion du catalogue produits finis et matières premières |
+| `clients` | Fiches clients, historique, créances, import en masse |
+| `expenses` | Suivi et catégorisation des dépenses |
+| `payments` | Paiements clients/fournisseurs avec réconciliation |
+| `production` | Suivi de production avec consommation de stock automatique |
+| `purchases` | Achats fournisseurs avec mise à jour du stock |
+| `reports` | Tableaux de bord, KPI temps réel, alertes, export PDF |
+| `sales` | Ventes cash/crédit, facturation, documents de vente |
+| `users` | Utilisateurs, rôles et permissions (RBAC à 3 niveaux) |
 
-Chaque module déclare ses routes web/API, son schéma SQL et ses permissions via `ModuleDescriptor` — voir `app/core/registry.py` pour le mécanisme d'enregistrement.
+Chaque module déclare ses routes web/API, son schéma SQL et ses permissions via `ModuleDescriptor` — voir [`app/core/registry.py`](./app/core/registry.py) pour le mécanisme d'enregistrement.
 
 ---
 
 ## Tests
 
-```bash
-# Lancer la suite de tests avec couverture
-python -m pytest --cov=app --cov-report=term-missing
+La suite de tests utilise **pytest** avec SQLite en mémoire (sans dépendance PostgreSQL). La couverture de code est mesurée automatiquement.
 
-# Lancer uniquement les tests de services avec le seuil de couverture strict (80%)
-python -m pytest --cov=app --cov-config=tests/pyproject_services.toml --cov-fail-under=80
+```bash
+# Lancer la suite complète avec couverture
+python -m pytest
+
+# Lancer un fichier de test précis
+python -m pytest tests/test_financial_core.py -v
+
+# Voir le rapport de couverture HTML
+python -m pytest --cov-report=html
+# → Ouvrir htmlcov/index.html
 ```
 
-> **État actuel** : le seuil de couverture appliqué en CI est de 20 % (`--cov-fail-under=20` dans `.github/workflows/ci.yml`). Un seuil plus strict (80 %) existe pour les services métier critiques (`tests/pyproject_services.toml`) mais n'est pas encore appliqué en continu — objectif à court terme.
+**État actuel :**
+
+| Métrique | Valeur |
+|---|---|
+| Tests | ~540 (541 au dernier run) |
+| Couverture globale | ≈ 78 % |
+| Seuil CI obligatoire | 75 % (`--cov-fail-under=75`) |
+| Temps d'exécution | ~50 secondes |
+
+Modules avec couverture élevée (> 90 %) : `exceptions`, `helpers`, `jwt_auth`, `models`, `schema/*`, `registry`, `runtime_paths`, `assistant/briefing`, `assistant/memory`, `assistant/tool_actions_tools`.
 
 ---
 
@@ -264,19 +287,24 @@ docker build -t fabouanes:latest .
 docker run -p 5000:5000 --env-file .env fabouanes:latest
 ```
 
-### Limitations connues
+### Variables d'environnement spécifiques au déploiement
 
-- **Un seul worker applicatif recommandé** (`WEB_CONCURRENCY=1`) : le cache et le scheduler de sauvegarde sont in-process. Le multi-worker peut être activé explicitement (`FAB_ALLOW_MULTI_WORKER=1`) ; la cohérence inter-workers passe alors par une table `pubsub_events` avec une latence de propagation d'environ 1 seconde.
-- PostgreSQL est le seul moteur de base de données supporté (validation stricte de `DATABASE_URL`).
+| Variable | Recommandation production |
+|---|---|
+| `SECRET_KEY` | Chaîne aléatoire de 64+ caractères |
+| `FAB_PASSWORD_MODE` | `password` |
+| `SESSION_COOKIE_SECURE` | `1` (HTTPS uniquement) |
+| `FAB_LOG_JSON` | `1` (logs JSON structurés) |
+| `WEB_CONCURRENCY` | `1` (voir Limitations) |
 
 ---
 
 ## Observabilité
 
-- **Métriques** : exposées au format Prometheus sur `/metrics` (instrumentées via `prometheus-fastapi-instrumentator`)
+- **Métriques** : Prometheus sur `/metrics`
 - **Traces** : OpenTelemetry, exportables vers un collecteur OTLP (`OTEL_EXPORTER_OTLP_ENDPOINT`)
-- **Logs** : format JSON structuré en production (`FAB_LOG_JSON=1`), texte lisible en développement
-- **Health check** : `/health` et `/readiness` — vérifient la base de données, le scheduler de sauvegarde, l'espace disque et le cache
+- **Logs** : JSON structuré en production (`FAB_LOG_JSON=1`), texte lisible en développement
+- **Health checks** : `/health` (état global) et `/readiness` (DB + scheduler + cache + disque)
 
 ---
 
@@ -287,10 +315,20 @@ docker run -p 5000:5000 --env-file .env fabouanes:latest
 - Sanitisation XSS automatique des champs de formulaire (middleware transverse)
 - RBAC à trois rôles (`admin`, `manager`, `operator`) avec permissions déclaratives par endpoint
 - Authentification JWT dédiée pour l'API mobile
-- Rate limiting configurable (mémoire ou base de données)
+- Rate limiting configurable (mémoire ou PostgreSQL)
 - Piste d'audit asynchrone (qui a fait quoi, quand, avant/après)
+- Validation stricte des identifiants SQL (protection injection)
+- Worker de fond démarré **après** bootstrap complet du schéma (évite les erreurs de table manquante)
 
 Pour signaler une vulnérabilité, contactez l'équipe via le dépôt GitHub plutôt que d'ouvrir une issue publique.
+
+---
+
+## Limitations connues
+
+- **Un seul worker applicatif recommandé** (`WEB_CONCURRENCY=1`) : le cache et le scheduler de sauvegarde sont in-process. Le multi-worker peut être activé explicitement (`FAB_ALLOW_MULTI_WORKER=1`) ; la cohérence inter-workers passe alors par une table `pubsub_events` avec une latence de propagation d'environ 1 seconde.
+- **PostgreSQL uniquement** : seul moteur de base de données supporté (validation stricte de `DATABASE_URL`). SQLite n'est utilisé qu'en environnement de test.
+- **pgvector optionnel** : le RAG sémantique de Sabrina nécessite l'extension `pgvector`. En son absence, un fallback mathématique Python prend le relais automatiquement.
 
 ---
 
@@ -299,7 +337,7 @@ Pour signaler une vulnérabilité, contactez l'équipe via le dépôt GitHub plu
 1. Créez une branche depuis `main` : `git checkout -b feature/ma-fonctionnalite`
 2. Respectez le style existant (`ruff check app/`, `mypy app/`)
 3. Ajoutez des tests pour toute nouvelle logique métier
-4. Vérifiez que la suite complète passe : `pytest --cov=app`
+4. Vérifiez que la suite complète passe : `python -m pytest`
 5. Ouvrez une pull request avec une description claire du changement
 
 Les migrations de base de données doivent être ajoutées via Alembic (`alembic revision -m "description"`) et testées avant fusion.
@@ -313,7 +351,3 @@ Les migrations de base de données doivent être ajoutées via Alembic (`alembic
 ## Changelog
 
 Voir [CHANGELOG.md](./CHANGELOG.md) pour l'historique détaillé des versions.
-
-## Notes
-
-Ce projet est en évolution continue. Les instructions de démarrage et les dépendances peuvent évoluer selon les versions locales et les environnements de déploiement.

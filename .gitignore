@@ -48,3 +48,11 @@ Desktop.ini
 # Sabrina runtime logs
 sabrina_audit.jsonl
 sabrina_failures.jsonl
+
+# Stress test logs
+http_stress_test.log
+*.stress.log
+
+# Coverage reports
+htmlcov/
+coverage.xml

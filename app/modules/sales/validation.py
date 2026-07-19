@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.core.exceptions import ValidationError, NotFoundError
 from app.core.models import Client, FinishedProduct, RawMaterial
 from app.services.stock_service import qty_to_kg
-from app.modules.sales.schemas_validation import SaleFormSchema
 
 class SalesValidator:
     """Valide les règles métier du module Sales."""
@@ -39,7 +37,7 @@ class SalesValidator:
         session: AsyncSession
     ) -> tuple[FinishedProduct | RawMaterial, float]:
         qty_kg = qty_to_kg(qty, unit)
-        
+
         if item_kind == "finished" or item_kind == "sale_finished":
             # Fetch finished product
             stmt = select(FinishedProduct).where(FinishedProduct.id == item_id).with_for_update()

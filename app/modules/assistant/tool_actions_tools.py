@@ -73,7 +73,7 @@ async def handle_tools(func_name: str, func_args: dict, session_maker, user_role
             from sqlalchemy import select
             from app.core.models import RawMaterial, FinishedProduct
             from app.services.alert_service import check_overdue_clients
-            
+
             alerts = []
             async with session_maker() as session:
                 raws_res = await session.execute(
@@ -82,18 +82,18 @@ async def handle_tools(func_name: str, func_args: dict, session_maker, user_role
                 )
                 for row in raws_res.all():
                     alerts.append(f"Alerte Stock Matière : '{row.name}' est bas ({row.stock_qty} {row.unit} restant, seuil: {row.alert_threshold})")
-                    
+
                 finished_res = await session.execute(
                     select(FinishedProduct.name, FinishedProduct.stock_qty, FinishedProduct.alert_threshold, FinishedProduct.default_unit)
                     .where(FinishedProduct.stock_qty <= FinishedProduct.alert_threshold, FinishedProduct.alert_threshold > 0)
                 )
                 for row in finished_res.all():
                     alerts.append(f"Alerte Stock Produit : '{row.name}' est bas ({row.stock_qty} {row.default_unit} restant, seuil: {row.alert_threshold})")
-                    
+
                 overdue_clients = await check_overdue_clients(db=session)
                 for cl in overdue_clients:
                     alerts.append(f"Alerte Paiement : Client '{cl['name']}' est inactif depuis {int(cl['jours_inactif'] or 0)} jours avec une dette en cours de {cl['balance']:,} DA")
-                    
+
             return {"alerts": alerts if alerts else ["Aucune alerte active."]}
 
     elif func_name == "redirect_to":

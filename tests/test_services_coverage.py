@@ -1157,8 +1157,14 @@ class TestCriticalServiceIntegrity:
     def test_password_strength_pin_mode(self):
         """Vérifie la validation des PINs en mode 'pin'."""
         from app.core.security import validate_password_strength
-        ok, _ = validate_password_strength("1234", mode="pin")
+        # Non-trivial valid PIN
+        ok, _ = validate_password_strength("5823", mode="pin")
         assert ok
+        # Trivial PINs must be blocked
+        bad_trivial, msg_trivial = validate_password_strength("1234", mode="pin")
+        assert not bad_trivial
+        assert "simple" in msg_trivial.lower() or "prévisible" in msg_trivial.lower()
+        # Format errors
         bad1, msg1 = validate_password_strength("123", mode="pin")
         assert not bad1
         bad2, msg2 = validate_password_strength("abcd", mode="pin")

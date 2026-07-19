@@ -336,13 +336,13 @@ async def _list_audit_logs_impl(
     filters = filters or {}
     where: list[str] = []
     params: dict[str, Any] = {}
-    
+
     if filters.get("date_from"):
         parsed = safe_parse_date(filters["date_from"])
         if parsed:
             where.append("CAST(created_at AS DATE) >= CAST(:date_from AS DATE)")
             params["date_from"] = parsed
-            
+
     if filters.get("date_to"):
         parsed = safe_parse_date(filters["date_to"])
         if parsed:
@@ -360,7 +360,7 @@ async def _list_audit_logs_impl(
             ")"
         )
         params["q"] = f"%{filters['q']}%"
-        
+
     if filters.get("actor"):
         where.append("lower(actor_username) LIKE lower(:actor)")
         params["actor"] = f"%{filters['actor']}%"

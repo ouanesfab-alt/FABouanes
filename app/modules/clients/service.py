@@ -484,14 +484,14 @@ class ClientService:
                 self._save_uploaded_file(uploaded, temp_path)
                 parsed = parse_excel_client_file(temp_path)
                 data = parse_client_history_excel(str(temp_path))
-                
+
                 rows = data.get("rows", [])
                 # Le dernier solde cumulé de l'historique = le vrai solde actuel dû
                 # (rows[0] = solde d'ouverture historique, rows[-1] = dette finale réelle)
                 opening = rows[-1]["solde_cumule"] if rows else data.get("solde_final", 0.0)
                 if opening <= 0 and parsed.get("opening_credit", 0.0) > 0:
                     opening = parsed["opening_credit"]
-                
+
                 client_name_val = parsed["name"] or data["client_name"] or "Client inconnu"
                 name_key = str(client_name_val).strip().casefold()
                 if not name_key or name_key == "client inconnu":
@@ -640,7 +640,7 @@ class ClientService:
                             op_date = date.fromisoformat(dt_val.strip())
                         else:
                             op_date = dt_val
-                        
+
                         history_objs.append(
                             ClientHistory(
                                 client_id=client_id,
@@ -698,7 +698,7 @@ class ClientService:
         data = parse_client_history_excel(file_path)
         client_name = data["client_name"]
         rows = data["rows"]
-        
+
         # Le dernier solde cumulé de l'historique = la dette actuelle réelle du client
         # (rows[0] = solde d'ouverture initial, rows[-1] = solde final après tous mouvements)
         opening_credit = rows[-1]["solde_cumule"] if rows else 0.0

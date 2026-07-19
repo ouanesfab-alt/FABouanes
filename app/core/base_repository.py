@@ -31,7 +31,9 @@ class AsyncRepository(Generic[T]):
         return entity
 
     async def update(self, entity: T) -> T:
-        """Update an existing entity."""
+        """Update an existing entity. Raises ValueError if the entity is None."""
+        if entity is None:
+            raise ValueError(f"Cannot update a None entity for {self.model_cls.__name__}")
         self.session.add(entity)
         await self.session.commit()
         await self.session.refresh(entity)

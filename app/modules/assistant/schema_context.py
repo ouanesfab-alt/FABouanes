@@ -593,7 +593,7 @@ def get_sabrina_system_prompt(model_name: str, rag_context: str = "") -> str:
 
     if rag_context:
         prompt_str += f"\n\n📚 CONTEXTE DOCUMENTATION & GUIDE UTILISATEUR :\n{rag_context}\n"
-    
+
     return prompt_str
 
 def get_encryption_key() -> bytes:
@@ -609,5 +609,5 @@ def get_gemini_api_key() -> str:
         from app.core.security import decrypt_val
         raw_val = db_manager.get_setting("gemini_api_key", "").strip()
         api_key = decrypt_val(raw_val, get_encryption_key()) or ""
-    
+
     return api_key

@@ -7,7 +7,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.core.database import create_request_connection
 from app.core.request_state import push_request_state, reset_request_state, set_state_value
 from app.core.security import security_headers
 from app.web.deps import ensure_csrf_token, load_user_from_session

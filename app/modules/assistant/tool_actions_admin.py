@@ -102,7 +102,7 @@ async def handle_admin(func_name: str, func_args: dict, session_maker, user_role
             role = func_args.get("role", "").strip()
             is_active = bool(func_args.get("is_active"))
             new_password = func_args.get("new_password", "").strip()
-            
+
             await update_user_account(
                 user_id=user_id,
                 role=role,

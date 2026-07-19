@@ -143,16 +143,16 @@ async def handle_catalog(func_name: str, func_args: dict, session_maker, user_ro
                 _assert_workspace_path(abs_path, workspace_dir)
             except ValueError as e:
                 return {"error": str(e)}
-    
+
             from app.services.excel_import_service import parse_excel_bulk_products
             try:
                 parsed_products = parse_excel_bulk_products(abs_path)
             except Exception as e:
                 return {"error": f"Erreur de lecture du fichier Excel : {str(e)}"}
-    
+
             from app.modules.catalog.service import CatalogService
             from app.modules.catalog.schemas_validation import RawMaterialCreateSchema, FinishedProductCreateSchema
-    
+
             imported_count = 0
             async with session_maker() as session:
                 service = CatalogService(session)
@@ -181,7 +181,7 @@ async def handle_catalog(func_name: str, func_args: dict, session_maker, user_ro
                     except Exception as e:
                         logger.warning("Échec d'importation du produit bulk %s : %s", p_data.get("name"), e)
                 await session.commit()
-    
+
             label = "matières premières" if is_raw else "produits finis"
             return {
                 "success": True,

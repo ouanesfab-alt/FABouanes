@@ -22,11 +22,6 @@ async def lifespan(app: FastAPI):
     ensure_runtime_dirs()
     configure_logging()
     start_audit_worker()
-    try:
-        from app.core.worker import start_worker
-        start_worker()
-    except Exception as e:
-        logger.warning("Erreur au démarrage du worker des tâches de fond: %s", e)
 
     # Initialize Observability (OpenTelemetry & structlog)
     try:
@@ -47,6 +42,13 @@ async def lifespan(app: FastAPI):
                 logger.warning("Module schema error for %s: %s", module.name, sql[:80])
 
     logger.info("Modules loaded: %s", [m.name for m in get_enabled_modules()])
+
+    # Start background worker now that all DB tables and staging schemas are fully ready
+    try:
+        from app.core.worker import start_worker
+        start_worker()
+    except Exception as e:
+        logger.warning("Erreur au démarrage du worker des tâches de fond: %s", e)
 
     from app.services.backup_service import start_background_services
     start_background_services(app)

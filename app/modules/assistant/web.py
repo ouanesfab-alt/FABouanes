@@ -61,7 +61,7 @@ async def assistant_chat(request: Request):
                     db_manager.set_setting("gemini_api_key", encrypted_key)
             except Exception:
                 pass
-        
+
         if not api_key:
             api_key = get_gemini_api_key()
 
@@ -242,7 +242,7 @@ async def test_api_key_endpoint(request: Request):
         key = get_gemini_api_key()
         if not key:
             return JSONResponse({"success": False, "error": "Aucune clé d'API enregistrée."})
-        
+
         import httpx
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={key}"
         payload = {"contents": [{"parts": [{"text": "Say ok"}]}]}
@@ -261,7 +261,7 @@ async def test_api_key_endpoint(request: Request):
                 except Exception:
                     err_msg = res.text
                     err_reason = ""
-                
+
                 if "API_KEY_SERVICE_BLOCKED" in err_reason or "api_key_service_blocked" in err_msg.lower():
                     friendly_err = "Clé bloquée : L'API Generative Language (Gemini) est restreinte ou désactivée pour cette clé dans la console Google Cloud. Veuillez créer une clé directement depuis Google AI Studio."
                 elif "leaked" in err_msg.lower():

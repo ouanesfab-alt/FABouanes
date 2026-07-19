@@ -91,7 +91,7 @@ async def delete_user_account(user_id: int, db: AsyncSession | None = None):
     user = await get_user_by_id(user_id, db=db)
     if not user:
         return {"ok": False, "message": "Utilisateur introuvable."}
-    
+
     if str(user["username"]) == DEFAULT_ADMIN_USERNAME:
         return {"ok": False, "message": "Le compte administrateur par défaut ne peut pas être supprimé."}
 
