@@ -2,7 +2,7 @@
 
 **FABOuanes** est une solution de gestion commerciale et de bureau pensée pour la facturation, le suivi client, l'inventaire, la production et l'assistance métier. Le projet combine une application **FastAPI**, une interface web moderne (rendu serveur + PWA offline) et un assistant IA nommé **Sabrina** pour accompagner les utilisateurs dans leurs tâches quotidiennes.
 
-![Version](https://img.shields.io/badge/version-2.0.2-blue)
+![Version](https://img.shields.io/badge/version-2.0.3-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License](https://img.shields.io/badge/license-Proprietary-lightgrey)
 

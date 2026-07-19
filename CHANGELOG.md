@@ -16,6 +16,14 @@ Le format s'inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) 
 
 ---
 
+## [2.0.3] — 2026-07-19
+
+### Optimisé
+- Mise en cache en mémoire (`_embedding_cache`) des embeddings de requêtes pour Sabrina afin de diviser par deux le délai réseau et d'éviter les appels API Gemini redondants.
+- Filtrage par seuil de pertinence (score >= 0.5) sur la recherche vectorielle afin de n'injecter dans le RAG de Sabrina que des produits sémantiquement pertinents.
+
+---
+
 ## [2.0.2] — 2026-07-19
 
 ### Ajouté

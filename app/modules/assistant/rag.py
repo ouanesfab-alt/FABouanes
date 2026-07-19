@@ -171,8 +171,24 @@ def search_user_documents(query: str, limit: int = 3) -> List[Dict[str, Any]]:
     scored_chunks.sort(key=lambda x: x["score"], reverse=True)
     return scored_chunks[:limit]
 
+import time
+_embedding_cache: dict[str, tuple[float, List[float]]] = {}
+CACHE_EXPIRY = 900.0  # 15 minutes
+
+
 async def get_embedding(text: str, api_key: str) -> List[float] | None:
-    """Fetch text embedding from Gemini API with retry and exponential backoff."""
+    """Fetch text embedding from Gemini API with retry, exponential backoff, and in-memory caching."""
+    # 1. Clean expired cache entries
+    now = time.time()
+    expired_keys = [k for k, v in _embedding_cache.items() if now - v[0] > CACHE_EXPIRY]
+    for k in expired_keys:
+        _embedding_cache.pop(k, None)
+
+    # 2. Check cache
+    cached = _embedding_cache.get(text)
+    if cached:
+        return cached[1]
+
     import httpx
     import asyncio
     url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent"
@@ -196,7 +212,9 @@ async def get_embedding(text: str, api_key: str) -> List[float] | None:
                 res = await client.post(url, json=payload, headers=headers)
                 res.raise_for_status()
                 data = res.json()
-                return data["embedding"]["values"]
+                vals = data["embedding"]["values"]
+                _embedding_cache[text] = (time.time(), vals)
+                return vals
         except Exception as e:
             import logging
             logger = logging.getLogger("fabouanes.rag")
@@ -238,12 +256,15 @@ async def search_vector_catalog(query: str, api_key: str, limit: int = 5) -> Lis
             (emb_str, limit)
         )
         for r in rows or []:
-            results.append({
-                "kind": r["item_kind"],
-                "id": r["item_id"],
-                "text": r["text_content"],
-                "score": 1.0 - float(r["distance"] or 0)
-            })
+            score = 1.0 - float(r["distance"] or 0)
+            # Enforce similarity threshold of 0.5
+            if score >= 0.5:
+                results.append({
+                    "kind": r["item_kind"],
+                    "id": r["item_id"],
+                    "text": r["text_content"],
+                    "score": score
+                })
     else:
         rows = query_db(
             "SELECT item_kind, item_id, text_content, embedding FROM catalog_embeddings"
@@ -258,7 +279,9 @@ async def search_vector_catalog(query: str, api_key: str, limit: int = 5) -> Lis
                     norm1 = math.sqrt(sum(x*x for x in emb))
                     norm2 = math.sqrt(sum(y*y for y in item_emb))
                     sim = dot / (norm1 * norm2) if norm1 and norm2 else 0
-                    scored.append((sim, r))
+                    # Enforce similarity threshold of 0.5
+                    if sim >= 0.5:
+                        scored.append((sim, r))
             except Exception:
                 pass
         scored.sort(key=lambda x: x[0], reverse=True)
