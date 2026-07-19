@@ -30,7 +30,7 @@
 
 - **Gestion commerciale et facturation** — ventes, achats, production, catalogue
 - **Suivi des clients, fournisseurs et opérations** avec historique complet
-- **Assistant Sabrina** intégré, capable d'exécuter des actions métier via langage naturel (Gemini ou Ollama en local)
+- **Assistant Sabrina** intégré, capable d'exécuter des actions métier via langage naturel (Gemini ou Ollama en local) avec gestion robuste des confirmations, mémoire persistance et résilience aux doublons
 - **Interface web et bureau** : rendu serveur (Jinja2), PWA installable avec mode hors-ligne, application desktop via `pywebview`
 - **API mobile** dédiée (JWT) pour une application vendeur terrain
 - **Tableaux de bord et rapports** avec KPI, alertes et export PDF

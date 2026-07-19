@@ -28,6 +28,8 @@ Le format s'inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) 
 
 ### Corrigé
 - Conversions de types de données incohérentes (migrations `0030_type_conversions`, `0035_data_types_fix`)
+- Correction du graphe de Progression - Créances (KPI) en remplaçant la compilation native des types Enum par des chaînes de caractères simples (String) sous SQLAlchemy.
+- Correction du problème de boucle de confirmation de l'assistant Sabrina et de la duplication de messages utilisateur dans l'historique de discussion.
 
 ---
 
