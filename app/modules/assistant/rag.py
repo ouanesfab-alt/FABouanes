@@ -240,7 +240,7 @@ async def search_vector_catalog(query: str, api_key: str, limit: int = 5) -> Lis
         pass
 
     emb = await get_embedding(query, api_key)
-    if not emb:
+    if not emb or len(emb) != 1536:
         return []
 
     results = []

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fabouanes"
-version = "2.0.3"
+version = "2.0.5"
 description = "FABOuanes migrated to FastAPI with preserved server-rendered UI and business workflows."
 readme = "README.md"
 requires-python = ">=3.11"

@@ -292,6 +292,7 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
     from app.modules.sales.service import SalesService
     from app.modules.sales.schemas_validation import SaleFormSchema
     from app.services.payment_service import create_payment_from_form
+    from app.core.idempotency import check_idempotency, save_idempotency
 
     pending_sales = query_db("SELECT id, idempotency_key, payload FROM offline_sales_staging WHERE status = 'pending' ORDER BY id ASC") or []
     processed_count = 0
@@ -302,13 +303,27 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
             sales_service = SalesService(session)
             for r in pending_sales:
                 staging_id = r["id"]
+                idempotency_key = r["idempotency_key"]
                 payload_str = r["payload"]
+                
+                if idempotency_key:
+                    cached_res = await check_idempotency(idempotency_key)
+                    if cached_res is not None:
+                        execute_db(
+                            "UPDATE offline_sales_staging SET status = 'processed', processed_at = CURRENT_TIMESTAMP WHERE id = %s",
+                            (staging_id,)
+                        )
+                        continue
+
                 try:
                     payload = json.loads(payload_str)
                     validated = SaleFormSchema(**payload)
                     await sales_service.create_sale_from_form(validated)
                     await session.commit()
                     
+                    if idempotency_key:
+                        await save_idempotency(idempotency_key, {"content": {"ok": True}, "status_code": 200})
+
                     execute_db(
                         "UPDATE offline_sales_staging SET status = 'processed', processed_at = CURRENT_TIMESTAMP WHERE id = %s",
                         (staging_id,)
@@ -324,13 +339,27 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
     if pending_payments:
         for r in pending_payments:
             staging_id = r["id"]
+            idempotency_key = r["idempotency_key"]
             payload_str = r["payload"]
+
+            if idempotency_key:
+                cached_res = await check_idempotency(idempotency_key)
+                if cached_res is not None:
+                    execute_db(
+                        "UPDATE offline_payments_staging SET status = 'processed', processed_at = CURRENT_TIMESTAMP WHERE id = %s",
+                        (staging_id,)
+                    )
+                    continue
+
             try:
                 payload = json.loads(payload_str)
                 from app.core.db_helpers import db_transaction
                 with db_transaction():
                     await create_payment_from_form(payload)
                 
+                if idempotency_key:
+                    await save_idempotency(idempotency_key, {"content": {"ok": True}, "status_code": 200})
+
                 execute_db(
                     "UPDATE offline_payments_staging SET status = 'processed', processed_at = CURRENT_TIMESTAMP WHERE id = %s",
                     (staging_id,)

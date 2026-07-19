@@ -16,6 +16,14 @@ Le format s'inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) 
 
 ---
 
+## [2.0.5] — 2026-07-19
+
+### Sécurisé (Correctif final)
+- Déduplication intelligente des ventes et paiements lors du traitement asynchrone des tables de staging (PWA offline sync).
+- Ajout d'une validation stricte de la dimension de l'embedding (longueur 1536) retourné par Gemini pour éviter tout plantage SQL pgvector.
+
+---
+
 ## [2.0.3] — 2026-07-19
 
 ### Optimisé
