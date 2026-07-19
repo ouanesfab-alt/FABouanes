@@ -16,7 +16,18 @@ Le format s'inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) 
 
 ---
 
-## [1.3.0] — en cours
+## [2.0.0] — 2026-07-19
+
+### Ajouté
+- File d'attente distribuée de tâches d'arrière-plan (`background_jobs`) s'appuyant sur PostgreSQL `FOR UPDATE SKIP LOCKED`.
+- Verrous applicatifs PostgreSQL transactionnels (`Advisory Locks`) pour sécuriser la facturation sans doublon.
+- Support de l'extension `pgvector` de PostgreSQL avec RAG sémantique pour Sabrina IA, et fallback mathématique Python sur SQLite/Postgres standard.
+- Tables de staging (`offline_sales_staging`, `offline_payments_staging`) et API de synchronisation asynchrone pour la PWA.
+- Chargement des librairies réactives HTMX et AlpineJS avec mise en conformité de la Content-Security-Policy (CSP).
+
+---
+
+## [1.3.0] — 2026-07-19
 
 ### Ajouté
 - Mémoire persistante pour l'assistant Sabrina (migration `0036_sabrina_memory`)
