@@ -172,8 +172,9 @@ def search_user_documents(query: str, limit: int = 3) -> List[Dict[str, Any]]:
     return scored_chunks[:limit]
 
 async def get_embedding(text: str, api_key: str) -> List[float] | None:
-    """Fetch text embedding from Gemini API."""
+    """Fetch text embedding from Gemini API with retry and exponential backoff."""
     import httpx
+    import asyncio
     url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent"
     headers = {"Content-Type": "application/json"}
     
@@ -186,16 +187,26 @@ async def get_embedding(text: str, api_key: str) -> List[float] | None:
         "model": "models/text-embedding-004",
         "content": {"parts": [{"text": text}]}
     }
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            res = await client.post(url, json=payload, headers=headers)
-            res.raise_for_status()
-            data = res.json()
-            return data["embedding"]["values"]
-    except Exception as e:
-        import logging
-        logging.getLogger("fabouanes.rag").warning("Failed to fetch embedding: %s", e)
-        return None
+    
+    retries = 3
+    backoff = 1.0
+    for attempt in range(retries):
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.post(url, json=payload, headers=headers)
+                res.raise_for_status()
+                data = res.json()
+                return data["embedding"]["values"]
+        except Exception as e:
+            import logging
+            logger = logging.getLogger("fabouanes.rag")
+            if attempt == retries - 1:
+                logger.warning("Failed to fetch embedding after %d attempts: %s", retries, e)
+                return None
+            logger.info("Embedding fetch failed (attempt %d/%d), retrying in %.1fs...", attempt + 1, retries, backoff)
+            await asyncio.sleep(backoff)
+            backoff *= 2.0
+    return None
 
 
 async def search_vector_catalog(query: str, api_key: str, limit: int = 5) -> List[Dict[str, Any]]:

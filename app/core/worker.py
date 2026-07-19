@@ -437,6 +437,28 @@ async def execute_job(job_id: int, task_name: str, payload_str: str) -> None:
         )
 
 
+def cleanup_background_jobs():
+    """Cleans up completed/failed jobs and resets stale running jobs."""
+    from app.core.db_helpers import execute_db
+    try:
+        execute_db(
+            """
+            UPDATE background_jobs 
+            SET status = 'failed', error_message = 'Job timed out or worker crashed'
+            WHERE status = 'running' AND started_at < CURRENT_TIMESTAMP - INTERVAL '2 hours'
+            """
+        )
+        execute_db(
+            "DELETE FROM background_jobs WHERE status = 'completed' AND completed_at < CURRENT_TIMESTAMP - INTERVAL '24 hours'"
+        )
+        execute_db(
+            "DELETE FROM background_jobs WHERE status = 'failed' AND completed_at < CURRENT_TIMESTAMP - INTERVAL '7 days'"
+        )
+        logger.info("Completed stale job recovery and database cleanup")
+    except Exception as exc:
+        logger.error("Failed to run background jobs cleanup: %s", exc)
+
+
 def _worker_poll_loop():
     global _worker_running
     from app.core.db_helpers import db_transaction
@@ -459,8 +481,15 @@ def _worker_poll_loop():
         logger.info("LISTEN setup for jobs failed: %s", e)
         listen_conn = None
 
+    last_cleanup = 0
+
     while _worker_running:
         try:
+            now_ts = time.time()
+            if now_ts - last_cleanup > 3600:
+                cleanup_background_jobs()
+                last_cleanup = now_ts
+
             job = None
             try:
                 with db_transaction() as conn:
@@ -515,6 +544,7 @@ def _worker_poll_loop():
 def start_worker():
     global _worker_thread, _worker_running
     if not _worker_running:
+        cleanup_background_jobs()
         _worker_running = True
         _worker_thread = threading.Thread(target=_worker_poll_loop, daemon=True)
         _worker_thread.start()

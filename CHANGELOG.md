@@ -16,6 +16,15 @@ Le format s'inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) 
 
 ---
 
+## [2.0.1] — 2026-07-19
+
+### Optimisé & Sécurisé
+- Purge automatique de la file d'attente (`background_jobs`) : suppression automatique des jobs terminés depuis plus de 24h et des jobs échoués depuis plus de 7 jours.
+- Récupération automatique des tâches bloquées (`stale jobs`) restées à l'état `'running'` suite à un crash/arrêt de worker.
+- Amélioration de la résilience lors de l'appel d'embeddings (Gemini API) avec intégration de retries automatiques et de backoff exponentiel.
+
+---
+
 ## [2.0.0] — 2026-07-19
 
 ### Ajouté
