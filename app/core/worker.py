@@ -210,12 +210,150 @@ async def replay_dead_letter_events_task(ctx: dict[str, Any]) -> int:
     return events_replayed
 
 
+async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = None) -> int:
+    """Regenerates embeddings for all catalog items that do not have them yet."""
+    job_id = ctx.get("job_id", "direct-run")
+    await update_task_progress(job_id, 10, "Démarrage de la génération d'embeddings du catalogue...")
+    
+    if not api_key:
+        from app.modules.assistant.schema_context import get_gemini_api_key
+        api_key = get_gemini_api_key()
+    if not api_key:
+        logger.error("No Gemini API key available for embedding task")
+        await update_task_progress(job_id, 100, "Erreur: Clé API manquante.")
+        return 0
+
+    from app.core.db_helpers import query_db, execute_db
+    from app.modules.assistant.rag import get_embedding
+
+    raw_mats = query_db("SELECT id, name, category, unit FROM raw_materials") or []
+    fin_prods = query_db("SELECT id, name, category FROM finished_products") or []
+    
+    total_items = len(raw_mats) + len(fin_prods)
+    if total_items == 0:
+        await update_task_progress(job_id, 100, "Catalogue vide, aucune action requise.")
+        return 0
+
+    has_vector = False
+    try:
+        row = query_db("SELECT 1 FROM pg_extension WHERE extname = 'vector'", one=True)
+        has_vector = bool(row)
+    except Exception:
+        pass
+
+    processed = 0
+    await update_task_progress(job_id, 20, f"Traitement de {total_items} articles...")
+
+    for item in raw_mats:
+        item_id = item["id"]
+        existing = query_db("SELECT 1 FROM catalog_embeddings WHERE item_kind = 'raw' AND item_id = %s", (item_id,), one=True)
+        if existing:
+            continue
+        
+        text = f"Matière première: {item['name']}, catégorie: {item['category'] or 'aucune'}, unité: {item['unit'] or 'u'}"
+        emb = await get_embedding(text, api_key)
+        if emb:
+            emb_val = f"[{','.join(str(x) for x in emb)}]" if has_vector else json.dumps(emb)
+            execute_db(
+                "INSERT INTO catalog_embeddings (item_kind, item_id, text_content, embedding) VALUES ('raw', %s, %s, %s) ON CONFLICT DO NOTHING",
+                (item_id, text, emb_val)
+            )
+            processed += 1
+            await update_task_progress(job_id, int(20 + 80 * (processed / total_items)), f"Génération: {processed}/{total_items} articles...")
+
+    for item in fin_prods:
+        item_id = item["id"]
+        existing = query_db("SELECT 1 FROM catalog_embeddings WHERE item_kind = 'finished' AND item_id = %s", (item_id,), one=True)
+        if existing:
+            continue
+        
+        text = f"Produit fini: {item['name']}, catégorie: {item['category'] or 'aucune'}"
+        emb = await get_embedding(text, api_key)
+        if emb:
+            emb_val = f"[{','.join(str(x) for x in emb)}]" if has_vector else json.dumps(emb)
+            execute_db(
+                "INSERT INTO catalog_embeddings (item_kind, item_id, text_content, embedding) VALUES ('finished', %s, %s, %s) ON CONFLICT DO NOTHING",
+                (item_id, text, emb_val)
+            )
+            processed += 1
+            await update_task_progress(job_id, int(20 + 80 * (processed / total_items)), f"Génération: {processed}/{total_items} articles...")
+
+    await update_task_progress(job_id, 100, f"Génération terminée. {processed} nouveaux articles indexés sémantiquement.")
+    return processed
+
+
+async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
+    """Processes pending staging entries for offline sales and payments."""
+    job_id = ctx.get("job_id", "direct-run")
+    await update_task_progress(job_id, 10, "Démarrage du traitement de la synchronisation hors-ligne...")
+
+    from app.core.db_helpers import query_db, execute_db
+    from app.core.async_db import get_async_sessionmaker
+    from app.modules.sales.service import SalesService
+    from app.modules.sales.schemas_validation import SaleFormSchema
+    from app.services.payment_service import create_payment_from_form
+
+    pending_sales = query_db("SELECT id, idempotency_key, payload FROM offline_sales_staging WHERE status = 'pending' ORDER BY id ASC") or []
+    processed_count = 0
+
+    if pending_sales:
+        async_sessionmaker = get_async_sessionmaker()
+        async with async_sessionmaker() as session:
+            sales_service = SalesService(session)
+            for r in pending_sales:
+                staging_id = r["id"]
+                payload_str = r["payload"]
+                try:
+                    payload = json.loads(payload_str)
+                    validated = SaleFormSchema(**payload)
+                    await sales_service.create_sale_from_form(validated)
+                    await session.commit()
+                    
+                    execute_db(
+                        "UPDATE offline_sales_staging SET status = 'processed', processed_at = CURRENT_TIMESTAMP WHERE id = %s",
+                        (staging_id,)
+                    )
+                    processed_count += 1
+                except Exception as exc:
+                    execute_db(
+                        "UPDATE offline_sales_staging SET status = 'failed', error_message = %s, processed_at = CURRENT_TIMESTAMP WHERE id = %s",
+                        (str(exc), staging_id)
+                    )
+
+    pending_payments = query_db("SELECT id, idempotency_key, payload FROM offline_payments_staging WHERE status = 'pending' ORDER BY id ASC") or []
+    if pending_payments:
+        for r in pending_payments:
+            staging_id = r["id"]
+            payload_str = r["payload"]
+            try:
+                payload = json.loads(payload_str)
+                from app.core.db_helpers import db_transaction
+                with db_transaction():
+                    await create_payment_from_form(payload)
+                
+                execute_db(
+                    "UPDATE offline_payments_staging SET status = 'processed', processed_at = CURRENT_TIMESTAMP WHERE id = %s",
+                    (staging_id,)
+                )
+                processed_count += 1
+            except Exception as exc:
+                execute_db(
+                    "UPDATE offline_payments_staging SET status = 'failed', error_message = %s, processed_at = CURRENT_TIMESTAMP WHERE id = %s",
+                    (str(exc), staging_id)
+                )
+
+    await update_task_progress(job_id, 100, f"Synchronisation hors-ligne terminée. {processed_count} opérations synchronisées.")
+    return processed_count
+
+
 TASK_MAPPING: dict[str, Callable[..., Any]] = {
     "generate_invoice_pdf_task": generate_invoice_pdf_task,
     "import_excel_task": import_excel_task,
     "run_database_backup_task": run_database_backup_task,
     "dispatch_outbox_events_task": dispatch_outbox_events_task,
     "replay_dead_letter_events_task": replay_dead_letter_events_task,
+    "rebuild_catalog_embeddings_task": rebuild_catalog_embeddings_task,
+    "process_offline_staging_task": process_offline_staging_task,
 }
 
 

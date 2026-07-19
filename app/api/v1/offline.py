@@ -86,16 +86,60 @@ async def sync_operation(request: Request, db: AsyncSession = Depends(get_async_
 @limiter.limit("30/minute")
 async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_async_session)):
     """
-    Reçoit une liste d'opérations hors-ligne et les exécute séquentiellement.
-    Chaque opération est enveloppée dans sa propre transaction de base de données.
-    L'idempotence est gérée individuellement par opération.
+    Reçoit une liste d'opérations hors-ligne.
+    Si 'staging' est vrai, écrit dans la table de staging et lance le worker en tâche de fond.
+    Sinon, exécute séquentiellement et immédiatement.
     """
     require_api_user(request, PERMISSION_OPERATIONS_WRITE)
     body = await request.json()
     operations = body.get("operations") or []
+    use_staging = body.get("staging") or False
 
     results = []
 
+    if use_staging:
+        from app.core.db_helpers import execute_db
+        import json
+        from app.core.worker import enqueue_background_task
+
+        for op in operations:
+            op_type = op.get("type")
+            payload = op.get("payload", {})
+            idempotency_key = op.get("idempotency_key") or op.get("key")
+
+            try:
+                if op_type in ("create_sale", "create_purchase"):
+                    table_name = "offline_sales_staging"
+                elif op_type == "create_payment":
+                    table_name = "offline_payments_staging"
+                else:
+                    results.append({
+                        "idempotency_key": idempotency_key,
+                        "status_code": 400,
+                        "response": {"error": f"Type d'opération inconnu pour staging : {op_type}"}
+                    })
+                    continue
+
+                execute_db(
+                    f"INSERT INTO {table_name} (idempotency_key, payload, status) VALUES (%s, %s, 'pending') ON CONFLICT DO NOTHING",
+                    (idempotency_key, json.dumps(payload))
+                )
+                results.append({
+                    "idempotency_key": idempotency_key,
+                    "status_code": 202,
+                    "response": {"status": "staged"}
+                })
+            except Exception as exc:
+                results.append({
+                    "idempotency_key": idempotency_key,
+                    "status_code": 500,
+                    "response": {"error": str(exc)}
+                })
+
+        await enqueue_background_task("process_offline_staging_task")
+        return JSONResponse({"results": results})
+
+    # Legacy immediate execution path
     for op in operations:
         op_type = op.get("type")
         payload = op.get("payload", {})

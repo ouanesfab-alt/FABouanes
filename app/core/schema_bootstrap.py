@@ -176,6 +176,63 @@ def bootstrap_schema() -> None:
         except Exception:
             logging.getLogger("fabouanes").debug("Auto-migration for outbox_events retry columns skipped", exc_info=True)
 
+        # Staging tables for PWA offline sync
+        conn.executescript("""
+        CREATE TABLE IF NOT EXISTS offline_sales_staging (
+            id BIGSERIAL PRIMARY KEY,
+            idempotency_key VARCHAR(255) UNIQUE,
+            payload TEXT NOT NULL,
+            status VARCHAR(50) DEFAULT 'pending',
+            error_message TEXT,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            processed_at TIMESTAMPTZ
+        );
+
+        CREATE TABLE IF NOT EXISTS offline_payments_staging (
+            id BIGSERIAL PRIMARY KEY,
+            idempotency_key VARCHAR(255) UNIQUE,
+            payload TEXT NOT NULL,
+            status VARCHAR(50) DEFAULT 'pending',
+            error_message TEXT,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            processed_at TIMESTAMPTZ
+        );
+        """)
+
+        # pgvector extension activation and catalog embeddings
+        has_vector = False
+        try:
+            conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+            conn.commit()
+            has_vector = True
+        except Exception:
+            pass
+
+        if has_vector:
+            conn.executescript("""
+            CREATE TABLE IF NOT EXISTS catalog_embeddings (
+                id BIGSERIAL PRIMARY KEY,
+                item_kind VARCHAR(50) NOT NULL,
+                item_id BIGINT NOT NULL,
+                text_content TEXT NOT NULL,
+                embedding vector(1536),
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_catalog_embeddings_item ON catalog_embeddings(item_kind, item_id);
+            """)
+        else:
+            conn.executescript("""
+            CREATE TABLE IF NOT EXISTS catalog_embeddings (
+                id BIGSERIAL PRIMARY KEY,
+                item_kind VARCHAR(50) NOT NULL,
+                item_id BIGINT NOT NULL,
+                text_content TEXT NOT NULL,
+                embedding TEXT,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_catalog_embeddings_item ON catalog_embeddings(item_kind, item_id);
+            """)
+
         conn.commit()
 
         # ── Seeds (absorbé depuis schema.py) ─────────────────────────────────

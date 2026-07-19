@@ -171,19 +171,138 @@ def search_user_documents(query: str, limit: int = 3) -> List[Dict[str, Any]]:
     scored_chunks.sort(key=lambda x: x["score"], reverse=True)
     return scored_chunks[:limit]
 
+async def get_embedding(text: str, api_key: str) -> List[float] | None:
+    """Fetch text embedding from Gemini API."""
+    import httpx
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent"
+    headers = {"Content-Type": "application/json"}
+    
+    if api_key.startswith("AIzaSy") or api_key.startswith("AQ"):
+        url = f"{url}?key={api_key}"
+    else:
+        headers["Authorization"] = f"Bearer {api_key}"
+        
+    payload = {
+        "model": "models/text-embedding-004",
+        "content": {"parts": [{"text": text}]}
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            res = await client.post(url, json=payload, headers=headers)
+            res.raise_for_status()
+            data = res.json()
+            return data["embedding"]["values"]
+    except Exception as e:
+        import logging
+        logging.getLogger("fabouanes.rag").warning("Failed to fetch embedding: %s", e)
+        return None
+
+
+async def search_vector_catalog(query: str, api_key: str, limit: int = 5) -> List[Dict[str, Any]]:
+    if not api_key:
+        return []
+    
+    from app.core.db_helpers import query_db
+    has_vector = False
+    try:
+        row = query_db("SELECT 1 FROM pg_extension WHERE extname = 'vector'", one=True)
+        has_vector = bool(row)
+    except Exception:
+        pass
+
+    emb = await get_embedding(query, api_key)
+    if not emb:
+        return []
+
+    results = []
+    if has_vector:
+        emb_str = f"[{','.join(str(x) for x in emb)}]"
+        rows = query_db(
+            """
+            SELECT item_kind, item_id, text_content, (embedding <=> %s::vector) AS distance
+            FROM catalog_embeddings
+            ORDER BY distance ASC
+            LIMIT %s
+            """,
+            (emb_str, limit)
+        )
+        for r in rows or []:
+            results.append({
+                "kind": r["item_kind"],
+                "id": r["item_id"],
+                "text": r["text_content"],
+                "score": 1.0 - float(r["distance"] or 0)
+            })
+    else:
+        rows = query_db(
+            "SELECT item_kind, item_id, text_content, embedding FROM catalog_embeddings"
+        )
+        scored = []
+        for r in rows or []:
+            try:
+                item_emb = json.loads(r["embedding"])
+                if len(item_emb) == len(emb):
+                    import math
+                    dot = sum(x * y for x, y in zip(emb, item_emb))
+                    norm1 = math.sqrt(sum(x*x for x in emb))
+                    norm2 = math.sqrt(sum(y*y for y in item_emb))
+                    sim = dot / (norm1 * norm2) if norm1 and norm2 else 0
+                    scored.append((sim, r))
+            except Exception:
+                pass
+        scored.sort(key=lambda x: x[0], reverse=True)
+        for sim, r in scored[:limit]:
+            results.append({
+                "kind": r["item_kind"],
+                "id": r["item_id"],
+                "text": r["text_content"],
+                "score": sim
+            })
+            
+    return results
+
+
 def get_rag_context(query: str) -> str:
-    """Fetch matching manual chapters and user documents, and format them into a markdown block."""
+    """Fetch matching manual chapters, user documents, and catalog items, and format them into a markdown block."""
     if not query:
         return ""
         
     manual_matches = search_manual(query, limit=2)
     doc_matches = search_user_documents(query, limit=3)
     
-    if not manual_matches and not doc_matches:
+    catalog_matches = []
+    try:
+        from app.modules.assistant.schema_context import get_gemini_api_key
+        api_key = get_gemini_api_key()
+        if api_key:
+            import asyncio
+            from concurrent.futures import ThreadPoolExecutor
+            def run_async(coro):
+                loop = asyncio.new_event_loop()
+                try:
+                    return loop.run_until_complete(coro)
+                finally:
+                    loop.close()
+            with ThreadPoolExecutor() as executor:
+                future = executor.submit(run_async, search_vector_catalog(query, api_key, limit=3))
+                catalog_matches = future.result()
+    except Exception as e:
+        import logging
+        logging.getLogger("fabouanes.rag").debug("Semantic catalog search skipped: %s", e)
+        
+    if not manual_matches and not doc_matches and not catalog_matches:
         return ""
         
     context_lines = []
     
+    if catalog_matches:
+        context_lines.append("\n=== CONTEXTE CATALOGUE PRODUITS (RAG VECTORIEL SEMANTIQUE) ===")
+        context_lines.append("Voici les articles du catalogue sémantiquement proches de la demande :")
+        for c in catalog_matches:
+            kind_str = "Produit Fini" if c["kind"] == "finished" else "Matière Première"
+            context_lines.append(f"- [{kind_str} ID={c['id']}] {c['text']} (similarité: {c['score']:.2f})")
+        context_lines.append("================================================================\n")
+        
     if manual_matches:
         context_lines.append("\n=== CONTEXTE MANUEL UTILISATEUR ERP (RAG) ===")
         context_lines.append("Voici les sections pertinentes du manuel d'utilisation de l'ERP pour guider votre réponse :")
