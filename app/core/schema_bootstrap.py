@@ -68,6 +68,21 @@ def bootstrap_schema() -> None:
             last_error TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_outbox_events_processed_at ON outbox_events(processed_at);
+
+        CREATE TABLE IF NOT EXISTS background_jobs (
+            id BIGSERIAL PRIMARY KEY,
+            task_name VARCHAR(255) NOT NULL,
+            payload TEXT NOT NULL,
+            status VARCHAR(50) DEFAULT 'pending',
+            priority INTEGER DEFAULT 0,
+            run_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            locked_by VARCHAR(255),
+            started_at TIMESTAMPTZ,
+            completed_at TIMESTAMPTZ,
+            error_message TEXT,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_background_jobs_status_run_at ON background_jobs(status, run_at);
         """)
 
         # Then domain schemas

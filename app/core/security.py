@@ -95,7 +95,7 @@ def security_headers(response):
     if settings.strict_csp and not settings.desktop_mode and nonce:
         csp = (
             f"default-src 'self'; "
-            f"script-src 'self' 'nonce-{nonce}'; "
+            f"script-src 'self' 'nonce-{nonce}' https://unpkg.com https://cdn.jsdelivr.net; "
             f"style-src 'self' 'nonce-{nonce}' https://fonts.googleapis.com; "
             f"font-src 'self' https://fonts.gstatic.com; "
             f"img-src 'self' data: blob:; "

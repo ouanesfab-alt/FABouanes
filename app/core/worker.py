@@ -220,13 +220,170 @@ TASK_MAPPING: dict[str, Callable[..., Any]] = {
 
 
 async def enqueue_background_task(task_name: str, *args: Any, **kwargs: Any) -> str:
-    """Runs a task asynchronously using inline asyncio.create_task."""
-    fallback_job_id = f"job-{os.urandom(4).hex()}"
-    func = TASK_MAPPING.get(task_name)
-    if func:
-        ctx = {"job_id": fallback_job_id}
-        logger.info("Running background task inline", task=task_name, job_id=fallback_job_id)
-        asyncio.create_task(func(ctx, *args, **kwargs))
-    else:
+    """Inserts a task into the database background_jobs table to be executed by a worker."""
+    if task_name not in TASK_MAPPING:
         logger.error("Requested background task name not found in mapping", task=task_name)
-    return fallback_job_id
+        return "invalid-task"
+
+    from app.core.db_helpers import execute_db, query_db
+    payload = json.dumps({"args": args, "kwargs": kwargs})
+    
+    rows = query_db(
+        """
+        INSERT INTO background_jobs (task_name, payload, status)
+        VALUES (%s, %s, 'pending')
+        RETURNING id
+        """,
+        (task_name, payload),
+        one=True
+    )
+    job_id = str(rows["id"]) if rows else f"job-{os.urandom(4).hex()}"
+    logger.info("Enqueued background task to database", task=task_name, job_id=job_id)
+    
+    try:
+        execute_db("NOTIFY background_jobs_channel")
+    except Exception:
+        pass
+        
+    return job_id
+
+
+import threading
+import time
+import select
+
+_worker_thread = None
+_worker_running = False
+
+
+async def execute_job(job_id: int, task_name: str, payload_str: str) -> None:
+    func = TASK_MAPPING.get(task_name)
+    if not func:
+        logger.error("Task not found in mapping", task=task_name, job_id=job_id)
+        from app.core.db_helpers import execute_db
+        execute_db(
+            "UPDATE background_jobs SET status = 'failed', error_message = %s, completed_at = CURRENT_TIMESTAMP WHERE id = %s",
+            ("Task not found in mapping", job_id)
+        )
+        return
+
+    try:
+        payload = json.loads(payload_str)
+    except Exception:
+        payload = {}
+
+    args = payload.get("args") or []
+    kwargs = payload.get("kwargs") or {}
+    ctx = {"job_id": str(job_id)}
+
+    logger.info("Executing background job", job_id=job_id, task=task_name)
+    from app.core.db_helpers import execute_db
+    try:
+        import inspect
+        if inspect.iscoroutinefunction(func):
+            await func(ctx, *args, **kwargs)
+        else:
+            func(ctx, *args, **kwargs)
+
+        execute_db(
+            "UPDATE background_jobs SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = %s",
+            (job_id,)
+        )
+        logger.info("Successfully completed background job", job_id=job_id, task=task_name)
+    except Exception as exc:
+        error_msg = str(exc)
+        logger.exception("Failed executing background job", job_id=job_id, task=task_name)
+        execute_db(
+            "UPDATE background_jobs SET status = 'failed', error_message = %s, completed_at = CURRENT_TIMESTAMP WHERE id = %s",
+            (error_msg, job_id)
+        )
+
+
+def _worker_poll_loop():
+    global _worker_running
+    from app.core.db_helpers import db_transaction
+    from app.core.config import DATABASE_URL
+    from app.core.db_helpers import pool_manager
+    from app.core.events import WORKER_ID
+
+    listen_conn = None
+    listen_fileno = None
+    try:
+        listen_conn = pool_manager.connect_database(DATABASE_URL)
+        listen_conn.execute("LISTEN background_jobs_channel")
+        listen_conn.commit()
+        raw = getattr(listen_conn, '_conn', listen_conn)
+        sock = getattr(raw, '_sock', None) or getattr(raw, 'sock', None)
+        if sock:
+            listen_fileno = sock.fileno()
+            logger.info("LISTEN active on background_jobs_channel (fd=%d)", listen_fileno)
+    except Exception as e:
+        logger.info("LISTEN setup for jobs failed: %s", e)
+        listen_conn = None
+
+    while _worker_running:
+        try:
+            job = None
+            try:
+                with db_transaction() as conn:
+                    cur = conn.execute(
+                        """
+                        UPDATE background_jobs 
+                        SET status = 'running', locked_by = %s, started_at = CURRENT_TIMESTAMP
+                        WHERE id = (
+                            SELECT id FROM background_jobs 
+                            WHERE status = 'pending' AND run_at <= CURRENT_TIMESTAMP
+                            ORDER BY priority DESC, created_at ASC
+                            FOR UPDATE SKIP LOCKED
+                            LIMIT 1
+                        )
+                        RETURNING id, task_name, payload;
+                        """,
+                        (WORKER_ID,)
+                    )
+                    job = cur.fetchone()
+                    conn.commit()
+            except Exception as e:
+                logger.error("DB error polling jobs: %s", e)
+                job = None
+
+            if job:
+                try:
+                    loop = asyncio.new_event_loop()
+                    loop.run_until_complete(execute_job(job["id"], job["task_name"], job["payload"]))
+                    loop.close()
+                except Exception as ex:
+                    logger.error("Worker runner error: %s", ex)
+                continue
+
+            if listen_fileno is not None:
+                try:
+                    readable, _, _ = select.select([listen_fileno], [], [], 5.0)
+                    if readable:
+                        try:
+                            listen_conn.commit()
+                        except Exception:
+                            pass
+                except (OSError, ValueError):
+                    listen_fileno = None
+                    time.sleep(5.0)
+            else:
+                time.sleep(5.0)
+        except Exception as exc:
+            logger.error("Error in background worker loop: %s", exc)
+            time.sleep(5.0)
+
+
+def start_worker():
+    global _worker_thread, _worker_running
+    if not _worker_running:
+        _worker_running = True
+        _worker_thread = threading.Thread(target=_worker_poll_loop, daemon=True)
+        _worker_thread.start()
+        logger.info("Background jobs worker started successfully")
+
+
+def stop_worker():
+    global _worker_running
+    _worker_running = False
+    logger.info("Background jobs worker stop requested")

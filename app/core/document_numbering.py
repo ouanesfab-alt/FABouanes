@@ -10,6 +10,14 @@ def next_doc_number(doc_type: str, year: int) -> str:
     db = get_db()
     key = f"seq_{doc_type}_{year}"
 
+    # Acquire PostgreSQL advisory lock to ensure serialization across multiple workers
+    import zlib
+    lock_id = zlib.adler32(key.encode('utf-8')) & 0x7FFFFFFF
+    try:
+        db.execute("SELECT pg_advisory_xact_lock(%s)", (lock_id,))
+    except Exception:
+        pass  # Fallback for SQLite during tests
+
     # 1. Self-healing : Déterminer la séquence maximale existant réellement dans les tables de documents
     max_seq = 0
     if doc_type == 'BA':

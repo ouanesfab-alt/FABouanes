@@ -22,6 +22,11 @@ async def lifespan(app: FastAPI):
     ensure_runtime_dirs()
     configure_logging()
     start_audit_worker()
+    try:
+        from app.core.worker import start_worker
+        start_worker()
+    except Exception as e:
+        logger.warning("Erreur au démarrage du worker des tâches de fond: %s", e)
 
     # Initialize Observability (OpenTelemetry & structlog)
     try:
@@ -81,6 +86,12 @@ async def lifespan(app: FastAPI):
             await stop_audit_worker()
         except Exception as e:
             logger.warning("Erreur à l'arrêt du worker d'audit: %s", e)
+
+        try:
+            from app.core.worker import stop_worker
+            stop_worker()
+        except Exception as e:
+            logger.warning("Erreur à l'arrêt du worker des tâches de fond: %s", e)
 
         try:
             from app.core.events import shutdown as events_shutdown
