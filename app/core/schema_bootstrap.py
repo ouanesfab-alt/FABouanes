@@ -104,6 +104,16 @@ def bootstrap_schema() -> None:
         conn.executescript(SCHEMA_OPERATIONS)
         conn.executescript(SCHEMA_PRODUCTION)
 
+        # Commit raw SQL tables first
+        conn.commit()
+
+        # Create all remaining SQLModel tables (like expenses)
+        from app.core.db import get_database_engine
+        from sqlmodel import SQLModel
+        import app.core.models  # noqa: F401
+        engine = get_database_engine(settings.database_url)
+        SQLModel.metadata.create_all(engine)
+
         # Then schema updates and indexes for Options J, I, K
         conn.executescript("""
         CREATE TABLE IF NOT EXISTS client_keys (
