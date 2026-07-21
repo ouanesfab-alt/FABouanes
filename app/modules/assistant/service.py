@@ -19,97 +19,24 @@ from app.modules.assistant.rag import get_rag_context
 logger = logging.getLogger("fabouanes.assistant")
 
 
-def _get_last_user_query(messages: List[Dict[str, Any]]) -> str:
-    for m in reversed(messages):
-        if m.get("role") == "user":
-            parts = m.get("parts", [])
-            if isinstance(parts, list):
-                return " ".join(p.get("text", "") for p in parts if "text" in p)
-            else:
-                return str(m.get("content", "") or "")
-    return ""
+from app.modules.assistant.llm_client import (
+    get_gemini_client,
+    get_ollama_client,
+    close_http_clients,
+)
+from app.modules.assistant.history import (
+    get_last_user_query as _get_last_user_query,
+    clean_unconfirmed_tool_calls,
+)
+
+__all__ = [
+    "get_gemini_client",
+    "get_ollama_client",
+    "close_http_clients",
+    "clean_unconfirmed_tool_calls",
+]
 
 
-
-_gemini_client: httpx.AsyncClient | None = None
-_ollama_client: httpx.AsyncClient | None = None
-
-
-def get_gemini_client() -> httpx.AsyncClient:
-    global _gemini_client
-    if _gemini_client is None:
-        _gemini_client = httpx.AsyncClient(timeout=60.0)
-    return _gemini_client
-
-
-def get_ollama_client() -> httpx.AsyncClient:
-    global _ollama_client
-    if _ollama_client is None:
-        _ollama_client = httpx.AsyncClient(timeout=180.0, trust_env=False)
-    return _ollama_client
-
-
-async def close_http_clients() -> None:
-    """Ferme proprement les clients HTTP globaux lors du shutdown."""
-    global _gemini_client, _ollama_client
-    for name, client in [("gemini", _gemini_client), ("ollama", _ollama_client)]:
-        if client is not None:
-            try:
-                await client.aclose()
-                logger.info("Client HTTP %s fermé.", name)
-            except Exception as e:
-                logger.warning("Erreur lors de la fermeture du client HTTP %s: %s", name, e)
-    _gemini_client = None
-    _ollama_client = None
-
-
-def clean_unconfirmed_tool_calls(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Parcourt l'historique et nettoie les appels de fonctions qui n'ont pas reçu
-    de réponse (dangling/unconfirmed tool calls). Cela se produit si l'utilisateur
-    a reçu une demande de confirmation mais a choisi d'envoyer un autre message à la place.
-    """
-    cleaned = []
-    i = 0
-    n = len(messages)
-    while i < n:
-        msg = messages[i]
-        role = msg.get("role")
-
-        has_calls = False
-        if role in ("model", "assistant"):
-            parts = msg.get("parts")
-            if isinstance(parts, list):
-                has_calls = any(isinstance(p, dict) and "functionCall" in p for p in parts)
-            if msg.get("tool_calls"):
-                has_calls = True
-
-        if has_calls:
-            has_response = False
-            if i + 1 < n:
-                next_msg = messages[i + 1]
-                if next_msg.get("role") in ("function", "tool"):
-                    has_response = True
-
-            if not has_response:
-                logger.info("Assistant: Suppression de l'appel de fonction non confirmé dans l'historique pour éviter les doublons et les erreurs API")
-                new_msg = dict(msg)
-                if "parts" in new_msg and isinstance(new_msg["parts"], list):
-                    new_parts = [p for p in new_msg["parts"] if isinstance(p, dict) and "text" in p]
-                    if new_parts:
-                        new_msg["parts"] = new_parts
-                        cleaned.append(new_msg)
-                elif "content" in new_msg and new_msg.get("content"):
-                    new_msg = dict(new_msg)
-                    if "tool_calls" in new_msg:
-                        del new_msg["tool_calls"]
-                    cleaned.append(new_msg)
-                i += 1
-                continue
-
-        cleaned.append(msg)
-        i += 1
-    return cleaned
 
 
 async def compress_history_if_needed(messages: List[Dict[str, Any]], api_key: str, is_local: bool) -> List[Dict[str, Any]]:

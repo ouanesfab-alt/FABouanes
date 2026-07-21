@@ -178,3 +178,10 @@ def generate_briefing() -> Dict[str, Any]:
         "sections_count": len(sections),
         "alert_count": sum(len(s["items"]) for s in sections if s["priority"] == "high")
     }
+
+
+async def generate_briefing_async() -> Dict[str, Any]:
+    """Exécute generate_briefing de manière non-bloquante dans un thread dédié."""
+    import asyncio
+    return await asyncio.to_thread(generate_briefing)
+

@@ -145,3 +145,24 @@ def get_context_memories(limit: int = 10) -> str:
     except Exception as e:
         logger.error("Error loading context memories: %s", e, exc_info=True)
         return ""
+
+
+async def async_remember(content: str, category: str = "general", source: str = "user_explicit") -> Dict[str, Any]:
+    import asyncio
+    return await asyncio.to_thread(remember, content, category, source)
+
+
+async def async_recall(query: str, limit: int = 10) -> Dict[str, Any]:
+    import asyncio
+    return await asyncio.to_thread(recall, query, limit)
+
+
+async def async_forget(memory_id: int) -> Dict[str, Any]:
+    import asyncio
+    return await asyncio.to_thread(forget, memory_id)
+
+
+async def async_get_context_memories(limit: int = 10) -> str:
+    import asyncio
+    return await asyncio.to_thread(get_context_memories, limit)
+

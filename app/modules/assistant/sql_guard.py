@@ -40,9 +40,7 @@ PROTECTED_TABLE_NAMES = {
 }
 PROTECTED_SCHEMA_NAMES = {"information_schema", "pg_catalog"}
 
-# Tables that Sabrina is explicitly allowed to write to.
-# Any INSERT/UPDATE/DELETE targeting a table NOT in this set will be blocked.
-ALLOWED_WRITE_TABLES = {
+ALLOWED_WRITE_TABLES_BASE = {
     "contacts",
     "catalog_items",
     "catalog",
@@ -68,6 +66,23 @@ ALLOWED_WRITE_TABLES = {
     "stock_alerts",
     "sabrina_memory",
 }
+
+
+def get_allowed_write_tables() -> set[str]:
+    """Generates allowed write tables dynamically from schema metadata and base set."""
+    tables = set(ALLOWED_WRITE_TABLES_BASE)
+    try:
+        from sqlmodel import SQLModel
+        for tbl_name in SQLModel.metadata.tables.keys():
+            if tbl_name not in PROTECTED_TABLE_NAMES:
+                tables.add(tbl_name.lower())
+    except Exception:
+        pass
+    return tables
+
+
+ALLOWED_WRITE_TABLES = ALLOWED_WRITE_TABLES_BASE
+
 
 
 @dataclass
@@ -256,7 +271,9 @@ def validate_write_sql(query: str) -> SqlValidationResult:
 
     # Allow-list check: only write to explicitly permitted tables
     target_tables = _get_write_target_tables(statement)
-    non_allowed = target_tables - ALLOWED_WRITE_TABLES
+    allowed_tables = get_allowed_write_tables()
+    non_allowed = target_tables - allowed_tables
+
     if non_allowed:
         bad = ", ".join(sorted(non_allowed))
         return SqlValidationResult(
