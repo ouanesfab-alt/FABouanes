@@ -288,6 +288,7 @@ def bootstrap_schema() -> None:
         _seed_default_admin(conn)
         _seed_default_settings(conn)
         _seed_other_operation(conn)
+        conn.commit()
     finally:
         try:
             conn.execute("SELECT pg_advisory_unlock(%s)", (ADVISORY_LOCK_ID,))
