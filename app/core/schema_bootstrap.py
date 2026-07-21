@@ -247,14 +247,27 @@ def bootstrap_schema() -> None:
             """)
 
         # performance indexes
-        try:
+        is_sqlite = settings.database_url.startswith("sqlite")
+        
+        # Check expenses table
+        if is_sqlite:
+            expenses_exists = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='expenses'").fetchone() is not None
+        else:
+            res = conn.execute("SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'expenses')").fetchone()
+            expenses_exists = res[0] if res else False
+            
+        if expenses_exists:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);")
-        except Exception:
-            pass
-        try:
+
+        # Check stock_movements table
+        if is_sqlite:
+            movements_exists = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='stock_movements'").fetchone() is not None
+        else:
+            res = conn.execute("SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'stock_movements')").fetchone()
+            movements_exists = res[0] if res else False
+            
+        if movements_exists:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_stock_movements_item ON stock_movements(item_kind, item_id);")
-        except Exception:
-            pass
 
 
         conn.commit()
