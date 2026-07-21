@@ -657,7 +657,7 @@ html[data-theme="windows-dark"] .ripple-wave.ripple-light {
 
 /* Dark ripple for light backgrounds (makes it pop on white/light/outline buttons) */
 .ripple-wave.ripple-dark {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.22);
 }
 
 @keyframes ripple-expand {

@@ -33,22 +33,30 @@ function getElementBgBrightness(element) {
   while (el) {
     bg = window.getComputedStyle(el).backgroundColor;
     if (bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
-      break;
+      const parts = bg.match(/[\d\.]+/g);
+      if (parts) {
+        const alpha = parts[3] !== undefined ? parseFloat(parts[3]) : 1;
+        if (alpha > 0.3) {
+          break;
+        }
+      }
     }
     el = el.parentElement;
   }
   if (bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') {
-    return 'light';
+    const theme = document.documentElement.getAttribute('data-theme') || 'light';
+    return theme.includes('dark') ? 'dark' : 'light';
   }
-  const match = bg.match(/\d+/g);
-  if (match) {
-    const r = parseInt(match[0], 10);
-    const g = parseInt(match[1], 10);
-    const b = parseInt(match[2], 10);
+  const parts = bg.match(/[\d\.]+/g);
+  if (parts) {
+    const r = parseInt(parts[0], 10);
+    const g = parseInt(parts[1], 10);
+    const b = parseInt(parts[2], 10);
     const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
     return yiq >= 128 ? 'light' : 'dark';
   }
-  return 'light';
+  const theme = document.documentElement.getAttribute('data-theme') || 'light';
+  return theme.includes('dark') ? 'dark' : 'light';
 }
 
 function createRipple(element, event) {
