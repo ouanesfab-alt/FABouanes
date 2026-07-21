@@ -62,10 +62,14 @@
          <span class="nav-action-label d-none">Rechercher</span>
          <kbd class="nav-kbd ms-2 d-none d-md-inline-block" style="font-size: .65rem; padding: 2px 5px; border-radius: 4px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); color: rgba(255,255,255,.65); font-family: inherit; letter-spacing: .02em;">Ctrl K</kbd>
       </button>
-      <button type="button" class="nav-btn d-flex" id="themeToggleBtnNavbar"
-              aria-label="Changer de thème" title="Changer de thème">
-        <i class="bi bi-sun"></i>
-      </button>
+       <button type="button" class="nav-btn d-flex" id="audioToggleBtnNavbar"
+              aria-label="Effets sonores" title="Effets sonores">
+         <i class="bi bi-volume-up-fill" id="audioToggleIcon"></i>
+       </button>
+       <button type="button" class="nav-btn d-flex" id="themeToggleBtnNavbar"
+               aria-label="Changer de thème" title="Changer de thème">
+         <i class="bi bi-sun"></i>
+       </button>
       <a href="{{ url_for('quick_add') }}" class="nav-btn d-none d-md-flex"><i class="bi bi-plus-lg"></i>Ajouter</a>
       <!-- User -->
       <div class="dropdown d-none d-md-block">
