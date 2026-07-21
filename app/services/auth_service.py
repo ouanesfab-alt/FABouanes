@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import secrets
 from fastapi import Request
 
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -22,6 +23,7 @@ from app.core.security import (
     is_locked_out,
     record_login_failure,
     clear_login_failures,
+    get_client_fingerprint,
 )
 
 VALID_ROLES = {ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR}
@@ -69,8 +71,6 @@ async def attempt_login(username: str, password: str, request: Request | None = 
         # Rotation de session pour empêcher la fixation de session
         if request and hasattr(request, "session"):
             request.session.clear()
-            import secrets
-            from app.core.security import get_client_fingerprint
             request.session["session_token"] = secrets.token_hex(32)
             request.session["user_id"] = int(user["id"])
             request.session["role"] = user["role"]

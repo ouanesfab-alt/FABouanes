@@ -248,7 +248,6 @@ async def _create_payment_record_impl(
     payment_type: str,
     db: AsyncSession,
 ) -> int:
-    from datetime import date
     if isinstance(payment_date, str):
         payment_date = date.fromisoformat(payment_date.strip())
 

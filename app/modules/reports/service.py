@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 
@@ -66,7 +67,6 @@ class ReportsService:
         sales = await self.repository.get_credit_sales()
         payments = await self.repository.get_payments()
 
-        from collections import defaultdict
         sales_by_client = defaultdict(list)
         for s in sales:
             sales_by_client[s["client_id"]].append(s)

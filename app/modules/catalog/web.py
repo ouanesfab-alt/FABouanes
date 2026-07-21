@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
+from app.core.exceptions import get_friendly_error_message
 from app.modules.catalog.service import (
     CatalogService,
     new_catalog_context,
@@ -112,7 +113,6 @@ async def new_catalog_item_submit(
         return RedirectResponse("/catalog", status_code=303)
 
     except Exception as e:
-        from app.core.exceptions import get_friendly_error_message
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur de validation : {friendly}", "danger")
         return templates.TemplateResponse(
@@ -171,7 +171,6 @@ async def edit_raw_material_submit(
         flash(request, "Matière première modifiée.", "success")
         return RedirectResponse("/catalog", status_code=303)
     except Exception as e:
-        from app.core.exceptions import get_friendly_error_message
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur de validation : {friendly}", "danger")
         context = raw_material_edit_context(material)
@@ -230,7 +229,6 @@ async def edit_product_submit(
         flash(request, "Produit modifié.", "success")
         return RedirectResponse("/catalog", status_code=303)
     except Exception as e:
-        from app.core.exceptions import get_friendly_error_message
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur de validation : {friendly}", "danger")
         context = product_edit_context(product)

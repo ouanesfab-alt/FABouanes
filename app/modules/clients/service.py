@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import math
 import json
 import shutil
@@ -17,6 +18,7 @@ from app.modules.clients.repository import ClientRepository
 from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
 from app.core.storage import IMPORT_DIR, ensure_runtime_dirs
 from app.core.helpers import parse_excel_client_file
+from app.core.security import decrypt_val
 from app.services.excel_import_service import parse_client_history_excel
 
 _IMPORT_PREVIEW_TTL_SECONDS = 30 * 60
@@ -32,8 +34,6 @@ class ClientService:
     async def _decrypt_client(self, client: Optional[Client]) -> Optional[Client]:
         if not client:
             return client
-        import base64
-        from app.core.security import decrypt_val
         stmt = select(ClientKey.client_id, ClientKey.encryption_key).where(ClientKey.client_id == client.id)
         res = await self.repo.session.execute(stmt)
         row = res.mappings().first()
@@ -49,9 +49,6 @@ class ClientService:
         client_ids = [c.id for c in clients if c.id]
         if not client_ids:
             return clients
-
-        import base64
-        from app.core.security import decrypt_val
 
         stmt = select(ClientKey.client_id, ClientKey.encryption_key).where(ClientKey.client_id.in_(client_ids))
         res = await self.repo.session.execute(stmt)

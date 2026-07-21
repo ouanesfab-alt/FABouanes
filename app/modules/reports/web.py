@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import io
+from datetime import date
 
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import StreamingResponse
@@ -44,9 +45,6 @@ async def reports_page(
 
     fmt = request.query_params.get("format", "").lower()
     if fmt == "csv":
-        import io
-        import csv
-        from datetime import date
         output = io.StringIO()
         writer = csv.writer(output, delimiter=";")
         writer.writerow(["=== RÉSUMÉ GLOBAL ==="])
@@ -85,10 +83,8 @@ async def reports_page(
         )
 
     elif fmt == "xlsx":
-        import io
         import openpyxl
         from openpyxl.styles import Font
-        from datetime import date
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Rapport"

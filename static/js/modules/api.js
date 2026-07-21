@@ -26,8 +26,8 @@ export function showToast(message, type = 'info') {
     window.playSuccessSound();
   } else if (type === 'error' && typeof window.playErrorSound === 'function') {
     window.playErrorSound();
-  } else if (type === 'warning' && typeof window.playErrorSound === 'function') {
-    window.playErrorSound();
+  } else if (type === 'warning' && typeof window.playClickSound === 'function') {
+    window.playClickSound('warning');
   }
 
   let container = document.getElementById('fab-toast-container');

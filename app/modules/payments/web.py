@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
+from app.core.exceptions import get_friendly_error_message
 from app.modules.payments.service import PaymentsService
 from app.modules.payments.schemas_validation import PaymentFormSchema
 from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
@@ -48,7 +49,6 @@ async def payments_submit(
         await service.create_payment_from_form(schema)
         flash(request, "Paiement enregistré.", "success")
     except Exception as exc:
-        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
@@ -97,7 +97,6 @@ async def new_payment_submit(
             return RedirectResponse(f"/print/payment/{payment_id}", status_code=303)
         return RedirectResponse(PAYMENTS_FILTER_URL, status_code=303)
     except Exception as exc:
-        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
@@ -149,7 +148,6 @@ async def edit_payment_submit(
         await service.edit_payment_from_form(payment_id, schema)
         flash(request, "Transaction client modifiée.", "success")
     except Exception as exc:
-        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)

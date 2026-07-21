@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
+from app.core.exceptions import get_friendly_error_message
 from app.modules.clients.service import ClientService
 from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
 from app.services.print_service import COMPANY_INFO
@@ -33,7 +35,6 @@ async def list_clients_page(request: Request):
     if denied:
         return denied
     # Rediriger vers la page officielle filtrée sur type=client
-    from urllib.parse import urlencode
     query = dict(request.query_params)
     query["type"] = "client"
     return RedirectResponse(f"/contacts?{urlencode(query)}", status_code=303)
@@ -67,7 +68,6 @@ async def new_client_submit(
         flash(request, "Client ajouté avec succès.", "success")
         return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
     except Exception as e:
-        from app.core.exceptions import get_friendly_error_message
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur de validation : {friendly}", "danger")
         return templates.TemplateResponse(
@@ -153,7 +153,6 @@ async def edit_client_submit(
             f"/contacts/clients/{client_id}", status_code=303
         )
     except Exception as e:
-        from app.core.exceptions import get_friendly_error_message
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur de validation : {friendly}", "danger")
         form_dict = dict(form)

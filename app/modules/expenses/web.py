@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
+from app.core.exceptions import get_friendly_error_message
 from app.modules.expenses.service import (
     add_expense, get_categories, get_expense, get_payment_methods,
     list_expenses, modify_expense, remove_expense,
@@ -87,7 +88,6 @@ async def new_expense_submit(request: Request, db: AsyncSession = Depends(get_as
         flash(request, "Dépense ajoutée avec succès.", "success")
         return RedirectResponse("/expenses", status_code=303)
     except Exception as e:
-        from app.core.exceptions import get_friendly_error_message
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur : {friendly}", "danger")
         return templates.TemplateResponse("expense_form.html", template_context(
@@ -156,7 +156,6 @@ async def edit_expense_submit(request: Request, expense_id: int, db: AsyncSessio
         flash(request, "Dépense modifiée.", "success")
         return RedirectResponse("/expenses", status_code=303)
     except Exception as e:
-        from app.core.exceptions import get_friendly_error_message
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur : {friendly}", "danger")
         form_dict = dict(form)

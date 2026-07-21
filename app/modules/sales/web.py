@@ -7,6 +7,7 @@ from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
+from app.core.exceptions import get_friendly_error_message
 from app.core.models import Client
 from app.modules.sales.service import SalesService
 from app.modules.sales.schemas_validation import SaleFormSchema
@@ -48,7 +49,6 @@ async def sales_submit(
         if wants_print_after_submit():
             return RedirectResponse(f"/print/{created['print_doc_type']}/{created['print_item_id']}", status_code=303)
     except Exception as exc:
-        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
@@ -95,7 +95,6 @@ async def new_sale_submit(
             return RedirectResponse(f"/print/{created['print_doc_type']}/{created['print_item_id']}", status_code=303)
         return RedirectResponse(SALES_FILTER_URL, status_code=303)
     except Exception as exc:
-        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
@@ -156,7 +155,6 @@ async def edit_sale_document_submit(
         await service.edit_sale_document_from_form(document_id, schema)
         flash(request, "Facture modifiée.", "success")
     except Exception as exc:
-        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
@@ -220,7 +218,6 @@ async def edit_sale_submit(
         await service.edit_sale_from_form(kind, row_id, schema)
         flash(request, "Vente modifiée.", "success")
     except Exception as exc:
-        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)

@@ -8,8 +8,10 @@ from starlette.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.request_state import push_request_state, reset_request_state, set_state_value
+from app.core.sanitizer import sanitize_string
 from app.core.security import security_headers
 from app.web.deps import ensure_csrf_token, load_user_from_session
+from starlette.datastructures import FormData, UploadFile
 
 
 class CachedStaticFiles(StaticFiles):
@@ -42,8 +44,6 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             original_form = request.form
             async def sanitized_form():
                 form_data = await original_form()
-                from app.core.sanitizer import sanitize_string
-                from starlette.datastructures import FormData, UploadFile
                 cleaned_items = []
                 for k, v in form_data.multi_items():
                     if isinstance(v, UploadFile):

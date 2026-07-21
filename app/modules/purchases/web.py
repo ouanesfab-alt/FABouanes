@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
+from app.core.exceptions import get_friendly_error_message
 from app.modules.purchases.service import PurchaseService
 from app.modules.purchases.schemas_validation import PurchaseFormSchema
 from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
@@ -46,7 +47,6 @@ async def purchases_submit(
         if wants_print_after_submit():
             return RedirectResponse(f"/print/{created['print_doc_type']}/{created['print_item_id']}", status_code=303)
     except Exception as exc:
-        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
@@ -93,7 +93,6 @@ async def new_purchase_submit(
             return RedirectResponse(f"/print/{created['print_doc_type']}/{created['print_item_id']}", status_code=303)
         return RedirectResponse(PURCHASES_FILTER_URL, status_code=303)
     except Exception as exc:
-        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
@@ -148,7 +147,6 @@ async def edit_purchase_document_submit(
         await service.edit_purchase_document_from_form(document_id, schema)
         flash(request, "Bon d'achat modifié.", "success")
     except Exception as exc:
-        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
@@ -206,7 +204,6 @@ async def edit_purchase_submit(
         await service.edit_purchase_from_form(purchase_id, schema)
         flash(request, "Achat modifié.", "success")
     except Exception as exc:
-        from app.core.exceptions import get_friendly_error_message
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
