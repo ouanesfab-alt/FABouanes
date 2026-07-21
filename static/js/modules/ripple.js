@@ -27,6 +27,30 @@ const RIPPLE_SELECTOR = [
 
 const DURATION = 700; // ms
 
+function getElementBgBrightness(element) {
+  let el = element;
+  let bg = 'rgba(0, 0, 0, 0)';
+  while (el) {
+    bg = window.getComputedStyle(el).backgroundColor;
+    if (bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+      break;
+    }
+    el = el.parentElement;
+  }
+  if (bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') {
+    return 'light';
+  }
+  const match = bg.match(/\d+/g);
+  if (match) {
+    const r = parseInt(match[0], 10);
+    const g = parseInt(match[1], 10);
+    const b = parseInt(match[2], 10);
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return yiq >= 128 ? 'light' : 'dark';
+  }
+  return 'light';
+}
+
 function createRipple(element, event) {
   const rect = element.getBoundingClientRect();
 
@@ -41,8 +65,9 @@ function createRipple(element, event) {
   const y    = clientY - rect.top;
   const size = Math.max(rect.width, rect.height) * 2;
 
+  const brightness = getElementBgBrightness(element);
   const ripple = document.createElement('span');
-  ripple.className   = 'ripple-wave';
+  ripple.className = `ripple-wave ${brightness === 'light' ? 'ripple-dark' : 'ripple-light'}`;
   ripple.style.width  = size + 'px';
   ripple.style.height = size + 'px';
   ripple.style.left   = (x - size / 2) + 'px';
