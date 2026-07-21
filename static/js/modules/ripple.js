@@ -67,6 +67,26 @@ function createRipple(element, event) {
   ripple.style.left   = (x - size / 2) + 'px';
   ripple.style.top    = (y - size / 2) + 'px';
 
+  // Apply custom colored tint overlay for colored buttons
+  try {
+    const style = window.getComputedStyle(element);
+    const bg = style.backgroundColor;
+    const color = style.color;
+    
+    // Check if the element has a solid non-transparent background
+    if (bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)' && !bg.startsWith('rgba(0,0,0,0)')) {
+      ripple.style.backgroundColor = bg;
+      ripple.style.mixBlendMode = 'screen';
+      ripple.style.opacity = '0.6';
+    } else if (color) {
+      ripple.style.backgroundColor = color;
+      ripple.style.mixBlendMode = 'normal';
+      ripple.style.opacity = '0.25';
+    }
+  } catch (e) {
+    // Graceful fallback to CSS default if computed styles fail
+  }
+
   element.appendChild(ripple);
 
   setTimeout(() => {

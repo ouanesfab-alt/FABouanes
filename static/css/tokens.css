@@ -673,19 +673,6 @@ html[data-theme="windows-dark"] .ripple-wave {
   background: currentColor;
 }
 
-/* Navbar buttons: ripple adapté (fond clair ou transparent) */
-.nav-brand .ripple-wave,
-.nav-links a .ripple-wave,
-.nav-btn .ripple-wave,
-.nav-btn-primary .ripple-wave,
-.nav-link-menu .ripple-wave,
-.nav-hamburger .ripple-wave,
-.side-nav-toggle .ripple-wave,
-.bot-tab-add .ripple-wave,
-.bot-tab .ripple-wave,
-.nav-link .ripple-wave,
-.nav-drawer-close .ripple-wave,
-.drawer-link .ripple-wave,
 @keyframes ripple-expand {
   0%   { transform: scale(0); opacity: 0.35; }
   70%  { transform: scale(2.5); opacity: 0.15; }
