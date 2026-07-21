@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 import json
 import unicodedata
 from pathlib import Path
@@ -240,9 +241,9 @@ def search_user_documents(query: str, limit: int = 3) -> List[Dict[str, Any]]:
     scored_chunks.sort(key=lambda x: x["score"], reverse=True)
     return scored_chunks[:limit]
 
-import time
 _embedding_cache: dict[str, tuple[float, List[float]]] = {}
 CACHE_EXPIRY = 900.0  # 15 minutes
+
 
 
 async def get_embedding(text: str, api_key: str) -> List[float] | None:

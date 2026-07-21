@@ -3,11 +3,15 @@ from __future__ import annotations
 import os
 import json
 import asyncio
+import threading
+import time
+import select
 from typing import Any, Callable
 
 import structlog
 
 from app.core.websockets import manager
+
 
 logger = structlog.get_logger("fabouanes.worker")
 
@@ -437,10 +441,6 @@ async def enqueue_background_task(task_name: str, *args: Any, **kwargs: Any) -> 
 
     return job_id
 
-
-import threading
-import time
-import select
 
 _worker_thread = None
 _worker_running = False

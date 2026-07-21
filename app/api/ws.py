@@ -1,5 +1,6 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status, Request
 from app.core.websockets import manager
+from app.utils.api_response import APIResponse
 from collections import defaultdict
 import logging
 
@@ -41,13 +42,10 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 
-from fastapi import Request
-from app.utils.api_response import APIResponse
-
-
 @router.get("/session/ping")
 async def session_ping(request: Request):
     """Silent keep-alive endpoint for updating session cookies during user activity."""
     user_id = request.session.get("user_id")
     return APIResponse.success(data={"active": bool(user_id)})
+
 

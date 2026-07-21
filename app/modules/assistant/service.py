@@ -1,6 +1,7 @@
 import json
 import logging
 import asyncio
+import time
 import httpx
 from typing import Any, Dict, List, Tuple
 
@@ -15,10 +16,6 @@ from app.modules.assistant.schema_context import (
 )
 from app.modules.assistant.intent import classify_intent
 from app.modules.assistant.rag import get_rag_context
-
-logger = logging.getLogger("fabouanes.assistant")
-
-
 from app.modules.assistant.llm_client import (
     get_gemini_client,
     get_ollama_client,
@@ -28,6 +25,9 @@ from app.modules.assistant.history import (
     get_last_user_query as _get_last_user_query,
     clean_unconfirmed_tool_calls,
 )
+
+logger = logging.getLogger("fabouanes.assistant")
+
 
 __all__ = [
     "get_gemini_client",
@@ -341,8 +341,6 @@ def normalize_args_dict(args: dict | None) -> dict:
             res[k] = norm_v
     return res
 
-
-import time
 
 _recent_write_executions: List[Dict[str, Any]] = []
 

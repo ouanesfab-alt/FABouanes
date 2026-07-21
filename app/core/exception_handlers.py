@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 from app.core.exceptions import (
     NotFoundError,
@@ -13,6 +14,7 @@ from app.core.exceptions import (
 )
 
 logger = logging.getLogger("fabouanes")
+
 
 
 def is_html_request(request: Request) -> bool:
@@ -151,8 +153,6 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     )
 
 
-
-from fastapi.exceptions import RequestValidationError
 
 async def validation_error_handler(request: Request, exc: RequestValidationError):
     errors = []
