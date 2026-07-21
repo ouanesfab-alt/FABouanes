@@ -82,13 +82,10 @@ public class ServerService extends Service {
             broadcast(BROADCAST_PROGRESS, "Extraction de l'archive runtime (73 Mo)...", 5);
             extractAsset("fabouanes_runtime.tar.xz");
 
-            broadcast(BROADCAST_PROGRESS, "Correction des permissions d'exécution...", 80);
-            setExecutable(new File(getPrefix(), "bin/bash"));
-            setExecutable(new File(getPrefix(), "bin/python3.14"));
-            setExecutable(new File(getPrefix(), "bin/postgres"));
-            setExecutable(new File(getPrefix(), "bin/pg_ctl"));
-            setExecutable(new File(getPrefix(), "bin/initdb"));
-            setExecutable(new File(getPrefix(), "bin/createdb"));
+            broadcast(BROADCAST_PROGRESS, "Application des permissions d’exécution (chmod)...", 80);
+            chmodRecursive(getPrefix().getAbsolutePath() + "/bin", "755");
+            chmodRecursive(getPrefix().getAbsolutePath() + "/lib", "755");
+            chmodRecursive(getPrefix().getAbsolutePath() + "/lib/postgresql", "755");
 
             broadcast(BROADCAST_PROGRESS, "Écriture du fichier de configuration .env...", 88);
             writeEnvFile();
@@ -167,6 +164,24 @@ public class ServerService extends Service {
         if (f.exists()) {
             f.setExecutable(true, false);
             f.setReadable(true, false);
+        }
+    }
+
+    /** Use system chmod (always available on Android) — much more reliable than File.setExecutable() */
+    private void chmodRecursive(String path, String mode) {
+        try {
+            Process p = new ProcessBuilder("/system/bin/chmod", "-R", mode, path)
+                    .redirectErrorStream(true)
+                    .start();
+            // drain output
+            try (InputStream is = p.getInputStream()) {
+                byte[] buf = new byte[4096];
+                while (is.read(buf) != -1) {}
+            }
+            p.waitFor();
+            Log.d(TAG, "chmod -R " + mode + " " + path + " done");
+        } catch (Exception e) {
+            Log.e(TAG, "chmod failed on " + path, e);
         }
     }
 

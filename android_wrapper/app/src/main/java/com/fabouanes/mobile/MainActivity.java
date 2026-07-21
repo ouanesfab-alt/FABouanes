@@ -92,6 +92,16 @@ public class MainActivity extends AppCompatActivity {
 
         registerServiceReceiver();
 
+        // Self-healing: if 'extracted' but binaries aren't executable, reset and redo
+        if (prefs.getBoolean("extracted", false)) {
+            java.io.File initdb = new java.io.File(
+                    getFilesDir(), "usr/bin/initdb");
+            if (!initdb.exists() || !initdb.canExecute()) {
+                android.util.Log.w("FABMain", "initdb not executable — resetting extracted flag");
+                prefs.edit().remove("extracted").apply();
+            }
+        }
+
         if ("local".equals(selectedMode) && prefs.getBoolean("extracted", false)) {
             // Already set up — just start server and show loader
             showSetupScreen("Démarrage du serveur local…", 70);
@@ -102,6 +112,7 @@ public class MainActivity extends AppCompatActivity {
         } else {
             showSelectScreen();
         }
+
     }
 
     // ─────────────────────────────────────────────────────────────────────────
