@@ -194,21 +194,26 @@ public class ServerService extends Service {
 
     private void doStart() {
         try {
-            String prefix  = getPrefix().getAbsolutePath();
-            String home    = getHome().getAbsolutePath();
-            String pgData  = new File(getFilesDir(), "pgdata").getAbsolutePath();
-            String libPath = prefix + "/lib";
-            String binPath = prefix + "/bin";
+            String prefix    = getPrefix().getAbsolutePath();
+            String home      = getHome().getAbsolutePath();
+            String pgData    = new File(getFilesDir(), "pgdata").getAbsolutePath();
+            String pgShare   = prefix + "/share/postgresql";
+            String pgPkgLib  = prefix + "/lib/postgresql";
+            String libPath   = prefix + "/lib";
+            String binPath   = prefix + "/bin";
+            String tmpDir    = getCacheDir().getAbsolutePath();
+            // Unix socket for PostgreSQL — must be a short path (PG limit ~107 chars)
+            String pgSocket  = tmpDir;
 
-            broadcast(BROADCAST_PROGRESS, "Démarrage de PostgreSQL...", 96);
-            startPostgres(prefix, pgData, libPath, binPath);
+            broadcast(BROADCAST_PROGRESS, "Initialisation de PostgreSQL...", 96);
+            startPostgres(prefix, pgData, pgShare, pgPkgLib, libPath, binPath, tmpDir, pgSocket);
 
-            Thread.sleep(3000);
+            Thread.sleep(4000);
 
             broadcast(BROADCAST_PROGRESS, "Démarrage du serveur FABouanes...", 98);
-            startPython(prefix, home, libPath, binPath);
+            startPython(prefix, home, libPath, binPath, pgSocket, tmpDir);
 
-            Thread.sleep(2000);
+            Thread.sleep(3000);
             broadcast(BROADCAST_STARTED, "Serveur démarré !", 100);
 
         } catch (Exception e) {
@@ -217,60 +222,134 @@ public class ServerService extends Service {
         }
     }
 
-    private void startPostgres(String prefix, String pgData, String libPath, String binPath)
+    /** Build the full env block for any process in our embedded runtime. */
+    private java.util.Map<String, String> buildEnv(String prefix, String libPath,
+                                                    String pgShare, String pgPkgLib,
+                                                    String home, String tmpDir, String pgSocket) {
+        java.util.Map<String, String> env = new java.util.HashMap<>();
+
+        // ── Library path: overrides RPATH (takes priority on Android bionic linker) ──
+        env.put("LD_LIBRARY_PATH", libPath + ":" + libPath + "/postgresql");
+
+        // ── Python: override compiled-in prefix (was /data/data/com.termux) ──
+        env.put("PYTHONHOME",  prefix);
+        env.put("PYTHONPATH",  prefix + "/lib/python3.14:" + prefix + "/lib/python3.14/site-packages");
+
+        // ── PostgreSQL: override all compiled-in paths ──
+        if (pgShare  != null) env.put("PGSHAREDIR",   pgShare);
+        if (pgPkgLib != null) env.put("PGPKGLIBDIR",  pgPkgLib);
+        env.put("PGDATA",    new File(getFilesDir(), "pgdata").getAbsolutePath());
+        env.put("PGHOST",    pgSocket);
+        env.put("PGPORT",    "5432");
+        env.put("PGUSER",    "fab");
+        env.put("PGDATABASE", "fabouanes");
+
+        // ── System ──
+        env.put("PREFIX",   prefix);
+        env.put("HOME",     home);
+        env.put("TMPDIR",   tmpDir);
+        env.put("PATH",     prefix + "/bin:/system/bin:/system/xbin");
+        env.put("LANG",     "C.UTF-8");
+        env.put("LC_ALL",   "C");
+
+        return env;
+    }
+
+    private void startPostgres(String prefix, String pgData,
+                                String pgShare, String pgPkgLib,
+                                String libPath, String binPath,
+                                String tmpDir, String pgSocket)
             throws IOException, InterruptedException {
+
+        java.util.Map<String, String> env =
+                buildEnv(prefix, libPath, pgShare, pgPkgLib,
+                         getHome().getAbsolutePath(), tmpDir, pgSocket);
+
         File pgDataDir = new File(pgData);
         if (!pgDataDir.exists()) {
-            // initdb
-            broadcast(BROADCAST_PROGRESS, "Initialisation de la base de données...", 96);
-            runCmd(new String[]{binPath + "/initdb", "-D", pgData, "-U", "fab"},
-                   prefix, libPath, true);
+            broadcast(BROADCAST_PROGRESS, "Création de la base de données (initdb)...", 96);
+            runProcess(
+                new String[]{binPath + "/initdb",
+                    "-D", pgData,
+                    "-U", "fab",
+                    "--auth=trust",
+                    "--encoding=UTF8",
+                    "--locale=C"},
+                env, true);
             Thread.sleep(2000);
         }
-        // start postgres
-        runCmd(new String[]{binPath + "/pg_ctl", "start", "-D", pgData,
-                "-o", "-p 5432 -k /tmp"},
-               prefix, libPath, false);
+
+        broadcast(BROADCAST_PROGRESS, "Démarrage de PostgreSQL...", 97);
+        // pg_ctl start — writes log to pgdata/pg_log/
+        runProcess(
+            new String[]{binPath + "/pg_ctl", "start",
+                "-D", pgData,
+                "-l", pgData + "/postgres.log",
+                "-o", "-p 5432 -k " + pgSocket},
+            env, true);
         Thread.sleep(3000);
-        // create db
-        runCmd(new String[]{binPath + "/createdb", "-h", "/tmp", "-p", "5432",
+
+        // Create DB if not exists (ignore error if already exists)
+        runProcess(
+            new String[]{binPath + "/createdb",
+                "-h", pgSocket, "-p", "5432",
                 "-U", "fab", "fabouanes"},
-               prefix, libPath, false);
+            env, false);
     }
 
-    private void startPython(String prefix, String home, String libPath, String binPath)
+    private void startPython(String prefix, String home,
+                              String libPath, String binPath,
+                              String pgSocket, String tmpDir)
             throws IOException {
         File fabDir = getFABDir();
-        String[] cmd = {binPath + "/python3.14", "launcher.py", "--server-only"};
+        java.util.Map<String, String> env =
+                buildEnv(prefix, libPath,
+                         prefix + "/share/postgresql",
+                         prefix + "/lib/postgresql",
+                         home, tmpDir, pgSocket);
+
+        String[] cmd = {binPath + "/python3.14", "launcher.py"};
         ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.directory(fabDir);
-        pb.environment().put("PREFIX", prefix);
-        pb.environment().put("HOME", home);
-        pb.environment().put("PYTHONHOME", prefix);
-        pb.environment().put("PYTHONPATH", prefix + "/lib/python3.14:" + prefix + "/lib/python3.14/site-packages");
-        pb.environment().put("LD_LIBRARY_PATH", libPath);
-        pb.environment().put("PATH", binPath + ":/system/bin:/system/xbin");
-        pb.environment().put("TMPDIR", getCacheDir().getAbsolutePath());
-        pb.environment().put("PGHOST", "/tmp");
-        pb.environment().put("PGPORT", "5432");
-        pb.environment().put("PGUSER", "fab");
+        pb.environment().putAll(env);
         pb.redirectErrorStream(true);
         serverProcess = pb.start();
+
+        // Log output to file for debugging
+        final Process proc = serverProcess;
+        new Thread(() -> {
+            try (InputStream is = proc.getInputStream();
+                 FileOutputStream log = new FileOutputStream(
+                         new File(getFilesDir(), "python_server.log"))) {
+                byte[] buf = new byte[4096];
+                int n;
+                while ((n = is.read(buf)) != -1) log.write(buf, 0, n);
+            } catch (Exception ignored) {}
+        }, "python-log").start();
     }
 
-    private void runCmd(String[] cmd, String prefix, String libPath, boolean waitFor)
+    private void runProcess(String[] cmd, java.util.Map<String, String> env, boolean waitFor)
             throws IOException, InterruptedException {
         ProcessBuilder pb = new ProcessBuilder(cmd);
-        pb.environment().put("PREFIX", prefix);
-        pb.environment().put("LD_LIBRARY_PATH", libPath);
-        pb.environment().put("PATH", prefix + "/bin:/system/bin");
-        pb.environment().put("TMPDIR", getCacheDir().getAbsolutePath());
+        pb.environment().putAll(env);
         pb.redirectErrorStream(true);
         Process p = pb.start();
         if (waitFor) {
-            try (InputStream is = p.getInputStream()) { is.transferTo(OutputStream.nullOutputStream()); }
+            // Drain output
+            try (InputStream is = p.getInputStream()) {
+                byte[] buf = new byte[4096];
+                while (is.read(buf) != -1) {}
+            }
             p.waitFor();
         }
+    }
+
+    // ── keep old runCmd signature for any remaining callers ──
+    private void runCmd(String[] cmd, String prefix, String libPath, boolean waitFor)
+            throws IOException, InterruptedException {
+        java.util.Map<String, String> env = buildEnv(prefix, libPath, null, null,
+                getHome().getAbsolutePath(), getCacheDir().getAbsolutePath(), getCacheDir().getAbsolutePath());
+        runProcess(cmd, env, waitFor);
     }
 
     // ─── STOP ────────────────────────────────────────────────────────────────
