@@ -247,10 +247,14 @@ def bootstrap_schema() -> None:
             """)
 
         # performance indexes
-        conn.executescript("""
-        CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
-        CREATE INDEX IF NOT EXISTS idx_stock_movements_item ON stock_movements(item_kind, item_id);
-        """)
+        try:
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);")
+        except Exception:
+            pass
+        try:
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_stock_movements_item ON stock_movements(item_kind, item_id);")
+        except Exception:
+            pass
 
 
         conn.commit()
