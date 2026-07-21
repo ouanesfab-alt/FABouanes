@@ -151,6 +151,38 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     )
 
 
+
+from fastapi.exceptions import RequestValidationError
+
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    errors = []
+    for err in exc.errors():
+        loc = ".".join(str(x) for x in err.get("loc", []))
+        msg = err.get("msg", "valeur invalide")
+        errors.append(f"{loc}: {msg}")
+    friendly_msg = "Erreur de validation des données : " + ", ".join(errors)
+
+    if not is_html_request(request):
+        return JSONResponse(
+            {
+                "success": False,
+                "error": {
+                    "code": "validation_error",
+                    "message": friendly_msg,
+                    "details": exc.errors()
+                }
+            },
+            status_code=422
+        )
+
+    from app.web.deps import template_context, templates
+    return templates.TemplateResponse(
+        "error.html",
+        template_context(request, status_code=422, error_message=friendly_msg),
+        status_code=422
+    )
+
+
 def register_exception_handlers(app) -> None:
     app.add_exception_handler(NotFoundError, not_found_handler)
     app.add_exception_handler(ValidationError, validation_handler)
@@ -158,4 +190,6 @@ def register_exception_handlers(app) -> None:
     app.add_exception_handler(PermissionDeniedError, permission_handler)
     app.add_exception_handler(AuthenticationRequiredError, auth_required_handler)
     app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_error_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)
+

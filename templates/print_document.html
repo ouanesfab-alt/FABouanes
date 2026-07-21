@@ -528,7 +528,34 @@
   body.is-generating-pdf .print-doc-summary-row.total strong {
     color: #0284c7 !important;
   }
+
+  @media print {
+    body, html {
+      background: #ffffff !important;
+      color: #000000 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    .print-doc-shell {
+      width: 100% !important;
+      min-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+    }
+    .print-doc-paper {
+      border: none !important;
+      box-shadow: none !important;
+      min-height: 0 !important;
+      border-radius: 0 !important;
+      padding: 0 !important;
+    }
+    .print-doc-actions, .no-print, nav, footer, .navbar, .sidebar {
+      display: none !important;
+    }
+  }
 </style>
+
 
 <div class="print-doc-shell">
   <article class="print-doc-paper print-card">

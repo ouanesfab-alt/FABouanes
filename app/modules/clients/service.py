@@ -265,7 +265,13 @@ class ClientService:
             return False
 
         before_dump = client.model_dump()
-        success = await self.repo.delete(client_id)
+        
+        from sqlalchemy.exc import IntegrityError
+        from app.core.exceptions import ValidationError
+        try:
+            success = await self.repo.delete(client_id)
+        except IntegrityError:
+            raise ValidationError("Impossible de supprimer ce client car il possède des opérations historiques (ventes ou règlements) associées.")
 
         if success:
             invalidate_client_cache(client_id)
@@ -278,6 +284,7 @@ class ClientService:
                     before=before_dump,
                 )
             )
+
         return success
 
     async def has_operations(self, client_id: int) -> bool:

@@ -279,7 +279,33 @@
     from { transform: scale(0.9) translateY(20px); opacity: 0; }
     to { transform: scale(1) translateY(0); opacity: 1; }
   }
+
+  @media print {
+    body, html {
+      background: #ffffff !important;
+      color: #000000 !important;
+    }
+    nav, footer, .navbar, .sidebar, .btn, .nav-btn, .page-hero, .bons-layout-grid, .mac-modal-header, .mac-modal-close, .modal-frame-scroll-cap {
+      display: none !important;
+    }
+    .mac-modal-backdrop {
+      background: transparent !important;
+    }
+    .mac-modal {
+      position: relative !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+      transform: none !important;
+      border: none !important;
+    }
+    .modal-frame {
+      height: auto !important;
+    }
+  }
 </style>
+
 
 <div class="bons-page">
   <div class="page-hero mb-0">

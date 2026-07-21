@@ -313,10 +313,17 @@ class CatalogService:
             return False
 
         if await self.raw_repo.is_linked(material_id):
-            return False
+            from app.core.exceptions import ValidationError
+            raise ValidationError("Impossible de supprimer cette matière première car elle possède des opérations historiques associées.")
 
         before_dump = rm.model_dump()
-        success = await self.raw_repo.delete(material_id)
+        
+        from sqlalchemy.exc import IntegrityError
+        from app.core.exceptions import ValidationError
+        try:
+            success = await self.raw_repo.delete(material_id)
+        except IntegrityError:
+            raise ValidationError("Impossible de supprimer cette matière première car elle possède des opérations historiques associées.")
 
         if success:
             invalidate_cache_domains("catalog")
@@ -337,12 +344,20 @@ class CatalogService:
             return False
 
         if await self.finished_repo.is_linked(product_id):
-            return False
+            from app.core.exceptions import ValidationError
+            raise ValidationError("Impossible de supprimer ce produit fini car il possède des opérations historiques associées.")
 
         before_dump = fp.model_dump()
-        success = await self.finished_repo.delete(product_id)
+        
+        from sqlalchemy.exc import IntegrityError
+        from app.core.exceptions import ValidationError
+        try:
+            success = await self.finished_repo.delete(product_id)
+        except IntegrityError:
+            raise ValidationError("Impossible de supprimer ce produit fini car il possède des opérations historiques associées.")
 
         if success:
+
             invalidate_cache_domains("catalog")
             emit(
                 DomainEvent(
