@@ -125,3 +125,31 @@ Pour lancer l'application à l'avenir, ouvrez Termux et tapez simplement :
 ```bash
 ./start_fab.sh
 ```
+
+---
+
+## 🚨 Pièges & Astuces indispensables sous Android (Termux)
+
+Pour que FABOuanes fonctionne de manière fluide et stable 24h/24 en mode serveur sur votre smartphone, appliquez ces réglages :
+
+### 1. Empêcher Android de couper le serveur (Wake Lock)
+Par défaut, Android met en veille les applications en arrière-plan pour économiser la batterie, ce qui couperait le serveur de base de données et l'application.
+- **Activer le Wake Lock** : Faites glisser votre barre de notifications Android vers le bas, trouvez la notification **Termux**, et cliquez sur **"Acquire WakeLock"**. Cela force le processeur du téléphone à rester éveillé.
+- **Désactiver l'optimisation de la batterie** : Allez dans les paramètres d'Android -> Applications -> Termux -> Batterie, et sélectionnez **"Non restreinte"** (ou désactivez l'optimisation).
+
+### 2. Le problème des utilisateurs sous Android (`whoami`)
+Android n'a pas d'utilisateur système `postgres` par défaut. Termux s'exécute sous un identifiant utilisateur générique (ex: `u0_a123`).
+Si vous rencontrez une erreur de connexion à la base de données :
+1. Tapez `whoami` dans Termux pour connaître votre identifiant.
+2. Si vous n'utilisez pas l'URL de connexion avec l'utilisateur `postgres`, vous pouvez modifier le fichier `.env` pour utiliser cet utilisateur système Termux :
+   ```env
+   DATABASE_URL=postgresql://u0_a123@localhost:5432/fabouanes
+   ```
+   *(Remplacez `u0_a123` par le résultat exact de la commande `whoami`).*
+
+### 3. Connaître l'IP locale de votre smartphone facilement
+Si la commande `ifconfig` renvoie trop d'informations, tapez simplement cette commande dans Termux pour voir l'adresse IP à utiliser pour connecter vos autres appareils :
+```bash
+ip route get 1.1.1.1 | awk '{print $7}'
+```
+
