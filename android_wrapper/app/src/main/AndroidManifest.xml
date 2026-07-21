@@ -30,7 +30,17 @@
         <service
             android:name=".ServerService"
             android:exported="false"
-            android:enabled="true" />
+            android:enabled="true"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- Debug: allows triggering extraction via adb broadcast -->
+        <receiver
+            android:name=".AdbTriggerReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.fabouanes.mobile.START_LOCAL" />
+            </intent-filter>
+        </receiver>
 
     </application>
 </manifest>

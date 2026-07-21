@@ -9,9 +9,9 @@ android {
     defaultConfig {
         applicationId "com.fabouanes.mobile"
         minSdk 24
-        targetSdk 33
-        versionCode 2
-        versionName "2.0"
+        targetSdk 28   // Must be <= 28: gives SELinux domain untrusted_app_27 which allows exec() on app_data_file
+        versionCode 3
+        versionName "3.0"
     }
 
     buildTypes {
