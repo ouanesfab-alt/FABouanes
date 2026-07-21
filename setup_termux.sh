@@ -25,15 +25,15 @@ createdb fabouanes 2>/dev/null || echo "La base fabouanes existe déjà."
 
 echo "📂 4. Préparation du répertoire de l'application..."
 # Si le script est exécuté depuis le dossier partagé Android, on copie le code dans le home de Termux
-if [ -d "~/FABouanes" ]; then
-    echo "Le dossier ~/FABouanes existe déjà, mise à jour..."
-    cd ~/FABouanes
+if [ -d "$HOME/FABouanes" ]; then
+    echo "Le dossier $HOME/FABouanes existe déjà, mise à jour..."
+    cd "$HOME/FABouanes"
     git pull
 else
     echo "Clonage du projet dans le dossier local Termux..."
-    cd ~
+    cd "$HOME"
     git clone https://github.com/ouanesfab-alt/FABouanes.git
-    cd ~/FABouanes
+    cd "$HOME/FABouanes"
 fi
 
 echo "🐍 5. Installation des bibliothèques Python..."
