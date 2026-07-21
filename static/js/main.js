@@ -8,6 +8,7 @@ import { initContextMenuModule } from './modules/contextMenu.js';
 import { initMobileShellModule } from './modules/mobileShell.js';
 import { initOfflineSync } from './offline-sync.js';
 import { initRippleModule } from './modules/ripple.js';
+import { initAudioModule } from './modules/audio.js';
 
 // Bind functions to window for backward compatibility with inline HTML events
 window.openInvoice = openInvoice;
@@ -25,4 +26,7 @@ initMobileShellModule();
 initOfflineSync();
 // Ripple effect sur tous les boutons
 initRippleModule();
+// Sons de clics et retours sonores PWA
+initAudioModule();
+
 

@@ -21,7 +21,17 @@ export function headers(extra) {
 }
 
 export function showToast(message, type = 'info') {
+  // Play dynamic synthesized sound feedback
+  if (type === 'success' && typeof window.playSuccessSound === 'function') {
+    window.playSuccessSound();
+  } else if (type === 'error' && typeof window.playErrorSound === 'function') {
+    window.playErrorSound();
+  } else if (type === 'warning' && typeof window.playErrorSound === 'function') {
+    window.playErrorSound();
+  }
+
   let container = document.getElementById('fab-toast-container');
+
   if (!container) {
     container = document.createElement('div');
     container.id = 'fab-toast-container';
