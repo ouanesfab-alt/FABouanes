@@ -84,6 +84,10 @@ def bootstrap_schema() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_background_jobs_status_run_at ON background_jobs(status, run_at);
         """)
+        # Commit explicite ici pour garantir que background_jobs et les tables
+        # precedentes sont persistees meme si le bloc pgvector echoue ensuite.
+        conn.commit()
+
 
         # Then domain schemas
         conn.executescript(SCHEMA_CONTACTS)

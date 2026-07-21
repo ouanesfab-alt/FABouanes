@@ -3,11 +3,16 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
 from sqlalchemy import Column, Numeric
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.orm import relationship
 from pydantic import field_validator
+
+if TYPE_CHECKING:
+    from app.core.models_pkg.payments import Payment
+    from app.core.models_pkg.sales import Sale, RawSale, SaleDocument
+
 
 from app.core.model_utils import _now
 
@@ -25,12 +30,13 @@ class Client(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=_now)
 
     # Relationships
-    imported_histories: list[ImportedClientHistory] = Relationship(sa_relationship=relationship("ImportedClientHistory", back_populates="client"))
-    histories: list[ClientHistory] = Relationship(sa_relationship=relationship("ClientHistory", back_populates="client"))
-    sales: list[Sale] = Relationship(sa_relationship=relationship("Sale", back_populates="client"))
-    raw_sales: list[RawSale] = Relationship(sa_relationship=relationship("RawSale", back_populates="client"))
-    payments: list[Payment] = Relationship(sa_relationship=relationship("Payment", back_populates="client"))
-    sale_documents: list[SaleDocument] = Relationship(sa_relationship=relationship("SaleDocument", back_populates="client"))
+    imported_histories: list["ImportedClientHistory"] = Relationship(sa_relationship=relationship("ImportedClientHistory", back_populates="client"))
+    histories: list["ClientHistory"] = Relationship(sa_relationship=relationship("ClientHistory", back_populates="client"))
+    sales: list["Sale"] = Relationship(sa_relationship=relationship("Sale", back_populates="client"))
+    raw_sales: list["RawSale"] = Relationship(sa_relationship=relationship("RawSale", back_populates="client"))
+    payments: list["Payment"] = Relationship(sa_relationship=relationship("Payment", back_populates="client"))
+    sale_documents: list["SaleDocument"] = Relationship(sa_relationship=relationship("SaleDocument", back_populates="client"))
+
 
     @field_validator("opening_credit", mode="before")
     @classmethod

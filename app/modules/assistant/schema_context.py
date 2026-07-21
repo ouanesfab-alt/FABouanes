@@ -12,6 +12,16 @@ from app.core.db_helpers import db_manager
 logger = logging.getLogger("fabouanes.assistant.schema_context")
 
 TABLE_SCHEMAS = {
+    "contacts": (
+        "id* (BIGINT auto), contact_type* (TEXT: 'client' | 'supplier' | 'both'), name* (TEXT), phone (TEXT), address (TEXT), notes (TEXT), "
+        "opening_credit* (NUMERIC défaut 0), created_at* (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "
+        "— Table unifiée de tous les contacts (clients et fournisseurs)."
+    ),
+    "catalog_items": (
+        "id* (BIGINT auto), item_type* (TEXT: 'finished' | 'raw'), name* (TEXT), unit* (TEXT), stock_qty* (NUMERIC), "
+        "sale_price* (NUMERIC), avg_cost* (NUMERIC), alert_threshold* (NUMERIC), updated_at (TIMESTAMPTZ) "
+        "— Table unifiée du catalogue (produits finis et matières premières)."
+    ),
     "clients": (
         "id* (BIGINT auto), name* (TEXT), phone (TEXT), address (TEXT), notes (TEXT), "
         "opening_credit* (NUMERIC défaut 0), credit_limit (NUMERIC), created_at* (TIMESTAMPTZ auto), updated_at (TIMESTAMPTZ) "

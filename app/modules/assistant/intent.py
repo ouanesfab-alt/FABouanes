@@ -41,3 +41,19 @@ def classify_intent(user_query: str) -> str:
 
     # Default to lite for simple chat queries if no business keywords match
     return "lite"
+
+
+def detect_multi_step_intents(user_query: str) -> list[str]:
+    """Splits a multi-action user query into individual sequential sub-prompts if connected by conjunctions."""
+    if not user_query:
+        return []
+
+    # Match conjunction splitters: "puis", "et ensuite", "apres ca", "après ça", or newlines
+    pattern = r"\s+(?:puis|et\s+ensuite|après\s+ça|apres\s+ca|\n+)\s+"
+    parts = [p.strip() for p in re.split(pattern, user_query, flags=re.IGNORECASE) if p.strip()]
+    
+    # Only return multi-step list if at least 2 distinct action phrases were found
+    if len(parts) >= 2:
+        return parts
+    return [user_query.strip()]
+

@@ -3,10 +3,15 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from sqlalchemy import Column, Numeric
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.orm import relationship
+
+if TYPE_CHECKING:
+    from app.core.models_pkg.clients import Supplier
+    from app.core.models_pkg.catalog import RawMaterial, FinishedProduct
+
 
 from app.core.model_utils import _now
 
@@ -46,9 +51,10 @@ class Purchase(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=_now)
 
     # Relationships
-    supplier: Optional[Supplier] = Relationship(sa_relationship=relationship("Supplier", back_populates="purchases"))
-    raw_material: Optional[RawMaterial] = Relationship(sa_relationship=relationship("RawMaterial", back_populates="purchases"))
-    finished_product: Optional[FinishedProduct] = Relationship(sa_relationship=relationship("FinishedProduct", back_populates="purchases"))
+    supplier: Optional["Supplier"] = Relationship(sa_relationship=relationship("Supplier", back_populates="purchases"))
+    raw_material: Optional["RawMaterial"] = Relationship(sa_relationship=relationship("RawMaterial", back_populates="purchases"))
+    finished_product: Optional["FinishedProduct"] = Relationship(sa_relationship=relationship("FinishedProduct", back_populates="purchases"))
+
 
 
 class PurchaseDocument(SQLModel, table=True):

@@ -157,3 +157,17 @@ async def test_db_task_decorator():
     # Async call
     res = await mock_db_operation.async_(5)
     assert res == 10
+
+
+@pytest.mark.asyncio
+async def test_async_query_and_execute():
+    from app.core.db_helpers import query_db_async, execute_db_async
+    with mock.patch.object(db_manager, "query_db", return_value={"res": 1}) as mock_q, \
+         mock.patch.object(db_manager, "execute_db", return_value=42) as mock_e:
+
+        q_res = await query_db_async("SELECT 1", one=True)
+        assert q_res == {"res": 1}
+
+        e_res = await execute_db_async("INSERT INTO dummy VALUES (1)")
+        assert e_res == 42
+

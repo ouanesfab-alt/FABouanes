@@ -17,8 +17,8 @@
 		document.body.classList.add('kpi-modal-open');
 		const input = document.getElementById('kpiDateInput');
 		if (!input.value) {
-			const d = new Date();
-			input.value = (new Date(d.getTime() - d.getTimezoneOffset() * 60000)).toISOString().slice(0, 10);
+			const _d = new Date();
+			input.value = `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, '0')}-${String(_d.getDate()).padStart(2, '0')}`;
 		}
 		document.getElementById('kpiResult').classList.remove('show');
 		document.querySelectorAll('.kpi-quick-btn').forEach(b => b.classList.remove('active'));
@@ -30,7 +30,8 @@
 	function setKpiDateOffset(days, btn) {
 		const d = new Date();
 		d.setDate(d.getDate() - days);
-		document.getElementById('kpiDateInput').value = (new Date(d.getTime() - d.getTimezoneOffset() * 60000)).toISOString().slice(0, 10);
+		document.getElementById('kpiDateInput').value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 		document.querySelectorAll('.kpi-quick-btn').forEach(b => b.classList.remove('active'));
 		if (btn) btn.classList.add('active');
 	}
@@ -350,8 +351,11 @@
 			let c = md.replace(/\[REDIRECT:[^\]]+\]/gi, '').replace(/\[THEME:[^\]]+\]/gi, '').trim();
 			let h = c.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 			h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="fw-semibold text-primary text-decoration-underline">$1</a>');
-			h = h.replace(/```(sql|json|text|html|)?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-			h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
+			// Render SQL blocks in collapsible accordion
+			h = h.replace(/```sql([\s\S]*?)```/gi, '<details class="my-2 p-2 bg-dark rounded text-light" style="font-size:0.8rem; border:1px solid rgba(255,255,255,0.15);"><summary class="fw-semibold text-info style-pointer"><i class="bi bi-code-slash"></i> Transparence SQL & Explication (Cliquer pour voir)</summary><pre class="mt-2 mb-0" style="overflow-x:auto; color:#a5d6ff;"><code>$1</code></pre></details>');
+			// Other code blocks
+			h = h.replace(/```(json|text|html|)?([\s\S]*?)```/g, '<pre class="p-2 bg-dark text-light rounded my-2" style="font-size:0.8rem; overflow-x:auto;"><code>$2</code></pre>');
+			h = h.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-secondary bg-opacity-25">$1</code>');
 			h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 			h = h.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 			h = h.replace(/\n/g, '<br>');

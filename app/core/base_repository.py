@@ -54,3 +54,22 @@ class AsyncRepository(Generic[T]):
         statement = select(func.count()).select_from(self.model_cls)
         results = await self.session.execute(statement)
         return results.scalar() or 0
+
+    async def find_by(self, **kwargs) -> List[T]:
+        """Fetch records matching keyword criteria."""
+        statement = select(self.model_cls)
+        for key, val in kwargs.items():
+            if hasattr(self.model_cls, key):
+                statement = statement.where(getattr(self.model_cls, key) == val)
+        results = await self.session.execute(statement)
+        return list(results.scalars().all())
+
+    async def create_many(self, entities: List[T]) -> List[T]:
+        """Persist multiple entities in a single transaction."""
+        for entity in entities:
+            self.session.add(entity)
+        await self.session.commit()
+        for entity in entities:
+            await self.session.refresh(entity)
+        return entities
+

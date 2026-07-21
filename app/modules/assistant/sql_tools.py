@@ -219,3 +219,30 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error("execute_write_sql error for query %s: %s", query_to_run, e, exc_info=True)
         return {"error": f"Erreur SQL lors de l'écriture : {str(e)}"}
+
+
+def explain_sql_query(query: str) -> str:
+    """Generates a clear natural language breakdown of a SQL query for transparency."""
+    if not query:
+        return ""
+    q = query.strip()
+    try:
+        stmts = sqlglot.parse(q, read="postgres")
+        if not stmts or not stmts[0]:
+            return f"```sql\n{q}\n```"
+        stmt = stmts[0]
+        table_names = [t.name for t in stmt.find_all(sqlglot.exp.Table)]
+        tables_str = ", ".join(dict.fromkeys(table_names)) or "base de données"
+
+        if isinstance(stmt, sqlglot.exp.Select):
+            return f"🔍 **Lecture SQL** sur {tables_str}\n```sql\n{q}\n```"
+        elif isinstance(stmt, sqlglot.exp.Insert):
+            return f"➕ **Ajout SQL** dans {tables_str}\n```sql\n{q}\n```"
+        elif isinstance(stmt, sqlglot.exp.Update):
+            return f"✏️ **Mise à jour SQL** sur {tables_str}\n```sql\n{q}\n```"
+        elif isinstance(stmt, sqlglot.exp.Delete):
+            return f"🗑️ **Suppression SQL** sur {tables_str}\n```sql\n{q}\n```"
+        return f"```sql\n{q}\n```"
+    except Exception:
+        return f"```sql\n{q}\n```"
+

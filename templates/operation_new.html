@@ -387,9 +387,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function fmtMoney(value){ return value.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' DA'; }
  
   if (dateInput) {
-    dateInput.max = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-    dateInput.value = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    const _localToday = window.getLocalDateISO ? window.getLocalDateISO() : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+    dateInput.max = _localToday;
+    dateInput.value = _localToday;
   }
+
  
   function renumberLines(){
     [...linesHost.querySelectorAll('.doc-line-card')].forEach((row, idx) => {
@@ -543,9 +545,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function fmtMoney(value){ return value.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' DA'; }
  
   if (saleDateInput) {
-    saleDateInput.max = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-    saleDateInput.value = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    const _localToday = window.getLocalDateISO ? window.getLocalDateISO() : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+    saleDateInput.max = _localToday;
+    saleDateInput.value = _localToday;
   }
+
  
   function renumberLines(){
     [...linesHost.querySelectorAll('.doc-line-card')].forEach((row, idx) => {
@@ -683,10 +687,11 @@ import { queueOperation, getRefData } from '/static/js/offline-db.js';
 const paymentDateInput = document.getElementById('paymentDate');
  
 if (paymentDateInput) {
-  const today = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+  const today = window.getLocalDateISO ? window.getLocalDateISO() : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
   paymentDateInput.max = today;
   if (!paymentDateInput.value) paymentDateInput.value = today;
 }
+
 
 function serializeForm(form) {
   const fd = new FormData(form);
@@ -832,8 +837,9 @@ async function handlePrefillAndCache() {
   
   // 3. Prefill date
   const dateParam = urlParams.get('date');
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = window.getLocalDateISO ? window.getLocalDateISO() : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
   const purchaseDate = document.getElementById('purchaseDate');
+
   if (purchaseDate) purchaseDate.value = dateParam || todayStr;
   const saleDate = document.getElementById('saleDate');
   if (saleDate) saleDate.value = dateParam || todayStr;

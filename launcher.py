@@ -1,6 +1,11 @@
 """Lanceur desktop FABOuanes."""
 import os
 os.environ["FAB_DESKTOP"] = "1"
+# Ecoute sur toutes les interfaces (LAN + localhost) par defaut
+# Peut etre remplace par FAB_HOST=127.0.0.1 dans .env pour revenir en mode local uniquement
+if not os.environ.get("FAB_HOST", "").strip():
+    os.environ["FAB_HOST"] = "0.0.0.0"
+
 import json
 import shutil
 import sys
@@ -125,7 +130,8 @@ def bootstrap_desktop_install(reason: str = "desktop_startup") -> dict:
 
 def port_free(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.settimeout(0.2)
+        sock.settimeout(0.5)
+        # On tente sur 127.0.0.1 car c'est toujours accessible meme en mode 0.0.0.0
         return sock.connect_ex(("127.0.0.1", port)) != 0
 
 
@@ -143,14 +149,47 @@ def get_bind_host() -> str:
 
 
 def get_local_ip() -> str:
+    """Discovers the best physical LAN IP address for local network/mobile access."""
+    candidates = []
+    
+    # Method 1: Hostname resolution candidates
+    try:
+        hostname = socket.gethostname()
+        _, _, ip_list = socket.gethostbyname_ex(hostname)
+        for ip in ip_list:
+            if not ip.startswith(("127.", "169.254.")):
+                candidates.append(ip)
+    except Exception:
+        pass
+
+    # Method 2: UDP probe candidate
     probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         probe.connect(("8.8.8.8", 80))
-        return probe.getsockname()[0]
+        probed_ip = probe.getsockname()[0]
+        if probed_ip and not probed_ip.startswith(("127.", "169.254.")):
+            candidates.insert(0, probed_ip)
     except OSError:
-        return "127.0.0.1"
+        pass
     finally:
         probe.close()
+
+    # Prioritize: 192.168.x.x first, then 10.x.x.x, then 172.16-31.x.x
+    def score_ip(ip: str) -> int:
+        if ip.startswith("192.168."):
+            return 100
+        if ip.startswith("10."):
+            return 80
+        parts = ip.split(".")
+        if len(parts) == 4 and parts[0] == "172" and 16 <= int(parts[1]) <= 31:
+            return 60
+        return 10
+
+    if candidates:
+        candidates.sort(key=score_ip, reverse=True)
+        return candidates[0]
+
+    return "127.0.0.1"
 
 
 def find_port(start: int = 5000, host: str | None = None) -> int:
@@ -165,19 +204,28 @@ def server_access_lines(host: str, port: int, lan_ip: str | None = None) -> list
     client_host = lan_ip or (get_local_ip() if host == "0.0.0.0" else host)
     lines = [
         f"Localhost / cette machine : http://127.0.0.1:{port}",
-        f"Machine cliente du reseau : http://{client_host}:{port}",
-        f"Mode serveur / ecoute : {host}:{port}",
+        f"Mobile / Réseau local     : http://{client_host}:{port}",
+        f"Mode serveur / écoute     : {host}:{port}",
     ]
     if host == "0.0.0.0":
-        lines.append("Note: 0.0.0.0 accepte les connexions reseau, mais ne s'ouvre pas dans le navigateur.")
-        lines.append("Si une machine cliente ne se connecte pas, autoriser Python/FABOuanes dans le pare-feu Windows.")
+        lines.append("Note: Si le mobile ne se connecte pas, autorisez le port 5000 dans le pare-feu Windows.")
     return lines
 
 
 def print_server_access(host: str, port: int, lan_ip: str | None = None) -> None:
-    print("Acces disponibles:", flush=True)
-    for line in server_access_lines(host, port, lan_ip):
-        print(f" - {line}", flush=True)
+    client_host = lan_ip or (get_local_ip() if host == "0.0.0.0" else host)
+    banner = [
+        "===========================================================",
+        "           FABOUANES — ACCES RESEAU & MOBILE               ",
+        "===========================================================",
+        f"  PC Local : http://127.0.0.1:{port}",
+        f"  Mobile   : http://{client_host}:{port}",
+        "-----------------------------------------------------------",
+        "  Connectez vos smartphones/tablettes au meme réseau WiFi  ",
+        "===========================================================",
+    ]
+    print("\n".join(banner), flush=True)
+
 
 
 def run_server(host: str, port: int) -> None:
@@ -474,6 +522,8 @@ def main() -> None:
 
     lan_ip = os.environ.get("FAB_LAN_IP") or (get_local_ip() if host == "0.0.0.0" else host)
     print_server_access(host, port, lan_ip)
+    if host == "0.0.0.0":
+        print(f"\n  Acces mobile / reseau local : http://{lan_ip}:{port}\n", flush=True)
     print("Garde cette application ouverte pour laisser les autres machines connectees.", flush=True)
 
     open_ui(f"http://127.0.0.1:{port}")

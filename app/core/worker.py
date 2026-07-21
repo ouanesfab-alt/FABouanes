@@ -226,8 +226,8 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
     from app.core.db_helpers import query_db, execute_db
     from app.modules.assistant.rag import get_embedding
 
-    raw_mats = query_db("SELECT id, name, category, unit FROM raw_materials") or []
-    fin_prods = query_db("SELECT id, name, category FROM finished_products") or []
+    raw_mats = query_db("SELECT id, name, unit FROM raw_materials") or []
+    fin_prods = query_db("SELECT id, name, default_unit FROM finished_products") or []
 
     total_items = len(raw_mats) + len(fin_prods)
     if total_items == 0:
@@ -250,7 +250,7 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
         if existing:
             continue
 
-        text = f"Matière première: {item['name']}, catégorie: {item['category'] or 'aucune'}, unité: {item['unit'] or 'u'}"
+        text = f"Matière première: {item['name']}, unité: {item.get('unit') or 'kg'}"
         emb = await get_embedding(text, api_key)
         if emb:
             emb_val = f"[{','.join(str(x) for x in emb)}]" if has_vector else json.dumps(emb)
@@ -267,7 +267,8 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
         if existing:
             continue
 
-        text = f"Produit fini: {item['name']}, catégorie: {item['category'] or 'aucune'}"
+        text = f"Produit fini: {item['name']}, unité: {item.get('default_unit') or 'kg'}"
+
         emb = await get_embedding(text, api_key)
         if emb:
             emb_val = f"[{','.join(str(x) for x in emb)}]" if has_vector else json.dumps(emb)
@@ -540,8 +541,40 @@ def _worker_poll_loop():
                     job = cur.fetchone()
                     conn.commit()
             except Exception as e:
-                logger.error("DB error polling jobs: %s", e)
+                err_str = str(e)
+                # Code 42P01 = relation does not exist.
+                # La table background_jobs est manquante dans cette base de donnees :
+                # elle a ete creee apres le premier bootstrap, ou le commit a echoue.
+                # On la cree ici pour auto-reparer sans intervention manuelle.
+                if "42P01" in err_str or "background_jobs" in err_str.lower():
+                    try:
+                        from app.core.db_helpers import execute_db
+                        execute_db("""
+                            CREATE TABLE IF NOT EXISTS background_jobs (
+                                id BIGSERIAL PRIMARY KEY,
+                                task_name VARCHAR(255) NOT NULL,
+                                payload TEXT NOT NULL,
+                                status VARCHAR(50) DEFAULT 'pending',
+                                priority INTEGER DEFAULT 0,
+                                run_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                                locked_by VARCHAR(255),
+                                started_at TIMESTAMPTZ,
+                                completed_at TIMESTAMPTZ,
+                                error_message TEXT,
+                                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+                            )
+                        """)
+                        execute_db("""
+                            CREATE INDEX IF NOT EXISTS idx_background_jobs_status_run_at
+                            ON background_jobs(status, run_at)
+                        """)
+                        logger.info("background_jobs table created automatically by worker self-healing")
+                    except Exception as create_err:
+                        logger.warning("Could not auto-create background_jobs table: %s", create_err)
+                else:
+                    logger.error("DB error polling jobs: %s", e)
                 job = None
+
 
             if job:
                 try:

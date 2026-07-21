@@ -425,11 +425,19 @@
   })();
 </script>
 <script nonce="{{ csp_nonce }}">
+  window.getLocalDateISO = function(d) {
+    const dt = d || new Date();
+    const year = dt.getFullYear();
+    const month = String(dt.getMonth() + 1).padStart(2, '0');
+    const day = String(dt.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Évite d'avoir une date de formulaire obsolète (ex: page ouverte avant minuit, soumise après minuit)
   (function autoUpdateDateInputs() {
-    let lastToday = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    let lastToday = window.getLocalDateISO();
     setInterval(() => {
-      const currentToday = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+      const currentToday = window.getLocalDateISO();
       if (currentToday !== lastToday) {
         document.querySelectorAll('input[type="date"]').forEach(input => {
           if (input.value === lastToday) {
@@ -439,8 +447,9 @@
         });
         lastToday = currentToday;
       }
-    }, 60000); // Check every minute
+    }, 10000); // Check every 10 seconds
   })();
+
 
   // 🧭 Enforce Minimaliste Chic (minimalist) active style
   (function activeStyleEnforcer() {

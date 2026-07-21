@@ -39,13 +39,20 @@ export function initFormsModule() {
     }, 8000);
   });
 
-  const today = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 10);
+  const _getLocalDate = typeof window.getLocalDateISO === 'function' 
+    ? window.getLocalDateISO 
+    : function(d) {
+        const dt = d || new Date();
+        return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+      };
+  const today = _getLocalDate();
   document.querySelectorAll('input[type="date"]').forEach(function (input) {
-    if (input.value || input.dataset.noAutoDate === '1') return;
+    if (input.dataset.noAutoDate === '1') return;
     const form = input.closest('form');
     if (form && (form.method || 'get').toLowerCase() === 'get') return;
     input.value = today;
   });
+
 
   document.addEventListener('input', function (event) {
     const field = event.target;

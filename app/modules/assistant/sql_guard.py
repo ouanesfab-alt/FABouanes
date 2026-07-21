@@ -43,6 +43,11 @@ PROTECTED_SCHEMA_NAMES = {"information_schema", "pg_catalog"}
 # Tables that Sabrina is explicitly allowed to write to.
 # Any INSERT/UPDATE/DELETE targeting a table NOT in this set will be blocked.
 ALLOWED_WRITE_TABLES = {
+    "contacts",
+    "catalog_items",
+    "catalog",
+    "production",
+    "logs",
     "clients",
     "suppliers",
     "finished_products",

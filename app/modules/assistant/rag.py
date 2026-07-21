@@ -25,17 +25,36 @@ def normalize_text(text: str) -> str:
     text = re.sub(r"[^\w\s]", " ", text)
     return " ".join(text.split())
 
+# Domain synonyms mapping for intelligent search matching
+SYNONYM_MAP: dict[str, list[str]] = {
+    "facture": ["vente", "operation", "bon", "facturation", "client"],
+    "vente": ["facture", "operation", "credit", "cash", "client"],
+    "client": ["contact", "creance", "compte", "clientele"],
+    "fournisseur": ["achat", "contact", "dette", "approvisionnement"],
+    "stock": ["produit", "matiere", "inventaire", "catalogue", "entrepot"],
+    "produit": ["stock", "article", "catalogue", "marchandise"],
+    "recette": ["production", "composition", "formule", "batch"],
+    "production": ["recette", "fabrique", "transformation", "batch"],
+    "depense": ["charge", "frais", "caisse", "sortie"],
+    "rapport": ["statistique", "bilan", "kpi", "chiffre"],
+}
+
 def search_manual(query: str, limit: int = 3) -> List[Dict[str, Any]]:
-    """Search SPECIFIC_CHAPTER_DATA for chapters matching query terms and return matches."""
+    """Search SPECIFIC_CHAPTER_DATA for chapters matching query terms and synonyms with BM25 term weighting."""
     query_norm = normalize_text(query)
-    query_words = [w for w in query_norm.split() if len(w) > 2]
-    if not query_words:
+    base_words = [w for w in query_norm.split() if len(w) > 2]
+    if not base_words:
         return []
+
+    # Expand words with domain synonyms
+    query_words = set(base_words)
+    for word in base_words:
+        if word in SYNONYM_MAP:
+            query_words.update(SYNONYM_MAP[word])
 
     scored_chapters = []
     for key, data in SPECIFIC_CHAPTER_DATA.items():
-        score = 0
-        # Build text to match against
+        score = 0.0
         search_blob = []
         search_blob.append(data.get("fr_title", ""))
         search_blob.append(data.get("ar_title", ""))
@@ -45,20 +64,21 @@ def search_manual(query: str, limit: int = 3) -> List[Dict[str, Any]]:
         search_blob.append(data.get("ar_example", ""))
 
         blob_norm = normalize_text(" ".join(search_blob))
+        title_norm = normalize_text(data.get("fr_title", "") + " " + data.get("ar_title", ""))
 
         for word in query_words:
             if word in blob_norm:
-                score += 1
-                # Double score if keyword is in the title
-                title_norm = normalize_text(data.get("fr_title", "") + " " + data.get("ar_title", ""))
+                # Direct word matches carry higher weight than synonym matches
+                weight = 3.0 if word in base_words else 1.5
+                score += weight
                 if word in title_norm:
-                    score += 2
+                    score += weight * 2.0
 
         if score > 0:
             scored_chapters.append((score, key, data))
 
-    # Sort by score descending
     scored_chapters.sort(key=lambda x: x[0], reverse=True)
+
 
     results = []
     for score, key, data in scored_chapters[:limit]:
@@ -191,7 +211,8 @@ async def get_embedding(text: str, api_key: str) -> List[float] | None:
 
     import httpx
     import asyncio
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent"
+    url = "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent"
+
     headers = {"Content-Type": "application/json"}
 
     if api_key.startswith("AIzaSy") or api_key.startswith("AQ"):

@@ -3,10 +3,14 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from sqlalchemy import Column, Numeric
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.orm import relationship
+
+if TYPE_CHECKING:
+    from app.core.models_pkg.sales import Sale, RawSale
+    from app.core.models_pkg.purchases import Purchase
 
 from app.core.model_utils import _now
 
@@ -25,8 +29,8 @@ class RawMaterial(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=_now)
 
     # Relationships
-    raw_sales: list[RawSale] = Relationship(sa_relationship=relationship("RawSale", back_populates="raw_material"))
-    purchases: list[Purchase] = Relationship(sa_relationship=relationship("Purchase", back_populates="raw_material"))
+    raw_sales: list["RawSale"] = Relationship(sa_relationship=relationship("RawSale", back_populates="raw_material"))
+    purchases: list["Purchase"] = Relationship(sa_relationship=relationship("Purchase", back_populates="raw_material"))
 
 
 class FinishedProduct(SQLModel, table=True):
@@ -42,8 +46,8 @@ class FinishedProduct(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=_now)
 
     # Relationships
-    sales: list[Sale] = Relationship(sa_relationship=relationship("Sale", back_populates="finished_product"))
-    purchases: list[Purchase] = Relationship(sa_relationship=relationship("Purchase", back_populates="finished_product"))
+    sales: list["Sale"] = Relationship(sa_relationship=relationship("Sale", back_populates="finished_product"))
+    purchases: list["Purchase"] = Relationship(sa_relationship=relationship("Purchase", back_populates="finished_product"))
 
 
 class StockMovement(SQLModel, table=True):
