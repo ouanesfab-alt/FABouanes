@@ -4,42 +4,47 @@
  */
 
 const RIPPLE_SELECTOR = [
-  'button',
-  '.btn',
-  '[type="button"]',
-  '[type="submit"]',
-  '[type="reset"]',
-  'a.nav-link',
-  'a.dropdown-item',
-  'a.list-group-item-action',
-  'a.page-link',
-  '.nav-btn',
-  '.bot-tab',
-  '.bot-tab-add',
+  /* Natifs */
+  '.btn', 'button', '[type="submit"]', '[type="button"]', '[type="reset"]',
+  /* Bootstrap variants */
+  '.btn-primary', '.btn-secondary', '.btn-danger', '.btn-success',
+  '.btn-warning', '.btn-dark', '.btn-link', '.btn-lg', '.btn-sm',
+  '.btn-outline-primary', '.btn-outline-secondary', '.btn-outline-danger',
+  '.btn-outline-success', '.btn-outline-dark',
+  /* App-specific */
+  '.btn-premium', '.btn-brown', '.btn-login',
+  '.btn-cancel-write', '.btn-confirm-write',
+  '.btn-copy', '.btn-send', '.btn-speak', '.btn-stop',
+  '.btn-page-action', '.btn-page-action-secondary',
+  '.btn-achat-submit', '.btn-vente-submit', '.btn-payment-submit',
+  /* Navbar & layout */
+  '.nav-brand', '.nav-links a',
+  '.nav-btn', '.nav-btn-primary', '.nav-link-menu',
+  '.nav-hamburger', '.side-nav-toggle', '.bot-tab-add', '.bot-tab',
+  '.nav-link', '.nav-drawer-close',
+  '.drawer-link', '.drawer-link-btn', '.drawer-sublink',
+  /* Dropdowns */
+  '.dropdown-item', '.dropdown-toggle',
+  /* Lists & tabs */
+  '.list-group-item-action', '.page-link',
+  '.search-tab', '.view-tab', '.category-tab',
   '.sidebar-link',
-  '.drawer-link',
-  '[role="button"]',
-  '.clickable',
-  '.nav-brand',
-  '.nav-hamburger',
-  '.side-nav-toggle'
+  /* Misc interactive */
+  '.fab-bar-btn', '.fab-bubble-btn', '.fab-sheet-close', '.fab-switch-btn',
+  '.kpi-quick-btn', '.kpi-sheet-close',
+  '.mac-btn', '.mac-modal-close',
+  '.toolbar-btn', '.pin-toggle', '.toggle-pass',
+  '.bubble-action-btn', '.chat-send-btn',
+  '.flash-toast-close', '.btn-close',
+  '.doc-line-remove', '.remove-row',
+  '.js-theme', '.js-font', '.js-nav-layout',
+  '.search-result-item',
+  '.cm-print', '.thread-delete-btn',
+  '.contacts-link',
+  '.fab-action-btn', '.icon-btn', '.quick-action-btn', '.action-btn'
 ].join(',');
 
 const DURATION = 700; // ms
-
-function getRippleColorClass(element) {
-  const color = window.getComputedStyle(element).color;
-  const parts = color.match(/[\d\.]+/g);
-  if (parts) {
-    const r = parseInt(parts[0], 10);
-    const g = parseInt(parts[1], 10);
-    const b = parseInt(parts[2], 10);
-    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-    return yiq >= 150 ? 'ripple-light' : 'ripple-dark';
-  }
-  const theme = document.documentElement.getAttribute('data-theme') || 'light';
-  return theme.includes('dark') ? 'ripple-light' : 'ripple-dark';
-}
 
 function createRipple(element, event) {
   const rect = element.getBoundingClientRect();
@@ -55,9 +60,8 @@ function createRipple(element, event) {
   const y    = clientY - rect.top;
   const size = Math.max(rect.width, rect.height) * 2;
 
-  const rippleClass = getRippleColorClass(element);
   const ripple = document.createElement('span');
-  ripple.className = `ripple-wave ${rippleClass}`;
+  ripple.className   = 'ripple-wave';
   ripple.style.width  = size + 'px';
   ripple.style.height = size + 'px';
   ripple.style.left   = (x - size / 2) + 'px';

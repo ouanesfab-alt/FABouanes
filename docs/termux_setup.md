@@ -1,115 +1,127 @@
-# Guide d'Installation de FABOuanes sur Termux (Android)
+# Guide de Configuration Termux pour FABOuanes
 
-Ce guide explique comment installer et faire tourner le serveur **FABOuanes** sur un smartphone Android à l'aide de **Termux**, pour l'utiliser en mode Serveur/Client (soit sur le même téléphone, soit sur d'autres appareils connectés au même réseau Wi-Fi).
+Ce guide explique comment faire fonctionner **FABOuanes** en mode client-serveur directement depuis un smartphone Android en utilisant **Termux**.
 
----
-
-## 📋 Prérequis sur Android
-
-1. **Installer Termux** :
-   > [!IMPORTANT]
-   > N'installez **PAS** Termux depuis le Google Play Store (version obsolète). Téléchargez-le depuis **F-Droid** ou directement depuis son dépôt officiel **GitHub Releases**.
-   - [Télécharger Termux sur F-Droid](https://f-droid.org/fr/packages/com.termux/)
-
-2. **Accès réseau** :
-   - Assurez-vous d'être connecté sur le même réseau Wi-Fi si vous souhaitez connecter d'autres machines (PC, tablettes, autres téléphones) au serveur de votre smartphone.
+Il existe deux manières d'utiliser l'application sur smartphone :
+1. **Smartphone en tant que Client** (le serveur tourne sur votre PC) : Le plus simple, ne nécessite aucune installation sur le téléphone.
+2. **Smartphone en tant que Serveur** (le serveur et la base de données tournent sur le téléphone) : Idéal pour un usage 100% mobile et autonome.
 
 ---
 
-## 🛠️ Étape 1 : Préparation de l'environnement Termux
+## Mode 1 : Smartphone en tant que Client (Recommandé)
 
-Ouvrez Termux sur votre smartphone et exécutez les commandes suivantes pour mettre à jour les paquets et installer les dépendances système :
+Si votre serveur FABOuanes tourne sur votre PC principal (Windows) :
+
+1. Connectez votre PC et votre smartphone au **même réseau Wi-Fi**.
+2. Lancez FABOuanes sur votre PC. La console affichera les adresses d'accès, par exemple :
+   - `PC Local : http://127.0.0.1:5000`
+   - `Mobile / Réseau local : http://192.168.1.50:5000`
+3. Ouvrez le navigateur internet de votre smartphone (Chrome, Safari, Firefox).
+4. Saisissez l'adresse mobile (ex. `http://192.168.1.50:5000`).
+5. **Astuce PWA** : Dans le menu de votre navigateur sur mobile, cliquez sur **"Ajouter à l'écran d'accueil"** pour installer FABOuanes comme une application native autonome (icône sur le bureau, mode plein écran, performance optimisée).
+
+---
+
+## Mode 2 : Smartphone en tant que Serveur (via Termux)
+
+Pour héberger la base de données PostgreSQL et le serveur FABOuanes directement sur votre smartphone :
+
+### 1. Installation de Termux
+> [!IMPORTANT]
+> Téléchargez et installez **Termux** depuis [F-Droid](https://f-droid.org/packages/com.termux/) (la version du Google Play Store est obsolète et ne reçoit plus de mises à jour).
+
+### 2. Mise à jour et Installation des paquets requis
+Ouvrez Termux sur votre smartphone et exécutez les commandes suivantes :
 
 ```bash
-# 1. Mise à jour des dépôts et paquets système
+# Mettre à jour les paquets
 pkg update && pkg upgrade -y
 
-# 2. Installation de Python, Git, PostgreSQL et des outils de compilation
-pkg install python git postgresql build-essential -y
+# Installer Git, Python, PostgreSQL et les dépendances système de compilation
+pkg install git python postgresql make clang -y
 ```
 
----
-
-## 🗄️ Étape 2 : Configuration et Lancement de PostgreSQL
-
-FABOuanes nécessite une base de données PostgreSQL active. Configurez-la localement dans Termux :
+### 3. Configuration et Démarrage de PostgreSQL dans Termux
+Initialisez la base de données locale dans l'espace de stockage de Termux :
 
 ```bash
-# 1. Initialiser le stockage de la base de données
+# Initialiser le répertoire de données
 initdb -D $PREFIX/var/lib/postgresql
 
-# 2. Démarrer le service PostgreSQL en arrière-plan
+# Démarrer le service PostgreSQL
 pg_ctl -D $PREFIX/var/lib/postgresql start
 
-# 3. Créer la base de données de l'application
+# Créer la base de données et l'utilisateur par défaut
 createdb fabouanes
+createuser -s postgres
 ```
 
-> [!TIP]
-> Si vous redémarrez Termux ou votre smartphone plus tard, vous n'aurez qu'à exécuter la commande de démarrage : `pg_ctl -D $PREFIX/var/lib/postgresql start`.
-
----
-
-## 📥 Étape 3 : Téléchargement du projet et Installation de FABOuanes
+### 4. Récupération et installation de FABOuanes
+Clonez votre dépôt de code et installez les paquets Python requis :
 
 ```bash
-# 1. Cloner le dépôt GitHub officiel
+# Cloner le projet (remplacez par votre URL si nécessaire)
 git clone https://github.com/ouanesfab-alt/FABouanes.git
 cd FABouanes
 
-# 2. Créer un environnement virtuel Python
-python -m venv .venv
-source .venv/bin/activate
-
-# 3. Mettre à jour pip et installer les bibliothèques requises
-pip install --upgrade pip
+# Installer les dépendances Python
 pip install -r requirements.txt
 ```
 
----
-
-## ⚙️ Étape 4 : Configuration des Variables d'Environnement
-
-Créez le fichier de configuration `.env` :
+### 5. Configuration des variables d'environnement
+Créez le fichier de configuration `.env` dans le dossier `FABouanes` :
 
 ```bash
 nano .env
 ```
-
-Ajoutez-y les lignes suivantes :
-```ini
+Collez la configuration suivante (adaptez selon vos besoins) :
+```env
 FASTAPI_ENV=production
-DATABASE_URL=postgresql://localhost:5432/fabouanes
-SECRET_KEY=generez_une_cle_securisee_ici_ou_laissez_vide_pour_creation_auto
+DATABASE_URL=postgresql://postgres@localhost:5432/fabouanes
+SECRET_KEY=générez_une_clé_secrète_aléatoire_et_forte
 FAB_HOST=0.0.0.0
 FAB_PORT=5000
+FAB_DESKTOP=0
 ```
 *(Appuyez sur `Ctrl+O` puis `Entrée` pour sauvegarder, et `Ctrl+X` pour quitter nano).*
 
----
-
-## 🚀 Étape 5 : Lancement et Utilisation
-
+### 6. Initialisation et Lancement
+Lancez la phase de bootstrap pour créer les tables et index :
 ```bash
-# 1. Préparer les tables de la base de données (Bootstrap)
 python launcher.py --bootstrap-only
+```
 
-# 2. Lancer le serveur web en mode "serveur uniquement"
+Puis démarrez le serveur :
+```bash
 python launcher.py --server-only
 ```
 
-L'application démarre et affiche ses adresses d'accès :
-```text
-===========================================================
-           FABOUANES - ACCES RESEAU & MOBILE               
-===========================================================
-  PC Local : http://127.0.0.1:5000
-  Mobile   : http://192.168.1.50:5000
-```
+### 7. Accès à l'application
+- **Depuis le smartphone lui-même** : Ouvrez votre navigateur et accédez à `http://localhost:5000`.
+- **Depuis d'autres appareils** (PC, tablettes, autres téléphones sur le même Wi-Fi) : 
+  1. Récupérez l'adresse IP locale du smartphone dans Termux en exécutant `ifconfig` (cherchez la ligne `inet` sous `wlan0`, ex: `192.168.1.15`).
+  2. Sur les autres appareils, connectez-vous à `http://192.168.1.15:5000`.
 
 ---
 
-## 📱 Accéder à l'Application (Mode Client)
+## ⚡ Automatisation du démarrage (Script rapide pour Termux)
+Pour ne pas retaper toutes les commandes à chaque fois, vous pouvez créer un raccourci de lancement dans Termux :
 
-- **Sur le même smartphone** : Ouvrez votre navigateur internet (Chrome, Firefox) et rendez-vous sur `http://127.0.0.1:5000`.
-- **Depuis d'autres appareils du réseau** : Utilisez l'adresse IP locale affichée par le terminal Termux (ex. `http://192.168.1.50:5000`).
+```bash
+nano ~/start_fab.sh
+```
+Ajoutez-y :
+```bash
+#!/data/data/com.termux/files/usr/bin/bash
+pg_ctl -D $PREFIX/var/lib/postgresql start
+cd ~/FABouanes
+python launcher.py --server-only
+```
+Rendez le script exécutable :
+```bash
+chmod +x ~/start_fab.sh
+```
+Pour lancer l'application à l'avenir, ouvrez Termux et tapez simplement :
+```bash
+./start_fab.sh
+```

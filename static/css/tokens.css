@@ -605,25 +605,47 @@ h1, h2, h3, h4, h5, h6, .section-title {
    ══════════════════════════════════════════════════════════ */
 
 /* ══ RIPPLE — overflow:hidden sur TOUS les éléments cliquables ══ */
-button,
 .btn,
+button,
 [type="submit"],
 [type="button"],
 [type="reset"],
-a.nav-link,
-a.dropdown-item,
-a.list-group-item-action,
-a.page-link,
-.nav-btn,
-.bot-tab,
-.bot-tab-add,
+/* Bootstrap variants */
+.btn-primary, .btn-secondary, .btn-danger, .btn-success,
+.btn-warning, .btn-dark, .btn-link, .btn-lg, .btn-sm,
+.btn-outline-primary, .btn-outline-secondary, .btn-outline-danger,
+.btn-outline-success, .btn-outline-dark,
+/* App-specific buttons */
+.btn-premium, .btn-brown, .btn-login,
+.btn-cancel-write, .btn-confirm-write,
+.btn-copy, .btn-send, .btn-speak, .btn-stop,
+.btn-page-action, .btn-page-action-secondary,
+.btn-achat-submit, .btn-vente-submit, .btn-payment-submit,
+/* Navbar & layout */
+.nav-brand, .nav-links a,
+.nav-btn, .nav-btn-primary, .nav-link-menu,
+.nav-hamburger, .side-nav-toggle, .bot-tab-add, .bot-tab,
+.nav-link, .nav-drawer-close,
+.drawer-link, .drawer-link-btn, .drawer-sublink,
+/* Dropdowns & menus */
+.dropdown-item, .dropdown-toggle,
+/* Lists & tabs */
+.list-group-item-action, .page-link,
+.search-tab, .view-tab, .category-tab,
 .sidebar-link,
-.drawer-link,
-[role="button"],
-.clickable,
-.nav-brand,
-.nav-hamburger,
-.side-nav-toggle {
+/* Misc interactive */
+.fab-bar-btn, .fab-bubble-btn, .fab-sheet-close, .fab-switch-btn,
+.kpi-quick-btn, .kpi-sheet-close,
+.mac-btn, .mac-modal-close,
+.toolbar-btn, .pin-toggle, .toggle-pass,
+.bubble-action-btn, .chat-send-btn,
+.flash-toast-close, .btn-close,
+.doc-line-remove, .remove-row,
+.js-theme, .js-font, .js-nav-layout,
+.search-result-item,
+.cm-print, .thread-delete-btn,
+.contacts-link,
+.fab-action-btn, .icon-btn, .quick-action-btn, .action-btn {
   position: relative !important;
   overflow: hidden !important;
 }
@@ -638,26 +660,41 @@ a.page-link,
 .ripple-wave {
   position: absolute;
   border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
   transform: scale(0);
   animation: ripple-expand 700ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
   pointer-events: none;
   z-index: 9999;
 }
 
-/* Light ripple for dark backgrounds (default primary/premium buttons) */
-.ripple-wave.ripple-light {
-  background: rgba(255, 255, 255, 0.35);
-}
-
-/* Dark-theme adapt for light ripple */
-html[data-theme="dark"] .ripple-wave.ripple-light,
-html[data-theme="windows-dark"] .ripple-wave.ripple-light {
+/* Dark-theme ripple: slightly brighter overlay */
+html[data-theme="dark"]  .ripple-wave,
+html[data-theme="windows-dark"] .ripple-wave {
   background: rgba(255, 255, 255, 0.20);
 }
 
-/* Dark ripple for light backgrounds (makes it pop on white/light/outline buttons) */
-.ripple-wave.ripple-dark {
-  background: rgba(0, 0, 0, 0.22);
+/* Navbar buttons: ripple adapté (fond clair ou transparent) */
+.nav-brand .ripple-wave,
+.nav-links a .ripple-wave,
+.nav-btn .ripple-wave,
+.nav-btn-primary .ripple-wave,
+.nav-link-menu .ripple-wave,
+.nav-hamburger .ripple-wave,
+.side-nav-toggle .ripple-wave,
+.bot-tab-add .ripple-wave,
+.bot-tab .ripple-wave,
+.drawer-link .ripple-wave,
+.drawer-sublink .ripple-wave {
+  background: rgba(255, 255, 255, 0.30);
+}
+
+/* Light buttons (secondary/outline) get a darker ripple */
+.btn-secondary      .ripple-wave,
+.btn-outline-secondary .ripple-wave,
+.btn-outline-primary   .ripple-wave,
+.btn-light             .ripple-wave,
+.btn-page-action-secondary .ripple-wave {
+  background: rgba(0, 0, 0, 0.10);
 }
 
 @keyframes ripple-expand {
