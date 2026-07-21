@@ -66,7 +66,7 @@ def _seed_default_admin(conn) -> None:
         conn.execute(
             """
             INSERT INTO users (username, password_hash, role, must_change_password, is_active, last_password_change_at)
-            VALUES (%s, %s, 'admin', FALSE, TRUE, CURRENT_TIMESTAMP)
+            VALUES (%s, %s, 'admin', 0, 1, CURRENT_TIMESTAMP)
             """,
             (DEFAULT_ADMIN_USERNAME, generate_password_hash(initial_admin_password())),
         )
