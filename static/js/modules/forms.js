@@ -16,12 +16,20 @@ export function initFormsModule() {
     const form = event.target;
     if (!form || form.dataset.noSpinner || form.hasAttribute('data-no-spinner') || form.target === '_blank') return;
     if ((form.method || '').toLowerCase() === 'get') return;
+
+    if (form.dataset.submitting === 'true') {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    form.dataset.submitting = 'true';
     
     const button = form.querySelector('button[type="submit"], input[type="submit"], button:not([type])');
     if (!button || button.classList.contains('is-loading')) return;
     
     button.classList.add('is-loading', 'disabled');
     const originalHTML = button.innerHTML;
+
     button.setAttribute('data-original-html', originalHTML);
     
     button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + originalHTML;
@@ -35,8 +43,10 @@ export function initFormsModule() {
         button.classList.remove('is-loading', 'disabled');
         button.disabled = false;
         button.innerHTML = originalHTML;
+        form.dataset.submitting = 'false';
       }
     }, 8000);
+
   });
 
   const _getLocalDate = typeof window.getLocalDateISO === 'function' 

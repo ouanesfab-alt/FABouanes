@@ -566,7 +566,41 @@
     setInterval(rotateClockFont, 60000);
     setInterval(rotateClockColor, 50000);
   })();
+
+  // 🔄 Expiration Glissante de Session (Sliding Session Keep-Alive)
+  (function initSessionKeepAlive() {
+    let lastActivity = Date.now();
+    const TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes d'inactivité
+    const PING_INTERVAL_MS = 2 * 60 * 1000; // ping toutes les 2 minutes si actif
+    let lastPing = Date.now();
+
+    function resetActivity() {
+      lastActivity = Date.now();
+    }
+
+    window.addEventListener('mousemove', resetActivity);
+    window.addEventListener('keydown', resetActivity);
+    window.addEventListener('click', resetActivity);
+    window.addEventListener('scroll', resetActivity);
+
+    setInterval(() => {
+      const now = Date.now();
+      
+      // Si inactif depuis plus de 15 minutes, redirection automatique
+      if (now - lastActivity > TIMEOUT_MS) {
+        window.location.href = '/logout';
+        return;
+      }
+
+      // Si l'utilisateur est actif, envoyer un ping pour prolonger la session
+      if (now - lastPing > PING_INTERVAL_MS && now - lastActivity < PING_INTERVAL_MS) {
+        lastPing = now;
+        fetch('/api/v1/session/ping').catch(() => {});
+      }
+    }, 10000); // vérification toutes les 10 secondes
+  })();
 </script>
+
 <!-- Éléments masqués pour compatibilité avec les tests et scripts génériques -->
 <div style="display: none;" aria-hidden="true">
   <button class="js-theme" data-theme-value="light">Clair</button>
