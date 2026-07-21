@@ -5,6 +5,7 @@ import asyncio
 from typing import Any
 from fastapi import APIRouter, Request, HTTPException, status
 
+from app.utils.api_response import APIResponse
 from app.web.deps import get_current_user
 from app.core.permissions import (
     has_permission,
@@ -56,7 +57,7 @@ async def api_get_users(request: Request):
     enforce_permission(request, PERMISSION_USERS_MANAGE)
     async with get_async_sessionmaker()() as session:
         users = await list_users(db=session)
-    return {"ok": True, "users": [dict(u) for u in users]}
+    return APIResponse.success(data=[dict(u) for u in users])
 
 
 @router.post("/users")
@@ -72,13 +73,15 @@ async def api_create_user(request: Request):
     role = data.get("role", "operator").strip()
 
     if not username or not password:
-        return {"ok": False, "message": "Nom d'utilisateur et mot de passe requis."}
+        return APIResponse.error(message="Nom d'utilisateur et mot de passe requis.")
 
     async with get_async_sessionmaker()() as session:
         result = await create_user_account(username, password, role, db=session)
         if result.get("ok"):
             await session.commit()
-    return result
+            return APIResponse.success(message="Utilisateur créé avec succès.")
+    return APIResponse.error(message=result.get("message", "Erreur lors de la création."))
+
 
 
 @router.put("/users/{user_id}")

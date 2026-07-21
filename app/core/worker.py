@@ -279,8 +279,30 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
             processed += 1
             await update_task_progress(job_id, int(20 + 80 * (processed / total_items)), f"Génération: {processed}/{total_items} articles...")
 
+    # Indexer le manuel utilisateur bilingue pour la recherche vectorielle (RAG Hybride)
+    from app.web.manual_pages import SPECIFIC_CHAPTER_DATA
+    for key, data in SPECIFIC_CHAPTER_DATA.items():
+        try:
+            major, minor = map(int, key.split("-"))
+            m_id = major * 100 + minor
+        except Exception:
+            continue
+        existing = query_db("SELECT 1 FROM catalog_embeddings WHERE item_kind = 'manual' AND item_id = %s", (m_id,), one=True)
+        if existing:
+            continue
+        text = f"Section Manuel {key}: {data.get('fr_title')} / {data.get('ar_title')}. Usage: {' '.join(data.get('fr_usage', []))} {' '.join(data.get('ar_usage', []))}. Exemple: {data.get('fr_example')} {data.get('ar_example')}"
+        emb = await get_embedding(text, api_key)
+        if emb:
+            emb_val = f"[{','.join(str(x) for x in emb)}]" if has_vector else json.dumps(emb)
+            execute_db(
+                "INSERT INTO catalog_embeddings (item_kind, item_id, text_content, embedding) VALUES ('manual', %s, %s, %s) ON CONFLICT DO NOTHING",
+                (m_id, text, emb_val)
+            )
+            processed += 1
+
     await update_task_progress(job_id, 100, f"Génération terminée. {processed} nouveaux articles indexés sémantiquement.")
     return processed
+
 
 
 async def process_offline_staging_task(ctx: dict[str, Any]) -> int:

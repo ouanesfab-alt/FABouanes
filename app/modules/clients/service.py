@@ -174,7 +174,9 @@ class ClientService:
         await self.repo.session.commit()
 
         from app.core.security import encrypt_val
-        created.phone = encrypt_val(schema.phone, key)
+        from app.utils.phone_normalize import normalize_phone_number
+        normalized_phone = normalize_phone_number(schema.phone)
+        created.phone = encrypt_val(normalized_phone, key)
         created.address = encrypt_val(schema.address, key)
 
         updated = await self.repo.update(created)
@@ -227,11 +229,14 @@ class ClientService:
         )
         before_dump = decrypted_before.model_dump()
 
+        from app.utils.phone_normalize import normalize_phone_number
         client.name = schema.name
-        client.phone = encrypt_val(schema.phone, key)
+        normalized_phone = normalize_phone_number(schema.phone)
+        client.phone = encrypt_val(normalized_phone, key)
         client.address = encrypt_val(schema.address, key)
         client.notes = schema.notes
         client.opening_credit = schema.opening_credit
+
 
         updated = await self.repo.update(client)
 

@@ -93,6 +93,55 @@ def search_manual(query: str, limit: int = 3) -> List[Dict[str, Any]]:
         })
     return results
 
+
+async def search_vector_manual(query: str, api_key: str, limit: int = 2) -> List[Dict[str, Any]]:
+    """Recherche vectorielle sémantique dans les chapitres du manuel utilisateur indexés."""
+    emb = await get_embedding(query, api_key)
+    if not emb:
+        return []
+
+    from app.core.db_helpers import query_db
+    has_vector = False
+    try:
+        row = query_db("SELECT 1 FROM pg_extension WHERE extname = 'vector'", one=True)
+        has_vector = bool(row)
+    except Exception:
+        pass
+
+    results = []
+    if has_vector:
+        emb_str = f"[{','.join(str(x) for x in emb)}]"
+        rows = query_db(
+            """SELECT item_id, 1 - (embedding <=> %s::vector) AS score
+               FROM catalog_embeddings
+               WHERE item_kind = 'manual'
+               ORDER BY embedding <=> %s::vector ASC
+               LIMIT %s""",
+            (emb_str, emb_str, limit)
+        )
+        if rows:
+            for r in rows:
+                try:
+                    m_id = r["item_id"]
+                except (TypeError, KeyError):
+                    m_id = r[0]
+                major = m_id // 100
+                minor = m_id % 100
+                key = f"{major}-{minor}"
+                data = SPECIFIC_CHAPTER_DATA.get(key)
+                if data:
+                    results.append({
+                        "chapter_id": key,
+                        "fr_title": data.get("fr_title"),
+                        "ar_title": data.get("ar_title"),
+                        "fr_usage": data.get("fr_usage", []),
+                        "ar_usage": data.get("ar_usage", []),
+                        "fr_example": data.get("fr_example"),
+                        "ar_example": data.get("ar_example")
+                    })
+    return results
+
+
 def get_pdf_text_chunks(pdf_path: Path) -> List[Dict[str, Any]]:
     """Extract text from a PDF file and return chunks with page numbers."""
     chunks = []
@@ -322,10 +371,10 @@ def get_rag_context(query: str) -> str:
     if not query:
         return ""
 
-    manual_matches = search_manual(query, limit=2)
+    manual_matches = []
+    catalog_matches = []
     doc_matches = search_user_documents(query, limit=3)
 
-    catalog_matches = []
     try:
         from app.modules.assistant.schema_context import get_gemini_api_key
         api_key = get_gemini_api_key()
@@ -339,11 +388,20 @@ def get_rag_context(query: str) -> str:
                 finally:
                     loop.close()
             with ThreadPoolExecutor() as executor:
-                future = executor.submit(run_async, search_vector_catalog(query, api_key, limit=3))
-                catalog_matches = future.result()
+                # Search manual sémantiquement
+                future_m = executor.submit(run_async, search_vector_manual(query, api_key, limit=2))
+                manual_matches = future_m.result()
+                # Search catalog sémantiquement
+                future_c = executor.submit(run_async, search_vector_catalog(query, api_key, limit=3))
+                catalog_matches = future_c.result()
     except Exception as e:
         import logging
-        logging.getLogger("fabouanes.rag").debug("Semantic catalog search skipped: %s", e)
+        logging.getLogger("fabouanes.rag").debug("Semantic RAG search failed: %s", e)
+
+    # Fallback to BM25 if vector search returned nothing or was disabled
+    if not manual_matches:
+        manual_matches = search_manual(query, limit=2)
+
 
     if not manual_matches and not doc_matches and not catalog_matches:
         return ""
