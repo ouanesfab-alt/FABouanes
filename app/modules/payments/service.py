@@ -200,8 +200,9 @@ class PaymentsService:
 
         # Verify client
         res_client = await self.session.execute(
-            select(Client.id).where(Client.id == client_id)
+            select(Client.id).where(Client.id == client_id).with_for_update()
         )
+
         if not res_client.first():
             raise ValidationError("Client introuvable.")
 

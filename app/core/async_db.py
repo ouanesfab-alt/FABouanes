@@ -40,7 +40,9 @@ def get_async_engine() -> AsyncEngine:
                 pool_pre_ping=True,
                 pool_size=int(os.environ.get("FAB_PG_POOL_SIZE", "10")),
                 max_overflow=int(os.environ.get("FAB_PG_POOL_MAX_OVERFLOW", "10")),
+                pool_recycle=1800,
             )
+
             from sqlalchemy import event
             @event.listens_for(engine.sync_engine, "connect")
             def set_async_connection_timezone(dbapi_connection, connection_record):

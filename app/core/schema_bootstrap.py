@@ -246,7 +246,35 @@ def bootstrap_schema() -> None:
             CREATE UNIQUE INDEX IF NOT EXISTS idx_catalog_embeddings_item ON catalog_embeddings(item_kind, item_id);
             """)
 
+        # performance indexes
+        conn.executescript("""
+        CREATE INDEX IF NOT EXISTS idx_sales_client_id ON sales(client_id);
+        CREATE INDEX IF NOT EXISTS idx_sales_finished_product_id ON sales(finished_product_id);
+        CREATE INDEX IF NOT EXISTS idx_sales_sale_date ON sales(sale_date);
+
+        CREATE INDEX IF NOT EXISTS idx_raw_sales_client_id ON raw_sales(client_id);
+        CREATE INDEX IF NOT EXISTS idx_raw_sales_raw_material_id ON raw_sales(raw_material_id);
+        CREATE INDEX IF NOT EXISTS idx_raw_sales_sale_date ON raw_sales(sale_date);
+
+        CREATE INDEX IF NOT EXISTS idx_purchases_supplier_id ON purchases(supplier_id);
+        CREATE INDEX IF NOT EXISTS idx_purchases_raw_material_id ON purchases(raw_material_id);
+        CREATE INDEX IF NOT EXISTS idx_purchases_finished_product_id ON purchases(finished_product_id);
+        CREATE INDEX IF NOT EXISTS idx_purchases_purchase_date ON purchases(purchase_date);
+
+        CREATE INDEX IF NOT EXISTS idx_payments_client_id ON payments(client_id);
+        CREATE INDEX IF NOT EXISTS idx_payments_payment_date ON payments(payment_date);
+
+        CREATE INDEX IF NOT EXISTS idx_expenses_expense_date ON expenses(expense_date);
+
+        CREATE INDEX IF NOT EXISTS idx_stock_movements_raw_material_id ON stock_movements(raw_material_id);
+        CREATE INDEX IF NOT EXISTS idx_stock_movements_finished_product_id ON stock_movements(finished_product_id);
+
+        CREATE INDEX IF NOT EXISTS idx_production_batches_recipe_id ON production_batches(recipe_id);
+        CREATE INDEX IF NOT EXISTS idx_production_batches_batch_date ON production_batches(batch_date);
+        """)
+
         conn.commit()
+
 
         # ── Seeds (absorbé depuis schema.py) ─────────────────────────────────
         from app.core.schema import _seed_default_admin, _seed_default_settings, _seed_other_operation
