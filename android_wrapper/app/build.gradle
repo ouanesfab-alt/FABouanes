@@ -8,15 +8,30 @@ android {
 
     defaultConfig {
         applicationId "com.fabouanes.mobile"
-        minSdk 21
+        minSdk 24
         targetSdk 33
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "2.0"
     }
 
     buildTypes {
+        debug {
+            minifyEnabled false
+        }
         release {
             minifyEnabled false
+        }
+    }
+
+    // Disable asset compression so tar.xz stays compressed (saves space)
+    aaptOptions {
+        noCompress "tar.xz", "xz", "gz", "bz2", "zip"
+    }
+
+    // Allow large assets
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
         }
     }
 }
