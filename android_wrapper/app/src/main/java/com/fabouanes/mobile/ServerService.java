@@ -8,13 +8,16 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.util.Log;
 
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.tukaani.xz.XZInputStream;
+
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Method;
 
 public class ServerService extends Service {
 
@@ -103,51 +106,61 @@ public class ServerService extends Service {
     }
 
     private void extractAsset(String assetName) throws IOException {
-        // We use tar via shell since Android doesn't have a built-in xz extractor
-        // First copy asset to cache dir, then run extraction via the bundled bash
         File outDir = getFilesDir();
-        File assetCache = new File(getCacheDir(), assetName);
+        broadcast(BROADCAST_PROGRESS, "Décompression de l'archive runtime...", 10);
 
-        // Copy from APK assets to cache
-        try (InputStream in = getAssets().open(assetName);
-             BufferedInputStream bis = new BufferedInputStream(in, 65536);
-             FileOutputStream fos = new FileOutputStream(assetCache)) {
-            byte[] buf = new byte[65536];
-            int len;
-            while ((len = bis.read(buf)) != -1) {
-                fos.write(buf, 0, len);
+        // Pure Java extraction — no system commands needed, works on all Android versions
+        try (InputStream raw    = getAssets().open(assetName, android.content.res.AssetManager.ACCESS_STREAMING);
+             BufferedInputStream bis = new BufferedInputStream(raw, 131072);
+             XZInputStream xzIn     = new XZInputStream(bis);
+             TarArchiveInputStream tarIn = new TarArchiveInputStream(xzIn)) {
+
+            TarArchiveEntry entry;
+            int count = 0;
+            while ((entry = (TarArchiveEntry) tarIn.getNextEntry()) != null) {
+                File dest = new File(outDir, entry.getName());
+
+                if (entry.isSymbolicLink()) {
+                    // Recreate symlinks
+                    dest.getParentFile().mkdirs();
+                    try {
+                        java.nio.file.Files.deleteIfExists(dest.toPath());
+                        java.nio.file.Files.createSymbolicLink(
+                            dest.toPath(),
+                            java.nio.file.Paths.get(entry.getLinkName()));
+                    } catch (Exception ignored) {}
+                    continue;
+                }
+
+                if (entry.isDirectory()) {
+                    dest.mkdirs();
+                    continue;
+                }
+
+                dest.getParentFile().mkdirs();
+                try (FileOutputStream fos = new FileOutputStream(dest)) {
+                    byte[] buf = new byte[65536];
+                    int len;
+                    while ((len = tarIn.read(buf)) != -1) {
+                        fos.write(buf, 0, len);
+                    }
+                }
+
+                // Restore executable bit from tar metadata
+                int mode = entry.getMode();
+                if ((mode & 0111) != 0) {
+                    dest.setExecutable(true, false);
+                }
+
+                count++;
+                // Broadcast rough progress from 10% to 75%
+                if (count % 500 == 0) {
+                    broadcast(BROADCAST_PROGRESS, "Extraction: " + count + " fichiers...",
+                            Math.min(75, 10 + count / 100));
+                }
             }
         }
-
-        broadcast(BROADCAST_PROGRESS, "Décompression de l'archive...", 30);
-
-        // Run system tar (available on all Android) to extract
-        ProcessBuilder pb = new ProcessBuilder(
-                "/system/bin/tar", "-xJf", assetCache.getAbsolutePath(),
-                "-C", outDir.getAbsolutePath()
-        );
-        pb.environment().put("TMPDIR", getCacheDir().getAbsolutePath());
-        pb.redirectErrorStream(true);
-
-        Process proc = pb.start();
-        // Drain stdout so the process doesn't block
-        try (InputStream is = proc.getInputStream()) {
-            byte[] buf = new byte[4096];
-            while (is.read(buf) != -1) {}
-        }
-
-        int exit;
-        try {
-            exit = proc.waitFor();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            exit = -1;
-        }
-        assetCache.delete();
-
-        if (exit != 0) {
-            throw new IOException("tar extraction failed with exit code " + exit);
-        }
+        broadcast(BROADCAST_PROGRESS, "Extraction terminée — " + "OK", 76);
     }
 
     private void setExecutable(File f) {
