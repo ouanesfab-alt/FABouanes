@@ -44,14 +44,12 @@ const fabAudio = {
     }
   },
 
-  playClick() {
+  playClick(style = 'soft') {
     this.init();
     if (!this.enabled || !this.ctx) return;
     if (this.ctx.state === 'suspended') this.ctx.resume();
 
     const now = this.ctx.currentTime;
-    
-    // Create an organic click sound (softer pluck) using sine + low-pass filter
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     const filter = this.ctx.createBiquadFilter();
@@ -60,20 +58,42 @@ const fabAudio = {
     filter.connect(gain);
     gain.connect(this.ctx.destination);
 
-    // lowpass filter makes it less harsh and more wooden
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(1000, now);
-    filter.frequency.exponentialRampToValueAtTime(300, now + 0.05);
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(600, now);
-    osc.frequency.exponentialRampToValueAtTime(150, now + 0.05);
-
-    gain.gain.setValueAtTime(0.04, now); // smooth decay
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-
-    osc.start(now);
-    osc.stop(now + 0.05);
+    if (style === 'crisp') {
+      // Glassy/metallic snap for primary action/save buttons
+      filter.frequency.setValueAtTime(1600, now);
+      filter.frequency.exponentialRampToValueAtTime(500, now + 0.04);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(300, now + 0.04);
+      gain.gain.setValueAtTime(0.03, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+      osc.start(now);
+      osc.stop(now + 0.04);
+    } else if (style === 'warning') {
+      // Dull rubbery thud for destructive or cancel actions
+      filter.frequency.setValueAtTime(400, now);
+      filter.frequency.exponentialRampToValueAtTime(100, now + 0.08);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(60, now + 0.08);
+      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    } else {
+      // Default soft organic wooden pop for general clicks
+      filter.frequency.setValueAtTime(900, now);
+      filter.frequency.exponentialRampToValueAtTime(250, now + 0.03);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(500, now);
+      osc.frequency.exponentialRampToValueAtTime(120, now + 0.03);
+      gain.gain.setValueAtTime(0.02, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+      osc.start(now);
+      osc.stop(now + 0.03);
+    }
   },
 
   playSuccess() {
@@ -142,7 +162,7 @@ export function initAudioModule() {
   // Bind global helpers
   window.playSuccessSound = () => fabAudio.playSuccess();
   window.playErrorSound = () => fabAudio.playError();
-  window.playClickSound = () => fabAudio.playClick();
+  window.playClickSound = (style) => fabAudio.playClick(style);
   window.toggleFabAudio = () => fabAudio.toggle();
 
   // Attach navbar toggle button event
@@ -160,7 +180,27 @@ export function initAudioModule() {
     const el = event.target.closest('button, a, input[type="submit"], input[type="button"], .btn, .nav-link, .menu-item');
     // Don't play default click sound on the audio toggle button itself to avoid double sounds
     if (el && el.id !== 'audioToggleBtnNavbar') {
-      fabAudio.playClick();
+      let style = 'soft';
+      
+      // Determine click style based on button classification/color/action
+      if (
+        el.classList.contains('btn-primary') || 
+        el.classList.contains('btn-success') || 
+        el.type === 'submit' ||
+        el.id === 'globalSearchBtn' ||
+        el.classList.contains('btn-save')
+      ) {
+        style = 'crisp';
+      } else if (
+        el.classList.contains('btn-danger') || 
+        el.classList.contains('text-danger') || 
+        el.classList.contains('btn-outline-danger') ||
+        el.classList.contains('mac-modal-close')
+      ) {
+        style = 'warning';
+      }
+      
+      fabAudio.playClick(style);
     }
   }, { passive: true });
 }
