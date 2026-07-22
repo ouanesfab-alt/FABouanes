@@ -12,7 +12,7 @@ from app.core.audit import audit_event, list_audit_logs
 from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_USERNAME
 from app.core.perf_cache import async_cached_result
 from app.core.security import validate_password_strength
-from app.core.storage import backup_database, list_restore_backups, mark_backup_needed, resolve_backup_path, restore_database_from
+from app.core.storage import backup_database, list_restore_backups, mark_backup_needed, async_mark_backup_needed, resolve_backup_path, restore_database_from
 from app.modules.users.repository import (
     create_user,
     get_user_by_id,
@@ -49,7 +49,7 @@ async def create_user_account(username: str, password: str, role: str, db: Async
         log_activity("create_user", "user", user_id, f"Création du compte {username}")
         audit_event("create_user", "user", user_id, after=created_user)
         try:
-            mark_backup_needed("create_user")
+            await async_mark_backup_needed(session, "create_user")
         except Exception:
             pass
         return {"ok": True, "message": "Compte créé avec succès."}
@@ -83,7 +83,7 @@ async def update_user_account(user_id: int, role: str, is_active: bool, new_pass
     log_activity("update_user", "user", user_id, detail)
     audit_event("update_user", "user", user_id, before=before, after=updated)
     try:
-        mark_backup_needed("update_user_password" if password_changed else "update_user")
+        await async_mark_backup_needed(db, "update_user_password" if password_changed else "update_user")
     except Exception:
         pass
     message = "Compte et mot de passe mis à jour." if password_changed else "Compte mis à jour."
@@ -110,7 +110,7 @@ async def delete_user_account(user_id: int, db: AsyncSession | None = None):
             log_activity("delete_user", "user", user_id, f"Username={user['username']}")
             audit_event("delete_user", "user", user_id, before=before, after=None)
             try:
-                mark_backup_needed("delete_user")
+                await async_mark_backup_needed(db, "delete_user")
             except Exception:
                 pass
             return {"ok": True, "message": "Utilisateur supprimé avec succès."}

@@ -87,16 +87,45 @@ def mark_backup_needed(reason: str = "event") -> None:
         "reason": str(reason or "event"),
         "marked_at": datetime.now().isoformat(timespec="seconds"),
     }
-    execute_db(
-        """
-        INSERT INTO app_settings (key, value, updated_at)
-        VALUES (%s, %s, CURRENT_TIMESTAMP)
-        ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP
-        """,
-        (BACKUP_NEEDED_SETTING, json.dumps(payload, ensure_ascii=True, sort_keys=True)),
-    )
+    try:
+        execute_db(
+            """
+            INSERT INTO app_settings (key, value, updated_at)
+            VALUES (%s, %s, CURRENT_TIMESTAMP)
+            ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP
+            """,
+            (BACKUP_NEEDED_SETTING, json.dumps(payload, ensure_ascii=True, sort_keys=True)),
+        )
+    except Exception as exc:
+        import logging
+        logging.getLogger("fabouanes.storage").debug("mark_backup_needed non-critical skipped: %s", exc)
 
-    # Broadcast to connected clients for real-time operations refresh
+    try:
+        from app.core.websockets import manager
+        manager.broadcast_sync("refresh_operations")
+    except Exception:
+        pass
+
+
+async def async_mark_backup_needed(db: AsyncSession, reason: str = "event") -> None:
+    from sqlalchemy import text
+    payload = {
+        "reason": str(reason or "event"),
+        "marked_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    try:
+        await db.execute(
+            text("""
+            INSERT INTO app_settings (key, value, updated_at)
+            VALUES (:key, :value, CURRENT_TIMESTAMP)
+            ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP
+            """),
+            {"key": BACKUP_NEEDED_SETTING, "value": json.dumps(payload, ensure_ascii=True, sort_keys=True)},
+        )
+    except Exception as exc:
+        import logging
+        logging.getLogger("fabouanes.storage").debug("async_mark_backup_needed non-critical skipped: %s", exc)
+
     try:
         from app.core.websockets import manager
         manager.broadcast_sync("refresh_operations")
