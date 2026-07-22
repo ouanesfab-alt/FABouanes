@@ -135,7 +135,6 @@ async def save_backup_settings_from_form(form_data: dict[str, str], db: AsyncSes
             "backup_snapshot_time": form_data.get("backup_snapshot_time", "02:00"),
             "backup_local_retention": form_data.get("backup_local_retention", "30"),
             "backup_event_retention": form_data.get("backup_event_retention", "100"),
-            "pg_dump_path": form_data.get("pg_dump_path", ""),
         },
     )
     return {"ok": True, "message": "Paramètres de sauvegarde enregistrés."}

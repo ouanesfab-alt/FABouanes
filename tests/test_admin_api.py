@@ -51,7 +51,7 @@ class TestAdminApi:
             assert response.json()["ok"] is True
 
     def test_api_save_backup_settings(self, mock_enforce):
-        payload = {"gdrive_backup_dir": "C:\\", "pg_dump_path": "", "backup_snapshot_time": "03:00", "backup_local_retention": 10, "backup_event_retention": 10}
+        payload = {"gdrive_backup_dir": "C:\\", "backup_snapshot_time": "03:00", "backup_local_retention": 10, "backup_event_retention": 10}
         with patch("app.web.admin_api.save_backup_settings_from_form", new_callable=AsyncMock, return_value={"ok": True, "message": "Configuration sauvegardée"}):
             response = client.patch("/api/admin/backups/settings", json=payload)
             assert response.status_code == 200

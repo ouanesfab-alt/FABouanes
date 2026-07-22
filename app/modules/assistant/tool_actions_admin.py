@@ -129,7 +129,6 @@ async def handle_admin(func_name: str, func_args: dict, session_maker, user_role
                 "backup_snapshot_time": func_args.get("backup_snapshot_time", "02:00"),
                 "backup_local_retention": func_args.get("backup_local_retention", 30),
                 "backup_event_retention": func_args.get("backup_event_retention", 100),
-                "pg_dump_path": func_args.get("pg_dump_path", ""),
             }
             await save_backup_configuration(payload)
             return {"success": True, "message": "Configuration des sauvegardes enregistrée avec succès."}

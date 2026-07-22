@@ -302,9 +302,9 @@
               <div class="small text-muted mt-1">Drive Desktop transférera automatiquement les snapshots créés.</div>
             </div>
             <div class="col-12">
-              <label for="pgDumpPathInput" class="form-label mb-1">Chemin de l'exécutable pg_dump.exe (PostgreSQL)</label>
-              <input name="pg_dump_path" id="pgDumpPathInput" class="form-control form-control-sm" placeholder="ex: C:\Program Files\PostgreSQL\16\bin\pg_dump.exe">
-              <div class="small text-muted mt-1">Recommandé pour Windows si pg_dump n'est pas configuré dans le PATH système.</div>
+              <div class="alert alert-light border py-2 px-3 mb-0 small text-muted">
+                <i class="bi bi-cpu me-1 text-primary"></i> <strong>Sauvegarde SQLite :</strong> hot-backup en ligne autonome via l'API native (aucun binaire externe requis).
+              </div>
             </div>
             <div class="col-md-4">
               <label for="snapshotInput" class="form-label mb-1">Heure Snapshot</label>
@@ -896,7 +896,6 @@
       const fd = new FormData(backupSettingsForm);
       const payload = {
         gdrive_backup_dir: fd.get('gdrive_backup_dir'),
-        pg_dump_path: fd.get('pg_dump_path'),
         backup_snapshot_time: fd.get('backup_snapshot_time'),
         backup_local_retention: fd.get('backup_local_retention'),
         backup_event_retention: fd.get('backup_event_retention')
@@ -961,13 +960,11 @@
           // Remplir les inputs de paramètres
           if (data.settings) {
             const gdriveDirInput = document.getElementById('gdriveDirInput');
-            const pgDumpPathInput = document.getElementById('pgDumpPathInput');
             const snapshotInput = document.getElementById('snapshotInput');
             const retentionNightInput = document.getElementById('retentionNightInput');
             const retentionEventInput = document.getElementById('retentionEventInput');
             
             if (gdriveDirInput) gdriveDirInput.value = data.settings.gdrive_backup_dir || '';
-            if (pgDumpPathInput) pgDumpPathInput.value = data.settings.pg_dump_path || '';
             if (snapshotInput) snapshotInput.value = data.settings.backup_snapshot_time || '02:00';
             if (retentionNightInput) retentionNightInput.value = data.settings.backup_local_retention || 30;
             if (retentionEventInput) retentionEventInput.value = data.settings.backup_event_retention || 100;

@@ -141,7 +141,6 @@ async def api_get_backups(request: Request):
         "jobs": jobs,
         "settings": {
             "gdrive_backup_dir": settings.get("gdrive_backup_dir") or "",
-            "pg_dump_path": settings.get("pg_dump_path") or "",
             "backup_snapshot_time": settings.get("backup_snapshot_time") or "02:00",
             "backup_local_retention": settings.get("backup_local_retention") or 30,
             "backup_event_retention": settings.get("backup_event_retention") or 100

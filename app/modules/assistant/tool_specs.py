@@ -1146,7 +1146,7 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                 },
                 {
                     "name": "save_backup_settings",
-                    "description": "Enregistre la configuration des sauvegardes (dossier Google Drive local, rétentions, heure du snapshot quotidien et chemin de l'utilitaire pg_dump).",
+                    "description": "Enregistre la configuration des sauvegardes (dossier Google Drive local, rétentions et heure du snapshot quotidien).",
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
@@ -1165,10 +1165,6 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                             "backup_event_retention": {
                                 "type": "INTEGER",
                                 "description": "Nombre maximal d'événements de sauvegarde à conserver."
-                            },
-                            "pg_dump_path": {
-                                "type": "STRING",
-                                "description": "Chemin absolu vers l'exécutable pg_dump (optionnel)."
                             }
                         }
                     }
