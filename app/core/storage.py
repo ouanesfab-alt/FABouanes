@@ -5,11 +5,9 @@ import hashlib
 import json
 import os
 import shutil
-import subprocess
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urlparse
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from app.core.config import APP_DATA_DIR, DATABASE_URL, settings

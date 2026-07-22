@@ -7,10 +7,8 @@ from time import monotonic
 from contextlib import contextmanager
 from collections import OrderedDict
 from typing import Any, Callable
-from urllib.parse import urlparse
-from decimal import Decimal
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
 from app.core.config import settings
@@ -220,7 +218,7 @@ def _translate_query_for_sqlite(query: str, has_params: bool = True) -> str:
     def _replace_to_char(m):
         col = m.group(1).strip()
         fmt = m.group(2).strip().strip("'\"")
-        sqlite_fmt = _pg_to_sqlite_fmt.get(fmt, f"%Y-%m")
+        sqlite_fmt = _pg_to_sqlite_fmt.get(fmt, "%Y-%m")
         return f"strftime('{sqlite_fmt}', {col})"
     query = re.sub(
         r"to_char\s*\(\s*([^,]+),\s*'([^']+)'\s*\)",
@@ -423,8 +421,6 @@ class DatabaseManager:
         try:
             engine = self.get_database_engine(raw_url)
             conn = engine.raw_connection()
-            # Set statement timeout on raw connection (default 30 seconds) to prevent backend from hanging
-            timeout_ms = int(os.environ.get("FAB_PG_STATEMENT_TIMEOUT_MS", "30000") or "30000")
             cursor = conn.cursor()
             try:
                 cursor.execute("PRAGMA journal_mode = WAL;")

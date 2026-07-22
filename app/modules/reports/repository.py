@@ -1044,7 +1044,6 @@ async def get_kpi_history_last_30_days(metric: str, db: AsyncSession | None = No
 async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> tuple[list[str], list[float]]:
     from datetime import date, datetime, timedelta
     from app.core.models import Client
-    from sqlalchemy import cast, Date
 
     def _normalize_db_date(val):
         if val is None:

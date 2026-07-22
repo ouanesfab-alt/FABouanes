@@ -11,6 +11,7 @@ from pypdf import PdfReader
 
 from app.web.manual_pages import SPECIFIC_CHAPTER_DATA
 from app.core.runtime_paths import paths
+from app.core.db_helpers import query_db
 
 INDEX_FILE = paths.pdf_reader_dir / "index_rag.json"
 
@@ -106,7 +107,6 @@ async def search_vector_manual(query: str, api_key: str, limit: int = 2) -> List
 
     results = []
     if has_vector:
-        emb_str = f"[{','.join(str(x) for x in emb)}]"
         rows = query_db(
             """SELECT item_id, 1 - 0.0 AS score
                FROM catalog_embeddings
