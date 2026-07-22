@@ -517,4 +517,124 @@ body.kpi-modal-open { overflow: hidden; }
   }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   MODERN UI / UX ENHANCEMENTS — MICRO-INTERACTIONS & GLASS POLISH
+   ══════════════════════════════════════════════════════════════ */
+
+/* Custom Minimal Scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(140, 140, 160, 0.3);
+  border-radius: 99px;
+  transition: background 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(140, 140, 160, 0.55);
+}
+
+/* Enhanced Focus Rings */
+:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.3) !important;
+}
+
+/* Interactive Card Shimmer & Elevation */
+.glass-card, .dashboard-card, .rpt-chart-card, .rpt-top-card, .card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease !important;
+}
+
+.glass-card:hover, .dashboard-card:hover, .rpt-chart-card:hover, .rpt-top-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Button Micro-Interactions & Hover Glow */
+.btn-primary, .btn-accent, .nav-btn, .btn-action {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary:hover, .btn-accent:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 20px rgba(0, 122, 255, 0.35) !important;
+}
+
+.btn-primary:active, .btn-accent:active, .nav-btn:active {
+  transform: translateY(0.5px) scale(0.98) !important;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2) !important;
+}
+
+/* Enhanced Status Pills with Soft Ambient Glow */
+.status-pill.ok {
+  box-shadow: 0 0 12px rgba(52, 199, 89, 0.15);
+}
+.status-pill.warn {
+  box-shadow: 0 0 12px rgba(255, 149, 0, 0.15);
+}
+
+/* Table UI & Row Hover Styling */
+.table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table tbody tr {
+  transition: background-color 0.18s ease, transform 0.18s ease;
+}
+
+.table tbody tr:hover {
+  background-color: rgba(0, 122, 255, 0.04) !important;
+}
+
+[data-theme="dark"] .table tbody tr:hover, [data-theme="windows-dark"] .table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+.table th {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+/* Sabrina Assistant Chat Bubble Enhancements */
+.sabrina-bubble-user {
+  background: linear-gradient(135deg, #007aff, #0056b3) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(0, 122, 255, 0.25) !important;
+  border-radius: 18px 18px 4px 18px !important;
+}
+
+.sabrina-bubble-ai {
+  background: var(--card) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 18px 18px 18px 4px !important;
+}
+
+/* Smooth Page Load Animation */
+.app-content {
+  animation: pageFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) ease-out;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0.85;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
 
