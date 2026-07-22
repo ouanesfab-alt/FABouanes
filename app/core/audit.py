@@ -57,6 +57,7 @@ async def _audit_flusher_task() -> None:
     import logging
     logger = logging.getLogger("fabouanes.audit")
     queue = _get_audit_queue()
+    _consecutive_errors = 0
     while True:
         try:
             item = await queue.get()
@@ -67,6 +68,7 @@ async def _audit_flusher_task() -> None:
                 except asyncio.QueueEmpty:
                     break
 
+            committed = False
             try:
                 async with get_async_sessionmaker()() as session:
                     for row in batch:
@@ -103,11 +105,26 @@ async def _audit_flusher_task() -> None:
                         except Exception:
                             logger.exception("Unable to execute audit log row statement")
                     await session.commit()
+                    committed = True
+                    _consecutive_errors = 0
             except Exception:
-                logger.exception("Unable to commit audit log batch")
+                logger.exception("Unable to commit audit log batch — re-queuing %d events", len(batch))
+                # Re-queue events to avoid data loss, respecting max queue size
+                if not committed:
+                    for evt in batch:
+                        try:
+                            queue.put_nowait(evt)
+                        except asyncio.QueueFull:
+                            logger.error("Audit queue full — dropping 1 event during re-queue")
+                _consecutive_errors += 1
+                backoff = min(2.0 * _consecutive_errors, 30.0)
+                await asyncio.sleep(backoff)
             finally:
                 for _ in batch:
-                    queue.task_done()
+                    try:
+                        queue.task_done()
+                    except Exception:
+                        pass
         except asyncio.CancelledError:
             break
         except Exception:

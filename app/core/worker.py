@@ -169,7 +169,7 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
                             (new_retry_cnt, error_msg, event_id)
                         )
 
-            conn.commit()
+            # NOTE: db_transaction auto-commits on successful exit — do NOT call conn.commit() here.
     except Exception as exc:
         logger.error("Error in dispatch_outbox_events_task", error=str(exc))
 
@@ -241,12 +241,8 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
         await update_task_progress(job_id, 100, "Catalogue vide, aucune action requise.")
         return 0
 
+    # SQLite does not have pg_extension — vector support is not available on SQLite
     has_vector = False
-    try:
-        row = query_db("SELECT 1 FROM pg_extension WHERE extname = 'vector'", one=True)
-        has_vector = bool(row)
-    except Exception:
-        pass
 
     processed = 0
     await update_task_progress(job_id, 20, f"Traitement de {total_items} articles...")

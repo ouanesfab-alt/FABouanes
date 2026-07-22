@@ -64,6 +64,8 @@ def log_activity(
     old_value=None,
     new_value=None,
 ) -> None:
+    # Capture ALL context-dependent values in the current thread BEFORE delegating
+    # to run_in_executor, since ContextVars are NOT propagated to executor threads.
     username = safe_username()
     user_id = None
     try:
@@ -72,6 +74,12 @@ def log_activity(
             user_id = int(user["id"])
     except Exception:
         user_id = None
+
+    # Capture IP immediately (ContextVar-dependent, must be in the request thread)
+    ip_address = _request_ip()
+
+    old_value_str = _json_or_text(old_value)
+    new_value_str = _json_or_text(new_value)
 
     write_text_log("activity.log", f"{username} | {action} | {entity_type}#{entity_id or '-'} | {details}")
 
@@ -91,9 +99,9 @@ def log_activity(
                     entity_type,
                     entity_id,
                     details,
-                    _json_or_text(old_value),
-                    _json_or_text(new_value),
-                    _request_ip(),
+                    old_value_str,
+                    new_value_str,
+                    ip_address,
                 ),
             )
         except Exception as exc:
@@ -105,6 +113,7 @@ def log_activity(
         loop.run_in_executor(None, _do_write)
     except RuntimeError:
         _do_write()
+
 
 
 def log_error(exc: Exception, route: str = "") -> None:

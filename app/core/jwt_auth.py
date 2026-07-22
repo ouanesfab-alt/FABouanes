@@ -44,24 +44,36 @@ def create_refresh_token(user_id: int) -> str:
         settings.secret_key, ALGORITHM,
     )
 
-    # Save token hash in api_refresh_tokens
+    # Save token hash in api_refresh_tokens — done in a background thread
+    # to avoid blocking the async event loop if called from async contexts.
     import hashlib
     from app.core.db_helpers import execute_db
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
     expires_str = expires.strftime("%Y-%m-%d %H:%M:%S")
+
+    def _persist():
+        try:
+            execute_db(
+                """
+                INSERT INTO api_refresh_tokens (user_id, token_hash, token_hint, expires_at)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (user_id, token_hash, token[-8:], expires_str)
+            )
+        except Exception as exc:
+            import logging
+            logging.getLogger("fabouanes.auth").warning("Could not persist mobile refresh token in DB: %s", exc)
+
     try:
-        execute_db(
-            """
-            INSERT INTO api_refresh_tokens (user_id, token_hash, token_hint, expires_at)
-            VALUES (%s, %s, %s, %s)
-            """,
-            (user_id, token_hash, token[-8:], expires_str)
-        )
-    except Exception as exc:
-        import logging
-        logging.getLogger("fabouanes.auth").warning("Could not persist mobile refresh token in DB: %s", exc)
+        import asyncio
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, _persist)
+    except RuntimeError:
+        # No event loop running — call synchronously (e.g. from tests or CLI)
+        _persist()
 
     return token
+
 
 
 def decode_token(token: str) -> dict[str, Any]:

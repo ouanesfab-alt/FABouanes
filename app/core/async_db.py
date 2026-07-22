@@ -135,10 +135,10 @@ from contextlib import asynccontextmanager
 async def ensure_transaction(db: AsyncSession | None = None):
     """Context manager that guarantees an active transaction.
 
-    If ``db`` is provided and already inside a transaction, yields it as-is.
-    Otherwise creates a new session with an explicit ``begin()`` so the caller
-    always gets a properly managed transaction that will commit on success and
-    rollback on failure.
+    If ``db`` is provided and already inside a transaction, yields it as-is
+    (using the existing transaction — no nested begin() is opened).
+    If ``db`` is provided but NOT in a transaction, wraps it in begin().
+    If ``db`` is None, creates a brand-new session with its own begin().
 
     Usage::
 
@@ -148,9 +148,19 @@ async def ensure_transaction(db: AsyncSession | None = None):
         # auto-commit on exit, auto-rollback on exception
     """
     if db is not None:
-        yield db
+        # Check if the session is already in an active transaction to avoid
+        # InvalidRequestError from nested begin() calls (BUG-10).
+        # Use hasattr guard for compatibility with MockAsyncSession in tests.
+        _in_tx = getattr(db, "in_transaction", None)
+        already_in_tx = _in_tx() if callable(_in_tx) else True
+        if already_in_tx:
+            yield db
+        else:
+            async with db.begin():
+                yield db
     else:
         async with get_async_sessionmaker()() as session:
             async with session.begin():
                 yield session
+
 

@@ -82,14 +82,16 @@ async def update_user_account(user_id: int, role: str, is_active: bool, new_pass
         detail += " mot_de_passe=modifie"
     log_activity("update_user", "user", user_id, detail)
     audit_event("update_user", "user", user_id, before=before, after=updated)
-    try:
-        await async_mark_backup_needed(db, "update_user_password" if password_changed else "update_user")
-    except Exception:
-        pass
+    if db is not None:
+        try:
+            await async_mark_backup_needed(db, "update_user_password" if password_changed else "update_user")
+        except Exception:
+            pass
     message = "Compte et mot de passe mis à jour." if password_changed else "Compte mis à jour."
     return {"ok": True, "message": message}
 
 
+@async_compat
 async def delete_user_account(user_id: int, db: AsyncSession | None = None):
     # Récupérer l'utilisateur pour les logs
     user = await get_user_by_id(user_id, db=db)
@@ -237,7 +239,9 @@ async def _build_admin_view_data(audit_filters: dict[str, str], db: AsyncSession
     from app.core.db_helpers import db_manager as helper_db_manager
 
     sabrina_api_key = get_gemini_api_key()
-    selected_model = helper_db_manager.get_setting("gemini_model", "gemini-3.1-flash-lite").strip() or "gemini-3.1-flash-lite"
+    selected_model = (
+        await asyncio.to_thread(helper_db_manager.get_setting, "gemini_model", "gemini-3.1-flash-lite")
+    ).strip() or "gemini-3.1-flash-lite"
     has_key = bool(sabrina_api_key)
     ollama_ok = await is_ollama_available()
 

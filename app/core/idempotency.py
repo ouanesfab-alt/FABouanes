@@ -67,11 +67,12 @@ async def cleanup_expired_idempotency_keys(max_age_days: int = 7) -> int:
     Retourne le nombre de lignes supprimées.
     """
     try:
-        result = await execute_db_async(
+        deleted = await execute_db_async(
             "DELETE FROM idempotent_requests WHERE created_at < datetime('now', '-' || %s || ' days')",
             (max_age_days,),
         )
-        deleted = result.rowcount if hasattr(result, "rowcount") else 0
+        # execute_db_async returns an int (rowcount), not a cursor object
+        deleted = int(deleted or 0)
         logger.info(
             "Idempotency cleanup: deleted %d expired entries (older than %d days)",
             deleted,
