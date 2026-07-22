@@ -48,9 +48,10 @@
               <input name="username" id="usernameInput" class="form-control" placeholder="ex: amine" required autocomplete="off">
             </div>
             <div class="col-12">
-              <label for="pinInput" class="form-label mb-1">Code PIN (4 chiffres)</label>
-              <input name="password" id="pinInput" type="password" class="form-control" inputmode="numeric" pattern="\d{4}" maxlength="4"
-                minlength="4" placeholder="1234" required autocomplete="new-password">
+              <label for="pinInput" class="form-label mb-1">Mot de passe / Code PIN</label>
+              <input name="password" id="pinInput" type="password" class="form-control"
+                minlength="4" placeholder="ex: 2580 ou mot de passe" required autocomplete="new-password">
+              <div class="form-text small text-muted">PIN à 4 chiffres (ex: 2580, évitez 1234/0000) ou mot de passe textuel.</div>
             </div>
             <div class="col-12">
               <label for="roleInput" class="form-label mb-1">Rôle</label>
