@@ -256,7 +256,7 @@ async def _create_payment_record_impl(
 
     from app.core.models import Client, Payment, Sale, RawSale
 
-    client = (await db.execute(select(Client.id).where(Client.id == client_id).with_for_update())).first()
+    client = (await db.execute(select(Client.id).where(Client.id == client_id))).first()
     if not client:
         raise ValueError("Client introuvable.")
 

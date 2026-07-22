@@ -107,7 +107,7 @@ class PurchaseService:
         unit_price_kg = unit_price_to_kg(unit_price, unit)
 
         if item_kind == "raw":
-            stmt = select(RawMaterial).where(RawMaterial.id == item_id).with_for_update()
+            stmt = select(RawMaterial).where(RawMaterial.id == item_id)
             res = await self.session.execute(stmt)
             item = res.scalar_one_or_none()
             if not item:
@@ -152,7 +152,7 @@ class PurchaseService:
 
             await self.record_stock_movement("raw", item_id, "in", qty_kg, "kg", stock_before, stock_after, "create_purchase", "purchase", purchase_id)
         else:
-            stmt = select(FinishedProduct).where(FinishedProduct.id == item_id).with_for_update()
+            stmt = select(FinishedProduct).where(FinishedProduct.id == item_id)
             res = await self.session.execute(stmt)
             item = res.scalar_one_or_none()
             if not item:
@@ -200,7 +200,7 @@ class PurchaseService:
             return False
 
         if row.finished_product_id:
-            stmt_prod = select(FinishedProduct).where(FinishedProduct.id == row.finished_product_id).with_for_update()
+            stmt_prod = select(FinishedProduct).where(FinishedProduct.id == row.finished_product_id)
             res_prod = await self.session.execute(stmt_prod)
             product = res_prod.scalar_one_or_none()
             if not product or float(product.stock_qty) < float(row.quantity):
@@ -222,7 +222,7 @@ class PurchaseService:
 
             await self.record_stock_movement("finished", int(row.finished_product_id), "out", float(row.quantity), "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id)
         else:
-            stmt_mat = select(RawMaterial).where(RawMaterial.id == row.raw_material_id).with_for_update()
+            stmt_mat = select(RawMaterial).where(RawMaterial.id == row.raw_material_id)
             res_mat = await self.session.execute(stmt_mat)
             material = res_mat.scalar_one_or_none()
             if not material or float(material.stock_qty) < float(row.quantity):

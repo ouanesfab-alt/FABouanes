@@ -84,7 +84,7 @@ class PaymentsService:
         from app.modules.sales.service import SalesService
         sales_service = SalesService(self.session)
         if kind == "finished":
-            stmt = select(Sale).where(Sale.id == row_id).with_for_update()
+            stmt = select(Sale).where(Sale.id == row_id)
             res = await self.session.execute(stmt)
             sale = res.scalar_one_or_none()
             if not sale:
@@ -98,7 +98,7 @@ class PaymentsService:
                 await sales_service.recalc_sale_document_totals(int(sale.document_id))
             return paid
         else:
-            stmt = select(RawSale).where(RawSale.id == row_id).with_for_update()
+            stmt = select(RawSale).where(RawSale.id == row_id)
             res = await self.session.execute(stmt)
             sale = res.scalar_one_or_none()
             if not sale:
@@ -128,7 +128,7 @@ class PaymentsService:
                 if amount <= 0:
                     continue
                 if kind == "finished":
-                    stmt = select(Sale).where(Sale.id == row_id).with_for_update()
+                    stmt = select(Sale).where(Sale.id == row_id)
                     res = await self.session.execute(stmt)
                     doc_row = res.scalar_one_or_none()
                     if doc_row:
@@ -139,7 +139,7 @@ class PaymentsService:
                         if doc_row.document_id:
                             await sales_service.recalc_sale_document_totals(int(doc_row.document_id))
                 elif kind == "raw":
-                    stmt = select(RawSale).where(RawSale.id == row_id).with_for_update()
+                    stmt = select(RawSale).where(RawSale.id == row_id)
                     res = await self.session.execute(stmt)
                     doc_row = res.scalar_one_or_none()
                     if doc_row:
@@ -157,7 +157,7 @@ class PaymentsService:
         if payment_row.get("sale_kind") == "finished" and payment_row.get("sale_id"):
             sale_id = int(payment_row["sale_id"])
             amount = float(payment_row["amount"])
-            stmt = select(Sale).where(Sale.id == sale_id).with_for_update()
+            stmt = select(Sale).where(Sale.id == sale_id)
             res = await self.session.execute(stmt)
             doc_row = res.scalar_one_or_none()
             if doc_row:
@@ -170,7 +170,7 @@ class PaymentsService:
         elif payment_row.get("sale_kind") == "raw" and payment_row.get("raw_sale_id"):
             raw_sale_id = int(payment_row["raw_sale_id"])
             amount = float(payment_row["amount"])
-            stmt = select(RawSale).where(RawSale.id == raw_sale_id).with_for_update()
+            stmt = select(RawSale).where(RawSale.id == raw_sale_id)
             res = await self.session.execute(stmt)
             doc_row = res.scalar_one_or_none()
             if doc_row:
@@ -200,7 +200,7 @@ class PaymentsService:
 
         # Verify client
         res_client = await self.session.execute(
-            select(Client.id).where(Client.id == client_id).with_for_update()
+            select(Client.id).where(Client.id == client_id)
         )
 
         if not res_client.first():

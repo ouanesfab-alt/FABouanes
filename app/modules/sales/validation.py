@@ -40,7 +40,7 @@ class SalesValidator:
 
         if item_kind == "finished" or item_kind == "sale_finished":
             # Fetch finished product
-            stmt = select(FinishedProduct).where(FinishedProduct.id == item_id).with_for_update()
+            stmt = select(FinishedProduct).where(FinishedProduct.id == item_id)
             res = await session.execute(stmt)
             item = res.scalar_one_or_none()
             if not item:
@@ -55,7 +55,7 @@ class SalesValidator:
 
         elif item_kind == "raw" or item_kind == "sale_raw":
             # Fetch raw material
-            stmt = select(RawMaterial).where(RawMaterial.id == item_id).with_for_update()
+            stmt = select(RawMaterial).where(RawMaterial.id == item_id)
             res = await session.execute(stmt)
             item = res.scalar_one_or_none()
             if not item:

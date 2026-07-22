@@ -166,7 +166,7 @@ class SalesCommands:
             if not row:
                 return False
 
-            stmt_prod = select(FinishedProduct).where(FinishedProduct.id == row.finished_product_id).with_for_update()
+            stmt_prod = select(FinishedProduct).where(FinishedProduct.id == row.finished_product_id)
             res_prod = await self.session.execute(stmt_prod)
             product = res_prod.scalar_one_or_none()
 
@@ -200,7 +200,7 @@ class SalesCommands:
         if not row:
             return False
 
-        stmt_mat = select(RawMaterial).where(RawMaterial.id == row.raw_material_id).with_for_update()
+        stmt_mat = select(RawMaterial).where(RawMaterial.id == row.raw_material_id)
         res_mat = await self.session.execute(stmt_mat)
         material = res_mat.scalar_one_or_none()
 

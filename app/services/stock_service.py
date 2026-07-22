@@ -393,7 +393,7 @@ async def _create_purchase_record_impl(
     unit_price_kg = unit_price_to_kg(unit_price, unit)
 
     if item_kind == "raw":
-        material_res = await db.execute(select(RawMaterial).where(RawMaterial.id == real_item_id).with_for_update())
+        material_res = await db.execute(select(RawMaterial).where(RawMaterial.id == real_item_id))
         material = material_res.scalar_one_or_none()
         if not material:
             raise NotFoundError("Matière première", real_item_id)
@@ -434,7 +434,7 @@ async def _create_purchase_record_impl(
         await db.flush()
         await record_stock_movement("raw", real_item_id, "in", qty_kg, "kg", stock_before, stock_after, "create_purchase", "purchase", purchase_id, db=db)
     else:
-        product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == real_item_id).with_for_update())
+        product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == real_item_id))
         product = product_res.scalar_one_or_none()
         if not product:
             raise NotFoundError("Produit fini", real_item_id)
@@ -535,7 +535,7 @@ async def _create_sale_record_impl(
     if item_kind == "finished":
         qty_kg = qty_to_kg(qty, unit)
         unit_price_kg = unit_price_to_kg(unit_price, unit)
-        item_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == item_id).with_for_update())
+        item_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == item_id))
         item = item_res.scalar_one_or_none()
         if not item:
             raise NotFoundError("Produit fini", item_id)
@@ -590,7 +590,7 @@ async def _create_sale_record_impl(
             _flash_warning(f"Vente sous coût : {unit_price_kg:.2f} DA/kg < coût de revient {cost_snapshot:.2f} DA/kg.")
         return "finished", row_id
 
-    item_res = await db.execute(select(RawMaterial).where(RawMaterial.id == item_id).with_for_update())
+    item_res = await db.execute(select(RawMaterial).where(RawMaterial.id == item_id))
     item = item_res.scalar_one_or_none()
     if not item:
         raise NotFoundError("Matière première", item_id)
@@ -675,7 +675,7 @@ async def _reverse_purchase_impl(purchase_id: int, db: AsyncSession) -> bool:
         return False
 
     if row.finished_product_id:
-        product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == row.finished_product_id).with_for_update())
+        product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == row.finished_product_id))
         product = product_res.scalar_one_or_none()
         if not product or float(product.stock_qty) < float(row.quantity):
             return False
@@ -693,7 +693,7 @@ async def _reverse_purchase_impl(purchase_id: int, db: AsyncSession) -> bool:
         await db.flush()
         await record_stock_movement("finished", int(row.finished_product_id), "out", float(row.quantity), "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id, db=db)
     else:
-        material_res = await db.execute(select(RawMaterial).where(RawMaterial.id == row.raw_material_id).with_for_update())
+        material_res = await db.execute(select(RawMaterial).where(RawMaterial.id == row.raw_material_id))
         material = material_res.scalar_one_or_none()
         qty_kg = qty_to_kg(float(row.quantity), row.unit)
         if not material or float(material.stock_qty) < qty_kg:
@@ -734,7 +734,7 @@ async def _reverse_sale_impl(kind: str, row_id: int, db: AsyncSession) -> bool:
         row = row_res.scalar_one_or_none()
         if not row:
             return False
-        product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == row.finished_product_id).with_for_update())
+        product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == row.finished_product_id))
         product = product_res.scalar_one_or_none()
         stock_before = float(product.stock_qty if product else 0)
         restore_qty = qty_to_kg(float(row.quantity), row.unit)
@@ -753,7 +753,7 @@ async def _reverse_sale_impl(kind: str, row_id: int, db: AsyncSession) -> bool:
     row = row_res.scalar_one_or_none()
     if not row:
         return False
-    material_res = await db.execute(select(RawMaterial).where(RawMaterial.id == row.raw_material_id).with_for_update())
+    material_res = await db.execute(select(RawMaterial).where(RawMaterial.id == row.raw_material_id))
     material = material_res.scalar_one_or_none()
     stock_before = float(material.stock_qty if material else 0)
     restore_qty = qty_to_kg(float(row.quantity), row.unit)
@@ -783,7 +783,7 @@ async def _apply_raw_material_consumption_impl(material, qty: float, reference_t
     from app.core.models import RawMaterial
 
     material_id = int(material["id"])
-    db_material_res = await db.execute(select(RawMaterial).where(RawMaterial.id == material_id).with_for_update())
+    db_material_res = await db.execute(select(RawMaterial).where(RawMaterial.id == material_id))
     db_material = db_material_res.scalar_one_or_none()
     if not db_material:
         raise ValueError(f"Matière première introuvable: {material_id}")
@@ -810,7 +810,7 @@ async def _apply_finished_production_impl(product, output_qty: float, total_cost
     from app.core.models import FinishedProduct
 
     product_id = int(product["id"])
-    db_product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == product_id).with_for_update())
+    db_product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == product_id))
     db_product = db_product_res.scalar_one_or_none()
     if not db_product:
         raise ValueError(f"Produit fini introuvable: {product_id}")
@@ -844,14 +844,15 @@ async def _reverse_production_impl(batch_id: int, db: AsyncSession) -> bool:
     batch = batch_res.scalar_one_or_none()
     if not batch:
         return False
-    product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == batch.finished_product_id).with_for_update())
+    product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == batch.finished_product_id))
     product = product_res.scalar_one_or_none()
     if not product or float(product.stock_qty) < float(batch.output_quantity):
         return False
     items_res = await db.execute(select(ProductionBatchItem).where(ProductionBatchItem.batch_id == batch_id))
     items = items_res.scalars().all()
     for item in items:
-        material_res = await db.execute(select(RawMaterial).where(RawMaterial.id == item.raw_material_id).with_for_update())
+        material_res = await db.execute(select(RawMaterial).where(RawMaterial.id == item.raw_material_id))
+        material = material_res.scalar_one_or_none()
         material = material_res.scalar_one_or_none()
         stock_before = float(material.stock_qty if material else 0)
         stock_after = stock_before + float(item.quantity)
