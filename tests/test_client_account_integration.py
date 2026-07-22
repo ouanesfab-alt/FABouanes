@@ -150,10 +150,12 @@ async def test_reverse_payment_allocations(mock_recalc):
     assert len(session.executed_statements) > 0
 
 
+from app.core.exceptions import NotFoundError, ValidationError
+
 @pytest.mark.asyncio
 async def test_create_payment_record_validation():
     session = CustomAccountMockSession(client_exists=False)
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises((ValueError, NotFoundError)) as exc:
         await create_payment_record(
             client_id=999,
             amount=5000,

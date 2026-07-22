@@ -103,8 +103,8 @@ def generate_briefing() -> Dict[str, Any]:
         # 3. Bilan du mois en cours
         month_summary = db_manager.query_db("""
             SELECT
-                (SELECT COALESCE(SUM(total), 0) FROM sales WHERE sale_date >= DATE_TRUNC('month', CURRENT_DATE)) AS ca_mois,
-                (SELECT COALESCE(SUM(profit_amount), 0) FROM sales WHERE sale_date >= DATE_TRUNC('month', CURRENT_DATE)) AS benefice_mois
+                (SELECT COALESCE(SUM(total), 0) FROM sales WHERE sale_date >= date('now', 'start of month')) AS ca_mois,
+                (SELECT COALESCE(SUM(profit_amount), 0) FROM sales WHERE sale_date >= date('now', 'start of month')) AS benefice_mois
         """)
 
         if month_summary:

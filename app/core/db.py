@@ -20,7 +20,8 @@ def connect_database(database_url: str):
     return pool_manager.connect_database(database_url)
 
 def postgres_pool_status(database_url: str):
-    return pool_manager.postgres_pool_status(database_url)
+    """Deprecated: PostgreSQL is no longer used. Returns empty status."""
+    return {"status": "not_applicable", "engine": "sqlite"}
 
 def list_columns(conn, table: str):
     from app.core.db_helpers import list_columns as _lc

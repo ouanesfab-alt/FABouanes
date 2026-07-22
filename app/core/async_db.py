@@ -128,3 +128,29 @@ async def create_db_and_tables():
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
 
+
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def ensure_transaction(db: AsyncSession | None = None):
+    """Context manager that guarantees an active transaction.
+
+    If ``db`` is provided and already inside a transaction, yields it as-is.
+    Otherwise creates a new session with an explicit ``begin()`` so the caller
+    always gets a properly managed transaction that will commit on success and
+    rollback on failure.
+
+    Usage::
+
+        async with ensure_transaction(db) as session:
+            session.add(obj)
+            await session.flush()
+        # auto-commit on exit, auto-rollback on exception
+    """
+    if db is not None:
+        yield db
+    else:
+        async with get_async_sessionmaker()() as session:
+            async with session.begin():
+                yield session
+

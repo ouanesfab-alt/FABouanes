@@ -7,15 +7,13 @@ from typing import Any
 from sqlalchemy import select, text, literal, literal_column, func, union_all, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_sessionmaker
+from app.core.async_db import get_async_sessionmaker, ensure_transaction
 from app.core.helpers import async_compat
 
 @async_compat
 async def client_balance(client_id: int, db: AsyncSession | None = None) -> float:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _client_balance_impl(client_id, session)
-    return await _client_balance_impl(client_id, db)
+    async with ensure_transaction(db) as session:
+        return await _client_balance_impl(client_id, session)
 
 
 async def _client_balance_impl(client_id: int, db: AsyncSession) -> float:
@@ -27,10 +25,8 @@ async def _client_balance_impl(client_id: int, db: AsyncSession) -> float:
 
 @async_compat
 async def get_open_credit_entries(client_id: int | None = None, db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _get_open_credit_entries_impl(client_id, session)
-    return await _get_open_credit_entries_impl(client_id, db)
+    async with ensure_transaction(db) as session:
+        return await _get_open_credit_entries_impl(client_id, session)
 
 
 async def _get_open_credit_entries_impl(client_id: int | None, db: AsyncSession):
@@ -72,11 +68,8 @@ async def _get_open_credit_entries_impl(client_id: int | None, db: AsyncSession)
 
 @async_compat
 async def apply_payment_to_entry(kind: str, row_id: int, amount: float, entry: dict | None = None, db: AsyncSession | None = None) -> float:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _apply_payment_to_entry_impl(kind, row_id, amount, entry, session)
-    return await _apply_payment_to_entry_impl(kind, row_id, amount, entry, db)
+    async with ensure_transaction(db) as session:
+        return await _apply_payment_to_entry_impl(kind, row_id, amount, entry, session)
 
 
 async def _apply_payment_to_entry_impl(kind: str, row_id: int, amount: float, entry: dict | None, db: AsyncSession) -> float:
@@ -137,11 +130,8 @@ async def _apply_payment_to_entry_impl(kind: str, row_id: int, amount: float, en
 
 @async_compat
 async def reverse_payment_allocations(payment_row, db: AsyncSession | None = None) -> None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _reverse_payment_allocations_impl(payment_row, session)
-    return await _reverse_payment_allocations_impl(payment_row, db)
+    async with ensure_transaction(db) as session:
+        return await _reverse_payment_allocations_impl(payment_row, session)
 
 
 async def _reverse_payment_allocations_impl(payment_row, db: AsyncSession) -> None:
@@ -232,11 +222,8 @@ async def create_payment_record(
     payment_type: str = "versement",
     db: AsyncSession | None = None,
 ) -> int:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _create_payment_record_impl(client_id, amount, payment_date, notes, sale_link, payment_type, session)
-    return await _create_payment_record_impl(client_id, amount, payment_date, notes, sale_link, payment_type, db)
+    async with ensure_transaction(db) as session:
+        return await _create_payment_record_impl(client_id, amount, payment_date, notes, sale_link, payment_type, session)
 
 
 async def _create_payment_record_impl(
@@ -251,14 +238,16 @@ async def _create_payment_record_impl(
     if isinstance(payment_date, str):
         payment_date = date.fromisoformat(payment_date.strip())
 
+    from app.core.exceptions import ValidationError, NotFoundError
+
     if amount <= 0:
-        raise ValueError("Le montant doit etre superieur a zero.")
+        raise ValidationError("Le montant doit être supérieur à zéro.", field="amount")
 
     from app.core.models import Client, Payment, Sale, RawSale
 
     client = (await db.execute(select(Client.id).where(Client.id == client_id))).first()
     if not client:
-        raise ValueError("Client introuvable.")
+        raise NotFoundError("Client", client_id)
 
 
     if payment_type == "avance":

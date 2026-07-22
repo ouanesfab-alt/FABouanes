@@ -59,7 +59,7 @@ python_files = ["test_*.py"]
 addopts = "-q --cov=app --cov-config=pyproject.toml --cov-report=term-missing --cov-fail-under=75"
 filterwarnings = [
   # SQLite retourne des types primitifs (str, float, int) au lieu de date/Decimal/bool.
-  # Ces avertissements Pydantic sont normaux en test et n'affectent pas la production (PostgreSQL).
+  # Ces avertissements Pydantic sont normaux en test et ne représentent pas de vrais bugs.
   "ignore:Pydantic serializer warnings.*PydanticSerializationUnexpectedValue.*production_date:UserWarning",
   "ignore:Pydantic serializer warnings.*PydanticSerializationUnexpectedValue.*opening_credit:UserWarning",
   "ignore:Pydantic serializer warnings.*PydanticSerializationUnexpectedValue.*amount:UserWarning",
