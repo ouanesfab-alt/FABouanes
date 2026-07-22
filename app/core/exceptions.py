@@ -51,4 +51,11 @@ def get_friendly_error_message(exc: Exception) -> str:
     if "numeric value out of range" in err_msg or "valeur numérique en dehors des limites" in err_msg or "out of range" in err_msg or "numeric_value_out_of_range" in err_msg:
         return "Action impossible : un des montants ou quantités saisis dépasse les limites numériques autorisées."
 
-    return f"Une erreur s'est produite : {type(exc).__name__}"
+    if "database is locked" in err_msg or "locked" in err_msg or "busy" in err_msg:
+        return "Le système est momentanément occupé (base de données verrouillée). Veuillez réessayer dans quelques secondes."
+
+    detail = str(exc).strip()
+    exc_type = type(exc).__name__
+    if detail and detail != exc_type:
+        return f"Une erreur s'est produite : {exc_type} ({detail})"
+    return f"Une erreur s'est produite : {exc_type}"

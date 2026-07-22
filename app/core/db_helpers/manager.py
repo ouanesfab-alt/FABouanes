@@ -279,11 +279,14 @@ class CompatConnection:
                     pass
 
                 exc_msg = str(exc).lower()
-                if ("25p02" in exc_msg or "transaction is aborted" in exc_msg or "locked" in exc_msg) and not retried:
+                is_lock = "database is locked" in exc_msg or "locked" in exc_msg or "busy" in exc_msg or "25p02" in exc_msg or "transaction is aborted" in exc_msg
+                if is_lock and not retried:
                     retried = True
+                    import time
+                    time.sleep(0.1)
                     continue
 
-                if not retried:
+                if not retried and self._reconnect is not None:
                     from sqlalchemy.exc import DBAPIError, OperationalError
                     if isinstance(exc, (OperationalError, DBAPIError)) or "connection" in exc_msg:
                         self._reset_db_connection()
