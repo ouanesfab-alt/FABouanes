@@ -76,9 +76,13 @@ async def handle_insights(func_name: str, func_args: dict, session_maker, user_r
                 async with session_maker() as session:
                     if insight_type == "top_debtors":
                         rows = (await session.execute(text(
-                            "SELECT name, phone, current_balance FROM clients_with_stats WHERE current_balance > 0 ORDER BY current_balance DESC LIMIT 5"
+                            "SELECT name, phone, current_balance FROM clients_with_stats WHERE current_balance > 0 ORDER BY current_balance DESC LIMIT 10"
                         ))).fetchall()
-                        return {"top_debtors": [{"name": r[0], "phone": r[1], "debt": float(r[2])} for r in rows]}
+                        total_debt = (await session.execute(text("SELECT COALESCE(SUM(current_balance), 0) FROM clients_with_stats WHERE current_balance > 0"))).scalar()
+                        return {
+                            "total_client_debt": float(total_debt or 0),
+                            "top_debtors": [{"name": r[0], "phone": r[1], "debt": float(r[2])} for r in rows]
+                        }
                     elif insight_type == "monthly_sales_comparison":
                         sales_cur = (await session.execute(text(
                             "SELECT COALESCE(SUM(total), 0) FROM sale_documents WHERE sale_date >= date('now', 'start of month')"
@@ -86,22 +90,53 @@ async def handle_insights(func_name: str, func_args: dict, session_maker, user_r
                         sales_prev = (await session.execute(text(
                             "SELECT COALESCE(SUM(total), 0) FROM sale_documents WHERE sale_date >= date('now', 'start of month', '-1 month') AND sale_date < date('now', 'start of month')"
                         ))).scalar()
-                        sales_cur = float(sales_cur)
-                        sales_prev = float(sales_prev)
+                        sales_cur = float(sales_cur or 0)
+                        sales_prev = float(sales_prev or 0)
                         growth = ((sales_cur - sales_prev) / sales_prev * 100) if sales_prev > 0 else 0.0
                         return {
                             "sales_current_month": sales_cur,
                             "sales_previous_month": sales_prev,
                             "growth_rate": round(growth, 2)
                         }
+                    elif insight_type == "stock_valuation":
+                        fp_val = (await session.execute(text("SELECT COALESCE(SUM(stock_qty * avg_cost), 0) FROM finished_products"))).scalar()
+                        rm_val = (await session.execute(text("SELECT COALESCE(SUM(stock_qty * avg_cost), 0) FROM raw_materials"))).scalar()
+                        return {
+                            "finished_products_value": float(fp_val or 0),
+                            "raw_materials_value": float(rm_val or 0),
+                            "total_stock_value": float((fp_val or 0) + (rm_val or 0))
+                        }
+                    elif insight_type == "stock_alerts":
+                        fp_alerts = (await session.execute(text("SELECT name, stock_qty, alert_threshold FROM finished_products WHERE stock_qty <= alert_threshold"))).fetchall()
+                        rm_alerts = (await session.execute(text("SELECT name, stock_qty, alert_threshold FROM raw_materials WHERE stock_qty <= alert_threshold"))).fetchall()
+                        return {
+                            "finished_product_alerts": [{"name": r[0], "stock": float(r[1]), "threshold": float(r[2])} for r in fp_alerts],
+                            "raw_material_alerts": [{"name": r[0], "stock": float(r[1]), "threshold": float(r[2])} for r in rm_alerts]
+                        }
+                    elif insight_type == "financial_summary":
+                        sales_total = (await session.execute(text("SELECT COALESCE(SUM(total), 0) FROM sale_documents"))).scalar()
+                        expenses_total = (await session.execute(text("SELECT COALESCE(SUM(amount), 0) FROM expenses"))).scalar()
+                        purchases_total = (await session.execute(text("SELECT COALESCE(SUM(total), 0) FROM purchases"))).scalar()
+                        debt_total = (await session.execute(text("SELECT COALESCE(SUM(current_balance), 0) FROM clients_with_stats WHERE current_balance > 0"))).scalar()
+                        return {
+                            "total_sales": float(sales_total or 0),
+                            "total_purchases": float(purchases_total or 0),
+                            "total_expenses": float(expenses_total or 0),
+                            "total_client_debt": float(debt_total or 0),
+                            "estimated_net": float((sales_total or 0) - (expenses_total or 0) - (purchases_total or 0))
+                        }
                     else:
                         clients_count = (await session.execute(text("SELECT COUNT(*) FROM clients"))).scalar()
                         products_count = (await session.execute(text("SELECT COUNT(*) FROM finished_products"))).scalar()
+                        materials_count = (await session.execute(text("SELECT COUNT(*) FROM raw_materials"))).scalar()
                         sales_month = (await session.execute(text("SELECT COALESCE(SUM(total), 0) FROM sale_documents WHERE sale_date >= date('now', 'start of month')"))).scalar()
+                        debt_total = (await session.execute(text("SELECT COALESCE(SUM(current_balance), 0) FROM clients_with_stats WHERE current_balance > 0"))).scalar()
                         return {
                             "total_clients": clients_count,
-                            "total_products": products_count,
-                            "sales_this_month": float(sales_month)
+                            "total_finished_products": products_count,
+                            "total_raw_materials": materials_count,
+                            "sales_this_month": float(sales_month or 0),
+                            "total_client_debt": float(debt_total or 0)
                         }
             res = await async_cached_result(("assistant", "get_business_insights", insight_type), builder, ttl_seconds=60.0)
             return res

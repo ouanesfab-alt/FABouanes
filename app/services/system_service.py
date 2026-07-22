@@ -175,8 +175,8 @@ async def reconcile_client_balances(db: AsyncSession) -> dict:
                COALESCE(vs.current_balance, 0) AS view_balance,
                COALESCE(ms.balance, 0) AS mv_balance
         FROM calculated cal
-        FULL JOIN view_state vs ON vs.id = cal.id
-        FULL JOIN mv_state ms ON ms.client_id = COALESCE(cal.id, vs.id)
+        LEFT JOIN view_state vs ON vs.id = cal.id
+        LEFT JOIN mv_state ms ON ms.client_id = cal.id
         WHERE ABS(COALESCE(cal.calculated_balance, 0) - COALESCE(vs.current_balance, 0)) > 0.01
            OR ABS(COALESCE(cal.calculated_balance, 0) - COALESCE(ms.balance, 0)) > 0.01
     """)

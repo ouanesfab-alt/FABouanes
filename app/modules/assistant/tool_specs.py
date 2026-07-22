@@ -777,13 +777,13 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                 },
                 {
                     "name": "get_business_insights",
-                    "description": "Fournit des rapports et des analyses proactives sur l'activité de l'entreprise (ex: débiteurs principaux, comparaison des ventes mensuelles, résumé général).",
+                    "description": "Fournit des rapports et des analyses proactives sur l'activité de l'entreprise (ex: débiteurs principaux, comparaison des ventes mensuelles, valorisation du stock, alertes stock, bilan financier synthétique).",
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
                             "insight_type": {
                                 "type": "STRING",
-                                "description": "Le type d'analyse : 'top_debtors', 'monthly_sales_comparison' ou 'summary'."
+                                "description": "Le type d'analyse : 'top_debtors', 'monthly_sales_comparison', 'stock_valuation', 'stock_alerts', 'financial_summary' ou 'summary'."
                             }
                         },
                         "required": ["insight_type"]
