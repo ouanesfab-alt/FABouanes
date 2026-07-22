@@ -92,8 +92,11 @@ async def record_stock_movement(
             stock_before, stock_after, reason, reference_type,
             reference_id, _actor_username(), db=db
         )
+        from app.core.perf_cache import invalidate_cache_domains
+        invalidate_cache_domains("catalog", "sales_sellable_items", "dashboard")
     except Exception:
         logging.getLogger("fabouanes").warning("Failed to record stock movement for %s #%s", item_kind, item_id, exc_info=True)
+
 
 
 @async_compat
