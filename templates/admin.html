@@ -796,13 +796,18 @@
     createUserForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(createUserForm);
-      const username = fd.get('username').trim();
-      const password = fd.get('password').trim();
+      const username = (fd.get('username') || '').trim();
+      const password = (fd.get('password') || '').trim();
       const role = fd.get('role');
 
+      if (createUserMsg) {
+        createUserMsg.style.display = 'none';
+        createUserMsg.innerHTML = '';
+      }
+
       const submitBtn = createUserForm.querySelector('button[type="submit"]');
-      const spinner = submitBtn.querySelector('.btn-spinner');
-      submitBtn.disabled = true;
+      const spinner = submitBtn ? submitBtn.querySelector('.btn-spinner') : null;
+      if (submitBtn) submitBtn.disabled = true;
       if (spinner) spinner.style.display = 'inline-block';
 
       try {
@@ -815,17 +820,31 @@
           body: JSON.stringify({ username, password, role })
         });
         const result = await response.json();
+        const msg = result.message || result.error || (result.ok ? "Utilisateur créé avec succès." : "Erreur lors de la création.");
         if (result.ok) {
-          showAppToast(result.message, "success");
+          showAppToast(msg, "success");
+          if (createUserMsg) {
+            createUserMsg.style.display = 'block';
+            createUserMsg.innerHTML = `<div class="alert alert-success p-2 small mb-0"><i class="bi bi-check-circle me-1"></i>${msg}</div>`;
+          }
           createUserForm.reset();
           loadUsersList();
         } else {
-          showAppToast(result.message, "danger");
+          showAppToast(msg, "danger");
+          if (createUserMsg) {
+            createUserMsg.style.display = 'block';
+            createUserMsg.innerHTML = `<div class="alert alert-danger p-2 small mb-0"><i class="bi bi-exclamation-triangle me-1"></i>${msg}</div>`;
+          }
         }
       } catch (err) {
-        showAppToast("Erreur lors de la création : " + err.message, "danger");
+        const errMsg = "Erreur de communication : " + err.message;
+        showAppToast(errMsg, "danger");
+        if (createUserMsg) {
+          createUserMsg.style.display = 'block';
+          createUserMsg.innerHTML = `<div class="alert alert-danger p-2 small mb-0"><i class="bi bi-exclamation-triangle me-1"></i>${errMsg}</div>`;
+        }
       } finally {
-        submitBtn.disabled = false;
+        if (submitBtn) submitBtn.disabled = false;
         if (spinner) spinner.style.display = 'none';
       }
     });
