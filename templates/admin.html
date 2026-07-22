@@ -664,9 +664,14 @@
       try {
         const res = await fetch('/api/admin/users');
         const data = await res.json();
+        const usersList = Array.isArray(data.data) ? data.data : (Array.isArray(data.users) ? data.users : []);
         if (data.ok && usersTableBody) {
           usersTableBody.innerHTML = '';
-          data.users.forEach(u => {
+          if (usersList.length === 0) {
+            usersTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">Aucun utilisateur trouvé.</td></tr>`;
+            return;
+          }
+          usersList.forEach(u => {
             const dateStr = u.created_at ? new Date(u.created_at).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'short'}) : '-';
             const changeDate = u.last_password_change_at ? new Date(u.last_password_change_at).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'short'}) : 'Jamais';
             
