@@ -203,17 +203,16 @@ def _resolve_actor(user_id: int | None = None, actor: Any = None) -> tuple[int |
                 resolved_role = getattr(state_user, "role", None)
 
     if resolved_id and (not resolved_username or not resolved_role):
-        try:
-            from app.core.db_helpers import query_db
-            user_row = query_db("SELECT username, role FROM users WHERE id = %s", (int(resolved_id),), one=True)
-            if user_row:
-                resolved_username = resolved_username or user_row.get("username")
-                resolved_role = resolved_role or user_row.get("role")
-        except Exception as e:
-            import logging
-            logging.getLogger("fabouanes.audit").warning("Impossible de charger l'utilisateur pour l'audit: %s", e)
+        state_user = get_state_value("user")
+        if state_user:
+            if isinstance(state_user, Mapping):
+                resolved_username = resolved_username or state_user.get("username")
+                resolved_role = resolved_role or state_user.get("role")
+            else:
+                resolved_username = resolved_username or getattr(state_user, "username", None)
+                resolved_role = resolved_role or getattr(state_user, "role", None)
 
-    return resolved_id, resolved_username or "anonymous", resolved_role or "anonymous"
+    return resolved_id, resolved_username or "system", resolved_role or "system"
 
 
 def audit_event(

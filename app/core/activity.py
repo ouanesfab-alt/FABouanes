@@ -72,29 +72,39 @@ def log_activity(
             user_id = int(user["id"])
     except Exception:
         user_id = None
-    try:
-        execute_db(
-            """
-            INSERT INTO activity_logs (
-                user_id, username, action, entity_type, entity_id, details,
-                old_value, new_value, ip_address, created_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-            """,
-            (
-                user_id,
-                username,
-                action,
-                entity_type,
-                entity_id,
-                details,
-                _json_or_text(old_value),
-                _json_or_text(new_value),
-                _request_ip(),
-            ),
-        )
-    except Exception as exc:
-        logger.warning("log_activity DB write failed: %s", exc)
+
     write_text_log("activity.log", f"{username} | {action} | {entity_type}#{entity_id or '-'} | {details}")
+
+    def _do_write():
+        try:
+            execute_db(
+                """
+                INSERT INTO activity_logs (
+                    user_id, username, action, entity_type, entity_id, details,
+                    old_value, new_value, ip_address, created_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                """,
+                (
+                    user_id,
+                    username,
+                    action,
+                    entity_type,
+                    entity_id,
+                    details,
+                    _json_or_text(old_value),
+                    _json_or_text(new_value),
+                    _request_ip(),
+                ),
+            )
+        except Exception as exc:
+            logger.debug("log_activity DB write skipped: %s", exc)
+
+    try:
+        import asyncio
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, _do_write)
+    except RuntimeError:
+        _do_write()
 
 
 def log_error(exc: Exception, route: str = "") -> None:
@@ -104,11 +114,24 @@ def log_error(exc: Exception, route: str = "") -> None:
     state_request = get_state_value("request")
     if not current_route and state_request is not None:
         current_route = state_request.url.path
-    execute_db(
-        """
-        INSERT INTO error_logs (username, route, error_type, message, traceback, created_at)
-        VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-        """,
-        (username, current_route, type(exc).__name__, str(exc), tb),
-    )
+
     write_text_log("errors.log", f"{username} | {current_route} | {type(exc).__name__}: {exc}\n{tb}")
+
+    def _do_write():
+        try:
+            execute_db(
+                """
+                INSERT INTO error_logs (username, route, error_type, message, traceback, created_at)
+                VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                """,
+                (username, current_route, type(exc).__name__, str(exc), tb),
+            )
+        except Exception:
+            pass
+
+    try:
+        import asyncio
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, _do_write)
+    except RuntimeError:
+        _do_write()
