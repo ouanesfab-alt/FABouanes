@@ -12,13 +12,16 @@ from app.modules.assistant.schema_context import get_gemini_api_key
 from app.core.db_helpers import db_manager
 
 
+import logging
+logger = logging.getLogger("fabouanes.web.dashboard")
+
 router = APIRouter()
 
 
 def _money(value):
     try:
         amount = int(round(float(value or 0)))
-    except Exception:
+    except (TypeError, ValueError):
         amount = 0
     return f"{amount:,} DA".replace(",", " ")
 
@@ -72,7 +75,8 @@ async def api_kpi_date(request: Request):
         return JSONResponse(await get_kpis_for_date(target_date))
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
-    except Exception:
+    except Exception as exc:
+        logger.exception("api_kpi_date failed for date %s: %s", target_date, exc)
         return JSONResponse({"error": "Erreur interne."}, status_code=500)
 
 
@@ -104,8 +108,10 @@ async def api_kpi_at_date(request: Request):
         )
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
-    except Exception:
+    except Exception as exc:
+        logger.exception("api_kpi_at_date failed: %s", exc)
         return JSONResponse({"error": "Erreur interne."}, status_code=500)
+
 
 
 @router.get("/api/kpi-period", name="api_kpi_period")
