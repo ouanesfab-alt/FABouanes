@@ -4,17 +4,15 @@ from collections import defaultdict
 from typing import Any
 from sqlalchemy import select, delete, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.async_db import get_async_sessionmaker
+from app.core.async_db import get_async_sessionmaker, ensure_transaction
 from app.core.helpers import async_compat
 from app.core.models import SavedRecipe, SavedRecipeItem, FinishedProduct, RawMaterial
 
 
 @async_compat
 async def load_saved_recipes(db: AsyncSession | None = None) -> list[dict[str, Any]]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _load_saved_recipes_impl(session)
-    return await _load_saved_recipes_impl(db)
+    async with ensure_transaction(db) as session:
+        return await _load_saved_recipes_impl(session)
 
 
 async def _load_saved_recipes_impl(db: AsyncSession) -> list[dict[str, Any]]:
@@ -78,11 +76,8 @@ async def save_recipe_definition(
     user_id: int | None = None,
     db: AsyncSession | None = None,
 ) -> int | None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _save_recipe_definition_impl(finished_id, recipe_name, notes, recipe_lines, user_id, session)
-    return await _save_recipe_definition_impl(finished_id, recipe_name, notes, recipe_lines, user_id, db)
+    async with ensure_transaction(db) as session:
+        return await _save_recipe_definition_impl(finished_id, recipe_name, notes, recipe_lines, user_id, session)
 
 
 async def _save_recipe_definition_impl(

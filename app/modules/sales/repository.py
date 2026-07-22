@@ -377,18 +377,18 @@ def invalidate_sellable_items_cache() -> None:
     invalidate_cache_domains("dashboard", "sales", "client")
 
 
+from app.core.async_db import ensure_transaction
+
 @db_task_compat
 async def build_sellable_items(db: AsyncSession | None = None):
     from app.core.perf_cache import TTL_SEMI_STABLE
 
     async def load():
-        if db is None:
-            async with get_async_sessionmaker()() as session:
-                repo = SaleRepository(session)
-                return await repo.list_sellable_items()
-        repo = SaleRepository(db)
-        return await repo.list_sellable_items()
+        async with ensure_transaction(db) as session:
+            repo = SaleRepository(session)
+            return await repo.list_sellable_items()
 
     from app.core.perf_cache import async_cached_result
     return await async_cached_result(("sales_sellable_items",), load, ttl_seconds=TTL_SEMI_STABLE)
+
 

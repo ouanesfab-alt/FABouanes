@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy import select, union_all, func, case, cast, literal_column, String, Numeric, text, true
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.async_db import get_async_sessionmaker
+from app.core.async_db import get_async_sessionmaker, ensure_transaction
 from app.core.helpers import db_task_compat
 from app.core.perf_cache import async_cached_result, TTL_FREQUENT, TTL_SEMI_STABLE
 from app.core.models import Sale, RawSale, Purchase, Payment, Expense, Client, FinishedProduct, RawMaterial, Supplier, ProductionBatch, ProductionBatchItem
@@ -347,14 +347,11 @@ class ReportsRepository:
 
 # --- Dashboard Queries (migrated from dashboard_repository) ---
 
-@db_task_compat
 async def get_dashboard_snapshot(target_date: str | None = None, db: AsyncSession | None = None) -> dict:
     resolved_date = target_date or date.today().isoformat()
     async def load():
-        if db is None:
-            async with get_async_sessionmaker()() as session:
-                return await _build_dashboard_snapshot(resolved_date, session)
-        return await _build_dashboard_snapshot(resolved_date, db)
+        async with ensure_transaction(db) as session:
+            return await _build_dashboard_snapshot(resolved_date, session)
     return await async_cached_result(
         ("dashboard_snapshot", resolved_date),
         load,
@@ -362,13 +359,10 @@ async def get_dashboard_snapshot(target_date: str | None = None, db: AsyncSessio
     )
 
 
-@db_task_compat
 async def get_kpis_for_date(target_date: str, db: AsyncSession | None = None) -> dict[str, float | str]:
     async def load():
-        if db is None:
-            async with get_async_sessionmaker()() as session:
-                return await _build_kpis_for_date(target_date, session)
-        return await _build_kpis_for_date(target_date, db)
+        async with ensure_transaction(db) as session:
+            return await _build_kpis_for_date(target_date, session)
     return await async_cached_result(
         ("dashboard_kpis", target_date),
         load,
@@ -858,10 +852,8 @@ async def list_recent_operations(
     page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_recent_operations_impl(search, date_from, date_to, kind, page, page_size, session)
-    return await _list_recent_operations_impl(search, date_from, date_to, kind, page, page_size, db)
+    async with ensure_transaction(db) as session:
+        return await _list_recent_operations_impl(search, date_from, date_to, kind, page, page_size, session)
 
 async def _list_recent_operations_impl(
     search: str | None,
@@ -970,13 +962,10 @@ async def _list_recent_operations_impl(
     return rows, total
 
 
-@db_task_compat
 async def get_kpis_for_period(period: str, db: AsyncSession | None = None) -> dict[str, float]:
     async def load():
-        if db is None:
-            async with get_async_sessionmaker()() as session:
-                return await _build_kpis_for_period(period, session)
-        return await _build_kpis_for_period(period, db)
+        async with ensure_transaction(db) as session:
+            return await _build_kpis_for_period(period, session)
     return await async_cached_result(
         ("dashboard_kpis_period", period),
         load,
@@ -1027,13 +1016,10 @@ async def _build_kpis_for_period(period: str, db: AsyncSession) -> dict[str, flo
     return {"sales": 0.0, "cash": 0.0, "profit": 0.0, "receivables": 0.0}
 
 
-@db_task_compat
 async def get_kpi_history_last_30_days(metric: str, db: AsyncSession | None = None, days: int = 30) -> tuple[list[str], list[float]]:
     async def load():
-        if db is None:
-            async with get_async_sessionmaker()() as session:
-                return await _build_kpi_history(metric, session, days=days)
-        return await _build_kpi_history(metric, db, days=days)
+        async with ensure_transaction(db) as session:
+            return await _build_kpi_history(metric, session, days=days)
     return await async_cached_result(
         ("dashboard_kpis_history", metric, days),
         load,

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.async_db import get_async_sessionmaker
+from app.core.async_db import get_async_sessionmaker, ensure_transaction
 from app.core.helpers import db_task_compat
 from app.core.permissions import normalize_role
 from app.core.models import User
@@ -19,10 +19,8 @@ class UserRepository(AsyncRepository[User]):
 
 @db_task_compat
 async def get_user_by_username(username: str, db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _get_user_by_username_impl(username, session)
-    return await _get_user_by_username_impl(username, db)
+    async with ensure_transaction(db) as session:
+        return await _get_user_by_username_impl(username, session)
 
 
 async def _get_user_by_username_impl(username: str, db: AsyncSession):
@@ -34,10 +32,8 @@ async def _get_user_by_username_impl(username: str, db: AsyncSession):
 
 @db_task_compat
 async def get_user_by_id(user_id: int, db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _get_user_by_id_impl(user_id, session)
-    return await _get_user_by_id_impl(user_id, db)
+    async with ensure_transaction(db) as session:
+        return await _get_user_by_id_impl(user_id, session)
 
 
 async def _get_user_by_id_impl(user_id: int, db: AsyncSession):
@@ -62,12 +58,8 @@ async def create_user(
     is_active: bool = True,
     db: AsyncSession | None = None,
 ) -> int:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            res = await _create_user_impl(username, password_hash, role, must_change_password, is_active, session)
-            await session.commit()
-            return res
-    return await _create_user_impl(username, password_hash, role, must_change_password, is_active, db)
+    async with ensure_transaction(db) as session:
+        return await _create_user_impl(username, password_hash, role, must_change_password, is_active, session)
 
 
 async def _create_user_impl(
@@ -97,12 +89,8 @@ async def update_password(
     must_change_password: bool = False,
     db: AsyncSession | None = None,
 ) -> int:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            res = await _update_password_impl(user_id, password_hash, must_change_password, session)
-            await session.commit()
-            return res
-    return await _update_password_impl(user_id, password_hash, must_change_password, db)
+    async with ensure_transaction(db) as session:
+        return await _update_password_impl(user_id, password_hash, must_change_password, session)
 
 
 async def _update_password_impl(
@@ -131,12 +119,8 @@ async def update_user_role_and_status(
     is_active: bool,
     db: AsyncSession | None = None,
 ) -> int:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            res = await _update_user_role_and_status_impl(user_id, role, is_active, session)
-            await session.commit()
-            return res
-    return await _update_user_role_and_status_impl(user_id, role, is_active, db)
+    async with ensure_transaction(db) as session:
+        return await _update_user_role_and_status_impl(user_id, role, is_active, session)
 
 
 async def _update_user_role_and_status_impl(
@@ -160,12 +144,8 @@ async def _update_user_role_and_status_impl(
 @db_task_compat
 async def touch_login(user_id: int, db: AsyncSession | None = None) -> int:
     try:
-        if db is None:
-            async with get_async_sessionmaker()() as session:
-                res = await _touch_login_impl(user_id, session)
-                await session.commit()
-                return res
-        return await _touch_login_impl(user_id, db)
+        async with ensure_transaction(db) as session:
+            return await _touch_login_impl(user_id, session)
     except Exception as exc:
         logging.getLogger("fabouanes").warning("touch_login skipped due to DB lock/error: %s", exc)
         return 0
@@ -185,10 +165,8 @@ async def _touch_login_impl(user_id: int, db: AsyncSession) -> int:
 
 @db_task_compat
 async def list_users(db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_users_impl(session)
-    return await _list_users_impl(db)
+    async with ensure_transaction(db) as session:
+        return await _list_users_impl(session)
 
 
 async def _list_users_impl(db: AsyncSession):
@@ -208,12 +186,8 @@ async def _list_users_impl(db: AsyncSession):
 
 @db_task_compat
 async def delete_user(user_id: int, db: AsyncSession | None = None) -> bool:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            res = await _delete_user_impl(user_id, session)
-            await session.commit()
-            return res
-    return await _delete_user_impl(user_id, db)
+    async with ensure_transaction(db) as session:
+        return await _delete_user_impl(user_id, session)
 
 
 async def _delete_user_impl(user_id: int, db: AsyncSession) -> bool:

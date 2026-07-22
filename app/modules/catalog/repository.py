@@ -11,7 +11,7 @@ from app.core.models import (
     StockMovement, Supplier
 )
 from app.core.base_repository import AsyncRepository
-from app.core.async_db import get_async_sessionmaker
+from app.core.async_db import get_async_sessionmaker, ensure_transaction
 from app.core.helpers import async_compat, db_task_compat
 from app.utils.pagination import pagination_context, parse_pagination
 from app.services.recipe_service import load_saved_recipes
@@ -216,19 +216,11 @@ async def insert_stock_movement(
     username: str,
     db: AsyncSession | None = None,
 ) -> None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            await _insert_stock_movement_impl(
-                item_kind, item_id, direction, quantity, unit,
-                stock_before, stock_after, reason, reference_type,
-                reference_id, username, session
-            )
-            await session.commit()
-    else:
+    async with ensure_transaction(db) as session:
         await _insert_stock_movement_impl(
             item_kind, item_id, direction, quantity, unit,
             stock_before, stock_after, reason, reference_type,
-            reference_id, username, db
+            reference_id, username, session
         )
 
 async def _insert_stock_movement_impl(
@@ -268,10 +260,8 @@ async def list_raw_materials(
     page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
-    if db is None:
-        async with get_async_sessionmaker()() as sess:
-            return await _list_raw_materials_impl(search, status, page, page_size, sess)
-    return await _list_raw_materials_impl(search, status, page, page_size, db)
+    async with ensure_transaction(db) as session:
+        return await _list_raw_materials_impl(search, status, page, page_size, session)
 
 async def _list_raw_materials_impl(
     search: str | None,
@@ -317,10 +307,8 @@ async def list_finished_products(
     page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
-    if db is None:
-        async with get_async_sessionmaker()() as sess:
-            return await _list_finished_products_impl(search, page, page_size, sess)
-    return await _list_finished_products_impl(search, page, page_size, db)
+    async with ensure_transaction(db) as session:
+        return await _list_finished_products_impl(search, page, page_size, session)
 
 async def _list_finished_products_impl(
     search: str | None,
@@ -353,12 +341,9 @@ async def _list_finished_products_impl(
 
 # --- Production Queries (migrated from production_repository) ---
 
-@db_task_compat
 async def list_production_page_context(args=None, db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_production_page_context_impl(args, session)
-    return await _list_production_page_context_impl(args, db)
+    async with ensure_transaction(db) as session:
+        return await _list_production_page_context_impl(args, session)
 
 
 async def _list_production_page_context_impl(args, db: AsyncSession):
@@ -424,12 +409,9 @@ async def _list_production_page_context_impl(args, db: AsyncSession):
     }
 
 
-@async_compat
 async def production_form_context(db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _production_form_context_impl(session)
-    return await _production_form_context_impl(db)
+    async with ensure_transaction(db) as session:
+        return await _production_form_context_impl(session)
 
 
 async def _production_form_context_impl(db: AsyncSession):
@@ -448,7 +430,6 @@ async def _production_form_context_impl(db: AsyncSession):
     }
 
 
-@async_compat
 async def list_production_batches(
     search: str | None = None,
     date_from: str | None = None,
@@ -457,10 +438,8 @@ async def list_production_batches(
     page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_production_batches_impl(search, date_from, date_to, page, page_size, session)
-    return await _list_production_batches_impl(search, date_from, date_to, page, page_size, db)
+    async with ensure_transaction(db) as session:
+        return await _list_production_batches_impl(search, date_from, date_to, page, page_size, session)
 
 
 async def _list_production_batches_impl(
@@ -509,16 +488,13 @@ async def _list_production_batches_impl(
     return rows, total
 
 
-@async_compat
 async def list_recipes(
     page: int = 1,
     page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_recipes_impl(page, page_size, session)
-    return await _list_recipes_impl(page, page_size, db)
+    async with ensure_transaction(db) as session:
+        return await _list_recipes_impl(page, page_size, session)
 
 
 async def _list_recipes_impl(
@@ -554,10 +530,8 @@ async def list_suppliers(
     page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_suppliers_impl(search, page, page_size, session)
-    return await _list_suppliers_impl(search, page, page_size, db)
+    async with ensure_transaction(db) as session:
+        return await _list_suppliers_impl(search, page, page_size, session)
 
 async def _list_suppliers_impl(
     search: str | None,

@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.async_db import get_async_sessionmaker
+from app.core.async_db import get_async_sessionmaker, ensure_transaction
+from app.core.exceptions import ValidationError, NotFoundError
 
 from app.core.activity import log_activity
 from app.core.audit import audit_event
@@ -42,11 +43,8 @@ def _current_user_id() -> int | None:
 
 @async_compat
 async def create_production_from_form(form, db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _create_production_from_form_impl(form, session)
-    return await _create_production_from_form_impl(form, db)
+    async with ensure_transaction(db) as session:
+        return await _create_production_from_form_impl(form, session)
 
 
 async def _create_production_from_form_impl(form, db: AsyncSession):
@@ -68,14 +66,14 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
     quantities = form.getlist("quantity[]")
 
     if production_date_obj > date.today():
-        raise ValueError("La date de production ne peut pas etre dans le futur.")
+        raise ValidationError("La date de production ne peut pas être dans le futur.", field="production_date")
     if output_qty <= 0:
-        raise ValueError("La quantite produite doit etre superieure a zero.")
+        raise ValidationError("La quantité produite doit être supérieure à zéro.", field="output_quantity")
 
     product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == finished_id))
     product_obj = product_res.scalar_one_or_none()
     if not product_obj:
-        raise ValueError("Produit final introuvable.")
+        raise NotFoundError("Produit fini", finished_id)
     product = product_obj.model_dump()
 
     # Filter valid raw IDs and quantities first
@@ -175,11 +173,8 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
 
 @async_compat
 async def delete_production_by_id(batch_id: int, db: AsyncSession | None = None) -> bool:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _delete_production_by_id_impl(batch_id, session)
-    return await _delete_production_by_id_impl(batch_id, db)
+    async with ensure_transaction(db) as session:
+        return await _delete_production_by_id_impl(batch_id, session)
 
 
 async def _delete_production_by_id_impl(batch_id: int, db: AsyncSession) -> bool:

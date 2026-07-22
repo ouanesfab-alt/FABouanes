@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.async_db import get_async_sessionmaker
+from app.core.async_db import get_async_sessionmaker, ensure_transaction
 from app.core.activity import log_activity
 from app.core.audit import audit_event, audit_delete_event
 from app.core.helpers import create_payment_record, get_open_credit_entries, reverse_payment_allocations, to_float, async_compat
@@ -19,11 +19,8 @@ async def new_payment_context(db: AsyncSession | None = None):
 
 @async_compat
 async def create_payment_from_form(form, db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _create_payment_from_form_impl(form, session)
-    return await _create_payment_from_form_impl(form, db)
+    async with ensure_transaction(db) as session:
+        return await _create_payment_from_form_impl(form, session)
 
 
 async def _create_payment_from_form_impl(form, db: AsyncSession):
@@ -50,10 +47,8 @@ async def _create_payment_from_form_impl(form, db: AsyncSession):
 
 @async_compat
 async def get_edit_payment_context(payment_id: int, db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _get_edit_payment_context_impl(payment_id, session)
-    return await _get_edit_payment_context_impl(payment_id, db)
+    async with ensure_transaction(db) as session:
+        return await _get_edit_payment_context_impl(payment_id, session)
 
 
 async def _get_edit_payment_context_impl(payment_id: int, db: AsyncSession):
@@ -113,11 +108,8 @@ async def _get_edit_payment_context_impl(payment_id: int, db: AsyncSession):
 
 @async_compat
 async def edit_payment_from_form(payment_id: int, form, db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _edit_payment_from_form_impl(payment_id, form, session)
-    return await _edit_payment_from_form_impl(payment_id, form, db)
+    async with ensure_transaction(db) as session:
+        return await _edit_payment_from_form_impl(payment_id, form, session)
 
 
 async def _edit_payment_from_form_impl(payment_id: int, form, db: AsyncSession):
@@ -151,11 +143,8 @@ async def _edit_payment_from_form_impl(payment_id: int, form, db: AsyncSession):
 
 @async_compat
 async def delete_payment_by_id(payment_id: int, db: AsyncSession | None = None) -> bool:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _delete_payment_by_id_impl(payment_id, session)
-    return await _delete_payment_by_id_impl(payment_id, db)
+    async with ensure_transaction(db) as session:
+        return await _delete_payment_by_id_impl(payment_id, session)
 
 
 async def _delete_payment_by_id_impl(payment_id: int, db: AsyncSession) -> bool:
@@ -186,11 +175,8 @@ async def create_mobile_payment(
     recorded_by: int | None = None,
     db: AsyncSession | None = None,
 ) -> dict:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _create_mobile_payment_impl(client_id, amount, payment_date, notes, recorded_by, session)
-    return await _create_mobile_payment_impl(client_id, amount, payment_date, notes, recorded_by, db)
+    async with ensure_transaction(db) as session:
+        return await _create_mobile_payment_impl(client_id, amount, payment_date, notes, recorded_by, session)
 
 
 async def _create_mobile_payment_impl(

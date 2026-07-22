@@ -131,7 +131,7 @@ async def mobile_refresh(request: Request):
     if not refresh_token:
         raise HTTPException(401, "Refresh token requis")
     payload = validate_mobile_refresh_token(str(refresh_token))
-    user = await get_user_by_id.async_(int(payload["sub"]))
+    user = await get_user_by_id(int(payload["sub"]))
     if not user:
         raise HTTPException(401, "Utilisateur introuvable")
     return {
@@ -212,7 +212,7 @@ async def mobile_dashboard_summary(
     user_id: int = Depends(get_current_user_id),
 ):
     """Résumé du jour : ventes, encaissements, créances totales."""
-    snapshot = await get_dashboard_snapshot.async_(date.today().isoformat())
+    snapshot = await get_dashboard_snapshot(date.today().isoformat())
     res_data = {
         "sales_today": snapshot["sales_today"],
         "cash_today": snapshot["cash_today"],

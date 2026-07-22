@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta, datetime
 from sqlalchemy import select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.async_db import get_async_sessionmaker
+from app.core.async_db import get_async_sessionmaker, ensure_transaction
 from app.core.helpers import async_compat
 from app.core.models import StockAlert, RawMaterial, FinishedProduct
 from app.core.websockets import manager
@@ -24,10 +24,8 @@ async def check_overdue_clients(
     Retourne les clients avec balance > 0 et aucune opération
     depuis plus de `overdue_days` jours.
     """
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _check_overdue_clients_impl(overdue_days, session)
-    return await _check_overdue_clients_impl(overdue_days, db)
+    async with ensure_transaction(db) as session:
+        return await _check_overdue_clients_impl(overdue_days, session)
 
 
 async def _check_overdue_clients_impl(overdue_days: int, db: AsyncSession) -> list[dict]:
@@ -59,12 +57,8 @@ async def broadcast_overdue_alerts(db: AsyncSession | None = None) -> int:
     Retourne le nombre de clients en retard détectés.
     Appelé quotidiennement par le scheduler.
     """
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            res = await _broadcast_overdue_alerts_impl(session)
-            await session.commit()
-            return res
-    return await _broadcast_overdue_alerts_impl(db)
+    async with ensure_transaction(db) as session:
+        return await _broadcast_overdue_alerts_impl(session)
 
 
 async def _broadcast_overdue_alerts_impl(db: AsyncSession) -> int:
@@ -90,13 +84,8 @@ async def _broadcast_overdue_alerts_impl(db: AsyncSession) -> int:
 
 @async_compat
 async def check_stock_alerts(db: AsyncSession | None = None) -> None:
-    """Vérifie le stock de matières premières et de produits finis par rapport au seuil."""
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            await _check_stock_alerts_impl(session)
-            await session.commit()
-            return
-    await _check_stock_alerts_impl(db)
+    async with ensure_transaction(db) as session:
+        await _check_stock_alerts_impl(session)
 
 
 async def _check_stock_alerts_impl(db: AsyncSession) -> None:

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Payment, Client
 from app.core.base_repository import AsyncRepository
-from app.core.async_db import get_async_sessionmaker
+from app.core.async_db import get_async_sessionmaker, ensure_transaction
 from app.core.helpers import async_compat, db_task_compat, get_open_credit_entries
 
 class PaymentRepository(AsyncRepository[Payment]):
@@ -97,10 +97,8 @@ class PaymentRepository(AsyncRepository[Payment]):
 
 @async_compat
 async def payment_form_context(db: AsyncSession | None = None) -> dict:
-    if db is None:
-        async with get_async_sessionmaker()() as sess:
-            return await _payment_form_context_impl(sess)
-    return await _payment_form_context_impl(db)
+    async with ensure_transaction(db) as session:
+        return await _payment_form_context_impl(session)
 
 
 async def _payment_form_context_impl(db: AsyncSession) -> dict:
@@ -115,10 +113,8 @@ async def _payment_form_context_impl(db: AsyncSession) -> dict:
 
 @db_task_compat
 async def get_payment(payment_id: int, db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _get_payment_impl(payment_id, session)
-    return await _get_payment_impl(payment_id, db)
+    async with ensure_transaction(db) as session:
+        return await _get_payment_impl(payment_id, session)
 
 
 async def _get_payment_impl(payment_id: int, db: AsyncSession):

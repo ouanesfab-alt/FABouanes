@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.async_db import get_async_sessionmaker
+from app.core.async_db import get_async_sessionmaker, ensure_transaction
 from app.core.helpers import async_compat
 from app.core.models import Supplier
 from app.utils.pagination import paginate_sequence
@@ -88,12 +88,8 @@ async def _build_contacts_context(filter_type: str, filter_name: str, raw_filter
 
 @async_compat
 async def create_supplier_from_form(form, db: AsyncSession | None = None) -> int:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            res = await _create_supplier_from_form_impl(form, session)
-            await session.commit()
-            return res
-    return await _create_supplier_from_form_impl(form, db)
+    async with ensure_transaction(db) as session:
+        return await _create_supplier_from_form_impl(form, session)
 
 
 async def _create_supplier_from_form_impl(form, db: AsyncSession) -> int:
@@ -132,12 +128,8 @@ async def _get_supplier_impl(supplier_id: int, db: AsyncSession):
 
 @async_compat
 async def update_supplier_from_form(supplier_id: int, form, db: AsyncSession | None = None) -> None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            await _update_supplier_from_form_impl(supplier_id, form, session)
-            await session.commit()
-            return
-    await _update_supplier_from_form_impl(supplier_id, form, db)
+    async with ensure_transaction(db) as session:
+        await _update_supplier_from_form_impl(supplier_id, form, session)
 
 
 async def _update_supplier_from_form_impl(supplier_id: int, form, db: AsyncSession) -> None:
@@ -161,12 +153,8 @@ async def _update_supplier_from_form_impl(supplier_id: int, form, db: AsyncSessi
 
 @async_compat
 async def delete_supplier_by_id(supplier_id: int, db: AsyncSession | None = None) -> None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            await _delete_supplier_by_id_impl(supplier_id, session)
-            await session.commit()
-            return
-    await _delete_supplier_by_id_impl(supplier_id, db)
+    async with ensure_transaction(db) as session:
+        await _delete_supplier_by_id_impl(supplier_id, session)
 
 
 async def _delete_supplier_by_id_impl(supplier_id: int, db: AsyncSession) -> None:

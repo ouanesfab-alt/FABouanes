@@ -348,6 +348,8 @@ def _append_external_pdfs(documents: list[dict]) -> None:
         )
 
 
+from app.core.async_db import ensure_transaction
+
 @async_compat
 async def list_bon_space_documents(
     q: str = "",
@@ -355,10 +357,9 @@ async def list_bon_space_documents(
     limit: int = DEFAULT_LIMIT,
     db: AsyncSession | None = None,
 ) -> list[dict]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_bon_space_documents_impl(q, kind, limit, session)
-    return await _list_bon_space_documents_impl(q, kind, limit, db)
+    async with ensure_transaction(db) as session:
+        return await _list_bon_space_documents_impl(q, kind, limit, session)
+
 
 
 async def _list_bon_space_documents_impl(

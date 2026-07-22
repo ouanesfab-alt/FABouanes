@@ -193,7 +193,7 @@ async def client_history_payload(client_id: int, db: AsyncSession):
     }
 
 async def filtered_sellable_items(request: Request):
-    items = [dict(item) for item in await build_sellable_items.async_()]
+    items = [dict(item) for item in await build_sellable_items()]
     term = str(request.query_params.get("q", "") or "").strip().lower()
     kind_filter = str(request.query_params.get("kind", "") or "").strip().lower()
     if term:

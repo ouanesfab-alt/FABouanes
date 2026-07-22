@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.async_db import get_async_sessionmaker
+from app.core.async_db import get_async_sessionmaker, ensure_transaction
 from app.core.helpers import async_compat
 
 from app.utils.pagination import (
@@ -26,10 +26,8 @@ async def transactions_context(
     path: str = "/operations",
     db: AsyncSession | None = None,
 ) -> dict:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _transactions_context_impl(filter_type, filter_name, filter_date, filter_operation, args, path, session)
-    return await _transactions_context_impl(filter_type, filter_name, filter_date, filter_operation, args, path, db)
+    async with ensure_transaction(db) as session:
+        return await _transactions_context_impl(filter_type, filter_name, filter_date, filter_operation, args, path, session)
 
 
 async def _transactions_context_impl(
@@ -218,12 +216,8 @@ async def update_production_notes(
     notes: str,
     db: AsyncSession | None = None,
 ) -> None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            await _update_production_notes_impl(batch_id, production_date, notes, session)
-            await session.commit()
-            return
-    await _update_production_notes_impl(batch_id, production_date, notes, db)
+    async with ensure_transaction(db) as session:
+        await _update_production_notes_impl(batch_id, production_date, notes, session)
 
 
 async def _update_production_notes_impl(

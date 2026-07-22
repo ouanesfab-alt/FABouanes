@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_sessionmaker
+from app.core.async_db import get_async_sessionmaker, ensure_transaction
 
 
 ACTION_LABELS = {
@@ -131,10 +131,8 @@ async def list_admin_activity(
     limit: int = 80,
     db: AsyncSession | None = None,
 ) -> list[dict]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_admin_activity_impl(filters, limit, session)
-    return await _list_admin_activity_impl(filters, limit, db)
+    async with ensure_transaction(db) as session:
+        return await _list_admin_activity_impl(filters, limit, session)
 
 
 async def _list_admin_activity_impl(
@@ -185,10 +183,8 @@ def activity_filter_values(filters: Mapping[str, str] | None = None) -> dict[str
 
 
 async def list_activity_actions(db: AsyncSession | None = None) -> list[str]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_activity_actions_impl(session)
-    return await _list_activity_actions_impl(db)
+    async with ensure_transaction(db) as session:
+        return await _list_activity_actions_impl(session)
 
 
 async def _list_activity_actions_impl(db: AsyncSession) -> list[str]:
@@ -197,10 +193,8 @@ async def _list_activity_actions_impl(db: AsyncSession) -> list[str]:
 
 
 async def list_activity_entity_types(db: AsyncSession | None = None) -> list[str]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_activity_entity_types_impl(session)
-    return await _list_activity_entity_types_impl(db)
+    async with ensure_transaction(db) as session:
+        return await _list_activity_entity_types_impl(session)
 
 
 async def _list_activity_entity_types_impl(db: AsyncSession) -> list[str]:

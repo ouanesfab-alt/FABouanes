@@ -9,7 +9,7 @@ from app.core.db_helpers import connect_database
 from app.core.activity import write_text_log
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.async_db import get_async_sessionmaker
+from app.core.async_db import get_async_sessionmaker, ensure_transaction
 from app.core.helpers import async_compat
 from app.core.storage import LOCAL_BACKUP_DIR, LOG_DIR, get_pending_backup_marker, list_restore_backups
 from app.version import VERSION_LABEL
@@ -21,10 +21,8 @@ def _ok_status(ok: bool) -> str:
 
 @async_compat
 async def get_system_status(db: AsyncSession | None = None) -> dict:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _get_system_status_impl(session)
-    return await _get_system_status_impl(db)
+    async with ensure_transaction(db) as session:
+        return await _get_system_status_impl(session)
 
 
 async def _get_system_status_impl(db: AsyncSession) -> dict:
