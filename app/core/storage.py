@@ -244,7 +244,7 @@ def restore_database_from(path_str: str) -> None:
 
     Sécurité :
     - Vérifie le SHA-256 stocké dans backup_jobs (si disponible)
-    - Exécute tout dans UNE SEULE transaction PostgreSQL
+    - Exécute tout dans UNE SEULE transaction SQLite
     - En cas d'erreur → ROLLBACK complet, BDD inchangée
     """
     path = Path(path_str)
@@ -317,7 +317,7 @@ def verify_backup_file(path: Path, *, expected_sha256: str | None = None) -> dic
 
     - Vérifie l'existence et la lisibilité du fichier
     - Vérifie le SHA-256 si un hash attendu est fourni
-    - Contrôle que le contenu ressemble à du SQL PostgreSQL valide
+    - Contrôle que le contenu ressemble à du SQL valide
     """
     if not path.exists() or not path.is_file():
         raise RuntimeError("Fichier de sauvegarde introuvable.")
@@ -358,7 +358,7 @@ def verify_backup_file(path: Path, *, expected_sha256: str | None = None) -> dic
 
     return {
         "ok": True,
-        "engine": "sqlite" if settings.database_url.startswith("sqlite") else "postgres",
+        "engine": "sqlite",
         "path": str(path),
         "sha256_verified": expected_sha256 is not None,
         "compressed": path.name.endswith(".sql.gz") or path.name.endswith(".sql.gz.enc"),

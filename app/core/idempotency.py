@@ -18,7 +18,7 @@ async def check_idempotency(key: str | None) -> dict[str, Any] | None:
 
     key = str(key).strip()
 
-    # Fall back to PostgreSQL DB
+    # Fall back to SQLite DB
     try:
         row = await query_db_async(
             "SELECT response_json FROM idempotent_requests WHERE key = %s",

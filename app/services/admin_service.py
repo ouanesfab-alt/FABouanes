@@ -166,8 +166,13 @@ async def restore_backup_by_value(backup_value: str):
 
 
 def run_database_maintenance():
-    # PostgreSQL auto-vacuums, no manual maintenance required
-    return {"ok": True, "message": "Maintenance terminée (automatisée par PostgreSQL)."}
+    from app.core.db_helpers import execute_db, query_db
+    try:
+        query_db("PRAGMA optimize")
+        execute_db("VACUUM")
+        return {"ok": True, "message": "Maintenance SQLite (VACUUM & PRAGMA optimize) effectuée avec succès."}
+    except Exception as exc:
+        return {"ok": False, "message": f"Erreur lors de la maintenance : {exc}"}
 
 
 def _build_restore_list():

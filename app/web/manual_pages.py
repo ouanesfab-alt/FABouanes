@@ -399,8 +399,8 @@ SPECIFIC_CHAPTER_DATA = {
         'ar_title': '❓ حلول سريعة لأهم المشاكل الشائعة',
         'fr_usage': ['Consultez la liste des erreurs connues.', 'Vérifiez l\'état de la connexion locale.', 'Suivez la procédure pas-à-pas pour résoudre.'],
         'ar_usage': ['راجع قائمة المشاكل والأعطال المعروفة.', 'تحقق من حالة الاتصال بالخادم المحلي.', 'اتبع خطوات الحل الموضحة لكل مشكلة.'],
-        'fr_example': 'Si l\'application affiche "Erreur de connexion", vérifier que le serveur PostgreSQL est actif.',
-        'ar_example': 'عند ظهور رسالة "خطأ في الاتصال"، تأكد من تشغيل خادم قاعدة البيانات PostgreSQL.'
+        'fr_example': 'Si l\'application affiche "Erreur de connexion", vérifier l\'accès à la base de données.',
+        'ar_example': 'عند ظهور رسالة "خطأ في الاتصال"، تأكد من تشغيل التطبيق وإمكانية الوصول لقاعدة البيانات.'
     },
     '9-2': {
         'fr_title': '💬 Questions & Réponses fréquentes',

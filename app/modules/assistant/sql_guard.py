@@ -94,7 +94,7 @@ class SqlValidationResult:
     sql_to_run: str | None = None
 
 
-def _parse_postgres_sql(query: str) -> SqlValidationResult:
+def _parse_sql(query: str) -> SqlValidationResult:
     try:
         statements = sqlglot.parse(query, read="sqlite")
     except Exception:
@@ -194,7 +194,7 @@ def _has_valid_where_clause(statement: Any) -> tuple[bool, str | None]:
 
 
 def validate_readonly_sql(query: str, default_limit: int = 100) -> SqlValidationResult:
-    parsed = _parse_postgres_sql(query)
+    parsed = _parse_sql(query)
     if not parsed.ok:
         return parsed
 
@@ -238,7 +238,7 @@ def validate_readonly_sql(query: str, default_limit: int = 100) -> SqlValidation
 
 
 def validate_write_sql(query: str) -> SqlValidationResult:
-    parsed = _parse_postgres_sql(query)
+    parsed = _parse_sql(query)
     if not parsed.ok:
         return parsed
 

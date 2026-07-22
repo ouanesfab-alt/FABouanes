@@ -179,11 +179,7 @@ def emit(event: DomainEvent) -> None:
                 "INSERT INTO pubsub_events (channel, payload, sender_worker_id) VALUES (%s, %s, %s)",
                 ("fabouanes:events", payload, WORKER_ID)
             )
-            # Notifier les autres workers via PostgreSQL LISTEN/NOTIFY
-            try:
-                execute_db("NOTIFY fabouanes_events")
-            except Exception:
-                pass  # NOTIFY est un best-effort
+            # Publier l'événement système via la table pubsub_events
         except Exception as e:
             logger.debug("Failed to publish domain event to DB pubsub: %s", e)
 

@@ -2,7 +2,7 @@
 Sabrina Memory — Mémoire persistante de l'assistante IA.
 
 Fournit des fonctions CRUD pour stocker et retrouver des souvenirs (préférences,
-contextes, corrections) de manière compatible SQLite et PostgreSQL.
+contextes, corrections) dans la base SQLite.
 """
 from __future__ import annotations
 
@@ -60,7 +60,7 @@ def recall(query: str, limit: int = 10) -> Dict[str, Any]:
                 (limit,)
             )
         else:
-            # Recherche textuelle simple par LIKE, compatible SQLite/Postgres
+            # Recherche textuelle simple par LIKE compatible SQLite
             rows = db_manager.query_db(
                 """SELECT id, category, content, source, relevance_score, created_at
                    FROM sabrina_memory

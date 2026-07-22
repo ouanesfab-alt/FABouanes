@@ -40,7 +40,7 @@
 - **Tableaux de bord et rapports** — KPI temps réel, alertes configurable, export PDF
 - **Sauvegardes automatiques** — nightly vers dossier local ou Google Drive, rétention configurable
 - **Piste d'audit complète** — qui a fait quoi, quand, avant/après, pour chaque opération
-- **Déploiement local ou conteneurisé** — Docker Compose avec PostgreSQL + pgAdmin inclus
+- **Déploiement local ou conteneurisé** — Zéro configuration, base SQLite locale haute performance avec mode WAL
 
 ---
 
@@ -313,7 +313,7 @@ docker run -p 5000:5000 --env-file .env fabouanes:latest
 - Sanitisation XSS automatique des champs de formulaire (middleware transverse)
 - RBAC à trois rôles (`admin`, `manager`, `operator`) avec permissions déclaratives par endpoint
 - Authentification JWT dédiée pour l'API mobile
-- Rate limiting configurable (mémoire ou PostgreSQL)
+- Rate limiting configurable (mémoire ou base de données)
 - Piste d'audit asynchrone (qui a fait quoi, quand, avant/après)
 - Validation stricte des identifiants SQL (protection injection)
 - Worker de fond démarré **après** bootstrap complet du schéma (évite les erreurs de table manquante)
@@ -324,9 +324,8 @@ Pour signaler une vulnérabilité, contactez l'équipe via le dépôt GitHub plu
 
 ## Limitations connues
 
-- **Un seul worker applicatif recommandé** (`WEB_CONCURRENCY=1`) : le cache et le scheduler de sauvegarde sont in-process. Le multi-worker peut être activé explicitement (`FAB_ALLOW_MULTI_WORKER=1`) ; la cohérence inter-workers passe alors par une table `pubsub_events` avec une latence de propagation d'environ 1 seconde.
-- **PostgreSQL uniquement** : seul moteur de base de données supporté (validation stricte de `DATABASE_URL`). SQLite n'est utilisé qu'en environnement de test.
-- **pgvector optionnel** : le RAG sémantique de Sabrina nécessite l'extension `pgvector`. En son absence, un fallback mathématique Python prend le relais automatiquement.
+- **Un seul worker applicatif recommandé** (`WEB_CONCURRENCY=1`) : le cache et le scheduler de sauvegarde sont in-process. Le multi-worker passe par la table `pubsub_events` avec une latence de propagation d'environ 1 seconde.
+- **Moteur SQLite 3 natif** : zéro installation ou serveur de base de données externe requis. Base de données autonome stockée en local avec journalisation WAL haute performance.
 
 ---
 

@@ -15,7 +15,7 @@ graph TD
     SW[Service Worker] -->|Précâche les fichiers statiques| Cache[(Cache Storage)]
     Sync[offline-sync.js] -->|Détecte Réseau Online| API[/api/mobile/v1/offline/sync]
     IDB -->|Récupère opérations en attente| Sync
-    API -->|Valide & Intègre| DB[(Base PostgreSQL)]
+    API -->|Valide & Intègre| DB[(Base SQLite locale)]
 ```
 
 *   **Service Worker (`sw.js`)** : Intercepte les requêtes réseau pour servir les ressources statiques depuis le cache local (stratégie Cache-First) ou afficher une page fallback en cas de déconnexion.
