@@ -158,12 +158,16 @@ async def _update_user_role_and_status_impl(
 
 @db_task_compat
 async def touch_login(user_id: int, db: AsyncSession | None = None) -> int:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            res = await _touch_login_impl(user_id, session)
-            await session.commit()
-            return res
-    return await _touch_login_impl(user_id, db)
+    try:
+        if db is None:
+            async with get_async_sessionmaker()() as session:
+                res = await _touch_login_impl(user_id, session)
+                await session.commit()
+                return res
+        return await _touch_login_impl(user_id, db)
+    except Exception as exc:
+        logging.getLogger("fabouanes").warning("touch_login skipped due to DB lock/error: %s", exc)
+        return 0
 
 
 async def _touch_login_impl(user_id: int, db: AsyncSession) -> int:

@@ -161,11 +161,11 @@ class ClientRepository(AsyncRepository[Client]):
         return [dict(row._mapping) for row in result.fetchall()]
 
     async def get_balance(self, client_id: int) -> Optional[float]:
-        """Get client balance from materialized view."""
+        """Get client balance from dynamic view."""
         stmt = (
-            select(literal_column("balance"))
-            .select_from(text("mv_client_balances"))
-            .where(literal_column("client_id") == client_id)
+            select(literal_column("current_balance").label("balance"))
+            .select_from(text("clients_with_stats"))
+            .where(literal_column("id") == client_id)
         )
         result = await self.session.execute(stmt)
         row = result.first()

@@ -10,13 +10,27 @@ from sqlmodel import SQLModel
 from app.core.config import settings
 
 def get_async_database_url(database_url: str) -> str:
-    """Translates standard postgresql URLs to use the asyncpg driver."""
+    """Translates database URLs to use the aiosqlite driver for SQLite.
+
+    Note: PostgreSQL URLs are not supported in this version and will fall back
+    to the local SQLite database with an explicit warning.
+    """
     url = str(database_url or "").strip()
-    if url.startswith("postgresql://"):
-        return "postgresql+asyncpg://" + url[len("postgresql://"):]
-    if url.startswith("postgres://"):
-        return "postgresql+asyncpg://" + url[len("postgres://"):]
-    return url
+    if url.startswith("sqlite://"):
+        return "sqlite+aiosqlite://" + url[len("sqlite://"):]
+    if url.startswith("sqlite+aiosqlite://"):
+        return url
+    if url.startswith("postgresql://") or url.startswith("postgres://"):
+        import logging as _logging
+        data_dir = settings.app_data_dir
+        db_path = (data_dir / "fabouanes.db").resolve().as_posix()
+        _logging.getLogger("fabouanes").warning(
+            "[ASYNC_DB] URL PostgreSQL détectée dans get_async_database_url mais le support "
+            "asynchrone PostgreSQL (asyncpg) n'est pas activé. Retour sur SQLite : %s.",
+            db_path,
+        )
+        return f"sqlite+aiosqlite:///{db_path}"
+    return url if url else f"sqlite+aiosqlite:///{(settings.app_data_dir / 'fabouanes.db').resolve().as_posix()}"
 
 async_database_url = get_async_database_url(settings.database_url)
 
@@ -33,26 +47,39 @@ def get_async_engine() -> AsyncEngine:
 
     with _ENGINES_LOCK:
         if loop not in _async_engines:
-            engine = create_async_engine(
-                async_database_url,
-                echo=False,
-                future=True,
-                pool_pre_ping=True,
-                pool_size=int(os.environ.get("FAB_PG_POOL_SIZE", "10")),
-                max_overflow=int(os.environ.get("FAB_PG_POOL_MAX_OVERFLOW", "10")),
-                pool_recycle=1800,
-            )
-
-            from sqlalchemy import event
-            @event.listens_for(engine.sync_engine, "connect")
-            def set_async_connection_timezone(dbapi_connection, connection_record):
-                cursor = dbapi_connection.cursor()
-                try:
-                    cursor.execute("SET TIME ZONE 'UTC'")
-                except Exception:
-                    pass
-                finally:
-                    cursor.close()
+            url = get_async_database_url(settings.database_url)
+            if "sqlite" in url:
+                engine = create_async_engine(
+                    url,
+                    echo=False,
+                    future=True,
+                    connect_args={"check_same_thread": False},
+                )
+                from sqlalchemy import event
+                from app.core.db_helpers.manager import _register_sqlite_custom_functions
+                @event.listens_for(engine.sync_engine, "connect")
+                def set_sqlite_pragmas(dbapi_connection, connection_record):
+                    cursor = dbapi_connection.cursor()
+                    try:
+                        cursor.execute("PRAGMA journal_mode = WAL;")
+                        cursor.execute("PRAGMA busy_timeout = 30000;")
+                        cursor.execute("PRAGMA foreign_keys = ON;")
+                        cursor.execute("PRAGMA synchronous = NORMAL;")
+                    except Exception:
+                        pass
+                    finally:
+                        cursor.close()
+                    _register_sqlite_custom_functions(dbapi_connection)
+            else:
+                engine = create_async_engine(
+                    url,
+                    echo=False,
+                    future=True,
+                    pool_pre_ping=True,
+                    pool_size=int(os.environ.get("FAB_PG_POOL_SIZE", "10")),
+                    max_overflow=int(os.environ.get("FAB_PG_POOL_MAX_OVERFLOW", "10")),
+                    pool_recycle=1800,
+                )
             _async_engines[loop] = engine
         return _async_engines[loop]
 

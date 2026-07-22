@@ -23,7 +23,7 @@ if not defined PY_CMD (
 )
 
 echo  Verification des dependances...
-%PY_CMD% -c "import fastapi, uvicorn, sqlalchemy, alembic, pg8000" >nul 2>&1
+%PY_CMD% -c "import fastapi, uvicorn, sqlalchemy, alembic, aiosqlite" >nul 2>&1
 if errorlevel 1 (
     echo  Installation/verification des dependances - connexion requise...
     %PY_CMD% -m pip install -r requirements.txt --quiet

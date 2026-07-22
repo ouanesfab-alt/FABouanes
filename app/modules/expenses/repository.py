@@ -141,7 +141,7 @@ async def expenses_by_category(db: AsyncSession, date_from: str | None = None, d
 
 
 async def expenses_by_month(db: AsyncSession, limit: int = 12) -> list[dict]:
-    month_expr = func.to_char(Expense.date, "YYYY-MM").label("month")
+    month_expr = func.strftime("%Y-%m", Expense.date).label("month")
     stmt = select(
         month_expr,
         func.coalesce(func.sum(Expense.amount), 0.0).label("total"),

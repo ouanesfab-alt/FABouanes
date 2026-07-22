@@ -1,6 +1,6 @@
 SCHEMA_CORE = """
 CREATE TABLE IF NOT EXISTS users (
-    id BIGSERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'operator' CHECK(role IN ('admin','manager','operator')),
@@ -9,54 +9,60 @@ CREATE TABLE IF NOT EXISTS users (
     last_login_at TIMESTAMPTZ,
     last_password_change_at TIMESTAMPTZ,
     custom_permissions_json TEXT DEFAULT '[]',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    xp INTEGER NOT NULL DEFAULT 0,
+    level INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS app_settings (
     key TEXT PRIMARY KEY,
     value TEXT,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS activity_logs (
-    id BIGSERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
     username TEXT NOT NULL,
     action TEXT NOT NULL,
     entity_type TEXT,
     entity_id BIGINT,
     details TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    old_value TEXT,
+    new_value TEXT,
+    ip_address TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS error_logs (
-    id BIGSERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL,
     route TEXT,
     error_type TEXT,
     message TEXT,
     traceback TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS system_logs (
-    id BIGSERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     level TEXT NOT NULL,
     message TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS performance_logs (
-    id BIGSERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     kind TEXT NOT NULL,
     name TEXT NOT NULL,
     elapsed_ms DOUBLE PRECISION NOT NULL DEFAULT 0,
     route TEXT,
     details TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS audit_logs (
-    id BIGSERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     actor_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
     actor_username TEXT NOT NULL,
     actor_role TEXT NOT NULL,
@@ -71,11 +77,11 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     before_json TEXT,
     after_json TEXT,
     meta_json TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS backup_jobs (
-    id BIGSERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     reason TEXT NOT NULL,
     backup_type TEXT NOT NULL DEFAULT 'event',
     local_path TEXT NOT NULL,
@@ -85,13 +91,13 @@ CREATE TABLE IF NOT EXISTS backup_jobs (
     cloud_file_id TEXT,
     cloud_file_name TEXT,
     error_message TEXT NOT NULL DEFAULT '',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     started_at TIMESTAMPTZ,
     finished_at TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS backup_runs (
-    id BIGSERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     job_id BIGINT NOT NULL REFERENCES backup_jobs(id) ON DELETE CASCADE,
     status TEXT NOT NULL,
     cloud_file_id TEXT,
@@ -102,7 +108,7 @@ CREATE TABLE IF NOT EXISTS backup_runs (
 );
 
 CREATE TABLE IF NOT EXISTS api_refresh_tokens (
-    id BIGSERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash TEXT NOT NULL UNIQUE,
     token_hint TEXT,
@@ -111,7 +117,7 @@ CREATE TABLE IF NOT EXISTS api_refresh_tokens (
     expires_at TIMESTAMPTZ NOT NULL,
     revoked_at TIMESTAMPTZ,
     last_used_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_activity_logs_action ON activity_logs(action);

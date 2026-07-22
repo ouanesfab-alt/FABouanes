@@ -101,11 +101,11 @@ class _DbRateLimitStore:
         from app.core.db_helpers import execute_db, query_db
 
         execute_db(
-            "DELETE FROM rate_limit_events WHERE key = %s AND hit_at < NOW() - %s * INTERVAL '1 second'",
-            (key, window_seconds),
+            "DELETE FROM rate_limit_events WHERE key = ? AND hit_at < datetime(CURRENT_TIMESTAMP, '-' || ? || ' seconds')",
+            (key, int(window_seconds)),
         )
         row = query_db(
-            "SELECT COUNT(*) AS cnt FROM rate_limit_events WHERE key = %s",
+            "SELECT COUNT(*) AS cnt FROM rate_limit_events WHERE key = ?",
             (key,),
             one=True,
         )
@@ -113,7 +113,7 @@ class _DbRateLimitStore:
         if count >= limit:
             return False
         execute_db(
-            "INSERT INTO rate_limit_events (key, hit_at) VALUES (%s, NOW())",
+            "INSERT INTO rate_limit_events (key, hit_at) VALUES (?, CURRENT_TIMESTAMP)",
             (key,),
         )
         return True
@@ -123,11 +123,11 @@ class _DbRateLimitStore:
         from app.core.db_helpers import execute_db
 
         execute_db(
-            "INSERT INTO rate_limit_events (key, hit_at) VALUES (%s, NOW())",
+            "INSERT INTO rate_limit_events (key, hit_at) VALUES (?, CURRENT_TIMESTAMP)",
             (key,),
         )
         execute_db(
-            "DELETE FROM rate_limit_events WHERE key = %s AND hit_at < NOW() - INTERVAL '24 hours'",
+            "DELETE FROM rate_limit_events WHERE key = ? AND hit_at < datetime(CURRENT_TIMESTAMP, '-24 hours')",
             (key,),
         )
 
@@ -140,11 +140,11 @@ class _DbRateLimitStore:
 
         max_age = max(window_s, lockout_s * 16.0)
         execute_db(
-            "DELETE FROM rate_limit_events WHERE key = %s AND hit_at < NOW() - %s * INTERVAL '1 second'",
-            (key, max_age),
+            "DELETE FROM rate_limit_events WHERE key = ? AND hit_at < datetime(CURRENT_TIMESTAMP, '-' || ? || ' seconds')",
+            (key, int(max_age)),
         )
         rows = query_db(
-            "SELECT EXTRACT(EPOCH FROM hit_at) AS hit_epoch FROM rate_limit_events WHERE key = %s ORDER BY hit_at ASC",
+            "SELECT strftime('%s', hit_at) AS hit_epoch FROM rate_limit_events WHERE key = ? ORDER BY hit_at ASC",
             (key,),
         )
         hits = [float(r["hit_epoch"]) for r in rows] if rows else []
@@ -160,7 +160,7 @@ class _DbRateLimitStore:
     @staticmethod
     def clear(key: str) -> None:
         from app.core.db_helpers import execute_db
-        execute_db("DELETE FROM rate_limit_events WHERE key = %s", (key,))
+        execute_db("DELETE FROM rate_limit_events WHERE key = ?", (key,))
 
     def clear_all(self) -> None:
         from app.core.db_helpers import execute_db

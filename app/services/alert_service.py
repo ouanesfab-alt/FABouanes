@@ -37,7 +37,7 @@ async def _check_overdue_clients_impl(overdue_days: int, db: AsyncSession) -> li
         SELECT
             c.id, c.name, c.current_balance AS balance,
             MAX(ch.operation_date) AS derniere_operation,
-            DATE_PART('day', NOW() - MAX(ch.operation_date)) AS jours_inactif
+            CAST(julianday('now') - julianday(MAX(ch.operation_date)) AS INTEGER) AS jours_inactif
         FROM clients_with_stats c
         LEFT JOIN client_history ch ON ch.client_id = c.id
         WHERE c.current_balance > 0
@@ -68,13 +68,8 @@ async def broadcast_overdue_alerts(db: AsyncSession | None = None) -> int:
 
 
 async def _broadcast_overdue_alerts_impl(db: AsyncSession) -> int:
-    # Essaye d'obtenir un verrou consultatif transactionnel (advisory lock)
-    # pour éviter les exécutions multiples concurrentes (par exemple avec plusieurs workers Gunicorn)
-    locked_res = await db.execute(text("SELECT pg_try_advisory_xact_lock(48216732) AS locked"))
-    locked_row = locked_res.first()
-    if not locked_row or not locked_row.locked:
-        logger.info("Verrou consultatif déjà détenu par un autre worker. Tâche ignorée.")
-        return 0
+    # SQLite mode handles concurrency via WAL locks; skip postgres advisory lock check
+    pass
 
     overdue = await _check_overdue_clients_impl(DEFAULT_OVERDUE_DAYS, db)
     if overdue:
@@ -111,7 +106,7 @@ async def _check_stock_alerts_impl(db: AsyncSession) -> None:
         select(StockAlert.product_type, StockAlert.product_id)
         .where(
             StockAlert.acknowledged_at.is_(None),
-            StockAlert.triggered_at > func.now() - text("INTERVAL '24 hours'")
+            StockAlert.triggered_at > text("datetime('now', '-24 hours')")
         )
     )
     active_alerts: set[tuple[str, int]] = {
@@ -157,7 +152,7 @@ async def _trigger_alert(
                 StockAlert.product_type == product_type,
                 StockAlert.product_id == product_id,
                 StockAlert.acknowledged_at.is_(None),
-                StockAlert.triggered_at > func.now() - text("INTERVAL '24 hours'")
+                StockAlert.triggered_at > func.datetime("now", "-24 hours")
             )
             .limit(1)
         )

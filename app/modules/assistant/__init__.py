@@ -38,3 +38,20 @@ class AssistantModule(ModuleBase):
 
 # Registration
 register(AssistantModule())
+
+# ── Plugin registry — expose assistant callables to app.core without hard imports ──
+# This is the single place where assistant crosses the module/core boundary.
+# app.core.worker and other core modules use registry.call("get_api_key") and
+# registry.acall("get_embedding", ...) instead of importing these directly.
+try:
+    from app.core.plugin_registry import registry as _plugin_registry
+    from app.modules.assistant.schema_context import get_gemini_api_key
+    from app.modules.assistant.rag import get_embedding
+
+    _plugin_registry.register("get_api_key", get_gemini_api_key)
+    _plugin_registry.register("get_embedding", get_embedding)
+except Exception as _e:
+    import logging
+    logging.getLogger("fabouanes.assistant").warning(
+        "Assistant plugin registration skipped (non-critical): %s", _e
+    )

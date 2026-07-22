@@ -8,7 +8,7 @@ arq==0.28.0
 asgiref==3.11.1
 asn1crypto==1.5.1
 async-timeout==5.0.1
-asyncpg==0.31.0
+aiosqlite==0.21.0
 blinker==1.9.0
 bottle==0.13.4
 brotli==1.2.0

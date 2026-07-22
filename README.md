@@ -77,7 +77,7 @@ flowchart TB
         OBS["OpenTelemetry · structlog<br/>Prometheus · Health check"]
     end
 
-    DB[("PostgreSQL<br/>SQLAlchemy 2.0 + asyncpg<br/>Alembic migrations")]
+    DB[("SQLite WAL<br/>SQLAlchemy 2.0 + aiosqlite<br/>Alembic migrations")]
 
     Client --> Core
     Core --> Registry
@@ -91,7 +91,7 @@ flowchart TB
 **Principes clés :**
 
 - **Modules auto-découverts** : chaque domaine métier (`app/modules/<nom>/`) s'enregistre lui-même via `ModuleDescriptor` ; ajouter un module ne nécessite aucune modification du core.
-- **Worker applicatif unique** : le cache et le scheduler sont in-process ; la coordination multi-instance passe par une table `pubsub_events` PostgreSQL.
+- **Worker applicatif unique** : le cache et le scheduler sont in-process ; la coordination autonome s'appuie sur la base SQLite locale.
 - **Séparation web/API** : les routes HTML (`app/web/`) et les routes JSON (`app/api/v1/`) partagent les mêmes services métier.
 - **Sécurité défensive** : CSRF sur tous les formulaires, nonce CSP par requête, sanitisation XSS automatique, rate limiting configurable.
 
@@ -101,9 +101,9 @@ flowchart TB
 
 | Domaine | Technologies |
 |---|---|
-| Backend | FastAPI, SQLAlchemy 2.0, asyncpg, pg8000, Alembic |
+| Backend | FastAPI, SQLAlchemy 2.0, aiosqlite, Alembic |
 | Frontend | Jinja2, Bootstrap 5, JS modulaire (vanilla), Chart.js, HTMX, AlpineJS |
-| Base de données | PostgreSQL 16 (+ extension pgvector optionnelle) |
+| Base de données | SQLite (mode WAL, zéro-configuration) |
 | Assistant IA | Google Gemini API, Ollama (modèles locaux) |
 | Sécurité | JWT (PyJWT), CSRF, CSP, rate limiting (slowapi), RBAC |
 | Observabilité | OpenTelemetry, structlog, Prometheus |
@@ -119,8 +119,6 @@ flowchart TB
 ### Prérequis
 
 - Python 3.11+
-- PostgreSQL 16 (local ou via Docker)
-- Docker Compose (optionnel, recommandé pour un environnement reproductible)
 
 ### Installation locale
 

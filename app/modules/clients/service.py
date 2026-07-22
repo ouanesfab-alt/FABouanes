@@ -643,12 +643,23 @@ class ClientService:
                         )
                     )
                     history_objs = []
+                    from datetime import date, datetime
                     for r in row["history_rows"]:
                         dt_val = r["date"]
                         if isinstance(dt_val, str):
-                            op_date = date.fromisoformat(dt_val.strip())
-                        else:
+                            try:
+                                op_date = date.fromisoformat(dt_val.strip())
+                            except Exception:
+                                try:
+                                    op_date = datetime.strptime(dt_val.strip(), "%Y-%m-%d").date()
+                                except Exception:
+                                    op_date = date.today()
+                        elif isinstance(dt_val, datetime):
+                            op_date = dt_val.date()
+                        elif isinstance(dt_val, date):
                             op_date = dt_val
+                        else:
+                            op_date = date.today()
 
                         history_objs.append(
                             ClientHistory(

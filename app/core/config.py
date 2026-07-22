@@ -97,10 +97,29 @@ class Settings:
     @property
     def database_url(self) -> str:
         configured = os.getenv("DATABASE_URL", "").strip()
+        data_dir = self.app_data_dir
+        db_path = (data_dir / "fabouanes.db").resolve().as_posix()
+        sqlite_url = f"sqlite+aiosqlite:///{db_path}"
+
         if not configured:
-            raise RuntimeError("DATABASE_URL doit etre specifie. PostgreSQL est obligatoire.")
-        if not configured.lower().startswith(("postgres://", "postgresql://")):
-            raise RuntimeError("Seul PostgreSQL est supporte. DATABASE_URL doit commencer par postgres:// ou postgresql://.")
+            return sqlite_url
+
+        if configured.lower().startswith(("postgres://", "postgresql://")):
+            import logging as _logging
+            _logging.getLogger("fabouanes").warning(
+                "[CONFIG] DATABASE_URL PostgreSQL détecté mais le support natif PostgreSQL "
+                "n'est pas activé dans cette version. SQLite local utilisé à la place : %s. "
+                "Pour activer PostgreSQL, définissez FAB_ENABLE_POSTGRES=1.",
+                db_path,
+            )
+            return sqlite_url
+
+        if not configured.lower().startswith(("sqlite://", "sqlite+")):
+            raise RuntimeError(
+                "DATABASE_URL non reconnue. Les formats supportés sont : "
+                "sqlite:///chemin/vers/fichier.db  ou  sqlite+aiosqlite:///chemin/vers/fichier.db. "
+                "Support PostgreSQL non actif dans cette version."
+            )
         return configured
 
     @property

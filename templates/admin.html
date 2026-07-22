@@ -147,7 +147,8 @@
             <div id="adminGeminiModelGroup" {% if sabrina_selected_model == 'local' or sabrina_selected_model == 'ollama' %}style="display:none;"{% endif %}>
               <label for="adminGeminiModelSelect" class="form-label fw-bold mb-1">Modèle de l'IA</label>
               <select name="gemini_model" id="adminGeminiModelSelect" class="form-select">
-                <option value="gemini-3.1-flash-lite" {% if sabrina_selected_model == 'gemini-3.1-flash-lite' %}selected{% endif %}>Gemini 3.1 Flash Lite (Recommandé)</option>
+                <option value="gemini-3.1-flash-lite" {% if sabrina_selected_model == 'gemini-3.1-flash-lite' or not sabrina_selected_model %}selected{% endif %}>Gemini 3.1 Flash Lite (Recommandé)</option>
+                <option value="gemini-3.5-flash" {% if sabrina_selected_model == 'gemini-3.5-flash' %}selected{% endif %}>Gemini 3.5 Flash</option>
                 <option value="gemini-2.5-flash" {% if sabrina_selected_model == 'gemini-2.5-flash' %}selected{% endif %}>Gemini 2.5 Flash</option>
                 <option value="gemini-2.5-pro" {% if sabrina_selected_model == 'gemini-2.5-pro' %}selected{% endif %}>Gemini 2.5 Pro</option>
               </select>

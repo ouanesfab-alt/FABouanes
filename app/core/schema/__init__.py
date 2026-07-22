@@ -63,14 +63,8 @@ def _seed_default_admin(conn) -> None:
         )
     admin = conn.execute("SELECT id, password_hash FROM users WHERE username = %s", (DEFAULT_ADMIN_USERNAME,)).fetchone()
     if not admin:
-        # Detect if column type is boolean or integer (PostgreSQL strict type safety)
-        res = conn.execute(
-            "SELECT data_type FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'must_change_password'"
-        ).fetchone()
-        is_boolean = res and res[0].upper() == 'BOOLEAN'
-        
-        val_must_change = False if is_boolean else 0
-        val_is_active = True if is_boolean else 1
+        val_must_change = 0
+        val_is_active = 1
         
         conn.execute(
             """

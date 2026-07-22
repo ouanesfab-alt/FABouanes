@@ -397,27 +397,26 @@ def _db_event_listener_loop():
     except Exception:
         pass
 
-    # Try to set up a dedicated LISTEN connection
+    from app.core.config import DATABASE_URL
     listen_conn = None
     listen_fileno = None
-    try:
-        from app.core.config import DATABASE_URL
-        from app.core.db_helpers import pool_manager
-        listen_conn = pool_manager.connect_database(DATABASE_URL)
-        listen_conn.execute("LISTEN fabouanes_events")
-        listen_conn.commit()
-        # pg8000 CompatConnection wraps a pg8000 connection; get the raw socket fd
-        raw = getattr(listen_conn, '_conn', listen_conn)
-        sock = getattr(raw, '_sock', None) or getattr(raw, 'sock', None)
-        if sock:
-            listen_fileno = sock.fileno()
-            logger.info("LISTEN/NOTIFY active on fabouanes_events (fd=%d)", listen_fileno)
-        else:
-            logger.info("LISTEN/NOTIFY setup: no socket found, falling back to polling")
-    except Exception as e:
-        logger.info("LISTEN/NOTIFY setup failed (%s), falling back to polling", e)
-        listen_conn = None
-        listen_fileno = None
+    if not DATABASE_URL.startswith("sqlite"):
+        try:
+            from app.core.db_helpers import pool_manager
+            listen_conn = pool_manager.connect_database(DATABASE_URL)
+            listen_conn.execute("LISTEN fabouanes_events")
+            listen_conn.commit()
+            raw = getattr(listen_conn, '_conn', listen_conn)
+            sock = getattr(raw, '_sock', None) or getattr(raw, 'sock', None)
+            if sock:
+                listen_fileno = sock.fileno()
+                logger.info("LISTEN/NOTIFY active on fabouanes_events (fd=%d)", listen_fileno)
+            else:
+                logger.info("LISTEN/NOTIFY setup: no socket found, falling back to polling")
+        except Exception as e:
+            logger.info("LISTEN/NOTIFY setup failed (%s), falling back to polling", e)
+            listen_conn = None
+            listen_fileno = None
 
     while _db_listener_running:
         try:
@@ -470,10 +469,12 @@ def _db_event_listener_loop():
                         event, sender_id = res
                         _trigger_local_handlers(event, skip_default=True)
 
-            # Prune events older than 10 minutes
-            execute_db(
-                "DELETE FROM pubsub_events WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'"
-            )
+            # Prune events older than 10 minutes probabilistically (1% chance) to reduce SQLite write contention
+            import random
+            if random.random() < 0.01:
+                execute_db(
+                    "DELETE FROM pubsub_events WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'"
+                )
         except Exception as e:
             logger.debug("Failed to poll/prune pubsub_events: %s", e)
             time.sleep(5.0)  # Rate-limit en cas d'erreur

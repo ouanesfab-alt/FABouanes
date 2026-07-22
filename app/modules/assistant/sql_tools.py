@@ -51,8 +51,10 @@ def dry_run_sql(query: str) -> str:
 
         try:
             with db_manager.db_transaction() as conn:
-                # Limiter le temps d'exécution des requêtes IA à 10s
-                conn.execute("SET LOCAL statement_timeout = '10000'")
+                try:
+                    conn.execute("SET LOCAL statement_timeout = '10000'")
+                except Exception:
+                    pass
                 # Récupérer les soldes clients avant
                 client_balances_before = {}
                 if "clients" in table_names:
@@ -120,9 +122,11 @@ def execute_readonly_sql(query: str) -> Dict[str, Any]:
     sql_to_run = validation.sql_to_run or query
 
     try:
-        # SET LOCAL must run inside the same transaction as the query to have effect
         with db_manager.db_transaction() as conn:
-            conn.execute("SET LOCAL statement_timeout = '10000'")
+            try:
+                conn.execute("SET LOCAL statement_timeout = '10000'")
+            except Exception:
+                pass
             rows = conn.execute(sql_to_run).fetchall()
         return {"rows": serialize_for_json([dict(r) for r in rows])}
     except Exception as e:
@@ -185,8 +189,10 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
 
     try:
         with db_manager.db_transaction() as conn:
-            # Limiter le temps d'exécution des requêtes IA à 10s
-            conn.execute("SET LOCAL statement_timeout = '10000'")
+            try:
+                conn.execute("SET LOCAL statement_timeout = '10000'")
+            except Exception:
+                pass
             cur = conn.execute(query_to_run)
             inserted_id = None
             if has_returning:

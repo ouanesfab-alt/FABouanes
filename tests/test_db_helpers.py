@@ -118,8 +118,8 @@ def test_postgres_pool_status():
     mock_engine.pool = mock_pool
     
     with mock.patch.object(db_manager, "get_database_engine", return_value=mock_engine):
-        status = postgres_pool_status("postgresql://mock")
-        assert status["engine"] == "postgres"
+        status = postgres_pool_status("sqlite:///mock")
+        assert status["engine"] == "sqlite"
         assert status["size"] == 10
         assert status["checkedin"] == 5
 

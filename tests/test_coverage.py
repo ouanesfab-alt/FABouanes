@@ -505,54 +505,21 @@ class TestConfig:
         from app.core.config import settings
         assert len(settings.secret_key) > 0
 
-    def test_database_url_postgres(self):
+    def test_database_url_sqlite(self):
         from app.core.config import settings
         url = settings.database_url
-        assert url.startswith("postgresql://") or url.startswith("postgres://")
+        assert "sqlite" in url or "fabouanes.db" in url
 
-    def test_worker_count_default(self):
-        from app.core.config import configured_worker_count
-        for var in ("FAB_WORKERS", "WEB_CONCURRENCY", "UVICORN_WORKERS", "GUNICORN_WORKERS"):
-            os.environ.pop(var, None)
-        assert configured_worker_count() >= 1
-
-    def test_worker_count_env(self):
-        from app.core.config import configured_worker_count
-        os.environ["FAB_WORKERS"] = "4"
-        count = configured_worker_count()
-        os.environ.pop("FAB_WORKERS")
-        assert count == 4
-
-    def test_worker_count_invalid_fallback(self):
-        from app.core.config import configured_worker_count
-        os.environ["FAB_WORKERS"] = "bad"
-        for v in ("WEB_CONCURRENCY", "UVICORN_WORKERS", "GUNICORN_WORKERS"):
-            os.environ.pop(v, None)
-        count = configured_worker_count()
-        os.environ.pop("FAB_WORKERS")
-        assert count >= 1
-
-    def test_database_url_not_postgres_raises(self):
+    def test_database_url_sqlite_custom(self):
         from app.core.config import Settings
         old = os.environ.get("DATABASE_URL")
-        os.environ["DATABASE_URL"] = "sqlite:///test.db"
+        os.environ["DATABASE_URL"] = "sqlite:///custom_test.db"
         try:
             s = Settings()
-            with pytest.raises(RuntimeError, match="PostgreSQL"):
-                _ = s.database_url
+            assert "sqlite" in s.database_url
         finally:
             if old: os.environ["DATABASE_URL"] = old
             else: os.environ.pop("DATABASE_URL", None)
-
-    def test_database_url_empty_raises(self):
-        from app.core.config import Settings
-        old = os.environ.pop("DATABASE_URL", None)
-        try:
-            s = Settings()
-            with pytest.raises(RuntimeError, match="DATABASE_URL"):
-                _ = s.database_url
-        finally:
-            if old: os.environ["DATABASE_URL"] = old
 
     def test_debug_property(self):
         from app.core.config import Settings

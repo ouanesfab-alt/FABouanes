@@ -1,40 +1,21 @@
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: fabouanes_db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: fabouanes
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Definissez POSTGRES_PASSWORD dans votre .env}"
-      POSTGRES_DB: fabouanes
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fabouanes"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   web:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile
     container_name: fabouanes_web
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
-      DATABASE_URL: "postgresql://fabouanes:${POSTGRES_PASSWORD}@db:5432/fabouanes"
+      DATABASE_URL: "sqlite+aiosqlite:////app/data/fabouanes.db"
       SECRET_KEY: "${SECRET_KEY:?Definissez SECRET_KEY dans votre .env}"
       SESSION_COOKIE_SECURE: "${SESSION_COOKIE_SECURE:-0}"
       DEFAULT_ADMIN_USERNAME: "${DEFAULT_ADMIN_USERNAME:-admin}"
       DEFAULT_ADMIN_PASSWORD: "${DEFAULT_ADMIN_PASSWORD:-}"
       WEB_CONCURRENCY: "1"
-      FAB_PG_POOL_SIZE: "10"
-      FAB_PG_POOL_MAX_OVERFLOW: "10"
     ports:
       - "${FAB_PORT:-8000}:8000"
+    volumes:
+      - fabdata:/app/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
@@ -43,4 +24,4 @@ services:
       retries: 3
 
 volumes:
-  pgdata:
+  fabdata:

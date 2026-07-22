@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import secrets
 import re
 import time
@@ -320,15 +321,20 @@ def template_context(request: Request, **context: Any) -> dict[str, Any]:
     from app.core.request_state import get_state_value
     from app.core.config import settings
     csp_nonce = get_state_value("csp_nonce") or ""
+    fab_lan_ip = os.environ.get("FAB_LAN_IP") or "127.0.0.1"
+    fab_port = os.environ.get("FAB_PORT") or "5000"
     return {
         "request": proxy,
         "raw_request": request,
         "csrf_token": csrf_token,
         "is_desktop_app": settings.desktop_mode,
+        "fab_lan_ip": fab_lan_ip,
+        "fab_port": fab_port,
         "g": SimpleNamespace(user=user),
         "csp_nonce": csp_nonce,
         **context,
     }
+
 
 
 def _dt_filter(value: Any, length: int = 16) -> str:

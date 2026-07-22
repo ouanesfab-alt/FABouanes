@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app.core.config import APP_DATA_DIR, DATABASE_URL
-from app.core.db_helpers import connect_database, postgres_pool_status
+from app.core.db_helpers import connect_database
 from app.core.activity import write_text_log
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,17 +51,14 @@ async def _get_system_status_impl(db: AsyncSession) -> dict:
     plan_lines: list[str] = []
     try:
         index_row_res = await db.execute(
-            text("SELECT COUNT(*) AS c FROM pg_indexes WHERE schemaname = current_schema() AND indexname LIKE 'idx_%'")
+            text("SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'")
         )
         index_row = index_row_res.first()
         index_count = int(index_row.c if index_row else 0)
 
         # explain query plan: we can execute it via text explain on the session!
-        query_plan_res = await db.execute(text("EXPLAIN SELECT id, name FROM clients ORDER BY name LIMIT 50"))
-        for row in query_plan_res.all():
-            row_dict = dict(row._mapping)
-            detail = row_dict.get("detail") or row_dict.get("plan") or next(iter(row_dict.values()), "") or str(row)
-            plan_lines.append(str(detail))
+        query_plan_res = await db.execute(text("EXPLAIN QUERY PLAN SELECT id, name FROM clients ORDER BY name LIMIT 50"))
+        plan_lines = [str(dict(r._mapping)) for r in query_plan_res.all()]
     except Exception:
         pass
 
@@ -86,12 +83,11 @@ async def _get_system_status_impl(db: AsyncSession) -> dict:
             "ok": db_ok,
             "status": _ok_status(db_ok),
             "message": db_message,
-            "engine": "PostgreSQL",
+            "engine": "SQLite",
             "path": DATABASE_URL,
             "exists": True,
             "size_bytes": 0,
             "write_status": write_status,
-            "pool": postgres_pool_status(DATABASE_URL),
         },
         "backups": {
             "ok": bool(backups) or bool(latest_job) or not pending_marker,
@@ -197,25 +193,8 @@ async def reconcile_client_balances(db: AsyncSession) -> dict:
                 "materialized_view": float(row[4])
             })
 
-        # Self-healing refresh if discrepancies in mv exist
-        if any(abs(d["calculated"] - d["materialized_view"]) > 0.01 for d in discrepancies):
-            try:
-                await db.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_client_balances"))
-                await db.commit()
-                # Re-run reconciliation query
-                res = await db.execute(stmt)
-                rows = res.fetchall()
-                discrepancies = []
-                for row in rows:
-                    discrepancies.append({
-                        "client_id": int(row[0]) if row[0] is not None else 0,
-                        "name": str(row[1]) if row[1] is not None else "Inconnu",
-                        "calculated": float(row[2]),
-                        "view": float(row[3]),
-                        "materialized_view": float(row[4])
-                    })
-            except Exception as inner_exc:
-                logger.warning("Could not refresh mv_client_balances during reconciliation check: %s", inner_exc)
+        # Self-healing check (SQLite evaluates views dynamically)
+        pass
 
         status_label = "Conforme" if not discrepancies else "Ecart detecte"
         return {
@@ -246,10 +225,10 @@ def log_server_start() -> None:
     conn = connect_database(DATABASE_URL)
     try:
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS system_logs (id SERIAL PRIMARY KEY, level TEXT NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+            "CREATE TABLE IF NOT EXISTS system_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, level TEXT NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
         )
         conn.execute(
-            "INSERT INTO system_logs (level, message, created_at) VALUES (%s, %s, CURRENT_TIMESTAMP)",
+            "INSERT INTO system_logs (level, message, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
             ("info", "Demarrage du serveur"),
         )
         conn.commit()

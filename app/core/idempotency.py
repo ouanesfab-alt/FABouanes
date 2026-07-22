@@ -68,7 +68,7 @@ async def cleanup_expired_idempotency_keys(max_age_days: int = 7) -> int:
     """
     try:
         result = await execute_db_async(
-            "DELETE FROM idempotent_requests WHERE created_at < NOW() - (%s * INTERVAL '1 day')",
+            "DELETE FROM idempotent_requests WHERE created_at < datetime('now', '-' || %s || ' days')",
             (max_age_days,),
         )
         deleted = result.rowcount if hasattr(result, "rowcount") else 0

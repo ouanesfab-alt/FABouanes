@@ -158,215 +158,62 @@ def _compress_sql_to_gz(sql_path: Path) -> Path:
 
 def capture_local_backup_snapshot(reason: str = "manual") -> Path:
     """
-    Produit une sauvegarde PostgreSQL compressée (.sql.gz).
+    Produit une sauvegarde SQLite compressée (.db.gz).
 
     Stratégie :
-    1. pg_dump  (natif, atomique, fiable)
-    2. Fallback Python pg8000  (si pg_dump absent)
-
-    La sauvegarde est écrite dans un fichier temporaire puis renommée
-    atomiquement pour éviter les fichiers partiels.
+    1. Copie atomique du fichier SQLite via shutil.copy2
+    2. Compression gzip
+    3. Chiffrement + renommage atomique
     """
     ensure_runtime_dirs()
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_reason = reason.replace(" ", "_")
-    # Nom final (compressé et chiffré)
     final_name = f"database_{stamp}_{safe_reason}{BACKUP_SUFFIX}"
     final_path = LOCAL_BACKUP_DIR / final_name
 
-    parsed = urlparse(DATABASE_URL)
-    username = parsed.username or "postgres"
-    password = parsed.password or ""
-    host = parsed.hostname or "127.0.0.1"
-    port = parsed.port or 5432
-    database = parsed.path.lstrip("/")
+    from app.core.config import DATABASE_URL
+    # Extract file path from sqlite:///... or sqlite+aiosqlite:///...
+    db_file_path = DATABASE_URL
+    for prefix in ("sqlite+aiosqlite:///", "sqlite:///"):
+        if db_file_path.startswith(prefix):
+            db_file_path = db_file_path[len(prefix):]
+            break
+    db_file = Path(db_file_path)
 
-    env = os.environ.copy()
-    if password:
-        env["PGPASSWORD"] = password
-
-    # ── 1. pg_dump ──────────────────────────────────────────────────────────
-    # Écriture dans un fichier temporaire, puis compression, puis chiffrement
     with tempfile.NamedTemporaryFile(
-        suffix=".sql",
+        suffix=".db",
         dir=LOCAL_BACKUP_DIR,
         delete=False,
     ) as tmp:
-        tmp_sql = Path(tmp.name)
+        tmp_db = Path(tmp.name)
 
     try:
-        pg_dump_bin = get_setting("pg_dump_path", "").strip() or "pg_dump"
-        cmd = [
-            pg_dump_bin,
-            "-h", host, "-p", str(port), "-U", username,
-            "-F", "p",          # format texte (plain SQL)
-            "--no-password",
-            "-f", str(tmp_sql),
-            database,
-        ]
-        subprocess.run(cmd, env=env, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # Compression
-        gz_tmp = tmp_sql.with_suffix(".sql.gz")
-        with open(tmp_sql, "rb") as fi, gzip.open(gz_tmp, "wb", compresslevel=6) as fo:
+        import sqlite3
+        if db_file.exists():
+            src_conn = sqlite3.connect(db_file)
+            dst_conn = sqlite3.connect(tmp_db)
+            try:
+                src_conn.backup(dst_conn)
+            finally:
+                dst_conn.close()
+                src_conn.close()
+        else:
+            shutil.copy2(db_file, tmp_db)
+
+        gz_tmp = tmp_db.with_suffix(".db.gz")
+        with open(tmp_db, "rb") as fi, gzip.open(gz_tmp, "wb", compresslevel=6) as fo:
             shutil.copyfileobj(fi, fo)
-        tmp_sql.unlink(missing_ok=True)
-        # Chiffrement puis renommage atomique
-        enc_tmp = gz_tmp.with_suffix(".sql.gz.enc")
+        tmp_db.unlink(missing_ok=True)
+
+        enc_tmp = gz_tmp.with_suffix(".db.gz.enc")
         _encrypt_file(gz_tmp, enc_tmp)
         gz_tmp.unlink(missing_ok=True)
         enc_tmp.rename(final_path)
         return final_path
 
-    except Exception:
-        # pg_dump a échoué — nettoyage
-        tmp_sql.unlink(missing_ok=True)
-        try:
-            gz_tmp.unlink(missing_ok=True)
-        except Exception:
-            pass
-
-    # ── 2. Fallback Python ──────────────────────────────────────────────────
-    # Génération via pg8000 dans une transaction READ ONLY pour cohérence.
-    # On utilise COPY TO STDOUT … pour éviter les TRUNCATE CASCADE risqués.
-    try:
-        from app.core.db_helpers import connect_database
-
-        conn = connect_database(DATABASE_URL)
-        try:
-            # 1. Fetch tables
-            cur = conn.execute(
-                """
-                SELECT tablename
-                FROM pg_tables
-                WHERE schemaname = 'public'
-                ORDER BY tablename
-                """
-            )
-            tables = [r[0] if not hasattr(r, "keys") else r["tablename"] for r in cur.fetchall()]
-            cur.close()
-
-            # 2. Fetch foreign key dependencies
-            cur = conn.execute(
-                """
-                SELECT
-                    tc.table_name AS child_table,
-                    ccu.table_name AS parent_table
-                FROM
-                    information_schema.table_constraints AS tc
-                    JOIN information_schema.key_column_usage AS kcu
-                      ON tc.constraint_name = kcu.constraint_name
-                      AND tc.table_schema = kcu.table_schema
-                    JOIN information_schema.constraint_column_usage AS ccu
-                      ON ccu.constraint_name = tc.constraint_name
-                      AND ccu.table_schema = tc.table_schema
-                WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public'
-                """
-            )
-            deps_raw = cur.fetchall()
-            cur.close()
-
-            dependencies = {}
-            for dep in deps_raw:
-                child = dep[0] if not hasattr(dep, "keys") else dep["child_table"]
-                parent = dep[1] if not hasattr(dep, "keys") else dep["parent_table"]
-                if child not in dependencies:
-                    dependencies[child] = set()
-                dependencies[child].add(parent)
-
-            # 3. Topological sort
-            visited = {}
-            ordered_tables = []
-
-            def visit(node):
-                if visited.get(node) == "visiting" or visited.get(node) == "visited":
-                    return
-                visited[node] = "visiting"
-                for parent in dependencies.get(node, []):
-                    if parent in tables:
-                        visit(parent)
-                visited[node] = "visited"
-                ordered_tables.append(node)
-
-            for table in tables:
-                visit(table)
-
-            with tempfile.NamedTemporaryFile(
-                mode="wt",
-                suffix=".sql",
-                dir=LOCAL_BACKUP_DIR,
-                delete=False,
-                encoding="utf-8",
-            ) as tmp_f:
-                tmp_sql2 = Path(tmp_f.name)
-                tmp_f.write("-- FABOuanes Fallback SQL Dump (pg8000)\n")
-                tmp_f.write(f"-- Created at: {datetime.now().isoformat()}\n\n")
-                tmp_f.write("BEGIN;\n")
-                tmp_f.write("SET CONSTRAINTS ALL DEFERRED;\n\n")
-
-                from app.core.db_helpers import validate_identifier
-
-                # Deletions in child-to-parent order
-                for table in reversed(ordered_tables):
-                    validate_identifier(table)
-                    tmp_f.write(f"DELETE FROM {table};\n")
-                tmp_f.write("\n")
-
-                # Insertions in parent-to-child order
-                for table in ordered_tables:
-                    validate_identifier(table)
-                    # Colonnes
-                    cur = conn.execute(
-                        "SELECT column_name FROM information_schema.columns "
-                        "WHERE table_schema='public' AND table_name=%s "
-                        "ORDER BY ordinal_position",
-                        (table,),
-                    )
-                    cols = [r[0] if not hasattr(r, "keys") else r["column_name"] for r in cur.fetchall()]
-                    cur.close()
-
-                    cur = conn.execute(f"SELECT * FROM {table}")
-                    rows = cur.fetchall()
-                    cur.close()
-
-                    for row in rows:
-                        vals = []
-                        for col in cols:
-                            val = row[col] if hasattr(row, "keys") else row[cols.index(col)]
-                            if val is None:
-                                vals.append("NULL")
-                            elif isinstance(val, bool):
-                                vals.append("TRUE" if val else "FALSE")
-                            elif isinstance(val, (int, float)):
-                                vals.append(str(val))
-                            else:
-                                escaped = str(val).replace("'", "''")
-                                vals.append(f"'{escaped}'")
-                        cols_str = ", ".join(cols)
-                        vals_str = ", ".join(vals)
-                        tmp_f.write(f"INSERT INTO {table} ({cols_str}) VALUES ({vals_str});\n")
-                    tmp_f.write("\n")
-
-                tmp_f.write("COMMIT;\n")
-
-        finally:
-            conn.close()
-
-        # Compression + chiffrement + renommage atomique
-        gz_tmp2 = tmp_sql2.with_suffix(".sql.gz")
-        with open(tmp_sql2, "rb") as fi, gzip.open(gz_tmp2, "wb", compresslevel=6) as fo:
-            shutil.copyfileobj(fi, fo)
-        tmp_sql2.unlink(missing_ok=True)
-
-        enc_tmp2 = gz_tmp2.with_suffix(".sql.gz.enc")
-        _encrypt_file(gz_tmp2, enc_tmp2)
-        gz_tmp2.unlink(missing_ok=True)
-
-        enc_tmp2.rename(final_path)
-        return final_path
-
     except Exception as fe:
-        # Dernier recours : écrire un fichier d'erreur compressé et chiffré
-        error_sql = f"-- PostgreSQL backup failed.\n-- fallback error: {fe}\n"
+        tmp_db.unlink(missing_ok=True)
+        error_sql = f"-- SQLite backup failed.\n-- error: {fe}\n"
         with tempfile.NamedTemporaryFile(delete=False, suffix=".gz", dir=LOCAL_BACKUP_DIR) as terr:
             terr_path = Path(terr.name)
         with gzip.open(terr_path, "wt", encoding="utf-8") as fz:

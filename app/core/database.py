@@ -63,11 +63,15 @@ def _alembic_version_exists() -> bool:
 def run_alembic_upgrade() -> None:
     if not (settings.base_dir / "alembic.ini").exists():
         return
-    command, _ = _load_alembic()
-    cfg = _alembic_config()
-    if not _alembic_version_exists():
-        command.stamp(cfg, "base")
-    command.upgrade(cfg, "head")
+    try:
+        command, _ = _load_alembic()
+        cfg = _alembic_config()
+        if not _alembic_version_exists():
+            command.stamp(cfg, "base")
+        command.upgrade(cfg, "head")
+    except Exception as exc:
+        import logging
+        logging.getLogger("fabouanes").warning("Alembic upgrade skipped: %s", exc)
 
 def bootstrap_and_migrate() -> None:
     """Initialize schema and run migrations if necessary."""

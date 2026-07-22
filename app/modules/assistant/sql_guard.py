@@ -96,9 +96,12 @@ class SqlValidationResult:
 
 def _parse_postgres_sql(query: str) -> SqlValidationResult:
     try:
-        statements = sqlglot.parse(query, read="postgres")
-    except Exception as exc:
-        return SqlValidationResult(False, f"Erreur de syntaxe ou de validation SQL : {exc}")
+        statements = sqlglot.parse(query, read="sqlite")
+    except Exception:
+        try:
+            statements = sqlglot.parse(query, read="postgres")
+        except Exception as exc:
+            return SqlValidationResult(False, f"Erreur de syntaxe ou de validation SQL : {exc}")
 
     if not statements:
         return SqlValidationResult(False, "Aucune requête SQL valide fournie.")

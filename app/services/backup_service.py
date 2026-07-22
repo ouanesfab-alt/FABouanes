@@ -440,19 +440,16 @@ async def run_deferred_event_backup(*, force: bool = False, reason: str = "defer
     return backup_path
 
 
-def _acquire_postgres_scheduler_lock():
+def _acquire_scheduler_lock():
+    """Simple in-process lock for SQLite (single-worker mode always returns True)."""
     with BACKGROUND_LOCK:
         if BACKGROUND_STATE.get("leader_conn") is not None:
             return True
     try:
         leader_conn = connect_database(DATABASE_URL)
-        row = leader_conn.execute("SELECT pg_try_advisory_lock(%s) AS locked", (SCHEDULER_LOCK_ID,)).fetchone()
-        locked = bool(row["locked"] if hasattr(row, "keys") else row[0])
-        if locked:
-            with BACKGROUND_LOCK:
-                BACKGROUND_STATE["leader_conn"] = leader_conn
-            return True
-        leader_conn.close()
+        with BACKGROUND_LOCK:
+            BACKGROUND_STATE["leader_conn"] = leader_conn
+        return True
     except Exception:
         logger.exception("Unable to acquire scheduler leader lock")
     return False
@@ -476,9 +473,9 @@ async def trigger_nightly_snapshot_if_due() -> bool:
 
         backup_path = await asyncio.to_thread(capture_local_backup_snapshot, "nightly_snapshot")
         await _enqueue_backup_upload_impl("nightly_snapshot", "nightly", backup_path, None, {"scheduled": True}, db=session)
-        from app.core.storage import clear_backup_needed
+        from app.core.storage import BACKUP_NEEDED_SETTING
 
-        await asyncio.to_thread(clear_backup_needed)
+        await _set_setting_db(BACKUP_NEEDED_SETTING, "", session)
         await _set_setting_db("backup_last_nightly_date", today, session)
         await session.commit()
 
@@ -500,12 +497,12 @@ async def _purge_old_logs() -> None:
             for table in ("performance_logs", "error_logs", "system_logs"):
                 if table not in ALLOWED_LOG_TABLES:
                     raise ValueError(f"Table {table} is not allowed for log purge")
-                await session.execute(text(f"DELETE FROM {table} WHERE created_at < NOW() - INTERVAL '7 days'"))
+                await session.execute(text(f"DELETE FROM {table} WHERE created_at < datetime('now', '-7 days')"))
             # Purge pubsub_events and processed outbox_events older than 7 days
-            await session.execute(text("DELETE FROM pubsub_events WHERE created_at < NOW() - INTERVAL '7 days'"))
-            await session.execute(text("DELETE FROM outbox_events WHERE processed_at IS NOT NULL AND processed_at < NOW() - INTERVAL '7 days'"))
+            await session.execute(text("DELETE FROM pubsub_events WHERE created_at < datetime('now', '-7 days')"))
+            await session.execute(text("DELETE FROM outbox_events WHERE processed_at IS NOT NULL AND processed_at < datetime('now', '-7 days')"))
             # Purge rate limit events older than 1 day
-            await session.execute(text("DELETE FROM rate_limit_events WHERE hit_at < NOW() - INTERVAL '1 day'"))
+            await session.execute(text("DELETE FROM rate_limit_events WHERE hit_at < datetime('now', '-1 day')"))
             await session.commit()
     except Exception as e:
         logger.debug("Log purge skipped or failed: %s", e)
@@ -535,26 +532,20 @@ async def _weekly_vacuum() -> None:
         from app.core.config import DATABASE_URL
         from sqlalchemy import create_engine
 
-        # VACUUM cannot run inside a transaction block, we need autocommit
-        url = DATABASE_URL
-        if url.startswith("postgresql://"):
-            url = "postgresql+pg8000://" + url[len("postgresql://"):]
-        elif url.startswith("postgres://"):
-            url = "postgresql+pg8000://" + url[len("postgres://"):]
-
+        # SQLite VACUUM — runs outside transaction, use autocommit engine
         def run_vacuum():
-            engine = create_engine(url, isolation_level="AUTOCOMMIT")
+            engine = create_engine(DATABASE_URL, isolation_level="AUTOCOMMIT")
             with engine.connect() as conn:
-                conn.execute(text("VACUUM ANALYZE"))
+                conn.execute(text("VACUUM"))
             engine.dispose()
 
         await asyncio.to_thread(run_vacuum)
         async with get_async_sessionmaker()() as session:
             await _set_setting_db("last_vacuum_date", today, session)
             await session.commit()
-        logger.info("Weekly VACUUM ANALYZE completed successfully.")
+        logger.info("Weekly SQLite VACUUM completed successfully.")
     except Exception as e:
-        logger.warning("Weekly VACUUM ANALYZE failed: %s", e)
+        logger.warning("Weekly VACUUM failed: %s", e)
 
 
 async def _safe_run_async(task_name: str, func, *args, **kwargs) -> bool:
@@ -594,9 +585,7 @@ def _background_loop(app) -> None:
                 loop_counter = BACKGROUND_STATE.get("loop_counter", 0) + 1
                 BACKGROUND_STATE["loop_counter"] = loop_counter
             if loop_counter % 20 == 0:
-                from app.core.db_helpers import postgres_pool_status
-                stats = postgres_pool_status(DATABASE_URL)
-                logger.debug("PG Pool status: %s", stats)
+                logger.debug("SQLite background loop count: %s", loop_counter)
 
             # Call check_stock_alerts every 30 minutes (40 loops of 45s)
             if loop_counter == 1 or loop_counter % 40 == 0:
@@ -646,8 +635,8 @@ def start_background_services(app=None) -> None:
         if multi_worker and not scheduler_owner:
             logger.warning("Backup scheduler disabled in multi-worker runtime; run one FAB_BACKUP_SCHEDULER=1 process.")
             return
-        if not _acquire_postgres_scheduler_lock():
-            logger.info("Backup scheduler skipped: PostgreSQL advisory lock is held by another process.")
+        if not _acquire_scheduler_lock():
+            logger.info("Backup scheduler skipped: lock held by another process.")
             return
         BACKGROUND_STATE["started"] = True
         thread = threading.Thread(target=_background_loop, args=(app,), name="fab-backup-scheduler", daemon=True)
@@ -662,7 +651,6 @@ def shutdown_background_services(app=None) -> None:
         conn = BACKGROUND_STATE.get("leader_conn")
         if conn is not None:
             try:
-                conn.execute("SELECT pg_advisory_unlock(%s)", (SCHEDULER_LOCK_ID,))
                 conn.close()
             except Exception:
                 pass

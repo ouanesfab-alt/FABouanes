@@ -105,9 +105,9 @@ def bootstrap_desktop_install(reason: str = "desktop_startup") -> dict:
     ensure_desktop_paths()
     db_url = os.environ.get("DATABASE_URL", "").strip()
     if not db_url:
-        raise RuntimeError("DATABASE_URL est manquante. PostgreSQL est requis.")
-    if not db_url.lower().startswith(("postgres://", "postgresql://")):
-        raise RuntimeError("Seul PostgreSQL est supporte.")
+        db_path = (DATA_DIR / "fabouanes.db").resolve().as_posix()
+        db_url = f"sqlite+aiosqlite:///{db_path}"
+        os.environ["DATABASE_URL"] = db_url
 
     from app.core.database import bootstrap_and_migrate
     from app.core.runtime_paths import ensure_runtime_dirs
@@ -383,7 +383,153 @@ def show_startup_splash(port: int, timeout: float = 45.0) -> bool:
     return ready
 
 
-def open_ui(url: str) -> None:
+INSTANCE_LOCK_SOCKET = None
+
+
+def check_single_instance() -> bool:
+    global INSTANCE_LOCK_SOCKET
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind(("127.0.0.1", 59988))
+        INSTANCE_LOCK_SOCKET = sock
+        return True
+    except OSError:
+        return False
+
+
+def check_postgres_connection_silent() -> tuple[bool, str]:
+    db_url = os.environ.get("DATABASE_URL", "").strip()
+    if not db_url:
+        return False, "DATABASE_URL est absente dans le fichier .env"
+    try:
+        import sqlalchemy as sa
+        engine = sa.create_engine(db_url, connect_args={"connect_timeout": 3})
+        with engine.connect() as conn:
+            conn.execute(sa.text("SELECT 1"))
+        return True, "OK"
+    except Exception as exc:
+        return False, str(exc)
+
+
+def show_postgres_error_dialog(error_msg: str) -> bool:
+    try:
+        import tkinter as tk
+
+        root = tk.Tk()
+        root.title(f"{APP_NAME} — Diagnostic PostgreSQL")
+        root.geometry("520x360")
+        root.configure(bg="#F8FAFC")
+        root.resizable(False, False)
+
+        icon_path = get_window_icon()
+        if icon_path and icon_path.exists():
+            try:
+                root.iconbitmap(default=str(icon_path))
+            except Exception:
+                pass
+
+        tk.Label(root, text="⚠️ Connexion PostgreSQL Impossible", font=("Segoe UI", 13, "bold"), fg="#DC2626", bg="#F8FAFC").pack(pady=(16, 6))
+
+        info_txt = (
+            "FABOuanes a besoin d'un serveur PostgreSQL actif.\n"
+            "Vérifiez que le service PostgreSQL est démarré sur votre machine."
+        )
+        tk.Label(root, text=info_txt, font=("Segoe UI", 9.5), fg="#334155", bg="#F8FAFC", justify="center").pack(pady=4)
+
+        text_box = tk.Text(root, height=5, width=58, font=("Consolas", 8), bg="#F1F5F9", fg="#0F172A", relief="solid", bd=1)
+        text_box.insert("1.0", f"Détails de l'erreur:\n{error_msg}")
+        text_box.config(state="disabled")
+        text_box.pack(pady=8)
+
+        user_choice = {"action": "exit"}
+
+        def try_start_service():
+            try:
+                import subprocess
+                subprocess.run("net start postgresql-x64-16", shell=True, capture_output=True)
+                subprocess.run("sc start postgresql", shell=True, capture_output=True)
+            except Exception:
+                pass
+            user_choice["action"] = "retry"
+            root.destroy()
+
+        def retry_conn():
+            user_choice["action"] = "retry"
+            root.destroy()
+
+        def exit_app():
+            user_choice["action"] = "exit"
+            root.destroy()
+
+        btn_frame = tk.Frame(root, bg="#F8FAFC")
+        btn_frame.pack(pady=12)
+
+        tk.Button(btn_frame, text="⚡ Démarrer Service PG (Windows)", command=try_start_service, bg="#2563EB", fg="white", font=("Segoe UI", 9, "bold"), padx=8, pady=4, relief="flat", cursor="hand2").pack(side="left", padx=4)
+        tk.Button(btn_frame, text="🔄 Réessayer", command=retry_conn, bg="#059669", fg="white", font=("Segoe UI", 9, "bold"), padx=8, pady=4, relief="flat", cursor="hand2").pack(side="left", padx=4)
+        tk.Button(btn_frame, text="❌ Quitter", command=exit_app, bg="#64748B", fg="white", font=("Segoe UI", 9), padx=8, pady=4, relief="flat", cursor="hand2").pack(side="left", padx=4)
+
+        root.mainloop()
+        return user_choice["action"] == "retry"
+    except Exception:
+        return False
+
+
+class DesktopAPI:
+    """Bridge Python-JavaScript pour les fonctionnalités natives de l'application bureau."""
+
+    def __init__(self, port: int, host: str):
+        self.port = port
+        self.host = host
+
+    def get_system_status(self) -> dict:
+        lan_ip = os.environ.get("FAB_LAN_IP") or get_local_ip()
+        return {
+            "status": "online",
+            "version": APP_VERSION,
+            "port": self.port,
+            "lan_ip": lan_ip,
+            "url_local": f"http://127.0.0.1:{self.port}",
+            "url_lan": f"http://{lan_ip}:{self.port}",
+        }
+
+    def copy_to_clipboard(self, text: str) -> bool:
+        try:
+            import tkinter as tk
+            r = tk.Tk()
+            r.withdraw()
+            r.clipboard_clear()
+            r.clipboard_append(text)
+            r.update()
+            r.destroy()
+            return True
+        except Exception:
+            return False
+
+    def open_external_url(self, url: str) -> bool:
+        try:
+            webbrowser.open(url)
+            return True
+        except Exception:
+            return False
+
+    def trigger_local_backup(self) -> dict:
+        try:
+            from app.core.storage import backup_database
+            res = backup_database("desktop_api_trigger")
+            return {"success": True, "result": str(res)}
+        except Exception as err:
+            return {"success": False, "error": str(err)}
+
+    def open_data_folder(self) -> bool:
+        try:
+            if os.name == "nt":
+                os.startfile(DATA_DIR)
+            return True
+        except Exception:
+            return False
+
+
+def open_ui(url: str, port: int = 5000) -> None:
     try:
         import webview
 
@@ -392,6 +538,8 @@ def open_ui(url: str) -> None:
 
         # Vider le cache HTTP de WebView2 pour charger les CSS/JS les plus récents
         clear_webview_http_cache()
+
+        api = DesktopAPI(port=port, host=get_bind_host())
 
         window = webview.create_window(
             APP_NAME,
@@ -404,6 +552,7 @@ def open_ui(url: str) -> None:
             confirm_close=True,
             text_select=True,
             background_color="#F5F7FB",
+            js_api=api,
         )
         icon_path = get_window_icon()
 
@@ -476,6 +625,7 @@ def open_ui(url: str) -> None:
 
 def main() -> None:
     args = LAUNCH_ARGS
+
     if "--bootstrap-only" in args:
         try:
             reason = "installer_post_install" if "--post-install" in args else "bootstrap_only"
@@ -486,6 +636,13 @@ def main() -> None:
             write_bootstrap_log(f"Bootstrap echec: {exc}")
             print(f"Bootstrap failed: {exc}")
             sys.exit(1)
+
+    # 1. Single Instance Check
+    if not check_single_instance():
+        port = int(os.environ.get("FAB_PORT", "5000") or "5000")
+        print(f"[{APP_NAME}] L'application est déjà en cours d'exécution.", flush=True)
+        webbrowser.open(f"http://127.0.0.1:{port}")
+        sys.exit(0)
 
     if args & SERVER_MODE_ARGS:
         host = get_bind_host()
@@ -526,8 +683,9 @@ def main() -> None:
         print(f"\n  Acces mobile / reseau local : http://{lan_ip}:{port}\n", flush=True)
     print("Garde cette application ouverte pour laisser les autres machines connectees.", flush=True)
 
-    open_ui(f"http://127.0.0.1:{port}")
+    open_ui(f"http://127.0.0.1:{port}", port=port)
 
 
 if __name__ == "__main__":
     main()
+

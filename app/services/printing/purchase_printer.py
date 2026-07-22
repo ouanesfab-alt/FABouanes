@@ -64,17 +64,17 @@ async def _build_purchase_payload_impl(
                CASE
                    WHEN p.finished_product_id IS NOT NULL THEN COALESCE(p.unit, fp.default_unit, 'kg')
                    ELSE COALESCE(p.unit, rm.unit, 'kg')
-               END AS display_unit,
-               CASE
-                   WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) LIKE 'sac%' THEN p.quantity / COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
-                   WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
-                   ELSE p.quantity
-               END AS display_quantity,
-               CASE
-                   WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) LIKE 'sac%' THEN p.unit_price * COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
-                   WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
-                   ELSE p.unit_price
-               END AS display_unit_price,
+                END AS display_unit,
+                CASE
+                    WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) LIKE 'sac%' THEN p.quantity / CAST(COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50') AS NUMERIC)
+                    WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
+                    ELSE p.quantity
+                END AS display_quantity,
+                CASE
+                    WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) LIKE 'sac%' THEN p.unit_price * CAST(COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50') AS NUMERIC)
+                    WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
+                    ELSE p.unit_price
+                END AS display_unit_price,
                s.name AS partner_name, s.phone AS partner_phone, s.address AS partner_address
          FROM purchases p
          LEFT JOIN raw_materials rm ON rm.id = p.raw_material_id
@@ -157,12 +157,12 @@ async def _build_purchase_document_payload_impl(
                    ELSE COALESCE(p.unit, rm.unit, 'kg')
                END AS display_unit,
                CASE
-                   WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) LIKE 'sac%' THEN p.quantity / COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
+                   WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) LIKE 'sac%' THEN p.quantity / CAST(COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50') AS NUMERIC)
                    WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
                    ELSE p.quantity
                END AS display_quantity,
                CASE
-                   WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) LIKE 'sac%' THEN p.unit_price * COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
+                   WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) LIKE 'sac%' THEN p.unit_price * CAST(COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50') AS NUMERIC)
                    WHEN lower(COALESCE(p.unit, fp.default_unit, rm.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
                    ELSE p.unit_price
                END AS display_unit_price

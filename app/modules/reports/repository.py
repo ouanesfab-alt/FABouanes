@@ -644,10 +644,10 @@ async def _build_stock_materials(cutoff_30d: str, db: AsyncSession) -> list[dict
 async def _build_debt_by_client(db: AsyncSession) -> list:
     try:
         mv_query = select(
-            literal_column("client_id").label("id"),
+            literal_column("id").label("id"),
             literal_column("name"),
-            literal_column("balance")
-        ).select_from(text("mv_client_balances")).where(literal_column("balance") > 0).order_by(literal_column("balance").desc()).limit(10)
+            literal_column("current_balance").label("balance")
+        ).select_from(text("clients_with_stats")).where(literal_column("current_balance") > 0).order_by(literal_column("current_balance").desc()).limit(10)
         res = await db.execute(mv_query)
         return [dict(r._mapping) for r in res.all()]
     except Exception:
@@ -732,16 +732,8 @@ async def refresh_client_balances_view(db: AsyncSession | None = None) -> None:
 
     _LAST_REFRESH_TIME_IN_MEM = now
 
-    try:
-        if db is None:
-            async with get_async_sessionmaker()() as session:
-                await session.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_client_balances"))
-                await session.commit()
-        else:
-            await db.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_client_balances"))
-        logger.info("Materialized view mv_client_balances refreshed successfully")
-    except Exception as e:
-        logger.debug("Could not refresh mv_client_balances: %s", e)
+    # SQLite evaluates views dynamically — no materialized view refresh needed
+    pass
 
 
 async def _dashboard_daily_summary(today: str, week_iso: str, db: AsyncSession) -> dict[str, float]:
@@ -776,7 +768,7 @@ async def _dashboard_daily_summary(today: str, week_iso: str, db: AsyncSession) 
 
 
 async def _dashboard_cumulative_summary(db: AsyncSession) -> dict[str, float]:
-    total_receivables_sub = select(func.coalesce(func.sum(literal_column("balance")), 0)).select_from(text("mv_client_balances")).scalar_subquery()
+    total_receivables_sub = select(func.coalesce(func.sum(literal_column("current_balance")), 0)).select_from(text("clients_with_stats")).scalar_subquery()
 
     total_profit_sub = select(
         func.coalesce(select(func.sum(Sale.profit_amount)).scalar_subquery(), 0) +
@@ -1013,7 +1005,7 @@ async def _build_kpis_for_period(period: str, db: AsyncSession) -> dict[str, flo
     s_profit = select(func.coalesce(func.sum(Sale.profit_amount), 0)).where(Sale.sale_date >= start_date, Sale.sale_date <= today_obj).scalar_subquery()
     rs_profit = select(func.coalesce(func.sum(RawSale.profit_amount), 0)).where(RawSale.sale_date >= start_date, RawSale.sale_date <= today_obj).scalar_subquery()
 
-    total_receivables_sub = select(func.coalesce(func.sum(literal_column("balance")), 0)).select_from(text("mv_client_balances")).scalar_subquery()
+    total_receivables_sub = select(func.coalesce(func.sum(literal_column("current_balance")), 0)).select_from(text("clients_with_stats")).scalar_subquery()
 
     query = select(
         (s_sales + rs_sales).label("sales"),
@@ -1024,12 +1016,15 @@ async def _build_kpis_for_period(period: str, db: AsyncSession) -> dict[str, flo
 
     res = await db.execute(query)
     row = res.first()
-    return {
-        "sales": float(row._mapping["sales"] if row else 0),
-        "cash": float(row._mapping["cash"] if row else 0),
-        "profit": float(row._mapping["profit"] if row else 0),
-        "receivables": float(row._mapping["receivables"] if row else 0),
-    }
+    if row:
+        mapping = dict(row._mapping)
+        return {
+            "sales": float(mapping.get("sales") or 0),
+            "cash": float(mapping.get("cash") or 0),
+            "profit": float(mapping.get("profit") or 0),
+            "receivables": float(mapping.get("receivables") or 0),
+        }
+    return {"sales": 0.0, "cash": 0.0, "profit": 0.0, "receivables": 0.0}
 
 
 @db_task_compat
@@ -1047,9 +1042,24 @@ async def get_kpi_history_last_30_days(metric: str, db: AsyncSession | None = No
 
 
 async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> tuple[list[str], list[float]]:
-    from datetime import date, timedelta
+    from datetime import date, datetime, timedelta
     from app.core.models import Client
     from sqlalchemy import cast, Date
+
+    def _normalize_db_date(val):
+        if val is None:
+            return None
+        if isinstance(val, date):
+            return val
+        if isinstance(val, datetime):
+            return val.date()
+        if isinstance(val, str):
+            val = val.split(" ")[0]
+            try:
+                return date.fromisoformat(val.strip())
+            except ValueError:
+                pass
+        return None
 
     today_obj = date.today()
     start_date = today_obj - timedelta(days=days - 1)
@@ -1061,16 +1071,20 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
     values = {d: 0.0 for d in date_list}
 
     if metric == "sales":
-        q1 = select(Sale.sale_date, func.sum(Sale.total)).where(Sale.sale_date >= start_date).group_by(Sale.sale_date)
+        s_date = func.date(Sale.sale_date)
+        q1 = select(s_date, func.sum(Sale.total)).where(s_date >= start_date.isoformat()).group_by(s_date)
         res1 = await db.execute(q1)
         for d, tot in res1.all():
-            if d in values:
-                values[d] += float(tot or 0)
-        q2 = select(RawSale.sale_date, func.sum(RawSale.total)).where(RawSale.sale_date >= start_date).group_by(RawSale.sale_date)
+            d_norm = _normalize_db_date(d)
+            if d_norm in values:
+                values[d_norm] += float(tot or 0)
+        rs_date = func.date(RawSale.sale_date)
+        q2 = select(rs_date, func.sum(RawSale.total)).where(rs_date >= start_date.isoformat()).group_by(rs_date)
         res2 = await db.execute(q2)
         for d, tot in res2.all():
-            if d in values:
-                values[d] += float(tot or 0)
+            d_norm = _normalize_db_date(d)
+            if d_norm in values:
+                values[d_norm] += float(tot or 0)
 
         # Rendre cumulatif
         running = 0.0
@@ -1079,11 +1093,13 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
             values[d] = running
 
     elif metric == "cash":
-        q = select(Payment.payment_date, func.sum(Payment.amount)).where(Payment.payment_date >= start_date).group_by(Payment.payment_date)
+        p_date = func.date(Payment.payment_date)
+        q = select(p_date, func.sum(Payment.amount)).where(p_date >= start_date.isoformat()).group_by(p_date)
         res = await db.execute(q)
         for d, tot in res.all():
-            if d in values:
-                values[d] = float(tot or 0)
+            d_norm = _normalize_db_date(d)
+            if d_norm in values:
+                values[d_norm] = float(tot or 0)
 
         # Rendre cumulatif
         running = 0.0
@@ -1092,16 +1108,20 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
             values[d] = running
 
     elif metric == "profit":
-        q1 = select(Sale.sale_date, func.sum(Sale.profit_amount)).where(Sale.sale_date >= start_date).group_by(Sale.sale_date)
+        s_date = func.date(Sale.sale_date)
+        q1 = select(s_date, func.sum(Sale.profit_amount)).where(s_date >= start_date.isoformat()).group_by(s_date)
         res1 = await db.execute(q1)
         for d, tot in res1.all():
-            if d in values:
-                values[d] += float(tot or 0)
-        q2 = select(RawSale.sale_date, func.sum(RawSale.profit_amount)).where(RawSale.sale_date >= start_date).group_by(RawSale.sale_date)
+            d_norm = _normalize_db_date(d)
+            if d_norm in values:
+                values[d_norm] += float(tot or 0)
+        rs_date = func.date(RawSale.sale_date)
+        q2 = select(rs_date, func.sum(RawSale.profit_amount)).where(rs_date >= start_date.isoformat()).group_by(rs_date)
         res2 = await db.execute(q2)
         for d, tot in res2.all():
-            if d in values:
-                values[d] += float(tot or 0)
+            d_norm = _normalize_db_date(d)
+            if d_norm in values:
+                values[d_norm] += float(tot or 0)
 
         # Rendre cumulatif
         running = 0.0
@@ -1110,31 +1130,37 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
             values[d] = running
 
     elif metric == "receivables":
-        current_rec = float(await db.scalar(select(func.coalesce(func.sum(literal_column("balance")), 0)).select_from(text("mv_client_balances"))) or 0)
+        current_rec = float(await db.scalar(select(func.coalesce(func.sum(literal_column("current_balance")), 0)).select_from(text("clients_with_stats"))) or 0)
 
-        sf_changes = select(Sale.sale_date, func.sum(Sale.total)).where(Sale.sale_type == 'credit', Sale.sale_date >= start_date).group_by(Sale.sale_date)
+        s_date = func.date(Sale.sale_date)
+        sf_changes = select(s_date, func.sum(Sale.total)).where(Sale.sale_type == 'credit', s_date >= start_date.isoformat()).group_by(s_date)
         res_sf = await db.execute(sf_changes)
-        sf_map = {d: float(tot or 0) for d, tot in res_sf.all()}
+        sf_map = {_normalize_db_date(d): float(tot or 0) for d, tot in res_sf.all() if _normalize_db_date(d)}
 
-        sr_changes = select(RawSale.sale_date, func.sum(RawSale.total)).where(RawSale.sale_type == 'credit', RawSale.sale_date >= start_date).group_by(RawSale.sale_date)
+        rs_date = func.date(RawSale.sale_date)
+        sr_changes = select(rs_date, func.sum(RawSale.total)).where(RawSale.sale_type == 'credit', rs_date >= start_date.isoformat()).group_by(rs_date)
         res_sr = await db.execute(sr_changes)
-        sr_map = {d: float(tot or 0) for d, tot in res_sr.all()}
+        sr_map = {_normalize_db_date(d): float(tot or 0) for d, tot in res_sr.all() if _normalize_db_date(d)}
 
-        p_changes = select(Payment.payment_date, Payment.payment_type, func.sum(Payment.amount)).where(Payment.payment_date >= start_date).group_by(Payment.payment_date, Payment.payment_type)
+        p_date = func.date(Payment.payment_date)
+        p_changes = select(p_date, Payment.payment_type, func.sum(Payment.amount)).where(p_date >= start_date.isoformat()).group_by(p_date, Payment.payment_type)
         res_p = await db.execute(p_changes)
         p_map = {}
         for d, ptype, amt in res_p.all():
-            if d not in p_map:
-                p_map[d] = 0.0
-            if ptype == 'versement':
-                p_map[d] -= float(amt or 0)
-            elif ptype == 'avance':
-                p_map[d] += float(amt or 0)
+            d_norm = _normalize_db_date(d)
+            if d_norm:
+                if d_norm not in p_map:
+                    p_map[d_norm] = 0.0
+                if ptype == 'versement':
+                    p_map[d_norm] -= float(amt or 0)
+                elif ptype == 'avance':
+                    p_map[d_norm] += float(amt or 0)
 
         # Intégrer les crédits initiaux créés sur la période à leur date de création
-        oc_changes = select(cast(Client.created_at, Date), func.sum(Client.opening_credit)).where(Client.opening_credit > 0, cast(Client.created_at, Date) >= start_date).group_by(cast(Client.created_at, Date))
+        date_expr = func.date(Client.created_at)
+        oc_changes = select(date_expr, func.sum(Client.opening_credit)).where(Client.opening_credit > 0, date_expr >= start_date.isoformat()).group_by(date_expr)
         res_oc = await db.execute(oc_changes)
-        oc_map = {d: float(tot or 0) for d, tot in res_oc.all()}
+        oc_map = {_normalize_db_date(d): float(tot or 0) for d, tot in res_oc.all() if _normalize_db_date(d)}
 
         running_receivables = current_rec
         for d in reversed(date_list):

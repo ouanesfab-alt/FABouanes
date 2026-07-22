@@ -67,46 +67,208 @@ class CompatCursor:
     def lastrowid(self):
         return getattr(self.cursor, "lastrowid", None)
 
+    @property
+    def rowcount(self):
+        return getattr(self.cursor, "rowcount", -1)
+
+    def __getattr__(self, name):
+        return getattr(self.cursor, name)
+
 
 def _clean_params(params):
     if not params:
         return params
+    from decimal import Decimal
     if not isinstance(params, (tuple, list)):
         if isinstance(params, dict):
-            return {k: (Decimal(str(v)) if isinstance(v, float) else v) for k, v in params.items()}
+            return {k: (float(v) if isinstance(v, Decimal) else v) for k, v in params.items()}
+        if isinstance(params, Decimal):
+            return float(params)
         return params
     cleaned = []
     for p in params:
-        if isinstance(p, float):
-            cleaned.append(Decimal(str(p)))
+        if isinstance(p, Decimal):
+            cleaned.append(float(p))
         elif isinstance(p, list):
-            cleaned.append([Decimal(str(x)) if isinstance(x, float) else x for x in p])
+            cleaned.append([float(x) if isinstance(x, Decimal) else x for x in p])
         elif isinstance(p, tuple):
-            cleaned.append(tuple(Decimal(str(x)) if isinstance(x, float) else x for x in p))
+            cleaned.append(tuple(float(x) if isinstance(x, Decimal) else x for x in p))
         else:
             cleaned.append(p)
     return tuple(cleaned) if isinstance(params, tuple) else cleaned
+
+
+def _register_sqlite_custom_functions(dbapi_conn):
+    try:
+        def _sqlite_regexp_replace(text, pattern, replacement, flags=""):
+            if text is None:
+                return None
+            import re
+            flg = re.IGNORECASE if "i" in str(flags) else 0
+            return re.sub(pattern, replacement, str(text), flags=flg)
+
+        def _sqlite_date_trunc(field, text):
+            if text is None:
+                return None
+            from datetime import datetime
+            try:
+                s_text = str(text)
+                if s_text.lower() in ("current_date", "now()"):
+                    dt = datetime.now()
+                else:
+                    dt = datetime.fromisoformat(s_text.replace("Z", "+00:00"))
+                f = str(field).lower().strip("'\"")
+                if f == "month":
+                    return dt.strftime("%Y-%m-01 00:00:00")
+                if f == "year":
+                    return dt.strftime("%Y-01-01 00:00:00")
+                if f == "day":
+                    return dt.strftime("%Y-%m-%d 00:00:00")
+                return s_text
+            except Exception:
+                return str(text)
+
+        if hasattr(dbapi_conn, "create_function"):
+            dbapi_conn.create_function("regexp_replace", 3, _sqlite_regexp_replace)
+            dbapi_conn.create_function("regexp_replace", 4, _sqlite_regexp_replace)
+            dbapi_conn.create_function("date_trunc", 2, _sqlite_date_trunc)
+    except Exception:
+        pass
+
+
+def _translate_query_for_sqlite(query: str, has_params: bool = True) -> str:
+    """Translate PostgreSQL SQL constructs to SQLite equivalents.
+
+    Applied transparently to every raw SQL string before execution so that
+    legacy PG-style queries work without touching each call-site.
+    """
+    if not isinstance(query, str):
+        query = str(query)
+
+    import re
+
+    # 1. PostgreSQL typecasts  (::numeric, ::text, ::jsonb, …)
+    query = re.sub(r'::[a-zA-Z0-9_ ]+', '', query)
+
+    # 2. %s → ? placeholder normalisation
+    if has_params and "%s" in query:
+        query = query.replace("%s", "?")
+
+    # 3. NOW() → CURRENT_TIMESTAMP
+    query = re.sub(r'\bNOW\s*\(\s*\)', 'CURRENT_TIMESTAMP', query, flags=re.I)
+
+    # 4. ILIKE → LIKE  (SQLite LIKE is already case-insensitive for ASCII)
+    query = re.sub(r'\bILIKE\b', 'LIKE', query, flags=re.I)
+
+    # 5. INTERVAL arithmetic  e.g.  NOW() - INTERVAL '7 days'  /  NOW() - 7 * INTERVAL '1 second'
+    #    Convert to SQLite datetime() arithmetic:
+    #       CURRENT_TIMESTAMP - INTERVAL 'N unit' → datetime(CURRENT_TIMESTAMP, '-N unit')
+    #    Simple scalar form: X - N * INTERVAL '1 second' → datetime(X, '-N seconds')
+    def _replace_interval(m):
+        value = m.group(1).strip()          # e.g. "7 days" or "1 day" or "24 hours"
+        parts = value.split()
+        if len(parts) >= 2:
+            num, unit = parts[0], parts[1].rstrip("'\"")
+            return f"datetime(CURRENT_TIMESTAMP, '-{num} {unit}')"
+        return f"datetime(CURRENT_TIMESTAMP, '-{value}')"
+
+    query = re.sub(
+        r"CURRENT_TIMESTAMP\s*-\s*INTERVAL\s*'([^']+)'",
+        _replace_interval,
+        query,
+        flags=re.I,
+    )
+    # N * INTERVAL '1 second' pattern (rate-limiter style)
+    query = re.sub(
+        r"CURRENT_TIMESTAMP\s*-\s*(\w+)\s*\*\s*INTERVAL\s*'1 second'",
+        lambda m: f"datetime(CURRENT_TIMESTAMP, '-' || {m.group(1)} || ' seconds')",
+        query,
+        flags=re.I,
+    )
+
+    # 6. EXTRACT(EPOCH FROM col) → strftime('%s', col)
+    query = re.sub(
+        r"EXTRACT\s*\(\s*EPOCH\s+FROM\s+([^)]+)\)",
+        lambda m: f"strftime('%s', {m.group(1).strip()})",
+        query,
+        flags=re.I,
+    )
+    # Other EXTRACT forms: EXTRACT(YEAR/MONTH/DAY FROM col)
+    _extract_map = {'year': '%Y', 'month': '%m', 'day': '%d', 'hour': '%H', 'minute': '%M', 'second': '%S'}
+    def _replace_extract(m):
+        part = m.group(1).lower().strip()
+        col  = m.group(2).strip()
+        fmt  = _extract_map.get(part)
+        if fmt:
+            return f"CAST(strftime('{fmt}', {col}) AS INTEGER)"
+        return m.group(0)
+    query = re.sub(
+        r"EXTRACT\s*\(\s*(\w+)\s+FROM\s+([^)]+)\)",
+        _replace_extract,
+        query,
+        flags=re.I,
+    )
+
+    # 7. to_char(col, fmt) → strftime(sqlite_fmt, col)
+    _pg_to_sqlite_fmt = {
+        "YYYY-MM":    "%Y-%m",
+        "YYYY":       "%Y",
+        "MM":         "%m",
+        "DD":         "%d",
+        "YYYY-MM-DD": "%Y-%m-%d",
+    }
+    def _replace_to_char(m):
+        col = m.group(1).strip()
+        fmt = m.group(2).strip().strip("'\"")
+        sqlite_fmt = _pg_to_sqlite_fmt.get(fmt, f"%Y-%m")
+        return f"strftime('{sqlite_fmt}', {col})"
+    query = re.sub(
+        r"to_char\s*\(\s*([^,]+),\s*'([^']+)'\s*\)",
+        _replace_to_char,
+        query,
+        flags=re.I,
+    )
+
+    # 8. RETURNING id → stripped (SQLite 3.35+ supports it, but older builds don't;
+    #    lastrowid is used instead — strip to keep compatibility)
+    query = re.sub(r'\s+RETURNING\s+\w+\s*$', '', query, flags=re.I)
+
+    # 9. TRUE/FALSE literals → 1/0  (SQLite has no boolean keywords pre-3.23)
+    query = re.sub(r'\bTRUE\b', '1', query, flags=re.I)
+    query = re.sub(r'\bFALSE\b', '0', query, flags=re.I)
+
+    return query
 
 
 class CompatConnection:
     def __init__(
         self,
         conn,
-        dialect: str = "postgres",
+        dialect: str = "sqlite",
         on_close: Callable[[Any], None] | None = None,
         reconnect: Callable[[], Any] | None = None,
     ):
         self.conn = conn
-        self.dialect = "postgres"
+        self.dialect = dialect or "sqlite"
         self._on_close = on_close
         self._reconnect = reconnect
         self._closed = False
+        _register_sqlite_custom_functions(self.conn)
 
     def execute(self, query: str, params: tuple = ()):
         if not isinstance(query, str):
             query = str(query)
         retried = False
         cleaned_params = _clean_params(params)
+        
+        is_sqlite = (
+            self.dialect == "sqlite"
+            or "sqlite" in type(self.conn).__module__.lower()
+            or "sqlite" in type(getattr(self.conn, "dbapi_connection", self.conn)).__module__.lower()
+        )
+        if is_sqlite:
+            query = _translate_query_for_sqlite(query, bool(cleaned_params))
+
         while True:
             cur = self.conn.cursor()
             try:
@@ -119,7 +281,7 @@ class CompatConnection:
                     pass
 
                 exc_msg = str(exc).lower()
-                if ("25p02" in exc_msg or "transaction is aborted" in exc_msg) and not retried:
+                if ("25p02" in exc_msg or "transaction is aborted" in exc_msg or "locked" in exc_msg) and not retried:
                     retried = True
                     continue
 
@@ -194,35 +356,50 @@ class DatabaseManager:
 
     def sqlalchemy_database_url(self, database_url: str) -> str:
         url = str(database_url or "").strip()
-        if url.startswith("postgresql://"):
-            return "postgresql+pg8000://" + url[len("postgresql://") :]
-        if url.startswith("postgres://"):
-            return "postgresql+pg8000://" + url[len("postgres://") :]
-        return url
+        if url.startswith("sqlite+aiosqlite://"):
+            return "sqlite://" + url[len("sqlite+aiosqlite://") :]
+        if url.startswith("postgresql://") or url.startswith("postgres://"):
+            from app.core.config import settings
+            data_dir = settings.app_data_dir
+            db_path = (data_dir / "fabouanes.db").resolve().as_posix()
+            return f"sqlite:///{db_path}"
+        return url if url else f"sqlite:///{(settings.app_data_dir / 'fabouanes.db').resolve().as_posix()}"
 
     def create_database_engine(self, database_url: str) -> Engine:
         engine_url = self.sqlalchemy_database_url(database_url)
-        engine = create_engine(
-            engine_url,
-            future=True,
-            pool_pre_ping=True,
-            pool_size=self._env_int("FAB_PG_POOL_SIZE", 10, 1, 200),
-            max_overflow=self._env_int("FAB_PG_POOL_MAX_OVERFLOW", 10, 0, 500),
-            pool_timeout=self._env_int("FAB_PG_POOL_TIMEOUT", 30, 1, 300),
-            pool_recycle=self._env_int("FAB_PG_POOL_RECYCLE_SECONDS", 1800, 60, 86400),
-        )
+        if "sqlite" in engine_url:
+            engine = create_engine(
+                engine_url,
+                future=True,
+                connect_args={"check_same_thread": False, "timeout": 30.0},
+            )
+        else:
+            engine = create_engine(
+                engine_url,
+                future=True,
+                pool_pre_ping=True,
+                pool_size=self._env_int("FAB_PG_POOL_SIZE", 10, 1, 200),
+                max_overflow=self._env_int("FAB_PG_POOL_MAX_OVERFLOW", 10, 0, 500),
+                pool_timeout=self._env_int("FAB_PG_POOL_TIMEOUT", 30, 1, 300),
+                pool_recycle=self._env_int("FAB_PG_POOL_RECYCLE_SECONDS", 1800, 60, 86400),
+            )
 
         from sqlalchemy import event
         @event.listens_for(engine, "connect")
-        def set_connection_timezone(dbapi_connection, connection_record):
+        def set_sqlite_pragmas(dbapi_connection, connection_record):
             cursor = dbapi_connection.cursor()
             try:
-                cursor.execute("SET TIME ZONE 'UTC'")
+                cursor.execute("PRAGMA journal_mode = WAL;")
+                cursor.execute("PRAGMA busy_timeout = 30000;")
+                cursor.execute("PRAGMA foreign_keys = ON;")
+                cursor.execute("PRAGMA synchronous = NORMAL;")
+                cursor.execute("PRAGMA cache_size = -64000;")
+                cursor.execute("PRAGMA temp_store = MEMORY;")
+                cursor.execute("PRAGMA mmap_size = 268435456;")
             except Exception:
                 pass
             finally:
                 cursor.close()
-
         try:
             from app.core.observability import instrument_sqlalchemy
             instrument_sqlalchemy(engine)
@@ -248,50 +425,33 @@ class DatabaseManager:
             timeout_ms = int(os.environ.get("FAB_PG_STATEMENT_TIMEOUT_MS", "30000") or "30000")
             cursor = conn.cursor()
             try:
-                cursor.execute(f"SET statement_timeout = {timeout_ms}")
+                cursor.execute("PRAGMA journal_mode = WAL;")
+                cursor.execute("PRAGMA busy_timeout = 30000;")
+                cursor.execute("PRAGMA foreign_keys = ON;")
+                cursor.execute("PRAGMA synchronous = NORMAL;")
+                cursor.execute("PRAGMA cache_size = -64000;")
+                cursor.execute("PRAGMA temp_store = MEMORY;")
+                cursor.execute("PRAGMA mmap_size = 268435456;")
             except Exception as e:
-                logging.getLogger("fabouanes").debug("Failed to set statement_timeout: %s", e)
+                logging.getLogger("fabouanes").debug("Failed to set SQLite pragmas: %s", e)
             finally:
                 cursor.close()
         except Exception as e:
-            err_msg = str(e).lower()
-            if "does not exist" in err_msg or "3d000" in err_msg:
-                parsed = urlparse(raw_url)
-                database = parsed.path.lstrip("/")
-                port_part = f":{parsed.port}" if parsed.port else ""
-                pass_part = f":{parsed.password}" if parsed.password else ""
-                user_part = f"{parsed.username}{pass_part}@" if parsed.username else ""
-                postgres_url = f"{parsed.scheme}://{user_part}{parsed.hostname}{port_part}/postgres"
-
-                pg_engine = create_engine(
-                    self.sqlalchemy_database_url(postgres_url),
-                    isolation_level="AUTOCOMMIT",
-                    future=True,
-                )
-                with pg_engine.connect() as pg_conn:
-                    pg_conn.execute(text(f'CREATE DATABASE "{database}"'))
-                pg_engine.dispose()
-
-                engine = self.get_database_engine(raw_url)
-                conn = engine.raw_connection()
-            elif "authentification" in err_msg or "password authentication failed" in err_msg or "28p01" in err_msg:
-                raise RuntimeError("Erreur critique d'authentification PostgreSQL. Verifie le mot de passe dans .env") from e
-            else:
-                raise RuntimeError(f"Impossible de se connecter a la base de donnees PostgreSQL: {e}") from e
+            raise RuntimeError(f"Impossible de se connecter a la base de donnees SQLite: {e}") from e
 
         def _reconnect():
             return engine.raw_connection()
 
         return CompatConnection(
             conn,
-            dialect="postgres",
+            dialect="sqlite",
             on_close=lambda c: c.close(),
             reconnect=_reconnect,
         )
 
     def postgres_pool_status(self, database_url: str) -> dict[str, int | str]:
         pool = self.get_database_engine(database_url).pool
-        status: dict[str, int | str] = {"engine": "postgres"}
+        status: dict[str, int | str] = {"engine": "sqlite"}
         for key, method_name in (
             ("size", "size"),
             ("checkedin", "checkedin"),
@@ -416,6 +576,8 @@ class DatabaseManager:
         return f"{query.rstrip().rstrip(';')} LIMIT {self.MAX_UNPAGINATED_ROWS}"
 
     def query_db(self, query: str, params: tuple = (), one: bool = False):
+        # Translate any PostgreSQL-specific SQL to SQLite before execution
+        query = _translate_query_for_sqlite(query, bool(params))
         if not one:
             query = self._guard_pagination(query)
         started = monotonic()
@@ -461,6 +623,8 @@ class DatabaseManager:
 
     def execute_db(self, query: str, params: tuple = ()) -> int:
         import re
+        # Translate any PostgreSQL-specific SQL to SQLite before execution
+        query = _translate_query_for_sqlite(query, bool(params))
         for attempt in range(2):
             db = self.get_write_db()
             started = monotonic()
@@ -475,7 +639,10 @@ class DatabaseManager:
                     except Exception:
                         logger.debug("Could not fetch RETURNING result", exc_info=True)
                 else:
-                    last_id = cur.lastrowid
+                    if query.strip().upper().startswith(("DELETE", "UPDATE")):
+                        last_id = cur.rowcount
+                    else:
+                        last_id = cur.lastrowid
                 if self._tx_depth() == 0:
                     db.commit()
                 cur.close()
@@ -593,13 +760,24 @@ class DatabaseManager:
         )
 
     def list_columns(self, conn: CompatConnection, table: str) -> set[str]:
-        cur = conn.execute(
-            "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = %s",
-            (table,),
-        )
-        rows = cur.fetchall()
-        cur.close()
-        return {row["column_name"] for row in rows}
+        try:
+            cur = conn.execute(f"PRAGMA table_info({table})")
+            rows = cur.fetchall()
+            cur.close()
+            cols = set()
+            for r in rows:
+                if isinstance(r, dict):
+                    name = r.get("name") or r.get("column_name")
+                elif hasattr(r, "keys"):
+                    keys = list(r.keys())
+                    name = r["name"] if "name" in keys else (r["column_name"] if "column_name" in keys else r[0])
+                else:
+                    name = r[1] if len(r) > 1 else r[0]
+                if name:
+                    cols.add(name)
+            return cols
+        except Exception:
+            return set()
 
     def _ensure_performance_worker(self) -> None:
         if os.environ.get("FAB_DISABLE_PERFORMANCE_DB_LOGS", "0").strip() == "1":
@@ -643,7 +821,7 @@ class DatabaseManager:
                         INSERT INTO performance_logs (kind, name, elapsed_ms, route, details, created_at)
                         VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
                         """,
-                        (kind, name, elapsed_ms, route, details),
+                        (kind, name, float(elapsed_ms), route, details),
                     )
                     cur.close()
                 self._perf_conn.commit()

@@ -2,7 +2,7 @@
 Sabrina Memory — Mémoire persistante de l'assistante IA.
 
 Fournit des fonctions CRUD pour stocker et retrouver des souvenirs (préférences,
-contextes, corrections) dans une table PostgreSQL avec recherche full-text.
+contextes, corrections) de manière compatible SQLite et PostgreSQL.
 """
 from __future__ import annotations
 
@@ -23,15 +23,15 @@ def remember(content: str, category: str = "general", source: str = "user_explic
 
         # Vérifier les doublons exacts
         existing = db_manager.query_db(
-            "SELECT id FROM sabrina_memory WHERE content = %s LIMIT 1",
+            "SELECT id FROM sabrina_memory WHERE content = ? LIMIT 1",
             (content,)
         )
         if existing:
             return {"status": "already_known", "message": f"Je connais déjà cette information (mémoire #{existing[0][0]})."}
 
         mem_id = db_manager.execute_db(
-            """INSERT INTO sabrina_memory (content, category, source)
-               VALUES (%s, %s, %s) RETURNING id""",
+            """INSERT INTO sabrina_memory (content, category, source, relevance_score)
+               VALUES (?, ?, ?, 5)""",
             (content, category, source)
         )
         logger.info("Sabrina memory created: id=%s category=%s source=%s", mem_id, category, source)
@@ -46,7 +46,7 @@ def remember(content: str, category: str = "general", source: str = "user_explic
 
 
 def recall(query: str, limit: int = 10) -> Dict[str, Any]:
-    """Recherche dans la mémoire de Sabrina par full-text search ou LIKE."""
+    """Recherche dans la mémoire de Sabrina."""
     try:
         query = query.strip()
         if not query:
@@ -54,26 +54,24 @@ def recall(query: str, limit: int = 10) -> Dict[str, Any]:
             rows = db_manager.query_db(
                 """SELECT id, category, content, source, relevance_score, created_at
                    FROM sabrina_memory
-                   WHERE expires_at IS NULL OR expires_at > NOW()
+                   WHERE expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP
                    ORDER BY relevance_score DESC, created_at DESC
-                   LIMIT %s""",
+                   LIMIT ?""",
                 (limit,)
             )
         else:
-            # Recherche full-text en français + fallback LIKE
+            # Recherche textuelle simple par LIKE, compatible SQLite/Postgres
             rows = db_manager.query_db(
                 """SELECT id, category, content, source, relevance_score, created_at
                    FROM sabrina_memory
-                   WHERE (expires_at IS NULL OR expires_at > NOW())
+                   WHERE (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
                      AND (
-                       search_vector @@ plainto_tsquery('french', %s)
-                       OR lower(content) LIKE '%%' || lower(%s) || '%%'
+                       lower(content) LIKE ?
+                       OR lower(category) LIKE ?
                      )
-                   ORDER BY
-                     ts_rank(search_vector, plainto_tsquery('french', %s)) DESC,
-                     relevance_score DESC
-                   LIMIT %s""",
-                (query, query, query, limit)
+                   ORDER BY relevance_score DESC, created_at DESC
+                   LIMIT ?""",
+                (f"%{query.lower()}%", f"%{query.lower()}%", limit)
             )
 
         memories = []
@@ -100,10 +98,10 @@ def recall(query: str, limit: int = 10) -> Dict[str, Any]:
 def forget(memory_id: int) -> Dict[str, Any]:
     """Supprime un souvenir spécifique de la mémoire de Sabrina."""
     try:
-        deleted_id = db_manager.execute_db(
-            "DELETE FROM sabrina_memory WHERE id = %s RETURNING id", (memory_id,)
+        deleted = db_manager.execute_db(
+            "DELETE FROM sabrina_memory WHERE id = ?", (memory_id,)
         )
-        if deleted_id:
+        if deleted:
             logger.info("Sabrina memory deleted: id=%s", memory_id)
             return {"success": True, "message": f"Souvenir #{memory_id} supprimé."}
         return {"error": f"Souvenir #{memory_id} introuvable."}
@@ -115,14 +113,13 @@ def forget(memory_id: int) -> Dict[str, Any]:
 def get_context_memories(limit: int = 10) -> str:
     """
     Récupère les souvenirs les plus pertinents pour injection dans le system prompt.
-    Retourne un texte formaté prêt à être injecté.
     """
     try:
         rows = db_manager.query_db(
             """SELECT category, content FROM sabrina_memory
-               WHERE (expires_at IS NULL OR expires_at > NOW())
+               WHERE (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
                ORDER BY relevance_score DESC, created_at DESC
-               LIMIT %s""",
+               LIMIT ?""",
             (limit,)
         )
         if not rows:
@@ -165,4 +162,3 @@ async def async_forget(memory_id: int) -> Dict[str, Any]:
 async def async_get_context_memories(limit: int = 10) -> str:
     import asyncio
     return await asyncio.to_thread(get_context_memories, limit)
-

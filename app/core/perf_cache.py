@@ -33,7 +33,9 @@ def _safe_int(val: Any) -> int:
 
 
 class CacheBackend:
-    pass
+    def invalidate_keys(self, *keys: tuple) -> int:
+        """Remove specific exact keys from the cache. Returns number removed."""
+        return 0
 
 
 # --- InMemoryCache Implementation ---
@@ -111,6 +113,15 @@ class InMemoryCache(CacheBackend):
                 ]
                 for key in keys_to_remove:
                     self._cache.pop(key, None)
+                    removed += 1
+        return removed
+
+    def invalidate_keys(self, *keys: tuple) -> int:
+        """Remove specific exact keys from the cache in a thread-safe manner."""
+        removed = 0
+        with self._lock:
+            for key in keys:
+                if self._cache.pop(key, None) is not None:
                     removed += 1
         return removed
 
@@ -205,6 +216,17 @@ class RedisCache(CacheBackend):
             pass
         return len(domains)
 
+    def invalidate_keys(self, *keys: tuple) -> int:
+        """Delete specific exact keys from Redis."""
+        removed = 0
+        try:
+            for key in keys:
+                r_key = self._redis_key(key)
+                removed += self.client.delete(r_key)
+        except Exception:
+            pass
+        return removed
+
     def clear(self) -> None:
         try:
             keys = self.client.keys(self.prefix + "*")
@@ -270,6 +292,15 @@ class HybridCache(CacheBackend):
         removed = self.l1.invalidate_domains(*domains)
         try:
             self.l2.invalidate_domains(*domains)
+        except Exception:
+            pass
+        return removed
+
+    def invalidate_keys(self, *keys: tuple) -> int:
+        """Remove specific exact keys from both L1 (in-memory) and L2 (Redis)."""
+        removed = self.l1.invalidate_keys(*keys)
+        try:
+            self.l2.invalidate_keys(*keys)
         except Exception:
             pass
         return removed
@@ -425,18 +456,18 @@ async def warm_cache() -> None:
 def invalidate_client_cache(client_id: int) -> None:
     """
     Invalide uniquement les clés de cache liées à un client précis.
+
+    Utilise l'interface publique `invalidate_keys()` afin d'être compatible
+    avec tous les backends (InMemoryCache, RedisCache, HybridCache).
     """
-    keys_to_delete = [
+    keys_to_delete = (
         ("client_detail", client_id),
         ("client_history", client_id),
         ("client_account", client_id),
         ("client_detail_context", client_id),
         ("client_history_context", client_id),
-    ]
-
-    with _BACKEND._lock:
-        for key in keys_to_delete:
-            _BACKEND._cache.pop(key, None)
+    )
+    _BACKEND.invalidate_keys(*keys_to_delete)
 
     try:
         from app.core.events import emit, DomainEvent

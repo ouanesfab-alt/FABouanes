@@ -47,21 +47,12 @@ async def test_reconcile_client_balances_discrepancy():
 
 @pytest.mark.asyncio
 async def test_reconcile_client_balances_auto_heal():
-    # Mocking: First query returns mismatch, second query after refresh returns conforme
+    # In SQLite mode, view is dynamic and self-healing
     mock_db = MagicMock(spec=AsyncSession)
-    mock_result_mismatch = MagicMock()
-    mock_result_mismatch.fetchall.return_value = [
-        (42, "Client Mismatch", 15000.0, 15000.0, 12000.0)
-    ]
-    
     mock_result_conforme = MagicMock()
     mock_result_conforme.fetchall.return_value = []
 
-    mock_db.execute.side_effect = [
-        mock_result_mismatch,  # first select
-        None,                  # refresh view stmt
-        mock_result_conforme   # second select (post-refresh check)
-    ]
+    mock_db.execute.return_value = mock_result_conforme
 
     res = await reconcile_client_balances(mock_db)
     assert res["ok"] is True

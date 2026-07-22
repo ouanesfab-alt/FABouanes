@@ -101,24 +101,18 @@ async def search_vector_manual(query: str, api_key: str, limit: int = 2) -> List
     if not emb:
         return []
 
-    from app.core.db_helpers import query_db
+    # Vector extension not available in SQLite mode
     has_vector = False
-    try:
-        row = query_db("SELECT 1 FROM pg_extension WHERE extname = 'vector'", one=True)
-        has_vector = bool(row)
-    except Exception:
-        pass
 
     results = []
     if has_vector:
         emb_str = f"[{','.join(str(x) for x in emb)}]"
         rows = query_db(
-            """SELECT item_id, 1 - (embedding <=> %s::vector) AS score
+            """SELECT item_id, 1 - 0.0 AS score
                FROM catalog_embeddings
                WHERE item_kind = 'manual'
-               ORDER BY embedding <=> %s::vector ASC
                LIMIT %s""",
-            (emb_str, emb_str, limit)
+            (limit,)
         )
         if rows:
             for r in rows:
@@ -302,13 +296,8 @@ async def search_vector_catalog(query: str, api_key: str, limit: int = 5) -> Lis
     if not api_key:
         return []
 
-    from app.core.db_helpers import query_db
+    # Vector extension not available in SQLite mode
     has_vector = False
-    try:
-        row = query_db("SELECT 1 FROM pg_extension WHERE extname = 'vector'", one=True)
-        has_vector = bool(row)
-    except Exception:
-        pass
 
     emb = await get_embedding(query, api_key)
     if not emb or len(emb) != 1536:
@@ -319,9 +308,8 @@ async def search_vector_catalog(query: str, api_key: str, limit: int = 5) -> Lis
         emb_str = f"[{','.join(str(x) for x in emb)}]"
         rows = query_db(
             """
-            SELECT item_kind, item_id, text_content, (embedding <=> %s::vector) AS distance
+            SELECT item_kind, item_id, text_content, 0.0 AS distance
             FROM catalog_embeddings
-            ORDER BY distance ASC
             LIMIT %s
             """,
             (emb_str, limit)

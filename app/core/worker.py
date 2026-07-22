@@ -82,7 +82,7 @@ async def run_database_backup_task(ctx: dict[str, Any], reason: str) -> str:
     await asyncio.sleep(0.5)
 
     from app.core.storage import capture_local_backup_snapshot
-    await update_task_progress(job_id, 60, "Écriture du dump PostgreSQL...")
+    await update_task_progress(job_id, 60, "Écriture du dump de la base de données...")
 
     await asyncio.to_thread(capture_local_backup_snapshot, reason)
 
@@ -101,7 +101,7 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
     try:
         with db_transaction() as conn:
             cur = conn.execute(
-                "SELECT id, event_type, payload, retry_count FROM outbox_events WHERE processed_at IS NULL ORDER BY id ASC LIMIT 100 FOR UPDATE SKIP LOCKED"
+                "SELECT id, event_type, payload, retry_count FROM outbox_events WHERE processed_at IS NULL ORDER BY id ASC LIMIT 100"
             )
             rows = cur.fetchall()
             cur.close()
@@ -220,15 +220,18 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
     await update_task_progress(job_id, 10, "Démarrage de la génération d'embeddings du catalogue...")
 
     if not api_key:
-        from app.modules.assistant.schema_context import get_gemini_api_key
-        api_key = get_gemini_api_key()
+        # Use the plugin registry instead of a direct import from app.modules.assistant.
+        # The assistant module registers 'get_api_key' at startup via plugin_registry.
+        from app.core.plugin_registry import registry
+        api_key = registry.call("get_api_key")
     if not api_key:
         logger.error("No Gemini API key available for embedding task")
         await update_task_progress(job_id, 100, "Erreur: Clé API manquante.")
         return 0
 
     from app.core.db_helpers import query_db, execute_db
-    from app.modules.assistant.rag import get_embedding
+    # get_embedding is also resolved via the plugin registry.
+    from app.core.plugin_registry import registry as _registry
 
     raw_mats = query_db("SELECT id, name, unit FROM raw_materials") or []
     fin_prods = query_db("SELECT id, name, default_unit FROM finished_products") or []
@@ -255,7 +258,7 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
             continue
 
         text = f"Matière première: {item['name']}, unité: {item.get('unit') or 'kg'}"
-        emb = await get_embedding(text, api_key)
+        emb = await _registry.acall("get_embedding", text, api_key)
         if emb:
             emb_val = f"[{','.join(str(x) for x in emb)}]" if has_vector else json.dumps(emb)
             execute_db(
@@ -273,7 +276,7 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
 
         text = f"Produit fini: {item['name']}, unité: {item.get('default_unit') or 'kg'}"
 
-        emb = await get_embedding(text, api_key)
+        emb = await _registry.acall("get_embedding", text, api_key)
         if emb:
             emb_val = f"[{','.join(str(x) for x in emb)}]" if has_vector else json.dumps(emb)
             execute_db(
@@ -295,7 +298,7 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
         if existing:
             continue
         text = f"Section Manuel {key}: {data.get('fr_title')} / {data.get('ar_title')}. Usage: {' '.join(data.get('fr_usage', []))} {' '.join(data.get('ar_usage', []))}. Exemple: {data.get('fr_example')} {data.get('ar_example')}"
-        emb = await get_embedding(text, api_key)
+        emb = await _registry.acall("get_embedding", text, api_key)
         if emb:
             emb_val = f"[{','.join(str(x) for x in emb)}]" if has_vector else json.dumps(emb)
             execute_db(
@@ -444,6 +447,11 @@ async def enqueue_background_task(task_name: str, *args: Any, **kwargs: Any) -> 
 
 _worker_thread = None
 _worker_running = False
+# Single asyncio event loop reused for all background jobs in the worker thread.
+# Created once when the worker starts, closed when it stops.
+# This avoids the cost of creating a new event loop per job and prevents
+# resource leaks (open DB connections, file descriptors) from orphaned loops.
+_worker_loop: asyncio.AbstractEventLoop | None = None
 
 
 async def execute_job(job_id: int, task_name: str, payload_str: str) -> None:
@@ -490,23 +498,51 @@ async def execute_job(job_id: int, task_name: str, payload_str: str) -> None:
 
 
 def cleanup_background_jobs():
-    """Cleans up completed/failed jobs and resets stale running jobs."""
+    """Cleans up completed/failed jobs, stale pubsub events, and expired idempotency keys."""
     from app.core.db_helpers import execute_db
     try:
+        # 1. Reset timed-out running jobs (>2h) — prevents stuck jobs from blocking the queue
         execute_db(
             """
             UPDATE background_jobs 
             SET status = 'failed', error_message = 'Job timed out or worker crashed'
-            WHERE status = 'running' AND started_at < CURRENT_TIMESTAMP - INTERVAL '2 hours'
+            WHERE status = 'running' AND started_at < datetime('now', '-2 hours')
             """
         )
+        # 2. Purge old completed jobs (>24h)
         execute_db(
-            "DELETE FROM background_jobs WHERE status = 'completed' AND completed_at < CURRENT_TIMESTAMP - INTERVAL '24 hours'"
+            "DELETE FROM background_jobs WHERE status = 'completed' AND completed_at < datetime('now', '-24 hours')"
         )
+        # 3. Purge old failed jobs (>7 days)
         execute_db(
-            "DELETE FROM background_jobs WHERE status = 'failed' AND completed_at < CURRENT_TIMESTAMP - INTERVAL '7 days'"
+            "DELETE FROM background_jobs WHERE status = 'failed' AND completed_at < datetime('now', '-7 days')"
         )
-        logger.info("Completed stale job recovery and database cleanup")
+        # 4. P1.5 — Purge old pubsub events (>24h) — prevents unbounded table growth
+        try:
+            execute_db(
+                "DELETE FROM pubsub_events WHERE created_at < datetime('now', '-1 day')"
+            )
+        except Exception as exc:
+            logger.debug("pubsub_events cleanup skipped: %s", exc)
+
+        # 5. P1.5 — Purge expired idempotency keys (>7 days) — prevents unbounded table growth
+        try:
+            execute_db(
+                "DELETE FROM idempotent_requests WHERE created_at < datetime('now', '-7 days')"
+            )
+        except Exception as exc:
+            logger.debug("idempotent_requests cleanup skipped: %s", exc)
+
+        # 6. Purge processed offline staging entries (>30 days)
+        try:
+            for tbl in ("offline_sales_staging", "offline_payments_staging"):
+                execute_db(
+                    f"DELETE FROM {tbl} WHERE status != 'pending' AND processed_at < datetime('now', '-30 days')"
+                )
+        except Exception as exc:
+            logger.debug("offline staging cleanup skipped: %s", exc)
+
+        logger.info("Completed stale job recovery and database cleanup (jobs + pubsub + idempotency)")
     except Exception as exc:
         logger.error("Failed to run background jobs cleanup: %s", exc)
 
@@ -520,18 +556,19 @@ def _worker_poll_loop():
 
     listen_conn = None
     listen_fileno = None
-    try:
-        listen_conn = pool_manager.connect_database(DATABASE_URL)
-        listen_conn.execute("LISTEN background_jobs_channel")
-        listen_conn.commit()
-        raw = getattr(listen_conn, '_conn', listen_conn)
-        sock = getattr(raw, '_sock', None) or getattr(raw, 'sock', None)
-        if sock:
-            listen_fileno = sock.fileno()
-            logger.info("LISTEN active on background_jobs_channel (fd=%d)", listen_fileno)
-    except Exception as e:
-        logger.info("LISTEN setup for jobs failed: %s", e)
-        listen_conn = None
+    if not DATABASE_URL.startswith("sqlite"):
+        try:
+            listen_conn = pool_manager.connect_database(DATABASE_URL)
+            listen_conn.execute("LISTEN background_jobs_channel")
+            listen_conn.commit()
+            raw = getattr(listen_conn, '_conn', listen_conn)
+            sock = getattr(raw, '_sock', None) or getattr(raw, 'sock', None)
+            if sock:
+                listen_fileno = sock.fileno()
+                logger.info("LISTEN active on background_jobs_channel (fd=%d)", listen_fileno)
+        except Exception as e:
+            logger.info("LISTEN setup for jobs failed: %s", e)
+            listen_conn = None
 
     last_cleanup = 0
 
@@ -545,35 +582,29 @@ def _worker_poll_loop():
             job = None
             try:
                 with db_transaction() as conn:
-                    cur = conn.execute(
+                    row = conn.execute(
                         """
-                        UPDATE background_jobs 
-                        SET status = 'running', locked_by = %s, started_at = CURRENT_TIMESTAMP
-                        WHERE id = (
-                            SELECT id FROM background_jobs 
-                            WHERE status = 'pending' AND run_at <= CURRENT_TIMESTAMP
-                            ORDER BY priority DESC, created_at ASC
-                            FOR UPDATE SKIP LOCKED
-                            LIMIT 1
+                        SELECT id, task_name, payload FROM background_jobs 
+                        WHERE status = 'pending' AND (run_at IS NULL OR run_at <= CURRENT_TIMESTAMP)
+                        ORDER BY priority DESC, created_at ASC
+                        LIMIT 1
+                        """
+                    ).fetchone()
+                    if row:
+                        conn.execute(
+                            "UPDATE background_jobs SET status = 'running', locked_by = ?, started_at = CURRENT_TIMESTAMP WHERE id = ?",
+                            (WORKER_ID, row["id"])
                         )
-                        RETURNING id, task_name, payload;
-                        """,
-                        (WORKER_ID,)
-                    )
-                    job = cur.fetchone()
-                    conn.commit()
+                        conn.commit()
+                        job = row
             except Exception as e:
                 err_str = str(e)
-                # Code 42P01 = relation does not exist.
-                # La table background_jobs est manquante dans cette base de donnees :
-                # elle a ete creee apres le premier bootstrap, ou le commit a echoue.
-                # On la cree ici pour auto-reparer sans intervention manuelle.
                 if "42P01" in err_str or "background_jobs" in err_str.lower():
                     try:
                         from app.core.db_helpers import execute_db
                         execute_db("""
                             CREATE TABLE IF NOT EXISTS background_jobs (
-                                id BIGSERIAL PRIMARY KEY,
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 task_name VARCHAR(255) NOT NULL,
                                 payload TEXT NOT NULL,
                                 status VARCHAR(50) DEFAULT 'pending',
@@ -600,9 +631,16 @@ def _worker_poll_loop():
 
             if job:
                 try:
-                    loop = asyncio.new_event_loop()
-                    loop.run_until_complete(execute_job(job["id"], job["task_name"], job["payload"]))
-                    loop.close()
+                    # Reuse the single event loop dedicated to this worker thread
+                    # instead of creating a new one per job (which was wasteful and
+                    # could leak resources like DB connections and file descriptors).
+                    global _worker_loop
+                    if _worker_loop is None or _worker_loop.is_closed():
+                        _worker_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(_worker_loop)
+                    _worker_loop.run_until_complete(
+                        execute_job(job["id"], job["task_name"], job["payload"])
+                    )
                 except Exception as ex:
                     logger.error("Worker runner error: %s", ex)
                 continue
@@ -636,6 +674,13 @@ def start_worker():
 
 
 def stop_worker():
-    global _worker_running
+    global _worker_running, _worker_loop
     _worker_running = False
+    # Close the reusable event loop cleanly on shutdown to free all resources.
+    if _worker_loop is not None and not _worker_loop.is_closed():
+        try:
+            _worker_loop.close()
+        except Exception:
+            pass
+        _worker_loop = None
     logger.info("Background jobs worker stop requested")

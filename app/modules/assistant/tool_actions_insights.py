@@ -81,10 +81,10 @@ async def handle_insights(func_name: str, func_args: dict, session_maker, user_r
                         return {"top_debtors": [{"name": r[0], "phone": r[1], "debt": float(r[2])} for r in rows]}
                     elif insight_type == "monthly_sales_comparison":
                         sales_cur = (await session.execute(text(
-                            "SELECT COALESCE(SUM(total), 0) FROM sale_documents WHERE sale_date >= DATE_TRUNC('month', CURRENT_DATE)"
+                            "SELECT COALESCE(SUM(total), 0) FROM sale_documents WHERE sale_date >= date('now', 'start of month')"
                         ))).scalar()
                         sales_prev = (await session.execute(text(
-                            "SELECT COALESCE(SUM(total), 0) FROM sale_documents WHERE sale_date >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND sale_date < DATE_TRUNC('month', CURRENT_DATE)"
+                            "SELECT COALESCE(SUM(total), 0) FROM sale_documents WHERE sale_date >= date('now', 'start of month', '-1 month') AND sale_date < date('now', 'start of month')"
                         ))).scalar()
                         sales_cur = float(sales_cur)
                         sales_prev = float(sales_prev)
@@ -97,7 +97,7 @@ async def handle_insights(func_name: str, func_args: dict, session_maker, user_r
                     else:
                         clients_count = (await session.execute(text("SELECT COUNT(*) FROM clients"))).scalar()
                         products_count = (await session.execute(text("SELECT COUNT(*) FROM finished_products"))).scalar()
-                        sales_month = (await session.execute(text("SELECT COALESCE(SUM(total), 0) FROM sale_documents WHERE sale_date >= DATE_TRUNC('month', CURRENT_DATE)"))).scalar()
+                        sales_month = (await session.execute(text("SELECT COALESCE(SUM(total), 0) FROM sale_documents WHERE sale_date >= date('now', 'start of month')"))).scalar()
                         return {
                             "total_clients": clients_count,
                             "total_products": products_count,

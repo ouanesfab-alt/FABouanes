@@ -62,10 +62,10 @@ def generate_briefing() -> Dict[str, Any]:
         # 2. Bilan de la veille
         yesterday_summary = db_manager.query_db("""
             SELECT
-                (SELECT COALESCE(SUM(total), 0) FROM sales WHERE sale_date = CURRENT_DATE - INTERVAL '1 day') AS ventes_hier,
-                (SELECT COALESCE(SUM(total), 0) FROM purchases WHERE purchase_date = CURRENT_DATE - INTERVAL '1 day') AS achats_hier,
-                (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payment_date = CURRENT_DATE - INTERVAL '1 day') AS versements_hier,
-                (SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE date = CURRENT_DATE - INTERVAL '1 day') AS depenses_hier
+                (SELECT COALESCE(SUM(total), 0) FROM sales WHERE sale_date = date('now', '-1 day')) AS ventes_hier,
+                (SELECT COALESCE(SUM(total), 0) FROM purchases WHERE purchase_date = date('now', '-1 day')) AS achats_hier,
+                (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payment_date = date('now', '-1 day')) AS versements_hier,
+                (SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE date = date('now', '-1 day')) AS depenses_hier
         """)
 
         if yesterday_summary:
