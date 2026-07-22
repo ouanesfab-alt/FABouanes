@@ -542,7 +542,14 @@ def cleanup_background_jobs():
         except Exception as exc:
             logger.debug("offline staging cleanup skipped: %s", exc)
 
-        logger.info("Completed stale job recovery and database cleanup (jobs + pubsub + idempotency)")
+        # 7. Scheduled maintenance: PRAGMA optimize for SQLite query planning
+        try:
+            from app.core.db_helpers import query_db
+            query_db("PRAGMA optimize")
+        except Exception as exc:
+            logger.debug("PRAGMA optimize skipped: %s", exc)
+
+        logger.info("Completed stale job recovery, database cleanup and SQLite optimization.")
     except Exception as exc:
         logger.error("Failed to run background jobs cleanup: %s", exc)
 

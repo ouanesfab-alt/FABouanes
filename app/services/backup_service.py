@@ -87,14 +87,12 @@ async def _get_backup_settings_impl(db: AsyncSession) -> dict[str, Any]:
     local_ret = await _get_setting_db("backup_local_retention", "30", db)
     event_ret = await _get_setting_db("backup_event_retention", "100", db)
     last_nightly = await _get_setting_db("backup_last_nightly_date", "", db)
-    pg_dump = await _get_setting_db("pg_dump_path", "", db)
     return {
         "gdrive_backup_dir": gdrive,
         "backup_snapshot_time": snapshot,
         "backup_local_retention": int(local_ret or 30),
         "backup_event_retention": int(event_ret or 100),
         "backup_last_nightly_date": last_nightly,
-        "pg_dump_path": pg_dump,
     }
 
 
@@ -114,7 +112,6 @@ async def _save_backup_configuration_impl(payload: dict[str, Any], db: AsyncSess
         "backup_snapshot_time": str(payload.get("backup_snapshot_time", "02:00") or "02:00").strip(),
         "backup_local_retention": str(payload.get("backup_local_retention", 30) or 30).strip(),
         "backup_event_retention": str(payload.get("backup_event_retention", 100) or 100).strip(),
-        "pg_dump_path": str(payload.get("pg_dump_path", "") or "").strip(),
     }
     for key, value in fields.items():
         await _set_setting_db(key, value, db)
