@@ -562,11 +562,11 @@ class DatabaseManager:
         try:
             import sqlglot
             from sqlglot import exp
-            parsed = sqlglot.parse_one(query, read="postgres")
+            parsed = sqlglot.parse_one(query, read="sqlite")
             if isinstance(parsed, (exp.Select, exp.Union)):
                 if not parsed.args.get("limit"):
                     logger.debug("[PAGINATION GUARD] Auto-LIMIT %d via sqlglot appliqué.", self.MAX_UNPAGINATED_ROWS)
-                    return parsed.limit(self.MAX_UNPAGINATED_ROWS).sql(dialect="postgres")
+                    return parsed.limit(self.MAX_UNPAGINATED_ROWS).sql(dialect="sqlite")
         except Exception as exc:
             logger.warning("[PAGINATION GUARD] Fallback sur erreur de parsing sqlglot: %s", exc)
 
@@ -596,6 +596,10 @@ class DatabaseManager:
                 exc_msg = str(exc).lower()
                 is_transient = (
                     "connection" in exc_msg
+                    or "database is locked" in exc_msg
+                    or "disk i/o error" in exc_msg
+                    or "locked" in exc_msg
+                    or "busy" in exc_msg
                     or "57p01" in exc_msg
                     or "08006" in exc_msg
                     or "08001" in exc_msg
@@ -650,6 +654,10 @@ class DatabaseManager:
                 exc_msg = str(exc).lower()
                 is_transient = (
                     "connection" in exc_msg
+                    or "database is locked" in exc_msg
+                    or "disk i/o error" in exc_msg
+                    or "locked" in exc_msg
+                    or "busy" in exc_msg
                     or "57p01" in exc_msg
                     or "08006" in exc_msg
                     or "08001" in exc_msg
