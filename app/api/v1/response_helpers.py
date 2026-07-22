@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import select, func, case, literal_column, table
+from sqlalchemy import select, func, case, literal_column, table, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_success
@@ -93,7 +93,7 @@ async def sale_payload(kind: str, row_id: int, db: AsyncSession):
             FinishedProduct.name.label("item_name"),
             literal_column("'Produit fini'").label("item_kind"),
             literal_column("'finished'").label("row_kind"),
-            func.concat('finished:', Sale.finished_product_id).label("item_key")
+            (literal_column("'finished:'") + cast(Sale.finished_product_id, String)).label("item_key")
         ).join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id).outerjoin(Client, Client.id == Sale.client_id).where(Sale.id == row_id)
         res = await db.execute(stmt)
         row = res.first()
@@ -114,7 +114,7 @@ async def sale_payload(kind: str, row_id: int, db: AsyncSession):
             RawMaterial.name.label("item_name"),
             literal_column("'Matiere premiere'").label("item_kind"),
             literal_column("'raw'").label("row_kind"),
-            func.concat('raw:', RawSale.raw_material_id).label("item_key")
+            (literal_column("'raw:'") + cast(RawSale.raw_material_id, String)).label("item_key")
         ).join(RawMaterial, RawMaterial.id == RawSale.raw_material_id).outerjoin(Client, Client.id == RawSale.client_id).where(RawSale.id == row_id)
         res = await db.execute(stmt)
         row = res.first()
@@ -158,13 +158,13 @@ async def payment_payload(payment_id: int, db: AsyncSession):
         Payment,
         Client.name.label("client_name"),
         case(
-            (Payment.sale_kind == 'finished', func.concat('finished:', Payment.sale_id)),
-            (Payment.sale_kind == 'raw', func.concat('raw:', Payment.raw_sale_id)),
+            (Payment.sale_kind == 'finished', literal_column("'finished:'") + cast(Payment.sale_id, String)),
+            (Payment.sale_kind == 'raw', literal_column("'raw:'") + cast(Payment.raw_sale_id, String)),
             else_=''
         ).label("sale_link"),
         case(
-            (Payment.sale_kind == 'finished', func.concat('Produit #', Payment.sale_id)),
-            (Payment.sale_kind == 'raw', func.concat('Matiere #', Payment.raw_sale_id)),
+            (Payment.sale_kind == 'finished', literal_column("'Produit #'") + cast(Payment.sale_id, String)),
+            (Payment.sale_kind == 'raw', literal_column("'Matiere #'") + cast(Payment.raw_sale_id, String)),
             else_='-'
         ).label("sale_ref")
     ).join(Client, Client.id == Payment.client_id).where(Payment.id == payment_id)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
-from sqlmodel import select, func, case, and_, or_
+from sqlmodel import select, func, case, and_, or_, literal, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Payment, Client
@@ -17,8 +17,8 @@ class PaymentRepository(AsyncRepository[Payment]):
 
     async def get_by_id(self, payment_id: int) -> Optional[Dict[str, Any]]:
         sale_ref_expr = case(
-            (and_(Payment.sale_kind == 'finished', Payment.sale_id.is_not(None)), func.concat('Produit #', Payment.sale_id)),
-            (and_(Payment.sale_kind == 'raw', Payment.raw_sale_id.is_not(None)), func.concat('Matière #', Payment.raw_sale_id)),
+            (and_(Payment.sale_kind == 'finished', Payment.sale_id.is_not(None)), literal('Produit #') + cast(Payment.sale_id, String)),
+            (and_(Payment.sale_kind == 'raw', Payment.raw_sale_id.is_not(None)), literal('Matière #') + cast(Payment.raw_sale_id, String)),
             else_='-'
         )
         stmt = (
@@ -45,8 +45,8 @@ class PaymentRepository(AsyncRepository[Payment]):
         page_size: int = 25,
     ) -> Tuple[List[Dict[str, Any]], int]:
         sale_ref_expr = case(
-            (and_(Payment.sale_kind == 'finished', Payment.sale_id.is_not(None)), func.concat('Produit #', Payment.sale_id)),
-            (and_(Payment.sale_kind == 'raw', Payment.raw_sale_id.is_not(None)), func.concat('Matière #', Payment.raw_sale_id)),
+            (and_(Payment.sale_kind == 'finished', Payment.sale_id.is_not(None)), literal('Produit #') + cast(Payment.sale_id, String)),
+            (and_(Payment.sale_kind == 'raw', Payment.raw_sale_id.is_not(None)), literal('Matière #') + cast(Payment.raw_sale_id, String)),
             else_='-'
         )
 

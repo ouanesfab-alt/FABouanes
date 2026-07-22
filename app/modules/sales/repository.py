@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import Any, Dict, List, Optional, Tuple, Set
-from sqlmodel import select, func, case, literal, union_all, or_
+from sqlmodel import select, func, case, literal, union_all, or_, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -57,7 +57,7 @@ class SaleRepository(AsyncRepository[Sale]):
                     FinishedProduct.name.label("item_name"),
                     literal("").label("custom_item_name"),
                     literal("finished").label("row_kind"),
-                    func.concat("finished:", Sale.finished_product_id).label("item_key")
+                    (literal("finished:") + cast(Sale.finished_product_id, String)).label("item_key")
                 )
                 .select_from(Sale)
                 .join(Client, Client.id == Sale.client_id, isouter=True)
@@ -72,7 +72,7 @@ class SaleRepository(AsyncRepository[Sale]):
                     func.coalesce(func.nullif(RawSale.custom_item_name, ''), RawMaterial.name).label("item_name"),
                     RawSale.custom_item_name,
                     literal("raw").label("row_kind"),
-                    func.concat("raw:", RawSale.raw_material_id).label("item_key")
+                    (literal("raw:") + cast(RawSale.raw_material_id, String)).label("item_key")
                 )
                 .select_from(RawSale)
                 .join(Client, Client.id == RawSale.client_id, isouter=True)
@@ -309,7 +309,7 @@ class SaleDocumentRepository(AsyncRepository[SaleDocument]):
                 Sale.balance_due,
                 FinishedProduct.name.label("item_name"),
                 literal("finished").label("row_kind"),
-                func.concat("finished:", Sale.finished_product_id).label("item_key"),
+                (literal("finished:") + cast(Sale.finished_product_id, String)).label("item_key"),
                 literal("Produit fini").label("item_kind"),
                 literal("").label("custom_item_name")
             )
@@ -331,7 +331,7 @@ class SaleDocumentRepository(AsyncRepository[SaleDocument]):
                 RawSale.balance_due,
                 RawMaterial.name.label("item_name"),
                 literal("raw").label("row_kind"),
-                func.concat("raw:", RawSale.raw_material_id).label("item_key"),
+                (literal("raw:") + cast(RawSale.raw_material_id, String)).label("item_key"),
                 literal("Matiere premiere").label("item_kind"),
                 RawSale.custom_item_name
             )

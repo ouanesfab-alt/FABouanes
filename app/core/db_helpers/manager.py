@@ -126,10 +126,14 @@ def _register_sqlite_custom_functions(dbapi_conn):
             except Exception:
                 return str(text)
 
+        def _sqlite_concat(*args):
+            return "".join(str(a) for a in args if a is not None)
+
         if hasattr(dbapi_conn, "create_function"):
             dbapi_conn.create_function("regexp_replace", 3, _sqlite_regexp_replace)
             dbapi_conn.create_function("regexp_replace", 4, _sqlite_regexp_replace)
             dbapi_conn.create_function("date_trunc", 2, _sqlite_date_trunc)
+            dbapi_conn.create_function("concat", -1, _sqlite_concat)
     except Exception:
         pass
 

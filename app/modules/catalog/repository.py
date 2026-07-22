@@ -375,7 +375,7 @@ async def _list_production_page_context_impl(args, db: AsyncSession):
     ).join(FinishedProduct, FinishedProduct.id == ProductionBatch.finished_product_id)
 
     if q:
-        stmt = stmt.where(func.lower(func.concat(FinishedProduct.name, ' ', func.coalesce(ProductionBatch.notes, ''))).like(f"%{q.lower()}%"))
+        stmt = stmt.where(func.lower(FinishedProduct.name + ' ' + func.coalesce(ProductionBatch.notes, '')).like(f"%{q.lower()}%"))
     if production_date_obj:
         stmt = stmt.where(ProductionBatch.production_date == production_date_obj)
 
