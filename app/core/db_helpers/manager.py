@@ -288,10 +288,19 @@ class CompatConnection:
                 if not retried:
                     from sqlalchemy.exc import DBAPIError, OperationalError
                     if isinstance(exc, (OperationalError, DBAPIError)) or "connection" in exc_msg:
-                        self._reset_postgres_connection()
+                        self._reset_db_connection()
                         retried = True
                         continue
                 raise
+
+    def _reset_db_connection(self) -> None:
+        if self._reconnect is None:
+            raise RuntimeError("Connexion base de données perdue et reconnexion indisponible.")
+        try:
+            self.conn.close()
+        except Exception:
+            pass
+        self.conn = self._reconnect()
 
     def executescript(self, script: str):
         from app.core.db_helpers.query import split_sql_script
@@ -315,14 +324,7 @@ class CompatConnection:
             return
         self.conn.close()
 
-    def _reset_postgres_connection(self) -> None:
-        if self._reconnect is None:
-            raise RuntimeError("Connexion PostgreSQL perdue et reconnexion indisponible.")
-        try:
-            self.conn.close()
-        except Exception:
-            pass
-        self.conn = self._reconnect()
+
 
 
 class DatabaseManager:
@@ -680,7 +682,7 @@ class DatabaseManager:
                 raise
             else:
                 if not last_id:
-                    last_id = self._postgres_last_insert_id(db, query)
+                    last_id = self._fallback_last_insert_id(db, query)
                 self._record_sql_timing(query, params, (monotonic() - started) * 1000.0)
                 self._invalidate_after_write(query)
                 return int(last_id or 0)
@@ -690,21 +692,13 @@ class DatabaseManager:
         import asyncio
         return await asyncio.to_thread(self.execute_db, query, params)
 
-    def _postgres_last_insert_id(self, db, query: str) -> int:
-        import re
-        match = re.match(r"\s*INSERT\s+INTO\s+([a-zA-Z_][a-zA-Z0-9_]*)\b", str(query or ""), flags=re.I)
-        if not match:
-            return 0
-        table = match.group(1)
-        if table in {"app_settings", "schema_migrations", "idempotent_requests", "client_keys", "rate_limit_events"}:
-            return 0
+    def _fallback_last_insert_id(self, db, query: str) -> int:
         try:
-            cur = db.execute("SELECT currval(pg_get_serial_sequence(%s, 'id')) AS id", (table,))
+            cur = db.execute("SELECT last_insert_rowid()")
             row = cur.fetchone()
             cur.close()
-            return int(row["id"] if row else 0)
-        except Exception as e:
-            logger.debug("Ignored error: %s", e, exc_info=False)
+            return int(row[0] if row and row[0] is not None else 0)
+        except Exception:
             return 0
 
     def explain_query_plan(self, query: str, params: tuple = ()) -> list[dict]:

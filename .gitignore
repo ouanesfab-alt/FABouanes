@@ -12,6 +12,9 @@ __pycache__/
 backups/
 database.db
 *.db
+*.db-journal
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 tests/_runtime/

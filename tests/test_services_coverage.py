@@ -90,7 +90,7 @@ sys.modules["redis.asyncio"] = mock_redis.asyncio
 os.environ.setdefault("SECRET_KEY", "test-secret-key-services-coverage")
 os.environ.setdefault("FASTAPI_ENV", "test")
 os.environ.setdefault("FAB_DESKTOP", "0")
-os.environ.setdefault("DATABASE_URL", "postgresql://fake@localhost/fake_test")
+os.environ.setdefault("DATABASE_URL", "sqlite:///./test_fabouanes.db")
 os.environ.setdefault("REDIS_URL", "")
 os.environ.setdefault("FAB_DISABLE_BACKGROUND_JOBS", "1")
 

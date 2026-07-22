@@ -181,7 +181,7 @@ Toutes les variables sont documentées dans [`.env.example`](./.env.example). Le
 | Variable | Rôle | Défaut |
 |---|---|---|
 | `SECRET_KEY` | Clé de session — **obligatoire en production** | auto-générée si vide |
-| `DATABASE_URL` | Connexion PostgreSQL (`postgresql://user:pass@host/db`) | — |
+| `DATABASE_URL` | Base de données SQLite (`sqlite+aiosqlite:///path/to/fabouanes.db`) | SQLite local auto |
 | `FAB_PASSWORD_MODE` | `0000` (PIN 4 chiffres) ou `password` (8+ car.) | `0000` |
 | `DEFAULT_ADMIN_PASSWORD` | Mot de passe admin initial (éviter `1234` ou `admin`) | PIN aléatoire |
 | `SESSION_COOKIE_SECURE` | Cookies HTTPS-only | `0` (auto en production) |

@@ -397,13 +397,13 @@ def check_single_instance() -> bool:
         return False
 
 
-def check_postgres_connection_silent() -> tuple[bool, str]:
+def check_database_connection_silent() -> tuple[bool, str]:
     db_url = os.environ.get("DATABASE_URL", "").strip()
     if not db_url:
         return False, "DATABASE_URL est absente dans le fichier .env"
     try:
         import sqlalchemy as sa
-        engine = sa.create_engine(db_url, connect_args={"connect_timeout": 3})
+        engine = sa.create_engine(db_url, connect_args={"connect_timeout": 3} if "sqlite" not in db_url else {})
         with engine.connect() as conn:
             conn.execute(sa.text("SELECT 1"))
         return True, "OK"
@@ -411,12 +411,16 @@ def check_postgres_connection_silent() -> tuple[bool, str]:
         return False, str(exc)
 
 
-def show_postgres_error_dialog(error_msg: str) -> bool:
+# Alias for backward compatibility
+check_postgres_connection_silent = check_database_connection_silent
+
+
+def show_database_error_dialog(error_msg: str) -> bool:
     try:
         import tkinter as tk
 
         root = tk.Tk()
-        root.title(f"{APP_NAME} — Diagnostic PostgreSQL")
+        root.title(f"{APP_NAME} — Diagnostic Base de Données")
         root.geometry("520x360")
         root.configure(bg="#F8FAFC")
         root.resizable(False, False)
@@ -428,11 +432,11 @@ def show_postgres_error_dialog(error_msg: str) -> bool:
             except Exception:
                 pass
 
-        tk.Label(root, text="⚠️ Connexion PostgreSQL Impossible", font=("Segoe UI", 13, "bold"), fg="#DC2626", bg="#F8FAFC").pack(pady=(16, 6))
+        tk.Label(root, text="⚠️ Connexion Base de Données Impossible", font=("Segoe UI", 13, "bold"), fg="#DC2626", bg="#F8FAFC").pack(pady=(16, 6))
 
         info_txt = (
-            "FABOuanes a besoin d'un serveur PostgreSQL actif.\n"
-            "Vérifiez que le service PostgreSQL est démarré sur votre machine."
+            "FABOuanes n'a pas pu se connecter à la base de données.\n"
+            "Vérifiez que le fichier de base de données SQLite n'est pas verrouillé ou manquant."
         )
         tk.Label(root, text=info_txt, font=("Segoe UI", 9.5), fg="#334155", bg="#F8FAFC", justify="center").pack(pady=4)
 
@@ -442,16 +446,6 @@ def show_postgres_error_dialog(error_msg: str) -> bool:
         text_box.pack(pady=8)
 
         user_choice = {"action": "exit"}
-
-        def try_start_service():
-            try:
-                import subprocess
-                subprocess.run("net start postgresql-x64-16", shell=True, capture_output=True)
-                subprocess.run("sc start postgresql", shell=True, capture_output=True)
-            except Exception:
-                pass
-            user_choice["action"] = "retry"
-            root.destroy()
 
         def retry_conn():
             user_choice["action"] = "retry"
@@ -464,14 +458,17 @@ def show_postgres_error_dialog(error_msg: str) -> bool:
         btn_frame = tk.Frame(root, bg="#F8FAFC")
         btn_frame.pack(pady=12)
 
-        tk.Button(btn_frame, text="⚡ Démarrer Service PG (Windows)", command=try_start_service, bg="#2563EB", fg="white", font=("Segoe UI", 9, "bold"), padx=8, pady=4, relief="flat", cursor="hand2").pack(side="left", padx=4)
-        tk.Button(btn_frame, text="🔄 Réessayer", command=retry_conn, bg="#059669", fg="white", font=("Segoe UI", 9, "bold"), padx=8, pady=4, relief="flat", cursor="hand2").pack(side="left", padx=4)
-        tk.Button(btn_frame, text="❌ Quitter", command=exit_app, bg="#64748B", fg="white", font=("Segoe UI", 9), padx=8, pady=4, relief="flat", cursor="hand2").pack(side="left", padx=4)
+        tk.Button(btn_frame, text="Réessayer", command=retry_conn, bg="#2563EB", fg="white", font=("Segoe UI", 9, "bold"), width=14, relief="flat", cursor="hand2").pack(side="left", padx=6)
+        tk.Button(btn_frame, text="Quitter", command=exit_app, bg="#94A3B8", fg="white", font=("Segoe UI", 9), width=12, relief="flat", cursor="hand2").pack(side="left", padx=6)
 
         root.mainloop()
         return user_choice["action"] == "retry"
     except Exception:
         return False
+
+
+# Alias for backward compatibility
+show_postgres_error_dialog = show_database_error_dialog
 
 
 class DesktopAPI:

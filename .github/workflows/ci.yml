@@ -27,24 +27,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: postgresql://fabouanes:testpassword@localhost:5432/fabouanes_test
+      DATABASE_URL: sqlite+aiosqlite:///./test_fabouanes_ci.db
       SECRET_KEY: test-secret-key-for-ci-only-not-production
       FAB_TESTING: '1'
       FASTAPI_ENV: testing
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: fabouanes
-          POSTGRES_PASSWORD: testpassword
-          POSTGRES_DB: fabouanes_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python

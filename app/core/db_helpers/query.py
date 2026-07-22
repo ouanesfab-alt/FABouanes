@@ -76,8 +76,8 @@ def explain_query_plan(query: str, params: tuple = ()) -> list[dict]:
 
 
 def query_sa(query, one: bool = False):
-    from sqlalchemy.dialects import postgresql
-    compiled = query.compile(dialect=postgresql.dialect(paramstyle="format"), compile_kwargs={"literal_binds": False})
+    from sqlalchemy.dialects import sqlite
+    compiled = query.compile(dialect=sqlite.dialect(paramstyle="qmark"), compile_kwargs={"literal_binds": False})
     sql = str(compiled)
-    params = tuple(compiled.params[name] for name in compiled.positiontup)
+    params = tuple(compiled.params[name] for name in (compiled.positiontup or ()))
     return query_db(sql, params, one=one)

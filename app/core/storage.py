@@ -349,9 +349,9 @@ def verify_backup_file(path: Path, *, expected_sha256: str | None = None) -> dic
             with open(path, "r", encoding="utf-8", errors="replace") as f:
                 head = f.read(2048)
 
-        sql_keywords = ("--", "CREATE", "INSERT", "SET", "BEGIN", "COPY", "ALTER")
+        sql_keywords = ("--", "CREATE", "INSERT", "SET", "BEGIN", "COPY", "ALTER", "PRAGMA")
         if not any(kw in head for kw in sql_keywords):
-            raise RuntimeError("Sauvegarde invalide : format SQL PostgreSQL non reconnu.")
+            raise RuntimeError("Sauvegarde invalide : format SQL non reconnu.")
 
     except RuntimeError:
         raise
@@ -360,7 +360,7 @@ def verify_backup_file(path: Path, *, expected_sha256: str | None = None) -> dic
 
     return {
         "ok": True,
-        "engine": "postgres",
+        "engine": "sqlite" if settings.database_url.startswith("sqlite") else "postgres",
         "path": str(path),
         "sha256_verified": expected_sha256 is not None,
         "compressed": path.name.endswith(".sql.gz") or path.name.endswith(".sql.gz.enc"),

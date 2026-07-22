@@ -43,7 +43,7 @@ def dry_run_sql(query: str) -> str:
     query_to_run = validation.sql_to_run or query
     try:
         import sqlglot
-        stmts = validation.statements or sqlglot.parse(query_to_run, read="postgres")
+        stmts = validation.statements or sqlglot.parse(query_to_run, read="sqlite")
         if not stmts:
             return "⚠️ Requête SQL invalide."
         stmt = stmts[0]
@@ -161,7 +161,7 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
                     if where_node:
                         select_stmt = select_stmt.where(where_node.this)
                     select_stmt = select_stmt.limit(100)
-                    select_query = select_stmt.sql(dialect="postgres")
+                    select_query = select_stmt.sql(dialect="sqlite")
 
                     eval_rows = db_manager.query_db(select_query)
 
@@ -172,15 +172,15 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
                         except Exception:
                             preview_sample.append(list(r))
 
-                    where_clause_str = where_node.sql(dialect="postgres").strip() if where_node else "Aucune restriction (toutes les lignes !)"
+                    where_clause_str = where_node.sql(dialect="sqlite").strip() if where_node else "Aucune restriction (toutes les lignes !)"
                     auto_eval_reports.append({
-                        "table_name": tbl_expr.sql(dialect="postgres"),
+                        "table_name": tbl_expr.sql(dialect="sqlite"),
                         "where_clause": where_clause_str,
                         "rows_affected_preview": len(eval_rows),
                         "preview_sample": serialize_for_json(preview_sample)
                     })
                     if len(eval_rows) > 0 and not where_node:
-                        logger.warning("ATTENTION : Modification SQL d'écriture sans clause WHERE sur la table %s (%s lignes ciblées)", tbl_expr.sql(dialect="postgres"), len(eval_rows))
+                        logger.warning("ATTENTION : Modification SQL d'écriture sans clause WHERE sur la table %s (%s lignes ciblées)", tbl_expr.sql(dialect="sqlite"), len(eval_rows))
             except Exception as eval_err:
                 logger.error("Auto-évaluation SQL échouée : %s", eval_err)
 
@@ -233,7 +233,7 @@ def explain_sql_query(query: str) -> str:
         return ""
     q = query.strip()
     try:
-        stmts = sqlglot.parse(q, read="postgres")
+        stmts = sqlglot.parse(q, read="sqlite")
         if not stmts or not stmts[0]:
             return f"```sql\n{q}\n```"
         stmt = stmts[0]

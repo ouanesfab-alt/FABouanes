@@ -99,7 +99,7 @@ def _parse_postgres_sql(query: str) -> SqlValidationResult:
         statements = sqlglot.parse(query, read="sqlite")
     except Exception:
         try:
-            statements = sqlglot.parse(query, read="postgres")
+            statements = sqlglot.parse(query, read="sqlite")
         except Exception as exc:
             return SqlValidationResult(False, f"Erreur de syntaxe ou de validation SQL : {exc}")
 
@@ -230,7 +230,7 @@ def validate_readonly_sql(query: str, default_limit: int = 100) -> SqlValidation
     sql_to_run = query
     if not _has_limit(statement):
         try:
-            sql_to_run = statement.copy().limit(default_limit).sql(dialect="postgres")
+            sql_to_run = statement.copy().limit(default_limit).sql(dialect="sqlite")
         except Exception:
             sql_to_run = f"{query.rstrip(';')} LIMIT {default_limit}"
 

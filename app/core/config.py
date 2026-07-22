@@ -107,9 +107,8 @@ class Settings:
         if configured.lower().startswith(("postgres://", "postgresql://")):
             import logging as _logging
             _logging.getLogger("fabouanes").warning(
-                "[CONFIG] DATABASE_URL PostgreSQL détecté mais le support natif PostgreSQL "
-                "n'est pas activé dans cette version. SQLite local utilisé à la place : %s. "
-                "Pour activer PostgreSQL, définissez FAB_ENABLE_POSTGRES=1.",
+                "[CONFIG] DATABASE_URL PostgreSQL détecté mais le moteur actif est SQLite local. "
+                "SQLite utilisé à la place : %s.",
                 db_path,
             )
             return sqlite_url
