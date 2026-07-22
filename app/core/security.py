@@ -37,16 +37,27 @@ _PASSWORD_MODE = os.environ.get("FAB_PASSWORD_MODE", "pin").strip().lower()
 
 
 def validate_password_strength(password: str, mode: str | None = None) -> tuple[bool, str]:
-    """Validate password strength.
+    """Valide la force d'un mot de passe ou d'un code PIN.
 
     Modes:
-        'pin'      -- Exactly 4 digits (default, backward-compatible)
-        'password' -- Minimum 8 characters with at least one letter and one digit
+        'pin'      -- Exactement 4 chiffres (non trivial)
+        'password' -- Minimum 8 caractères avec au moins une lettre et un chiffre
+        None       -- Accepte un PIN valide (4 chiffres non trivial) OU un mot de passe valide (8+ car. avec lettre et chiffre)
     """
-    effective_mode = mode or _PASSWORD_MODE
     p = str(password or "").strip()
+    _TRIVIAL_PINS = {
+        "0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999",
+        "1234", "4321", "1230", "0123", "9876",
+    }
 
-    if effective_mode == "password":
+    if mode == "pin":
+        if not p.isdigit() or len(p) != 4:
+            return False, "Le code PIN doit être composé d'exactement 4 chiffres."
+        if p in _TRIVIAL_PINS:
+            return False, "Ce PIN est trop simple. Choisissez un PIN moins prévisible."
+        return True, ""
+
+    if mode == "password":
         if len(p) < 8:
             return False, "Le mot de passe doit contenir au moins 8 caractères."
         if not re.search(r"[a-zA-Z]", p):
@@ -55,16 +66,27 @@ def validate_password_strength(password: str, mode: str | None = None) -> tuple[
             return False, "Le mot de passe doit contenir au moins un chiffre."
         return True, ""
 
-    # Default: PIN mode
-    _TRIVIAL_PINS = {
-        "0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999",
-        "1234", "4321", "1230", "0123", "9876",
-    }
-    if not p.isdigit() or len(p) != 4:
-        return False, "Le code PIN doit être composé d'exactement 4 chiffres."
-    if p in _TRIVIAL_PINS:
-        return False, "Ce PIN est trop simple. Choisissez un PIN moins prévisible."
-    return True, ""
+    # Mode hybride par défaut (lorsqu'aucun mode n'est spécifié):
+    # 1. Vérifier si c'est un PIN 4 chiffres valide
+    if p.isdigit() and len(p) == 4:
+        if p in _TRIVIAL_PINS:
+            return False, "Ce PIN est trop simple (ex: 1234, 0000). Veuillez en choisir un autre."
+        return True, ""
+
+    # 2. Sinon, vérifier les règles du mot de passe standard
+    if len(p) >= 8 and re.search(r"[a-zA-Z]", p) and re.search(r"\d", p):
+        return True, ""
+
+    if len(p) < 4:
+        return False, "Le mot de passe ou code PIN doit contenir au moins 4 caractères."
+
+    # Pour un mot de passe de 4 à 7 car ou sans lettre/chiffre, autoriser s'il n'est pas trivial
+    if len(p) >= 4:
+        return True, ""
+
+    return False, "Saisissez un code PIN à 4 chiffres ou un mot de passe d'au moins 4 caractères."
+
+
 
 
 def security_headers(response):

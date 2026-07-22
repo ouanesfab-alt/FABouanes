@@ -32,24 +32,28 @@ from app.services.activity_service import activity_filter_values, list_activity_
 from app.services.system_service import get_system_status
 
 
+from app.core.async_db import get_async_sessionmaker, ensure_transaction
+
 @async_compat
 async def create_user_account(username: str, password: str, role: str, db: AsyncSession | None = None):
-    payload = validate_new_user_payload(username, password, role)
-    if not payload["ok"]:
-        return payload
-    username = payload["username"]
-    role_value = payload["role"]
-    if await user_exists(username, db=db):
-        return {"ok": False, "message": "Ce nom d'utilisateur existe deja."}
-    user_id = await create_user(username, generate_password_hash(password), role_value, False, True, db=db)
-    created_user = await get_user_by_id(user_id, db=db)
-    log_activity("create_user", "user", user_id, f"Creation du compte {username}")
-    audit_event("create_user", "user", user_id, after=created_user)
-    try:
-        mark_backup_needed("create_user")
-    except Exception:
-        pass
-    return {"ok": True, "message": "Compte créé avec succès."}
+    async with ensure_transaction(db) as session:
+        payload = validate_new_user_payload(username, password, role)
+        if not payload["ok"]:
+            return payload
+        username = payload["username"]
+        role_value = payload["role"]
+        if await user_exists(username, db=session):
+            return {"ok": False, "message": "Ce nom d'utilisateur existe déjà."}
+        user_id = await create_user(username, generate_password_hash(password), role_value, False, True, db=session)
+        created_user = await get_user_by_id(user_id, db=session)
+        log_activity("create_user", "user", user_id, f"Création du compte {username}")
+        audit_event("create_user", "user", user_id, after=created_user)
+        try:
+            mark_backup_needed("create_user")
+        except Exception:
+            pass
+        return {"ok": True, "message": "Compte créé avec succès."}
+
 
 
 @async_compat
