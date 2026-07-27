@@ -2,23 +2,27 @@
 
 # ===================================================
 # Script Unifié & Sécurisé d'Installation Termux
-# FABOuanes — Mode Auto (En-Ligne / Hors-Ligne)
+# FABOuanes — Mode Auto Turbo (En-Ligne / Hors-Ligne)
 # ===================================================
 
 set -e
 
-echo "🚀 Démarrage de l'installation de FABOuanes sur Termux..."
+echo "🚀 Démarrage de l'installation ultra-rapide de FABOuanes sur Termux..."
 
-# 1. Export des variables critiques Android (Évite le crash pydantic-core / maturin)
+# 1. Export des variables critiques Android (Évite les compilations Rust et crashs pydantic-core)
 export ANDROID_API_LEVEL=24
 export CFLAGS="-Wno-implicit-function-declaration $CFLAGS"
 
-# 2. Mise à jour et paquets système
+# 2. Mise à jour et paquets système + paquets Python pré-compilés par Termux
 echo "🔄 1. Mise à jour des dépôts Termux..."
 pkg update && pkg upgrade -y
 
-echo "📦 2. Installation des dépendances système & compilation..."
+echo "📦 2. Installation des paquets système & Python pré-compilés (Mode Turbo)..."
 pkg install git python postgresql make clang rust libffi openssl libjpeg-turbo -y
+
+# Téléchargement direct des pré-compilés Termux (évite d'attendre 15-20 min de compilation locale)
+echo "⚡ Installation accélérée des lourdes bibliothèques C/Rust..."
+pkg install python-cryptography python-pillow python-numpy python-pandas -y 2>/dev/null || true
 
 # 3. Initialisation & Démarrage de PostgreSQL
 echo "🗄️ 3. Configuration de PostgreSQL..."
@@ -48,16 +52,16 @@ if [ "$PWD" != "$TARGET_DIR" ]; then
     fi
 fi
 
-# 5. Installation des dépendances Python (Détection Hors-Ligne / En-Ligne)
-echo "🐍 5. Installation des paquets Python..."
-pip install --upgrade pip setuptools wheel 2>/dev/null || true
+# 5. Installation des dépendances Python (Détection Hors-Ligne / En-Ligne rapide)
+echo "🐍 5. Installation des paquets Python (Mode Turbo --prefer-binary)..."
+pip install --prefer-binary --upgrade pip setuptools wheel 2>/dev/null || true
 
 if [ -d "./wheels" ] && [ "$(ls -A ./wheels 2>/dev/null)" ]; then
     echo "📦 Mode Hors-Ligne détecté : Installation depuis le dossier ./wheels..."
     pip install --no-index --find-links=./wheels -r requirements.txt
 else
-    echo "🌐 Mode En-Ligne : Installation depuis PyPI avec ANDROID_API_LEVEL=24..."
-    pip install -r requirements.txt
+    echo "🌐 Mode En-Ligne : Installation rapide PyPI avec --prefer-binary..."
+    pip install --prefer-binary -r requirements.txt
 fi
 
 # 6. Génération sécurisée et complète du fichier .env
