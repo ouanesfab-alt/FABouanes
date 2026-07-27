@@ -176,7 +176,7 @@ async def _transactions_context_impl(
     requested_size = int((args or {}).get("page_size", 0) or 0)
     page, page_size, offset = parse_pagination(args)
     if requested_size > MAX_PAGE_SIZE:
-        page_size = requested_size
+        page_size = MAX_PAGE_SIZE
 
     count_res = await db.execute(text(f"SELECT COUNT(*) AS c FROM ({full_query}) paginated_query"), params)
     count_row = count_res.first()

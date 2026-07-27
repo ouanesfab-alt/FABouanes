@@ -459,10 +459,7 @@ class ClientService:
         payload = json.loads(path.read_text(encoding="utf-8"))
         created_at = float(payload.get("created_at") or 0)
         if created_at <= 0 or (time() - created_at) > _IMPORT_PREVIEW_TTL_SECONDS:
-            try:
-                path.unlink()
-            except Exception:
-                pass
+            path.unlink(missing_ok=True)
             raise ValueError("Previsualisation expiree")
         rows = payload.get("rows") or []
         if not isinstance(rows, list):
@@ -470,10 +467,7 @@ class ClientService:
         return rows
 
     def _discard_client_import_preview(self, token: str) -> None:
-        try:
-            self._preview_path(token).unlink()
-        except Exception:
-            pass
+        self._preview_path(token).unlink(missing_ok=True)
 
     async def _parse_client_import_files(self, files):
         ensure_runtime_dirs()
