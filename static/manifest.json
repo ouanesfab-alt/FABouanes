@@ -1,23 +1,22 @@
 {
-  "name": "FABOuanes - Gestion d'equipe",
-  "short_name": "FABOuanes",
-  "description": "Gestion commerciale, production et stocks pour FABOuanes.",
-  "start_url": "/dashboard",
-  "scope": "/",
-  "display": "standalone",
-  "display_override": ["standalone", "minimal-ui", "browser"],
-  "background_color": "#f3f4f6",
-  "theme_color": "#1a2235",
-  "orientation": "portrait-primary",
-  "lang": "fr",
-  "categories": ["business", "productivity"],
+  "short_name": "FABouanes",
+  "name": "FABouanes — Gestion Douanière",
   "icons": [
-    { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "/static/icon_512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icon.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
   ],
-  "shortcuts": [
-    { "name": "Nouveau client", "url": "/contacts/clients/new" },
-    { "name": "Nouvelle vente", "url": "/operations/sales/new" },
-    { "name": "Nouvel achat", "url": "/operations/purchases/new" }
-  ]
+  "start_url": "/",
+  "background_color": "#16253F",
+  "theme_color": "#16253F",
+  "display": "standalone",
+  "orientation": "any"
 }

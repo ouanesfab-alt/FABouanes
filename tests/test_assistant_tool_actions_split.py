@@ -34,6 +34,7 @@ def get_mock_session_maker(session_mock):
     mock_begin.__aenter__ = AsyncMock(return_value=None)
     mock_begin.__aexit__ = AsyncMock(return_value=None)
     session_mock.begin = MagicMock(return_value=mock_begin)
+    session_mock.add = MagicMock()
 
     fake_cm = MagicMock()
     fake_cm.__aenter__ = AsyncMock(return_value=session_mock)

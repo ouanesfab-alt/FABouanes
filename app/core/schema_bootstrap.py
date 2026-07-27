@@ -225,11 +225,17 @@ def bootstrap_schema() -> None:
         # pgvector extension activation and catalog embeddings
         has_vector = False
         try:
-            conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-            conn.commit()
-            has_vector = True
+            res = conn.execute("SELECT 1 FROM pg_available_extensions WHERE name = 'vector' AND installed_version IS NOT NULL;").fetchone()
+            if res:
+                has_vector = True
+            else:
+                avail = conn.execute("SELECT 1 FROM pg_available_extensions WHERE name = 'vector';").fetchone()
+                if avail:
+                    conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+                    conn.commit()
+                    has_vector = True
         except Exception:
-            pass
+            conn.rollback()
 
         if has_vector:
             conn.executescript("""

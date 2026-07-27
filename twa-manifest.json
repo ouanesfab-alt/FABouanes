@@ -1,0 +1,37 @@
+{
+  "packageId": "com.fabouanes.app",
+  "name": "FABouanes",
+  "launcherName": "FABouanes",
+  "display": "standalone",
+  "themeColor": "#16253F",
+  "navigationColor": "#16253F",
+  "navigationColorDark": "#16253F",
+  "navigationBarColor": "#16253F",
+  "navigationBarColorDark": "#16253F",
+  "backgroundColor": "#16253F",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://fabouanes.app/static/icon_512.png",
+  "maskableIconUrl": "https://fabouanes.app/static/icon_512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "android"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://fabouanes.app/static/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": "true",
+  "isChromeOSOnly": false,
+  "isChromiumOnly": false,
+  "orientation": "default",
+  "fingerprints": [],
+  "additionalTrustedOrigins": []
+}

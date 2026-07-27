@@ -970,7 +970,7 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
         last_exception = None
 
         candidate_models = [user_model]
-        fallbacks = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.5-pro", "gemini-3.1-flash-lite", "gemini-3.5-flash"]
+        fallbacks = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-3.5-flash"]
         for m in fallbacks:
             if m != user_model and m not in candidate_models:
                 candidate_models.append(m)

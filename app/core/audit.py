@@ -175,7 +175,9 @@ def _json_dump(value: Any) -> str | None:
     return json.dumps(sanitize_payload(row_to_dict(value)), ensure_ascii=False, sort_keys=True, default=str)
 
 
-def _resolve_actor(user_id: int | None = None, actor: Any = None) -> tuple[int | None, str, str]:
+_ACTOR_CACHE: dict[int, tuple[str, str]] = {}
+
+def _resolve_actor(actor: Mapping[str, Any] | None = None, user_id: int | None = None) -> tuple[int | None, str, str]:
     resolved_id = user_id
     resolved_username = None
     resolved_role = None
@@ -203,15 +205,23 @@ def _resolve_actor(user_id: int | None = None, actor: Any = None) -> tuple[int |
                 resolved_role = getattr(state_user, "role", None)
 
     if resolved_id and (not resolved_username or not resolved_role):
-        try:
-            from app.core.db_helpers import query_db
-            user_row = query_db("SELECT username, role FROM users WHERE id = %s", (int(resolved_id),), one=True)
-            if user_row:
-                resolved_username = resolved_username or user_row.get("username")
-                resolved_role = resolved_role or user_row.get("role")
-        except Exception as e:
-            import logging
-            logging.getLogger("fabouanes.audit").warning("Impossible de charger l'utilisateur pour l'audit: %s", e)
+        uid_key = int(resolved_id)
+        if uid_key in _ACTOR_CACHE:
+            cached_uname, cached_r = _ACTOR_CACHE[uid_key]
+            resolved_username = resolved_username or cached_uname
+            resolved_role = resolved_role or cached_r
+        else:
+            try:
+                from app.core.db_helpers import query_db
+                user_row = query_db("SELECT username, role FROM users WHERE id = %s", (uid_key,), one=True)
+                if user_row:
+                    resolved_username = resolved_username or user_row.get("username")
+                    resolved_role = resolved_role or user_row.get("role")
+                    if resolved_username and resolved_role:
+                        _ACTOR_CACHE[uid_key] = (resolved_username, resolved_role)
+            except Exception as e:
+                import logging
+                logging.getLogger("fabouanes.audit").warning("Impossible de charger l'utilisateur pour l'audit: %s", e)
 
     return resolved_id, resolved_username or "anonymous", resolved_role or "anonymous"
 

@@ -56,3 +56,8 @@ http_stress_test.log
 # Coverage reports
 htmlcov/
 coverage.xml
+
+# Offline Bundle Output
+fabouanes_offline.zip
+fabouanes_offline_bundle/
+first_admin_password.txt

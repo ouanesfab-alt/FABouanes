@@ -325,14 +325,14 @@
           <div class="progress-bar progress-bar-striped progress-bar-animated" id="progressProgressBar" role="progressbar" style="width: 0%; background: #2563eb;"></div>
         </div>
 
-        <div class="d-flex justify-content-center flex-wrap gap-2 mb-3">
-          <button type="button" class="btn btn-outline-secondary btn-sm py-2 px-3 d-inline-flex align-items-center justify-content-center gap-1 flex-grow-1" id="progressPauseBtn" onclick="togglePauseResume()" style="font-size: 0.82rem; font-weight: 700; border-radius: 8px; min-height: 38px;">
+        <div class="d-flex justify-content-center gap-2 mb-3">
+          <button type="button" class="btn btn-outline-secondary btn-xs py-1 px-2" id="progressPauseBtn" onclick="togglePauseResume()" style="font-size: 0.75rem; border-radius: 6px;">
             <i class="bi bi-pause-fill" id="progressPauseIcon"></i> <span id="progressPauseText">Pause</span>
           </button>
-          <button type="button" class="btn btn-outline-danger btn-sm py-2 px-3 d-inline-flex align-items-center justify-content-center gap-1 flex-grow-1" id="progressCancelBtn" onclick="cancelProgress()" style="font-size: 0.82rem; font-weight: 700; border-radius: 8px; min-height: 38px;">
+          <button type="button" class="btn btn-outline-danger btn-xs py-1 px-2" id="progressCancelBtn" onclick="cancelProgress()" style="font-size: 0.75rem; border-radius: 6px;">
             <i class="bi bi-x-circle-fill"></i> Annuler
           </button>
-          <button type="button" class="btn btn-outline-primary btn-sm py-2 px-3 d-inline-flex align-items-center justify-content-center gap-1 flex-grow-1" id="progressBgBtn" onclick="continueInBackground()" style="font-size: 0.82rem; font-weight: 700; border-radius: 8px; min-height: 38px;">
+          <button type="button" class="btn btn-outline-primary btn-xs py-1 px-2" id="progressBgBtn" onclick="continueInBackground()" style="font-size: 0.75rem; border-radius: 6px;">
             <i class="bi bi-arrow-down-left-circle"></i> Arrière-plan
           </button>
         </div>
@@ -375,22 +375,7 @@
 <!-- ========================================== -->
 <!-- FLOATING MINI-PROGRESS WIDGET -->
 <!-- ========================================== -->
-<style nonce="{{ csp_nonce }}">
-  .mini-progress-widget {
-    display: none; position: fixed; bottom: 20px; left: 20px; width: 300px;
-    border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-    z-index: 9999; padding: 16px; background: var(--card);
-  }
-  @media (max-width: 767px) {
-    .mini-progress-widget {
-      bottom: 84px !important;
-      left: 16px !important;
-      right: 16px !important;
-      width: auto !important;
-    }
-  }
-</style>
-<div id="miniProgressWidget" class="mini-progress-widget">
+<div id="miniProgressWidget" style="display: none; position: fixed; bottom: 20px; left: 20px; width: 300px; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); z-index: 9999; padding: 16px;">
   <div class="d-flex justify-content-between align-items-center mb-2">
     <span class="fw-bold small" id="miniProgressTitle" style="font-size: 0.8rem; font-weight: 700;">Importation en cours...</span>
     <span class="fw-bold text-primary font-monospace small" id="miniProgressPercentage" style="font-size: 0.85rem;">0%</span>

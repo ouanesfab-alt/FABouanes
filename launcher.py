@@ -149,45 +149,45 @@ def get_bind_host() -> str:
 
 
 def get_local_ip() -> str:
-    """Détecte la vraie adresse IP Wi-Fi physique du réseau local (priorité à 192.168.x.x et écarte NAT/CGNAT)."""
+    """Discovers the best physical LAN IP address for local network/mobile access."""
     candidates = []
-
+    
+    # Method 1: Hostname resolution candidates
     try:
         hostname = socket.gethostname()
         _, _, ip_list = socket.gethostbyname_ex(hostname)
         for ip in ip_list:
-            if ip and not ip.startswith(("127.", "169.254.", "100.")):
+            if not ip.startswith(("127.", "169.254.")):
                 candidates.append(ip)
     except Exception:
         pass
 
+    # Method 2: UDP probe candidate
     probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         probe.connect(("8.8.8.8", 80))
         probed_ip = probe.getsockname()[0]
-        if probed_ip and not probed_ip.startswith(("127.", "169.254.", "100.")):
-            candidates.append(probed_ip)
+        if probed_ip and not probed_ip.startswith(("127.", "169.254.")):
+            candidates.insert(0, probed_ip)
     except OSError:
         pass
     finally:
         probe.close()
 
+    # Prioritize: 192.168.x.x first, then 10.x.x.x, then 172.16-31.x.x
     def score_ip(ip: str) -> int:
-        if not ip or ip.startswith(("127.", "169.254.", "100.")):
-            return 0
         if ip.startswith("192.168."):
             return 100
+        if ip.startswith("10."):
+            return 80
         parts = ip.split(".")
         if len(parts) == 4 and parts[0] == "172" and 16 <= int(parts[1]) <= 31:
-            return 80
-        if ip.startswith("10."):
-            return 50
+            return 60
         return 10
 
-    valid = [ip for ip in candidates if score_ip(ip) > 0]
-    if valid:
-        valid.sort(key=score_ip, reverse=True)
-        return valid[0]
+    if candidates:
+        candidates.sort(key=score_ip, reverse=True)
+        return candidates[0]
 
     return "127.0.0.1"
 
@@ -212,77 +212,20 @@ def server_access_lines(host: str, port: int, lan_ip: str | None = None) -> list
     return lines
 
 
-def check_ssl_active() -> bool:
-    if "--no-ssl" in sys.argv or "--http" in sys.argv:
-        return False
-    val = str(os.environ.get("FAB_SSL", "1")).lower()
-    if val in ("0", "false", "no", "http"):
-        return False
-    return True
-
-
-def ensure_ssl_certificates() -> tuple[str, str] | None:
-    if not check_ssl_active():
-        return None
-    cert_dir = DATA_DIR / "certs"
-    cert_path = cert_dir / "cert.pem"
-    key_path = cert_dir / "key.pem"
-    if cert_path.exists() and key_path.exists():
-        return str(cert_path), str(key_path)
-
-    cert_dir.mkdir(parents=True, exist_ok=True)
-    try:
-        import datetime
-        from cryptography import x509
-        from cryptography.x509.oid import NameOID
-        from cryptography.hazmat.primitives import hashes, serialization
-        from cryptography.hazmat.primitives.asymmetric import rsa
-
-        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-        subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "FABOuanes")])
-        cert = (
-            x509.CertificateBuilder()
-            .subject_name(subject)
-            .issuer_name(issuer)
-            .public_key(key.public_key())
-            .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
-            .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=3650))
-            .sign(key, hashes.SHA256())
-        )
-
-        with open(cert_path, "wb") as f:
-            f.write(cert.public_bytes(serialization.Encoding.PEM))
-        with open(key_path, "wb") as f:
-            f.write(
-                key.private_bytes(
-                    serialization.Encoding.PEM,
-                    serialization.PrivateFormat.TraditionalOpenSSL,
-                    serialization.NoEncryption(),
-                )
-            )
-
-        print(f"🔒 Certificat SSL auto-signé généré dans {cert_dir}", flush=True)
-        return str(cert_path), str(key_path)
-    except Exception as e:
-        print(f"⚠️ Erreur SSL, fallback sur HTTP: {e}", flush=True)
-        return None
-
-
 def print_server_access(host: str, port: int, lan_ip: str | None = None) -> None:
     client_host = lan_ip or (get_local_ip() if host == "0.0.0.0" else host)
-    scheme = "https" if check_ssl_active() else "http"
     banner = [
         "===========================================================",
-        f"       FABOUANES — ACCES RESEAU & MOBILE ({scheme.upper()})",
+        "           FABOUANES — ACCES RESEAU & MOBILE               ",
         "===========================================================",
-        f"  PC Local : {scheme}://127.0.0.1:{port}",
-        f"  Mobile   : {scheme}://{client_host}:{port}",
+        f"  PC Local : http://127.0.0.1:{port}",
+        f"  Mobile   : http://{client_host}:{port}",
         "-----------------------------------------------------------",
         "  Connectez vos smartphones/tablettes au meme réseau WiFi  ",
         "===========================================================",
     ]
     print("\n".join(banner), flush=True)
+
 
 
 def run_server(host: str, port: int) -> None:
@@ -305,26 +248,17 @@ def run_server(host: str, port: int) -> None:
         print_server_access(host, port, lan_ip)
         print("La fenetre reste ouverte: c'est le mode serveur. Ctrl+C pour l'arreter.", flush=True)
     log_level = os.environ.get("FAB_UVICORN_LOG_LEVEL") or "warning"
-    ssl_files = ensure_ssl_certificates()
-    config_kwargs = {
-        "app": "app.main:app",
-        "host": host,
-        "port": port,
-        "reload": False,
-        "log_level": log_level,
-        "access_log": False,
-        "use_colors": False,
-    }
-    if ssl_files:
-        config_kwargs["ssl_certfile"] = ssl_files[0]
-        config_kwargs["ssl_keyfile"] = ssl_files[1]
-
-    config = uvicorn.Config(**config_kwargs)
+    config = uvicorn.Config(
+        "app.main:app",
+        host=host,
+        port=port,
+        reload=False,
+        log_level=log_level,
+        access_log=False,
+        use_colors=False,
+    )
     server = uvicorn.Server(config)
-    try:
-        server.run()
-    except (KeyboardInterrupt, SystemExit):
-        pass
+    server.run()
 
 
 def wait_server(port: int, timeout: float = 15.0) -> bool:
@@ -553,28 +487,6 @@ def main() -> None:
             print(f"Bootstrap failed: {exc}")
             sys.exit(1)
 
-    if "--qr" in args or "--qrcode" in args:
-        host = get_bind_host()
-        start_port = int(os.environ.get("FAB_PORT", "5000") or "5000")
-        lan_ip = get_local_ip() if host == "0.0.0.0" else host
-        scheme = "https" if check_ssl_active() else "http"
-        url = f"{scheme}://{lan_ip}:{start_port}"
-        print(f"\n📲 QR CODE D'ACCES SERVEUR ({scheme.upper()}) : {url}\n", flush=True)
-        try:
-            import qrcode
-            qr = qrcode.QRCode(border=1)
-            qr.add_data(url)
-            sys.stdout.reconfigure(encoding="utf-8")
-            qr.print_ascii(invert=True)
-        except Exception:
-            pass
-        sys.exit(0)
-
-    if "--pin" in args:
-        pin = os.environ.get("DEFAULT_ADMIN_PASSWORD", "7508")
-        print(f"🔑 Code PIN Admin actuel : {pin}", flush=True)
-        sys.exit(0)
-
     if args & SERVER_MODE_ARGS:
         host = get_bind_host()
         start_port = int(os.environ.get("FAB_PORT", "5000") or "5000")
@@ -618,8 +530,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except (KeyboardInterrupt, SystemExit):
-        print("\n\n👋 Serveur FABOuanes arrêté proprement. À bientôt !\n", flush=True)
-        sys.exit(0)
+    main()

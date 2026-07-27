@@ -9,11 +9,11 @@
       <i
         class="bi bi-box-seam{% if request.endpoint in ['catalog','catalog_new','raw_materials'] %}-fill{% endif %}"></i><span>Produits</span>
     </a>
-    <a href="{{ url_for('quick_add') }}" class="bot-tab-add" title="Ajouter" aria-label="Ajouter">
-      <i class="bi bi-plus-lg"></i>
-    </a>
     <a href="{{ url_for('operations') }}" class="bot-tab {{ 'active' if operations_nav_active else '' }}">
       <i class="bi bi-arrow-left-right"></i><span>Opérations</span>
+    </a>
+    <a href="{{ url_for('quick_add') }}" class="bot-tab-add" title="Ajouter">
+      <i class="bi bi-plus-lg"></i>
     </a>
     <a href="{{ url_for('contacts') }}" class="bot-tab {{ 'active' if contacts_nav_active else '' }}">
       <i class="bi bi-people{% if contacts_nav_active %}-fill{% endif %}"></i><span>Contacts</span>

@@ -62,6 +62,7 @@ def _seed_default_admin(conn) -> None:
             "DEFAULT_ADMIN_PASSWORD cannot be 'admin' in production server mode. Set a strong password in your .env file."
         )
     admin = conn.execute("SELECT id, password_hash FROM users WHERE username = %s", (DEFAULT_ADMIN_USERNAME,)).fetchone()
+    init_pwd = initial_admin_password()
     if not admin:
         # Detect if column type is boolean or integer (PostgreSQL strict type safety)
         res = conn.execute(
@@ -77,7 +78,12 @@ def _seed_default_admin(conn) -> None:
             INSERT INTO users (username, password_hash, role, must_change_password, is_active, last_password_change_at)
             VALUES (%s, %s, 'admin', %s, %s, CURRENT_TIMESTAMP)
             """,
-            (DEFAULT_ADMIN_USERNAME, generate_password_hash(initial_admin_password()), val_must_change, val_is_active),
+            (DEFAULT_ADMIN_USERNAME, generate_password_hash(init_pwd), val_must_change, val_is_active),
+        )
+    elif str(DEFAULT_ADMIN_PASSWORD or "").strip():
+        conn.execute(
+            "UPDATE users SET password_hash = %s WHERE username = %s",
+            (generate_password_hash(init_pwd), DEFAULT_ADMIN_USERNAME),
         )
 
 

@@ -25,8 +25,8 @@ async def assistant_briefing(request: Request):
     if denied:
         return JSONResponse({"has_briefing": False}, status_code=403)
     try:
-        from app.modules.assistant.briefing import generate_briefing
-        result = generate_briefing()
+        from app.modules.assistant.briefing import generate_briefing_async
+        result = await generate_briefing_async()
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"has_briefing": False, "error": str(e)})

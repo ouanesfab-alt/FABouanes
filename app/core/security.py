@@ -146,13 +146,16 @@ def encrypt_val(val: str | None, key: bytes) -> str | None:
         return None
     import base64
     import os
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    val_bytes = val.encode("utf-8")
-    aesgcm = AESGCM(key)
-    nonce = os.urandom(12)
-    ct = aesgcm.encrypt(nonce, val_bytes, None)
-    combined = nonce + ct
-    return "ale:" + base64.b64encode(combined).decode("utf-8")
+    try:
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        val_bytes = val.encode("utf-8")
+        aesgcm = AESGCM(key)
+        nonce = os.urandom(12)
+        ct = aesgcm.encrypt(nonce, val_bytes, None)
+        combined = nonce + ct
+        return "ale:" + base64.b64encode(combined).decode("utf-8")
+    except ImportError:
+        return val
 
 
 def decrypt_val(enc_val: str | None, key: bytes | None) -> str | None:

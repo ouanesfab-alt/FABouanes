@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import csv
 import io
 from datetime import date, datetime
@@ -8,6 +9,7 @@ from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_session
+from app.core.db_helpers import query_db
 
 from app.services.print_service import COMPANY_INFO, PRINT_LAYOUT, build_print_payload, generate_invoice_pdf
 from app.services.transactions_service import transactions_context, update_production_notes
@@ -135,8 +137,8 @@ async def new_operation_page(request: Request, db: AsyncSession = Depends(get_as
     context.update(s_ctx)
     context.update(pay_ctx)
 
-    context["clients"] = query_db("SELECT * FROM clients ORDER BY name")
-    context["suppliers"] = query_db("SELECT * FROM suppliers ORDER BY name")
+    context["clients"] = await asyncio.to_thread(query_db, "SELECT * FROM clients ORDER BY name")
+    context["suppliers"] = await asyncio.to_thread(query_db, "SELECT * FROM suppliers ORDER BY name")
     context["mode"] = request.query_params.get("mode", "achat")
 
     return templates.TemplateResponse("operation_new.html", template_context(request, **context))
