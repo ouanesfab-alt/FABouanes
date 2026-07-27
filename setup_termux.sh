@@ -7,6 +7,9 @@
 
 set -e
 
+# Piège gracieux pour Ctrl+C (KeyboardInterrupt)
+trap 'echo -e "\n\n👋 Serveur arrêté avec succès (Ctrl+C). À bientôt !"; exit 0' SIGINT SIGTERM
+
 echo "🚀 Démarrage de l'installation ultra-rapide de FABOuanes sur Termux..."
 
 # 1. Export des variables critiques Android (Évite les compilations Rust et crashs pydantic-core)
@@ -25,13 +28,19 @@ pkg install python-cryptography python-pillow python-numpy python-pandas -y 2>/d
 
 # 3. Initialisation & Démarrage de PostgreSQL
 echo "🗄️ 3. Configuration de PostgreSQL..."
-if [ ! -d "$PREFIX/var/lib/postgresql" ]; then
-    initdb -D $PREFIX/var/lib/postgresql
+PG_DATA="$PREFIX/var/lib/postgresql"
+if [ ! -d "$PG_DATA" ]; then
+    initdb -D "$PG_DATA"
+fi
+
+# Nettoyage si arrêt brutal antérieur (Ctrl+C)
+if [ -f "$PG_DATA/postmaster.pid" ]; then
+    pg_ctl -D "$PG_DATA" status >/dev/null 2>&1 || rm -f "$PG_DATA/postmaster.pid"
 fi
 
 # Démarrage de PostgreSQL
-pg_ctl -D $PREFIX/var/lib/postgresql start || true
-sleep 2
+pg_ctl -D "$PG_DATA" start >/dev/null 2>&1 || true
+sleep 1
 
 # Création de la base de données
 createdb fabouanes 2>/dev/null || echo "Info: La base 'fabouanes' existe déjà."
@@ -95,8 +104,16 @@ echo "⚡ 8. Création du lanceur rapide ~/start_fab.sh..."
 cat << 'EOF' > ~/start_fab.sh
 #!/data/data/com.termux/files/usr/bin/bash
 export ANDROID_API_LEVEL=24
+
+# Piège gracieux pour Ctrl+C
+trap 'echo -e "\n\n👋 Serveur arrêté avec succès (Ctrl+C). À bientôt !"; exit 0' SIGINT SIGTERM
+
 echo "⚡ Démarrage de PostgreSQL..."
-pg_ctl -D $PREFIX/var/lib/postgresql start 2>/dev/null || true
+PG_DATA="$PREFIX/var/lib/postgresql"
+if [ -f "$PG_DATA/postmaster.pid" ]; then
+    pg_ctl -D "$PG_DATA" status >/dev/null 2>&1 || rm -f "$PG_DATA/postmaster.pid"
+fi
+pg_ctl -D "$PG_DATA" start >/dev/null 2>&1 || true
 sleep 1
 
 echo "🚀 Lancement du serveur FABOuanes..."
@@ -122,7 +139,7 @@ echo " Accès depuis votre navigateur mobile :"
 echo "   http://localhost:5000"
 echo "==================================================="
 echo ""
-echo "🚀 Démarrage automatique du serveur FABOuanes..."
+echo "🚀 Démarrage automatique du serveur FABOuanes (Ctrl+C pour arrêter)..."
 sleep 2
 
 # Démarrage automatique du serveur
