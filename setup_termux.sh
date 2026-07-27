@@ -96,6 +96,7 @@ FAB_HOST=0.0.0.0
 FAB_PORT=5000
 FAB_DESKTOP=0
 FAB_PASSWORD_MODE=pin
+FAB_SSL=1
 EOF
     echo "✅ Fichier .env créé. Code PIN Administrateur généré : ${PIN_CODE}"
 else
@@ -180,12 +181,12 @@ ADMIN_PIN=$(grep "DEFAULT_ADMIN_PASSWORD" .env 2>/dev/null | cut -d'=' -f2 || ec
 
 echo ""
 echo "===================================================="
-echo " 📱 FABOUANES MOBILE SERVER — EN LIGNE 🟢"
+echo " 📱 FABOUANES MOBILE SERVER — EN LIGNE (HTTPS) 🟢"
 echo "===================================================="
 echo " 👤 Identifiant Admin : admin"
 echo " 🔑 Code PIN Admin   : ${ADMIN_PIN}"
 echo "----------------------------------------------------"
-echo " 🌐 Accès Mobile Local : http://localhost:5000"
+echo " 🌐 Accès Mobile Local : https://localhost:5000"
 echo " 💡 Astuces Commandes :"
 echo "    - fab        -> Relancer le serveur"
 echo "    - fab-stop   -> Arrêter le serveur"
@@ -195,7 +196,7 @@ echo ""
 
 # Ouverture automatique dans le navigateur si disponible
 if command -v termux-open-url >/dev/null 2>&1; then
-    termux-open-url "http://localhost:5000" 2>/dev/null || true
+    termux-open-url "https://localhost:5000" 2>/dev/null || true
 fi
 
 # Lancement du serveur FastAPI
@@ -230,7 +231,7 @@ echo "   fab-pin     -> Revoir le Code PIN Admin"
 echo "----------------------------------------------------"
 echo " 👤 Identifiant Admin : admin"
 echo " 🔑 Code PIN Admin   : ${ADMIN_PIN}"
-echo " 🌐 Accès Mobile     : http://localhost:5000"
+echo " 🌐 Accès Mobile     : https://localhost:5000"
 echo "===================================================="
 echo ""
 echo "🚀 Démarrage du serveur (Ctrl+C pour annuler)..."

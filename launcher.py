@@ -213,13 +213,12 @@ def server_access_lines(host: str, port: int, lan_ip: str | None = None) -> list
 
 
 def check_ssl_active() -> bool:
-    if "--ssl" in sys.argv or "--https" in sys.argv:
-        return True
-    val = str(os.environ.get("FAB_SSL", "0")).lower()
-    if val in ("1", "true", "yes", "https"):
-        return True
-    cert_dir = DATA_DIR / "certs"
-    return (cert_dir / "cert.pem").exists() and (cert_dir / "key.pem").exists()
+    if "--no-ssl" in sys.argv or "--http" in sys.argv:
+        return False
+    val = str(os.environ.get("FAB_SSL", "1")).lower()
+    if val in ("0", "false", "no", "http"):
+        return False
+    return True
 
 
 def ensure_ssl_certificates() -> tuple[str, str] | None:
