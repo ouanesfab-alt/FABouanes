@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 # ===================================================
-# Script Unifié & Sécurisé d'Installation Termux
+# Script Unifié & VIP d'Installation Termux
 # FABOuanes — Mode Auto Turbo (En-Ligne / Hors-Ligne)
 # ===================================================
 
@@ -10,9 +10,11 @@ set -e
 # Piège gracieux pour Ctrl+C (KeyboardInterrupt)
 trap 'echo -e "\n\n👋 Serveur arrêté avec succès (Ctrl+C). À bientôt !"; exit 0' SIGINT SIGTERM
 
-echo "🚀 Démarrage de l'installation ultra-rapide de FABOuanes sur Termux..."
+echo "==================================================="
+echo "   🚀  FABOuanes — Installation Mobile Termux"
+echo "==================================================="
 
-# 1. Export des variables critiques Android (Évite les compilations Rust et crashs pydantic-core)
+# 1. Export des variables critiques Android
 export ANDROID_API_LEVEL=24
 export CFLAGS="-Wno-implicit-function-declaration $CFLAGS"
 
@@ -21,7 +23,7 @@ echo "🔄 1. Vérification des dépôts et paquets Termux..."
 pkg update -y 2>/dev/null || true
 
 echo "📦 2. Installation des paquets système de base..."
-pkg install git python postgresql make clang rust libffi openssl libjpeg-turbo -y 2>/dev/null || true
+pkg install git python postgresql make clang rust libffi openssl libjpeg-turbo termux-api -y 2>/dev/null || true
 
 # Paquets pré-compilés Optionnels Termux
 pkg install python-cryptography python-pillow python-numpy python-pandas -y 2>/dev/null || true
@@ -99,48 +101,104 @@ fi
 echo "⚙️ 7. Initialisation des schémas de la base de données..."
 python launcher.py --bootstrap-only
 
-# 8. Création du script de lancement rapide ~/start_fab.sh
-echo "⚡ 8. Création du lanceur rapide ~/start_fab.sh..."
+# 8. Création du lanceur rapide VIP ~/start_fab.sh
+echo "⚡ 8. Création du lanceur rapide VIP (commande 'fab')..."
 cat << 'EOF' > ~/start_fab.sh
 #!/data/data/com.termux/files/usr/bin/bash
 export ANDROID_API_LEVEL=24
 
 # Piège gracieux pour Ctrl+C
-trap 'echo -e "\n\n👋 Serveur arrêté avec succès (Ctrl+C). À bientôt !"; exit 0' SIGINT SIGTERM
+trap 'echo -e "\n\n👋 Serveur arrêté proprement. À bientôt !"; exit 0' SIGINT SIGTERM
+
+# Maintien de l'écran éveillé en arrière-plan
+if command -v termux-wake-lock >/dev/null 2>&1; then
+    termux-wake-lock 2>/dev/null || true
+fi
+
+PG_DATA="$PREFIX/var/lib/postgresql"
+
+case "$1" in
+    stop)
+        echo "🛑 Arrêt du serveur et de PostgreSQL..."
+        pg_ctl -D "$PG_DATA" stop 2>/dev/null || true
+        pkill -f "launcher.py" 2>/dev/null || true
+        echo "✅ Serveur et base de données arrêtés."
+        exit 0
+        ;;
+    status)
+        echo "📊 Statut des services FABOuanes :"
+        if pg_ctl -D "$PG_DATA" status >/dev/null 2>&1; then
+            echo "  - PostgreSQL : 🟢 En ligne"
+        else
+            echo "  - PostgreSQL : 🔴 Arrêté"
+        fi
+        exit 0
+        ;;
+    pin)
+        if [ -d "$HOME/FABouanes" ] && [ -f "$HOME/FABouanes/.env" ]; then
+            PIN=$(grep "DEFAULT_ADMIN_PASSWORD" "$HOME/FABouanes/.env" | cut -d'=' -f2)
+            echo "🔑 Code PIN Admin actuel : ${PIN}"
+        fi
+        exit 0
+        ;;
+esac
 
 echo "⚡ Démarrage de PostgreSQL..."
-PG_DATA="$PREFIX/var/lib/postgresql"
 if [ -f "$PG_DATA/postmaster.pid" ]; then
     pg_ctl -D "$PG_DATA" status >/dev/null 2>&1 || rm -f "$PG_DATA/postmaster.pid"
 fi
 pg_ctl -D "$PG_DATA" start >/dev/null 2>&1 || true
 sleep 1
 
-echo "🚀 Lancement du serveur FABOuanes..."
 if [ -d "$HOME/FABouanes" ]; then
     cd "$HOME/FABouanes"
 fi
+
+ADMIN_PIN=$(grep "DEFAULT_ADMIN_PASSWORD" .env 2>/dev/null | cut -d'=' -f2 || echo "7508")
+
+echo ""
+echo "===================================================="
+echo " 📱 FABOUANES MOBILE SERVER — EN LIGNE 🟢"
+echo "===================================================="
+echo " 👤 Identifiant Admin : admin"
+echo " 🔑 Code PIN Admin   : ${ADMIN_PIN}"
+echo "----------------------------------------------------"
+echo " 🌐 Accès Mobile Local : http://localhost:5000"
+echo " 💡 Astuce : Tapez 'fab stop' pour tout arrêter."
+echo "===================================================="
+echo ""
+
+# Lancement du serveur FastAPI
 python launcher.py --server-only
 EOF
 
 chmod +x ~/start_fab.sh
 
-# Extrait du PIN pour l'affichage final
+# 9. Ajout de l'alias 'fab' dans ~/.bashrc
+BASHRC="$HOME/.bashrc"
+if ! grep -q "alias fab=" "$BASHRC" 2>/dev/null; then
+    echo "alias fab='~/start_fab.sh'" >> "$BASHRC"
+    echo "alias fab-stop='~/start_fab.sh stop'" >> "$BASHRC"
+    echo "alias fab-status='~/start_fab.sh status'" >> "$BASHRC"
+fi
+
 ADMIN_PIN=$(grep "DEFAULT_ADMIN_PASSWORD" .env 2>/dev/null | cut -d'=' -f2 || echo "7508")
 
-echo "==================================================="
-echo "🎉 INSTALLATION AUTOMATISEE TERMINEE AVEC SUCCES !"
-echo "==================================================="
-echo " Connexion Administrateur :"
-echo "   Utilisateur : admin"
-echo "   Code PIN    : ${ADMIN_PIN}"
-echo "---------------------------------------------------"
-echo " Accès depuis votre navigateur mobile :"
-echo "   http://localhost:5000"
-echo "==================================================="
 echo ""
-echo "🚀 Démarrage automatique du serveur FABOuanes (Ctrl+C pour arrêter)..."
+echo "===================================================="
+echo "🎉 CONFIGURATION VIP DE TERMUX TERMINEE AVEC SUCCES !"
+echo "===================================================="
+echo " Vous pouvez désormais utiliser la commande universelle :"
+echo "   fab         -> Lancer le serveur"
+echo "   fab-stop    -> Arrêter le serveur"
+echo "   fab-status  -> Vérifier l'état de la base de données"
+echo "----------------------------------------------------"
+echo " 👤 Identifiant Admin : admin"
+echo " 🔑 Code PIN Admin   : ${ADMIN_PIN}"
+echo " 🌐 Accès Mobile     : http://localhost:5000"
+echo "===================================================="
+echo ""
+echo "🚀 Démarrage du serveur dans 2 secondes (Ctrl+C pour annuler)..."
 sleep 2
 
-# Démarrage automatique du serveur
 python launcher.py --server-only
