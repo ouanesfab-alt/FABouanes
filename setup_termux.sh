@@ -147,6 +147,15 @@ case "$1" in
         fi
         exit 0
         ;;
+    backup)
+        BACKUP_DIR="$HOME/storage/downloads"
+        if [ ! -d "$BACKUP_DIR" ]; then BACKUP_DIR="$HOME"; fi
+        FILE="${BACKUP_DIR}/FAB_Backup_$(date +%Y%m%d_%H%M%S).sql"
+        echo "💾 Saucegarde de la base de données dans ${FILE}..."
+        pg_dump fabouanes > "$FILE" 2>/dev/null
+        echo "✅ Sauvegarde terminée : $(basename "$FILE")"
+        exit 0
+        ;;
     ssl|https)
         ENV_FILE="$HOME/FABouanes/.env"
         if [ -f "$ENV_FILE" ]; then
@@ -191,6 +200,7 @@ echo " 💡 Astuces Commandes :"
 echo "    - fab        -> Relancer le serveur"
 echo "    - fab-stop   -> Arrêter le serveur"
 echo "    - fab-pin    -> Revoir le Code PIN"
+echo "    - fab-backup -> Sauvegarder la base de données"
 echo "===================================================="
 echo ""
 
@@ -205,7 +215,16 @@ EOF
 
 chmod +x ~/start_fab.sh
 
-# 9. Enregistrement des alias 'fab' dans tous les shells (bash, zsh, fish)
+# 9. Configuration du démarrage automatique au boot du téléphone (~/.termux/boot)
+mkdir -p "$HOME/.termux/boot" 2>/dev/null || true
+cat << 'BOOTEOF' > "$HOME/.termux/boot/start_fab_boot.sh"
+#!/data/data/com.termux/files/usr/bin/bash
+termux-wake-lock 2>/dev/null || true
+~/start_fab.sh >/dev/null 2>&1 &
+BOOTEOF
+chmod +x "$HOME/.termux/boot/start_fab_boot.sh" 2>/dev/null || true
+
+# 10. Enregistrement des alias 'fab' dans tous les shells (bash, zsh, fish)
 for PROFILE in "$HOME/.bashrc" "$HOME/.zshrc"; do
     if [ -f "$PROFILE" ] || [ "$PROFILE" = "$HOME/.bashrc" ]; then
         if ! grep -q "alias fab=" "$PROFILE" 2>/dev/null; then
@@ -213,6 +232,7 @@ for PROFILE in "$HOME/.bashrc" "$HOME/.zshrc"; do
             echo "alias fab-stop='~/start_fab.sh stop'" >> "$PROFILE"
             echo "alias fab-status='~/start_fab.sh status'" >> "$PROFILE"
             echo "alias fab-pin='~/start_fab.sh pin'" >> "$PROFILE"
+            echo "alias fab-backup='~/start_fab.sh backup'" >> "$PROFILE"
         fi
     fi
 done
@@ -228,6 +248,7 @@ echo "   fab         -> Lancer le serveur"
 echo "   fab-stop    -> Arrêter le serveur"
 echo "   fab-status  -> Vérifier l'état du serveur"
 echo "   fab-pin     -> Revoir le Code PIN Admin"
+echo "   fab-backup  -> Sauvegarder la base de données"
 echo "----------------------------------------------------"
 echo " 👤 Identifiant Admin : admin"
 echo " 🔑 Code PIN Admin   : ${ADMIN_PIN}"
