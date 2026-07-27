@@ -258,7 +258,10 @@ def run_server(host: str, port: int) -> None:
         use_colors=False,
     )
     server = uvicorn.Server(config)
-    server.run()
+    try:
+        server.run()
+    except (KeyboardInterrupt, SystemExit):
+        pass
 
 
 def wait_server(port: int, timeout: float = 15.0) -> bool:
@@ -530,4 +533,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (KeyboardInterrupt, SystemExit):
+        print("\n\n👋 Serveur FABOuanes arrêté proprement. À bientôt !\n", flush=True)
+        sys.exit(0)
