@@ -109,12 +109,22 @@ EOF
 
 chmod +x ~/start_fab.sh
 
+# Extrait du PIN pour l'affichage final
+ADMIN_PIN=$(grep "DEFAULT_ADMIN_PASSWORD" .env 2>/dev/null | cut -d'=' -f2 || echo "7508")
+
 echo "==================================================="
-echo "🎉 INSTALLATION TERMINEE AVEC SUCCES !"
+echo "🎉 INSTALLATION AUTOMATISEE TERMINEE AVEC SUCCES !"
 echo "==================================================="
-echo "Pour démarrer FABOuanes sur votre téléphone à l'avenir :"
-echo "  ~/start_fab.sh"
+echo " Connexion Administrateur :"
+echo "   Utilisateur : admin"
+echo "   Code PIN    : ${ADMIN_PIN}"
+echo "---------------------------------------------------"
+echo " Accès depuis votre navigateur mobile :"
+echo "   http://localhost:5000"
+echo "==================================================="
 echo ""
-echo "Accès depuis votre navigateur mobile :"
-echo "  http://localhost:5000"
-echo "==================================================="
+echo "🚀 Démarrage automatique du serveur FABOuanes..."
+sleep 2
+
+# Démarrage automatique du serveur
+python launcher.py --server-only
