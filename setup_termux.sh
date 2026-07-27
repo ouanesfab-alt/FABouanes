@@ -146,6 +146,23 @@ case "$1" in
         fi
         exit 0
         ;;
+    ssl|https)
+        ENV_FILE="$HOME/FABouanes/.env"
+        if [ -f "$ENV_FILE" ]; then
+            if grep -q "FAB_SSL=1" "$ENV_FILE" 2>/dev/null; then
+                sed -i 's/FAB_SSL=1/FAB_SSL=0/' "$ENV_FILE"
+                echo "🔓 Mode HTTPS désactivé (Bascule en HTTP)."
+            else
+                if grep -q "FAB_SSL=" "$ENV_FILE" 2>/dev/null; then
+                    sed -i 's/FAB_SSL=.*/FAB_SSL=1/' "$ENV_FILE"
+                else
+                    echo "FAB_SSL=1" >> "$ENV_FILE"
+                fi
+                echo "🔒 Mode HTTPS sécurisé activé (Certificat SSL auto-signé 10 ans)."
+            fi
+        fi
+        exit 0
+        ;;
 esac
 
 echo "⚡ Démarrage des services..."

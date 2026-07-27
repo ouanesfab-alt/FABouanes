@@ -212,20 +212,78 @@ def server_access_lines(host: str, port: int, lan_ip: str | None = None) -> list
     return lines
 
 
+def check_ssl_active() -> bool:
+    if "--ssl" in sys.argv or "--https" in sys.argv:
+        return True
+    val = str(os.environ.get("FAB_SSL", "0")).lower()
+    if val in ("1", "true", "yes", "https"):
+        return True
+    cert_dir = DATA_DIR / "certs"
+    return (cert_dir / "cert.pem").exists() and (cert_dir / "key.pem").exists()
+
+
+def ensure_ssl_certificates() -> tuple[str, str] | None:
+    if not check_ssl_active():
+        return None
+    cert_dir = DATA_DIR / "certs"
+    cert_path = cert_dir / "cert.pem"
+    key_path = cert_dir / "key.pem"
+    if cert_path.exists() and key_path.exists():
+        return str(cert_path), str(key_path)
+
+    cert_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        import datetime
+        from cryptography import x509
+        from cryptography.x509.oid import NameOID
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "FABOuanes")])
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
+            .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=3650))
+            .sign(key, hashes.SHA256())
+        )
+
+        with open(cert_path, "wb") as f:
+            f.write(cert.public_bytes(serialization.Encoding.PEM))
+        with open(key_path, "wb") as f:
+            f.write(
+                key.private_bytes(
+                    serialization.Encoding.PEM,
+                    serialization.PrivateFormat.TraditionalOpenSSL,
+                    serialization.NoEncryption(),
+                )
+            )
+
+        print(f"🔒 Certificat SSL auto-signé généré dans {cert_dir}", flush=True)
+        return str(cert_path), str(key_path)
+    except Exception as e:
+        print(f"⚠️ Erreur SSL, fallback sur HTTP: {e}", flush=True)
+        return None
+
+
 def print_server_access(host: str, port: int, lan_ip: str | None = None) -> None:
     client_host = lan_ip or (get_local_ip() if host == "0.0.0.0" else host)
+    scheme = "https" if check_ssl_active() else "http"
     banner = [
         "===========================================================",
-        "           FABOUANES — ACCES RESEAU & MOBILE               ",
+        f"       FABOUANES — ACCES RESEAU & MOBILE ({scheme.upper()})",
         "===========================================================",
-        f"  PC Local : http://127.0.0.1:{port}",
-        f"  Mobile   : http://{client_host}:{port}",
+        f"  PC Local : {scheme}://127.0.0.1:{port}",
+        f"  Mobile   : {scheme}://{client_host}:{port}",
         "-----------------------------------------------------------",
         "  Connectez vos smartphones/tablettes au meme réseau WiFi  ",
         "===========================================================",
     ]
     print("\n".join(banner), flush=True)
-
 
 
 def run_server(host: str, port: int) -> None:
@@ -248,15 +306,21 @@ def run_server(host: str, port: int) -> None:
         print_server_access(host, port, lan_ip)
         print("La fenetre reste ouverte: c'est le mode serveur. Ctrl+C pour l'arreter.", flush=True)
     log_level = os.environ.get("FAB_UVICORN_LOG_LEVEL") or "warning"
-    config = uvicorn.Config(
-        "app.main:app",
-        host=host,
-        port=port,
-        reload=False,
-        log_level=log_level,
-        access_log=False,
-        use_colors=False,
-    )
+    ssl_files = ensure_ssl_certificates()
+    config_kwargs = {
+        "app": "app.main:app",
+        "host": host,
+        "port": port,
+        "reload": False,
+        "log_level": log_level,
+        "access_log": False,
+        "use_colors": False,
+    }
+    if ssl_files:
+        config_kwargs["ssl_certfile"] = ssl_files[0]
+        config_kwargs["ssl_keyfile"] = ssl_files[1]
+
+    config = uvicorn.Config(**config_kwargs)
     server = uvicorn.Server(config)
     try:
         server.run()
