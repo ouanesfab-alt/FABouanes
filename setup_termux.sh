@@ -56,11 +56,11 @@ echo "🐍 5. Installation des paquets Python (Mode Turbo --prefer-binary)..."
 pip install --prefer-binary --upgrade pip setuptools wheel 2>/dev/null || true
 
 if [ -d "./wheels" ] && [ "$(ls -A ./wheels 2>/dev/null)" ]; then
-    echo "📦 Mode Hors-Ligne (100% Pré-compilé) : Installation depuis ./wheels..."
-    pip install --no-index --find-links=./wheels --no-build-isolation -r requirements.txt 2>/dev/null || pip install --no-index --find-links=./wheels -r requirements.txt 2>/dev/null || pip install --no-index --find-links=./wheels -r requirements.txt --no-deps 2>/dev/null || true
+    echo "📦 Mode Hors-Ligne (100% Roues .whl Pré-compilées) : Installation instantanée..."
+    pip install --no-index --find-links=./wheels -r requirements.txt
 else
     echo "🌐 Mode En-Ligne : Installation rapide PyPI..."
-    pip install --prefer-binary -r requirements.txt 2>/dev/null || true
+    pip install --prefer-binary -r requirements.txt
 fi
 
 # 6. Génération sécurisée et complète du fichier .env
