@@ -553,6 +553,28 @@ def main() -> None:
             print(f"Bootstrap failed: {exc}")
             sys.exit(1)
 
+    if "--qr" in args or "--qrcode" in args:
+        host = get_bind_host()
+        start_port = int(os.environ.get("FAB_PORT", "5000") or "5000")
+        lan_ip = get_local_ip() if host == "0.0.0.0" else host
+        scheme = "https" if check_ssl_active() else "http"
+        url = f"{scheme}://{lan_ip}:{start_port}"
+        print(f"\n📲 QR CODE D'ACCES SERVEUR ({scheme.upper()}) : {url}\n", flush=True)
+        try:
+            import qrcode
+            qr = qrcode.QRCode(border=1)
+            qr.add_data(url)
+            sys.stdout.reconfigure(encoding="utf-8")
+            qr.print_ascii(invert=True)
+        except Exception:
+            pass
+        sys.exit(0)
+
+    if "--pin" in args:
+        pin = os.environ.get("DEFAULT_ADMIN_PASSWORD", "7508")
+        print(f"🔑 Code PIN Admin actuel : {pin}", flush=True)
+        sys.exit(0)
+
     if args & SERVER_MODE_ARGS:
         host = get_bind_host()
         start_port = int(os.environ.get("FAB_PORT", "5000") or "5000")
