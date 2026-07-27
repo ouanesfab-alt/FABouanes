@@ -13,15 +13,14 @@ echo "🚀 Démarrage de l'installation ultra-rapide de FABOuanes sur Termux..."
 export ANDROID_API_LEVEL=24
 export CFLAGS="-Wno-implicit-function-declaration $CFLAGS"
 
-# 2. Mise à jour et paquets système + paquets Python pré-compilés par Termux
-echo "🔄 1. Mise à jour des dépôts Termux..."
-pkg update && pkg upgrade -y
+# 2. Paquets système (Tolérance réseau pour mode 100% Hors-Ligne)
+echo "🔄 1. Vérification des dépôts et paquets Termux..."
+pkg update -y 2>/dev/null || true
 
-echo "📦 2. Installation des paquets système & Python pré-compilés (Mode Turbo)..."
-pkg install git python postgresql make clang rust libffi openssl libjpeg-turbo -y
+echo "📦 2. Installation des paquets système de base..."
+pkg install git python postgresql make clang rust libffi openssl libjpeg-turbo -y 2>/dev/null || true
 
-# Téléchargement direct des pré-compilés Termux (évite d'attendre 15-20 min de compilation locale)
-echo "⚡ Installation accélérée des lourdes bibliothèques C/Rust..."
+# Paquets pré-compilés Optionnels Termux
 pkg install python-cryptography python-pillow python-numpy python-pandas -y 2>/dev/null || true
 
 # 3. Initialisation & Démarrage de PostgreSQL
@@ -91,8 +90,8 @@ fi
 echo "⚙️ 7. Initialisation des schémas de la base de données..."
 python launcher.py --bootstrap-only
 
-# 8. Création du script de lancement rapide ~/start_fab.sh et du raccourci bureau Android
-echo "⚡ 8. Création du lanceur rapide et de l'icône de bureau Android..."
+# 8. Création du script de lancement rapide ~/start_fab.sh
+echo "⚡ 8. Création du lanceur rapide ~/start_fab.sh..."
 cat << 'EOF' > ~/start_fab.sh
 #!/data/data/com.termux/files/usr/bin/bash
 export ANDROID_API_LEVEL=24
@@ -108,23 +107,6 @@ python launcher.py --server-only
 EOF
 
 chmod +x ~/start_fab.sh
-
-# Création du raccourci widget natif Android (~/.shortcuts)
-mkdir -p ~/.shortcuts/tasks
-cat << 'EOF' > ~/.shortcuts/tasks/FABOuanes.sh
-#!/data/data/com.termux/files/usr/bin/bash
-export ANDROID_API_LEVEL=24
-pg_ctl -D $PREFIX/var/lib/postgresql start 2>/dev/null || true
-if [ -d "$HOME/FABouanes" ]; then
-    cd "$HOME/FABouanes"
-fi
-python launcher.py --server-only >/dev/null 2>&1 &
-sleep 2
-am start -a android.intent.action.VIEW -d "http://localhost:5000"
-EOF
-
-chmod +x ~/.shortcuts/tasks/FABOuanes.sh
-cp ~/.shortcuts/tasks/FABOuanes.sh ~/.shortcuts/FABOuanes.sh 2>/dev/null || true
 
 # Extrait du PIN pour l'affichage final
 ADMIN_PIN=$(grep "DEFAULT_ADMIN_PASSWORD" .env 2>/dev/null | cut -d'=' -f2 || echo "7508")
