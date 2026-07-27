@@ -159,8 +159,9 @@ case "$1" in
     qr)
         if [ -d "$HOME/FABouanes" ]; then
             cd "$HOME/FABouanes"
-            echo "📲 QR CODE D'ACCES MOBILE :"
-            python -c "import sys, qrcode; sys.stdout.reconfigure(encoding='utf-8'); qr = qrcode.QRCode(border=1); qr.add_data('https://localhost:5000'); print(''); qr.print_ascii(invert=True)" 2>/dev/null || echo "https://localhost:5000"
+            LOCAL_IP=$(python -c "import socket; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.connect(('8.8.8.8', 80)); print(s.getsockname()[0]); s.close()" 2>/dev/null || echo "127.0.0.1")
+            echo "📲 QR CODE D'ACCES RESEAU (https://${LOCAL_IP}:5000) :"
+            python -c "import sys, qrcode; sys.stdout.reconfigure(encoding='utf-8'); qr = qrcode.QRCode(border=1); qr.add_data('https://${LOCAL_IP}:5000'); print(''); qr.print_ascii(invert=True)" 2>/dev/null || echo "https://${LOCAL_IP}:5000"
         fi
         exit 0
         ;;
@@ -206,6 +207,7 @@ if [ -d "$HOME/FABouanes" ]; then
 fi
 
 ADMIN_PIN=$(grep "DEFAULT_ADMIN_PASSWORD" .env 2>/dev/null | cut -d'=' -f2 || echo "7508")
+LOCAL_IP=$(python -c "import socket; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.connect(('8.8.8.8', 80)); print(s.getsockname()[0]); s.close()" 2>/dev/null || echo "127.0.0.1")
 
 echo ""
 echo "===================================================="
@@ -214,9 +216,11 @@ echo "===================================================="
 echo " 👤 Identifiant Admin : admin"
 echo " 🔑 Code PIN Admin   : ${ADMIN_PIN}"
 echo "----------------------------------------------------"
-echo " 🌐 Accès Mobile Local : https://localhost:5000"
+echo " 📱 Téléphone Local  : https://localhost:5000"
+echo " 🌐 Réseau Wi-Fi LAN : https://${LOCAL_IP}:5000"
 echo " 💡 Astuces Commandes :"
 echo "    - fab        -> Relancer le serveur"
+echo "    - fab-qr     -> Afficher le QR Code Wi-Fi"
 echo "    - fab-stop   -> Arrêter le serveur"
 echo "    - fab-pin    -> Revoir le Code PIN"
 echo "    - fab-backup -> Sauvegarder la base de données"
