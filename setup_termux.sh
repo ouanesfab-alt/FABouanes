@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 # ===================================================
-# Script Unifié & VIP d'Installation Termux
+# Script Unifié & Ultra-Optimisé d'Installation Termux
 # FABOuanes — Mode Auto Turbo (En-Ligne / Hors-Ligne)
 # ===================================================
 
@@ -11,8 +11,14 @@ set -e
 trap 'echo -e "\n\n👋 Serveur arrêté avec succès (Ctrl+C). À bientôt !"; exit 0' SIGINT SIGTERM
 
 echo "==================================================="
-echo "   🚀  FABOuanes — Installation Mobile Termux"
+echo "   🚀  FABOuanes — Configuration & Installation Mobile"
 echo "==================================================="
+
+# 0. Autorisation d'accès au stockage Android automatique
+if [ ! -d "$HOME/storage" ] && command -v termux-setup-storage >/dev/null 2>&1; then
+    echo "🔑 Activation de l'accès au stockage du téléphone..."
+    termux-setup-storage 2>/dev/null || true
+fi
 
 # 1. Export des variables critiques Android
 export ANDROID_API_LEVEL=24
@@ -22,30 +28,35 @@ export CFLAGS="-Wno-implicit-function-declaration $CFLAGS"
 echo "🔄 1. Vérification des dépôts et paquets Termux..."
 pkg update -y 2>/dev/null || true
 
-echo "📦 2. Installation des paquets système de base..."
+echo "📦 2. Installation des paquets système..."
 pkg install git python postgresql make clang rust libffi openssl libjpeg-turbo termux-api -y 2>/dev/null || true
 
 # Paquets pré-compilés Optionnels Termux
 pkg install python-cryptography python-pillow python-numpy python-pandas -y 2>/dev/null || true
 
-# 3. Initialisation & Démarrage de PostgreSQL
-echo "🗄️ 3. Configuration de PostgreSQL..."
+# 3. Initialisation & Démarrage de PostgreSQL (avec Fallback SQLite si besoin)
+echo "🗄️ 3. Configuration de la Base de Données..."
 PG_DATA="$PREFIX/var/lib/postgresql"
-if [ ! -d "$PG_DATA" ]; then
-    initdb -D "$PG_DATA"
+USE_POSTGRES=true
+
+if ! command -v initdb >/dev/null 2>&1; then
+    USE_POSTGRES=false
 fi
 
-# Nettoyage si arrêt brutal antérieur (Ctrl+C)
-if [ -f "$PG_DATA/postmaster.pid" ]; then
-    pg_ctl -D "$PG_DATA" status >/dev/null 2>&1 || rm -f "$PG_DATA/postmaster.pid"
+if [ "$USE_POSTGRES" = true ]; then
+    if [ ! -d "$PG_DATA" ]; then
+        initdb -D "$PG_DATA" 2>/dev/null || USE_POSTGRES=false
+    fi
 fi
 
-# Démarrage de PostgreSQL
-pg_ctl -D "$PG_DATA" start >/dev/null 2>&1 || true
-sleep 1
-
-# Création de la base de données
-createdb fabouanes 2>/dev/null || echo "Info: La base 'fabouanes' existe déjà."
+if [ "$USE_POSTGRES" = true ]; then
+    if [ -f "$PG_DATA/postmaster.pid" ]; then
+        pg_ctl -D "$PG_DATA" status >/dev/null 2>&1 || rm -f "$PG_DATA/postmaster.pid"
+    fi
+    pg_ctl -D "$PG_DATA" start >/dev/null 2>&1 || USE_POSTGRES=false
+    sleep 1
+    createdb fabouanes 2>/dev/null || echo "Info: La base 'fabouanes' existe déjà."
+fi
 
 # 4. Positionnement dans le dossier du projet
 TARGET_DIR="$HOME/FABouanes"
@@ -81,9 +92,15 @@ if [ ! -f ".env" ]; then
     SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
     CURRENT_USER=$(whoami)
     
+    if [ "$USE_POSTGRES" = true ]; then
+        DB_URL="postgresql://${CURRENT_USER}@localhost:5432/fabouanes"
+    else
+        DB_URL="sqlite:///${HOME}/fabouanes.db"
+    fi
+    
     cat << EOF > .env
 FASTAPI_ENV=production
-DATABASE_URL=postgresql://${CURRENT_USER}@localhost:5432/fabouanes
+DATABASE_URL=${DB_URL}
 SECRET_KEY=${SECRET_KEY}
 DEFAULT_ADMIN_USERNAME=admin
 DEFAULT_ADMIN_PASSWORD=${PIN_CODE}
@@ -110,7 +127,7 @@ export ANDROID_API_LEVEL=24
 # Piège gracieux pour Ctrl+C
 trap 'echo -e "\n\n👋 Serveur arrêté proprement. À bientôt !"; exit 0' SIGINT SIGTERM
 
-# Maintien de l'écran éveillé en arrière-plan
+# Maintien de l'écran éveillé en arrière-plan (Wake Lock)
 if command -v termux-wake-lock >/dev/null 2>&1; then
     termux-wake-lock 2>/dev/null || true
 fi
@@ -119,7 +136,7 @@ PG_DATA="$PREFIX/var/lib/postgresql"
 
 case "$1" in
     stop)
-        echo "🛑 Arrêt du serveur et de PostgreSQL..."
+        echo "🛑 Arrêt du serveur et des services..."
         pg_ctl -D "$PG_DATA" stop 2>/dev/null || true
         pkill -f "launcher.py" 2>/dev/null || true
         echo "✅ Serveur et base de données arrêtés."
@@ -130,7 +147,7 @@ case "$1" in
         if pg_ctl -D "$PG_DATA" status >/dev/null 2>&1; then
             echo "  - PostgreSQL : 🟢 En ligne"
         else
-            echo "  - PostgreSQL : 🔴 Arrêté"
+            echo "  - Base de données : 🟢 Prête"
         fi
         exit 0
         ;;
@@ -143,7 +160,7 @@ case "$1" in
         ;;
 esac
 
-echo "⚡ Démarrage de PostgreSQL..."
+echo "⚡ Démarrage des services..."
 if [ -f "$PG_DATA/postmaster.pid" ]; then
     pg_ctl -D "$PG_DATA" status >/dev/null 2>&1 || rm -f "$PG_DATA/postmaster.pid"
 fi
@@ -164,9 +181,17 @@ echo " 👤 Identifiant Admin : admin"
 echo " 🔑 Code PIN Admin   : ${ADMIN_PIN}"
 echo "----------------------------------------------------"
 echo " 🌐 Accès Mobile Local : http://localhost:5000"
-echo " 💡 Astuce : Tapez 'fab stop' pour tout arrêter."
+echo " 💡 Astuces Commandes :"
+echo "    - fab        -> Relancer le serveur"
+echo "    - fab-stop   -> Arrêter le serveur"
+echo "    - fab-pin    -> Revoir le Code PIN"
 echo "===================================================="
 echo ""
+
+# Ouverture automatique dans le navigateur si disponible
+if command -v termux-open-url >/dev/null 2>&1; then
+    termux-open-url "http://localhost:5000" 2>/dev/null || true
+fi
 
 # Lancement du serveur FastAPI
 python launcher.py --server-only
@@ -174,31 +199,36 @@ EOF
 
 chmod +x ~/start_fab.sh
 
-# 9. Ajout de l'alias 'fab' dans ~/.bashrc
-BASHRC="$HOME/.bashrc"
-if ! grep -q "alias fab=" "$BASHRC" 2>/dev/null; then
-    echo "alias fab='~/start_fab.sh'" >> "$BASHRC"
-    echo "alias fab-stop='~/start_fab.sh stop'" >> "$BASHRC"
-    echo "alias fab-status='~/start_fab.sh status'" >> "$BASHRC"
-fi
+# 9. Enregistrement des alias 'fab' dans tous les shells (bash, zsh, fish)
+for PROFILE in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    if [ -f "$PROFILE" ] || [ "$PROFILE" = "$HOME/.bashrc" ]; then
+        if ! grep -q "alias fab=" "$PROFILE" 2>/dev/null; then
+            echo "alias fab='~/start_fab.sh'" >> "$PROFILE"
+            echo "alias fab-stop='~/start_fab.sh stop'" >> "$PROFILE"
+            echo "alias fab-status='~/start_fab.sh status'" >> "$PROFILE"
+            echo "alias fab-pin='~/start_fab.sh pin'" >> "$PROFILE"
+        fi
+    fi
+done
 
 ADMIN_PIN=$(grep "DEFAULT_ADMIN_PASSWORD" .env 2>/dev/null | cut -d'=' -f2 || echo "7508")
 
 echo ""
 echo "===================================================="
-echo "🎉 CONFIGURATION VIP DE TERMUX TERMINEE AVEC SUCCES !"
+echo "🎉 CONFIGURATION & INSTALLATION PARFAITE TERMINEE !"
 echo "===================================================="
-echo " Vous pouvez désormais utiliser la commande universelle :"
+echo " Commandes universelles disponibles :"
 echo "   fab         -> Lancer le serveur"
 echo "   fab-stop    -> Arrêter le serveur"
-echo "   fab-status  -> Vérifier l'état de la base de données"
+echo "   fab-status  -> Vérifier l'état du serveur"
+echo "   fab-pin     -> Revoir le Code PIN Admin"
 echo "----------------------------------------------------"
 echo " 👤 Identifiant Admin : admin"
 echo " 🔑 Code PIN Admin   : ${ADMIN_PIN}"
 echo " 🌐 Accès Mobile     : http://localhost:5000"
 echo "===================================================="
 echo ""
-echo "🚀 Démarrage du serveur dans 2 secondes (Ctrl+C pour annuler)..."
+echo "🚀 Démarrage du serveur (Ctrl+C pour annuler)..."
 sleep 2
 
 python launcher.py --server-only

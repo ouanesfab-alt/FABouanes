@@ -25,8 +25,12 @@ if not defined PY_CMD (
 echo  Verification des dependances...
 %PY_CMD% -c "import fastapi, uvicorn, sqlalchemy, alembic, pg8000" >nul 2>&1
 if errorlevel 1 (
-    echo  Installation/verification des dependances - connexion requise...
-    %PY_CMD% -m pip install -r requirements.txt --quiet
+    echo  Installation/verification des dependances...
+    if exist "wheels" (
+        %PY_CMD% -m pip install --no-index --find-links=./wheels -r requirements.txt --quiet 2>nul || %PY_CMD% -m pip install -r requirements.txt --quiet
+    ) else (
+        %PY_CMD% -m pip install -r requirements.txt --quiet
+    )
     if errorlevel 1 (
         echo  ATTENTION: impossible d'installer les dependances de requirements.txt.
         echo  Tentative de lancement de l'application quand meme...
