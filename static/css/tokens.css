@@ -1389,6 +1389,201 @@ table.record-table > thead > tr > th,
     font-weight: 700 !important;
   }
 
+    font-size: 0.72rem !important;
+  }
+  .kpi-delta {
+    font-size: 0.7rem !important;
+    padding: 4px 8px !important;
+    margin-top: 4px !important;
+  }
+  /* Date badge hidden on 2-col grid (too cramped) */
+  .kpi-date-badge {
+    display: none !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .dashboard-kpis {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  .kpi-card   { min-height: 100px !important; padding: 12px !important; }
+  .kpi-value  { font-size: 1.5rem !important; }
+}
+
+/* ─ Dashboard Shell & Panels ─────────────────────────────── */
+@media (max-width: 767px) {
+  .dashboard-shell       { gap: 12px; }
+  .dashboard-switch-stack { gap: 10px; }
+  .dashboard-panel-title  { font-size: 0.95rem; }
+  .dashboard-panel-subtitle {
+    font-size: 0.82rem;
+    margin-bottom: 10px;
+  }
+  /* Panel cards: reduced padding */
+  #dashboardOperations.card,
+  #dashboardTopDebtors.card,
+  #dashboardLowStock.card,
+  #dashboardRecentSales.card,
+  #dashboardDailySummary.card {
+    padding: 12px !important;
+    border-radius: 12px !important;
+  }
+}
+
+/* ─ Fab Switcher: horizontal scroll on mobile ─────────────── */
+@media (max-width: 767px) {
+  .fab-switcher {
+    display: flex !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    border-radius: 16px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding: 3px !important;
+  }
+  .fab-switcher::-webkit-scrollbar { display: none !important; }
+
+  .fab-switch-btn {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    font-size: 12px !important;
+    padding: 7px 12px !important;
+  }
+  .fab-switch-placeholder {
+    border-radius: 12px !important;
+  }
+}
+
+/* ─ Tables: reduced font & padding ───────────────────────── */
+@media (max-width: 767px) {
+  .table { font-size: 12px !important; }
+  .table th {
+    font-size: 10px !important;
+    padding: 6px 8px !important;
+  }
+  .table td { padding: 7px 8px !important; }
+}
+
+/* ─ Cards: disable hover elevation on touch devices ──────── */
+@media (hover: none) {
+  .card:hover,
+  .glass-panel:hover,
+  .kpi-card:hover,
+  .dashboard-card:hover,
+  .table-card:hover {
+    transform: none !important;
+    box-shadow: var(--shadow-glass) !important;
+  }
+}
+
+/* ─ Navbar: compact height on mobile ─────────────────────── */
+@media (max-width: 767px) {
+  .nav-inner {
+    padding: 0 12px !important;
+    min-height: 52px !important;
+  }
+  .nav-btn {
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+  /* Remove hover transforms on touch */
+  .nav-btn:hover { transform: none !important; }
+}
+
+/* ─ Drawer: max width on mobile ──────────────────────────── */
+@media (max-width: 767px) {
+  .nav-drawer { width: min(82vw, 320px) !important; }
+}
+
+/* ─ Search overlay: remove excess top padding ────────────── */
+@media (max-width: 575px) {
+  .search-overlay {
+    padding: 16px 10px !important;
+    align-items: flex-start !important;
+  }
+  .search-modal {
+    border-radius: 14px !important;
+    width: 100% !important;
+  }
+  .search-input-row {
+    padding: 14px 16px !important;
+  }
+}
+
+/* ─ Nav clock: smaller on mobile ─────────────────────────── */
+@media (max-width: 767px) {
+  .nav-clock {
+    font-size: 0.8rem !important;
+    letter-spacing: 0.04em !important;
+  }
+}
+
+/* ─ prefers-reduced-motion: kill all animations ──────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─ Mobile page enter: scale-free and fast transition ────── */
+@media (max-width: 767px) {
+  @keyframes mac-page-enter-mobile {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Prevent auto-zoom on mobile form inputs */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Centered mobile titles and clean action bar wrapping */
+  .nav-page-title {
+    flex: 1;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 6px;
+  }
+
+  /* Mobile card headers & button group wrapping */
+  .card-header,
+  .panel-header {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  /* Responsive action button groups */
+  .d-flex.gap-2,
+  .d-flex.gap-3 {
+    gap: 6px !important;
+  }
+
+  /* Form labels and helper text */
+  .form-label {
+    font-size: 0.85rem !important;
+    font-weight: 700 !important;
+  }
+
   /* Mobile table cell padding & text alignment */
   .table td, .table th {
     vertical-align: middle !important;
@@ -1396,5 +1591,48 @@ table.record-table > thead > tr > th,
 
   .app-content > * {
     animation: mac-page-enter-mobile 0.22s ease-out both !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FABOuanes — Modern UI Polish & Touch Micro-Interactions
+   ══════════════════════════════════════════════════════════════ */
+
+/* Chiffres tabulaires alignés pour les prix, montants et soldes */
+.num-cell, .price-col, .amount-cell, .font-monospace, .stat-value, td.text-end {
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* Micro-interaction tactile moderne au clic/tap */
+.btn:active, .mac-card-clickable:active, .nav-tab-item:active {
+  transform: scale(0.985) !important;
+  transition: transform 0.08s ease !important;
+}
+
+/* Scrollbars fines et élégantes */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(140, 140, 145, 0.3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(140, 140, 145, 0.5);
+}
+
+/* Mobile Touch Target Fixes */
+@media (max-width: 767px) {
+  .btn, .form-control, .form-select {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .btn-sm, .btn-xs {
+    min-height: 36px;
   }
 }
