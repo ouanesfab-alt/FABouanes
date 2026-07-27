@@ -149,45 +149,45 @@ def get_bind_host() -> str:
 
 
 def get_local_ip() -> str:
-    """Discovers the best physical LAN IP address for local network/mobile access."""
+    """Détecte la vraie adresse IP Wi-Fi physique du réseau local (priorité à 192.168.x.x et écarte NAT/CGNAT)."""
     candidates = []
-    
-    # Method 1: Hostname resolution candidates
+
     try:
         hostname = socket.gethostname()
         _, _, ip_list = socket.gethostbyname_ex(hostname)
         for ip in ip_list:
-            if not ip.startswith(("127.", "169.254.")):
+            if ip and not ip.startswith(("127.", "169.254.", "100.")):
                 candidates.append(ip)
     except Exception:
         pass
 
-    # Method 2: UDP probe candidate
     probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         probe.connect(("8.8.8.8", 80))
         probed_ip = probe.getsockname()[0]
-        if probed_ip and not probed_ip.startswith(("127.", "169.254.")):
-            candidates.insert(0, probed_ip)
+        if probed_ip and not probed_ip.startswith(("127.", "169.254.", "100.")):
+            candidates.append(probed_ip)
     except OSError:
         pass
     finally:
         probe.close()
 
-    # Prioritize: 192.168.x.x first, then 10.x.x.x, then 172.16-31.x.x
     def score_ip(ip: str) -> int:
+        if not ip or ip.startswith(("127.", "169.254.", "100.")):
+            return 0
         if ip.startswith("192.168."):
             return 100
-        if ip.startswith("10."):
-            return 80
         parts = ip.split(".")
         if len(parts) == 4 and parts[0] == "172" and 16 <= int(parts[1]) <= 31:
-            return 60
+            return 80
+        if ip.startswith("10."):
+            return 50
         return 10
 
-    if candidates:
-        candidates.sort(key=score_ip, reverse=True)
-        return candidates[0]
+    valid = [ip for ip in candidates if score_ip(ip) > 0]
+    if valid:
+        valid.sort(key=score_ip, reverse=True)
+        return valid[0]
 
     return "127.0.0.1"
 

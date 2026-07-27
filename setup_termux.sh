@@ -159,7 +159,7 @@ case "$1" in
     qr)
         if [ -d "$HOME/FABouanes" ]; then
             cd "$HOME/FABouanes"
-            LOCAL_IP=$(python -c "import socket; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.connect(('8.8.8.8', 80)); print(s.getsockname()[0]); s.close()" 2>/dev/null || echo "127.0.0.1")
+            LOCAL_IP=$(python -c "from launcher import get_local_ip; print(get_local_ip())" 2>/dev/null || echo "127.0.0.1")
             echo "📲 QR CODE D'ACCES RESEAU (https://${LOCAL_IP}:5000) :"
             python -c "import sys, qrcode; sys.stdout.reconfigure(encoding='utf-8'); qr = qrcode.QRCode(border=1); qr.add_data('https://${LOCAL_IP}:5000'); print(''); qr.print_ascii(invert=True)" 2>/dev/null || echo "https://${LOCAL_IP}:5000"
         fi
@@ -207,7 +207,7 @@ if [ -d "$HOME/FABouanes" ]; then
 fi
 
 ADMIN_PIN=$(grep "DEFAULT_ADMIN_PASSWORD" .env 2>/dev/null | cut -d'=' -f2 || echo "7508")
-LOCAL_IP=$(python -c "import socket; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.connect(('8.8.8.8', 80)); print(s.getsockname()[0]); s.close()" 2>/dev/null || echo "127.0.0.1")
+LOCAL_IP=$(python -c "from launcher import get_local_ip; print(get_local_ip())" 2>/dev/null || echo "127.0.0.1")
 
 echo ""
 echo "===================================================="
