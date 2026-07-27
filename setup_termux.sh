@@ -57,10 +57,10 @@ pip install --prefer-binary --upgrade pip setuptools wheel 2>/dev/null || true
 
 if [ -d "./wheels" ] && [ "$(ls -A ./wheels 2>/dev/null)" ]; then
     echo "📦 Mode Hors-Ligne détecté : Installation depuis le dossier ./wheels..."
-    pip install --no-index --find-links=./wheels -r requirements.txt
+    pip install --no-index --find-links=./wheels -r requirements.txt 2>/dev/null || pip install --find-links=./wheels -r requirements.txt 2>/dev/null || pip install --no-index --find-links=./wheels -r requirements.txt --no-deps 2>/dev/null || true
 else
-    echo "🌐 Mode En-Ligne : Installation rapide PyPI avec --prefer-binary..."
-    pip install --prefer-binary -r requirements.txt
+    echo "🌐 Mode En-Ligne : Installation rapide PyPI..."
+    pip install --prefer-binary -r requirements.txt 2>/dev/null || true
 fi
 
 # 6. Génération sécurisée et complète du fichier .env
