@@ -527,6 +527,35 @@ ACTION_GUIDE = (
     "    ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP\n"
 )
 
+def get_dynamic_business_context() -> str:
+    """Injecte les KPI clés du jour directement dans le contexte système de Sabrina (mis en cache 60s)."""
+    try:
+        from app.core.perf_cache import cached_result
+        def _fetch_kpis():
+            from app.core.db_helpers import query_db
+            from datetime import date
+            today_str = date.today().isoformat()
+            sales_today = query_db("SELECT COUNT(*), COALESCE(SUM(total), 0) FROM sales WHERE sale_date = ?", (today_str,))
+            debt_sum = query_db("SELECT COALESCE(SUM(current_debt), 0) FROM clients_with_stats")
+            stock_alerts = query_db("SELECT COUNT(*) FROM stock_alerts WHERE acknowledged_at IS NULL")
+            s_count = sales_today[0][0] if sales_today else 0
+            s_sum = float(sales_today[0][1]) if sales_today else 0.0
+            d_sum = float(debt_sum[0][0]) if debt_sum else 0.0
+            a_count = stock_alerts[0][0] if stock_alerts else 0
+            return f"=== CONTEXTE ET KPIS TEMPS REEL DU SYSTEME ({today_str}) ===\n" \
+                   f"• Ventes aujourd'hui : {s_count} transaction(s) pour un total de {s_sum:,.2f} DA\n" \
+                   f"• Total créances/dettes clients en cours : {d_sum:,.2f} DA\n" \
+                   f"• Alertes de stock bas actives : {a_count} produit(s)\n\n"
+        return cached_result(("sabrina_dynamic_context",), _fetch_kpis, ttl_seconds=60.0)
+    except Exception:
+        return ""
+
+
+def get_system_instruction() -> str:
+    """Génère l'instruction système complète pour Sabrina avec schéma SQL et KPI temps réel."""
+    dynamic_kpis = get_dynamic_business_context()
+    return dynamic_kpis + SYSTEM_PROMPT_TEMPLATE.format(schema=get_schema_str())
+
 def get_sabrina_system_prompt(model_name: str, rag_context: str = "") -> str:
     """Génère le prompt système personnalisé pour Sabrina avec le contexte de l'entreprise."""
     company_name = db_manager.get_setting("company_name", "FABOuanes").strip() or "FABOuanes"
