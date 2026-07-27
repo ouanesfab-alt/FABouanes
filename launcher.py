@@ -242,14 +242,41 @@ def run_server(host: str, port: int) -> None:
         print("Initialisation de la base de donnees...", flush=True)
     bootstrap_and_migrate()
     log_server_start()
+
+    # --- Détection SSL automatique ---
+    ssl_certfile = os.environ.get("FAB_SSL_CERT", "").strip() or None
+    ssl_keyfile = os.environ.get("FAB_SSL_KEY", "").strip() or None
+    if not ssl_certfile:
+        candidate_cert = BASE_DIR / "cert.pem"
+        candidate_key = BASE_DIR / "key.pem"
+        if candidate_cert.exists() and candidate_key.exists():
+            ssl_certfile = str(candidate_cert)
+            ssl_keyfile = str(candidate_key)
+    use_https = bool(ssl_certfile and ssl_keyfile)
+    proto = "https" if use_https else "http"
+
     if server_mode:
         lan_ip = os.environ.get("FAB_LAN_IP") or (get_local_ip() if host == "0.0.0.0" else host)
+        client_host = lan_ip if host == "0.0.0.0" else host
         print("Base OK.", flush=True)
-        print_server_access(host, port, lan_ip)
+        banner = [
+            "===========================================================",
+            "           FABOUANES — ACCES RESEAU & MOBILE               ",
+            "===========================================================",
+            f"  PC Local : {proto}://127.0.0.1:{port}",
+            f"  Mobile   : {proto}://{client_host}:{port}",
+        ]
+        if use_https:
+            banner.append("  Mode     : HTTPS (certificat SSL actif)")
+        else:
+            banner.append("  Mode     : HTTP (aucun certificat SSL détecté)")
+        banner.append("===========================================================")
+        print("\n".join(banner), flush=True)
         print("La fenetre reste ouverte: c'est le mode serveur. Ctrl+C pour l'arreter.", flush=True)
+
     log_level = os.environ.get("FAB_UVICORN_LOG_LEVEL") or "warning"
-    config = uvicorn.Config(
-        "app.main:app",
+    config_kwargs: dict = dict(
+        app="app.main:app",
         host=host,
         port=port,
         reload=False,
@@ -257,6 +284,11 @@ def run_server(host: str, port: int) -> None:
         access_log=False,
         use_colors=False,
     )
+    if use_https:
+        config_kwargs["ssl_certfile"] = ssl_certfile
+        config_kwargs["ssl_keyfile"] = ssl_keyfile
+        print(f"  SSL activé — cert: {ssl_certfile}", flush=True)
+    config = uvicorn.Config(**config_kwargs)
     server = uvicorn.Server(config)
     server.run()
 

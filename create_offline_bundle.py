@@ -23,6 +23,9 @@ def build_offline_pack():
     shutil.copy(BASE_DIR / "launcher.py", OUTPUT_DIR / "launcher.py")
     shutil.copy(BASE_DIR / "requirements-termux.txt", OUTPUT_DIR / "requirements-termux.txt")
     shutil.copy(BASE_DIR / "setup_termux.sh", OUTPUT_DIR / "setup_termux.sh")
+    if (BASE_DIR / "wheels").exists():
+        print("[1b] Copie des 81 wheels précompilées...", flush=True)
+        shutil.copytree(BASE_DIR / "wheels", OUTPUT_DIR / "wheels", dirs_exist_ok=True)
 
     # 2. Script d'installation autonome hors-ligne
     install_script = """#!/data/data/com.termux/files/usr/bin/bash
