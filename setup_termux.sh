@@ -156,6 +156,25 @@ case "$1" in
         echo "✅ Sauvegarde terminée : $(basename "$FILE")"
         exit 0
         ;;
+    qr)
+        if [ -d "$HOME/FABouanes" ]; then
+            cd "$HOME/FABouanes"
+            echo "📲 QR CODE D'ACCES MOBILE :"
+            python -c "import sys, qrcode; sys.stdout.reconfigure(encoding='utf-8'); qr = qrcode.QRCode(border=1); qr.add_data('https://localhost:5000'); print(''); qr.print_ascii(invert=True)" 2>/dev/null || echo "https://localhost:5000"
+        fi
+        exit 0
+        ;;
+    update)
+        echo "🔄 Mise à jour de FABOuanes depuis GitHub..."
+        if [ -d "$HOME/FABouanes" ]; then
+            cd "$HOME/FABouanes"
+            git pull
+            pip install --no-index --find-links=./wheels -r requirements.txt 2>/dev/null || true
+            python launcher.py --bootstrap-only
+            echo "✅ Mise à jour terminée avec succès !"
+        fi
+        exit 0
+        ;;
     ssl|https)
         ENV_FILE="$HOME/FABouanes/.env"
         if [ -f "$ENV_FILE" ]; then
@@ -233,6 +252,8 @@ for PROFILE in "$HOME/.bashrc" "$HOME/.zshrc"; do
             echo "alias fab-status='~/start_fab.sh status'" >> "$PROFILE"
             echo "alias fab-pin='~/start_fab.sh pin'" >> "$PROFILE"
             echo "alias fab-backup='~/start_fab.sh backup'" >> "$PROFILE"
+            echo "alias fab-qr='~/start_fab.sh qr'" >> "$PROFILE"
+            echo "alias fab-update='~/start_fab.sh update'" >> "$PROFILE"
         fi
     fi
 done
