@@ -34,29 +34,21 @@ pkg install git python postgresql make clang rust libffi openssl libjpeg-turbo t
 # Paquets pré-compilés Optionnels Termux
 pkg install python-cryptography python-pillow python-numpy python-pandas -y 2>/dev/null || true
 
-# 3. Initialisation & Démarrage de PostgreSQL (avec Fallback SQLite si besoin)
-echo "🗄️ 3. Configuration de la Base de Données..."
+# 3. Initialisation & Démarrage de PostgreSQL (100% PostgreSQL)
+echo "🗄️ 3. Configuration de la Base de Données PostgreSQL..."
 PG_DATA="$PREFIX/var/lib/postgresql"
-USE_POSTGRES=true
 
-if ! command -v initdb >/dev/null 2>&1; then
-    USE_POSTGRES=false
+if [ ! -d "$PG_DATA" ]; then
+    initdb -D "$PG_DATA"
 fi
 
-if [ "$USE_POSTGRES" = true ]; then
-    if [ ! -d "$PG_DATA" ]; then
-        initdb -D "$PG_DATA" 2>/dev/null || USE_POSTGRES=false
-    fi
+if [ -f "$PG_DATA/postmaster.pid" ]; then
+    pg_ctl -D "$PG_DATA" status >/dev/null 2>&1 || rm -f "$PG_DATA/postmaster.pid"
 fi
 
-if [ "$USE_POSTGRES" = true ]; then
-    if [ -f "$PG_DATA/postmaster.pid" ]; then
-        pg_ctl -D "$PG_DATA" status >/dev/null 2>&1 || rm -f "$PG_DATA/postmaster.pid"
-    fi
-    pg_ctl -D "$PG_DATA" start >/dev/null 2>&1 || USE_POSTGRES=false
-    sleep 1
-    createdb fabouanes 2>/dev/null || echo "Info: La base 'fabouanes' existe déjà."
-fi
+pg_ctl -D "$PG_DATA" start >/dev/null 2>&1 || true
+sleep 1
+createdb fabouanes 2>/dev/null || echo "Info: La base PostgreSQL 'fabouanes' existe déjà."
 
 # 4. Positionnement dans le dossier du projet
 TARGET_DIR="$HOME/FABouanes"
@@ -85,18 +77,14 @@ else
     pip install --prefer-binary -r requirements.txt
 fi
 
-# 6. Génération sécurisée et complète du fichier .env
+# 6. Génération sécurisée et complète du fichier .env (PostgreSQL Uniquement)
 echo "🔒 6. Configuration de l'environnement (.env)..."
 if [ ! -f ".env" ]; then
     PIN_CODE=$(python -c "import secrets; print(f'{secrets.randbelow(10000):04d}')")
     SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
     CURRENT_USER=$(whoami)
     
-    if [ "$USE_POSTGRES" = true ]; then
-        DB_URL="postgresql://${CURRENT_USER}@localhost:5432/fabouanes"
-    else
-        DB_URL="sqlite:///${HOME}/fabouanes.db"
-    fi
+    DB_URL="postgresql://${CURRENT_USER}@localhost:5432/fabouanes"
     
     cat << EOF > .env
 FASTAPI_ENV=production
