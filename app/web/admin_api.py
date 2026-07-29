@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
-from fastapi import APIRouter, Request, HTTPException, status
+from fastapi import APIRouter, Request, HTTPException, status, File, UploadFile
 
 from app.utils.api_response import APIResponse
 from app.web.deps import get_current_user
