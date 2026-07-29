@@ -429,6 +429,75 @@ def print_server_access(host: str, port: int, lan_ip: str | None = None) -> None
 
 
 
+def ensure_ssl_certificates(force: bool = False) -> tuple[str | None, str | None]:
+    """Generate self-signed SSL cert.pem and key.pem if HTTPS is enabled or requested."""
+    cert_path = BASE_DIR / "cert.pem"
+    key_path = BASE_DIR / "key.pem"
+
+    if cert_path.exists() and key_path.exists() and not force:
+        return str(cert_path), str(key_path)
+
+    enable_https = (
+        force
+        or os.environ.get("FAB_HTTPS", "0").strip().lower() in ("1", "true", "yes", "on")
+        or os.environ.get("FAB_ENABLE_HTTPS", "0").strip().lower() in ("1", "true", "yes", "on")
+        or "--https" in sys.argv
+    )
+    if not enable_https and not force:
+        return None, None
+
+    try:
+        from datetime import datetime, timedelta, timezone
+        from cryptography import x509
+        from cryptography.x509.oid import NameOID
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        import ipaddress
+
+        print("  Génération automatique d'un certificat SSL auto-signé pour HTTPS...", flush=True)
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+        lan_ip = get_local_ip()
+        san_list: list[x509.GeneralName] = [
+            x509.DNSName("localhost"),
+            x509.IPAddress(ipaddress.IPv4Address("127.0.0.1")),
+        ]
+        if lan_ip and lan_ip != "127.0.0.1":
+            try:
+                san_list.append(x509.IPAddress(ipaddress.IPv4Address(lan_ip)))
+            except Exception:
+                pass
+
+        subject = issuer = x509.Name([
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "FABOuanes ERP"),
+            x509.NameAttribute(NameOID.COMMON_NAME, "FABOuanes Local Server"),
+        ])
+
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.now(timezone.utc))
+            .not_valid_after(datetime.now(timezone.utc) + timedelta(days=3650))
+            .add_extension(x509.SubjectAlternativeName(san_list), critical=False)
+            .sign(key, hashes.SHA256())
+        )
+
+        key_path.write_bytes(key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
+        ))
+        cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+        print("  Certificat SSL généré avec succès (cert.pem et key.pem).", flush=True)
+        return str(cert_path), str(key_path)
+    except Exception as e:
+        print(f"  [WARN] Impossible de générer le certificat SSL : {e}", flush=True)
+        return None, None
+
+
 def run_server(host: str, port: int) -> None:
     import uvicorn
 
@@ -449,11 +518,16 @@ def run_server(host: str, port: int) -> None:
     ssl_certfile = os.environ.get("FAB_SSL_CERT", "").strip() or None
     ssl_keyfile = os.environ.get("FAB_SSL_KEY", "").strip() or None
     if not ssl_certfile:
-        candidate_cert = BASE_DIR / "cert.pem"
-        candidate_key = BASE_DIR / "key.pem"
-        if candidate_cert.exists() and candidate_key.exists():
-            ssl_certfile = str(candidate_cert)
-            ssl_keyfile = str(candidate_key)
+        auto_cert, auto_key = ensure_ssl_certificates()
+        if auto_cert and auto_key:
+            ssl_certfile = auto_cert
+            ssl_keyfile = auto_key
+        else:
+            candidate_cert = BASE_DIR / "cert.pem"
+            candidate_key = BASE_DIR / "key.pem"
+            if candidate_cert.exists() and candidate_key.exists():
+                ssl_certfile = str(candidate_cert)
+                ssl_keyfile = str(candidate_key)
     use_https = bool(ssl_certfile and ssl_keyfile)
     proto = "https" if use_https else "http"
 
