@@ -28,6 +28,9 @@ build/
 fabouanes/_internal/
 
 # Android / Node
+*.apk
+.gradle/
+android_app/.gradle/
 android_wrapper/node_modules/
 android_wrapper/android/.gradle/
 android_wrapper/android/build/
