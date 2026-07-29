@@ -1181,39 +1181,39 @@ table.record-table > thead > tr > th,
     gap: 10px !important;
   }
   .kpi-card {
-    min-height: 120px !important;
-    padding: 14px !important;
-    border-radius: 14px !important;
+    min-height: 110px !important;
+    padding: 12px 14px !important;
+    border-radius: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
   }
-  .kpi-card:hover {
-    transform: none !important;
+  .kpi-card:hover, .kpi-card:active {
+    transform: scale(0.98) !important;
     box-shadow: var(--shadow-glass) !important;
   }
   .kpi-value {
-    font-size: 1.65rem !important;
-    margin-top: 6px !important;
+    font-size: 1.45rem !important;
+    margin-top: 4px !important;
+    font-weight: 900 !important;
+    word-break: break-word !important;
   }
   .kpi-label {
     font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.03em !important;
   }
   .kpi-delta {
-    font-size: 0.7rem !important;
-    padding: 4px 8px !important;
-    margin-top: 4px !important;
+    font-size: 0.68rem !important;
+    padding: 2px 6px !important;
+    margin-top: 2px !important;
+    border-radius: 6px !important;
   }
-  /* Date badge hidden on 2-col grid (too cramped) */
   .kpi-date-badge {
     display: none !important;
   }
-}
-
-@media (max-width: 390px) {
-  .dashboard-kpis {
-    grid-template-columns: 1fr !important;
-    gap: 8px !important;
-  }
-  .kpi-card   { min-height: 100px !important; padding: 12px !important; }
-  .kpi-value  { font-size: 1.5rem !important; }
 }
 
 /* ─ Dashboard Shell & Panels ─────────────────────────────── */
