@@ -79,6 +79,11 @@ EOF
 
 chmod +x ~/start_fab.sh
 
+# Alias ultra-court 'fab' dans .bashrc
+if ! grep -q "alias fab=" ~/.bashrc 2>/dev/null; then
+    echo "alias fab='~/start_fab.sh'" >> ~/.bashrc
+fi
+
 echo "==========================================="
 echo "🎉 CONFIGURATION TERMINEE AVEC SUCCES !"
 echo "==========================================="

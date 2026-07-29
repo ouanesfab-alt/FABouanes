@@ -413,20 +413,47 @@ def server_access_lines(host: str, port: int, lan_ip: str | None = None) -> list
     return lines
 
 
+def print_qr_code(target_url: str) -> None:
+    """Print an ASCII QR code to console for quick smartphone scanning."""
+    try:
+        import qrcode
+        import sys
+        if sys.platform == "win32":
+            try:
+                sys.stdout.reconfigure(encoding="utf-8")
+            except Exception:
+                pass
+        qr = qrcode.QRCode(border=1)
+        qr.add_data(target_url)
+        print("\n  [+] Scannez ce QR Code avec votre mobile / tablette :", flush=True)
+        qr.print_ascii(invert=True)
+        print("", flush=True)
+    except Exception:
+        pass
+
+
 def print_server_access(host: str, port: int, lan_ip: str | None = None) -> None:
     client_host = lan_ip or (get_local_ip() if host == "0.0.0.0" else host)
+    ssl_certfile = os.environ.get("FAB_SSL_CERT", "").strip() or None
+    ssl_keyfile = os.environ.get("FAB_SSL_KEY", "").strip() or None
+    if not ssl_certfile and (BASE_DIR / "cert.pem").exists() and (BASE_DIR / "key.pem").exists():
+        ssl_certfile = str(BASE_DIR / "cert.pem")
+        ssl_keyfile = str(BASE_DIR / "key.pem")
+    use_https = bool(ssl_certfile and ssl_keyfile)
+    proto = "https" if use_https else "http"
+    target_url = f"{proto}://{client_host}:{port}"
     banner = [
         "===========================================================",
         "           FABOUANES — ACCES RESEAU & MOBILE               ",
         "===========================================================",
-        f"  PC Local : http://127.0.0.1:{port}",
-        f"  Mobile   : http://{client_host}:{port}",
+        f"  PC Local : {proto}://127.0.0.1:{port}",
+        f"  Mobile   : {target_url}",
         "-----------------------------------------------------------",
         "  Connectez vos smartphones/tablettes au meme réseau WiFi  ",
         "===========================================================",
     ]
     print("\n".join(banner), flush=True)
-
+    print_qr_code(target_url)
 
 
 def ensure_ssl_certificates(force: bool = False) -> tuple[str | None, str | None]:
@@ -534,13 +561,14 @@ def run_server(host: str, port: int) -> None:
     if server_mode:
         lan_ip = os.environ.get("FAB_LAN_IP") or (get_local_ip() if host == "0.0.0.0" else host)
         client_host = lan_ip if host == "0.0.0.0" else host
+        target_url = f"{proto}://{client_host}:{port}"
         print("Base OK.", flush=True)
         banner = [
             "===========================================================",
             "           FABOUANES — ACCES RESEAU & MOBILE               ",
             "===========================================================",
             f"  PC Local : {proto}://127.0.0.1:{port}",
-            f"  Mobile   : {proto}://{client_host}:{port}",
+            f"  Mobile   : {target_url}",
         ]
         if use_https:
             banner.append("  Mode     : HTTPS (certificat SSL actif)")
@@ -548,6 +576,7 @@ def run_server(host: str, port: int) -> None:
             banner.append("  Mode     : HTTP (aucun certificat SSL détecté)")
         banner.append("===========================================================")
         print("\n".join(banner), flush=True)
+        print_qr_code(target_url)
         print("La fenetre reste ouverte: c'est le mode serveur. Ctrl+C pour l'arreter.", flush=True)
 
     log_level = os.environ.get("FAB_UVICORN_LOG_LEVEL") or "warning"
