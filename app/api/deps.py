@@ -52,7 +52,7 @@ async def create_refresh_token(request: Request, user) -> str:
     return raw_token
 
 
-def decode_access_token(raw_token: str):
+def decode_access_token(raw_token: str) -> dict[str, Any]:
     try:
         payload = serializer().loads(raw_token, max_age=ACCESS_TOKEN_TTL_SECONDS)
     except SignatureExpired as exc:
@@ -73,7 +73,7 @@ def bearer_token(request: Request) -> str:
     return ""
 
 
-def api_success(data: Any, meta: dict[str, Any] | None = None, status_code: int = 200):
+def api_success(data: Any, meta: dict[str, Any] | None = None, status_code: int = 200) -> dict[str, Any]:
     return {"success": True, "data": data, "meta": meta or {}, "_status_code": status_code}
 
 
@@ -81,7 +81,7 @@ def api_error(code: str, message: str, status_code: int, details: Any = None) ->
     raise HTTPException(status_code=status_code, detail={"code": code, "message": message, "details": details})
 
 
-def require_api_user(request: Request, permission: str | None = None):
+def require_api_user(request: Request, permission: str | None = None) -> dict[str, Any]:
     raw_token = bearer_token(request)
     if not raw_token:
         api_error("unauthorized", "Jeton Bearer requis.", status.HTTP_401_UNAUTHORIZED)
