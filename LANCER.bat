@@ -1,11 +1,13 @@
 @echo off
 setlocal enabledelayedexpansion
-title FABOuanes
+title FABOuanes ERP
 cd /d %~dp0
 echo.
-echo  Demarrage de FABOuanes...
+echo  ===========================================================
+echo         FABOUANES ERP — DÉMARRAGE DU SERVEUR WINDOWS
+echo  ===========================================================
 echo  AZUL ...
-echo  (Accessible localement et sur le reseau Wi-Fi local pour l'application Android)
+echo  (Accessible localement et sur le reseau Wi-Fi local pour les mobiles/tablettes)
 echo.
 
 REM --- Detecter Python ---
@@ -19,20 +21,20 @@ if not defined PY_CMD (
 
 if not defined PY_CMD (
     echo  ERREUR: Python non installe.
-    echo  Telecharge sur https://www.python.org/downloads/
-    echo  IMPORTANT: coche "Add Python to PATH" pendant l'installation.
+    echo  Telechargez Python sur https://www.python.org/downloads/
+    echo  IMPORTANT: cochez "Add Python to PATH" pendant l'installation.
     pause & exit /b 1
 )
 
 REM --- Verification des dependances ---
 echo  Verification des dependances...
-%PY_CMD% -c "import fastapi, uvicorn, sqlalchemy, alembic, pg8000" >nul 2>&1
+%PY_CMD% -c "import fastapi, uvicorn, sqlalchemy, alembic, pg8000, cryptography, qrcode" >nul 2>&1
 if errorlevel 1 (
-    echo  Installation/verification des dependances - connexion requise...
+    echo  Installation des dependances requises (connexion requise)...
     %PY_CMD% -m pip install -r requirements.txt --quiet
     if errorlevel 1 (
         echo  ATTENTION: impossible d'installer les dependances de requirements.txt.
-        echo  Tentative de lancement de l'application quand meme...
+        echo  Tentative de lancement quand meme...
     )
 )
 
@@ -95,6 +97,7 @@ if "!PG_READY!"=="1" (
 
 :launch
 set FAB_HOST=0.0.0.0
+set FAB_HTTPS=1
 set SESSION_COOKIE_SECURE=0
-%PY_CMD% launcher.py --server
+%PY_CMD% launcher.py --server --https
 pause
