@@ -737,6 +737,15 @@ def run_server(host: str, port: int) -> None:
     # Déclencher l'ouverture automatique du navigateur
     auto_open_browser(local_url)
 
+    ws_protocol = "auto"
+    try:
+        import websockets  # noqa: F401
+    except ImportError:
+        try:
+            import wsproto  # noqa: F401
+        except ImportError:
+            ws_protocol = "none"
+
     log_level = os.environ.get("FAB_UVICORN_LOG_LEVEL") or "warning"
     config_kwargs: dict = dict(
         app="app.main:app",
@@ -746,6 +755,7 @@ def run_server(host: str, port: int) -> None:
         log_level=log_level,
         access_log=False,
         use_colors=False,
+        ws=ws_protocol,
     )
     if use_https:
         config_kwargs["ssl_certfile"] = ssl_certfile
