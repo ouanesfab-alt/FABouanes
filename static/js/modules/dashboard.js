@@ -580,6 +580,10 @@
 			if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(this.value); }
 		});
 		input.addEventListener('input', function () {
+			this.style.height = 'auto';
+			this.style.height = Math.min(Math.max(this.scrollHeight, 38), 140) + 'px';
+		});
+		input.addEventListener('input', function () {
 			this.style.height = '36px';
 			this.style.height = Math.min(150, this.scrollHeight) + 'px';
 		});
