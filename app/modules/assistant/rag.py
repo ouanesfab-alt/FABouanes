@@ -247,54 +247,57 @@ CACHE_EXPIRY = 900.0  # 15 minutes
 
 
 async def get_embedding(text: str, api_key: str) -> List[float] | None:
-    """Fetch text embedding from Gemini API with retry, exponential backoff, and in-memory caching."""
-    # 1. Clean expired cache entries
+    """Fetch text embedding from Gemini API with fallback models, caching, and clean error handling."""
+    if not api_key:
+        return None
+
     now = time.time()
     expired_keys = [k for k, v in _embedding_cache.items() if now - v[0] > CACHE_EXPIRY]
     for k in expired_keys:
         _embedding_cache.pop(k, None)
 
-    # 2. Check cache
     cached = _embedding_cache.get(text)
     if cached:
         return cached[1]
 
     import httpx
-    import asyncio
-    url = "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent"
+    import logging
+    logger = logging.getLogger("fabouanes.rag")
 
-    headers = {"Content-Type": "application/json"}
+    models_to_try = ["text-embedding-004", "embedding-001"]
 
-    if api_key.startswith("AIzaSy") or api_key.startswith("AQ"):
-        url = f"{url}?key={api_key}"
-    else:
-        headers["Authorization"] = f"Bearer {api_key}"
+    for model_name in models_to_try:
+        base_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:embedContent"
+        headers = {"Content-Type": "application/json"}
+        if api_key.startswith("AIzaSy") or api_key.startswith("AQ"):
+            url = f"{base_url}?key={api_key}"
+        else:
+            url = base_url
+            headers["Authorization"] = f"Bearer {api_key}"
 
-    payload = {
-        "model": "models/text-embedding-004",
-        "content": {"parts": [{"text": text}]}
-    }
+        payload = {
+            "model": f"models/{model_name}",
+            "content": {"parts": [{"text": text}]}
+        }
 
-    retries = 3
-    backoff = 1.0
-    for attempt in range(retries):
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=8.0) as client:
                 res = await client.post(url, json=payload, headers=headers)
+                if res.status_code == 404:
+                    continue
                 res.raise_for_status()
                 data = res.json()
-                vals = data["embedding"]["values"]
-                _embedding_cache[text] = (time.time(), vals)
-                return vals
-        except Exception as e:
-            import logging
-            logger = logging.getLogger("fabouanes.rag")
-            if attempt == retries - 1:
-                logger.warning("Failed to fetch embedding after %d attempts: %s", retries, e)
-                return None
-            logger.info("Embedding fetch failed (attempt %d/%d), retrying in %.1fs...", attempt + 1, retries, backoff)
-            await asyncio.sleep(backoff)
-            backoff *= 2.0
+                vals = data.get("embedding", {}).get("values")
+                if vals:
+                    _embedding_cache[text] = (time.time(), vals)
+                    return vals
+        except httpx.HTTPStatusError as err:
+            if err.response.status_code == 404:
+                continue
+            logger.debug("Gemini embedding model %s returned HTTP error: %s", model_name, err)
+        except Exception as exc:
+            logger.debug("Gemini embedding request failed: %s", exc)
+
     return None
 
 
