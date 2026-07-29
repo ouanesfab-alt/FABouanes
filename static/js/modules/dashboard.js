@@ -3,37 +3,18 @@
 
 
 	// ─── KPI SHEET ───
-	let currentKpiKey = null;
-	let currentKpiLabel = null;
 	function openKpiSheet(key, label) {
-		currentKpiKey = key;
-		currentKpiLabel = label;
-		document.getElementById('kpiSheetTitle').textContent = label + ' à une date';
-		const overlay = document.getElementById('kpiSheetOverlay');
-		if (overlay.parentElement !== document.body) {
-			document.body.appendChild(overlay);
+		if (typeof window.openKpiSheet === 'function' && window.openKpiSheet !== openKpiSheet) {
+			return window.openKpiSheet(key, label);
 		}
-		overlay.classList.add('open');
-		document.body.classList.add('kpi-modal-open');
-		const input = document.getElementById('kpiDateInput');
-		if (!input.value) {
-			const _d = new Date();
-			input.value = `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, '0')}-${String(_d.getDate()).padStart(2, '0')}`;
-		}
-		document.getElementById('kpiResult').classList.remove('show');
-		document.querySelectorAll('.kpi-quick-btn').forEach(b => b.classList.remove('active'));
 	}
 	function closeKpiSheet() {
-		document.getElementById('kpiSheetOverlay').classList.remove('open');
+		if (typeof window.closeKpiSheet === 'function' && window.closeKpiSheet !== closeKpiSheet) {
+			return window.closeKpiSheet();
+		}
+		const overlay = document.getElementById('kpiSheetOverlay');
+		if (overlay) overlay.classList.remove('open');
 		document.body.classList.remove('kpi-modal-open');
-	}
-	function setKpiDateOffset(days, btn) {
-		const d = new Date();
-		d.setDate(d.getDate() - days);
-		document.getElementById('kpiDateInput').value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-		document.querySelectorAll('.kpi-quick-btn').forEach(b => b.classList.remove('active'));
-		if (btn) btn.classList.add('active');
 	}
 	async function fetchKpiAtDate() {
 		if (!currentKpiKey) return;

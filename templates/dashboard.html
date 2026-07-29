@@ -1458,6 +1458,35 @@
 	}
 	window.renderKpiChart = renderKpiChart;
 
+	// ─── Open & Close KPI Sheet (Top Level Scope) ───
+	function openKpiSheet(key, label) {
+		window._kpiKey = key;
+		currentChartDays = 30;
+
+		document.querySelectorAll('.kpi-dur-btn').forEach(function(b) { b.classList.remove('active'); });
+		var btn30 = document.querySelector('.kpi-dur-btn[data-days="30"]');
+		if (btn30) btn30.classList.add('active');
+
+		var title = document.getElementById('kpiSheetTitle');
+		if (title) title.textContent = 'Progression — ' + label;
+
+		var overlay = document.getElementById('kpiSheetOverlay');
+		if (!overlay) return;
+		if (overlay.parentElement !== document.body) document.body.appendChild(overlay);
+		overlay.classList.add('open');
+		document.body.classList.add('kpi-modal-open');
+
+		setTimeout(function() { renderKpiChart(key, 30); }, 60);
+	}
+	window.openKpiSheet = openKpiSheet;
+
+	function closeKpiSheet() {
+		var overlay = document.getElementById('kpiSheetOverlay');
+		if (overlay) overlay.classList.remove('open');
+		document.body.classList.remove('kpi-modal-open');
+	}
+	window.closeKpiSheet = closeKpiSheet;
+
 	// ─── Initialisation globale ───
 	function initDashboardKpis() {
 		// Utilisation de la délégation d'événements pour les clics sur les boutons de durée
@@ -1479,34 +1508,6 @@
 				}
 			}
 		});
-
-		// openKpiSheet
-		window.openKpiSheet = function(key, label) {
-			window._kpiKey = key;
-			currentChartDays = 30;
-
-			document.querySelectorAll('.kpi-dur-btn').forEach(function(b) { b.classList.remove('active'); });
-			var btn30 = document.querySelector('.kpi-dur-btn[data-days="30"]');
-			if (btn30) btn30.classList.add('active');
-
-			var title = document.getElementById('kpiSheetTitle');
-			if (title) title.textContent = 'Progression — ' + label;
-
-			var overlay = document.getElementById('kpiSheetOverlay');
-			if (!overlay) return;
-			if (overlay.parentElement !== document.body) document.body.appendChild(overlay);
-			overlay.classList.add('open');
-			document.body.classList.add('kpi-modal-open');
-
-			setTimeout(function() { renderKpiChart(key, 30); }, 60);
-		};
-
-		// closeKpiSheet
-		window.closeKpiSheet = function() {
-			var overlay = document.getElementById('kpiSheetOverlay');
-			if (overlay) overlay.classList.remove('open');
-			document.body.classList.remove('kpi-modal-open');
-		};
 
 		// Fermeture par touche Echap
 		document.addEventListener('keydown', function(e) {
