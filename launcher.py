@@ -16,6 +16,19 @@ import webbrowser
 from datetime import datetime
 from pathlib import Path
 
+if sys.platform == "win32":
+    try:
+        from asyncio.proactor_events import _ProactorBasePipeTransport
+        _old_call_connection_lost = _ProactorBasePipeTransport._call_connection_lost
+        def _call_connection_lost_patched(self, exc):
+            try:
+                _old_call_connection_lost(self, exc)
+            except (ConnectionResetError, AttributeError, OSError):
+                pass
+        _ProactorBasePipeTransport._call_connection_lost = _call_connection_lost_patched
+    except Exception:
+        pass
+
 APP_NAME = "FABOuanes"
 SERVER_MODE_ARGS = {"--server", "--server-only", "--network-server"}
 LAUNCH_ARGS = {arg.strip().lower() for arg in sys.argv[1:] if arg.strip()}

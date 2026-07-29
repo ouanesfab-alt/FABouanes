@@ -6,12 +6,26 @@ import asyncio
 import logging
 from pathlib import Path
 
+import sys
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+
+if sys.platform == "win32":
+    try:
+        from asyncio.proactor_events import _ProactorBasePipeTransport
+        _old_call_connection_lost = _ProactorBasePipeTransport._call_connection_lost
+        def _call_connection_lost_patched(self, exc):
+            try:
+                _old_call_connection_lost(self, exc)
+            except (ConnectionResetError, AttributeError, OSError):
+                pass
+        _ProactorBasePipeTransport._call_connection_lost = _call_connection_lost_patched
+    except Exception:
+        pass
 
 from app.core.config import settings
 from app.core.lifespan import lifespan
