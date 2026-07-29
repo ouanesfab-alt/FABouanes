@@ -522,9 +522,23 @@ def verify_backup_file(path: Path, *, expected_sha256: str | None = None) -> dic
 
 def get_google_drive_sync_dir() -> Path | None:
     raw = get_setting("gdrive_backup_dir", "").strip()
-    if not raw:
-        return None
-    return Path(raw)
+    if raw and Path(raw).exists():
+        return Path(raw)
+
+    home = Path.home()
+    candidates = [
+        home / "Google Drive",
+        home / "Mon Drive",
+        home / "My Drive",
+        Path("G:/Mon Drive"),
+        Path("G:/My Drive"),
+        Path("/sdcard/Download/FABOuanes_Backups"),
+        Path("/storage/emulated/0/Download/FABOuanes_Backups"),
+    ]
+    for c in candidates:
+        if c.exists() and c.is_dir():
+            return c
+    return None
 
 
 def list_restore_backups() -> list[dict[str, str]]:

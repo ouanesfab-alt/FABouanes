@@ -261,9 +261,15 @@ async def _mirror_backup_to_sync_folder(local_path: Path, db: AsyncSession) -> t
     """
     settings = await _get_backup_settings_impl(db)
     sync_folder_raw = settings["gdrive_backup_dir"]
-    if not sync_folder_raw:
+    target_dir = None
+    if sync_folder_raw and Path(sync_folder_raw).exists():
+        target_dir = Path(sync_folder_raw)
+    else:
+        from app.core.storage import get_google_drive_sync_dir
+        target_dir = get_google_drive_sync_dir()
+
+    if not target_dir:
         return "", "local-only"
-    target_dir = Path(sync_folder_raw)
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / local_path.name
     if str(target.resolve()) != str(local_path.resolve()):
