@@ -49,6 +49,7 @@ SECRET_KEY=${SECRET_TOKEN}
 FAB_HOST=0.0.0.0
 FAB_PORT=5000
 FAB_DESKTOP=0
+FAB_HTTPS=1
 DEFAULT_ADMIN_USERNAME=admin
 DEFAULT_ADMIN_PASSWORD=${RANDOM_PIN}
 FAB_PASSWORD_MODE=pin
@@ -71,9 +72,9 @@ cat << 'EOF' > ~/start_fab.sh
 echo "⚡ Démarrage de PostgreSQL..."
 pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1 || pg_ctl -D $PREFIX/var/lib/postgresql start
 sleep 2
-echo "🚀 Lancement de FABOuanes..."
+echo "🚀 Lancement de FABOuanes en mode HTTPS..."
 cd ~/FABouanes
-python launcher.py --server-only
+python launcher.py --server-only --https
 EOF
 
 chmod +x ~/start_fab.sh
