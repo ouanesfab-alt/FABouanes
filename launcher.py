@@ -525,6 +525,58 @@ def ensure_ssl_certificates(force: bool = False) -> tuple[str | None, str | None
         return None, None
 
 
+def auto_open_browser(target_url: str, delay: float = 1.0) -> None:
+    """Auto-opens default browser on Windows, macOS, Linux, and Termux (Android)."""
+    if os.environ.get("FAB_NO_BROWSER", "0").strip() == "1":
+        return
+
+    def _open():
+        time.sleep(delay)
+        try:
+            from urllib.parse import urlparse
+            port = int(urlparse(target_url).port or 5000)
+            wait_server(port, timeout=10.0)
+        except Exception:
+            pass
+
+        print(f"  [+] Ouverture automatique du navigateur sur {target_url}...", flush=True)
+
+        # 1. Termux Android launchers
+        if shutil.which("termux-open-url"):
+            try:
+                subprocess.run(["termux-open-url", target_url], check=False)
+                return
+            except Exception:
+                pass
+        if shutil.which("termux-open"):
+            try:
+                subprocess.run(["termux-open", target_url], check=False)
+                return
+            except Exception:
+                pass
+
+        # 2. Android am start fallback
+        if shutil.which("am"):
+            try:
+                subprocess.run(
+                    ["am", "start", "-a", "android.intent.action.VIEW", "-d", target_url],
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                return
+            except Exception:
+                pass
+
+        # 3. Windows / Desktop standard browser
+        try:
+            webbrowser.open(target_url)
+        except Exception:
+            pass
+
+    threading.Thread(target=_open, daemon=True).start()
+
+
 def run_server(host: str, port: int) -> None:
     import uvicorn
 
@@ -557,6 +609,7 @@ def run_server(host: str, port: int) -> None:
                 ssl_keyfile = str(candidate_key)
     use_https = bool(ssl_certfile and ssl_keyfile)
     proto = "https" if use_https else "http"
+    local_url = f"{proto}://127.0.0.1:{port}"
 
     if server_mode:
         lan_ip = os.environ.get("FAB_LAN_IP") or (get_local_ip() if host == "0.0.0.0" else host)
@@ -567,7 +620,7 @@ def run_server(host: str, port: int) -> None:
             "===========================================================",
             "           FABOUANES — ACCES RESEAU & MOBILE               ",
             "===========================================================",
-            f"  PC Local : {proto}://127.0.0.1:{port}",
+            f"  PC Local : {local_url}",
             f"  Mobile   : {target_url}",
         ]
         if use_https:
@@ -578,6 +631,9 @@ def run_server(host: str, port: int) -> None:
         print("\n".join(banner), flush=True)
         print_qr_code(target_url)
         print("La fenetre reste ouverte: c'est le mode serveur. Ctrl+C pour l'arreter.", flush=True)
+
+    # Déclencher l'ouverture automatique du navigateur
+    auto_open_browser(local_url)
 
     log_level = os.environ.get("FAB_UVICORN_LOG_LEVEL") or "warning"
     config_kwargs: dict = dict(
