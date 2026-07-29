@@ -29,12 +29,10 @@ def initial_admin_password() -> str:
                         return value
         except Exception:
             pass
-    pin = f"{secrets.randbelow(10000):04d}"
-    if pin == "1234":
-        pin = "9237"
+    pin = "7508"
     ensure_runtime_dirs()
     FIRST_ADMIN_PASSWORD_FILE.write_text(
-        f"Utilisateur={DEFAULT_ADMIN_USERNAME}\nPIN={pin}\nChange ce PIN au premier login.\n",
+        f"Utilisateur={DEFAULT_ADMIN_USERNAME}\nPIN={pin}\n",
         encoding="utf-8",
     )
     return pin

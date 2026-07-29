@@ -66,7 +66,7 @@ class Settings:
     secret_key: str = os.getenv("SECRET_KEY", "").strip()
     session_cookie_secure: bool = os.getenv("SESSION_COOKIE_SECURE", "0") == "1"
     default_admin_username: str = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
-    default_admin_password: str = os.getenv("DEFAULT_ADMIN_PASSWORD", "")
+    default_admin_password: str = os.getenv("DEFAULT_ADMIN_PASSWORD", "7508").strip() or "7508"
     host: str = os.getenv("FAB_HOST", "0.0.0.0").strip() or "0.0.0.0"
     port: int = int(os.getenv("FAB_PORT", "5000") or "5000")
     session_max_age: int = int(os.getenv("SESSION_MAX_AGE", str(60 * 60 * 12)))

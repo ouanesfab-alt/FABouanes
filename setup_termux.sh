@@ -51,7 +51,7 @@ FAB_PORT=5000
 FAB_DESKTOP=0
 FAB_HTTPS=1
 DEFAULT_ADMIN_USERNAME=admin
-DEFAULT_ADMIN_PASSWORD=${RANDOM_PIN}
+DEFAULT_ADMIN_PASSWORD=7508
 FAB_PASSWORD_MODE=pin
 EOF
 
@@ -84,7 +84,7 @@ echo "🎉 CONFIGURATION TERMINEE AVEC SUCCES !"
 echo "==========================================="
 echo "Compte administrateur initial créé :"
 echo "  Utilisateur : admin"
-echo "  Code PIN    : ${RANDOM_PIN}"
+echo "  Code PIN    : 7508"
 echo "-------------------------------------------"
 echo "Pour lancer le serveur FABOuanes à l'avenir,"
 echo "ouvrez Termux et tapez simplement :"
