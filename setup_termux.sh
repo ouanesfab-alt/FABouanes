@@ -84,6 +84,17 @@ if ! grep -q "alias fab=" ~/.bashrc 2>/dev/null; then
     echo "alias fab='~/start_fab.sh'" >> ~/.bashrc
 fi
 
+# Support Termux-Boot (Démarrage automatique à l'allumage du smartphone/tablette)
+mkdir -p ~/.termux/boot
+cat << 'EOF' > ~/.termux/boot/start_fab_boot.sh
+#!/data/data/com.termux/files/usr/bin/bash
+pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1 || pg_ctl -D $PREFIX/var/lib/postgresql start
+sleep 3
+cd ~/FABouanes
+python launcher.py --server-only --https >/dev/null 2>&1 &
+EOF
+chmod +x ~/.termux/boot/start_fab_boot.sh
+
 echo "==========================================="
 echo "🎉 CONFIGURATION TERMINEE AVEC SUCCES !"
 echo "==========================================="

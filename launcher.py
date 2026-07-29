@@ -393,8 +393,95 @@ def get_local_ip() -> str:
     return "127.0.0.1"
 
 
+def show_system_notification(title: str, message: str, url: str | None = None) -> None:
+    """Displays native OS notification on Windows and Termux (Android)."""
+    def _notify():
+        try:
+            # 1. Termux Android Notification
+            if shutil.which("termux-notification"):
+                cmd = ["termux-notification", "--title", title, "--content", message]
+                if url:
+                    cmd.extend(["--action", f"termux-open-url {url}"])
+                subprocess.run(cmd, check=False)
+                return
+        except Exception:
+            pass
+
+        # 2. Windows PowerShell Toast Notification
+        if os.name == "nt":
+            try:
+                ps_script = f"""
+                [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
+                $notification = New-Object System.Windows.Forms.NotifyIcon
+                $notification.Icon = [System.Drawing.SystemIcons]::Information
+                $notification.BalloonTipTitle = "{title}"
+                $notification.BalloonTipText = "{message}"
+                $notification.Visible = $True
+                $notification.ShowBalloonTip(5000)
+                """
+                subprocess.run(
+                    ["powershell", "-Command", ps_script],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                )
+            except Exception:
+                pass
+
+    threading.Thread(target=_notify, daemon=True).start()
+
+
+def free_stale_port(port: int = 5000) -> bool:
+    """Frees stale/zombie python processes listening on target port if occupied before launch."""
+    if port_bindable("0.0.0.0", port):
+        return True
+
+    try:
+        if os.name == "nt":
+            output = subprocess.check_output(f"netstat -ano | findstr :{port}", shell=True, text=True)
+            for line in output.strip().splitlines():
+                if "LISTENING" in line:
+                    parts = line.strip().split()
+                    pid = parts[-1]
+                    if pid and pid != "0":
+                        proc_info = subprocess.check_output(f"tasklist /fi \"PID eq {pid}\"", shell=True, text=True)
+                        if "python" in proc_info.lower():
+                            subprocess.run(f"taskkill /f /pid {pid}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            time.sleep(1)
+                            print(f"  [OK] Processus orphelin sur port {port} (PID {pid}) libéré.", flush=True)
+                            return port_bindable("0.0.0.0", port)
+    except Exception:
+        pass
+    return False
+
+
+def monitor_network_changes(port: int) -> None:
+    """Monitors physical network IP changes (e.g. Wi-Fi switch) and updates access banner & QR code."""
+    def _monitor():
+        last_ip = get_local_ip()
+        while True:
+            time.sleep(10)
+            current_ip = get_local_ip()
+            if current_ip != last_ip and current_ip != "127.0.0.1":
+                last_ip = current_ip
+                ssl_certfile = os.environ.get("FAB_SSL_CERT", "").strip() or None
+                use_https = bool(ssl_certfile or ((BASE_DIR / "cert.pem").exists() and (BASE_DIR / "key.pem").exists()))
+                proto = "https" if use_https else "http"
+                new_url = f"{proto}://{current_ip}:{port}"
+
+                print("\n" + "=" * 59, flush=True)
+                print(" 📡 DECTECTION DE CHANGEMENT DE RESEAU WI-FI !", flush=True)
+                print(f" Nouveau lien mobile : {new_url}", flush=True)
+                print("=" * 59, flush=True)
+                print_qr_code(new_url)
+                show_system_notification("FABOuanes - Nouveau Wi-Fi", f"Adresse IP Wi-Fi mise à jour : {new_url}", new_url)
+
+    threading.Thread(target=_monitor, daemon=True).start()
+
+
 def find_port(start: int = 5000, host: str | None = None) -> int:
     bind_host = host or get_bind_host()
+    free_stale_port(start)
     for port in range(start, start + 1000):
         if port_bindable(bind_host, port):
             return port
@@ -630,6 +717,8 @@ def run_server(host: str, port: int) -> None:
         banner.append("===========================================================")
         print("\n".join(banner), flush=True)
         print_qr_code(target_url)
+        show_system_notification("FABOuanes ERP", f"Serveur en ligne sur {target_url}", target_url)
+        monitor_network_changes(port)
         print("La fenetre reste ouverte: c'est le mode serveur. Ctrl+C pour l'arreter.", flush=True)
 
     # Déclencher l'ouverture automatique du navigateur
