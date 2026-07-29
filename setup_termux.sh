@@ -58,9 +58,9 @@ EOF
 echo "🐍 6. Installation des bibliothèques Python..."
 pip install --upgrade setuptools wheel
 if [ -f "requirements-termux.txt" ]; then
-    pip install --extra-index-url https://termux-user-repository.github.io/pypi/ --prefer-binary -r requirements-termux.txt || pip install --prefer-binary -r requirements-termux.txt
+    pip install --find-links=wheels --prefer-binary -r requirements-termux.txt || pip install --prefer-binary -r requirements-termux.txt
 else
-    pip install --prefer-binary -r requirements.txt
+    pip install --find-links=wheels --prefer-binary -r requirements.txt
 fi
 
 echo "⚙️ 7. Initialisation des tables de la base de données..."
