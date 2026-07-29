@@ -30,8 +30,30 @@ def _default_data_dir() -> Path:
 APP_DATA_DIR = _default_data_dir()
 APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+def _ensure_env_file_exists() -> None:
+    env_path = BASE_DIR / ".env"
+    if not env_path.exists():
+        example_path = BASE_DIR / ".env.example"
+        if example_path.exists():
+            try:
+                shutil.copy(example_path, env_path)
+            except Exception:
+                pass
+        else:
+            try:
+                env_path.write_text(
+                    "DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/fabouanes\n"
+                    "FAB_HOST=0.0.0.0\n"
+                    "FAB_PORT=5000\n",
+                    encoding="utf-8",
+                )
+            except Exception:
+                pass
+
+_ensure_env_file_exists()
 load_dotenv(BASE_DIR / ".env")
 load_dotenv(APP_DATA_DIR / ".env", override=False)
+
 
 
 @dataclass(slots=True)

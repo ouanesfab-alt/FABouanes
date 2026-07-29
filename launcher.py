@@ -45,6 +45,19 @@ os.chdir(BASE_DIR)
 try:
     from dotenv import load_dotenv
 
+    env_file = BASE_DIR / ".env"
+    if not env_file.exists():
+        example_file = BASE_DIR / ".env.example"
+        if example_file.exists():
+            shutil.copy(example_file, env_file)
+        else:
+            env_file.write_text(
+                "DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/fabouanes\n"
+                "FAB_HOST=0.0.0.0\n"
+                "FAB_PORT=5000\n",
+                encoding="utf-8",
+            )
+
     load_dotenv(BASE_DIR / ".env")
     load_dotenv(DATA_DIR / ".env", override=False)
 except Exception:
@@ -98,11 +111,199 @@ def write_install_state(payload: dict) -> None:
     STATE_FILE.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
 
 
+def _find_pg_bin_dir() -> Path | None:
+    """Locate the PostgreSQL bin directory on Windows."""
+    pg_base = Path(os.environ.get("PG_HOME", "")) / "bin"
+    if pg_base.exists():
+        return pg_base
+    for root in [Path(r"C:\Program Files\PostgreSQL"), Path(r"C:\Program Files (x86)\PostgreSQL")]:
+        if not root.exists():
+            continue
+        versions = sorted(root.iterdir(), key=lambda p: p.name, reverse=True)
+        for ver_dir in versions:
+            candidate = ver_dir / "bin"
+            if candidate.exists() and (candidate / "pg_isready.exe").exists():
+                return candidate
+    # Check PATH
+    pg_isready = shutil.which("pg_isready")
+    if pg_isready:
+        return Path(pg_isready).parent
+    return None
+
+
+def _pg_is_ready(pg_bin: Path, host: str = "127.0.0.1", port: int = 5432) -> bool:
+    """Check if PostgreSQL is accepting connections."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            [str(pg_bin / "pg_isready"), "-h", host, "-p", str(port)],
+            capture_output=True, timeout=5,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def ensure_postgres_running() -> None:
+    """Auto-detect PostgreSQL, start the service if stopped, and create the DB if needed.
+
+    Designed for desktop/zero-config deployments on Windows where PostgreSQL is
+    installed but the service may not be running after a fresh install or reboot.
+    """
+    import subprocess
+    from urllib.parse import urlparse
+
+    if os.name != "nt":
+        return
+
+    db_url = os.environ.get("DATABASE_URL", "").strip()
+    if not db_url or not db_url.lower().startswith(("postgres://", "postgresql://")):
+        return
+
+    parsed = urlparse(db_url)
+    pg_host = parsed.hostname or "127.0.0.1"
+    pg_port = parsed.port or 5432
+    pg_user = parsed.username or "postgres"
+    pg_password = parsed.password or ""
+    pg_database = (parsed.path or "/fabouanes").lstrip("/")
+
+    pg_bin = _find_pg_bin_dir()
+    if not pg_bin:
+        print("  [WARN] Impossible de trouver l'installation PostgreSQL.", flush=True)
+        return
+
+    # 1. Check if PostgreSQL is already running
+    if _pg_is_ready(pg_bin, pg_host, pg_port):
+        _ensure_database_exists(pg_bin, pg_host, pg_port, pg_user, pg_password, pg_database)
+        return
+
+    # 2. Try to start the service
+    print("  PostgreSQL n'est pas demarre. Tentative de demarrage...", flush=True)
+
+    # Detect the service name
+    service_name = None
+    try:
+        result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-Service -Name 'postgresql*' | Select-Object -ExpandProperty Name"],
+            capture_output=True, text=True, timeout=10,
+        )
+        for line in result.stdout.strip().splitlines():
+            svc = line.strip()
+            if svc:
+                service_name = svc
+                break
+    except Exception:
+        pass
+
+    if not service_name:
+        print("  [WARN] Service PostgreSQL introuvable.", flush=True)
+        return
+
+    # Try net start (works if running as admin or if service allows it)
+    started = False
+    try:
+        result = subprocess.run(
+            ["net", "start", service_name],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode == 0:
+            started = True
+    except Exception:
+        pass
+
+    if not started:
+        # Elevate via PowerShell UAC prompt, stripping -w to prevent Error 1053 timeout
+        try:
+            cmd_args = (
+                f"/c sc config \"{service_name}\" binPath= \"\\\"{pg_bin}\\pg_ctl.exe\\\" runservice -N \\\"{service_name}\\\" -D \\\"{pg_bin.parent}\\data\\\"\" "
+                f"& net start \"{service_name}\""
+            )
+            subprocess.run(
+                [
+                    "powershell",
+                    "-Command",
+                    f"Start-Process cmd.exe -ArgumentList '{cmd_args}' -Verb RunAs -Wait",
+                ],
+                capture_output=True,
+                timeout=30,
+            )
+            if _pg_is_ready(pg_bin, pg_host, pg_port):
+                started = True
+        except Exception:
+            pass
+
+    if not started:
+        print(
+            f"  [WARN] Impossible de demarrer PostgreSQL automatiquement.\n"
+            f"         Lancez manuellement en tant qu'administrateur :\n"
+            f"           net start {service_name}\n"
+            f"         Ou demarrez le service '{service_name}' dans services.msc",
+            flush=True,
+        )
+        return
+
+    # 3. Wait for PostgreSQL to become ready
+    print("  Attente que PostgreSQL soit pret...", flush=True)
+    for _ in range(30):
+        if _pg_is_ready(pg_bin, pg_host, pg_port):
+            break
+        time.sleep(1)
+    else:
+        print("  [WARN] PostgreSQL demarre mais ne repond pas encore.", flush=True)
+        return
+
+    print("  PostgreSQL est pret.", flush=True)
+
+    # 4. Create the database if it doesn't exist
+    _ensure_database_exists(pg_bin, pg_host, pg_port, pg_user, pg_password, pg_database)
+
+
+def _ensure_database_exists(
+    pg_bin: Path, host: str, port: int, user: str, password: str, database: str
+) -> None:
+    """Create the application database if it does not yet exist."""
+    import subprocess
+
+    env = dict(os.environ)
+    if password:
+        env["PGPASSWORD"] = password
+
+    # Check if database exists
+    try:
+        result = subprocess.run(
+            [str(pg_bin / "psql"), "-h", host, "-p", str(port), "-U", user,
+             "-tAc", f"SELECT 1 FROM pg_database WHERE datname = '{database}'"],
+            capture_output=True, text=True, timeout=10, env=env,
+        )
+        if result.stdout.strip() == "1":
+            return  # Database already exists
+    except Exception:
+        pass
+
+    # Create the database
+    print(f"  Creation de la base de donnees '{database}'...", flush=True)
+    try:
+        result = subprocess.run(
+            [str(pg_bin / "createdb"), "-h", host, "-p", str(port), "-U", user, database],
+            capture_output=True, text=True, timeout=15, env=env,
+        )
+        if result.returncode == 0:
+            print(f"  Base de donnees '{database}' creee avec succes.", flush=True)
+        else:
+            stderr = result.stderr.strip()
+            if "already exists" in stderr or "existe deja" in stderr.lower():
+                pass  # Already exists, ignore
+            else:
+                print(f"  [WARN] Erreur creation base: {stderr}", flush=True)
+    except Exception as e:
+        print(f"  [WARN] Erreur creation base: {e}", flush=True)
 
 
 
 def bootstrap_desktop_install(reason: str = "desktop_startup") -> dict:
     ensure_desktop_paths()
+    ensure_postgres_running()
     db_url = os.environ.get("DATABASE_URL", "").strip()
     if not db_url:
         raise RuntimeError("DATABASE_URL est manquante. PostgreSQL est requis.")
@@ -236,6 +437,7 @@ def run_server(host: str, port: int) -> None:
     from app.core.runtime_paths import ensure_runtime_dirs
 
     ensure_desktop_paths()
+    ensure_postgres_running()
     ensure_runtime_dirs()
     server_mode = bool(LAUNCH_ARGS & SERVER_MODE_ARGS)
     if server_mode:
