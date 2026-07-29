@@ -4,7 +4,8 @@ from __future__ import annotations
 import re
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
-from app.web.manual_data import MANUAL_CHAPTERS
+# Dict mapping chapter IDs to HTML content
+MANUAL_CHAPTERS: dict[str, str] = {}
 
 router = APIRouter()
 
