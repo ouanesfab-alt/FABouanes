@@ -1379,6 +1379,9 @@
 				return p.length === 3 ? (parseInt(p[2]) + ' ' + months[parseInt(p[1]) - 1]) : d;
 			});
 
+			const isMobile = window.innerWidth <= 575;
+			const xTicksLimit = isMobile ? 5 : 8;
+
 			kpiChartInstance = new Chart(canvas, {
 				type: 'line',
 				data: {
@@ -1391,7 +1394,7 @@
 						backgroundColor: gradient,
 						fill: true,
 						tension: 0.35,
-						pointRadius: 0,
+						pointRadius: isMobile ? 1 : 0,
 						pointHoverRadius: 5,
 						pointHoverBackgroundColor: color,
 						pointHoverBorderColor: '#fff',
@@ -1401,6 +1404,14 @@
 				options: {
 					responsive: true,
 					maintainAspectRatio: false,
+					layout: {
+						padding: {
+							left: isMobile ? 0 : 5,
+							right: isMobile ? 10 : 15,
+							top: 10,
+							bottom: 5
+						}
+					},
 					plugins: {
 						legend: { display: false },
 						tooltip: {
@@ -1414,15 +1425,28 @@
 					scales: {
 						x: {
 							grid: { display: false },
-							ticks: { color: textColor, font: { size: 9 }, maxTicksLimit: 8 }
+							ticks: {
+								color: textColor,
+								font: { size: isMobile ? 8 : 9 },
+								maxTicksLimit: xTicksLimit,
+								maxRotation: 0,
+								minRotation: 0
+							}
 						},
 						y: {
 							grid: { color: gridColor },
 							ticks: {
 								color: textColor,
-								font: { size: 9 },
+								font: { size: isMobile ? 8 : 9 },
 								maxTicksLimit: 4,
-								callback: v => v.toLocaleString('fr-FR') + ' DA'
+								callback: function(v) {
+									if (isMobile) {
+										if (Math.abs(v) >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+										if (Math.abs(v) >= 1000) return (v / 1000).toFixed(0) + 'k';
+										return v;
+									}
+									return v.toLocaleString('fr-FR') + ' DA';
+								}
 							}
 						}
 					}
