@@ -149,6 +149,56 @@ async def api_get_backups(request: Request):
     }
 
 
+@router.get("/backups/list")
+async def api_list_backups(request: Request):
+    enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
+    from app.core.storage import list_restore_backups, resolve_backup_path
+    items = list_restore_backups()
+    result = []
+    for item in items:
+        path = resolve_backup_path(item["value"])
+        size_str = f"{path.stat().st_size / (1024*1024):.2f} MB" if (path and path.exists()) else "N/A"
+        mtime_str = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S") if (path and path.exists()) else ""
+        result.append({
+            **item,
+            "size": size_str,
+            "modified_at": mtime_str
+        })
+    return {"ok": True, "backups": result}
+
+
+@router.get("/backups/download/{filename}")
+async def api_download_backup(filename: str, request: Request):
+    enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
+    from fastapi.responses import FileResponse
+    from app.core.storage import resolve_backup_path
+    safe_filename = Path(filename).name
+    path = resolve_backup_path(f"local:{safe_filename}")
+    if not path or not path.exists():
+        raise HTTPException(status_code=404, detail="Fichier de sauvegarde introuvable.")
+    return FileResponse(path, filename=safe_filename, media_type="application/octet-stream")
+
+
+@router.post("/backups/upload-restore")
+async def api_upload_and_restore_backup(request: Request, file: UploadFile = File(...)):
+    enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
+    if not file.filename:
+        return {"ok": False, "message": "Fichier manquant."}
+
+    filename = Path(file.filename).name
+    if not (filename.endswith(".sql") or filename.endswith(".sql.gz") or filename.endswith(".sql.gz.enc")):
+        return {"ok": False, "message": "Format de fichier invalide. Extensions acceptées: .sql, .sql.gz, .sql.gz.enc"}
+
+    from app.core.storage import LOCAL_BACKUP_DIR, restore_database_from
+    dest_path = LOCAL_BACKUP_DIR / f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
+
+    content = await file.read()
+    dest_path.write_bytes(content)
+
+    result = await asyncio.to_thread(restore_database_from, dest_path)
+    return result
+
+
 @router.post("/backups")
 async def api_trigger_backup(request: Request):
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
