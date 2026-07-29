@@ -22,29 +22,6 @@ SALES_FILTER_URL = "/operations?type=sale"
 NEW_SALE_URL = "/operations/sales/new"
 
 
-@router.get("/pos", name="pos")
-@router.get("/operations/pos", name="pos_view")
-async def pos_page(
-    request: Request, db: AsyncSession = Depends(get_async_session)
-):
-    denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
-    if denied:
-        return denied
-
-    service = SalesService(db)
-    form_context = await service.sale_form_context()
-
-    stmt = select(Client).order_by(Client.name)
-    res = await db.execute(stmt)
-    form_context["clients"] = [dict(c._mapping) for c in res.fetchall()]
-
-    items = form_context.get("sellable_items", [])
-    categories = sorted(list({str(i.get("category") or "Général") for i in items}))
-    form_context["categories"] = categories
-
-    return templates.TemplateResponse("pos.html", template_context(request, **form_context))
-
-
 @router.get("/sales", name="sales")
 async def sales_page(request: Request):
     denied = require_permission(request, PERMISSION_OPERATIONS_READ)
