@@ -52,10 +52,10 @@ fi
 
 # Config PostgreSQL & base
 export DATABASE_URL="postgresql://$(whoami)@127.0.0.1:5432/fabouanes"
-RANDOM_PIN=$(python -c "import secrets; print(secrets.randbelow(9000) + 1000)" 2>/dev/null || echo "8492")
 echo "DATABASE_URL=$DATABASE_URL" > .env
 echo "DEFAULT_ADMIN_USERNAME=admin" >> .env
-echo "DEFAULT_ADMIN_PASSWORD=${RANDOM_PIN}" >> .env
+echo "DEFAULT_ADMIN_PASSWORD=7508" >> .env
+echo "FAB_HTTPS=1" >> .env
 
 python -c "from app.core.database import bootstrap_and_migrate; bootstrap_and_migrate()"
 
@@ -65,7 +65,7 @@ cat << 'EOF' > ~/start_fab.sh
 pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1 || pg_ctl -D $PREFIX/var/lib/postgresql start
 cd ~/FABouanes
 source venv/bin/activate
-python launcher.py --server
+python launcher.py --server --https
 EOF
 chmod +x ~/start_fab.sh
 
@@ -73,8 +73,8 @@ echo "=================================================="
 echo "🎉 INSTALLATION COMPLÈTE EN MODE HORS-LIGNE !"
 echo "Compte administrateur initial :"
 echo "  Utilisateur : admin"
-echo "  Code PIN    : ${RANDOM_PIN}"
-echo "Pour lancer le serveur: ~/start_fab.sh"
+echo "  Code PIN    : 7508"
+echo "Pour lancer le serveur: ~/start_fab.sh ou 'fab'"
 echo "=================================================="
 """
     (OUTPUT_DIR / "install_offline.sh").write_text(install_script, encoding="utf-8")
