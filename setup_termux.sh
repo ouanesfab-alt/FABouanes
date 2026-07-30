@@ -219,13 +219,11 @@ case "$1" in
         exit 0
         ;;
     update)
-        echo "🔄 Mise à jour de FABOuanes depuis GitHub..."
+        echo "🔄 Mise à jour complète de FABOuanes depuis GitHub..."
         cd ~/FABouanes
         git pull
         pip install --prefer-binary -r requirements-termux.txt || pip install --prefer-binary -r requirements.txt
-        python launcher.py --bootstrap-only
-        echo "✅ Mise à jour terminée ! Redémarrage du serveur..."
-        exec $0 start
+        exec bash setup_termux.sh
         ;;
     *)
         # Libérer le port 5000 s'il était occupé par une ancienne instance
