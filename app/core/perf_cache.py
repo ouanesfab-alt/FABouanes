@@ -87,6 +87,11 @@ class InMemoryCache(CacheBackend):
             version = self._get_domain_version(domain)
             target_fingerprint = f"v:{version}"
 
+        import inspect
+        if inspect.iscoroutine(value) or inspect.isawaitable(value):
+            logger.warning("Refusing to store un-awaited coroutine in cache for key %s", key)
+            return
+
         with self._lock:
             self._cache[key] = {
                 "expires_at": now + max(0.5, float(ttl or 0)),
@@ -344,11 +349,11 @@ async def async_cached_result(
     ttl_seconds: float = 5.0,
 ) -> Any:
     cache_key = tuple(key_parts)
+    import inspect
     val = _BACKEND.get(cache_key)
-    if val is not None:
+    if val is not None and not inspect.iscoroutine(val) and not inspect.isawaitable(val):
         return val
 
-    import inspect
     if inspect.iscoroutinefunction(builder):
         value = await builder()
     else:
@@ -357,7 +362,8 @@ async def async_cached_result(
             value = await value
 
     fingerprint = _database_fingerprint()
-    _BACKEND.set(cache_key, value, ttl_seconds, fingerprint)
+    if not inspect.iscoroutine(value) and not inspect.isawaitable(value):
+        _BACKEND.set(cache_key, value, ttl_seconds, fingerprint)
     return value
 
 
