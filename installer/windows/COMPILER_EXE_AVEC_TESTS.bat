@@ -84,6 +84,13 @@ if exist ".env" (
     --hidden-import "webview" ^
     --hidden-import "webview.platforms.edgechromium" ^
     --hidden-import "prometheus_fastapi_instrumentator" ^
+    --hidden-import "apscheduler" ^
+    --hidden-import "structlog" ^
+    --hidden-import "pypdf" ^
+    --hidden-import "httpx" ^
+    --hidden-import "websockets" ^
+    --hidden-import "wsproto" ^
+    --hidden-import "asyncpg" ^
     --collect-submodules "webview" ^
     --collect-submodules "fastapi" ^
     --collect-submodules "starlette" ^
@@ -94,6 +101,10 @@ if exist ".env" (
     --collect-submodules "PIL" ^
     --collect-submodules "prometheus_fastapi_instrumentator" ^
     --collect-submodules "sqlglot" ^
+    --collect-submodules "apscheduler" ^
+    --collect-submodules "structlog" ^
+    --collect-submodules "httpx" ^
+    --collect-submodules "websockets" ^
     launcher.py
 
 if errorlevel 1 (

@@ -40,6 +40,9 @@ if not errorlevel 1 set "ISCC_CMD=iscc.exe"
 if not defined ISCC_CMD if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" set "ISCC_CMD=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
 if not defined ISCC_CMD if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set "ISCC_CMD=%ProgramFiles%\Inno Setup 6\ISCC.exe"
 if not defined ISCC_CMD if exist "%LocalAppData%\Programs\Inno Setup 6\ISCC.exe" set "ISCC_CMD=%LocalAppData%\Programs\Inno Setup 6\ISCC.exe"
+if not defined ISCC_CMD if exist "%ProgramFiles(x86)%\Inno Setup 5\ISCC.exe" set "ISCC_CMD=%ProgramFiles(x86)%\Inno Setup 5\ISCC.exe"
+if not defined ISCC_CMD if exist "%ProgramFiles%\Inno Setup 5\ISCC.exe" set "ISCC_CMD=%ProgramFiles%\Inno Setup 5\ISCC.exe"
+if not defined ISCC_CMD if exist "C:\ProgramData\chocolatey\bin\iscc.exe" set "ISCC_CMD=C:\ProgramData\chocolatey\bin\iscc.exe"
 
 if not defined ISCC_CMD (
     echo.
