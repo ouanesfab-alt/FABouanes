@@ -538,8 +538,13 @@ def _worker_poll_loop():
     while _worker_running:
         try:
             now_ts = time.time()
-            if now_ts - last_cleanup > 3600:
+            if now_ts - last_cleanup > 300:
                 cleanup_background_jobs()
+                try:
+                    from app.services.backup_service import trigger_nightly_snapshot_if_due
+                    asyncio.run(trigger_nightly_snapshot_if_due())
+                except Exception as b_exc:
+                    pass
                 last_cleanup = now_ts
 
             job = None
