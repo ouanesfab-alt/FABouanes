@@ -964,23 +964,37 @@
 		<!-- Search Bar -->
 		<div class="fab-search-row">
 			<div class="fab-search-bar">
-				<!-- Mic -->
-				<button id="fabMicBtn" class="fab-bar-btn" type="button" title="Parler">
-					<i class="bi bi-mic"></i>
-				</button>
-				<div id="fabSoundwave" class="fab-soundwave">
+				<!-- Single 'Plus' Action Button -->
+				<div class="dropdown d-inline-block">
+					<button id="fabPlusBtn" class="fab-bar-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Plus d'actions">
+						<i class="bi bi-plus-lg" style="font-size: 1.1rem;"></i>
+					</button>
+					<ul class="dropdown-menu shadow-lg border-0 p-2" style="border-radius: 12px; min-width: 210px; font-size: 0.9rem;">
+						<li>
+							<button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 rounded-2" id="fabMenuMicBtn">
+								<i class="bi bi-mic-fill text-primary" style="font-size: 1rem;"></i>
+								<span>Commande vocale</span>
+							</button>
+						</li>
+						<li>
+							<button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 rounded-2" id="fabMenuAttachBtn">
+								<i class="bi bi-paperclip text-success" style="font-size: 1rem;"></i>
+								<span>Joindre un fichier</span>
+							</button>
+						</li>
+					</ul>
+				</div>
+
+				<div id="fabSoundwave" class="fab-soundwave" style="display:none;">
 					<div class="fab-sw-bar"></div>
 					<div class="fab-sw-bar"></div>
 					<div class="fab-sw-bar"></div>
 					<div class="fab-sw-bar"></div>
 				</div>
 
-				<div class="fab-bar-divider"></div>
-
-				<!-- File attach -->
-				<button id="fabAttachBtn" class="fab-bar-btn" type="button" title="Joindre un fichier">
-					<i class="bi bi-paperclip"></i>
-				</button>
+				<!-- Hidden legacy targets for JS compatibility -->
+				<button id="fabMicBtn" style="display:none;" type="button"></button>
+				<button id="fabAttachBtn" style="display:none;" type="button"></button>
 				<input type="file" id="fabFileInput" accept="image/*,application/pdf,.xlsx,.xlsm" style="display:none;">
 
 				<textarea id="fabChatInput" placeholder="Posez une question à Sabrina..." rows="1"></textarea>

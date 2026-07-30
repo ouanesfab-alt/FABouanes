@@ -653,6 +653,12 @@
 		clearBtn?.addEventListener('click', clearChat);
 		clearBtnMobile?.addEventListener('click', clearChat);
 
+		// Plus menu actions
+		const menuMicBtn = document.getElementById('fabMenuMicBtn');
+		const menuAttachBtn = document.getElementById('fabMenuAttachBtn');
+		menuMicBtn?.addEventListener('click', () => micBtn?.click());
+		menuAttachBtn?.addEventListener('click', () => fileInput?.click());
+
 		// File handling
 		attachBtn?.addEventListener('click', () => fileInput?.click());
 		fileInput?.addEventListener('change', function (e) {
