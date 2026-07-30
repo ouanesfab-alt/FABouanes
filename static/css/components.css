@@ -536,22 +536,7 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Plus Jakarta Sans", "Inter", sans-serif !important;
 }
 
-/* ── 2. macOS Window Controls (Traffic Lights) ── */
-.mac-traffic-lights {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin-right: 12px;
-}
-.mac-traffic-lights .mac-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  display: inline-block;
-}
-.mac-traffic-lights .mac-dot.close { background: #FF5F56; border: 0.5px solid rgba(0,0,0,0.15); }
-.mac-traffic-lights .mac-dot.minimize { background: #FFBD2E; border: 0.5px solid rgba(0,0,0,0.15); }
-.mac-traffic-lights .mac-dot.maximize { background: #27C93F; border: 0.5px solid rgba(0,0,0,0.15); }
+
 
 /* ── 3. macOS Authentic Window Card (Continuous Squircle Radius & Highlight Stroke) ── */
 .card, .rpt-kpi, .rpt-chart-card, .rpt-top-card, .fab-switch-panel, .modal-content {
