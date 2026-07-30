@@ -263,7 +263,7 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
                 (item_id, text, emb_val)
             )
             processed += 1
-            await update_task_progress(job_id, int(20 + 80 * (processed / total_items)), f"Génération: {processed}/{total_items} articles...")
+            await update_task_progress(job_id, int(20 + 80 * (processed / max(total_items, 1))), f"Génération: {processed}/{total_items} articles...")
 
     for item in fin_prods:
         item_id = item["id"]
@@ -281,7 +281,7 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
                 (item_id, text, emb_val)
             )
             processed += 1
-            await update_task_progress(job_id, int(20 + 80 * (processed / total_items)), f"Génération: {processed}/{total_items} articles...")
+            await update_task_progress(job_id, int(20 + 80 * (processed / max(total_items, 1))), f"Génération: {processed}/{total_items} articles...")
 
     # Indexer le manuel utilisateur bilingue pour la recherche vectorielle (RAG Hybride)
     from app.web.manual_pages import SPECIFIC_CHAPTER_DATA

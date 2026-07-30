@@ -1354,3 +1354,9 @@ table.record-table > thead > tr > th,
   }
 }
 
+/* ── iOS zoom prevention: force 16px min on all inputs ── */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea {
+    font-size: max(1rem, 16px) !important;
+  }
+}

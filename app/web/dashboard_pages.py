@@ -164,3 +164,49 @@ async def api_kpi_history(request: Request):
         import logging
         logging.getLogger("fabouanes").error("Error fetching KPI history for %s: %s", metric, exc)
         return JSONResponse({"success": False, "error": "Erreur interne."}, status_code=500)
+
+
+@router.get("/api/sabrina/smart-summary", name="api_sabrina_smart_summary")
+async def api_sabrina_smart_summary(request: Request):
+    """Generates daily predictive AI stock alerts and business summary for Sabrina assistant."""
+    if not get_current_user(request):
+        return JSONResponse({"error": "Authentification requise."}, status_code=401)
+
+    try:
+        from app.core.db_helpers import query_db
+        # 1. Calculate items running out of stock within 7 days based on 30-day sales rate
+        predicted_depletions = query_db("""
+            SELECT fp.name, CAST(fp.stock_qty AS FLOAT) as stock, 
+                   COALESCE(SUM(s.quantity), 0) / 30.0 as daily_rate
+            FROM finished_products fp
+            LEFT JOIN sales s ON s.finished_product_id = fp.id AND s.sale_date >= CURRENT_DATE - INTERVAL '30 days'
+            GROUP BY fp.id, fp.name, fp.stock_qty
+            HAVING fp.stock_qty > 0 AND (COALESCE(SUM(s.quantity), 0) / 30.0) > 0 
+               AND (fp.stock_qty / (COALESCE(SUM(s.quantity), 0) / 30.0)) <= 7
+            LIMIT 5
+        """)
+
+        # 2. Get yesterday's sales KPI
+        yesterday_sales = query_db("""
+            SELECT COALESCE(SUM(total), 0) as total FROM sales WHERE sale_date = CURRENT_DATE - INTERVAL '1 day'
+        """, one=True)
+        yesterday_total = float(yesterday_sales["total"]) if yesterday_sales else 0.0
+
+        alerts = []
+        if predicted_depletions:
+            for item in predicted_depletions:
+                days_left = max(1, int(item["stock"] / item["daily_rate"]))
+                alerts.append(f"• {item['name']} : ~{days_left} jour(s) de stock restant ({int(item['stock'])} en réserve)")
+
+        return JSONResponse({
+            "success": True,
+            "yesterday_sales": yesterday_total,
+            "yesterday_sales_fmt": _money(yesterday_total),
+            "alerts": alerts,
+            "alert_count": len(alerts)
+        })
+    except Exception as exc:
+        import logging
+        logging.getLogger("fabouanes").error("Smart summary error: %s", exc)
+        return JSONResponse({"success": False, "alerts": [], "yesterday_sales_fmt": "0 DA"})
+

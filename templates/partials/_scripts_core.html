@@ -601,6 +601,30 @@
   })();
 </script>
 
+<!-- ── Bouton flottant retour en haut ── -->
+<button id="scrollTopBtn" aria-label="Retour en haut" style="
+  display:none;position:fixed;bottom:80px;right:18px;z-index:1040;
+  width:44px;height:44px;border-radius:50%;border:none;
+  background:var(--primary,#0d6efd);color:#fff;
+  box-shadow:0 3px 12px rgba(0,0,0,.25);cursor:pointer;
+  transition:opacity .25s,transform .25s;opacity:0;transform:translateY(10px);
+  font-size:1.2rem;line-height:1;
+">▲</button>
+<script nonce="{{ csp_nonce }}">
+(function(){
+  var btn=document.getElementById('scrollTopBtn'),shown=false;
+  window.addEventListener('scroll',function(){
+    if(window.scrollY>400){
+      if(!shown){btn.style.display='flex';btn.style.alignItems='center';btn.style.justifyContent='center';
+        requestAnimationFrame(function(){btn.style.opacity='1';btn.style.transform='translateY(0)';});shown=true;}
+    }else if(shown){
+      btn.style.opacity='0';btn.style.transform='translateY(10px)';
+      setTimeout(function(){btn.style.display='none';},250);shown=false;}
+  },{passive:true});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+
 <!-- Éléments masqués pour compatibilité avec les tests et scripts génériques -->
 <div style="display: none;" aria-hidden="true">
   <button class="js-theme" data-theme-value="light">Clair</button>

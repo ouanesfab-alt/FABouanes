@@ -121,12 +121,12 @@
   </div>
 
   {% include 'partials/_search_overlay.html' %}
+  {% include 'partials/_barcode_modal.html' %}
   <div class="desktop-bottom-border" aria-hidden="true"></div>
   {% endif %}
 
-
-
   {% include 'partials/_scripts_core.html' %}
+  <script type="module" src="{{ url_for('static', filename='js/barcode_scanner.js') }}"></script>
   {% include 'partials/_websocket.html' %}
   {% if not is_print_view %}
   {% include 'partials/_transitions.html' %}

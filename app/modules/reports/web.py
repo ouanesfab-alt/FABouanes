@@ -207,3 +207,101 @@ async def export_csv(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=rapport_fabouanes.csv"},
     )
+
+
+@router.get("/reports/livre-journal/export", name="reports_export_livre_journal")
+@limiter.limit("10/minute")
+async def export_livre_journal(request: Request):
+    """Export standard Livre Journal (accounting ledger) in CSV/Excel format."""
+    denied = require_permission(request, "reports.read")
+    if denied:
+        return denied
+
+    from app.core.db_helpers import query_db
+
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["Date", "Type / Ref", "Libellé / Partenaire", "Débit (DA)", "Crédit (DA)"])
+
+    # Extract all transactions sorted by date
+    entries = query_db("""
+        SELECT sale_date as tx_date, 'Vente #' || id as tx_ref, 'Vente client ID ' || client_id as label, total as debit, 0 as credit FROM sales
+        UNION ALL
+        SELECT purchase_date as tx_date, 'Achat #' || id as tx_ref, 'Achat fourn. ID ' || COALESCE(supplier_id, 0) as label, 0 as debit, total as credit FROM purchases
+        UNION ALL
+        SELECT payment_date as tx_date, 'Versement #' || id as tx_ref, 'Règlement client ID ' || client_id as label, 0 as debit, amount as credit FROM payments
+        UNION ALL
+        SELECT expense_date as tx_date, 'Dépense #' || id as tx_ref, category || ' : ' || description as label, 0 as debit, amount as credit FROM expenses
+        ORDER BY tx_date DESC, tx_ref DESC
+        LIMIT 5000
+    """)
+
+    for row in entries:
+        writer.writerow([
+            row["tx_date"],
+            row["tx_ref"],
+            row["label"],
+            f"{float(row['debit']):.2f}",
+            f"{float(row['credit']):.2f}"
+        ])
+
+    output.seek(0)
+    bom = "\ufeff"
+    return StreamingResponse(
+        iter([bom + output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename=livre_journal_{date.today().isoformat()}.csv"},
+    )
+
+
+@router.get("/reports/marge-brute/export", name="reports_export_marge_brute")
+@limiter.limit("10/minute")
+async def export_marge_brute(request: Request):
+    """Export product margin analysis (Gross Margin & % Margin) in CSV/Excel format."""
+    denied = require_permission(request, "reports.read")
+    if denied:
+        return denied
+
+    from app.core.db_helpers import query_db
+
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["Produit Fini", "Quantité Vendue", "Chiffre d'Affaires (DA)", "Coût Moyen (CMP DA)", "Coût Total (DA)", "Marge Brute (DA)", "Taux de Marge (%)"])
+
+    rows = query_db("""
+        SELECT fp.name, 
+               COALESCE(SUM(s.quantity), 0) as total_qty,
+               COALESCE(SUM(s.total), 0) as total_revenue,
+               CAST(fp.avg_cost AS FLOAT) as avg_cost
+        FROM finished_products fp
+        LEFT JOIN sales s ON s.finished_product_id = fp.id
+        GROUP BY fp.id, fp.name, fp.avg_cost
+        ORDER BY total_revenue DESC
+    """)
+
+    for r in rows:
+        qty = float(r["total_qty"])
+        rev = float(r["total_revenue"])
+        unit_cost = float(r["avg_cost"] or 0)
+        cogs = qty * unit_cost
+        margin = rev - cogs
+        margin_pct = (margin / rev * 100.0) if rev > 0 else 0.0
+
+        writer.writerow([
+            r["name"],
+            f"{qty:.2f}",
+            f"{rev:.2f}",
+            f"{unit_cost:.2f}",
+            f"{cogs:.2f}",
+            f"{margin:.2f}",
+            f"{margin_pct:.1f}%"
+        ])
+
+    output.seek(0)
+    bom = "\ufeff"
+    return StreamingResponse(
+        iter([bom + output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename=marge_brute_{date.today().isoformat()}.csv"},
+    )
+

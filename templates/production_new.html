@@ -104,7 +104,7 @@
         </div>
         <div class="span-3">
           <label for="outputQty" class="form-label mb-1">Quantité produite</label>
-          <input name="output_quantity" id="outputQty" type="number" step="1" min="0" class="form-control" required>
+          <input name="output_quantity" id="outputQty" type="number" inputmode="decimal" step="1" min="0" class="form-control" required>
         </div>
         <div class="span-3">
           <label for="productionDate" class="form-label mb-1">Date</label>
@@ -189,7 +189,7 @@ function materialOptions(selectedId=''){return RAW_MATERIALS.map(r=>`<option val
 function addRow(item={}){
   const row=document.createElement('div'); row.className='row g-2 ingredient-row mb-2 context-target';
   row.innerHTML=`<div class="col-md-4"><select name="raw_material_id[]" class="form-select material-select">${materialOptions(item.raw_material_id||'')}</select></div>
-  <div class="col-md-2"><input name="quantity[]" type="number" step="1" min="0" class="form-control qty-input" placeholder="Qté" value="${item.quantity||''}"></div>
+  <div class="col-md-2"><input name="quantity[]" type="number" inputmode="decimal" step="1" min="0" class="form-control qty-input" placeholder="Qté" value="${item.quantity||''}"></div>
   <div class="col-md-2"><input type="text" class="form-control stock-now" readonly tabindex="-1" placeholder="Stock actuel"></div>
   <div class="col-md-2"><input type="text" class="form-control stock-left" readonly tabindex="-1" placeholder="Stock restant"></div>
   <div class="col-md-1"><input type="text" class="form-control recipe-share" readonly tabindex="-1" placeholder="%"></div>
