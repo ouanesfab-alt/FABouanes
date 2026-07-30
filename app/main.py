@@ -9,8 +9,16 @@ from pathlib import Path
 import sys
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from prometheus_fastapi_instrumentator import Instrumentator
-from slowapi.errors import RateLimitExceeded
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+except Exception:
+    Instrumentator = None
+
+try:
+    from slowapi.errors import RateLimitExceeded
+except Exception:
+    RateLimitExceeded = None
+
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -44,10 +52,15 @@ from app.version import APP_VERSION
 logger = logging.getLogger("fabouanes")
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+if limiter and RateLimitExceeded:
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
-Instrumentator().instrument(app).expose(app)
+if Instrumentator is not None:
+    try:
+        Instrumentator().instrument(app).expose(app)
+    except Exception as exc:
+        logger.warning("Skipped Prometheus instrumentation: %s", exc)
 
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(
