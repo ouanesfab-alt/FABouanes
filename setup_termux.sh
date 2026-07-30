@@ -104,52 +104,24 @@ cd ~/FABouanes
 python launcher.py --server-only --https
 EOF
 
-# Script d'arrêt stop_fab.sh
-cat << 'EOF' > ~/stop_fab.sh
-#!/data/data/com.termux/files/usr/bin/bash
-echo "🛑 Arrêt de l'application FABOuanes..."
-pkill -f "launcher.py" 2>/dev/null || true
-pkill -f "uvicorn" 2>/dev/null || true
-echo "🛑 Arrêt du moteur PostgreSQL..."
-pg_ctl -D $PREFIX/var/lib/postgresql stop 2>/dev/null || true
-echo "✅ Serveur FABOuanes et PostgreSQL arrêtés avec succès."
-EOF
-chmod +x ~/stop_fab.sh
+chmod +x ~/start_fab.sh
 
-# Raccourci binaire global 'fab' et 'fab-stop' dans $PREFIX/bin
+# Configuration Termux:Widget (Raccourci 1-Clic sur l'écran d'accueil Android)
+mkdir -p ~/.shortcuts
+cp ~/start_fab.sh ~/.shortcuts/FABOuanes_ERP.sh
+chmod +x ~/.shortcuts/FABOuanes_ERP.sh
+
+# Raccourci binaire global 'fab' dans $PREFIX/bin
 cat << 'EOF' > $PREFIX/bin/fab
 #!/data/data/com.termux/files/usr/bin/bash
 exec ~/start_fab.sh "$@"
 EOF
 chmod +x $PREFIX/bin/fab
 
-cat << 'EOF' > $PREFIX/bin/fab-stop
-#!/data/data/com.termux/files/usr/bin/bash
-exec ~/stop_fab.sh "$@"
-EOF
-chmod +x $PREFIX/bin/fab-stop
-
-# Alias 'fab' et 'fab-stop' dans .bashrc
+# Alias 'fab' dans .bashrc
 if ! grep -q "alias fab=" ~/.bashrc 2>/dev/null; then
     echo "alias fab='~/start_fab.sh'" >> ~/.bashrc
-    echo "alias fab-stop='~/stop_fab.sh'" >> ~/.bashrc
 fi
-
-# Configuration 1-Click Termux:Widget sur l'écran d'accueil Android
-mkdir -p ~/.shortcuts/tasks
-cat << 'EOF' > ~/.shortcuts/tasks/🟢_DEMARRER_FABOUANES.sh
-#!/data/data/com.termux/files/usr/bin/bash
-~/start_fab.sh &
-sleep 2
-termux-open-url https://127.0.0.1:5000 2>/dev/null || true
-EOF
-chmod +x ~/.shortcuts/tasks/🟢_DEMARRER_FABOUANES.sh
-
-cat << 'EOF' > ~/.shortcuts/tasks/🔴_ARRETER_FABOUANES.sh
-#!/data/data/com.termux/files/usr/bin/bash
-~/stop_fab.sh
-EOF
-chmod +x ~/.shortcuts/tasks/🔴_ARRETER_FABOUANES.sh
 
 # Configuration Démarrage Automatique Termux-Boot
 mkdir -p ~/.termux/boot
@@ -170,7 +142,7 @@ echo "Compte administrateur initial créé :"
 echo "  Utilisateur : admin"
 echo "  Code PIN    : 7508"
 echo "--------------------------------------------------"
-echo "Commandes faciles :"
-echo "  ► Lancer le serveur : fab  (ou widget vert)"
-echo "  ► Arrêter le serveur: fab-stop (ou widget rouge)"
+echo "Pour lancer FABOuanes à tout moment dans Termux,"
+echo "tapez simplement la commande :"
+echo "  fab"
 echo "=================================================="
