@@ -62,8 +62,8 @@ SECRET_KEY=${SECRET_TOKEN}
 FAB_HOST=0.0.0.0
 FAB_PORT=5000
 FAB_DESKTOP=0
-FAB_HTTPS=1
-SESSION_COOKIE_SECURE=1
+FAB_HTTPS=0
+SESSION_COOKIE_SECURE=0
 DEFAULT_ADMIN_USERNAME=admin
 DEFAULT_ADMIN_PASSWORD=7508
 FAB_PASSWORD_MODE=pin
@@ -78,7 +78,7 @@ else
 fi
 
 echo "⚙️ 8. Initialisation des tables de la base de données..."
-FAB_DESKTOP=0 FAB_HTTPS=1 SESSION_COOKIE_SECURE=1 python launcher.py --bootstrap-only
+FAB_DESKTOP=0 FAB_HTTPS=0 SESSION_COOKIE_SECURE=0 python launcher.py --bootstrap-only
 
 echo "🔐 8b. Génération du certificat SSL auto-signé..."
 python -c "
@@ -282,39 +282,29 @@ case "$1" in
         export FAB_DESKTOP=0
         export FAB_HOST=0.0.0.0
         export FAB_PORT=5000
-        PROTO="https"
-        if [ "${FAB_HTTPS:-1}" != "1" ]; then
-            PROTO="http"
-        fi
+        PROTO="http"
+        # HTTPS desactive sur Termux : Chrome Android bloque les certificats auto-signes sans option de contournement
+        # Utilisez FAB_HTTPS=1 manuellement si vous avez un vrai certificat SSL
+        export FAB_HTTPS=0
+        export SESSION_COOKIE_SECURE=0
 
         echo "=================================================="
-        echo "🚀 Lancement de FABOuanes (HTTPS actif)..."
-        echo "  ► Accès Local  : ${PROTO}://127.0.0.1:5000"
+        echo "🚀 Lancement de FABOuanes (HTTP)..."
+        echo "  ► Local  : http://127.0.0.1:5000"
         if [ "$LOCAL_IP" != "127.0.0.1" ]; then
-            echo "  ► Accès Wi-Fi  : ${PROTO}://${LOCAL_IP}:5000"
+            echo "  ► Wi-Fi  : http://${LOCAL_IP}:5000"
         fi
         echo "=================================================="
-        send_android_notification "FABOuanes Serveur Actif" "Disponible sur ${PROTO}://127.0.0.1:5000"
+        send_android_notification "FABOuanes Serveur Actif" "http://127.0.0.1:5000"
 
         cd ~/FABouanes
 
-        # Lancer uvicorn DIRECTEMENT (sans launcher.py pour éviter FAB_DESKTOP=1)
-        SSL_ARGS=""
-        if [ -f ~/FABouanes/cert.pem ] && [ -f ~/FABouanes/key.pem ]; then
-            SSL_ARGS="--ssl-keyfile ~/FABouanes/key.pem --ssl-certfile ~/FABouanes/cert.pem"
-            export SESSION_COOKIE_SECURE=1
-        else
-            PROTO="http"
-            export SESSION_COOKIE_SECURE=0
-            export FAB_HTTPS=0
-        fi
-
+        # Lancer uvicorn DIRECTEMENT en HTTP (pas de SSL = Chrome peut s'y connecter)
         python -m uvicorn app.main:app \
             --host 0.0.0.0 \
             --port 5000 \
             --no-access-log \
             --log-level warning \
-            $SSL_ARGS \
             2>&1 | tee -a ~/fab_server.log &
         SERVER_PID=$!
 
