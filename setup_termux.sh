@@ -249,15 +249,7 @@ case "$1" in
         echo "=================================================="
         send_android_notification "FABOuanes Serveur Actif" "Disponible sur ${PROTO}://${LOCAL_IP}:5000"
 
-        # Ouverture automatique du navigateur Android dans 2s (multi-stratégie)
-        (
-            sleep 2
-            termux-open-url "${PROTO}://127.0.0.1:5000" >/dev/null 2>&1 || true
-            termux-open "${PROTO}://127.0.0.1:5000" >/dev/null 2>&1 || true
-            am start --user 0 -a android.intent.action.VIEW -d "${PROTO}://127.0.0.1:5000" >/dev/null 2>&1 || true
-            am start -a android.intent.action.VIEW -d "${PROTO}://127.0.0.1:5000" >/dev/null 2>&1 || true
-            xdg-open "${PROTO}://127.0.0.1:5000" >/dev/null 2>&1 || true
-        ) &
+
 
         cd ~/FABouanes
         python launcher.py --server-only "$@" 2>&1 | tee -a ~/fab_server.log

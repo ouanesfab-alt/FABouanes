@@ -641,9 +641,15 @@ def auto_open_browser(target_url: str, delay: float = 1.0) -> None:
     def _open():
         time.sleep(delay)
         try:
-            from urllib.parse import urlparse
-            port = int(urlparse(target_url).port or 5000)
-            wait_server(port, timeout=10.0)
+            import urllib.request
+            # Active HTTP poll to wait until server is accepting connections
+            for _ in range(30):
+                try:
+                    with urllib.request.urlopen(f"{target_url}/health", timeout=1.0) as resp:
+                        if resp.status in (200, 503):
+                            break
+                except Exception:
+                    time.sleep(0.3)
         except Exception:
             pass
 

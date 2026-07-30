@@ -64,10 +64,10 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("Erreur au démarrage du service WebSockets: %s", e)
 
-    # Pre-load critical dashboard data so first request is instant
+    # Pre-load critical dashboard data asynchronously in background so Uvicorn serves requests instantly
     try:
         from app.core.perf_cache import warm_cache
-        await warm_cache()
+        asyncio.create_task(warm_cache())
     except Exception:
         logger.warning("Cache warming skipped", exc_info=True)
 
