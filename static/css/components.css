@@ -526,135 +526,120 @@ body.kpi-modal-open { overflow: hidden; }
 }
 
 /* ══════════════════════════════════════════════════════════════
-   GLOBAL UI / UX MODERNIZATION & PREMIUM POLISH (ALL PAGES)
+   AUTHENTIC MACOS SEQUOIA DESIGN SYSTEM POLISH (100% FIDELITY)
    ══════════════════════════════════════════════════════════════ */
 
-/* ── 1. Global Cards Elevation & Micro-interactions ── */
-.card, .rpt-kpi, .rpt-chart-card, .rpt-top-card, .fab-switch-panel {
-  border-radius: var(--radius-lg, 16px) !important;
-  border: 1px solid var(--glass-border) !important;
-  background: var(--glass-bg, var(--bg-secondary)) !important;
-  backdrop-filter: var(--backdrop-blur, blur(16px)) !important;
-  -webkit-backdrop-filter: var(--backdrop-blur, blur(16px)) !important;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03) !important;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease !important;
+/* ── 1. Global Font Smoothing & Typography ── */
+html, body {
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Plus Jakarta Sans", "Inter", sans-serif !important;
+}
+
+/* ── 2. macOS Window Controls (Traffic Lights) ── */
+.mac-traffic-lights {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-right: 12px;
+}
+.mac-traffic-lights .mac-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.mac-traffic-lights .mac-dot.close { background: #FF5F56; border: 0.5px solid rgba(0,0,0,0.15); }
+.mac-traffic-lights .mac-dot.minimize { background: #FFBD2E; border: 0.5px solid rgba(0,0,0,0.15); }
+.mac-traffic-lights .mac-dot.maximize { background: #27C93F; border: 0.5px solid rgba(0,0,0,0.15); }
+
+/* ── 3. macOS Authentic Window Card (Continuous Squircle Radius & Highlight Stroke) ── */
+.card, .rpt-kpi, .rpt-chart-card, .rpt-top-card, .fab-switch-panel, .modal-content {
+  border-radius: 18px !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: var(--glass-bg, rgba(255, 255, 255, 0.78)) !important;
+  backdrop-filter: blur(25px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(25px) saturate(190%) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.25s ease !important;
+}
+[data-theme="dark"] .card, [data-theme="dark"] .rpt-kpi, [data-theme="dark"] .rpt-chart-card, [data-theme="dark"] .rpt-top-card, [data-theme="dark"] .modal-content {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(30, 30, 30, 0.82) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
 .card:hover, .rpt-kpi:hover, .rpt-chart-card:hover, .rpt-top-card:hover {
-  border-color: rgba(0, 122, 255, 0.25) !important;
-  box-shadow: 0 12px 32px -4px rgba(0, 122, 255, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.04) !important;
-  transform: translateY(-3px) !important;
-}
-[data-theme="dark"] .card:hover, [data-theme="dark"] .rpt-kpi:hover {
-  border-color: rgba(96, 165, 250, 0.35) !important;
-  box-shadow: 0 12px 36px -4px rgba(96, 165, 250, 0.18), 0 4px 12px -2px rgba(0, 0, 0, 0.3) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
 }
 
-/* ── 2. Global Page Hero Banners ── */
-.page-hero {
-  border-radius: 16px !important;
-  padding: 18px 24px !important;
-  background: linear-gradient(135deg, var(--glass-thick), var(--surface)) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border: 1px solid var(--glass-border) !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04) !important;
+/* ── 4. macOS Segmented Control Tabs (`.fab-switcher`) ── */
+.fab-switcher {
+  background: rgba(0, 0, 0, 0.06) !important;
+  padding: 4px !important;
+  border-radius: 12px !important;
+  display: inline-flex !important;
+  gap: 3px !important;
+  border: 1px solid rgba(0, 0, 0, 0.04) !important;
 }
-.page-hero .section-title {
-  font-family: var(--font-title) !important;
-  font-weight: 800 !important;
-  letter-spacing: -0.02em !important;
-  color: var(--text-primary) !important;
+[data-theme="dark"] .fab-switcher {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
 }
-.page-hero .section-title i {
-  color: var(--system-blue) !important;
-}
-
-/* ── 3. Global Tables Polish ── */
-table.table {
-  border-collapse: separate !important;
-  border-spacing: 0 !important;
-}
-table.table th {
-  font-size: 0.78rem !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.06em !important;
-  font-weight: 800 !important;
+.fab-switch-btn {
+  border-radius: 8px !important;
+  padding: 6px 14px !important;
+  font-size: 0.84rem !important;
+  font-weight: 600 !important;
   color: var(--text-secondary) !important;
-  background: var(--bg-tertiary) !important;
-  padding: 12px 14px !important;
-  border-bottom: 1px solid var(--line) !important;
+  border: none !important;
+  background: transparent !important;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
 }
-table.table td {
-  padding: 13px 14px !important;
-  vertical-align: middle !important;
-  border-bottom: 1px solid var(--line) !important;
-  transition: background-color 0.15s ease !important;
+.fab-switch-btn.is-active, .fab-switch-btn[aria-pressed="true"] {
+  background: #FFFFFF !important;
+  color: #1D1D1F !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+  font-weight: 700 !important;
 }
-table.table-hover tbody tr:hover td {
-  background-color: rgba(0, 122, 255, 0.04) !important;
-}
-[data-theme="dark"] table.table-hover tbody tr:hover td {
-  background-color: rgba(96, 165, 250, 0.08) !important;
+[data-theme="dark"] .fab-switch-btn.is-active, [data-theme="dark"] .fab-switch-btn[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.22) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* ── 4. Global Input Fields & Form Controls ── */
+/* ── 5. macOS Navbar Vibrancy ── */
+.app-navbar {
+  background: rgba(245, 245, 247, 0.75) !important;
+  backdrop-filter: blur(25px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(25px) saturate(190%) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+[data-theme="dark"] .app-navbar {
+  background: rgba(26, 26, 26, 0.82) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ── 6. macOS Form Fields Focus Ring ── */
 .form-control, .form-select {
   border-radius: 10px !important;
-  border: 1px solid var(--line) !important;
-  background: var(--bg-secondary) !important;
-  color: var(--text-primary) !important;
-  padding: 10px 14px !important;
-  font-size: 0.92rem !important;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
 }
 .form-control:focus, .form-select:focus {
-  border-color: var(--system-blue) !important;
-  box-shadow: 0 0 0 3.5px rgba(0, 122, 255, 0.18) !important;
-  background: var(--bg-secondary) !important;
+  border-color: #007AFF !important;
+  box-shadow: 0 0 0 3.5px rgba(0, 122, 255, 0.35), inset 0 1px 1px rgba(0, 0, 0, 0.04) !important;
 }
 
-/* ── 5. Global Buttons & Micro-press Animation ── */
-.btn {
-  border-radius: 10px !important;
-  font-weight: 700 !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-}
-.btn:active {
-  transform: scale(0.97) !important;
-}
+/* ── 7. macOS Primary Buttons (System Blue) ── */
 .btn-primary {
-  background: linear-gradient(135deg, #007AFF, #0056B3) !important;
-  border: none !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 14px rgba(0, 122, 255, 0.3) !important;
+  background: linear-gradient(180deg, #007AFF 0%, #0062D6 100%) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 1px 3px rgba(0, 122, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
 }
 .btn-primary:hover {
-  background: linear-gradient(135deg, #0056B3, #004085) !important;
-  box-shadow: 0 6px 20px rgba(0, 122, 255, 0.45) !important;
-  transform: translateY(-1px) !important;
-}
-.btn-success {
-  background: linear-gradient(135deg, #34C759, #28A745) !important;
-  border: none !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 14px rgba(52, 199, 89, 0.3) !important;
-}
-.btn-success:hover {
-  background: linear-gradient(135deg, #28A745, #1E7E34) !important;
-  box-shadow: 0 6px 20px rgba(52, 199, 89, 0.45) !important;
-  transform: translateY(-1px) !important;
+  background: linear-gradient(180deg, #0062D6 0%, #004EC2 100%) !important;
 }
 
-/* ── 6. Skeleton Loading Shimmer Utility ── */
-.skeleton-shimmer {
-  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-secondary) 50%, var(--bg-tertiary) 75%) !important;
-  background-size: 200% 100% !important;
-  animation: shimmerAnimation 1.5s infinite linear !important;
-  border-radius: 6px !important;
-}
-@keyframes shimmerAnimation {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
 
 
