@@ -715,12 +715,27 @@ def run_server(host: str, port: int) -> None:
     log_server_start()
 
     # --- Détection SSL automatique ---
-    enable_https = (
+    # Sur Termux/Android: HTTPS uniquement si FAB_HTTPS=1 est EXPLICITEMENT défini.
+    # Supprimer les fichiers cert.pem/key.pem parasites s'ils existent sur Termux sans FAB_HTTPS=1.
+    _is_termux_env = (
+        "com.termux" in os.environ.get("PREFIX", "")
+        or os.path.exists("/data/data/com.termux")
+    )
+    _https_explicit = (
         os.environ.get("FAB_HTTPS", "0").strip().lower() in ("1", "true", "yes", "on")
         or os.environ.get("FAB_ENABLE_HTTPS", "0").strip().lower() in ("1", "true", "yes", "on")
         or bool(os.environ.get("FAB_SSL_CERT", "").strip())
         or "--https" in sys.argv
     )
+    if _is_termux_env and not _https_explicit:
+        # Nettoyer les fichiers SSL parasites sur Termux
+        for _stale in (BASE_DIR / "cert.pem", BASE_DIR / "key.pem"):
+            try:
+                if _stale.exists():
+                    _stale.unlink()
+            except Exception:
+                pass
+    enable_https = _https_explicit and not (_is_termux_env and not _https_explicit)
     ssl_certfile = None
     ssl_keyfile = None
     if enable_https:

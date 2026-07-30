@@ -64,3 +64,10 @@ coverage.xml
 fabouanes_offline.zip
 fabouanes_offline_bundle/
 first_admin_password.txt
+
+# SSL certificates (auto-generated locally, never committed)
+cert.pem
+key.pem
+*.pem
+*.key
+ssl/
