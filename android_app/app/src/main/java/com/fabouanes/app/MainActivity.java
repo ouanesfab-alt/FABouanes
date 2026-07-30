@@ -72,22 +72,32 @@ public class MainActivity extends AppCompatActivity {
 
     private void startTermuxServer() {
         try {
+            // Commande tout-en-un 0-IT :
+            // 1. Configurer allow-external-apps = true
+            // 2. Installer si première exécution (curl setup_termux.sh)
+            // 3. Lancer le serveur (start_fab.sh)
+            String autoSetupCmd = "mkdir -p ~/.termux && " +
+                    "(grep -q 'allow-external-apps' ~/.termux/termux.properties 2>/dev/null || echo 'allow-external-apps = true' >> ~/.termux/termux.properties) && " +
+                    "if [ ! -f ~/start_fab.sh ]; then curl -fsSL https://raw.githubusercontent.com/ouanesfab-alt/FABouanes/main/setup_termux.sh | bash; fi; " +
+                    "~/start_fab.sh";
+
             Intent intent = new Intent();
             intent.setClassName("com.termux", "com.termux.app.RunCommandService");
             intent.setAction("com.termux.RUN_COMMAND");
             intent.putExtra("com.termux.execute.PATH", "/data/data/com.termux/files/usr/bin/bash");
-            intent.putExtra("com.termux.execute.ARGUMENTS", new String[]{"-c", "~/start_fab.sh"});
+            intent.putExtra("com.termux.execute.ARGUMENTS", new String[]{"-c", autoSetupCmd});
             intent.putExtra("com.termux.execute.BACKGROUND", true);
             startService(intent);
         } catch (Exception ignored) {}
     }
 
     private void showLoadingPage() {
-        String loadingHtml = "<html><body style='background:#16253F;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;margin:0;padding:20px;text-align:center;'>"
-                + "<div style='font-size:42px;margin-bottom:15px;'>📦</div>"
-                + "<h2 style='margin:0 0 10px 0;'>FABOuanes ERP</h2>"
-                + "<p style='color:#A0AEC0;font-size:15px;margin:0;'>Démarrage du moteur et de la base de données en cours...</p>"
-                + "<div style='margin-top:25px;border:3px solid #2B3649;border-top:3px solid #007AFF;border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;'></div>"
+        String loadingHtml = "<html><body style='background:#16253F;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;margin:0;padding:25px;text-align:center;'>"
+                + "<div style='font-size:48px;margin-bottom:15px;'>📦</div>"
+                + "<h2 style='margin:0 0 12px 0;font-weight:700;'>FABOuanes ERP</h2>"
+                + "<p style='color:#A0AEC0;font-size:15px;margin:0 0 8px 0;line-height:1.5;'>Installation et démarrage automatique du serveur & base de données...</p>"
+                + "<p style='color:#007AFF;font-size:13px;margin:0;font-weight:600;'>Configuration Zéro-IT en cours. Veuillez patienter...</p>"
+                + "<div style='margin-top:30px;border:3.5px solid #2B3649;border-top:3.5px solid #007AFF;border-radius:50%;width:36px;height:36px;animation:spin 0.9s linear infinite;'></div>"
                 + "<style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>"
                 + "</body></html>";
         webView.loadDataWithBaseURL(null, loadingHtml, "text/html", "UTF-8", null);
