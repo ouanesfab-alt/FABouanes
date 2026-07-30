@@ -263,88 +263,103 @@ case "$1" in
         exec bash setup_termux.sh
         ;;
     *)
-        # Libérer le port 5000 s'il était occupé par une ancienne instance
+        # ─── Tuer toute instance précédente ───────────────────────────
         fuser -k 5000/tcp >/dev/null 2>&1 || true
-        pkill -f uvicorn 2>/dev/null || true
+        pkill -f uvicorn   2>/dev/null || true
         pkill -f "launcher.py" 2>/dev/null || true
         sleep 1
 
         enable_wakelock
         start_postgres
         LOCAL_IP=$(get_local_ip)
+        cd ~/FABouanes
 
-        # Charger les variables d'environnement depuis .env
-        if [ -f ~/FABouanes/.env ]; then
-            set -a
-            source ~/FABouanes/.env
-            set +a
-        fi
+        # ─── ÉCRASER .env à chaque démarrage (valeurs HTTP garanties) ──
+        # SESSION_COOKIE_SECURE=0 est OBLIGATOIRE sinon Starlette bloque toutes les requêtes HTTP
+        TERMUX_USER_RUN=$(whoami 2>/dev/null || echo "postgres")
+        SECRET_TOKEN_RUN=$(cat .env 2>/dev/null | grep SECRET_KEY | cut -d= -f2 || python -c "import secrets; print(secrets.token_hex(32))")
+        cat > .env << ENVEOF
+FASTAPI_ENV=production
+DATABASE_URL=postgresql://${TERMUX_USER_RUN}@127.0.0.1:5432/fabouanes
+SECRET_KEY=${SECRET_TOKEN_RUN}
+FAB_HOST=0.0.0.0
+FAB_PORT=5000
+FAB_DESKTOP=0
+FAB_HTTPS=0
+SESSION_COOKIE_SECURE=0
+DEFAULT_ADMIN_USERNAME=admin
+DEFAULT_ADMIN_PASSWORD=7508
+FAB_PASSWORD_MODE=pin
+ENVEOF
+
+        # ─── Exporter les variables d'environnement dans le shell ─────
         export FAB_DESKTOP=0
         export FAB_HOST=0.0.0.0
         export FAB_PORT=5000
-        PROTO="http"
-        # HTTPS desactive sur Termux : Chrome Android bloque les certificats auto-signes sans option de contournement
-        # Utilisez FAB_HTTPS=1 manuellement si vous avez un vrai certificat SSL
         export FAB_HTTPS=0
         export SESSION_COOKIE_SECURE=0
+        export FASTAPI_ENV=production
 
         echo "=================================================="
-        echo "🚀 Lancement de FABOuanes (HTTP)..."
+        echo "🚀 Démarrage de FABOuanes..."
         echo "  ► Local  : http://127.0.0.1:5000"
-        if [ "$LOCAL_IP" != "127.0.0.1" ]; then
-            echo "  ► Wi-Fi  : http://${LOCAL_IP}:5000"
-        fi
+        [ "$LOCAL_IP" != "127.0.0.1" ] && echo "  ► Wi-Fi  : http://${LOCAL_IP}:5000"
         echo "=================================================="
-        send_android_notification "FABOuanes Serveur Actif" "http://127.0.0.1:5000"
 
-        cd ~/FABouanes
-
-        # Lancer uvicorn DIRECTEMENT en HTTP (pas de SSL = Chrome peut s'y connecter)
+        # ─── Lancer uvicorn en HTTP pur ───────────────────────────────
+        echo "" > ~/fab_server.log
         python -m uvicorn app.main:app \
             --host 0.0.0.0 \
             --port 5000 \
             --no-access-log \
-            --log-level warning \
+            --log-level info \
             2>&1 | tee -a ~/fab_server.log &
         SERVER_PID=$!
 
-        # Attendre que le port 5000 réponde réellement (TCP)
-        echo "⏳ Attente du démarrage du serveur..."
+        # ─── Attendre que le serveur réponde vraiment en HTTP ─────────
+        # On utilise curl (pas nc) : nc voit le socket ouvert AVANT que le lifespan
+        # soit prêt, ce qui donnait un faux positif "prêt" alors qu'il crashait juste après.
+        echo "⏳ Attente de la réponse HTTP réelle (max 60s)..."
         READY=0
-        for i in $(seq 1 30); do
-            if nc -z 127.0.0.1 5000 2>/dev/null; then
+        for i in $(seq 1 60); do
+            # Vérifier que uvicorn est encore en vie
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+                echo ""
+                echo "❌ ERREUR : uvicorn s'est arrêté pendant le démarrage !"
+                echo "══════════════ LOGS (20 dernières lignes) ══════════════"
+                tail -20 ~/fab_server.log
+                echo "════════════════════════════════════════════════════════"
+                echo "Pour voir tous les logs : cat ~/fab_server.log"
+                exit 1
+            fi
+            HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:5000/health" 2>/dev/null || echo "000")
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "503" ]; then
                 READY=1
                 break
             fi
+            printf "."
             sleep 1
         done
+        echo ""
 
         if [ "$READY" = "1" ]; then
             echo ""
             echo "=============================================="
-            echo "✅  Serveur FABOuanes prêt !"
+            echo "✅  Serveur FABOuanes opérationnel !"
             echo "=============================================="
-            echo "  URL locale   : ${PROTO}://127.0.0.1:5000"
-            if [ "$LOCAL_IP" != "127.0.0.1" ]; then
-                echo "  URL Wi-Fi    : ${PROTO}://${LOCAL_IP}:5000"
-            fi
+            echo "  http://127.0.0.1:5000"
+            [ "$LOCAL_IP" != "127.0.0.1" ] && echo "  http://${LOCAL_IP}:5000"
             echo ""
-            echo "  Test avec curl (certificat auto-signé) :"
-            echo "  curl -k -s -o /dev/null -w '%{http_code}' ${PROTO}://127.0.0.1:5000/health"
-            echo ""
-            echo "  Tester les logs du serveur :"
-            echo "  tail -f ~/fab_server.log"
+            echo "  Test  : curl -s http://127.0.0.1:5000/health"
+            echo "  Logs  : tail -f ~/fab_server.log"
+            echo "  Stop  : kill $SERVER_PID"
             echo "=============================================="
-            # Vérification immédiate avec curl
-            HTTP_CODE=$(curl -k -s -o /dev/null -w '%{http_code}' --max-time 5 "${PROTO}://127.0.0.1:5000/health" 2>/dev/null || echo "000")
-            if [ "$HTTP_CODE" = "200" ]; then
-                echo "✅  /health répond: HTTP $HTTP_CODE — Tout fonctionne !"
-            else
-                echo "⚠️  /health répond: HTTP $HTTP_CODE (le serveur démarre encore, attendez 5s)"
-            fi
+            send_android_notification "FABOuanes Prêt" "http://127.0.0.1:5000"
         else
-            echo "❌ Le serveur n'a pas démarré dans les 30 secondes."
-            echo "   Consultez les logs: tail -20 ~/fab_server.log"
+            echo "❌ TIMEOUT : le serveur n'a pas répondu en 60 secondes."
+            echo "══════════════ LOGS (30 dernières lignes) ══════════════"
+            tail -30 ~/fab_server.log
+            echo "════════════════════════════════════════════════════════"
         fi
 
         # Garder le shell en vie jusqu'à l'arrêt du serveur
