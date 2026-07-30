@@ -260,7 +260,10 @@ class DatabaseManager:
                         cursor.execute(f"SET statement_timeout = {timeout_ms}")
                     finally:
                         cursor.close()
-                    return conn
+                    return CompatConnection(
+                        conn,
+                        reconnect=lambda: self.connect_database(raw_url),
+                    )
                 except Exception as conn_exc:
                     # If database system was shut down or connection dropped, invalidate engine pool
                     err_str = str(conn_exc).lower()
