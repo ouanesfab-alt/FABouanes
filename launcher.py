@@ -663,6 +663,7 @@ def auto_open_browser(target_url: str, delay: float = 1.0) -> None:
                             cmd_list,
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
+                            timeout=3,
                             check=False
                         )
                         if res.returncode == 0:

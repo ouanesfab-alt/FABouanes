@@ -240,7 +240,7 @@ case "$1" in
         ) &
 
         cd ~/FABouanes
-        python launcher.py --server-only "$@"
+        python launcher.py --server-only "$@" 2>&1 | tee -a ~/fab_server.log
         ;;
 esac
 EOF
