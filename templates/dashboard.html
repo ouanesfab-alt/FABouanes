@@ -1347,134 +1347,161 @@
 <script src="/static/js/modules/dashboard.js" nonce="{{ csp_nonce }}"></script>
 <script src="/static/js/modules/dashboard-fonts.js" nonce="{{ csp_nonce }}"></script>
 <script nonce="{{ csp_nonce }}">
-	let kpiChartInstance = null;
-	let currentChartDays = 30;
-	window._kpiKey = null;
+	// Helper pour garantir que Chart.js est prêt avant le rendu
+	function ensureChartJS(cb, attempts = 0) {
+		if (typeof window.Chart !== 'undefined') {
+			cb();
+		} else if (attempts < 30) {
+			setTimeout(() => ensureChartJS(cb, attempts + 1), 50);
+		} else {
+			console.error('[KPI] Chart.js introuvable après 1.5s.');
+		}
+	}
 
 	// ─── Rendu du graphique KPI ───
-	// On remplace le canvas à chaque appel pour éviter les bugs de réutilisation Chart.js
 	async function renderKpiChart(key, days) {
 		if (!key) return;
 		if (days === undefined || days === null) days = currentChartDays;
 		currentChartDays = parseInt(days, 10) || 30;
 
-		// Remplacer le canvas par un élément frais (fix Chart.js canvas-reuse bug)
 		const wrap = document.querySelector('.rpt-chart-wrap');
 		if (!wrap) return;
+
+		// Nettoyage de l'instance précédente
 		if (kpiChartInstance) {
 			try { kpiChartInstance.destroy(); } catch(e) {}
 			kpiChartInstance = null;
 		}
-		const oldCanvas = document.getElementById('kpiChartCanvas');
-		if (oldCanvas) oldCanvas.remove();
-		const canvas = document.createElement('canvas');
-		canvas.id = 'kpiChartCanvas';
-		wrap.appendChild(canvas);
+
+		// Spinner de chargement temporaire
+		wrap.innerHTML = '<div class="d-flex align-items-center justify-content-center h-100"><div class="spinner-border text-primary spinner-border-sm" role="status"></div></div>';
 
 		try {
 			const res = await fetch('/api/kpi-history?metric=' + encodeURIComponent(key) + '&days=' + currentChartDays + '&_t=' + Date.now(), { cache: 'no-store' });
-			if (!res.ok) { console.error('kpi-history HTTP', res.status); return; }
+			if (!res.ok) { 
+				wrap.innerHTML = '<div class="text-muted small text-center p-3">Erreur lors du chargement des données.</div>';
+				return; 
+			}
 			const data = await res.json();
-			if (!data.success) { console.error('kpi-history error', data); return; }
+			if (!data.success || !data.values) { 
+				wrap.innerHTML = '<div class="text-muted small text-center p-3">Données indisponibles.</div>';
+				return; 
+			}
 
-			const colorMap = {
-				sales:       { line: '#4285F4', fill: 'rgba(66,133,244,0.12)' },
-				cash:        { line: '#34A853', fill: 'rgba(52,168,83,0.12)'  },
-				profit:      { line: '#2563EB', fill: 'rgba(37,99,235,0.12)'  },
-				receivables: { line: '#EA4335', fill: 'rgba(234,67,53,0.12)'  },
-			};
-			const { line: color, fill: bgGrad } = colorMap[key] || colorMap.sales;
+			// Remplacer avec un canvas propre
+			wrap.innerHTML = '';
+			const canvas = document.createElement('canvas');
+			canvas.id = 'kpiChartCanvas';
+			canvas.style.width = '100%';
+			canvas.style.height = '100%';
+			wrap.appendChild(canvas);
 
-			const isDark = ['dark','windows-dark'].includes(document.documentElement.getAttribute('data-theme'));
-			const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0, 0, 0, 0.05)';
-			const textColor = isDark ? '#a1a1aa' : '#71717a';
+			ensureChartJS(() => {
+				const colorMap = {
+					sales:       { line: '#4285F4', fill: 'rgba(66,133,244,0.15)' },
+					cash:        { line: '#34A853', fill: 'rgba(52,168,83,0.15)'  },
+					profit:      { line: '#2563EB', fill: 'rgba(37,99,235,0.15)'  },
+					receivables: { line: '#EA4335', fill: 'rgba(234,67,53,0.15)'  },
+				};
+				const { line: color, fill: bgGrad } = colorMap[key] || colorMap.sales;
 
-			const chartCtx = canvas.getContext('2d');
-			const gradient = chartCtx.createLinearGradient(0, 0, 0, 200);
-			gradient.addColorStop(0, bgGrad);
-			gradient.addColorStop(1, 'rgba(255,255,255,0)');
+				const isDark = ['dark','windows-dark'].includes(document.documentElement.getAttribute('data-theme'));
+				const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0, 0, 0, 0.05)';
+				const textColor = isDark ? '#a1a1aa' : '#71717a';
 
-			const months = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
-			const labels = data.labels.map(d => {
-				const p = d.split('-');
-				return p.length === 3 ? (parseInt(p[2]) + ' ' + months[parseInt(p[1]) - 1]) : d;
-			});
+				const chartCtx = canvas.getContext('2d');
+				const gradient = chartCtx.createLinearGradient(0, 0, 0, 200);
+				gradient.addColorStop(0, bgGrad);
+				gradient.addColorStop(1, 'rgba(255,255,255,0)');
 
-			const isMobile = window.innerWidth <= 575;
-			const xTicksLimit = isMobile ? 5 : 8;
+				const months = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
+				const labels = (data.labels || []).map(d => {
+					const p = d.split('-');
+					return p.length === 3 ? (parseInt(p[2]) + ' ' + months[parseInt(p[1]) - 1]) : d;
+				});
 
-			kpiChartInstance = new Chart(canvas, {
-				type: 'line',
-				data: {
-					labels,
-					datasets: [{
-						label: 'Montant',
-						data: data.values,
-						borderColor: color,
-						borderWidth: 2,
-						backgroundColor: gradient,
-						fill: true,
-						tension: 0.35,
-						pointRadius: isMobile ? 1 : 0,
-						pointHoverRadius: 5,
-						pointHoverBackgroundColor: color,
-						pointHoverBorderColor: '#fff',
-						pointHoverBorderWidth: 2,
-					}]
-				},
-				options: {
-					responsive: true,
-					maintainAspectRatio: false,
-					layout: {
-						padding: {
-							left: isMobile ? 4 : 10,
-							right: isMobile ? 12 : 20,
-							top: 15,
-							bottom: isMobile ? 25 : 20
-						}
+				const isMobile = window.innerWidth <= 575;
+				const xTicksLimit = isMobile ? 5 : 8;
+
+				kpiChartInstance = new Chart(canvas, {
+					type: 'line',
+					data: {
+						labels,
+						datasets: [{
+							label: 'Montant',
+							data: data.values,
+							borderColor: color,
+							borderWidth: 2.5,
+							backgroundColor: gradient,
+							fill: true,
+							tension: 0.35,
+							pointRadius: isMobile ? 1 : 2,
+							pointHoverRadius: 6,
+							pointHoverBackgroundColor: color,
+							pointHoverBorderColor: '#fff',
+							pointHoverBorderWidth: 2,
+						}]
 					},
-					plugins: {
-						legend: { display: false },
-						tooltip: {
-							mode: 'index',
-							intersect: false,
-							callbacks: {
-								label: ctx => ctx.raw.toLocaleString('fr-FR') + ' DA'
-							}
-						}
-					},
-					scales: {
-						x: {
-							grid: { display: false },
-							ticks: {
-								color: textColor,
-								font: { size: isMobile ? 8 : 9 },
-								maxTicksLimit: xTicksLimit,
-								maxRotation: 0,
-								minRotation: 0
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						animation: { duration: 300 },
+						layout: {
+							padding: {
+								left: isMobile ? 4 : 10,
+								right: isMobile ? 12 : 20,
+								top: 15,
+								bottom: isMobile ? 25 : 20
 							}
 						},
-						y: {
-							grid: { color: gridColor },
-							ticks: {
-								color: textColor,
-								font: { size: isMobile ? 8 : 9 },
-								maxTicksLimit: 4,
-								callback: function(v) {
-									if (isMobile) {
-										if (Math.abs(v) >= 1000000) return (v / 1000000).toFixed(1) + 'M';
-										if (Math.abs(v) >= 1000) return (v / 1000).toFixed(0) + 'k';
-										return v;
+						plugins: {
+							legend: { display: false },
+							tooltip: {
+								mode: 'index',
+								intersect: false,
+								callbacks: {
+									label: ctx => (ctx.raw || 0).toLocaleString('fr-FR') + ' DA'
+								}
+							}
+						},
+						scales: {
+							x: {
+								grid: { display: false },
+								ticks: {
+									color: textColor,
+									font: { size: isMobile ? 8 : 9 },
+									maxTicksLimit: xTicksLimit,
+									maxRotation: 0,
+									minRotation: 0
+								}
+							},
+							y: {
+								grid: { color: gridColor },
+								ticks: {
+									color: textColor,
+									font: { size: isMobile ? 8 : 9 },
+									maxTicksLimit: 4,
+									callback: function(v) {
+										if (isMobile) {
+											if (Math.abs(v) >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+											if (Math.abs(v) >= 1000) return (v / 1000).toFixed(0) + 'k';
+											return v;
+										}
+										return (v || 0).toLocaleString('fr-FR') + ' DA';
 									}
-									return v.toLocaleString('fr-FR') + ' DA';
 								}
 							}
 						}
 					}
-				}
+				});
+
+				// Redimensionnement de secours après la fin de la transition CSS du modal
+				setTimeout(() => { if (kpiChartInstance) kpiChartInstance.resize(); }, 150);
+				setTimeout(() => { if (kpiChartInstance) kpiChartInstance.resize(); }, 350);
 			});
 		} catch (err) {
 			console.error('renderKpiChart error:', err);
+			wrap.innerHTML = '<div class="text-muted small text-center p-3">Erreur lors de l\'affichage du graphique.</div>';
 		}
 	}
 	window.renderKpiChart = renderKpiChart;
@@ -1497,7 +1524,8 @@
 		overlay.classList.add('open');
 		document.body.classList.add('kpi-modal-open');
 
-		setTimeout(function() { renderKpiChart(key, 30); }, 60);
+		// Déclencher le rendu après le début d'ouverture de l'animation
+		setTimeout(function() { renderKpiChart(key, 30); }, 100);
 	}
 	window.openKpiSheet = openKpiSheet;
 

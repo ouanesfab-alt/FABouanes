@@ -248,7 +248,12 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
 <script nonce="{{ csp_nonce }}">
-document.addEventListener('DOMContentLoaded', function() {
+function initReportsCharts() {
+  if (typeof window.Chart === 'undefined') {
+    setTimeout(initReportsCharts, 50);
+    return;
+  }
+
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)';
   const textColor = isDark ? 'rgba(255,255,255,.6)' : 'rgba(0,0,0,.5)';
@@ -458,11 +463,13 @@ document.addEventListener('DOMContentLoaded', function() {
           cutout: '65%'
         }
       });
-    } catch (e) {
-      console.error("Error creating chartDebtAging:", e);
-    }
   }
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initReportsCharts);
+} else {
+  initReportsCharts();
+}
 
 function exportReport(format) {
   const url = new URL(window.location.href);
