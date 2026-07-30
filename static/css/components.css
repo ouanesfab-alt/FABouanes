@@ -626,5 +626,71 @@ html, body {
   background: linear-gradient(180deg, #0062D6 0%, #004EC2 100%) !important;
 }
 
+/* ── 8. macOS Status Pills & Badges ── */
+.badge, .status-pill, .kpi-delta, .kpi-date-badge {
+  border-radius: 9999px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em !important;
+  font-size: 0.78rem !important;
+  padding: 4px 10px !important;
+}
+.kpi-date-badge {
+  border-radius: 8px !important;
+  font-size: 0.72rem !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  transition: all 0.2s ease !important;
+}
+[data-theme="dark"] .kpi-date-badge {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+.kpi-card:hover .kpi-date-badge {
+  background: rgba(0, 122, 255, 0.12) !important;
+  color: #007AFF !important;
+}
+
+/* ── 9. macOS Frosted Dropdown Menus ── */
+.dropdown-menu {
+  border-radius: 14px !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(25px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(25px) saturate(190%) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15) !important;
+  padding: 6px !important;
+}
+[data-theme="dark"] .dropdown-menu {
+  background: rgba(32, 32, 32, 0.88) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
+}
+.dropdown-item {
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  font-size: 0.88rem !important;
+  padding: 7px 12px !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+.dropdown-item:hover, .dropdown-item.active {
+  background-color: #007AFF !important;
+  color: #FFFFFF !important;
+}
+
+/* ── 10. macOS Frosted Toast Notifications ── */
+.flash-toast, .toast {
+  border-radius: 14px !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(25px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(25px) saturate(190%) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15) !important;
+}
+[data-theme="dark"] .flash-toast, [data-theme="dark"] .toast {
+  background: rgba(32, 32, 32, 0.88) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+
 
 
