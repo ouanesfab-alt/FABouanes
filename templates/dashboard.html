@@ -1020,6 +1020,13 @@
 					<i class="bi bi-stop-fill"></i>
 				</button>
 			</div>
+			<!-- Sabrina Quick Action Chips -->
+			<div class="sabrina-quick-chips mt-2 d-flex gap-1 flex-wrap">
+				<button type="button" class="btn btn-sm btn-outline-secondary border-0 rounded-pill py-1 px-2.5 small" onclick="askSabrina('Fais-moi la synthèse de l\'activité aujourd\'hui')"><i class="bi bi-magic text-primary me-1"></i> Synthèse du jour</button>
+				<button type="button" class="btn btn-sm btn-outline-secondary border-0 rounded-pill py-1 px-2.5 small" onclick="askSabrina('Quel est le total des ventes aujourd\'hui ?')"><i class="bi bi-graph-up text-success me-1"></i> Ventes du jour</button>
+				<button type="button" class="btn btn-sm btn-outline-secondary border-0 rounded-pill py-1 px-2.5 small" onclick="askSabrina('Quels sont les clients avec les créances les plus élevées ?')"><i class="bi bi-exclamation-triangle text-danger me-1"></i> Créances retards</button>
+				<button type="button" class="btn btn-sm btn-outline-secondary border-0 rounded-pill py-1 px-2.5 small" onclick="askSabrina('Quels produits sont en rupture ou stock faible ?')"><i class="bi bi-box-seam text-warning me-1"></i> Stocks faibles</button>
+			</div>
 		</div>
 	</section>
 
@@ -1045,6 +1052,10 @@
 			{% if sales_delta_pct is not none %}<div class="kpi-delta {{ 'up' if sales_delta_pct >= 0 else 'down' }}">{{
 				'↑' if sales_delta_pct >= 0 else '↓' }} {{ '+' if sales_delta_pct > 0 else '' }}{{ sales_delta_pct }}%
 				vs J-7</div>{% endif %}
+			<!-- SVG Sparkline Ventes -->
+			<svg class="kpi-sparkline" viewBox="0 0 100 24" preserveAspectRatio="none" style="width:100%;height:22px;margin-top:6px;opacity:0.85;">
+				<path d="M0,20 Q20,12 40,16 T80,6 T100,2" fill="none" stroke="var(--system-blue)" stroke-width="2.5" stroke-linecap="round"/>
+			</svg>
 			<div class="kpi-date-badge"><i class="bi bi-calendar3"></i> Voir autre date</div>
 		</div>
 		<div class="card kpi-card green" role="button" tabindex="0" onclick="openKpiSheet('cash','Encaisse')"
@@ -1053,6 +1064,10 @@
 			</div>
 			<div class="kpi-label">Encaisse du jour</div>
 			<div class="kpi-value">{{ (cash_today|money).replace(' DA','') }}</div>
+			<!-- SVG Sparkline Encaisse -->
+			<svg class="kpi-sparkline" viewBox="0 0 100 24" preserveAspectRatio="none" style="width:100%;height:22px;margin-top:6px;opacity:0.85;">
+				<path d="M0,18 Q25,8 50,14 T75,4 T100,8" fill="none" stroke="var(--system-green)" stroke-width="2.5" stroke-linecap="round"/>
+			</svg>
 			<div class="kpi-date-badge"><i class="bi bi-calendar3"></i> Voir autre date</div>
 		</div>
 		<div class="card kpi-card green" role="button" tabindex="0" onclick="openKpiSheet('profit','Profit')"
@@ -1061,6 +1076,10 @@
 			</div>
 			<div class="kpi-label">Profit du jour</div>
 			<div class="kpi-value text-success">{{ (profit_today|money).replace(' DA','') }}</div>
+			<!-- SVG Sparkline Profit -->
+			<svg class="kpi-sparkline" viewBox="0 0 100 24" preserveAspectRatio="none" style="width:100%;height:22px;margin-top:6px;opacity:0.85;">
+				<path d="M0,22 Q30,14 60,10 T85,4 T100,2" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round"/>
+			</svg>
 			<div class="kpi-date-badge"><i class="bi bi-calendar3"></i> Voir autre date</div>
 		</div>
 		<div class="card kpi-card red" role="button" tabindex="0" onclick="openKpiSheet('receivables','Créances')"
@@ -1069,6 +1088,10 @@
 					class="bi bi-exclamation-triangle"></i></div>
 			<div class="kpi-label">Créances clients</div>
 			<div class="kpi-value text-danger">{{ (total_receivables|money).replace(' DA','') }}</div>
+			<!-- SVG Sparkline Créances -->
+			<svg class="kpi-sparkline" viewBox="0 0 100 24" preserveAspectRatio="none" style="width:100%;height:22px;margin-top:6px;opacity:0.85;">
+				<path d="M0,6 Q35,16 65,10 T85,18 T100,20" fill="none" stroke="var(--system-red)" stroke-width="2.5" stroke-linecap="round"/>
+			</svg>
 			<div class="kpi-date-badge"><i class="bi bi-calendar3"></i> Voir à une date</div>
 		</div>
 	</div>

@@ -2,6 +2,16 @@
 // Extracted from dashboard.html inline <script> block 1
 
 
+	// ─── SABRINA QUICK PROMPT HELPER ───
+	window.askSabrina = function(promptText) {
+		const chatInput = document.getElementById('fabChatInput');
+		if (chatInput) {
+			chatInput.value = promptText;
+			const sendBtn = document.getElementById('fabSendBtn');
+			if (sendBtn) sendBtn.click();
+		}
+	};
+
 	// ─── KPI SHEET HELPERS ───
 	async function fetchKpiAtDate() {
 		if (!currentKpiKey) return;
