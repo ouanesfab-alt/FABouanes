@@ -248,6 +248,8 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
 <script nonce="{{ csp_nonce }}">
+const reportChartInstances = {};
+
 function initReportsCharts() {
   if (typeof window.Chart === 'undefined') {
     setTimeout(initReportsCharts, 50);
@@ -262,209 +264,230 @@ function initReportsCharts() {
   Chart.defaults.borderColor = gridColor;
   Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
 
-  // ── Graphique mensuel ──
-  const ctxMonthly = document.getElementById('chartMonthly');
-  if (ctxMonthly) {
-    try {
-      new Chart(ctxMonthly, {
-        type: 'bar',
-        data: {
-          labels: {{ chart_labels|tojson }},
-          datasets: [
-            {
-              label: 'Ventes',
-              data: {{ chart_sales|tojson }},
-              backgroundColor: isDark ? 'rgba(96,165,250,.35)' : 'rgba(37,99,235,.2)',
-              borderColor: isDark ? '#60a5fa' : '#2563eb',
-              borderWidth: 2, borderRadius: 6, order: 2,
+  function renderVisibleCharts() {
+    // ── Graphique mensuel ──
+    const ctxMonthly = document.getElementById('chartMonthly');
+    if (ctxMonthly && ctxMonthly.offsetParent !== null && !reportChartInstances.monthly) {
+      try {
+        reportChartInstances.monthly = new Chart(ctxMonthly, {
+          type: 'bar',
+          data: {
+            labels: {{ chart_labels|tojson }},
+            datasets: [
+              {
+                label: 'Ventes',
+                data: {{ chart_sales|tojson }},
+                backgroundColor: isDark ? 'rgba(96,165,250,.35)' : 'rgba(37,99,235,.2)',
+                borderColor: isDark ? '#60a5fa' : '#2563eb',
+                borderWidth: 2, borderRadius: 6, order: 2,
+              },
+              {
+                label: 'Profit',
+                data: {{ chart_profit|tojson }},
+                type: 'line', fill: false,
+                borderColor: isDark ? '#4ade80' : '#16a34a',
+                backgroundColor: isDark ? '#4ade80' : '#16a34a',
+                borderWidth: 2.5, pointRadius: 3, tension: 0.3, order: 1,
+              },
+              {
+                label: 'Achats',
+                data: {{ chart_purchases|tojson }},
+                backgroundColor: isDark ? 'rgba(251,191,36,.25)' : 'rgba(217,119,6,.15)',
+                borderColor: isDark ? '#fbbf24' : '#d97706',
+                borderWidth: 2, borderRadius: 6, order: 3,
+              },
+              {
+                label: 'Dépenses',
+                data: {{ chart_expenses|tojson }},
+                type: 'line', fill: false,
+                borderColor: isDark ? '#f87171' : '#dc2626',
+                backgroundColor: isDark ? '#f87171' : '#dc2626',
+                borderWidth: 2, borderDash: [5, 3], pointRadius: 3, tension: 0.3, order: 0,
+              },
+            ],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11, weight: '600' } } },
+              tooltip: {
+                backgroundColor: isDark ? '#1e293b' : '#fff',
+                titleColor: isDark ? '#f1f5f9' : '#111',
+                bodyColor: isDark ? '#cbd5e1' : '#555',
+                borderColor: isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)',
+                borderWidth: 1, padding: 12, cornerRadius: 8,
+                callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + Number(ctx.parsed.y).toLocaleString('fr-FR') + ' DA'; } }
+              },
             },
-            {
-              label: 'Profit',
-              data: {{ chart_profit|tojson }},
-              type: 'line', fill: false,
-              borderColor: isDark ? '#4ade80' : '#16a34a',
-              backgroundColor: isDark ? '#4ade80' : '#16a34a',
-              borderWidth: 2.5, pointRadius: 3, tension: 0.3, order: 1,
+            scales: {
+              y: { beginAtZero: true, grid: { color: gridColor }, ticks: { callback: v => (v/1000).toFixed(0) + 'K' } },
+              x: { grid: { display: false } },
             },
-            {
-              label: 'Achats',
-              data: {{ chart_purchases|tojson }},
-              backgroundColor: isDark ? 'rgba(251,191,36,.25)' : 'rgba(217,119,6,.15)',
-              borderColor: isDark ? '#fbbf24' : '#d97706',
-              borderWidth: 2, borderRadius: 6, order: 3,
+          },
+        });
+      } catch (e) { console.error("Error creating chartMonthly:", e); }
+    } else if (reportChartInstances.monthly && ctxMonthly && ctxMonthly.offsetParent !== null) {
+      reportChartInstances.monthly.resize();
+    }
+
+    // ── Graphique quotidien ──
+    const ctxDaily = document.getElementById('chartDaily');
+    if (ctxDaily && ctxDaily.offsetParent !== null && !reportChartInstances.daily) {
+      try {
+        reportChartInstances.daily = new Chart(ctxDaily, {
+          type: 'line',
+          data: {
+            labels: {{ daily_labels|tojson }},
+            datasets: [
+              {
+                label: 'CA / jour',
+                data: {{ daily_totals|tojson }},
+                borderColor: isDark ? '#60a5fa' : '#2563eb',
+                backgroundColor: isDark ? 'rgba(96,165,250,.1)' : 'rgba(37,99,235,.06)',
+                fill: true, borderWidth: 2.5, pointRadius: 2, tension: 0.35,
+              },
+              {
+                label: 'Profit / jour',
+                data: {{ daily_profits|tojson }},
+                borderColor: isDark ? '#4ade80' : '#16a34a',
+                backgroundColor: 'transparent',
+                fill: false, borderWidth: 2, pointRadius: 2, tension: 0.35, borderDash: [4, 2],
+              },
+            ],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11, weight: '600' } } },
+              tooltip: {
+                backgroundColor: isDark ? '#1e293b' : '#fff',
+                titleColor: isDark ? '#f1f5f9' : '#111',
+                bodyColor: isDark ? '#cbd5e1' : '#555',
+                borderColor: isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)',
+                borderWidth: 1, padding: 12, cornerRadius: 8,
+                callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + Number(ctx.parsed.y).toLocaleString('fr-FR') + ' DA'; } }
+              },
             },
-            {
-              label: 'Dépenses',
-              data: {{ chart_expenses|tojson }},
-              type: 'line', fill: false,
+            scales: {
+              y: { beginAtZero: true, grid: { color: gridColor }, ticks: { callback: v => (v/1000).toFixed(0) + 'K' } },
+              x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 10 } } },
+            },
+          },
+        });
+      } catch (e) { console.error("Error creating chartDaily:", e); }
+    } else if (reportChartInstances.daily && ctxDaily && ctxDaily.offsetParent !== null) {
+      reportChartInstances.daily.resize();
+    }
+
+    // ── Graphique Charges par Catégorie ──
+    const ctxExpCat = document.getElementById('chartExpensesCategory');
+    if (ctxExpCat && ctxExpCat.offsetParent !== null && !reportChartInstances.expCat) {
+      try {
+        const categories = {{ expenses_by_cat_labels|tojson }};
+        const totals = {{ expenses_by_cat_totals|tojson }};
+        reportChartInstances.expCat = new Chart(ctxExpCat, {
+          type: 'bar',
+          data: {
+            labels: categories,
+            datasets: [{
+              label: 'Total charges (DA)',
+              data: totals,
+              backgroundColor: isDark ? 'rgba(248, 113, 113, 0.4)' : 'rgba(220, 38, 38, 0.25)',
               borderColor: isDark ? '#f87171' : '#dc2626',
-              backgroundColor: isDark ? '#f87171' : '#dc2626',
-              borderWidth: 2, borderDash: [5, 3], pointRadius: 3, tension: 0.3, order: 0,
-            },
-          ],
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          plugins: {
-            legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11, weight: '600' } } },
-            tooltip: {
-              backgroundColor: isDark ? '#1e293b' : '#fff',
-              titleColor: isDark ? '#f1f5f9' : '#111',
-              bodyColor: isDark ? '#cbd5e1' : '#555',
-              borderColor: isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)',
-              borderWidth: 1, padding: 12, cornerRadius: 8,
-              callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + Number(ctx.parsed.y).toLocaleString('fr-FR') + ' DA'; } }
-            },
+              borderWidth: 1.5,
+              borderRadius: 4
+            }]
           },
-          scales: {
-            y: { beginAtZero: true, grid: { color: gridColor }, ticks: { callback: v => (v/1000).toFixed(0) + 'K' } },
-            x: { grid: { display: false } },
-          },
-        },
-      });
-    } catch (e) {
-      console.error("Error creating chartMonthly:", e);
-    }
-  }
-
-  // ── Graphique quotidien ──
-  const ctxDaily = document.getElementById('chartDaily');
-  if (ctxDaily) {
-    try {
-      new Chart(ctxDaily, {
-        type: 'line',
-        data: {
-          labels: {{ daily_labels|tojson }},
-          datasets: [
-            {
-              label: 'CA / jour',
-              data: {{ daily_totals|tojson }},
-              borderColor: isDark ? '#60a5fa' : '#2563eb',
-              backgroundColor: isDark ? 'rgba(96,165,250,.1)' : 'rgba(37,99,235,.06)',
-              fill: true, borderWidth: 2.5, pointRadius: 2, tension: 0.35,
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: { label: function(ctx) { return ctx.parsed.x.toLocaleString('fr-FR') + ' DA'; } }
+              }
             },
-            {
-              label: 'Profit / jour',
-              data: {{ daily_profits|tojson }},
-              borderColor: isDark ? '#4ade80' : '#16a34a',
-              backgroundColor: 'transparent',
-              fill: false, borderWidth: 2, pointRadius: 2, tension: 0.35, borderDash: [4, 2],
-            },
-          ],
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          plugins: {
-            legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11, weight: '600' } } },
-            tooltip: {
-              backgroundColor: isDark ? '#1e293b' : '#fff',
-              titleColor: isDark ? '#f1f5f9' : '#111',
-              bodyColor: isDark ? '#cbd5e1' : '#555',
-              borderColor: isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)',
-              borderWidth: 1, padding: 12, cornerRadius: 8,
-              callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + Number(ctx.parsed.y).toLocaleString('fr-FR') + ' DA'; } }
-            },
-          },
-          scales: {
-            y: { beginAtZero: true, grid: { color: gridColor }, ticks: { callback: v => (v/1000).toFixed(0) + 'K' } },
-            x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 10 } } },
-          },
-        },
-      });
-    } catch (e) {
-      console.error("Error creating chartDaily:", e);
-    }
-  }
-
-  // ── Graphique Charges par Catégorie ──
-  const ctxExpCat = document.getElementById('chartExpensesCategory');
-  if (ctxExpCat) {
-    try {
-      const categories = {{ expenses_by_cat_labels|tojson }};
-      const totals = {{ expenses_by_cat_totals|tojson }};
-      new Chart(ctxExpCat, {
-        type: 'bar',
-        data: {
-          labels: categories,
-          datasets: [{
-            label: 'Total charges (DA)',
-            data: totals,
-            backgroundColor: isDark ? 'rgba(248, 113, 113, 0.4)' : 'rgba(220, 38, 38, 0.25)',
-            borderColor: isDark ? '#f87171' : '#dc2626',
-            borderWidth: 1.5,
-            borderRadius: 4
-          }]
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: { label: function(ctx) { return ctx.parsed.x.toLocaleString('fr-FR') + ' DA'; } }
+            scales: {
+              x: { beginAtZero: true, grid: { color: gridColor } },
+              y: { grid: { display: false } }
             }
-          },
-          scales: {
-            x: { beginAtZero: true, grid: { color: gridColor } },
-            y: { grid: { display: false } }
           }
-        }
-      });
-    } catch (e) {
-      console.error("Error creating chartExpensesCategory:", e);
+        });
+      } catch (e) { console.error("Error creating chartExpensesCategory:", e); }
+    } else if (reportChartInstances.expCat && ctxExpCat && ctxExpCat.offsetParent !== null) {
+      reportChartInstances.expCat.resize();
     }
-  }
 
-  // ── Graphique Âge de la Dette Clients ──
-  const ctxDebtAge = document.getElementById('chartDebtAging');
-  if (ctxDebtAge) {
-    try {
-      new Chart(ctxDebtAge, {
-        type: 'doughnut',
-        data: {
-          labels: ['< 30 jours', '30-90 jours', '> 90 jours'],
-          datasets: [{
-            data: [
-              {{ debt_totals.under_30|float if debt_totals else 0.0 }},
-              {{ debt_totals.days_30_to_90|float if debt_totals else 0.0 }},
-              {{ debt_totals.over_90|float if debt_totals else 0.0 }}
-            ],
-            backgroundColor: [
-              isDark ? 'rgba(74, 222, 128, 0.7)' : '#16a34a',
-              isDark ? 'rgba(251, 191, 36, 0.7)' : '#d97706',
-              isDark ? 'rgba(248, 113, 113, 0.7)' : '#dc2626'
-            ],
-            borderWidth: isDark ? 2 : 1,
-            borderColor: isDark ? '#1e293b' : '#ffffff'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: { boxWidth: 12, padding: 8, font: { size: 10 } }
-            },
-            tooltip: {
-              callbacks: {
-                label: function(ctx) {
-                  const val = ctx.raw;
-                  const total = {{ debt_totals.outstanding|float if debt_totals else 0.0 }};
-                  const pct = total > 0 ? ((val / total) * 100).toFixed(1) + '%' : '0%';
-                  return ctx.label + ': ' + val.toLocaleString('fr-FR') + ' DA (' + pct + ')';
+    // ── Graphique Âge de la Dette Clients ──
+    const ctxDebtAge = document.getElementById('chartDebtAging');
+    if (ctxDebtAge && ctxDebtAge.offsetParent !== null && !reportChartInstances.debtAge) {
+      try {
+        reportChartInstances.debtAge = new Chart(ctxDebtAge, {
+          type: 'doughnut',
+          data: {
+            labels: ['< 30 jours', '30-90 jours', '> 90 jours'],
+            datasets: [{
+              data: [
+                {{ debt_totals.under_30|float if debt_totals else 0.0 }},
+                {{ debt_totals.days_30_to_90|float if debt_totals else 0.0 }},
+                {{ debt_totals.over_90|float if debt_totals else 0.0 }}
+              ],
+              backgroundColor: [
+                isDark ? 'rgba(74, 222, 128, 0.7)' : '#16a34a',
+                isDark ? 'rgba(251, 191, 36, 0.7)' : '#d97706',
+                isDark ? 'rgba(248, 113, 113, 0.7)' : '#dc2626'
+              ],
+              borderWidth: isDark ? 2 : 1,
+              borderColor: isDark ? '#1e293b' : '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { boxWidth: 12, padding: 8, font: { size: 10 } }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) {
+                    const val = ctx.raw;
+                    const total = {{ debt_totals.outstanding|float if debt_totals else 0.0 }};
+                    const pct = total > 0 ? ((val / total) * 100).toFixed(1) + '%' : '0%';
+                    return ctx.label + ': ' + val.toLocaleString('fr-FR') + ' DA (' + pct + ')';
+                  }
                 }
               }
-            }
-          },
-          cutout: '65%'
-        }
-      });
+            },
+            cutout: '65%'
+          }
+        });
+      } catch (e) { console.error("Error creating chartDebtAging:", e); }
+    } else if (reportChartInstances.debtAge && ctxDebtAge && ctxDebtAge.offsetParent !== null) {
+      reportChartInstances.debtAge.resize();
+    }
   }
+
+  // Rendu initial si des onglets sont déjà visibles
+  renderVisibleCharts();
+
+  // Re-calculer les dimensions dès qu'un onglet de rapport est ouvert
+  document.addEventListener('fab:panel-open', function() {
+    setTimeout(renderVisibleCharts, 50);
+    setTimeout(renderVisibleCharts, 250);
+  });
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('.fab-switch-btn')) {
+      setTimeout(renderVisibleCharts, 50);
+      setTimeout(renderVisibleCharts, 250);
+    }
+  });
 }
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initReportsCharts);
 } else {
