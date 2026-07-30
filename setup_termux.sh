@@ -31,6 +31,15 @@ if [ ! -f "$PREFIX/var/lib/postgresql/PG_VERSION" ]; then
     initdb -D $PREFIX/var/lib/postgresql
 fi
 
+# Correction mémoire partagée Android Termux (dynamic_shared_memory_type = none)
+if [ -f "$PREFIX/var/lib/postgresql/postgresql.conf" ]; then
+    sed -i "s/#dynamic_shared_memory_type = posix/dynamic_shared_memory_type = none/" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null || true
+    sed -i "s/dynamic_shared_memory_type = posix/dynamic_shared_memory_type = none/" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null || true
+    if ! grep -q "dynamic_shared_memory_type = none" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null; then
+        echo "dynamic_shared_memory_type = none" >> $PREFIX/var/lib/postgresql/postgresql.conf
+    fi
+fi
+
 # Nettoyage des verrous obsolètes si le téléphone s'est éteint brutalement
 rm -f $PREFIX/var/lib/postgresql/postmaster.pid $PREFIX/var/lib/postgresql/postmaster.opts
 
