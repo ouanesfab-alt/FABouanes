@@ -447,5 +447,9 @@ def invalidate_client_cache(client_id: int) -> None:
 
 def cache_remember(domain: str, key_str: str, builder: Callable[[], Any], ttl: float = 30.0) -> Any:
     """Convenience alias for memoizing results in the in-memory cache."""
+    import inspect
+    if inspect.iscoroutinefunction(builder):
+        raise ValueError("Use async_cached_result or await builder() for coroutines.")
     return cached_result((domain, key_str), builder, ttl_seconds=ttl)
+
 
