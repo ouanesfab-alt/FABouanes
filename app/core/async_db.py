@@ -31,6 +31,8 @@ def get_async_engine() -> AsyncEngine:
     except RuntimeError:
         loop = "default"
 
+    is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux")
+    default_pool = "5" if is_termux else "10"
     with _ENGINES_LOCK:
         if loop not in _async_engines:
             engine = create_async_engine(
@@ -38,8 +40,8 @@ def get_async_engine() -> AsyncEngine:
                 echo=False,
                 future=True,
                 pool_pre_ping=True,
-                pool_size=int(os.environ.get("FAB_PG_POOL_SIZE", "10")),
-                max_overflow=int(os.environ.get("FAB_PG_POOL_MAX_OVERFLOW", "10")),
+                pool_size=int(os.environ.get("FAB_PG_POOL_SIZE", default_pool)),
+                max_overflow=int(os.environ.get("FAB_PG_POOL_MAX_OVERFLOW", default_pool)),
                 pool_recycle=1800,
             )
 

@@ -748,7 +748,11 @@ def run_server(host: str, port: int) -> None:
         except ImportError:
             ws_protocol = "none"
 
+    is_termux = "com.termux" in os.environ.get("PREFIX", "") or "com.termux" in sys.prefix or Path("/data/data/com.termux").exists()
     log_level = os.environ.get("FAB_UVICORN_LOG_LEVEL") or "warning"
+    limit_concurrency = int(os.environ.get("FAB_UVICORN_CONCURRENCY", "100" if is_termux else "250"))
+    timeout_keep_alive = int(os.environ.get("FAB_UVICORN_KEEP_ALIVE", "30"))
+
     config_kwargs: dict = dict(
         app="app.main:app",
         host=host,
@@ -758,7 +762,12 @@ def run_server(host: str, port: int) -> None:
         access_log=False,
         use_colors=False,
         ws=ws_protocol,
+        limit_concurrency=limit_concurrency,
+        timeout_keep_alive=timeout_keep_alive,
+        backlog=128,
     )
+    if is_termux:
+        print("  Mode Termux/Mobile détecté — optimisations mémoire et réactivité actives.", flush=True)
     if use_https:
         config_kwargs["ssl_certfile"] = ssl_certfile
         config_kwargs["ssl_keyfile"] = ssl_keyfile
