@@ -19,20 +19,40 @@ from app.core.schema.production import SCHEMA_PRODUCTION
 ADVISORY_LOCK_ID = 884712
 
 
+def _execute(conn, query: str, params: tuple = ()):
+    return conn.execute(query, params) if hasattr(conn, "execute") else conn.cursor().execute(query, params)
+
+
+def _executescript(conn, sql: str) -> None:
+    if hasattr(conn, "executescript"):
+        try:
+            conn.executescript(sql)
+            return
+        except Exception:
+            pass
+    from app.core.db_helpers.query import split_sql_script
+    for stmt in split_sql_script(sql):
+        if stmt.strip():
+            _execute(conn, stmt)
+    if hasattr(conn, "commit"):
+        try: conn.commit()
+        except Exception: pass
+
+
 def bootstrap_schema() -> None:
     conn = connect_database(settings.database_url)
     try:
         try:
-            conn.execute("SELECT pg_advisory_lock(%s)", (ADVISORY_LOCK_ID,))
+            _execute(conn, "SELECT pg_advisory_lock(%s)", (ADVISORY_LOCK_ID,))
         except Exception:
             pass
 
         # Core schema first
-        conn.executescript(SCHEMA_CORE)
+        _executescript(conn, SCHEMA_CORE)
 
 
         # Create rate_limit_events and stock_alerts tables
-        conn.executescript("""
+        _executescript(conn, """
         CREATE TABLE IF NOT EXISTS rate_limit_events (
             key TEXT NOT NULL,
             hit_at TIMESTAMPTZ NOT NULL
@@ -99,10 +119,10 @@ def bootstrap_schema() -> None:
 
 
         # Then domain schemas
-        conn.executescript(SCHEMA_CONTACTS)
-        conn.executescript(SCHEMA_CATALOG)
-        conn.executescript(SCHEMA_OPERATIONS)
-        conn.executescript(SCHEMA_PRODUCTION)
+        _executescript(conn, SCHEMA_CONTACTS)
+        _executescript(conn, SCHEMA_CATALOG)
+        _executescript(conn, SCHEMA_OPERATIONS)
+        _executescript(conn, SCHEMA_PRODUCTION)
 
         # Commit raw SQL tables first
         conn.commit()
@@ -115,7 +135,7 @@ def bootstrap_schema() -> None:
         SQLModel.metadata.create_all(engine)
 
         # Then schema updates and indexes for Options J, I, K
-        conn.executescript("""
+        _executescript(conn, """
         CREATE TABLE IF NOT EXISTS client_keys (
             client_id BIGINT PRIMARY KEY,
             encryption_key TEXT NOT NULL,
@@ -156,7 +176,7 @@ def bootstrap_schema() -> None:
             discover_modules(settings.base_dir / "app" / "modules")
             for module in get_enabled_modules():
                 for sql in module.schema_sql:
-                    conn.executescript(sql)
+                    _executescript(conn, sql)
         except Exception as e:
             import logging
             logging.getLogger("fabouanes").warning("Failed to bootstrap module schemas: %s", e)
@@ -166,7 +186,7 @@ def bootstrap_schema() -> None:
         try:
             cols = list_columns(conn, "users")
             if cols and "custom_permissions_json" not in cols:
-                conn.execute("ALTER TABLE users ADD COLUMN custom_permissions_json TEXT DEFAULT '[]'")
+                _execute(conn, "ALTER TABLE users ADD COLUMN custom_permissions_json TEXT DEFAULT '[]'")
         except Exception:
             import logging
             logging.getLogger("fabouanes").debug("Auto-migration for users.custom_permissions_json skipped", exc_info=True)
@@ -175,17 +195,17 @@ def bootstrap_schema() -> None:
             try:
                 cols = list_columns(conn, table)
                 if cols and "created_at" not in cols:
-                    conn.execute(f"ALTER TABLE {table} ADD COLUMN created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP")
+                    _execute(conn, f"ALTER TABLE {table} ADD COLUMN created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP")
             except Exception:
                 logging.getLogger("fabouanes").debug("Auto-migration column add skipped for %s", table, exc_info=True)
 
         try:
             cols = list_columns(conn, "purchases")
             if cols and "finished_product_id" not in cols:
-                conn.execute("ALTER TABLE purchases ADD COLUMN finished_product_id BIGINT REFERENCES finished_products(id) ON DELETE CASCADE")
+                _execute(conn, "ALTER TABLE purchases ADD COLUMN finished_product_id BIGINT REFERENCES finished_products(id) ON DELETE CASCADE")
             if cols:
                 # PostgreSQL command to drop not null constraint if present
-                conn.execute("ALTER TABLE purchases ALTER COLUMN raw_material_id DROP NOT NULL")
+                _execute(conn, "ALTER TABLE purchases ALTER COLUMN raw_material_id DROP NOT NULL")
         except Exception:
             logging.getLogger("fabouanes").debug("Auto-migration for purchases.finished_product_id skipped", exc_info=True)
 
@@ -193,14 +213,14 @@ def bootstrap_schema() -> None:
             cols = list_columns(conn, "outbox_events")
             if cols:
                 if "retry_count" not in cols:
-                    conn.execute("ALTER TABLE outbox_events ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0")
+                    _execute(conn, "ALTER TABLE outbox_events ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0")
                 if "last_error" not in cols:
-                    conn.execute("ALTER TABLE outbox_events ADD COLUMN last_error TEXT")
+                    _execute(conn, "ALTER TABLE outbox_events ADD COLUMN last_error TEXT")
         except Exception:
             logging.getLogger("fabouanes").debug("Auto-migration for outbox_events retry columns skipped", exc_info=True)
 
         # Staging tables for PWA offline sync
-        conn.executescript("""
+        _executescript(conn, """
         CREATE TABLE IF NOT EXISTS offline_sales_staging (
             id BIGSERIAL PRIMARY KEY,
             idempotency_key VARCHAR(255) UNIQUE,
@@ -225,20 +245,20 @@ def bootstrap_schema() -> None:
         # pgvector extension activation and catalog embeddings
         has_vector = False
         try:
-            res = conn.execute("SELECT 1 FROM pg_available_extensions WHERE name = 'vector' AND installed_version IS NOT NULL;").fetchone()
+            res = _execute(conn, "SELECT 1 FROM pg_available_extensions WHERE name = 'vector' AND installed_version IS NOT NULL;").fetchone()
             if res:
                 has_vector = True
             else:
-                avail = conn.execute("SELECT 1 FROM pg_available_extensions WHERE name = 'vector';").fetchone()
+                avail = _execute(conn, "SELECT 1 FROM pg_available_extensions WHERE name = 'vector';").fetchone()
                 if avail:
-                    conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+                    _execute(conn, "CREATE EXTENSION IF NOT EXISTS vector;")
                     conn.commit()
                     has_vector = True
         except Exception:
             conn.rollback()
 
         if has_vector:
-            conn.executescript("""
+            _executescript(conn, """
             CREATE TABLE IF NOT EXISTS catalog_embeddings (
                 id BIGSERIAL PRIMARY KEY,
                 item_kind VARCHAR(50) NOT NULL,
@@ -250,7 +270,7 @@ def bootstrap_schema() -> None:
             CREATE UNIQUE INDEX IF NOT EXISTS idx_catalog_embeddings_item ON catalog_embeddings(item_kind, item_id);
             """)
         else:
-            conn.executescript("""
+            _executescript(conn, """
             CREATE TABLE IF NOT EXISTS catalog_embeddings (
                 id BIGSERIAL PRIMARY KEY,
                 item_kind VARCHAR(50) NOT NULL,
@@ -267,23 +287,23 @@ def bootstrap_schema() -> None:
         
         # Check expenses table
         if is_sqlite:
-            expenses_exists = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='expenses'").fetchone() is not None
+            expenses_exists = _execute(conn, "SELECT 1 FROM sqlite_master WHERE type='table' AND name='expenses'").fetchone() is not None
         else:
-            res = conn.execute("SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'expenses')").fetchone()
+            res = _execute(conn, "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'expenses')").fetchone()
             expenses_exists = res[0] if res else False
             
         if expenses_exists:
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);")
+            _execute(conn, "CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);")
 
         # Check stock_movements table
         if is_sqlite:
-            movements_exists = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='stock_movements'").fetchone() is not None
+            movements_exists = _execute(conn, "SELECT 1 FROM sqlite_master WHERE type='table' AND name='stock_movements'").fetchone() is not None
         else:
-            res = conn.execute("SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'stock_movements')").fetchone()
+            res = _execute(conn, "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'stock_movements')").fetchone()
             movements_exists = res[0] if res else False
             
         if movements_exists:
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_stock_movements_item ON stock_movements(item_kind, item_id);")
+            _execute(conn, "CREATE INDEX IF NOT EXISTS idx_stock_movements_item ON stock_movements(item_kind, item_id);")
 
 
         conn.commit()
@@ -297,7 +317,7 @@ def bootstrap_schema() -> None:
         conn.commit()
     finally:
         try:
-            conn.execute("SELECT pg_advisory_unlock(%s)", (ADVISORY_LOCK_ID,))
+            _execute(conn, "SELECT pg_advisory_unlock(%s)", (ADVISORY_LOCK_ID,))
         except Exception:
             pass
         conn.close()

@@ -38,6 +38,10 @@ def initial_admin_password() -> str:
     return pin
 
 
+def _exec(conn, query: str, params: tuple = ()):
+    return conn.execute(query, params) if hasattr(conn, "execute") else conn.cursor().execute(query, params)
+
+
 def _seed_default_settings(conn) -> None:
     defaults = (
         ("gdrive_backup_dir", ""),
@@ -47,7 +51,8 @@ def _seed_default_settings(conn) -> None:
         ("backup_last_nightly_date", ""),
     )
     for key, value in defaults:
-        conn.execute(
+        _exec(
+            conn,
             "INSERT INTO app_settings (key, value) VALUES (%s, %s) ON CONFLICT(key) DO NOTHING",
             (key, value),
         )
@@ -59,11 +64,12 @@ def _seed_default_admin(conn) -> None:
         raise RuntimeError(
             "DEFAULT_ADMIN_PASSWORD cannot be 'admin' in production server mode. Set a strong password in your .env file."
         )
-    admin = conn.execute("SELECT id, password_hash FROM users WHERE username = %s", (DEFAULT_ADMIN_USERNAME,)).fetchone()
+    admin = _exec(conn, "SELECT id, password_hash FROM users WHERE username = %s", (DEFAULT_ADMIN_USERNAME,)).fetchone()
     init_pwd = initial_admin_password()
     if not admin:
         # Detect if column type is boolean or integer (PostgreSQL strict type safety)
-        res = conn.execute(
+        res = _exec(
+            conn,
             "SELECT data_type FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'must_change_password'"
         ).fetchone()
         is_boolean = res and res[0].upper() == 'BOOLEAN'
@@ -71,7 +77,8 @@ def _seed_default_admin(conn) -> None:
         val_must_change = False if is_boolean else 0
         val_is_active = True if is_boolean else 1
         
-        conn.execute(
+        _exec(
+            conn,
             """
             INSERT INTO users (username, password_hash, role, must_change_password, is_active, last_password_change_at)
             VALUES (%s, %s, 'admin', %s, %s, CURRENT_TIMESTAMP)
@@ -79,24 +86,29 @@ def _seed_default_admin(conn) -> None:
             (DEFAULT_ADMIN_USERNAME, generate_password_hash(init_pwd), val_must_change, val_is_active),
         )
     elif str(DEFAULT_ADMIN_PASSWORD or "").strip():
-        conn.execute(
+        _exec(
+            conn,
             "UPDATE users SET password_hash = %s WHERE username = %s",
             (generate_password_hash(init_pwd), DEFAULT_ADMIN_USERNAME),
         )
 
 
 def _seed_other_operation(conn) -> None:
-    row = conn.execute(
+    row = _exec(
+        conn,
         "SELECT id FROM raw_materials WHERE lower(trim(name)) = lower(trim(%s)) ORDER BY id LIMIT 1",
         (OTHER_OPERATION_NAME,),
     ).fetchone()
     if row:
-        conn.execute(
+        raw_id = row["id"] if isinstance(row, dict) else (getattr(row, "id", None) if hasattr(row, "id") else row[0])
+        _exec(
+            conn,
             "UPDATE raw_materials SET name = %s, unit = %s WHERE id = %s",
-            (OTHER_OPERATION_NAME, OTHER_OPERATION_UNIT, int(row["id"])),
+            (OTHER_OPERATION_NAME, OTHER_OPERATION_UNIT, int(raw_id)),
         )
         return
-    conn.execute(
+    _exec(
+        conn,
         """
         INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold, threshold_qty)
         VALUES (%s, %s, 0, 0, 0, 0, 0)
