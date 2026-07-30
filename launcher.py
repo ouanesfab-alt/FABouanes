@@ -166,7 +166,22 @@ def ensure_postgres_running() -> None:
     import subprocess
     from urllib.parse import urlparse
 
-    if os.name != "nt":
+    # Support Termux / Linux Auto-Start
+    is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux")
+    if is_termux or os.name != "nt":
+        termux_pg_dir = os.path.expanduser(os.environ.get("PREFIX", "/data/data/com.termux/files/usr") + "/var/lib/postgresql")
+        if os.path.exists(termux_pg_dir):
+            # Clean stale lock file if postmaster died
+            pid_file = os.path.join(termux_pg_dir, "postmaster.pid")
+            if os.path.exists(pid_file):
+                try: os.remove(pid_file)
+                except Exception: pass
+            
+            # Start PostgreSQL via pg_ctl
+            try:
+                subprocess.run(["pg_ctl", "-D", termux_pg_dir, "start"], capture_output=True, timeout=10)
+                time.sleep(1.5)
+            except Exception: pass
         return
 
     db_url = os.environ.get("DATABASE_URL", "").strip()
