@@ -38,8 +38,9 @@ rm -f $PREFIX/var/lib/postgresql/postmaster.pid $PREFIX/var/lib/postgresql/postm
 pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1 || pg_ctl -D $PREFIX/var/lib/postgresql start || true
 sleep 2
 
-# Créer la base de données si elle n'existe pas
-createdb fabouanes 2>/dev/null || echo "Base de données fabouanes prête."
+# Créer le rôle 'postgres' avec mot de passe '0000' et la base 'fabouanes'
+psql -d postgres -c "CREATE ROLE postgres WITH SUPERUSER LOGIN PASSWORD '0000';" 2>/dev/null || psql -d postgres -c "ALTER ROLE postgres WITH SUPERUSER LOGIN PASSWORD '0000';" 2>/dev/null || true
+createdb -O postgres fabouanes 2>/dev/null || createdb fabouanes 2>/dev/null || echo "Base de données fabouanes prête."
 
 echo "📂 5. Préparation du répertoire de l'application..."
 if [ -d "$HOME/FABouanes" ]; then
