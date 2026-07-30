@@ -249,54 +249,64 @@ class DatabaseManager:
 
     def connect_database(self, database_url: str) -> CompatConnection:
         raw_url = str(database_url or "").strip()
-        try:
-            engine = self.get_database_engine(raw_url)
+        for attempt in range(2):
             try:
-                conn = engine.raw_connection()
-            except Exception:
-                # Connection dropped or stale — dispose engine pool and retry once
-                with self._engine_lock:
-                    old_engine = self._engines.pop(raw_url, None)
-                    if old_engine is not None:
-                        try: old_engine.dispose()
-                        except Exception: pass
                 engine = self.get_database_engine(raw_url)
-                conn = engine.raw_connection()
+                try:
+                    conn = engine.raw_connection()
+                    timeout_ms = int(os.environ.get("FAB_PG_STATEMENT_TIMEOUT_MS", "30000") or "30000")
+                    cursor = conn.cursor()
+                    try:
+                        cursor.execute(f"SET statement_timeout = {timeout_ms}")
+                    finally:
+                        cursor.close()
+                    return conn
+                except Exception as conn_exc:
+                    # If database system was shut down or connection dropped, invalidate engine pool
+                    err_str = str(conn_exc).lower()
+                    with self._engine_lock:
+                        old_engine = self._engines.pop(raw_url, None)
+                        if old_engine is not None:
+                            try: old_engine.dispose()
+                            except Exception: pass
 
-            # Set statement timeout on raw connection (default 30 seconds) to prevent backend from hanging
-            timeout_ms = int(os.environ.get("FAB_PG_STATEMENT_TIMEOUT_MS", "30000") or "30000")
-            cursor = conn.cursor()
-            try:
-                cursor.execute(f"SET statement_timeout = {timeout_ms}")
+                    if "shut down" in err_str or "closed" in err_str or "could not connect" in err_str:
+                        if attempt == 0:
+                            # Attempt auto-restart/repair of PostgreSQL if running locally or on Termux
+                            try:
+                                is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux")
+                                if is_termux:
+                                    import subprocess
+                                    subprocess.run(["pg_ctl", "-D", f"{os.environ.get('PREFIX', '')}/var/lib/postgresql", "start"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+                            except Exception:
+                                pass
+                            continue
+                    raise conn_exc
             except Exception as e:
-                logging.getLogger("fabouanes").debug("Failed to set statement_timeout: %s", e)
-            finally:
-                cursor.close()
-        except Exception as e:
-            err_msg = str(e).lower()
-            if "does not exist" in err_msg or "3d000" in err_msg:
-                parsed = urlparse(raw_url)
-                database = parsed.path.lstrip("/")
-                port_part = f":{parsed.port}" if parsed.port else ""
-                pass_part = f":{parsed.password}" if parsed.password else ""
-                user_part = f"{parsed.username}{pass_part}@" if parsed.username else ""
-                postgres_url = f"{parsed.scheme}://{user_part}{parsed.hostname}{port_part}/postgres"
+                err_msg = str(e).lower()
+                if "does not exist" in err_msg or "3d000" in err_msg:
+                    parsed = urlparse(raw_url)
+                    database = parsed.path.lstrip("/")
+                    port_part = f":{parsed.port}" if parsed.port else ""
+                    pass_part = f":{parsed.password}" if parsed.password else ""
+                    user_part = f"{parsed.username}{pass_part}@" if parsed.username else ""
+                    postgres_url = f"{parsed.scheme}://{user_part}{parsed.hostname}{port_part}/postgres"
 
-                pg_engine = create_engine(
-                    self.sqlalchemy_database_url(postgres_url),
-                    isolation_level="AUTOCOMMIT",
-                    future=True,
-                )
-                with pg_engine.connect() as pg_conn:
-                    pg_conn.execute(text(f'CREATE DATABASE "{database}"'))
-                pg_engine.dispose()
-
-                engine = self.get_database_engine(raw_url)
-                conn = engine.raw_connection()
-            elif "authentification" in err_msg or "password authentication failed" in err_msg or "28p01" in err_msg:
-                raise RuntimeError("Erreur critique d'authentification PostgreSQL. Verifie le mot de passe dans .env") from e
-            else:
-                raise RuntimeError(f"Impossible de se connecter a la base de donnees PostgreSQL: {e}") from e
+                    pg_engine = create_engine(
+                        self.sqlalchemy_database_url(postgres_url),
+                        future=True,
+                        isolation_level="AUTOCOMMIT",
+                    )
+                    with pg_engine.connect() as admin_conn:
+                        admin_conn.execute(text(f'CREATE DATABASE "{database}"'))
+                    pg_engine.dispose()
+                    with self._engine_lock:
+                        self._engines.pop(raw_url, None)
+                    return self.get_database_engine(raw_url).raw_connection()
+                elif "authentification" in err_msg or "password authentication failed" in err_msg or "28p01" in err_msg:
+                    raise RuntimeError("Erreur critique d'authentification PostgreSQL. Verifie le mot de passe dans .env") from e
+                elif attempt == 1:
+                    raise RuntimeError(f"Impossible de se connecter a la base de donnees PostgreSQL: {e}") from e
 
         def _reconnect():
             return engine.raw_connection()
