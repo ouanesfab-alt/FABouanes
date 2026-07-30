@@ -463,6 +463,14 @@ def free_stale_port(port: int = 5000) -> bool:
                             time.sleep(1)
                             print(f"  [OK] Processus orphelin sur port {port} (PID {pid}) libéré.", flush=True)
                             return port_bindable("0.0.0.0", port)
+        else:
+            # POSIX / Termux / Linux port cleanup
+            try:
+                subprocess.run(f"fuser -k {port}/tcp", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                time.sleep(0.5)
+            except Exception:
+                pass
+            return port_bindable("0.0.0.0", port)
     except Exception:
         pass
     return False
