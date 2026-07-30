@@ -21,8 +21,10 @@ def build_offline_pack():
     shutil.copytree(BASE_DIR / "static", OUTPUT_DIR / "static", dirs_exist_ok=True)
     shutil.copy(BASE_DIR / "alembic.ini", OUTPUT_DIR / "alembic.ini")
     shutil.copy(BASE_DIR / "launcher.py", OUTPUT_DIR / "launcher.py")
-    shutil.copy(BASE_DIR / "requirements-termux.txt", OUTPUT_DIR / "requirements-termux.txt")
-    shutil.copy(BASE_DIR / "setup_termux.sh", OUTPUT_DIR / "setup_termux.sh")
+    if (BASE_DIR / "requirements-termux.txt").exists():
+        shutil.copy(BASE_DIR / "requirements-termux.txt", OUTPUT_DIR / "requirements-termux.txt")
+    if (BASE_DIR / "setup_termux.sh").exists():
+        shutil.copy(BASE_DIR / "setup_termux.sh", OUTPUT_DIR / "setup_termux.sh")
     if (BASE_DIR / "wheels").exists():
         print("[1b] Copie des 81 wheels précompilées...", flush=True)
         shutil.copytree(BASE_DIR / "wheels", OUTPUT_DIR / "wheels", dirs_exist_ok=True)
