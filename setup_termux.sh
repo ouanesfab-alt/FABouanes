@@ -31,20 +31,28 @@ if [ ! -f "$PREFIX/var/lib/postgresql/PG_VERSION" ]; then
     initdb -D $PREFIX/var/lib/postgresql
 fi
 
-# Correction mémoire partagée Android Termux (dynamic_shared_memory_type = none)
+# Correction mémoire partagée Android Termux (max_worker_processes = 0)
 if [ -f "$PREFIX/var/lib/postgresql/postgresql.conf" ]; then
-    sed -i "s/#dynamic_shared_memory_type = posix/dynamic_shared_memory_type = none/" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null || true
-    sed -i "s/dynamic_shared_memory_type = posix/dynamic_shared_memory_type = none/" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null || true
-    if ! grep -q "dynamic_shared_memory_type = none" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null; then
-        echo "dynamic_shared_memory_type = none" >> $PREFIX/var/lib/postgresql/postgresql.conf
+    sed -i "s/#max_worker_processes = 8/max_worker_processes = 0/" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null || true
+    sed -i "s/max_worker_processes = [0-9]*/max_worker_processes = 0/" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null || true
+    sed -i "s/#max_parallel_workers = 8/max_parallel_workers = 0/" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null || true
+    sed -i "s/max_parallel_workers = [0-9]*/max_parallel_workers = 0/" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null || true
+    sed -i "s/#max_parallel_workers_per_gather = 2/max_parallel_workers_per_gather = 0/" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null || true
+    sed -i "s/max_parallel_workers_per_gather = [0-9]*/max_parallel_workers_per_gather = 0/" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null || true
+    
+    if ! grep -q "max_worker_processes = 0" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null; then
+        echo "max_worker_processes = 0" >> $PREFIX/var/lib/postgresql/postgresql.conf
+        echo "max_parallel_workers = 0" >> $PREFIX/var/lib/postgresql/postgresql.conf
+        echo "max_parallel_workers_per_gather = 0" >> $PREFIX/var/lib/postgresql/postgresql.conf
     fi
 fi
 
-# Nettoyage des verrous obsolètes si le téléphone s'est éteint brutalement
+# Nettoyage des verrous et anciens processus si le téléphone s'est éteint brutalement
+pkill -9 postgres 2>/dev/null || true
 rm -f $PREFIX/var/lib/postgresql/postmaster.pid $PREFIX/var/lib/postgresql/postmaster.opts
 
 # Démarrer PostgreSQL s'il n'est pas déjà lancé
-pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1 || pg_ctl -D $PREFIX/var/lib/postgresql start || true
+pg_ctl -D $PREFIX/var/lib/postgresql start || true
 sleep 2
 
 # Créer le rôle 'postgres' avec mot de passe '0000' et la base 'fabouanes'

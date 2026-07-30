@@ -51,24 +51,33 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 if (request.isForMainFrame() && !isServerReady) {
-                    // Si le serveur est en train de démarrer, afficher une page de chargement et réessayer
                     showLoadingPage();
-                    handler.postDelayed(() -> webView.loadUrl(APP_URL), 2000);
                 }
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
-                if (url.startsWith(APP_URL)) {
+                if (url != null && url.startsWith(APP_URL)) {
                     isServerReady = true;
+                    handler.removeCallbacks(checkServerRunnable);
                 }
             }
         });
 
-        // 3. Charger l'application avec fallback
+        // 3. Charger l'application avec boucle active de vérification
         showLoadingPage();
-        webView.loadUrl(APP_URL);
+        handler.post(checkServerRunnable);
     }
+
+    private final Runnable checkServerRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!isServerReady && webView != null) {
+                webView.loadUrl(APP_URL);
+                handler.postDelayed(this, 2000);
+            }
+        }
+    };
 
     private void startTermuxServer() {
         try {
