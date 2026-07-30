@@ -12,6 +12,12 @@ if [ -x "$(command -v termux-setup-storage)" ]; then
     termux-setup-storage || true
 fi
 
+# Autoriser les applications tierces (comme FABOuanes.apk) à lancer des commandes en arrière-plan
+mkdir -p ~/.termux
+if ! grep -q "allow-external-apps" ~/.termux/termux.properties 2>/dev/null; then
+    echo "allow-external-apps = true" >> ~/.termux/termux.properties
+fi
+
 echo "🔄 2. Mise à jour des paquets et dépôts Termux..."
 pkg update -y || pkg update -y --fix-missing || true
 pkg upgrade -y || true
