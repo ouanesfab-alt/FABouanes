@@ -108,14 +108,26 @@ class CompatConnection:
         self._reconnect = reconnect
         self._closed = False
 
+    def _reset_postgres_connection(self):
+        try:
+            if hasattr(self.conn, "close"):
+                self.conn.close()
+        except Exception:
+            pass
+        if callable(self._reconnect):
+            try:
+                self.conn = self._reconnect()
+            except Exception as e:
+                logger.warning("Auto-reconnect PostgreSQL failed: %s", e)
+
     def execute(self, query: str, params: tuple = ()):
         if not isinstance(query, str):
             query = str(query)
         retried = False
         cleaned_params = _clean_params(params)
         while True:
-            cur = self.conn.cursor()
             try:
+                cur = self.conn.cursor()
                 cur.execute(query, cleaned_params)
                 return CompatCursor(cur)
             except Exception as exc:
@@ -131,7 +143,11 @@ class CompatConnection:
 
                 if not retried:
                     from sqlalchemy.exc import DBAPIError, OperationalError
-                    if isinstance(exc, (OperationalError, DBAPIError)) or "connection" in exc_msg:
+                    is_conn_error = (
+                        isinstance(exc, (OperationalError, DBAPIError))
+                        or any(tok in exc_msg for tok in ("connection", "interfaceerror", "network error", "closed", "reset", "broken pipe", "timeout"))
+                    )
+                    if is_conn_error:
                         self._reset_postgres_connection()
                         retried = True
                         continue
