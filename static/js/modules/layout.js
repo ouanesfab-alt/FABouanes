@@ -110,5 +110,65 @@ export function initLayoutModule() {
   });
   drawer.querySelectorAll('a').forEach(function (link) { link.addEventListener('click', shut); });
 
+  // ── 1. Global Keyboard Shortcuts (Ctrl+K / Cmd+K -> Search, Alt+N -> New Operation) ──
+  document.addEventListener('keydown', function (e) {
+    // Ctrl+K or Cmd+K: Open Quick Search
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      const searchTrigger = document.querySelector('[data-search-trigger]') || document.getElementById('globalSearchBtn');
+      if (searchTrigger) {
+        searchTrigger.click();
+      } else {
+        const searchModal = document.getElementById('searchOverlay') || document.querySelector('.search-overlay');
+        if (searchModal) searchModal.hidden = !searchModal.hidden;
+      }
+    }
+    // Alt+N: Quick New Sale / Operation
+    if (e.altKey && e.key.toLowerCase() === 'n') {
+      e.preventDefault();
+      const newOpBtn = document.querySelector('a[href*="/operations/new"], a[href*="/sales/new"]');
+      if (newOpBtn) newOpBtn.click();
+    }
+  });
+
+  // ── 2. Form Auto-Draft UX Protection (Anti-Data Loss) ──
+  document.querySelectorAll('form[data-auto-save-draft]').forEach(function(form) {
+    const formId = form.id || form.action || window.location.pathname;
+    const storageKey = 'fab_draft_' + formId;
+
+    // Restore draft on load
+    try {
+      const saved = sessionStorage.getItem(storageKey);
+      if (saved) {
+        const data = JSON.parse(saved);
+        Object.keys(data).forEach(function(name) {
+          const input = form.querySelector(`[name="${name}"]`);
+          if (input && !input.value) {
+            input.value = data[name];
+          }
+        });
+      }
+    } catch(e) {}
+
+    // Auto-save inputs to draft
+    form.addEventListener('input', function() {
+      try {
+        const formData = new FormData(form);
+        const draft = {};
+        formData.forEach((val, key) => {
+          if (key && !key.includes('password') && !key.includes('csrf') && typeof val === 'string') {
+            draft[key] = val;
+          }
+        });
+        sessionStorage.setItem(storageKey, JSON.stringify(draft));
+      } catch(e) {}
+    });
+
+    // Clear draft on successful submit
+    form.addEventListener('submit', function() {
+      try { sessionStorage.removeItem(storageKey); } catch(e) {}
+    });
+  });
+
   window.openInvoice = window.openInvoice || openInvoice;
 }
