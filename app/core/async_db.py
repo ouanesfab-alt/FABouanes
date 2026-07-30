@@ -35,6 +35,10 @@ def get_async_engine() -> AsyncEngine:
     default_pool = "5" if is_termux else "10"
     with _ENGINES_LOCK:
         if loop not in _async_engines:
+            connect_kwargs = {}
+            if "asyncpg" in async_database_url:
+                connect_kwargs["server_settings"] = {"timezone": "UTC"}
+
             engine = create_async_engine(
                 async_database_url,
                 echo=False,
@@ -43,18 +47,8 @@ def get_async_engine() -> AsyncEngine:
                 pool_size=int(os.environ.get("FAB_PG_POOL_SIZE", default_pool)),
                 max_overflow=int(os.environ.get("FAB_PG_POOL_MAX_OVERFLOW", default_pool)),
                 pool_recycle=1800,
+                connect_args=connect_kwargs,
             )
-
-            from sqlalchemy import event
-            @event.listens_for(engine.sync_engine, "connect")
-            def set_async_connection_timezone(dbapi_connection, connection_record):
-                cursor = dbapi_connection.cursor()
-                try:
-                    cursor.execute("SET TIME ZONE 'UTC'")
-                except Exception:
-                    pass
-                finally:
-                    cursor.close()
             _async_engines[loop] = engine
         return _async_engines[loop]
 
@@ -88,7 +82,6 @@ class LoopBoundSessionLocal:
 AsyncSessionLocal = LoopBoundSessionLocal()
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-
     """Dependency injection session getter for FastAPI endpoints."""
     session_local = get_async_sessionmaker()
     async with session_local() as session:
@@ -102,4 +95,22 @@ async def create_db_and_tables():
     engine = get_async_engine()
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
+
+async def query_sql_async(statement_str: str, params: dict | tuple = ()):
+    """Executes a raw SQL statement asynchronously using SQLAlchemy 2.0 AsyncSession."""
+    from sqlalchemy import text
+    session_local = get_async_sessionmaker()
+    async with session_local() as session:
+        result = await session.execute(text(statement_str), params)
+        return result.mappings().all()
+
+async def execute_sql_async(statement_str: str, params: dict | tuple = ()):
+    """Executes a raw DML statement asynchronously using SQLAlchemy 2.0 AsyncSession."""
+    from sqlalchemy import text
+    session_local = get_async_sessionmaker()
+    async with session_local() as session:
+        result = await session.execute(text(statement_str), params)
+        await session.commit()
+        return result.rowcount
+
 
