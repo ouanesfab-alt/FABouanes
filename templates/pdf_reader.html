@@ -244,31 +244,27 @@
   .mac-modal-body {
     flex: 1;
     background: var(--surface);
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     position: relative;
+    padding: 0;
   }
-  /* Wrapper to position the scroll-capture overlay */
   .modal-frame-wrap {
     position: relative;
     width: 100%;
+    height: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
   }
   .modal-frame {
     display: block;
     width: 100%;
-    height: 1260px;
+    height: 100%;
+    flex: 1;
     border: none;
     background: #fff;
-  }
-  /* Transparent overlay on top of iframe to capture wheel events */
-  .modal-frame-scroll-cap {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    background: transparent;
-    pointer-events: none; /* will be toggled to 'all' to capture scroll */
   }
   
   @keyframes macFadeIn {
@@ -453,8 +449,6 @@
     <div class="mac-modal-body" id="modalBody">
       <div class="modal-frame-wrap">
         <iframe class="modal-frame" id="modalIframe" src="about:blank" title="Aperçu du document"></iframe>
-        <!-- Transparent overlay that captures wheel events and proxies them to the parent scroll container -->
-        <div class="modal-frame-scroll-cap" id="iframeScrollCap"></div>
       </div>
     </div>
   </div>
