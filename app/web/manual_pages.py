@@ -615,9 +615,9 @@ async def get_manual_chapter(chapter_id: str):
     Used for lazy-loading the 54 chapters to keep the initial page size low.
     """
     clean_id = chapter_id.strip()
-    if clean_id not in MANUAL_CHAPTERS:
+    original_html = MANUAL_CHAPTERS.get(clean_id, "")
+    if not original_html and clean_id not in SPECIFIC_CHAPTER_DATA:
         raise HTTPException(status_code=404, detail="Chapitre introuvable")
 
-    original_html = MANUAL_CHAPTERS[clean_id]
-    # Enrich dynamically all 54 chapters with customized modular templates
     return enrich_chapter_content(clean_id, original_html)
+

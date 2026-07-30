@@ -35,6 +35,9 @@
           <li><a
               class="dropdown-item {{ 'active' if request.endpoint in ['reports_dashboard','reports_export_csv'] else '' }}"
               href="{{ url_for('reports_dashboard') }}"><i class="bi bi-bar-chart-line me-2"></i>Rapports</a></li>
+          <li><a
+              class="dropdown-item {{ 'active' if request.endpoint == 'accounting_scf_dashboard' else '' }}"
+              href="{{ url_for('accounting_scf_dashboard') }}"><i class="bi bi-journal-bookmark-fill me-2"></i>Comptabilité SCF</a></li>
           <li><a class="dropdown-item {{ 'active' if request.endpoint in ['production','new_production'] else '' }}"
               href="{{ url_for('production') }}"><i class="bi bi-gear me-2"></i>Production</a></li>
 

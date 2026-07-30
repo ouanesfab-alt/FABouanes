@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+      <h2 class="fw-bold mb-1"><i class="bi bi-journal-bookmark-fill me-2 text-primary"></i>Comptabilité SCF Algérie</h2>
+      <p class="text-muted small mb-0">Balance Générale, Bilan Synthétique et Tableau des Comptes de Résultat (TCR)</p>
+    </div>
+    <div>
+      <a href="{{ url_for('accounting_balance_export') }}" class="btn btn-outline-success btn-sm me-2">
+        <i class="bi bi-file-earmark-excel me-1"></i>Exporter Balance (Excel/CSV)
+      </a>
+      <a href="{{ url_for('reports_export_livre_journal') }}" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-book me-1"></i>Exporter Livre Journal
+      </a>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card p-3 border-0 shadow-sm rounded-4 bg-primary bg-opacity-10">
+        <div class="text-muted small fw-medium mb-1">Chiffre d'Affaires (Classe 7)</div>
+        <div class="fs-4 fw-bold text-primary">{{ "%.2f"|format(tcr.chiffre_affaires) }} DA</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3 border-0 shadow-sm rounded-4 bg-warning bg-opacity-10">
+        <div class="text-muted small fw-medium mb-1">Achats Consommés (Classe 60)</div>
+        <div class="fs-4 fw-bold text-warning">{{ "%.2f"|format(tcr.achats_consommes) }} DA</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3 border-0 shadow-sm rounded-4 bg-info bg-opacity-10">
+        <div class="text-muted small fw-medium mb-1">Marge Brute SCF</div>
+        <div class="fs-4 fw-bold text-info">{{ "%.2f"|format(tcr.marge_brute) }} DA</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3 border-0 shadow-sm rounded-4 bg-success bg-opacity-10">
+        <div class="text-muted small fw-medium mb-1">Résultat Net de l'Exercice</div>
+        <div class="fs-4 fw-bold text-success">{{ "%.2f"|format(tcr.resultat_net) }} DA</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs Navigation -->
+  <ul class="nav nav-pills mb-3 gap-2" id="scfTab" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active rounded-pill px-4" id="balance-tab" data-bs-toggle="tab" data-bs-target="#balancePane" type="button" role="tab">Balance Générale</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link rounded-pill px-4" id="bilan-tab" data-bs-toggle="tab" data-bs-target="#bilanPane" type="button" role="tab">Bilan (Actif / Passif)</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link rounded-pill px-4" id="tcr-tab" data-bs-toggle="tab" data-bs-target="#tcrPane" type="button" role="tab">Tableau de Résultat (TCR)</button>
+    </li>
+  </ul>
+
+  <div class="tab-content" id="scfTabContent">
+    <!-- Balance Générale -->
+    <div class="tab-pane fade show active" id="balancePane" role="tabpanel">
+      <div class="card border-0 shadow-sm rounded-4">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>N° Compte SCF</th>
+                <th>Intitulé du Compte</th>
+                <th class="text-end">Débit (DA)</th>
+                <th class="text-end">Crédit (DA)</th>
+                <th class="text-end">Solde Débiteurs (DA)</th>
+                <th class="text-end">Solde Créditeurs (DA)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in balance %}
+              <tr>
+                <td><span class="badge bg-secondary opacity-75 font-monospace">{{ a.code }}</span></td>
+                <td class="fw-semibold">{{ a.label }}</td>
+                <td class="text-end font-monospace">{{ "%.2f"|format(a.debit) }}</td>
+                <td class="text-end font-monospace">{{ "%.2f"|format(a.credit) }}</td>
+                <td class="text-end font-monospace text-primary fw-semibold">{{ "%.2f"|format(a.solde_debiteur) if a.solde_debiteur > 0 else '-' }}</td>
+                <td class="text-end font-monospace text-success fw-semibold">{{ "%.2f"|format(a.solde_crediteur) if a.solde_crediteur > 0 else '-' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bilan -->
+    <div class="tab-pane fade" id="bilanPane" role="tabpanel">
+      <div class="row g-4">
+        <!-- ACTIF -->
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-primary text-white py-3 fw-bold rounded-top-4">ACTIF (Emplois)</div>
+            <div class="card-body">
+              <div class="d-flex justify-content-between py-2 border-bottom">
+                <span>Stocks (Matières + Fini) [Classe 3]</span>
+                <span class="fw-bold font-monospace">{{ "%.2f"|format(bilan.actif.stocks) }} DA</span>
+              </div>
+              <div class="d-flex justify-content-between py-2 border-bottom">
+                <span>Créances Clients [Compte 411]</span>
+                <span class="fw-bold font-monospace">{{ "%.2f"|format(bilan.actif.creances_clients) }} DA</span>
+              </div>
+              <div class="d-flex justify-content-between py-2 border-bottom">
+                <span>Trésorerie / Caisse [Compte 530]</span>
+                <span class="fw-bold font-monospace">{{ "%.2f"|format(bilan.actif.tresorerie_caisse) }} DA</span>
+              </div>
+              <div class="d-flex justify-content-between py-3 fs-5 fw-bold text-primary">
+                <span>TOTAL ACTIF</span>
+                <span class="font-monospace">{{ "%.2f"|format(bilan.actif.total) }} DA</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PASSIF -->
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-dark text-white py-3 fw-bold rounded-top-4">PASSIF (Ressources)</div>
+            <div class="card-body">
+              <div class="d-flex justify-content-between py-2 border-bottom">
+                <span>Capitaux Propres & Fonds de Roulement</span>
+                <span class="fw-bold font-monospace">{{ "%.2f"|format(bilan.passif.capitaux_propres) }} DA</span>
+              </div>
+              <div class="d-flex justify-content-between py-2 border-bottom">
+                <span>Dettes Fournisseurs [Compte 401]</span>
+                <span class="fw-bold font-monospace">{{ "%.2f"|format(bilan.passif.dettes_fournisseurs) }} DA</span>
+              </div>
+              <div class="d-flex justify-content-between py-2 border-bottom">
+                <span>Résultat Net de l'Exercice</span>
+                <span class="fw-bold font-monospace text-success">{{ "%.2f"|format(bilan.passif.resultat_exercice) }} DA</span>
+              </div>
+              <div class="d-flex justify-content-between py-3 fs-5 fw-bold text-dark">
+                <span>TOTAL PASSIF</span>
+                <span class="font-monospace">{{ "%.2f"|format(bilan.passif.total) }} DA</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TCR -->
+    <div class="tab-pane fade" id="tcrPane" role="tabpanel">
+      <div class="card border-0 shadow-sm rounded-4 p-4 col-md-8 mx-auto">
+        <h5 class="fw-bold mb-3 border-bottom pb-2">Tableau des Comptes de Résultat (Solde de Gestion)</h5>
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span>1. Chiffre d'Affaires (Ventes HT) [70]</span>
+          <span class="fw-bold font-monospace">{{ "%.2f"|format(tcr.chiffre_affaires) }} DA</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom text-danger">
+          <span>2. Achats consommés de matières premières [60]</span>
+          <span class="fw-bold font-monospace">- {{ "%.2f"|format(tcr.achats_consommes) }} DA</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom bg-light px-2 fw-bold text-primary">
+          <span>= MARGE BRUTE</span>
+          <span class="font-monospace">{{ "%.2f"|format(tcr.marge_brute) }} DA</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom text-danger">
+          <span>3. Autres charges externes et dépenses [61/62]</span>
+          <span class="fw-bold font-monospace">- {{ "%.2f"|format(tcr.autres_charges_externes) }} DA</span>
+        </div>
+        <div class="d-flex justify-content-between py-3 fs-5 fw-bold text-success bg-success bg-opacity-10 px-3 rounded-3 mt-2">
+          <span>= RÉSULTAT NET DE L'EXERCICE</span>
+          <span class="font-monospace">{{ "%.2f"|format(tcr.resultat_net) }} DA</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

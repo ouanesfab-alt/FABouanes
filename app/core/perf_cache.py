@@ -443,3 +443,9 @@ def invalidate_client_cache(client_id: int) -> None:
         emit(DomainEvent("invalidate", "client_cache", extra={"client_id": client_id}, source="cache"))
     except Exception:
         pass
+
+
+def cache_remember(domain: str, key_str: str, builder: Callable[[], Any], ttl: float = 30.0) -> Any:
+    """Convenience alias for memoizing results in the in-memory cache."""
+    return cached_result((domain, key_str), builder, ttl_seconds=ttl)
+
