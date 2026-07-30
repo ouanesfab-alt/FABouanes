@@ -115,7 +115,7 @@ class Settings:
             elif env_val in ("0", "false", "no", "off"):
                 self.session_cookie_secure = False
             else:
-                self.session_cookie_secure = True
+                self.session_cookie_secure = False if os.getenv("FAB_HTTPS", "0") == "0" else True
 
     @property
     def database_url(self) -> str:
