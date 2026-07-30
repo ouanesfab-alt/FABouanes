@@ -2,20 +2,7 @@
 // Extracted from dashboard.html inline <script> block 1
 
 
-	// ─── KPI SHEET ───
-	function openKpiSheet(key, label) {
-		if (typeof window.openKpiSheet === 'function' && window.openKpiSheet !== openKpiSheet) {
-			return window.openKpiSheet(key, label);
-		}
-	}
-	function closeKpiSheet() {
-		if (typeof window.closeKpiSheet === 'function' && window.closeKpiSheet !== closeKpiSheet) {
-			return window.closeKpiSheet();
-		}
-		const overlay = document.getElementById('kpiSheetOverlay');
-		if (overlay) overlay.classList.remove('open');
-		document.body.classList.remove('kpi-modal-open');
-	}
+	// ─── KPI SHEET HELPERS ───
 	async function fetchKpiAtDate() {
 		if (!currentKpiKey) return;
 		const date = document.getElementById('kpiDateInput').value;

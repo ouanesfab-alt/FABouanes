@@ -1361,6 +1361,10 @@
 <script src="/static/js/modules/dashboard.js" nonce="{{ csp_nonce }}"></script>
 <script src="/static/js/modules/dashboard-fonts.js" nonce="{{ csp_nonce }}"></script>
 <script nonce="{{ csp_nonce }}">
+	let kpiChartInstance = null;
+	let currentChartDays = 30;
+	window._kpiKey = null;
+
 	// Helper pour garantir que Chart.js est prêt avant le rendu
 	function ensureChartJS(cb, attempts = 0) {
 		if (typeof window.Chart !== 'undefined') {
