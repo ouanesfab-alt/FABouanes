@@ -104,25 +104,32 @@ send_android_notification() {
 }
 
 start_postgres() {
-    echo "⚡ Vérification et démarrage de PostgreSQL..."
-    # 1. Supprimer les fichiers de verrouillage et sockets obsolètes qui empêchent le démarrage
+    echo "⚡ Vérification de PostgreSQL..."
+    # 1. Si PostgreSQL est DÉJÀ en cours d'exécution, ne PAS toucher postmaster.pid !
+    if pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1; then
+        echo "🟢 PostgreSQL est actif et opérationnel."
+        createdb fabouanes 2>/dev/null || true
+        return 0
+    fi
+
+    # 2. PostgreSQL n'est PAS en cours d'exécution -> Nettoyage des verrous obsolètes de crash
+    echo "⚡ Démarrage de PostgreSQL..."
     rm -f $PREFIX/var/lib/postgresql/postmaster.pid
     rm -f $PREFIX/var/lib/postgresql/postmaster.opts
     rm -f $PREFIX/tmp/.s.PGSQL.* 2>/dev/null || true
     rm -f /tmp/.s.PGSQL.* 2>/dev/null || true
     rm -f $PREFIX/var/run/postgresql/.s.PGSQL.* 2>/dev/null || true
 
-    # 2. Vérifier si PostgreSQL fonctionne déjà
-    if ! pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1; then
-        pg_ctl -D $PREFIX/var/lib/postgresql -l ~/postgres_server.log start || true
-        sleep 2
-    fi
+    pg_ctl -D $PREFIX/var/lib/postgresql -l ~/postgres_server.log start || true
+    sleep 2
 
-    # 3. Auto-réparation si le démarrage a échoué (nettoyage forcé des verrous)
+    # 3. Auto-réparation si le démarrage a échoué (tuer les zombies et relancer)
     if ! pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1; then
         echo "⚠️ Réparation du serveur PostgreSQL..."
         pkill -9 -f "postgres" 2>/dev/null || true
+        sleep 1
         rm -f $PREFIX/var/lib/postgresql/postmaster.pid
+        rm -f $PREFIX/var/lib/postgresql/postmaster.opts
         pg_ctl -D $PREFIX/var/lib/postgresql -l ~/postgres_server.log start || true
         sleep 2
     fi
@@ -232,14 +239,7 @@ fi
 mkdir -p ~/.termux/boot
 cat << 'EOF' > ~/.termux/boot/start_fab_boot.sh
 #!/data/data/com.termux/files/usr/bin/bash
-rm -f $PREFIX/var/lib/postgresql/postmaster.pid
-pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1 || pg_ctl -D $PREFIX/var/lib/postgresql start
-sleep 3
-if [ -x "$(command -v termux-wake-lock)" ]; then
-    termux-wake-lock >/dev/null 2>&1 || true
-fi
-cd ~/FABouanes
-python launcher.py --server-only --https > ~/fab_server.log 2>&1 &
+~/start_fab.sh start > ~/fab_server.log 2>&1 &
 EOF
 chmod +x ~/.termux/boot/start_fab_boot.sh
 
