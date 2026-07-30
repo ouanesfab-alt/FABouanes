@@ -116,8 +116,11 @@ async def api_kpi_period(request: Request):
     if period not in ("today", "week", "month"):
         return JSONResponse({"error": "Période invalide."}, status_code=400)
     try:
+        from app.core.perf_cache import cache_remember
         from app.modules.reports.repository import get_kpis_for_period
-        kpis = await get_kpis_for_period(period)
+        kpis = cache_remember("kpis", f"period_{period}", lambda: get_kpis_for_period(period), ttl=10.0)
+        if asyncio.iscoroutine(kpis):
+            kpis = await kpis
         return JSONResponse({
             "success": True,
             "sales": kpis["sales"],
@@ -141,13 +144,17 @@ async def api_kpi_history(request: Request):
 
     try:
         days_param = int(request.query_params.get("days", 30))
-        days_param = max(7, min(days_param, 90))  # clamp entre 7 et 90
+        days_param = max(7, min(days_param, 90))
     except (ValueError, TypeError):
         days_param = 30
 
     try:
+        from app.core.perf_cache import cache_remember
         from app.modules.reports.repository import get_kpi_history_last_30_days
-        labels, values = await get_kpi_history_last_30_days(metric, days=days_param)
+        res = cache_remember("kpis", f"history_{metric}_{days_param}", lambda: get_kpi_history_last_30_days(metric, days=days_param), ttl=30.0)
+        if asyncio.iscoroutine(res):
+            res = await res
+        labels, values = res
         return JSONResponse({
             "success": True,
             "labels": labels,

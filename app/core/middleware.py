@@ -16,17 +16,13 @@ from starlette.datastructures import FormData, UploadFile
 
 class CachedStaticFiles(StaticFiles):
     def is_not_modified(self, response_headers, request_headers) -> bool:
-        if settings.desktop_mode or settings.env == "development":
-            return False
         return super().is_not_modified(response_headers, request_headers)
 
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
         if response.status_code == 200:
-            if settings.desktop_mode or settings.env == "development":
-                response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-            else:
-                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            # 1-day max-age with revalidation for instant mobile load (< 1ms)
+            response.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
         return response
 
 
