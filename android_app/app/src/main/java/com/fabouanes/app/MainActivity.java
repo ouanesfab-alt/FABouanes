@@ -1,7 +1,9 @@
 package com.fabouanes.app;
 
 import android.annotation.SuppressLint;
+import android.net.http.SslError;
 import android.os.Bundle;
+import android.webkit.SslErrorHandler;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -26,7 +28,23 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setAllowContentAccess(true);
         webSettings.setDatabaseEnabled(true);
 
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+                // Accepte automatiquement les certificats SSL auto-signés (HTTPS)
+                handler.proceed();
+            }
+
+            @Override
+            public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                // Si HTTPS échoue, tente en HTTP
+                if (failingUrl != null && failingUrl.startsWith("https://")) {
+                    view.loadUrl(failingUrl.replace("https://", "http://"));
+                }
+            }
+        });
+
+        // Tente de charger l'application (supporte HTTPS et HTTP)
         webView.loadUrl("http://127.0.0.1:5000");
     }
 
@@ -39,3 +57,4 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 }
+
