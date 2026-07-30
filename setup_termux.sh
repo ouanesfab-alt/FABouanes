@@ -329,10 +329,12 @@ ENVEOF
         [ "$LOCAL_IP" != "127.0.0.1" ] && echo -e "  ► Wi-Fi  : ${BOLD}http://${LOCAL_IP}:5000${RESET}"
         echo -e "${BOLD}${CYAN}==================================================${RESET}"
 
-        # ─── Lancer uvicorn en HTTP pur ───────────────────────────────
+        # ─── Lancer uvicorn en HTTP pur (Optimisé réseau multi-appareils) ─
         python -m uvicorn app.main:app \
             --host 0.0.0.0 \
             --port 5000 \
+            --timeout-keep-alive 30 \
+            --limit-concurrency 100 \
             --no-access-log \
             --log-level info \
             2>&1 | tee -a ~/fab_server.log &

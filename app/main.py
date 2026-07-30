@@ -21,6 +21,7 @@ except Exception:
 
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.cors import CORSMiddleware
 
 if sys.platform == "win32":
     try:
@@ -62,6 +63,13 @@ if Instrumentator is not None:
     except Exception as exc:
         logger.warning("Skipped Prometheus instrumentation: %s", exc)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(
     SessionMiddleware,
