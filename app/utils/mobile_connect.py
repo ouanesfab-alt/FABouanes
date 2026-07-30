@@ -25,29 +25,33 @@ def _is_local_host(host: str) -> bool:
 
 def _get_all_ips() -> list[str]:
     ips = []
-    env_ip = str(os.environ.get("FAB_LAN_IP", "")).strip()
-    if env_ip and not _is_local_host(env_ip):
-        ips.append(env_ip)
-
-    # 1. Utilisation de la table de routage (la plus fiable pour le LAN principal)
-    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        probe.connect(("8.8.8.8", 80))
-        ip = probe.getsockname()[0]
-        if ip and not _is_local_host(ip) and ip not in ips:
-            ips.append(ip)
-    except OSError:
-        pass
-    finally:
-        probe.close()
+        env_ip = str(os.environ.get("FAB_LAN_IP", "")).strip()
+        if env_ip and not _is_local_host(env_ip):
+            ips.append(env_ip)
 
-    # 2. Ajout des interfaces virtuelles (Tailscale/ZeroTier/etc.)
-    try:
-        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-            ip = str(info[4][0] or "").strip()
-            if ip and not _is_local_host(ip) and not ip.startswith("169.254.") and ip not in ips:
-                ips.append(ip)
-    except OSError:
+        # 1. Utilisation de la table de routage (la plus fiable pour le LAN principal)
+        try:
+            probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                probe.connect(("8.8.8.8", 80))
+                ip = probe.getsockname()[0]
+                if ip and not _is_local_host(ip) and ip not in ips:
+                    ips.append(ip)
+            finally:
+                probe.close()
+        except Exception:
+            pass
+
+        # 2. Ajout des interfaces virtuelles (Tailscale/ZeroTier/etc.)
+        try:
+            for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+                ip = str(info[4][0] or "").strip()
+                if ip and not _is_local_host(ip) and not ip.startswith("169.254.") and ip not in ips:
+                    ips.append(ip)
+        except Exception:
+            pass
+    except Exception:
         pass
 
     return ips

@@ -180,8 +180,17 @@ def ensure_postgres_running() -> None:
             # Start PostgreSQL via pg_ctl
             try:
                 subprocess.run(["pg_ctl", "-D", termux_pg_dir, "start"], capture_output=True, timeout=10)
-                time.sleep(1.5)
-            except Exception: pass
+            except Exception:
+                pass
+
+            import socket
+            for _ in range(10):
+                try:
+                    s = socket.create_connection(("127.0.0.1", 5432), timeout=1.0)
+                    s.close()
+                    break
+                except Exception:
+                    time.sleep(0.5)
         return
 
     db_url = os.environ.get("DATABASE_URL", "").strip()
