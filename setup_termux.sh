@@ -45,6 +45,19 @@ if [ -f "$PREFIX/var/lib/postgresql/postgresql.conf" ]; then
         echo "max_parallel_workers = 0" >> $PREFIX/var/lib/postgresql/postgresql.conf
         echo "max_parallel_workers_per_gather = 0" >> $PREFIX/var/lib/postgresql/postgresql.conf
     fi
+
+    sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null || true
+    sed -i "s/listen_addresses = 'localhost'/listen_addresses = '*'/" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null || true
+    if ! grep -q "listen_addresses = '*'" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null; then
+        echo "listen_addresses = '*'" >> $PREFIX/var/lib/postgresql/postgresql.conf
+    fi
+fi
+
+if [ -f "$PREFIX/var/lib/postgresql/pg_hba.conf" ]; then
+    if ! grep -q "0.0.0.0/0" $PREFIX/var/lib/postgresql/pg_hba.conf 2>/dev/null; then
+        echo "host all all 127.0.0.1/32 trust" >> $PREFIX/var/lib/postgresql/pg_hba.conf
+        echo "host all all 0.0.0.0/0 trust" >> $PREFIX/var/lib/postgresql/pg_hba.conf
+    fi
 fi
 
 # Nettoyage des verrous et anciens processus si le téléphone s'est éteint brutalement

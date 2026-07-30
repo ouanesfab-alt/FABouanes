@@ -263,43 +263,61 @@ class DatabaseManager:
 
     def connect_database(self, database_url: str) -> CompatConnection:
         raw_url = str(database_url or "").strip()
-        try:
-            engine = self.get_database_engine(raw_url)
-            conn = engine.raw_connection()
-            # Set statement timeout on raw connection (default 30 seconds) to prevent backend from hanging
-            timeout_ms = int(os.environ.get("FAB_PG_STATEMENT_TIMEOUT_MS", "30000") or "30000")
-            cursor = conn.cursor()
+        last_exc = None
+        import time
+
+        for attempt in range(3):
             try:
-                cursor.execute(f"SET statement_timeout = {timeout_ms}")
-            except Exception as e:
-                logging.getLogger("fabouanes").debug("Failed to set statement_timeout: %s", e)
-            finally:
-                cursor.close()
-        except Exception as e:
-            err_msg = str(e).lower()
-            if "does not exist" in err_msg or "3d000" in err_msg:
-                parsed = urlparse(raw_url)
-                database = parsed.path.lstrip("/")
-                port_part = f":{parsed.port}" if parsed.port else ""
-                pass_part = f":{parsed.password}" if parsed.password else ""
-                user_part = f"{parsed.username}{pass_part}@" if parsed.username else ""
-                postgres_url = f"{parsed.scheme}://{user_part}{parsed.hostname}{port_part}/postgres"
-
-                pg_engine = create_engine(
-                    self.sqlalchemy_database_url(postgres_url),
-                    isolation_level="AUTOCOMMIT",
-                    future=True,
-                )
-                with pg_engine.connect() as pg_conn:
-                    pg_conn.execute(text(f'CREATE DATABASE "{database}"'))
-                pg_engine.dispose()
-
                 engine = self.get_database_engine(raw_url)
                 conn = engine.raw_connection()
-            elif "authentification" in err_msg or "password authentication failed" in err_msg or "28p01" in err_msg:
-                raise RuntimeError("Erreur critique d'authentification PostgreSQL. Verifie le mot de passe dans .env") from e
-            else:
-                raise RuntimeError(f"Impossible de se connecter a la base de donnees PostgreSQL: {e}") from e
+                timeout_ms = int(os.environ.get("FAB_PG_STATEMENT_TIMEOUT_MS", "30000") or "30000")
+                cursor = conn.cursor()
+                try:
+                    cursor.execute(f"SET statement_timeout = {timeout_ms}")
+                except Exception as e:
+                    logging.getLogger("fabouanes").debug("Failed to set statement_timeout: %s", e)
+                finally:
+                    cursor.close()
+                break
+            except Exception as e:
+                last_exc = e
+                err_msg = str(e).lower()
+                is_refused = "connectionrefused" in err_msg or "connection refused" in err_msg or "cannot connect" in err_msg or "interfaceerror" in err_msg
+                if is_refused and attempt < 2:
+                    with self._engine_lock:
+                        if raw_url in self._engines:
+                            try:
+                                self._engines[raw_url].dispose()
+                            except Exception:
+                                pass
+                            del self._engines[raw_url]
+                    time.sleep(1.0)
+                    continue
+
+                if "does not exist" in err_msg or "3d000" in err_msg:
+                    parsed = urlparse(raw_url)
+                    database = parsed.path.lstrip("/")
+                    port_part = f":{parsed.port}" if parsed.port else ""
+                    pass_part = f":{parsed.password}" if parsed.password else ""
+                    user_part = f"{parsed.username}{pass_part}@" if parsed.username else ""
+                    postgres_url = f"{parsed.scheme}://{user_part}{parsed.hostname}{port_part}/postgres"
+
+                    pg_engine = create_engine(
+                        self.sqlalchemy_database_url(postgres_url),
+                        isolation_level="AUTOCOMMIT",
+                        future=True,
+                    )
+                    with pg_engine.connect() as pg_conn:
+                        pg_conn.execute(text(f'CREATE DATABASE "{database}"'))
+                    pg_engine.dispose()
+
+                    engine = self.get_database_engine(raw_url)
+                    conn = engine.raw_connection()
+                    break
+                elif "authentification" in err_msg or "password authentication failed" in err_msg or "28p01" in err_msg:
+                    raise RuntimeError("Erreur critique d'authentification PostgreSQL. Verifie le mot de passe dans .env") from e
+                else:
+                    raise RuntimeError(f"Impossible de se connecter a la base de donnees PostgreSQL: {e}") from e
 
         def _reconnect():
             return engine.raw_connection()
