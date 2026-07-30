@@ -58,8 +58,8 @@ SECRET_KEY=${SECRET_TOKEN}
 FAB_HOST=0.0.0.0
 FAB_PORT=5000
 FAB_DESKTOP=0
-FAB_HTTPS=0
-SESSION_COOKIE_SECURE=0
+FAB_HTTPS=1
+SESSION_COOKIE_SECURE=1
 DEFAULT_ADMIN_USERNAME=admin
 DEFAULT_ADMIN_PASSWORD=7508
 FAB_PASSWORD_MODE=pin
@@ -74,7 +74,40 @@ else
 fi
 
 echo "⚙️ 8. Initialisation des tables de la base de données..."
-python launcher.py --bootstrap-only
+FAB_DESKTOP=0 FAB_HTTPS=1 SESSION_COOKIE_SECURE=1 python launcher.py --bootstrap-only
+
+echo "🔐 8b. Génération du certificat SSL auto-signé..."
+python -c "
+import subprocess, sys
+try:
+    from cryptography import x509
+    from cryptography.x509.oid import NameOID
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from datetime import datetime, timezone, timedelta
+    import ipaddress
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'FABOuanes')])
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.now(timezone.utc))
+        .not_valid_after(datetime.now(timezone.utc) + timedelta(days=3650))
+        .add_extension(x509.SubjectAlternativeName([
+            x509.DNSName('localhost'),
+            x509.IPAddress(ipaddress.IPv4Address('127.0.0.1')),
+        ]), critical=False)
+        .sign(key, hashes.SHA256())
+    )
+    open('key.pem','wb').write(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL, serialization.NoEncryption()))
+    open('cert.pem','wb').write(cert.public_bytes(serialization.Encoding.PEM))
+    print('✅ Certificat SSL généré: cert.pem + key.pem')
+except Exception as e:
+    print('⚠️ SSL non disponible:', e)
+"
 
 echo "⚡ 9. Création des raccourcis système et scripts de démarrage..."
 
@@ -228,18 +261,30 @@ case "$1" in
     *)
         # Libérer le port 5000 s'il était occupé par une ancienne instance
         fuser -k 5000/tcp >/dev/null 2>&1 || true
+        pkill -f uvicorn 2>/dev/null || true
         pkill -f "launcher.py" 2>/dev/null || true
         sleep 1
 
         enable_wakelock
         start_postgres
         LOCAL_IP=$(get_local_ip)
-        PROTO="http"
-        if [ "$FAB_HTTPS" = "1" ] || [[ "$*" == *"--https"* ]]; then
-            PROTO="https"
+
+        # Charger les variables d'environnement depuis .env
+        if [ -f ~/FABouanes/.env ]; then
+            set -a
+            source ~/FABouanes/.env
+            set +a
         fi
+        export FAB_DESKTOP=0
+        export FAB_HOST=0.0.0.0
+        export FAB_PORT=5000
+        PROTO="https"
+        if [ "${FAB_HTTPS:-1}" != "1" ]; then
+            PROTO="http"
+        fi
+
         echo "=================================================="
-        echo "🚀 Lancement de FABOuanes..."
+        echo "🚀 Lancement de FABOuanes (HTTPS actif)..."
         echo "  ► Accès Local  : ${PROTO}://127.0.0.1:5000"
         if [ "$LOCAL_IP" != "127.0.0.1" ]; then
             echo "  ► Accès Wi-Fi  : ${PROTO}://${LOCAL_IP}:5000"
@@ -247,26 +292,29 @@ case "$1" in
         echo "=================================================="
         send_android_notification "FABOuanes Serveur Actif" "Disponible sur ${PROTO}://127.0.0.1:5000"
 
-        # Lancer le serveur en arrière plan avec FAB_DESKTOP=0 obligatoire
         cd ~/FABouanes
-        export FAB_DESKTOP=0
-        export SESSION_COOKIE_SECURE=0
-        export FAB_HOST=0.0.0.0
-        export FAB_PORT=5000
 
-        # Démarrer uvicorn directement pour bypasser launcher.py splash/desktop logic
-        python -c "
-import os, sys
-os.environ['FAB_DESKTOP'] = '0'
-os.environ['SESSION_COOKIE_SECURE'] = '0'
-os.environ['FAB_HOST'] = '0.0.0.0'
-os.environ['FAB_PORT'] = '5000'
-sys.argv = ['launcher.py', '--server-only']
-exec(open('launcher.py').read())
-" 2>&1 | tee -a ~/fab_server.log &
+        # Lancer uvicorn DIRECTEMENT (sans launcher.py pour éviter FAB_DESKTOP=1)
+        SSL_ARGS=""
+        if [ -f ~/FABouanes/cert.pem ] && [ -f ~/FABouanes/key.pem ]; then
+            SSL_ARGS="--ssl-keyfile ~/FABouanes/key.pem --ssl-certfile ~/FABouanes/cert.pem"
+            export SESSION_COOKIE_SECURE=1
+        else
+            PROTO="http"
+            export SESSION_COOKIE_SECURE=0
+            export FAB_HTTPS=0
+        fi
+
+        python -m uvicorn app.main:app \
+            --host 0.0.0.0 \
+            --port 5000 \
+            --no-access-log \
+            --log-level warning \
+            $SSL_ARGS \
+            2>&1 | tee -a ~/fab_server.log &
         SERVER_PID=$!
 
-        # Attendre que le serveur soit réellement prêt (port 5000 ouvert)
+        # Attendre que le port 5000 réponde réellement
         echo "⏳ Attente du démarrage du serveur..."
         for i in $(seq 1 30); do
             if nc -z 127.0.0.1 5000 2>/dev/null; then
@@ -276,7 +324,7 @@ exec(open('launcher.py').read())
             sleep 1
         done
 
-        # Ouvrir le navigateur sur 127.0.0.1 (toujours accessible localement)
+        # Ouvrir Chrome — Note: Pour HTTPS auto-signé, appuyez sur Avancé → Continuer
         OPEN_URL="${PROTO}://127.0.0.1:5000"
         termux-open-url "$OPEN_URL" >/dev/null 2>&1 &
         termux-open "$OPEN_URL" >/dev/null 2>&1 &
