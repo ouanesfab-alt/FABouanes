@@ -653,9 +653,14 @@ def auto_open_browser(target_url: str, delay: float = 1.0) -> None:
         except Exception:
             pass
 
-        print(f"  [+] Ouverture automatique du navigateur sur {target_url}...", flush=True)
-
         is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux")
+
+        if is_termux and "127.0.0.1" in target_url:
+            lan_ip = get_local_ip()
+            if lan_ip and lan_ip != "127.0.0.1":
+                target_url = target_url.replace("127.0.0.1", lan_ip)
+
+        print(f"  [+] Ouverture automatique du navigateur sur {target_url}...", flush=True)
 
         if is_termux:
             # Multi-strategy launcher for Termux Android
@@ -759,8 +764,8 @@ def run_server(host: str, port: int) -> None:
         monitor_network_changes(port)
         print("La fenetre reste ouverte: c'est le mode serveur. Ctrl+C pour l'arreter.", flush=True)
 
-    # Déclencher l'ouverture automatique du navigateur
-    auto_open_browser(local_url)
+    launch_url = target_url if server_mode else local_url
+    auto_open_browser(launch_url)
 
     ws_protocol = "auto"
     try:

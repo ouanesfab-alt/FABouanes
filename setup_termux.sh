@@ -239,18 +239,52 @@ case "$1" in
             PROTO="https"
         fi
         echo "=================================================="
-        echo "🚀 Lancement de FABOuanes (Wakelock actif)..."
+        echo "🚀 Lancement de FABOuanes..."
         echo "  ► Accès Local  : ${PROTO}://127.0.0.1:5000"
         if [ "$LOCAL_IP" != "127.0.0.1" ]; then
             echo "  ► Accès Wi-Fi  : ${PROTO}://${LOCAL_IP}:5000"
         fi
         echo "=================================================="
-        send_android_notification "FABOuanes Serveur Actif" "Disponible sur ${PROTO}://${LOCAL_IP}:5000"
+        send_android_notification "FABOuanes Serveur Actif" "Disponible sur ${PROTO}://127.0.0.1:5000"
 
-
-
+        # Lancer le serveur en arrière plan avec FAB_DESKTOP=0 obligatoire
         cd ~/FABouanes
-        python launcher.py --server-only "$@" 2>&1 | tee -a ~/fab_server.log
+        export FAB_DESKTOP=0
+        export SESSION_COOKIE_SECURE=0
+        export FAB_HOST=0.0.0.0
+        export FAB_PORT=5000
+
+        # Démarrer uvicorn directement pour bypasser launcher.py splash/desktop logic
+        python -c "
+import os, sys
+os.environ['FAB_DESKTOP'] = '0'
+os.environ['SESSION_COOKIE_SECURE'] = '0'
+os.environ['FAB_HOST'] = '0.0.0.0'
+os.environ['FAB_PORT'] = '5000'
+sys.argv = ['launcher.py', '--server-only']
+exec(open('launcher.py').read())
+" 2>&1 | tee -a ~/fab_server.log &
+        SERVER_PID=$!
+
+        # Attendre que le serveur soit réellement prêt (port 5000 ouvert)
+        echo "⏳ Attente du démarrage du serveur..."
+        for i in $(seq 1 30); do
+            if nc -z 127.0.0.1 5000 2>/dev/null; then
+                echo "✅ Serveur prêt sur ${PROTO}://127.0.0.1:5000"
+                break
+            fi
+            sleep 1
+        done
+
+        # Ouvrir le navigateur sur 127.0.0.1 (toujours accessible localement)
+        OPEN_URL="${PROTO}://127.0.0.1:5000"
+        termux-open-url "$OPEN_URL" >/dev/null 2>&1 &
+        termux-open "$OPEN_URL" >/dev/null 2>&1 &
+        am start --user 0 -a android.intent.action.VIEW -d "$OPEN_URL" >/dev/null 2>&1 &
+        am start -a android.intent.action.VIEW -d "$OPEN_URL" >/dev/null 2>&1 &
+
+        # Garder le shell en vie jusqu'à l'arrêt du serveur
+        wait $SERVER_PID
         ;;
 esac
 EOF
