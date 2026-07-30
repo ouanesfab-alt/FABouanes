@@ -258,14 +258,9 @@
   <div class="doc-line-card">
     <div class="doc-line-top">
       <div class="fw-semibold">Ligne <span class="sale-line-number"></span></div>
-      <div>
-        <button type="button" class="btn btn-outline-secondary btn-sm scan-barcode-btn me-1">
-          <i class="bi bi-qr-code-scan me-1"></i>Scanner
-        </button>
-        <button type="button" class="btn btn-outline-danger btn-sm doc-line-remove">
-          <i class="bi bi-trash3 me-1"></i>Retirer
-        </button>
-      </div>
+      <button type="button" class="btn btn-outline-danger btn-sm doc-line-remove">
+        <i class="bi bi-trash3 me-1"></i>Retirer
+      </button>
     </div>
     <div class="doc-line-grid">
       <div>
@@ -640,35 +635,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const qtyInput = row.querySelector('.sale-qty');
     const priceInput = row.querySelector('.sale-price');
     const removeBtn = row.querySelector('.doc-line-remove');
-    const scanBtn = row.querySelector('.scan-barcode-btn');
-
-    if (scanBtn) {
-      scanBtn.addEventListener('click', () => {
-        if (window.openBarcodeScanner) {
-          window.openBarcodeScanner((scannedCode) => {
-            const target = scannedCode.trim().toLowerCase();
-            let matchedIndex = -1;
-            for (let i = 0; i < itemSelect.options.length; i++) {
-              const opt = itemSelect.options[i];
-              const text = (opt.text || '').toLowerCase();
-              const val = (opt.value || '').toLowerCase();
-              if (text.includes(target) || val.includes(target) || val.endsWith(':' + target)) {
-                matchedIndex = i;
-                break;
-              }
-            }
-            if (matchedIndex !== -1) {
-              itemSelect.selectedIndex = matchedIndex;
-              unitSelect.dataset.touched = '';
-              syncLine(row, true);
-              qtyInput.focus();
-            } else {
-              alert("Aucun produit correspondant au code scanné: " + scannedCode);
-            }
-          });
-        }
-      });
-    }
 
     itemSelect.addEventListener('change', () => {
       unitSelect.dataset.touched = '';
