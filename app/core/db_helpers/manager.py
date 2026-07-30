@@ -280,7 +280,7 @@ class DatabaseManager:
                                 is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux")
                                 if is_termux:
                                     import subprocess
-                                    subprocess.run(["pg_ctl", "-D", f"{os.environ.get('PREFIX', '')}/var/lib/postgresql", "start"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+                                    subprocess.run(["pg_ctl", "-D", f"{os.environ.get('PREFIX', '')}/var/lib/postgresql", "-o", "-c listen_addresses='*' -c port=5432", "start"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
                             except Exception:
                                 pass
                             continue

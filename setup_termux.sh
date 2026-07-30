@@ -106,27 +106,49 @@ send_android_notification() {
 start_postgres() {
     echo "⚡ Vérification du service PostgreSQL..."
 
-    # 1. Si PostgreSQL accepte déjà les connexions (pg_isready ou pg_ctl status), ne rien toucher !
-    if pg_isready -h 127.0.0.1 -p 5432 -d postgres >/dev/null 2>&1 || pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1; then
-        echo "🟢 PostgreSQL est déjà actif et prêt."
+    # S'assurer que listen_addresses = '*' est configuré dans postgresql.conf
+    if [ -f "$PREFIX/var/lib/postgresql/postgresql.conf" ]; then
+        sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/g" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null || true
+        sed -i "s/listen_addresses = 'localhost'/listen_addresses = '*'/g" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null || true
+        if ! grep -q "listen_addresses = '*'" $PREFIX/var/lib/postgresql/postgresql.conf 2>/dev/null; then
+            echo "listen_addresses = '*'" >> $PREFIX/var/lib/postgresql/postgresql.conf
+        fi
+    fi
+
+    # 1. Si PostgreSQL est déjà actif ET écoute sur le port TCP 5432
+    if pg_isready -h 127.0.0.1 -p 5432 -d postgres >/dev/null 2>&1; then
+        echo "🟢 PostgreSQL est actif et prêt sur 127.0.0.1:5432."
         createdb fabouanes >/dev/null 2>&1 || true
         return 0
     fi
 
-    # 2. Si le port 5432 est bloqué par un processus zombie qui ne répond pas, on nettoie
+    # 2. Si le processus tourne mais n'écoute pas sur TCP 5432, on le relance proprement
+    if pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1; then
+        echo "⚡ Redémarrage de PostgreSQL pour activer l'écoute TCP sur le port 5432..."
+        pg_ctl -D $PREFIX/var/lib/postgresql stop >/dev/null 2>&1 || pkill -9 -f "postgres" 2>/dev/null || true
+        sleep 1
+    fi
+
+    # 3. Nettoyage des processus zombies et des verrous
     pkill -9 -f "postgres" 2>/dev/null || true
     sleep 1
 
-    # 3. Nettoyage des fichiers de verrouillage et sockets obsolètes
-    echo "⚡ Démarrage du moteur PostgreSQL..."
+    echo "⚡ Démarrage du moteur PostgreSQL sur le port 5432..."
     rm -f $PREFIX/var/lib/postgresql/postmaster.pid
     rm -f $PREFIX/var/lib/postgresql/postmaster.opts
     rm -f $PREFIX/tmp/.s.PGSQL.* 2>/dev/null || true
     rm -f /tmp/.s.PGSQL.* 2>/dev/null || true
     rm -f $PREFIX/var/run/postgresql/.s.PGSQL.* 2>/dev/null || true
 
-    pg_ctl -D $PREFIX/var/lib/postgresql -l ~/postgres_server.log start || true
+    pg_ctl -D $PREFIX/var/lib/postgresql -o "-c listen_addresses='*' -c port=5432" -l ~/postgres_server.log start || true
     sleep 2
+
+    for i in 1 2 3 4 5; do
+        if pg_isready -h 127.0.0.1 -p 5432 -d postgres >/dev/null 2>&1; then
+            break
+        fi
+        sleep 1
+    done
 
     # 4. S'assurer que la base fabouanes existe
     createdb fabouanes >/dev/null 2>&1 || true
