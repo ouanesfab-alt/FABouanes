@@ -130,6 +130,23 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
 
     err_msg = str(exc).lower()
+    if isinstance(exc, ConnectionRefusedError) or "connectionrefused" in err_msg or "connection refused" in err_msg or "interfaceerror" in err_msg:
+        try:
+            from app.core.db_helpers import db_manager
+            with db_manager._engine_lock:
+                for engine in list(db_manager._engines.values()):
+                    try:
+                        engine.dispose()
+                    except Exception:
+                        pass
+                db_manager._engines.clear()
+        except Exception:
+            pass
+
+        if is_html_request(request):
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse("/login", status_code=303)
+
     if "foreign key" in err_msg or "violates foreign key constraint" in err_msg or "clé étrangère" in err_msg or "foreignkey" in err_msg:
         friendly_msg = "Action impossible : cet élément est lié à d'autres opérations enregistrées dans le système et ne peut pas être modifié ou supprimé."
     elif "unique constraint" in err_msg or "duplicate key" in err_msg or "clé dupliquée" in err_msg or "contrainte unique" in err_msg or "uniqueviolation" in err_msg:

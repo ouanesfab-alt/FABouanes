@@ -40,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setAllowContentAccess(true);
         webSettings.setDatabaseEnabled(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false);
+        webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -49,10 +50,13 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
+            public void onFormResubmission(WebView view, android.os.Message dontResend, android.os.Message resend) {
+                resend.sendToTarget();
+            }
+
+            @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame() && !isServerReady) {
-                    showLoadingPage();
-                }
+                // Si une erreur de connexion survient pendant le démarrage, réessayer calmement sans re-rentrer en boucle dans showLoadingPage
             }
 
             @Override
