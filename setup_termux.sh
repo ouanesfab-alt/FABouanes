@@ -314,22 +314,44 @@ case "$1" in
             2>&1 | tee -a ~/fab_server.log &
         SERVER_PID=$!
 
-        # Attendre que le port 5000 réponde réellement
+        # Attendre que le port 5000 réponde réellement (TCP)
         echo "⏳ Attente du démarrage du serveur..."
+        READY=0
         for i in $(seq 1 30); do
             if nc -z 127.0.0.1 5000 2>/dev/null; then
-                echo "✅ Serveur prêt sur ${PROTO}://127.0.0.1:5000"
+                READY=1
                 break
             fi
             sleep 1
         done
 
-        # Ouvrir Chrome — Note: Pour HTTPS auto-signé, appuyez sur Avancé → Continuer
-        OPEN_URL="${PROTO}://127.0.0.1:5000"
-        termux-open-url "$OPEN_URL" >/dev/null 2>&1 &
-        termux-open "$OPEN_URL" >/dev/null 2>&1 &
-        am start --user 0 -a android.intent.action.VIEW -d "$OPEN_URL" >/dev/null 2>&1 &
-        am start -a android.intent.action.VIEW -d "$OPEN_URL" >/dev/null 2>&1 &
+        if [ "$READY" = "1" ]; then
+            echo ""
+            echo "=============================================="
+            echo "✅  Serveur FABOuanes prêt !"
+            echo "=============================================="
+            echo "  URL locale   : ${PROTO}://127.0.0.1:5000"
+            if [ "$LOCAL_IP" != "127.0.0.1" ]; then
+                echo "  URL Wi-Fi    : ${PROTO}://${LOCAL_IP}:5000"
+            fi
+            echo ""
+            echo "  Test avec curl (certificat auto-signé) :"
+            echo "  curl -k -s -o /dev/null -w '%{http_code}' ${PROTO}://127.0.0.1:5000/health"
+            echo ""
+            echo "  Tester les logs du serveur :"
+            echo "  tail -f ~/fab_server.log"
+            echo "=============================================="
+            # Vérification immédiate avec curl
+            HTTP_CODE=$(curl -k -s -o /dev/null -w '%{http_code}' --max-time 5 "${PROTO}://127.0.0.1:5000/health" 2>/dev/null || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+                echo "✅  /health répond: HTTP $HTTP_CODE — Tout fonctionne !"
+            else
+                echo "⚠️  /health répond: HTTP $HTTP_CODE (le serveur démarre encore, attendez 5s)"
+            fi
+        else
+            echo "❌ Le serveur n'a pas démarré dans les 30 secondes."
+            echo "   Consultez les logs: tail -20 ~/fab_server.log"
+        fi
 
         # Garder le shell en vie jusqu'à l'arrêt du serveur
         wait $SERVER_PID
