@@ -10,8 +10,8 @@ set -e
 echo "🔄 1. Mise à jour des paquets Termux..."
 pkg update && pkg upgrade -y
 
-echo "📦 2. Installation des dépendances système (compilateur Rust, C headers, JPEG, PNG, PostgreSQL, Cryptography)..."
-pkg install git python postgresql make clang rust binutils libffi libjpeg-turbo libpng zlib freetype python-cryptography -y
+echo "📦 2. Installation des dépendances système (compilateur Rust, C headers, JPEG, PNG, PostgreSQL, Cryptography, Termux API)..."
+pkg install git python postgresql make clang rust binutils libffi libjpeg-turbo libpng zlib freetype python-cryptography termux-api termux-tools -y
 
 echo "🗄️ 3. Configuration de PostgreSQL..."
 if [ ! -d "$PREFIX/var/lib/postgresql" ]; then

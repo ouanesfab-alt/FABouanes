@@ -641,34 +641,36 @@ def auto_open_browser(target_url: str, delay: float = 1.0) -> None:
 
         print(f"  [+] Ouverture automatique du navigateur sur {target_url}...", flush=True)
 
-        # 1. Termux Android launchers
-        if shutil.which("termux-open-url"):
-            try:
-                subprocess.run(["termux-open-url", target_url], check=False)
-                return
-            except Exception:
-                pass
-        if shutil.which("termux-open"):
-            try:
-                subprocess.run(["termux-open", target_url], check=False)
-                return
-            except Exception:
-                pass
+        is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux")
 
-        # 2. Android am start fallback
-        if shutil.which("am"):
-            try:
-                subprocess.run(
-                    ["am", "start", "-a", "android.intent.action.VIEW", "-d", target_url],
-                    check=False,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                return
-            except Exception:
-                pass
+        if is_termux:
+            # Multi-strategy launcher for Termux Android
+            termux_cmds = [
+                ["termux-open-url", target_url],
+                ["termux-open", target_url],
+                ["xdg-open", target_url],
+                ["/data/data/com.termux/files/usr/bin/termux-open-url", target_url],
+                ["/data/data/com.termux/files/usr/bin/termux-open", target_url],
+                ["/data/data/com.termux/files/usr/bin/xdg-open", target_url],
+                ["am", "start", "-a", "android.intent.action.VIEW", "-d", target_url],
+                ["/system/bin/am", "start", "-a", "android.intent.action.VIEW", "-d", target_url],
+            ]
+            for cmd_list in termux_cmds:
+                executable = cmd_list[0]
+                if os.path.exists(executable) or shutil.which(executable):
+                    try:
+                        res = subprocess.run(
+                            cmd_list,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            check=False
+                        )
+                        if res.returncode == 0:
+                            return
+                    except Exception:
+                        pass
 
-        # 3. Windows / Desktop standard browser
+        # Windows / Desktop standard browser fallback
         try:
             webbrowser.open(target_url)
         except Exception:
