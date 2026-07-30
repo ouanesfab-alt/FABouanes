@@ -696,20 +696,29 @@ def run_server(host: str, port: int) -> None:
     log_server_start()
 
     # --- Détection SSL automatique ---
-    ssl_certfile = os.environ.get("FAB_SSL_CERT", "").strip() or None
-    ssl_keyfile = os.environ.get("FAB_SSL_KEY", "").strip() or None
-    if not ssl_certfile:
-        auto_cert, auto_key = ensure_ssl_certificates()
-        if auto_cert and auto_key:
-            ssl_certfile = auto_cert
-            ssl_keyfile = auto_key
-        else:
-            candidate_cert = BASE_DIR / "cert.pem"
-            candidate_key = BASE_DIR / "key.pem"
-            if candidate_cert.exists() and candidate_key.exists():
-                ssl_certfile = str(candidate_cert)
-                ssl_keyfile = str(candidate_key)
-    use_https = bool(ssl_certfile and ssl_keyfile)
+    enable_https = (
+        os.environ.get("FAB_HTTPS", "0").strip().lower() in ("1", "true", "yes", "on")
+        or os.environ.get("FAB_ENABLE_HTTPS", "0").strip().lower() in ("1", "true", "yes", "on")
+        or bool(os.environ.get("FAB_SSL_CERT", "").strip())
+        or "--https" in sys.argv
+    )
+    ssl_certfile = None
+    ssl_keyfile = None
+    if enable_https:
+        ssl_certfile = os.environ.get("FAB_SSL_CERT", "").strip() or None
+        ssl_keyfile = os.environ.get("FAB_SSL_KEY", "").strip() or None
+        if not ssl_certfile:
+            auto_cert, auto_key = ensure_ssl_certificates(force=True)
+            if auto_cert and auto_key:
+                ssl_certfile = auto_cert
+                ssl_keyfile = auto_key
+            else:
+                candidate_cert = BASE_DIR / "cert.pem"
+                candidate_key = BASE_DIR / "key.pem"
+                if candidate_cert.exists() and candidate_key.exists():
+                    ssl_certfile = str(candidate_cert)
+                    ssl_keyfile = str(candidate_key)
+    use_https = bool(enable_https and ssl_certfile and ssl_keyfile)
     proto = "https" if use_https else "http"
     local_url = f"{proto}://127.0.0.1:{port}"
 

@@ -33,7 +33,7 @@ pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1 || pg_ctl -D $PREFIX
 sleep 2
 
 # Créer la base de données si elle n'existe pas
-createdb fabouanes 2>/dev/null || echo "Base de données fabouanes prête."
+createdb fabouanes >/dev/null 2>&1 || true
 
 echo "📂 5. Préparation du répertoire de l'application..."
 if [ -d "$HOME/FABouanes" ]; then
@@ -58,7 +58,7 @@ SECRET_KEY=${SECRET_TOKEN}
 FAB_HOST=0.0.0.0
 FAB_PORT=5000
 FAB_DESKTOP=0
-FAB_HTTPS=1
+FAB_HTTPS=0
 DEFAULT_ADMIN_USERNAME=admin
 DEFAULT_ADMIN_PASSWORD=7508
 FAB_PASSWORD_MODE=pin
@@ -67,7 +67,7 @@ EOF
 echo "🐍 7. Installation optimisée des bibliothèques Python..."
 pip install --upgrade setuptools wheel --quiet
 if [ -f "requirements-termux.txt" ]; then
-    pip install --find-links=wheels --prefer-binary -r requirements-termux.txt || pip install --prefer-binary -r requirements-termux.txt
+    pip install --find-links=wheels --prefer-binary -r requirements-termux.txt || pip install --prefer-binary -r requirements.txt
 else
     pip install --find-links=wheels --prefer-binary -r requirements.txt
 fi
@@ -107,9 +107,9 @@ start_postgres() {
     echo "⚡ Vérification du service PostgreSQL..."
 
     # 1. Si PostgreSQL accepte déjà les connexions (pg_isready ou pg_ctl status), ne rien toucher !
-    if pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1; then
+    if pg_isready -h 127.0.0.1 -p 5432 -d postgres >/dev/null 2>&1 || pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1; then
         echo "🟢 PostgreSQL est déjà actif et prêt."
-        createdb fabouanes 2>/dev/null || true
+        createdb fabouanes >/dev/null 2>&1 || true
         return 0
     fi
 
@@ -129,7 +129,7 @@ start_postgres() {
     sleep 2
 
     # 4. S'assurer que la base fabouanes existe
-    createdb fabouanes 2>/dev/null || true
+    createdb fabouanes >/dev/null 2>&1 || true
 }
 
 get_local_ip() {
@@ -165,9 +165,13 @@ case "$1" in
             echo "🔴 PostgreSQL      : ARRETE"
         fi
         LOCAL_IP=$(get_local_ip)
-        echo "  ► Accès Local  : https://127.0.0.1:5000"
+        PROTO="http"
+        if [ "$FAB_HTTPS" = "1" ] || [[ "$*" == *"--https"* ]]; then
+            PROTO="https"
+        fi
+        echo "  ► Accès Local  : ${PROTO}://127.0.0.1:5000"
         if [ "$LOCAL_IP" != "127.0.0.1" ]; then
-            echo "  ► Accès Wi-Fi  : https://${LOCAL_IP}:5000"
+            echo "  ► Accès Wi-Fi  : ${PROTO}://${LOCAL_IP}:5000"
         fi
         echo "=================================================="
         exit 0
@@ -190,27 +194,31 @@ case "$1" in
         enable_wakelock
         start_postgres
         LOCAL_IP=$(get_local_ip)
-        echo "=================================================="
-        echo "🚀 Lancement de FABOuanes (HTTPS + Wakelock actif)..."
-        echo "  ► Accès Local  : https://127.0.0.1:5000"
-        if [ "$LOCAL_IP" != "127.0.0.1" ]; then
-            echo "  ► Accès Wi-Fi  : https://${LOCAL_IP}:5000"
+        PROTO="http"
+        if [ "$FAB_HTTPS" = "1" ] || [[ "$*" == *"--https"* ]]; then
+            PROTO="https"
         fi
         echo "=================================================="
-        send_android_notification "FABOuanes Serveur Actif" "HTTPS disponible sur https://${LOCAL_IP}:5000"
+        echo "🚀 Lancement de FABOuanes (Wakelock actif)..."
+        echo "  ► Accès Local  : ${PROTO}://127.0.0.1:5000"
+        if [ "$LOCAL_IP" != "127.0.0.1" ]; then
+            echo "  ► Accès Wi-Fi  : ${PROTO}://${LOCAL_IP}:5000"
+        fi
+        echo "=================================================="
+        send_android_notification "FABOuanes Serveur Actif" "Disponible sur ${PROTO}://${LOCAL_IP}:5000"
 
         # Ouverture automatique du navigateur Android dans 2.5s
         (
             sleep 2.5
             if [ -x "$(command -v termux-open-url)" ]; then
-                termux-open-url "https://127.0.0.1:5000" >/dev/null 2>&1 || true
+                termux-open-url "${PROTO}://127.0.0.1:5000" >/dev/null 2>&1 || true
             elif [ -x "$(command -v am)" ]; then
-                am start -a android.intent.action.VIEW -d "https://127.0.0.1:5000" >/dev/null 2>&1 || true
+                am start -a android.intent.action.VIEW -d "${PROTO}://127.0.0.1:5000" >/dev/null 2>&1 || true
             fi
         ) &
 
         cd ~/FABouanes
-        python launcher.py --server-only --https
+        python launcher.py --server-only "$@"
         ;;
 esac
 EOF
