@@ -20,8 +20,8 @@ echo "🔄 2. Mise à jour des paquets et dépôts Termux..."
 pkg update -y || pkg update -y --fix-missing || true
 pkg upgrade -y || true
 
-echo "📦 3. Installation des dépendances système (Python, PostgreSQL, C headers, Rust, Termux API)..."
-pkg install git python postgresql make clang rust binutils libffi libjpeg-turbo libpng zlib freetype python-cryptography termux-api termux-tools net-tools -y
+echo "📦 3. Installation des dépendances système (Python, PostgreSQL, C headers, Rust, Termux API, QR Code)..."
+pkg install git python postgresql make clang rust binutils libffi libjpeg-turbo libpng zlib freetype python-cryptography termux-api termux-tools net-tools qrencode -y
 
 echo "🗄️ 4. Configuration et nettoyage de PostgreSQL..."
 mkdir -p $PREFIX/var/lib/postgresql
@@ -119,6 +119,14 @@ echo "⚡ 9. Création des raccourcis système et scripts de démarrage..."
 cat << 'EOF' > ~/start_fab.sh
 #!/data/data/com.termux/files/usr/bin/bash
 
+# ─── Couleurs ANSI ───────────────────────────────────────────────
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
 # Détection de Wakelock (Empeche Android de mettre le CPU en veille)
 enable_wakelock() {
     if [ -x "$(command -v termux-wake-lock)" ]; then
@@ -142,9 +150,8 @@ send_android_notification() {
 }
 
 start_postgres() {
-    echo "⚡ Vérification du service PostgreSQL..."
+    echo -e "${CYAN}⚡ Vérification du service PostgreSQL...${RESET}"
 
-    # Configurer postgresql.conf pour Android / Termux
     PG_CONF="$PREFIX/var/lib/postgresql/postgresql.conf"
     if [ -f "$PG_CONF" ]; then
         sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/g" "$PG_CONF" 2>/dev/null || true
@@ -158,10 +165,9 @@ start_postgres() {
         fi
     fi
 
-    # 1. Attendre jusqu'à 4 secondes si le processus tourne déjà mais est en cours d'initialisation
     for i in 1 2 3 4; do
         if pg_isready -h 127.0.0.1 -p 5432 -d postgres >/dev/null 2>&1; then
-            echo "🟢 PostgreSQL est actif et prêt sur 127.0.0.1:5432."
+            echo -e "${GREEN}🟢 PostgreSQL est actif et prêt sur 127.0.0.1:5432.${RESET}"
             createdb fabouanes >/dev/null 2>&1 || true
             return 0
         fi
@@ -172,14 +178,12 @@ start_postgres() {
         fi
     done
 
-    # 2. Si le processus tourne toujours sans répondre sur TCP 5432, on relance proprement
     if pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1; then
-        echo "⚡ Redémarrage de PostgreSQL..."
+        echo -e "${YELLOW}⚡ Redémarrage de PostgreSQL...${RESET}"
         pg_ctl -D $PREFIX/var/lib/postgresql stop -m fast >/dev/null 2>&1 || pkill -9 -f "postgres" 2>/dev/null || true
         sleep 2
     fi
 
-    # 3. Nettoyage des verrous et sockets obsolètes
     pkill -9 -f "postgres" 2>/dev/null || true
     sleep 1
     rm -f $PREFIX/var/lib/postgresql/postmaster.pid
@@ -188,21 +192,18 @@ start_postgres() {
     rm -f /tmp/.s.PGSQL.* 2>/dev/null || true
     rm -f $PREFIX/var/run/postgresql/.s.PGSQL.* 2>/dev/null || true
 
-    # 4. Démarrage de PostgreSQL sur port 5432
-    echo "⚡ Démarrage de PostgreSQL..."
+    echo -e "${CYAN}⚡ Démarrage de PostgreSQL...${RESET}"
     pg_ctl -D $PREFIX/var/lib/postgresql -o "-c listen_addresses='*' -c port=5432 -c max_parallel_workers=0" -l ~/postgres_server.log start || true
     sleep 2
 
-    # 5. Attente de disponibilité
     for i in 1 2 3 4 5; do
         if pg_isready -h 127.0.0.1 -p 5432 -d postgres >/dev/null 2>&1; then
-            echo "🟢 PostgreSQL a démarré avec succès."
+            echo -e "${GREEN}🟢 PostgreSQL a démarré avec succès.${RESET}"
             break
         fi
         sleep 1
     done
 
-    # 6. S'assurer que la base fabouanes existe
     createdb fabouanes >/dev/null 2>&1 || true
 }
 
@@ -214,68 +215,91 @@ get_local_ip() {
     echo "$ip"
 }
 
+# Rotation des journaux (> 2 Mo)
+rotate_logs() {
+    LOG_FILE="$HOME/fab_server.log"
+    if [ -f "$LOG_FILE" ]; then
+        SIZE=$(wc -c <"$LOG_FILE" 2>/dev/null || echo "0")
+        if [ "$SIZE" -gt 2097152 ]; then
+            mv "$LOG_FILE" "${LOG_FILE}.old"
+            echo -e "${YELLOW}🔄 Journal archivé (taille > 2 Mo)${RESET}"
+        fi
+    fi
+}
+
 case "$1" in
     stop)
-        echo "🛑 Arrêt des services FABOuanes..."
+        echo -e "${YELLOW}🛑 Arrêt des services FABOuanes...${RESET}"
+        fuser -k 5000/tcp >/dev/null 2>&1 || true
+        pkill -f "uvicorn app.main:app" 2>/dev/null || true
         pkill -f "launcher.py" 2>/dev/null || true
         pg_ctl -D $PREFIX/var/lib/postgresql stop 2>/dev/null || true
         disable_wakelock
-        echo "✅ Serveur et base de données arrêtés avec succès."
+        echo -e "${GREEN}✅ Serveur et base de données arrêtés avec succès.${RESET}"
         exit 0
         ;;
     status)
-        echo "=================================================="
-        echo "📊 STATUT DU SERVEUR FABOUANES"
-        echo "=================================================="
-        if pgrep -f "launcher.py" >/dev/null; then
-            PID=$(pgrep -f "launcher.py" | head -n 1)
-            echo "🟢 Serveur FastAPI : EN COURS (PID: $PID)"
+        echo -e "${BOLD}${CYAN}==================================================${RESET}"
+        echo -e "${BOLD}${CYAN}📊 STATUT DU SERVEUR FABOUANES${RESET}"
+        echo -e "${BOLD}${CYAN}==================================================${RESET}"
+        
+        # Statut du processus Uvicorn
+        UVI_PID=$(pgrep -f "uvicorn app.main:app" | head -n 1)
+        if [ -n "$UVI_PID" ]; then
+            echo -e "  • Processus Uvicorn : ${GREEN}🟢 ACTIF (PID: $UVI_PID)${RESET}"
         else
-            echo "🔴 Serveur FastAPI : ARRETE"
+            echo -e "  • Processus Uvicorn : ${RED}🔴 ARRETÉ${RESET}"
         fi
+
+        # Statut PostgreSQL
         if pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1; then
-            echo "🟢 PostgreSQL      : EN COURS"
+            echo -e "  • PostgreSQL        : ${GREEN}🟢 ACTIF${RESET}"
         else
-            echo "🔴 PostgreSQL      : ARRETE"
+            echo -e "  • PostgreSQL        : ${RED}🔴 ARRETÉ${RESET}"
         fi
+
+        # Statut HTTP
+        HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://127.0.0.1:5000/health" 2>/dev/null || echo "000")
+        if [ "$HTTP_CODE" = "200" ]; then
+            echo -e "  • Endpoint /health  : ${GREEN}🟢 RESPOND (HTTP 200 OK)${RESET}"
+        else
+            echo -e "  • Endpoint /health  : ${RED}🔴 INDISPONIBLE (Code HTTP: $HTTP_CODE)${RESET}"
+        fi
+
         LOCAL_IP=$(get_local_ip)
-        PROTO="http"
-        if [ "$FAB_HTTPS" = "1" ] || [[ "$*" == *"--https"* ]]; then
-            PROTO="https"
-        fi
-        echo "  ► Accès Local  : ${PROTO}://127.0.0.1:5000"
+        echo -e "\n${BOLD}  ► Accès Local  : http://127.0.0.1:5000${RESET}"
         if [ "$LOCAL_IP" != "127.0.0.1" ]; then
-            echo "  ► Accès Wi-Fi  : ${PROTO}://${LOCAL_IP}:5000"
+            echo -e "${BOLD}  ► Accès Wi-Fi  : http://${LOCAL_IP}:5000${RESET}"
         fi
-        echo "=================================================="
+        echo -e "${BOLD}${CYAN}==================================================${RESET}"
         exit 0
         ;;
     logs)
-        echo "📜 Affichage des journaux en direct (Ctrl+C pour quitter)..."
-        tail -f ~/fab_server.log 2>/dev/null || echo "Aucun journal disponible pour l'instant."
+        echo -e "${CYAN}📜 Affichage des 50 derniers journaux en direct (Ctrl+C pour quitter)...${RESET}"
+        tail -n 50 -f ~/fab_server.log 2>/dev/null || echo "Aucun journal disponible pour l'instant."
         exit 0
         ;;
     update)
-        echo "🔄 Mise à jour complète de FABOuanes depuis GitHub..."
+        echo -e "${YELLOW}🔄 Mise à jour complète de FABOuanes depuis GitHub...${RESET}"
         cd ~/FABouanes
         git pull
-        pip install --prefer-binary -r requirements-termux.txt || pip install --prefer-binary -r requirements.txt
+        pip install --find-links=wheels --prefer-binary -r requirements-termux.txt || pip install --prefer-binary -r requirements.txt
         exec bash setup_termux.sh
         ;;
     *)
         # ─── Tuer toute instance précédente ───────────────────────────
         fuser -k 5000/tcp >/dev/null 2>&1 || true
-        pkill -f uvicorn   2>/dev/null || true
-        pkill -f "launcher.py" 2>/dev/null || true
+        pkill -f "uvicorn app.main:app" 2>/dev/null || true
+        pkill -f "launcher.py"          2>/dev/null || true
         sleep 1
 
         enable_wakelock
         start_postgres
+        rotate_logs
         LOCAL_IP=$(get_local_ip)
         cd ~/FABouanes
 
         # ─── ÉCRASER .env à chaque démarrage (valeurs HTTP garanties) ──
-        # SESSION_COOKIE_SECURE=0 est OBLIGATOIRE sinon Starlette bloque toutes les requêtes HTTP
         TERMUX_USER_RUN=$(whoami 2>/dev/null || echo "postgres")
         SECRET_TOKEN_RUN=$(cat .env 2>/dev/null | grep SECRET_KEY | cut -d= -f2 || python -c "import secrets; print(secrets.token_hex(32))")
         cat > .env << ENVEOF
@@ -292,7 +316,6 @@ DEFAULT_ADMIN_PASSWORD=7508
 FAB_PASSWORD_MODE=pin
 ENVEOF
 
-        # ─── Exporter les variables d'environnement dans le shell ─────
         export FAB_DESKTOP=0
         export FAB_HOST=0.0.0.0
         export FAB_PORT=5000
@@ -300,14 +323,13 @@ ENVEOF
         export SESSION_COOKIE_SECURE=0
         export FASTAPI_ENV=production
 
-        echo "=================================================="
-        echo "🚀 Démarrage de FABOuanes..."
-        echo "  ► Local  : http://127.0.0.1:5000"
-        [ "$LOCAL_IP" != "127.0.0.1" ] && echo "  ► Wi-Fi  : http://${LOCAL_IP}:5000"
-        echo "=================================================="
+        echo -e "${BOLD}${CYAN}==================================================${RESET}"
+        echo -e "${BOLD}${GREEN}🚀 Démarrage de FABOuanes...${RESET}"
+        echo -e "  ► Local  : ${BOLD}http://127.0.0.1:5000${RESET}"
+        [ "$LOCAL_IP" != "127.0.0.1" ] && echo -e "  ► Wi-Fi  : ${BOLD}http://${LOCAL_IP}:5000${RESET}"
+        echo -e "${BOLD}${CYAN}==================================================${RESET}"
 
         # ─── Lancer uvicorn en HTTP pur ───────────────────────────────
-        echo "" > ~/fab_server.log
         python -m uvicorn app.main:app \
             --host 0.0.0.0 \
             --port 5000 \
@@ -317,17 +339,14 @@ ENVEOF
         SERVER_PID=$!
 
         # ─── Attendre que le serveur réponde vraiment en HTTP ─────────
-        # On utilise curl (pas nc) : nc voit le socket ouvert AVANT que le lifespan
-        # soit prêt, ce qui donnait un faux positif "prêt" alors qu'il crashait juste après.
-        echo "⏳ Attente de la réponse HTTP réelle (max 60s)..."
+        echo -e "${CYAN}⏳ Attente de la réponse HTTP réelle (max 60s)...${RESET}"
         READY=0
         for i in $(seq 1 60); do
-            # Vérifier que uvicorn est encore en vie
             if ! kill -0 "$SERVER_PID" 2>/dev/null; then
                 echo ""
-                echo "❌ ERREUR : uvicorn s'est arrêté pendant le démarrage !"
+                echo -e "${RED}❌ ERREUR : uvicorn s'est arrêté pendant le démarrage !${RESET}"
                 echo "══════════════ LOGS (20 dernières lignes) ══════════════"
-                tail -20 ~/fab_server.log
+                tail -n 20 ~/fab_server.log
                 echo "════════════════════════════════════════════════════════"
                 echo "Pour voir tous les logs : cat ~/fab_server.log"
                 exit 1
@@ -344,21 +363,28 @@ ENVEOF
 
         if [ "$READY" = "1" ]; then
             echo ""
-            echo "=============================================="
-            echo "✅  Serveur FABOuanes opérationnel !"
-            echo "=============================================="
-            echo "  http://127.0.0.1:5000"
-            [ "$LOCAL_IP" != "127.0.0.1" ] && echo "  http://${LOCAL_IP}:5000"
+            echo -e "${BOLD}${GREEN}=============================================="
+            echo -e "✅  Serveur FABOuanes opérationnel !"
+            echo -e "==============================================${RESET}"
+            echo -e "  Local : ${BOLD}http://127.0.0.1:5000${RESET}"
+            if [ "$LOCAL_IP" != "127.0.0.1" ]; then
+                echo -e "  Wi-Fi : ${BOLD}http://${LOCAL_IP}:5000${RESET}"
+                if command -v qrencode >/dev/null 2>&1; then
+                    echo -e "\n${CYAN}📱 Scannez ce QR Code depuis un autre appareil Wi-Fi :${RESET}"
+                    qrencode -t ANSI256 "http://${LOCAL_IP}:5000" 2>/dev/null || qrencode -t UTF8 "http://${LOCAL_IP}:5000" 2>/dev/null || true
+                fi
+            fi
             echo ""
-            echo "  Test  : curl -s http://127.0.0.1:5000/health"
-            echo "  Logs  : tail -f ~/fab_server.log"
-            echo "  Stop  : kill $SERVER_PID"
-            echo "=============================================="
+            echo -e "  ${CYAN}Commandes utiles :${RESET}"
+            echo -e "  • ${BOLD}fab status${RESET} : Vérifier la santé du serveur"
+            echo -e "  • ${BOLD}fab logs${RESET}   : Voir les logs en temps réel"
+            echo -e "  • ${BOLD}fab stop${RESET}   : Arrêter le serveur"
+            echo -e "${BOLD}${GREEN}==============================================${RESET}"
             send_android_notification "FABOuanes Prêt" "http://127.0.0.1:5000"
         else
-            echo "❌ TIMEOUT : le serveur n'a pas répondu en 60 secondes."
+            echo -e "${RED}❌ TIMEOUT : le serveur n'a pas répondu en 60 secondes.${RESET}"
             echo "══════════════ LOGS (30 dernières lignes) ══════════════"
-            tail -30 ~/fab_server.log
+            tail -n 30 ~/fab_server.log
             echo "════════════════════════════════════════════════════════"
         fi
 
