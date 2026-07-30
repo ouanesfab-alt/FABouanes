@@ -3,9 +3,13 @@
 # ==========================================
 # Script d'installation automatique Termux
 # pour FABOuanes (Optimisé & Auto-réparateur)
+#
+# INSTALLATION EN UNE COMMANDE :
+#   curl -fsSL https://raw.githubusercontent.com/ouanesfab-alt/FABouanes/main/setup_termux.sh | bash
 # ==========================================
 
-set -e
+# Compatible curl | bash : ne pas quitter sur erreurs non critiques
+set +e
 
 echo "📱 1. Verification des autorisations et stockage Termux..."
 if [ -x "$(command -v termux-setup-storage)" ]; then
