@@ -660,15 +660,13 @@ def auto_open_browser(target_url: str, delay: float = 1.0) -> None:
                 executable = cmd_list[0]
                 if os.path.exists(executable) or shutil.which(executable):
                     try:
-                        res = subprocess.run(
+                        subprocess.run(
                             cmd_list,
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
                             timeout=3,
                             check=False
                         )
-                        if res.returncode == 0:
-                            return
                     except Exception:
                         pass
 
