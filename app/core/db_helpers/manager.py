@@ -217,10 +217,23 @@ class DatabaseManager:
     def sqlalchemy_database_url(self, database_url: str) -> str:
         url = str(database_url or "").strip()
         if url.startswith("postgresql://"):
-            return "postgresql+pg8000://" + url[len("postgresql://") :]
-        if url.startswith("postgres://"):
-            return "postgresql+pg8000://" + url[len("postgres://") :]
-        return url
+            res_url = "postgresql+pg8000://" + url[len("postgresql://") :]
+        elif url.startswith("postgres://"):
+            res_url = "postgresql+pg8000://" + url[len("postgres://") :]
+        else:
+            res_url = url
+
+        is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux")
+        if is_termux and "unix_sock" not in res_url:
+            termux_sock = os.environ.get("PREFIX", "/data/data/com.termux/files/usr") + "/tmp/.s.PGSQL.5432"
+            if os.path.exists(termux_sock):
+                parsed = urlparse(url)
+                db_name = parsed.path.lstrip("/") or "fabouanes"
+                user = parsed.username or "postgres"
+                password = parsed.password or "0000"
+                pass_part = f":{password}" if password else ""
+                res_url = f"postgresql+pg8000://{user}{pass_part}@/{db_name}?unix_sock={termux_sock}"
+        return res_url
 
     def create_database_engine(self, database_url: str) -> Engine:
         engine_url = self.sqlalchemy_database_url(database_url)
