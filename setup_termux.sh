@@ -197,6 +197,17 @@ case "$1" in
         fi
         echo "=================================================="
         send_android_notification "FABOuanes Serveur Actif" "HTTPS disponible sur https://${LOCAL_IP}:5000"
+
+        # Ouverture automatique du navigateur Android dans 2.5s
+        (
+            sleep 2.5
+            if [ -x "$(command -v termux-open-url)" ]; then
+                termux-open-url "https://127.0.0.1:5000" >/dev/null 2>&1 || true
+            elif [ -x "$(command -v am)" ]; then
+                am start -a android.intent.action.VIEW -d "https://127.0.0.1:5000" >/dev/null 2>&1 || true
+            fi
+        ) &
+
         cd ~/FABouanes
         python launcher.py --server-only --https
         ;;
