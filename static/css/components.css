@@ -364,7 +364,15 @@ h1, h2, h3, h4, h5, h6, .brand-title, .title-premium {
 }
 
 /* --- KPI Bottom Sheet / Drawer --- */
-/* --- KPI Centered Modal (Mobile & Desktop) --- */
+/* --- Remove indicator line on active mobile navbar buttons --- */
+.bot-tab.active::after,
+.bot-tab::after,
+.nav-links > a.active::after,
+.nav-links > .dropdown > .nav-link-menu.active::after {
+  display: none !important;
+  content: none !important;
+}
+
 body.kpi-modal-open { overflow: hidden; }
 .kpi-sheet-overlay { display: none; position: fixed!important; inset: 0!important; width: 100vw; min-height: 100vh; height: 100dvh; background: rgba(2, 6, 23, 0.65); z-index: 6000; align-items: center!important; justify-content: center!important; padding: 14px!important; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); overscroll-behavior: contain; }
 .kpi-sheet-overlay.open { display: flex!important; }
