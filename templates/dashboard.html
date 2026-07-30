@@ -978,14 +978,12 @@
 				<div class="fab-bar-divider"></div>
 
 				<!-- File attach -->
-				<button id="fabAttachBtn" class="fab-bar-btn" type="button" title="Joindre un fichier" {% if not has_key
-					%}disabled{% endif %}>
+				<button id="fabAttachBtn" class="fab-bar-btn" type="button" title="Joindre un fichier">
 					<i class="bi bi-paperclip"></i>
 				</button>
 				<input type="file" id="fabFileInput" accept="image/*,application/pdf,.xlsx,.xlsm" style="display:none;">
 
-				<textarea id="fabChatInput" placeholder="Posez une question à Sabrina..." rows="1" {% if not has_key
-					%}disabled{% endif %}></textarea>
+				<textarea id="fabChatInput" placeholder="Posez une question à Sabrina..." rows="1"></textarea>
 
 				<!-- Clear chat (trash) -->
 				<button type="button" class="fab-bar-btn" id="fabClearChatBtn" title="Effacer la discussion">
@@ -1000,8 +998,7 @@
 				</a>
 
 				<!-- Send -->
-				<button id="fabSendBtn" class="fab-bar-btn btn-send" title="Envoyer" {% if not has_key %}disabled{%
-					endif %}>
+				<button id="fabSendBtn" class="fab-bar-btn btn-send" title="Envoyer">
 					<i class="bi bi-arrow-up-short" style="font-size: 1.2rem;"></i>
 				</button>
 				<!-- Stop -->

@@ -583,12 +583,46 @@
 			this.style.height = 'auto';
 			this.style.height = Math.min(Math.max(this.scrollHeight, 38), 140) + 'px';
 		});
-		input.addEventListener('input', function () {
-			this.style.height = '36px';
-			this.style.height = Math.min(150, this.scrollHeight) + 'px';
-		});
 		sendBtn.addEventListener('click', () => sendMessage(input.value));
 		stopBtn.addEventListener('click', () => abortController?.abort());
+
+		// ── Speech Recognition (Voice Mic Button) ──
+		const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+		if (SpeechRecognition && micBtn) {
+			const recognition = new SpeechRecognition();
+			recognition.continuous = false;
+			recognition.interimResults = false;
+			recognition.lang = 'fr-FR';
+			let isListening = false;
+
+			micBtn.addEventListener('click', function () {
+				if (isListening) {
+					recognition.stop();
+				} else {
+					try {
+						recognition.start();
+						isListening = true;
+						micBtn.classList.add('text-danger');
+						if (soundwave) soundwave.classList.add('active');
+					} catch (e) { console.error('Mic error:', e); }
+				}
+			});
+
+			recognition.onresult = function (event) {
+				const transcript = event.results[0][0].transcript;
+				if (transcript) {
+					input.value = (input.value ? input.value + ' ' : '') + transcript;
+					input.dispatchEvent(new Event('input'));
+					input.focus();
+				}
+			};
+
+			recognition.onend = recognition.onerror = function () {
+				isListening = false;
+				micBtn.classList.remove('text-danger');
+				if (soundwave) soundwave.classList.remove('active');
+			};
+		}
 
 		// Raccourci clavier universel '/' pour focaliser l'input de Sabrina
 		document.addEventListener('keydown', function (e) {
