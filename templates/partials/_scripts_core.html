@@ -20,10 +20,13 @@
       if (closeBtn && isDark) closeBtn.classList.add('btn-close-white');
     });
 
-    // Autofocus first valid input
-    const firstInput = document.querySelector('form:not([data-no-autofocus]) input:not([type=hidden]):not([readonly])');
-    if (firstInput && !firstInput.closest('.modal')) {
-      setTimeout(() => firstInput.focus(), 100);
+    // Focus explicit autofocus inputs only on desktop, never force virtual keyboard on mobile
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    if (!isTouchDevice) {
+      const explicitAutofocus = document.querySelector('form input[autofocus]:not([type=hidden]):not([readonly])');
+      if (explicitAutofocus && !explicitAutofocus.closest('.modal')) {
+        setTimeout(() => explicitAutofocus.focus(), 100);
+      }
     }
 
     // Auto-resize textareas to fit content dynamically
