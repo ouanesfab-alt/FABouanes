@@ -71,3 +71,9 @@ key.pem
 *.pem
 *.key
 ssl/
+
+# Temp images
+*.jfif
+*.tmp
+
+
