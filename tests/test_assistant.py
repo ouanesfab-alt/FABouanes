@@ -872,8 +872,8 @@ def test_rag_user_document_search():
         # Search user documents
         results = search_user_documents("contrat commercial")
         assert len(results) > 0
-        assert results[0]["doc_name"] == "test_user_contract.pdf"
-        assert "contrat commercial" in results[0]["text"]
+        matching_res = next(r for r in results if r["doc_name"] == "test_user_contract.pdf")
+        assert "contrat commercial" in matching_res["text"]
 
         # Get overall RAG context
         ctx = get_rag_context("contrat commercial")

@@ -648,12 +648,13 @@ def auto_open_browser(target_url: str, delay: float = 1.0) -> None:
             termux_cmds = [
                 ["termux-open-url", target_url],
                 ["termux-open", target_url],
+                ["am", "start", "--user", "0", "-a", "android.intent.action.VIEW", "-d", target_url],
+                ["/system/bin/am", "start", "--user", "0", "-a", "android.intent.action.VIEW", "-d", target_url],
+                ["am", "start", "-a", "android.intent.action.VIEW", "-d", target_url],
                 ["xdg-open", target_url],
                 ["/data/data/com.termux/files/usr/bin/termux-open-url", target_url],
                 ["/data/data/com.termux/files/usr/bin/termux-open", target_url],
                 ["/data/data/com.termux/files/usr/bin/xdg-open", target_url],
-                ["am", "start", "-a", "android.intent.action.VIEW", "-d", target_url],
-                ["/system/bin/am", "start", "-a", "android.intent.action.VIEW", "-d", target_url],
             ]
             for cmd_list in termux_cmds:
                 executable = cmd_list[0]

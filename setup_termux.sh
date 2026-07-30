@@ -227,6 +227,11 @@ case "$1" in
         exec $0 start
         ;;
     *)
+        # Libérer le port 5000 s'il était occupé par une ancienne instance
+        fuser -k 5000/tcp >/dev/null 2>&1 || true
+        pkill -f "launcher.py" 2>/dev/null || true
+        sleep 1
+
         enable_wakelock
         start_postgres
         LOCAL_IP=$(get_local_ip)
@@ -243,13 +248,17 @@ case "$1" in
         echo "=================================================="
         send_android_notification "FABOuanes Serveur Actif" "Disponible sur ${PROTO}://${LOCAL_IP}:5000"
 
-        # Ouverture automatique du navigateur Android dans 2.5s
+        # Ouverture automatique du navigateur Android dans 2s
         (
-            sleep 2.5
+            sleep 2
             if [ -x "$(command -v termux-open-url)" ]; then
                 termux-open-url "${PROTO}://127.0.0.1:5000" >/dev/null 2>&1 || true
-            elif [ -x "$(command -v am)" ]; then
-                am start -a android.intent.action.VIEW -d "${PROTO}://127.0.0.1:5000" >/dev/null 2>&1 || true
+            fi
+            if [ -x "$(command -v am)" ]; then
+                am start --user 0 -a android.intent.action.VIEW -d "${PROTO}://127.0.0.1:5000" >/dev/null 2>&1 || true
+            fi
+            if [ -x "$(command -v xdg-open)" ]; then
+                xdg-open "${PROTO}://127.0.0.1:5000" >/dev/null 2>&1 || true
             fi
         ) &
 
