@@ -104,9 +104,31 @@ send_android_notification() {
 }
 
 start_postgres() {
+    echo "⚡ Vérification et démarrage de PostgreSQL..."
+    # 1. Supprimer les fichiers de verrouillage et sockets obsolètes qui empêchent le démarrage
     rm -f $PREFIX/var/lib/postgresql/postmaster.pid
-    pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1 || pg_ctl -D $PREFIX/var/lib/postgresql start
-    sleep 2
+    rm -f $PREFIX/var/lib/postgresql/postmaster.opts
+    rm -f $PREFIX/tmp/.s.PGSQL.* 2>/dev/null || true
+    rm -f /tmp/.s.PGSQL.* 2>/dev/null || true
+    rm -f $PREFIX/var/run/postgresql/.s.PGSQL.* 2>/dev/null || true
+
+    # 2. Vérifier si PostgreSQL fonctionne déjà
+    if ! pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1; then
+        pg_ctl -D $PREFIX/var/lib/postgresql -l ~/postgres_server.log start || true
+        sleep 2
+    fi
+
+    # 3. Auto-réparation si le démarrage a échoué (nettoyage forcé des verrous)
+    if ! pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1; then
+        echo "⚠️ Réparation du serveur PostgreSQL..."
+        pkill -9 -f "postgres" 2>/dev/null || true
+        rm -f $PREFIX/var/lib/postgresql/postmaster.pid
+        pg_ctl -D $PREFIX/var/lib/postgresql -l ~/postgres_server.log start || true
+        sleep 2
+    fi
+
+    # 4. S'assurer que la base fabouanes existe
+    createdb fabouanes 2>/dev/null || true
 }
 
 get_local_ip() {
