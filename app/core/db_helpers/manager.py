@@ -251,7 +251,18 @@ class DatabaseManager:
         raw_url = str(database_url or "").strip()
         try:
             engine = self.get_database_engine(raw_url)
-            conn = engine.raw_connection()
+            try:
+                conn = engine.raw_connection()
+            except Exception:
+                # Connection dropped or stale — dispose engine pool and retry once
+                with self._engine_lock:
+                    old_engine = self._engines.pop(raw_url, None)
+                    if old_engine is not None:
+                        try: old_engine.dispose()
+                        except Exception: pass
+                engine = self.get_database_engine(raw_url)
+                conn = engine.raw_connection()
+
             # Set statement timeout on raw connection (default 30 seconds) to prevent backend from hanging
             timeout_ms = int(os.environ.get("FAB_PG_STATEMENT_TIMEOUT_MS", "30000") or "30000")
             cursor = conn.cursor()

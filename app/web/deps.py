@@ -165,26 +165,38 @@ def ensure_csrf_token(request: Request) -> str:
 
 
 async def csrf_protect(request: Request) -> None:
-    if request.method != "POST":
+    if request.method not in ("POST", "PUT", "DELETE", "PATCH"):
         return
     if request.url.path.startswith("/api/v1/"):
         return
-    expected = request.session.get("csrf_token")
-    if not expected:
-        raise ValueError("CSRF token invalide.")
+    # Skip CSRF for Bearer token / API Key authenticated requests
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer ") or request.headers.get("X-API-Key"):
+        return
+
+    expected = ensure_csrf_token(request)
     content_type = request.headers.get("content-type", "")
     supplied = request.headers.get("X-CSRFToken") or request.headers.get("X-CSRF-Token") or request.headers.get("X-Csrf-Token")
-    if "application/json" in content_type:
-        payload = await request.json()
-        supplied = supplied or payload.get("csrf_token")
-    else:
-        form = await request.form()
-        supplied = supplied or form.get("csrf_token")
-    if supplied != expected:
-        raise ValueError("CSRF token invalide.")
+    if not supplied:
+        if "application/json" in content_type:
+            try:
+                payload = await request.json()
+                supplied = payload.get("csrf_token") or payload.get("_csrf_token")
+            except Exception:
+                pass
+        else:
+            try:
+                form = await request.form()
+                supplied = form.get("csrf_token") or form.get("_csrf_token")
+            except Exception:
+                pass
 
-
-
+    if supplied and hmac.compare_digest(str(supplied), str(expected)):
+        return
+    # Auto-fallback: if request is from localhost desktop mode, allow
+    if os.environ.get("FAB_DESKTOP") == "1" and request.client and request.client.host in ("127.0.0.1", "localhost"):
+        return
+    raise ValueError("CSRF token invalide.")
 
 
 async def verify_csrf_token(request: Request):
@@ -195,12 +207,14 @@ async def verify_csrf_token(request: Request):
     """
     if request.method in ("GET", "HEAD", "OPTIONS"):
         return
+    if request.url.path.startswith("/api/v1/"):
+        return
+    # Skip CSRF for Bearer token / API Key authenticated requests
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer ") or request.headers.get("X-API-Key"):
+        return
 
-    expected = request.session.get("csrf_token")
-    if not expected:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=403, detail="CSRF token invalid")
-
+    expected = ensure_csrf_token(request)
     supplied = request.headers.get("X-CSRF-Token") or request.headers.get("X-CSRFToken") or request.headers.get("X-Csrf-Token")
     if not supplied:
         content_type = request.headers.get("content-type", "")
@@ -217,14 +231,14 @@ async def verify_csrf_token(request: Request):
             except Exception:
                 pass
 
-    if not supplied:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=403, detail="CSRF token invalid")
+    if supplied and hmac.compare_digest(str(supplied), str(expected)):
+        return
+    # Auto-fallback: if request is from local desktop environment
+    if os.environ.get("FAB_DESKTOP") == "1" and request.client and request.client.host in ("127.0.0.1", "localhost"):
+        return
 
-    import hmac
-    if not hmac.compare_digest(str(supplied), str(expected)):
-        from fastapi import HTTPException
-        raise HTTPException(status_code=403, detail="CSRF token invalid")
+    from fastapi import HTTPException
+    raise HTTPException(status_code=403, detail="CSRF token invalid")
 
 
 def get_current_user(request: Request):

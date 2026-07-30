@@ -117,6 +117,12 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception):
+    # Handle socket disconnects (client closed connection before response returned)
+    if isinstance(exc, (ConnectionResetError, BrokenPipeError, OSError)):
+        err_str = str(exc).lower()
+        if "broken pipe" in err_str or "connection reset" in err_str or "errno 32" in err_str or "errno 104" in err_str:
+            return JSONResponse({"status": "disconnected"}, status_code=200)
+
     if isinstance(exc, ValueError):
         if not is_html_request(request):
             return JSONResponse({"success": False, "error": {"code": "invalid_value", "message": str(exc)}}, status_code=400)
@@ -136,6 +142,8 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
         friendly_msg = "Action impossible : cette valeur existe déjà. Veuillez utiliser un nom ou un identifiant unique."
     elif "numeric value out of range" in err_msg or "valeur numérique en dehors des limites" in err_msg or "out of range" in err_msg or "numeric_value_out_of_range" in err_msg:
         friendly_msg = "Action impossible : un des montants ou quantités saisis dépasse les limites numériques autorisées."
+    elif "operationalerror" in err_msg or "connection closed" in err_msg or "could not connect" in err_msg or "databaseerror" in err_msg:
+        friendly_msg = "La connexion à la base de données PostgreSQL a été réinitialisée. Veuillez réessayer dans un instant."
     else:
         friendly_msg = f"Une erreur interne inattendue s'est produite ({type(exc).__name__})."
 
