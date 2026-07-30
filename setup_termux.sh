@@ -104,16 +104,21 @@ send_android_notification() {
 }
 
 start_postgres() {
-    echo "⚡ Vérification de PostgreSQL..."
-    # 1. Si PostgreSQL est DÉJÀ en cours d'exécution, ne PAS toucher postmaster.pid !
-    if pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1; then
-        echo "🟢 PostgreSQL est actif et opérationnel."
+    echo "⚡ Vérification du service PostgreSQL..."
+
+    # 1. Si PostgreSQL accepte déjà les connexions (pg_isready ou pg_ctl status), ne rien toucher !
+    if pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1; then
+        echo "🟢 PostgreSQL est déjà actif et prêt."
         createdb fabouanes 2>/dev/null || true
         return 0
     fi
 
-    # 2. PostgreSQL n'est PAS en cours d'exécution -> Nettoyage des verrous obsolètes de crash
-    echo "⚡ Démarrage de PostgreSQL..."
+    # 2. Si le port 5432 est bloqué par un processus zombie qui ne répond pas, on nettoie
+    pkill -9 -f "postgres" 2>/dev/null || true
+    sleep 1
+
+    # 3. Nettoyage des fichiers de verrouillage et sockets obsolètes
+    echo "⚡ Démarrage du moteur PostgreSQL..."
     rm -f $PREFIX/var/lib/postgresql/postmaster.pid
     rm -f $PREFIX/var/lib/postgresql/postmaster.opts
     rm -f $PREFIX/tmp/.s.PGSQL.* 2>/dev/null || true
@@ -122,17 +127,6 @@ start_postgres() {
 
     pg_ctl -D $PREFIX/var/lib/postgresql -l ~/postgres_server.log start || true
     sleep 2
-
-    # 3. Auto-réparation si le démarrage a échoué (tuer les zombies et relancer)
-    if ! pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1; then
-        echo "⚠️ Réparation du serveur PostgreSQL..."
-        pkill -9 -f "postgres" 2>/dev/null || true
-        sleep 1
-        rm -f $PREFIX/var/lib/postgresql/postmaster.pid
-        rm -f $PREFIX/var/lib/postgresql/postmaster.opts
-        pg_ctl -D $PREFIX/var/lib/postgresql -l ~/postgres_server.log start || true
-        sleep 2
-    fi
 
     # 4. S'assurer que la base fabouanes existe
     createdb fabouanes 2>/dev/null || true
