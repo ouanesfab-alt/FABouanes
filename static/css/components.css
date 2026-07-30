@@ -352,14 +352,15 @@ h1, h2, h3, h4, h5, h6, .brand-title, .title-premium {
   .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media(max-width:767px) {
-  .dashboard-kpis { grid-template-columns: 1fr; }
-  .kpi-card { min-height: 110px; padding: 16px; }
-  .kpi-value { font-size: 1.75rem; }
+  .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+  .kpi-card { min-height: 105px !important; padding: 12px 14px !important; border-radius: 14px !important; }
+  .kpi-value { font-size: 1.4rem !important; }
 }
 @media(max-width:375px) {
-  .kpi-card { min-height: 95px; padding: 12px; }
-  .kpi-value { font-size: 1.5rem; }
-  .kpi-label { font-size: .78rem; }
+  .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  .kpi-card { min-height: 95px !important; padding: 10px !important; }
+  .kpi-value { font-size: 1.25rem !important; }
+  .kpi-label { font-size: .7rem !important; }
 }
 
 /* --- KPI Bottom Sheet / Drawer --- */
