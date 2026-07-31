@@ -649,13 +649,19 @@ def auto_open_browser(target_url: str, delay: float = 1.0) -> None:
         return
 
     def _open():
+        url = target_url  # capture locale pour modification sur Termux
         time.sleep(delay)
         try:
             import urllib.request
+            import ssl
+            ssl_ctx = ssl._create_unverified_context() if url.startswith("https://") else None
             # Active HTTP poll to wait until server is accepting connections
             for _ in range(30):
                 try:
-                    with urllib.request.urlopen(f"{target_url}/health", timeout=1.0) as resp:
+                    req_kwargs = {"timeout": 1.0}
+                    if ssl_ctx:
+                        req_kwargs["context"] = ssl_ctx
+                    with urllib.request.urlopen(f"{url}/health", **req_kwargs) as resp:
                         if resp.status in (200, 503):
                             break
                 except Exception:
@@ -665,25 +671,25 @@ def auto_open_browser(target_url: str, delay: float = 1.0) -> None:
 
         is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux")
 
-        if is_termux and "127.0.0.1" in target_url:
+        if is_termux and "127.0.0.1" in url:
             lan_ip = get_local_ip()
             if lan_ip and lan_ip != "127.0.0.1":
-                target_url = target_url.replace("127.0.0.1", lan_ip)
+                url = url.replace("127.0.0.1", lan_ip)
 
-        print(f"  [+] Ouverture automatique du navigateur sur {target_url}...", flush=True)
+        print(f"  [+] Ouverture automatique du navigateur sur {url}...", flush=True)
 
         if is_termux:
             # Multi-strategy launcher for Termux Android
             termux_cmds = [
-                ["termux-open-url", target_url],
-                ["termux-open", target_url],
-                ["am", "start", "--user", "0", "-a", "android.intent.action.VIEW", "-d", target_url],
-                ["/system/bin/am", "start", "--user", "0", "-a", "android.intent.action.VIEW", "-d", target_url],
-                ["am", "start", "-a", "android.intent.action.VIEW", "-d", target_url],
-                ["xdg-open", target_url],
-                ["/data/data/com.termux/files/usr/bin/termux-open-url", target_url],
-                ["/data/data/com.termux/files/usr/bin/termux-open", target_url],
-                ["/data/data/com.termux/files/usr/bin/xdg-open", target_url],
+                ["termux-open-url", url],
+                ["termux-open", url],
+                ["am", "start", "--user", "0", "-a", "android.intent.action.VIEW", "-d", url],
+                ["/system/bin/am", "start", "--user", "0", "-a", "android.intent.action.VIEW", "-d", url],
+                ["am", "start", "-a", "android.intent.action.VIEW", "-d", url],
+                ["xdg-open", url],
+                ["/data/data/com.termux/files/usr/bin/termux-open-url", url],
+                ["/data/data/com.termux/files/usr/bin/termux-open", url],
+                ["/data/data/com.termux/files/usr/bin/xdg-open", url],
             ]
             for cmd_list in termux_cmds:
                 executable = cmd_list[0]
@@ -701,7 +707,7 @@ def auto_open_browser(target_url: str, delay: float = 1.0) -> None:
 
         # Windows / Desktop standard browser fallback
         try:
-            webbrowser.open(target_url)
+            webbrowser.open(url)
         except Exception:
             pass
 
@@ -765,6 +771,8 @@ def run_server(host: str, port: int) -> None:
     use_https = bool(enable_https and ssl_certfile and ssl_keyfile)
     proto = "https" if use_https else "http"
     local_url = f"{proto}://127.0.0.1:{port}"
+    # Initialiser target_url à la valeur locale par défaut (évite UnboundLocalError en mode desktop)
+    target_url = local_url
 
     if server_mode:
         lan_ip = os.environ.get("FAB_LAN_IP") or (get_local_ip() if host == "0.0.0.0" else host)
