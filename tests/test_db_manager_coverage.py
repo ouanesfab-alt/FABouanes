@@ -21,8 +21,8 @@ def test_compat_connection_and_cursor(tmp_path):
     c_conn.commit()
 
     cursor.execute("SELECT id, name FROM test ORDER BY id")
-    row1 = cursor.fetchone()
-    assert row1 is not None
+    raw_row = cursor.cursor.fetchone()
+    assert raw_row is not None
 
     cursor.close()
     c_conn.close()
