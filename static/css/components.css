@@ -691,6 +691,46 @@ html, body {
   border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
+/* ── Responsive Desktop Navbar Fix for Resized/Minimized Window ── */
+.app-navbar .nav-links a,
+.app-navbar .nav-link-menu,
+.app-navbar .nav-btn,
+.app-navbar .nav-brand-text,
+.app-navbar .nav-brand-title,
+.app-navbar .nav-action-label,
+.app-navbar .dropdown-menu .dropdown-item {
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+
+.app-navbar .nav-links {
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+  overflow: hidden !important;
+}
+
+.app-navbar .nav-btn {
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+
+@media (max-width: 1200px) {
+  .app-navbar .nav-clock {
+    display: none !important;
+  }
+  .app-navbar .nav-kbd {
+    display: none !important;
+  }
+  .app-navbar .nav-links a,
+  .app-navbar .nav-link-menu,
+  .app-navbar .nav-btn {
+    padding: 5px 8px !important;
+    font-size: 0.82rem !important;
+  }
+}
+
 
 
 
