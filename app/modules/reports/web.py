@@ -203,7 +203,7 @@ async def export_csv(
     output.seek(0)
     bom = "\ufeff"
     return StreamingResponse(
-        iter([bom + output.getvalue()]),
+        iter([(bom + output.getvalue()).encode("utf-8")]),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=rapport_fabouanes.csv"},
     )
@@ -223,32 +223,44 @@ async def export_livre_journal(request: Request):
     writer = csv.writer(output, delimiter=";")
     writer.writerow(["Date", "Type / Ref", "Libellé / Partenaire", "Débit (DA)", "Crédit (DA)"])
 
-    # Extract all transactions sorted by date
+    # Extract all transactions sorted by date safely
     entries = query_db("""
-        SELECT sale_date as tx_date, 'Vente #' || id as tx_ref, 'Vente client ID ' || client_id as label, total as debit, 0 as credit FROM sales
+        SELECT sale_date as tx_date, 'Vente #' || id as tx_ref, 'Vente client ID ' || client_id as label, COALESCE(total, 0) as debit, 0 as credit FROM sales
         UNION ALL
-        SELECT purchase_date as tx_date, 'Achat #' || id as tx_ref, 'Achat fourn. ID ' || COALESCE(supplier_id, 0) as label, 0 as debit, total as credit FROM purchases
+        SELECT purchase_date as tx_date, 'Achat #' || id as tx_ref, 'Achat fourn. ID ' || COALESCE(supplier_id, 0) as label, 0 as debit, COALESCE(total, 0) as credit FROM purchases
         UNION ALL
-        SELECT payment_date as tx_date, 'Versement #' || id as tx_ref, 'Règlement client ID ' || client_id as label, 0 as debit, amount as credit FROM payments
+        SELECT payment_date as tx_date, 'Versement #' || id as tx_ref, 'Règlement client ID ' || client_id as label, 0 as debit, COALESCE(amount, 0) as credit FROM payments
         UNION ALL
-        SELECT expense_date as tx_date, 'Dépense #' || id as tx_ref, category || ' : ' || description as label, 0 as debit, amount as credit FROM expenses
+        SELECT date as tx_date, 'Dépense #' || id as tx_ref, COALESCE(category, 'Autre') || ' : ' || COALESCE(description, '') as label, 0 as debit, COALESCE(amount, 0) as credit FROM expenses
         ORDER BY tx_date DESC, tx_ref DESC
         LIMIT 5000
     """)
 
     for row in entries:
+        if hasattr(row, "keys"):
+            tx_date = str(row.get("tx_date", "") or "")
+            tx_ref = str(row.get("tx_ref", "") or "")
+            label = str(row.get("label", "") or "")
+            debit_val = float(row.get("debit") or 0.0)
+            credit_val = float(row.get("credit") or 0.0)
+        else:
+            tx_date = str(row[0]) if len(row) > 0 and row[0] is not None else ""
+            tx_ref = str(row[1]) if len(row) > 1 and row[1] is not None else ""
+            label = str(row[2]) if len(row) > 2 and row[2] is not None else ""
+            debit_val = float(row[3]) if len(row) > 3 and row[3] is not None else 0.0
+            credit_val = float(row[4]) if len(row) > 4 and row[4] is not None else 0.0
         writer.writerow([
-            row["tx_date"],
-            row["tx_ref"],
-            row["label"],
-            f"{float(row['debit']):.2f}",
-            f"{float(row['credit']):.2f}"
+            tx_date,
+            tx_ref,
+            label,
+            f"{debit_val:.2f}",
+            f"{credit_val:.2f}"
         ])
 
     output.seek(0)
     bom = "\ufeff"
     return StreamingResponse(
-        iter([bom + output.getvalue()]),
+        iter([(bom + output.getvalue()).encode("utf-8")]),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename=livre_journal_{date.today().isoformat()}.csv"},
     )
@@ -300,7 +312,7 @@ async def export_marge_brute(request: Request):
     output.seek(0)
     bom = "\ufeff"
     return StreamingResponse(
-        iter([bom + output.getvalue()]),
+        iter([(bom + output.getvalue()).encode("utf-8")]),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename=marge_brute_{date.today().isoformat()}.csv"},
     )
