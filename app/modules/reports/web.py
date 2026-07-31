@@ -269,7 +269,7 @@ async def export_marge_brute(request: Request):
     writer.writerow(["Produit Fini", "Quantité Vendue", "Chiffre d'Affaires (DA)", "Coût Moyen (CMP DA)", "Coût Total (DA)", "Marge Brute (DA)", "Taux de Marge (%)"])
 
     rows = query_db("""
-        SELECT fp.name, 
+        SELECT fp.name,
                COALESCE(SUM(s.quantity), 0) as total_qty,
                COALESCE(SUM(s.total), 0) as total_revenue,
                CAST(fp.avg_cost AS FLOAT) as avg_cost

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from datetime import date
 
 from fastapi import APIRouter, Request
@@ -170,12 +169,12 @@ async def api_sabrina_smart_summary(request: Request):
         from app.core.db_helpers import query_db
         # 1. Calculate items running out of stock within 7 days based on 30-day sales rate
         predicted_depletions = query_db("""
-            SELECT fp.name, CAST(fp.stock_qty AS FLOAT) as stock, 
+            SELECT fp.name, CAST(fp.stock_qty AS FLOAT) as stock,
                    COALESCE(SUM(s.quantity), 0) / 30.0 as daily_rate
             FROM finished_products fp
             LEFT JOIN sales s ON s.finished_product_id = fp.id AND s.sale_date >= CURRENT_DATE - INTERVAL '30 days'
             GROUP BY fp.id, fp.name, fp.stock_qty
-            HAVING fp.stock_qty > 0 AND (COALESCE(SUM(s.quantity), 0) / 30.0) > 0 
+            HAVING fp.stock_qty > 0 AND (COALESCE(SUM(s.quantity), 0) / 30.0) > 0
                AND (fp.stock_qty / (COALESCE(SUM(s.quantity), 0) / 30.0)) <= 7
             LIMIT 5
         """)

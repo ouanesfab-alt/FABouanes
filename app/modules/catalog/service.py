@@ -317,7 +317,7 @@ class CatalogService:
             raise ValidationError("Impossible de supprimer cette matière première car elle possède des opérations historiques associées.")
 
         before_dump = rm.model_dump()
-        
+
         from sqlalchemy.exc import IntegrityError
         from app.core.exceptions import ValidationError
         try:
@@ -348,7 +348,7 @@ class CatalogService:
             raise ValidationError("Impossible de supprimer ce produit fini car il possède des opérations historiques associées.")
 
         before_dump = fp.model_dump()
-        
+
         from sqlalchemy.exc import IntegrityError
         from app.core.exceptions import ValidationError
         try:

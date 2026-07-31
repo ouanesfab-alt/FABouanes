@@ -525,14 +525,14 @@ def enrich_chapter_content(chapter_id: str, original_html: str) -> str:
     enriched_fr = f"""
     <div class="lang-fr">
         <h3>{title_fr}</h3>
-        
+
         <div class="mb-4">
             <h5 class="fw-bold text-primary mb-2" style="font-size: 0.95rem;">
                 <i class="bi bi-bookmark-fill me-2"></i>1. Présentation & Enjeux métier
             </h5>
             <p class="text-secondary mb-2" style="font-size: 0.85rem; line-height: 1.6;">
-                La fonctionnalité <strong>"{data['fr_title']}"</strong> joue un rôle crucial dans le fonctionnement quotidien. 
-                Elle permet d'assurer une traçabilité rigoureuse, de fiabiliser les calculs financiers complexes, et d'éviter les erreurs humaines d'écriture. 
+                La fonctionnalité <strong>"{data['fr_title']}"</strong> joue un rôle crucial dans le fonctionnement quotidien.
+                Elle permet d'assurer une traçabilité rigoureuse, de fiabiliser les calculs financiers complexes, et d'éviter les erreurs humaines d'écriture.
                 {fr_body if len(fr_body) > 30 else "Elle fournit un support opérationnel indispensable pour fluidifier les saisies et clarifier les comptes."}
             </p>
         </div>
@@ -563,7 +563,7 @@ def enrich_chapter_content(chapter_id: str, original_html: str) -> str:
     enriched_ar = f"""
     <div class="lang-ar" dir="rtl" style="display:none; text-align: right;">
         <h3 style="border-bottom: 2px solid var(--system-blue, #2563eb); padding-bottom: 6px; font-family: 'Outfit', sans-serif;">{title_ar}</h3>
-        
+
         <div class="mb-4" style="text-align: right;">
             <h5 class="fw-bold text-primary mb-2" style="font-size: 0.95rem; font-family: 'Outfit', sans-serif;">
                 <i class="bi bi-bookmark-fill ms-2"></i>1. نظرة عامة والأهمية العملية
@@ -611,7 +611,7 @@ def enrich_chapter_content(chapter_id: str, original_html: str) -> str:
 @router.get("/manual/chapter/{chapter_id}", response_class=HTMLResponse)
 async def get_manual_chapter(chapter_id: str):
     """Serve a bilingual user manual chapter as HTML.
-    
+
     Used for lazy-loading the 54 chapters to keep the initial page size low.
     """
     clean_id = chapter_id.strip()

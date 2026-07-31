@@ -110,7 +110,7 @@ class SCFService:
         Génère le Bilan Synthétique (Actif vs Passif & Capitaux Propres).
         """
         balance = await SCFService.get_balance_generale()
-        
+
         # Actif Circulant
         stocks = sum(a["solde_debiteur"] for a in balance if a["code"].startswith("3"))
         creances = sum(a["solde_debiteur"] for a in balance if a["code"] == "411")

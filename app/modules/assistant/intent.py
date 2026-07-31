@@ -20,7 +20,7 @@ COMPLEX_KEYWORDS = {
 def classify_intent(user_query: str) -> str:
     """
     Classify the complexity of the user query to route it to the appropriate model.
-    
+
     Returns:
         "lite": For simple chats, greetings, theme configurations, navigation requests.
         "full": For business operations, reports, sql generation or complex analyses.
@@ -51,7 +51,7 @@ def detect_multi_step_intents(user_query: str) -> list[str]:
     # Match conjunction splitters: "puis", "et ensuite", "apres ca", "après ça", or newlines
     pattern = r"\s+(?:puis|et\s+ensuite|après\s+ça|apres\s+ca|\n+)\s+"
     parts = [p.strip() for p in re.split(pattern, user_query, flags=re.IGNORECASE) if p.strip()]
-    
+
     # Only return multi-step list if at least 2 distinct action phrases were found
     if len(parts) >= 2:
         return parts

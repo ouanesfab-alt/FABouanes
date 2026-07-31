@@ -262,7 +262,7 @@ class ClientService:
             return False
 
         before_dump = client.model_dump()
-        
+
         from sqlalchemy.exc import IntegrityError
         from app.core.exceptions import ValidationError
         try:
