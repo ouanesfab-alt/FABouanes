@@ -1261,9 +1261,25 @@ table.record-table > thead > tr > th,
   }
 }
 
-/* ─ Tables: reduced font & padding ───────────────────────── */
+/* ─ Tables: 100% full width and responsive touch scroll ──── */
 @media (max-width: 767px) {
-  .table { font-size: 12px !important; }
+  .table-responsive,
+  .contacts-table-wrap,
+  .transactions-table-wrap,
+  .catalog-table-wrap,
+  .production-table-wrap {
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .table, table.table {
+    width: 100% !important;
+    min-width: 100% !important;
+    display: table !important;
+    font-size: 12px !important;
+  }
   .table th {
     font-size: 10px !important;
     padding: 6px 8px !important;
