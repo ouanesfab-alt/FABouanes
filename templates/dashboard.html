@@ -964,12 +964,12 @@
 		<!-- Search Bar -->
 		<div class="fab-search-row">
 			<div class="fab-search-bar">
-				<!-- Single 'Plus' Action Button -->
-				<div class="dropdown d-inline-block">
+				<!-- Single 'Plus' Action Button (Dropup to avoid overlapping period buttons below) -->
+				<div class="dropup d-inline-block">
 					<button id="fabPlusBtn" class="fab-bar-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Plus d'actions">
 						<i class="bi bi-plus-lg" style="font-size: 1.1rem;"></i>
 					</button>
-					<ul class="dropdown-menu shadow-lg border-0 p-2" style="border-radius: 12px; min-width: 210px; font-size: 0.9rem;">
+					<ul class="dropdown-menu shadow-lg border-0 p-2 mb-2" style="border-radius: 12px; min-width: 210px; font-size: 0.9rem; z-index: 1070;">
 						<li>
 							<button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 rounded-2" id="fabMenuMicBtn">
 								<i class="bi bi-mic-fill text-primary" style="font-size: 1rem;"></i>
