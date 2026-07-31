@@ -2,7 +2,9 @@
 Tests unitaires et d'intégration mockés — couverture 80 %+ sur services, web, api et db.
 Aucune base de données ni connexion réseau réelle nécessaire.
 """
+# ruff: noqa: E402
 from __future__ import annotations
+
 
 import os
 import sys

@@ -350,3 +350,68 @@ def test_performance_event_skips_zero_elapsed():
     with mock.patch.object(db_manager, "_ensure_performance_worker") as m_worker:
         db_manager._record_performance_event("sql", "some_query", 0.0)
         m_worker.assert_not_called()
+
+
+def test_compat_connection_methods():
+    from app.core.db_helpers.manager import CompatConnection
+
+    mock_raw_conn = mock.MagicMock()
+    mock_cursor = mock.MagicMock()
+    mock_raw_conn.cursor.return_value = mock_cursor
+
+    on_close_called = []
+    reconnect_conn = mock.MagicMock()
+
+    conn = CompatConnection(
+        mock_raw_conn,
+        dialect="postgres",
+        on_close=lambda c: on_close_called.append(c),
+        reconnect=lambda: reconnect_conn
+    )
+
+    # Execute
+    res_cur = conn.execute("SELECT 1")
+    assert res_cur is not None
+    mock_cursor.execute.assert_called_with("SELECT 1", ())
+
+    # ExecuteScript
+    conn.executescript("SELECT 1; SELECT 2;")
+    assert mock_cursor.execute.call_count >= 2
+
+    # Commit & Rollback
+    conn.commit()
+    mock_raw_conn.commit.assert_called_once()
+    conn.rollback()
+    mock_raw_conn.rollback.assert_called_once()
+
+    # Close with on_close
+    conn.close()
+    assert len(on_close_called) == 1
+    assert conn._closed is True
+    # Subsequent close does nothing
+    conn.close()
+
+
+def test_compat_connection_reconnect_retry():
+    from app.core.db_helpers.manager import CompatConnection
+    from sqlalchemy.exc import OperationalError
+
+    mock_raw_conn1 = mock.MagicMock()
+    mock_cur1 = mock.MagicMock()
+    mock_cur1.execute.side_effect = OperationalError("connection lost", None, Exception("Connection closed"))
+    mock_raw_conn1.cursor.return_value = mock_cur1
+
+    mock_raw_conn2 = mock.MagicMock()
+    mock_cur2 = mock.MagicMock()
+    mock_raw_conn2.cursor.return_value = mock_cur2
+
+    conn = CompatConnection(
+        mock_raw_conn1,
+        dialect="postgres",
+        reconnect=lambda: mock_raw_conn2
+    )
+
+    res = conn.execute("SELECT 1")
+    assert res is not None
+    mock_cur2.execute.assert_called_with("SELECT 1", ())
+
