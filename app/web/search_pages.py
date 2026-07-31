@@ -92,152 +92,134 @@ def _safe_query(sql: str, params: tuple) -> list:
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
 
-@router.get("/api/search", name="global_search")
-async def global_search(request: Request):
-    """Recherche globale par session web (pas de token Bearer requis)."""
-    user = get_current_user(request)
-    if not user:
-        return JSONResponse({"data": []}, status_code=401)
+ALLOWED_OPERATORS = {"=": "=", "LIKE": "LIKE"}
 
-    q = request.query_params.get("q", "").strip()
-    if len(q) < 2:
-        return JSONResponse({"data": []})
 
-    needle = f"%{q.lower()}%"
-    results = []
-
-    # ── Détection d'un montant / quantité ────────────────────────────────────
-    amount_val = None
+def _search_numeric_matches(q: str, results: list) -> None:
     try:
         cleaned = q.replace(" ", "").replace(",", ".")
         amount_val = float(cleaned)
     except ValueError:
-        pass
+        return
 
-    if amount_val is not None:
-        lo = amount_val * 0.95
-        hi = amount_val * 1.05
+    lo = amount_val * 0.95
+    hi = amount_val * 1.05
 
-        # Ventes par montant (produits finis + matières)
-        for row in _safe_query(
-            """SELECT client_name, item_name, total, sale_date FROM (
-                SELECT COALESCE(c.name, 'Comptoir') AS client_name,
-                       f.name AS item_name, s.total, s.sale_date
-                FROM sales s
-                LEFT JOIN clients c ON c.id = s.client_id
-                JOIN finished_products f ON f.id = s.finished_product_id
-                WHERE s.total BETWEEN %s AND %s
-                UNION ALL
-                SELECT COALESCE(c.name, 'Comptoir') AS client_name,
-                       r.name AS item_name, rs.total, rs.sale_date
-                FROM raw_sales rs
-                LEFT JOIN clients c ON c.id = rs.client_id
-                JOIN raw_materials r ON r.id = rs.raw_material_id
-                WHERE rs.total BETWEEN %s AND %s
-            ) t ORDER BY sale_date DESC LIMIT 5""",
-            (lo, hi, lo, hi),
-        ):
-            fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-            results.append({"title": f"Vente — {row['client_name']}", "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}", "icon": "bi-receipt", "type": "Vente", "href": "/sales"})
+    for row in _safe_query(
+        """SELECT client_name, item_name, total, sale_date FROM (
+            SELECT COALESCE(c.name, 'Comptoir') AS client_name,
+                   f.name AS item_name, s.total, s.sale_date
+            FROM sales s
+            LEFT JOIN clients c ON c.id = s.client_id
+            JOIN finished_products f ON f.id = s.finished_product_id
+            WHERE s.total BETWEEN %s AND %s
+            UNION ALL
+            SELECT COALESCE(c.name, 'Comptoir') AS client_name,
+                   r.name AS item_name, rs.total, rs.sale_date
+            FROM raw_sales rs
+            LEFT JOIN clients c ON c.id = rs.client_id
+            JOIN raw_materials r ON r.id = rs.raw_material_id
+            WHERE rs.total BETWEEN %s AND %s
+        ) t ORDER BY sale_date DESC LIMIT 5""",
+        (lo, hi, lo, hi),
+    ):
+        fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
+        results.append({"title": f"Vente — {row['client_name']}", "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}", "icon": "bi-receipt", "type": "Vente", "href": "/sales"})
 
-        # Achats par montant
-        for row in _safe_query(
-            """SELECT COALESCE(s.name,'Inconnu') AS supplier_name,
-                      COALESCE(NULLIF(p.custom_item_name,''), r.name) AS material_name,
-                      p.total, p.purchase_date
-               FROM purchases p
-               LEFT JOIN suppliers s ON s.id = p.supplier_id
-               LEFT JOIN raw_materials r ON r.id = p.raw_material_id
-               WHERE p.total BETWEEN %s AND %s
-               ORDER BY p.purchase_date DESC LIMIT 4""",
-            (lo, hi),
-        ):
-            fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-            results.append({"title": f"Achat — {row['supplier_name']}", "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}", "icon": "bi-cart", "type": "Achat", "href": "/purchases"})
+    for row in _safe_query(
+        """SELECT COALESCE(s.name,'Inconnu') AS supplier_name,
+                  COALESCE(NULLIF(p.custom_item_name,''), r.name) AS material_name,
+                  p.total, p.purchase_date
+           FROM purchases p
+           LEFT JOIN suppliers s ON s.id = p.supplier_id
+           LEFT JOIN raw_materials r ON r.id = p.raw_material_id
+           WHERE p.total BETWEEN %s AND %s
+           ORDER BY p.purchase_date DESC LIMIT 4""",
+        (lo, hi),
+    ):
+        fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
+        results.append({"title": f"Achat — {row['supplier_name']}", "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}", "icon": "bi-cart", "type": "Achat", "href": "/purchases"})
 
-        # Paiements par montant
-        for row in _safe_query(
-            """SELECT c.name AS client_name, p.amount, p.payment_type, p.payment_date
-               FROM payments p
-               JOIN clients c ON c.id = p.client_id
-               WHERE p.amount BETWEEN %s AND %s
-               ORDER BY p.payment_date DESC LIMIT 4""",
-            (lo, hi),
-        ):
-            fmt = f"{float(row['amount'] or 0):,.0f} DA".replace(",", " ")
-            results.append({"title": f"Versement — {row['client_name']}", "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}", "icon": "bi-cash-stack", "type": "Paiement", "href": "/payments"})
+    for row in _safe_query(
+        """SELECT c.name AS client_name, p.amount, p.payment_type, p.payment_date
+           FROM payments p
+           JOIN clients c ON c.id = p.client_id
+           WHERE p.amount BETWEEN %s AND %s
+           ORDER BY p.payment_date DESC LIMIT 4""",
+        (lo, hi),
+    ):
+        fmt = f"{float(row['amount'] or 0):,.0f} DA".replace(",", " ")
+        results.append({"title": f"Versement — {row['client_name']}", "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}", "icon": "bi-cash-stack", "type": "Paiement", "href": "/payments"})
 
-        # Productions par quantité
-        for row in _safe_query(
-            """SELECT f.name AS product_name, pb.output_quantity, pb.production_date
-               FROM production_batches pb
-               JOIN finished_products f ON f.id = pb.finished_product_id
-               WHERE pb.output_quantity BETWEEN %s AND %s
-               ORDER BY pb.production_date DESC LIMIT 4""",
-            (lo, hi),
-        ):
-            results.append({"title": f"Production — {row['product_name']}", "sub": f"{int(row['output_quantity'] or 0)} unités · {row['production_date']}", "icon": "bi-gear", "type": "Production", "href": "/production"})
+    for row in _safe_query(
+        """SELECT f.name AS product_name, pb.output_quantity, pb.production_date
+           FROM production_batches pb
+           JOIN finished_products f ON f.id = pb.finished_product_id
+           WHERE pb.output_quantity BETWEEN %s AND %s
+           ORDER BY pb.production_date DESC LIMIT 4""",
+        (lo, hi),
+    ):
+        results.append({"title": f"Production — {row['product_name']}", "sub": f"{int(row['output_quantity'] or 0)} unités · {row['production_date']}", "icon": "bi-gear", "type": "Production", "href": "/production"})
 
-    # ── Détection de date ────────────────────────────────────────────────────
+
+def _search_date_matches(q: str, results: list) -> None:
     exact_date = _parse_date_query(q)
     partial_date_like = _partial_date_like(q) if not exact_date else None
 
-    if exact_date or partial_date_like:
-        date_param = exact_date if exact_date else partial_date_like
-        operator = "=" if exact_date else "LIKE"
+    if not (exact_date or partial_date_like):
+        return
 
-        # Ventes par date
-        for row in _safe_query(
-            f"""SELECT client_name, item_name, total, sale_date FROM (
-                SELECT COALESCE(c.name, 'Comptoir') AS client_name,
-                       f.name AS item_name, s.total, s.sale_date
-                FROM sales s
-                LEFT JOIN clients c ON c.id = s.client_id
-                JOIN finished_products f ON f.id = s.finished_product_id
-                WHERE CAST(s.sale_date AS TEXT) {operator} %s
-                UNION ALL
-                SELECT COALESCE(c.name, 'Comptoir') AS client_name,
-                       r.name AS item_name, rs.total, rs.sale_date
-                FROM raw_sales rs
-                LEFT JOIN clients c ON c.id = rs.client_id
-                JOIN raw_materials r ON r.id = rs.raw_material_id
-                WHERE CAST(rs.sale_date AS TEXT) {operator} %s
-            ) t ORDER BY sale_date DESC LIMIT 5""",
-            (date_param, date_param),
-        ):
-            fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-            results.append({"title": f"Vente — {row['client_name']}", "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}", "icon": "bi-receipt", "type": "Vente", "href": "/sales"})
+    date_param = exact_date if exact_date else partial_date_like
+    raw_op = "=" if exact_date else "LIKE"
+    operator = ALLOWED_OPERATORS.get(raw_op, "=")
 
-        # Achats par date
-        for row in _safe_query(
-            f"""SELECT COALESCE(s.name, 'Inconnu') AS supplier_name,
-                      COALESCE(NULLIF(p.custom_item_name,''), r.name) AS material_name,
-                      p.total, p.purchase_date
-               FROM purchases p
-               LEFT JOIN suppliers s ON s.id = p.supplier_id
-               LEFT JOIN raw_materials r ON r.id = p.raw_material_id
-               WHERE CAST(p.purchase_date AS TEXT) {operator} %s
-               ORDER BY p.purchase_date DESC LIMIT 4""",
-            (date_param,),
-        ):
-            fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-            results.append({"title": f"Achat — {row['supplier_name']}", "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}", "icon": "bi-cart", "type": "Achat", "href": "/purchases"})
+    if operator == "=":
+        sales_sql = """SELECT client_name, item_name, total, sale_date FROM (
+            SELECT COALESCE(c.name, 'Comptoir') AS client_name, f.name AS item_name, s.total, s.sale_date
+            FROM sales s LEFT JOIN clients c ON c.id = s.client_id JOIN finished_products f ON f.id = s.finished_product_id
+            WHERE CAST(s.sale_date AS TEXT) = %s
+            UNION ALL
+            SELECT COALESCE(c.name, 'Comptoir') AS client_name, r.name AS item_name, rs.total, rs.sale_date
+            FROM raw_sales rs LEFT JOIN clients c ON c.id = rs.client_id JOIN raw_materials r ON r.id = rs.raw_material_id
+            WHERE CAST(rs.sale_date AS TEXT) = %s
+        ) t ORDER BY sale_date DESC LIMIT 5"""
+        purchases_sql = """SELECT COALESCE(s.name, 'Inconnu') AS supplier_name, COALESCE(NULLIF(p.custom_item_name,''), r.name) AS material_name, p.total, p.purchase_date
+            FROM purchases p LEFT JOIN suppliers s ON s.id = p.supplier_id LEFT JOIN raw_materials r ON r.id = p.raw_material_id
+            WHERE CAST(p.purchase_date AS TEXT) = %s ORDER BY p.purchase_date DESC LIMIT 4"""
+        payments_sql = """SELECT c.name AS client_name, p.amount, p.payment_type, p.payment_date
+            FROM payments p JOIN clients c ON c.id = p.client_id
+            WHERE CAST(p.payment_date AS TEXT) = %s ORDER BY p.payment_date DESC LIMIT 4"""
+    else:
+        sales_sql = """SELECT client_name, item_name, total, sale_date FROM (
+            SELECT COALESCE(c.name, 'Comptoir') AS client_name, f.name AS item_name, s.total, s.sale_date
+            FROM sales s LEFT JOIN clients c ON c.id = s.client_id JOIN finished_products f ON f.id = s.finished_product_id
+            WHERE CAST(s.sale_date AS TEXT) LIKE %s
+            UNION ALL
+            SELECT COALESCE(c.name, 'Comptoir') AS client_name, r.name AS item_name, rs.total, rs.sale_date
+            FROM raw_sales rs LEFT JOIN clients c ON c.id = rs.client_id JOIN raw_materials r ON r.id = rs.raw_material_id
+            WHERE CAST(rs.sale_date AS TEXT) LIKE %s
+        ) t ORDER BY sale_date DESC LIMIT 5"""
+        purchases_sql = """SELECT COALESCE(s.name, 'Inconnu') AS supplier_name, COALESCE(NULLIF(p.custom_item_name,''), r.name) AS material_name, p.total, p.purchase_date
+            FROM purchases p LEFT JOIN suppliers s ON s.id = p.supplier_id LEFT JOIN raw_materials r ON r.id = p.raw_material_id
+            WHERE CAST(p.purchase_date AS TEXT) LIKE %s ORDER BY p.purchase_date DESC LIMIT 4"""
+        payments_sql = """SELECT c.name AS client_name, p.amount, p.payment_type, p.payment_date
+            FROM payments p JOIN clients c ON c.id = p.client_id
+            WHERE CAST(p.payment_date AS TEXT) LIKE %s ORDER BY p.payment_date DESC LIMIT 4"""
 
-        # Paiements par date
-        for row in _safe_query(
-            f"""SELECT c.name AS client_name, p.amount, p.payment_type, p.payment_date
-               FROM payments p
-               JOIN clients c ON c.id = p.client_id
-               WHERE CAST(p.payment_date AS TEXT) {operator} %s
-               ORDER BY p.payment_date DESC LIMIT 4""",
-            (date_param,),
-        ):
-            fmt = f"{float(row['amount'] or 0):,.0f} DA".replace(",", " ")
-            results.append({"title": f"Versement — {row['client_name']}", "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}", "icon": "bi-cash-stack", "type": "Paiement", "href": "/payments"})
+    for row in _safe_query(sales_sql, (date_param, date_param)):
+        fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
+        results.append({"title": f"Vente — {row['client_name']}", "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}", "icon": "bi-receipt", "type": "Vente", "href": "/sales"})
 
-    # ── Recherche texte ───────────────────────────────────────────────────────
+    for row in _safe_query(purchases_sql, (date_param,)):
+        fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
+        results.append({"title": f"Achat — {row['supplier_name']}", "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}", "icon": "bi-cart", "type": "Achat", "href": "/purchases"})
 
-    # Clients
+    for row in _safe_query(payments_sql, (date_param,)):
+        fmt = f"{float(row['amount'] or 0):,.0f} DA".replace(",", " ")
+        results.append({"title": f"Versement — {row['client_name']}", "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}", "icon": "bi-cash-stack", "type": "Paiement", "href": "/payments"})
+
+
+def _search_text_matches(needle: str, results: list) -> None:
     for row in _safe_query(
         """SELECT id, name, phone, address FROM clients
            WHERE LOWER(name) LIKE %s OR LOWER(COALESCE(phone,'')) LIKE %s
@@ -246,7 +228,6 @@ async def global_search(request: Request):
     ):
         results.append({"title": row["name"], "sub": row["phone"] or row["address"] or "", "icon": "bi-person", "type": "Client", "href": f"/contacts/clients/{row['id']}"})
 
-    # Fournisseurs
     for row in _safe_query(
         """SELECT id, name, phone FROM suppliers
            WHERE LOWER(name) LIKE %s OR LOWER(COALESCE(phone,'')) LIKE %s
@@ -255,7 +236,6 @@ async def global_search(request: Request):
     ):
         results.append({"title": row["name"], "sub": row["phone"] or "", "icon": "bi-truck", "type": "Fournisseur", "href": f"/contacts/suppliers/{row['id']}"})
 
-    # Matières premières
     for row in _safe_query(
         """SELECT id, name, unit FROM raw_materials
            WHERE LOWER(name) LIKE %s ORDER BY name LIMIT 4""",
@@ -263,7 +243,6 @@ async def global_search(request: Request):
     ):
         results.append({"title": row["name"], "sub": row["unit"] or "", "icon": "bi-box", "type": "Matière", "href": "/catalog"})
 
-    # Produits finis
     for row in _safe_query(
         """SELECT id, name, default_unit AS unit FROM finished_products
            WHERE LOWER(name) LIKE %s ORDER BY name LIMIT 4""",
@@ -271,7 +250,6 @@ async def global_search(request: Request):
     ):
         results.append({"title": row["name"], "sub": row["unit"] or "", "icon": "bi-box-seam", "type": "Produit", "href": "/catalog"})
 
-    # Ventes par nom client ou produit
     for row in _safe_query(
         """SELECT client_name, item_name, total, sale_date FROM (
             SELECT COALESCE(c.name, 'Comptoir') AS client_name,
@@ -293,7 +271,6 @@ async def global_search(request: Request):
         fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
         results.append({"title": f"Vente — {row['client_name']}", "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}", "icon": "bi-receipt", "type": "Vente", "href": "/sales"})
 
-    # Achats par nom fournisseur ou matière
     for row in _safe_query(
         """SELECT COALESCE(s.name,'Inconnu') AS supplier_name,
                   COALESCE(NULLIF(p.custom_item_name,''), r.name) AS material_name,
@@ -310,7 +287,6 @@ async def global_search(request: Request):
         fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
         results.append({"title": f"Achat — {row['supplier_name']}", "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}", "icon": "bi-cart", "type": "Achat", "href": "/purchases"})
 
-    # Productions par nom de produit (table correcte : production_batches)
     for row in _safe_query(
         """SELECT f.name AS product_name, pb.output_quantity, pb.production_date
            FROM production_batches pb
@@ -321,7 +297,6 @@ async def global_search(request: Request):
     ):
         results.append({"title": f"Production — {row['product_name']}", "sub": f"{int(row['output_quantity'] or 0)} unités · {row['production_date']}", "icon": "bi-gear", "type": "Production", "href": "/production"})
 
-    # Paiements par nom de client
     for row in _safe_query(
         """SELECT c.name AS client_name, p.amount, p.payment_type, p.payment_date
            FROM payments p
@@ -333,4 +308,24 @@ async def global_search(request: Request):
         fmt = f"{float(row['amount'] or 0):,.0f} DA".replace(",", " ")
         results.append({"title": f"Versement — {row['client_name']}", "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}", "icon": "bi-cash-stack", "type": "Paiement", "href": "/payments"})
 
+
+@router.get("/api/search", name="global_search")
+async def global_search(request: Request):
+    """Recherche globale par session web (pas de token Bearer requis)."""
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"data": []}, status_code=401)
+
+    q = request.query_params.get("q", "").strip()
+    if len(q) < 2:
+        return JSONResponse({"data": []})
+
+    results = []
+    needle = f"%{q.lower()}%"
+
+    _search_numeric_matches(q, results)
+    _search_date_matches(q, results)
+    _search_text_matches(needle, results)
+
     return JSONResponse({"data": results})
+

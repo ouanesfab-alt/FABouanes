@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
@@ -106,8 +107,10 @@ async def service_worker():
     headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
     if sw_path.exists():
         try:
-            with open(sw_path, "r", encoding="utf-8") as f:
-                content = f.read()
+            def _read_sw():
+                with open(sw_path, "r", encoding="utf-8") as f:
+                    return f.read()
+            content = await asyncio.to_thread(_read_sw)
             # Remplace la version statique par la version dynamique de l'application
             content = content.replace(
                 'const VERSION = "fabouanes-v47-offline";',
@@ -117,6 +120,7 @@ async def service_worker():
         except Exception as e:
             logger.warning("Erreur lors de l'injection de version dans sw.js: %s", e)
     return FileResponse(sw_path, media_type="application/javascript", headers=headers)
+
 
 
 @router.get("/pdf-reader", name="pdf_reader")

@@ -262,29 +262,23 @@ class SalesCommands:
         except Exception:
             pass
 
+    async def _sum_document_lines(self, table_name: str, document_id: int) -> dict:
+        res = await self.session.execute(
+            text(f"""
+                SELECT COUNT(*) AS line_count, COALESCE(SUM(total), 0) AS total_amount,
+                       COALESCE(SUM(amount_paid), 0) AS paid_amount, COALESCE(SUM(balance_due), 0) AS due_amount
+                FROM {table_name} WHERE document_id = :doc_id
+            """),
+            {"doc_id": document_id}
+        )
+        return dict(res.first()._mapping)
+
     async def recalc_sale_document_totals(self, document_id: int | None) -> None:
         if not document_id:
             return
 
-        res_f = await self.session.execute(
-            text("""
-                SELECT COUNT(*) AS line_count, COALESCE(SUM(total), 0) AS total_amount,
-                       COALESCE(SUM(amount_paid), 0) AS paid_amount, COALESCE(SUM(balance_due), 0) AS due_amount
-                FROM sales WHERE document_id = :doc_id
-            """),
-            {"doc_id": document_id}
-        )
-        finished = dict(res_f.first()._mapping)
-
-        res_r = await self.session.execute(
-            text("""
-                SELECT COUNT(*) AS line_count, COALESCE(SUM(total), 0) AS total_amount,
-                       COALESCE(SUM(amount_paid), 0) AS paid_amount, COALESCE(SUM(balance_due), 0) AS due_amount
-                FROM raw_sales WHERE document_id = :doc_id
-            """),
-            {"doc_id": document_id}
-        )
-        raw = dict(res_r.first()._mapping)
+        finished = await self._sum_document_lines("sales", document_id)
+        raw = await self._sum_document_lines("raw_sales", document_id)
 
         line_count = int(finished["line_count"] or 0) + int(raw["line_count"] or 0)
         if line_count <= 0:
