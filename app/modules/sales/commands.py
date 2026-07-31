@@ -618,11 +618,12 @@ class SalesCommands:
                 "update",
                 "sale",
                 row_id,
-                f"{line.item_kind} #{item_id} qty={line.quantity} {line.unit}",
+                f"{item_kind} #{item_id} qty={line.quantity} {line.unit}",
                 before=dict(before),
                 after=after
             )
         )
+
 
         return {
             "mode": "line",

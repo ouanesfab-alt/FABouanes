@@ -85,8 +85,9 @@ async def lifespan(app: FastAPI):
     finally:
         logger.info("Arrêt en cours, arrêt des services...")
         try:
-            await stop_audit_worker()
+            stop_audit_worker()
         except Exception as e:
+
             logger.warning("Erreur à l'arrêt du worker d'audit: %s", e)
 
         try:
