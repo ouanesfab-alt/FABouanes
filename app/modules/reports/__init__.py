@@ -1,7 +1,8 @@
 """Module Rapports & Statistiques — Tableaux de bord analytiques."""
+from app.core.registry import register
 from app.modules.base import ModuleBase
 from app.modules.reports.web import router as web_router
-from app.core.registry import register
+
 
 class ReportsModule(ModuleBase):
     @property

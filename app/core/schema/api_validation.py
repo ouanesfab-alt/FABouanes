@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
-from pydantic import BaseModel, Field, field_validator, ConfigDict
-from typing import Optional, List, Union
+from typing import List, Optional, Union
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 
 class PaymentCreateSchema(BaseModel):
     client_id: Union[int, str] = Field(..., description="ID du client")

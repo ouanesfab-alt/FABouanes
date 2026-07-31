@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 class BusinessError(Exception):
     """Base exception for all business-related errors."""
     def __init__(self, message: str, code: str = "business_error", details: dict | None = None):

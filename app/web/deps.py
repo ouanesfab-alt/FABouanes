@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import hmac
 import os
-import secrets
 import re
+import secrets
 import time
 from types import SimpleNamespace
 from typing import Any
@@ -16,13 +16,9 @@ from jinja2 import pass_context
 from starlette.routing import NoMatchFound
 
 from app.core.auth_cookie import AUTH_COOKIE_NAME, read_auth_cookie_value
-
 from app.core.permissions import has_permission
 from app.core.runtime_paths import paths
-
-
 from app.web.compat import COMPAT_ROUTE_MAP
-
 
 STARTUP_TIMESTAMP = str(int(time.time()))
 
@@ -333,8 +329,8 @@ def template_context(request: Request, **context: Any) -> dict[str, Any]:
     csrf_token = ensure_csrf_token(request)
     proxy = TemplateRequestProxy(request)
     user = current_user_ns(request)
-    from app.core.request_state import get_state_value
     from app.core.config import settings
+    from app.core.request_state import get_state_value
     csp_nonce = get_state_value("csp_nonce") or ""
     return {
         "request": proxy,
@@ -362,8 +358,8 @@ def _dt_filter(value: Any, length: int = 16) -> str:
 
 
 def _custom_tojson_filter(value: Any, *args: Any, **kwargs: Any) -> Any:
-    import json
     import decimal
+    import json
     try:
         from markupsafe import Markup
     except ImportError:

@@ -3,8 +3,9 @@ Standardized JSON API Response Helper.
 """
 from __future__ import annotations
 
-from fastapi.responses import JSONResponse
 from typing import Any
+
+from fastapi.responses import JSONResponse
 
 
 class APIResponse:

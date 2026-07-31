@@ -3,8 +3,8 @@ intent.py — Intent classification and model routing logic for Sabrina.
 """
 from __future__ import annotations
 
-import re
 import logging
+import re
 
 logger = logging.getLogger("fabouanes.assistant.intent")
 

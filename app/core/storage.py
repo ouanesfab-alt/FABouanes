@@ -10,10 +10,11 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
+
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from app.core.config import APP_DATA_DIR, DATABASE_URL, settings
 from app.core.activity import write_text_log
+from app.core.config import APP_DATA_DIR, DATABASE_URL, settings
 from app.core.db_helpers import execute_db, get_setting
 from app.core.request_state import get_state_value
 
@@ -38,8 +39,8 @@ def _get_encryption_key() -> bytes:
     """
     # Deterministic salt tied to the application identity
     salt = hashlib.sha256(b"FABOuanes-backup-encryption-v1").digest()[:16]
-    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
     from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
     kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=600_000)
     return kdf.derive(settings.secret_key.encode("utf-8"))
 
@@ -406,8 +407,7 @@ def restore_database_from(path_str: str) -> None:
     stored_sha256 = _get_stored_sha256(path)
     verify_backup_file(path, expected_sha256=stored_sha256)
 
-    from app.core.db_helpers import connect_database
-    from app.core.db_helpers import split_sql_script
+    from app.core.db_helpers import connect_database, split_sql_script
 
     # Lire le SQL (déchiffrement puis décompression si applicable)
     if path.name.endswith(".enc"):

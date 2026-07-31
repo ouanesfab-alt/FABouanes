@@ -3,13 +3,14 @@ from __future__ import annotations
 import json
 from datetime import date
 from typing import Any, Optional, Tuple
-from sqlmodel import select, func, literal, union_all, literal_column, text
+
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import func, literal, literal_column, select, text, union_all
 
 from app.core.events import DomainEvent, emit
 from app.core.exceptions import ValidationError
+from app.core.models import Client, FinishedProduct, Payment, RawMaterial, RawSale, Sale, User
 from app.core.perf_cache import invalidate_cache_domains
-from app.core.models import Payment, Sale, RawSale, Client, FinishedProduct, RawMaterial, User
 from app.modules.payments.repository import PaymentRepository
 from app.modules.payments.schemas_validation import PaymentFormSchema
 

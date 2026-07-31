@@ -6,7 +6,6 @@ from urllib.parse import urlencode
 
 from app.core.request_state import get_state_value
 
-
 DEFAULT_PAGE_SIZE = 25
 MAX_PAGE_SIZE = 200
 

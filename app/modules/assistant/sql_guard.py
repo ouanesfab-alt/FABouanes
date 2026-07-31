@@ -5,7 +5,6 @@ from typing import Any
 
 import sqlglot
 
-
 READONLY_FORBIDDEN_NODE_PARTS = {
     "insert",
     "update",

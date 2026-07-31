@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from typing import Any, List, Optional
+
 from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import Optional, List, Any
 
 
 def parse_numeric(val: any) -> float:

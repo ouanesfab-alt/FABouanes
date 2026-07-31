@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import shutil
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -9,9 +11,6 @@ from werkzeug.utils import secure_filename
 
 from app.core.runtime_paths import ensure_runtime_dirs, paths
 
-
-import json
-import time
 
 def notes_file_path() -> Path:
     ensure_runtime_dirs()

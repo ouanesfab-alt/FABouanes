@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.helpers import unit_choices
-from app.modules.sales.repository import SaleRepository, SaleDocumentRepository
+from app.modules.sales.repository import SaleDocumentRepository, SaleRepository
+
 
 class SalesQueries:
     """Gestion des requêtes en lecture seule (Queries) du module Sales."""

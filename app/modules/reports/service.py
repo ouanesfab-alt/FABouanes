@@ -8,15 +8,16 @@ from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.reports.repository import ReportsRepository
 from app.modules.reports.dtos import (
-    ReportsContextDTO,
-    ReportsSummaryDTO,
-    TopProductDTO,
-    TopClientDTO,
     ClientDebtDTO,
     DebtTotalsDTO,
+    ReportsContextDTO,
+    ReportsSummaryDTO,
+    TopClientDTO,
+    TopProductDTO,
 )
+from app.modules.reports.repository import ReportsRepository
+
 
 def _to_date(val) -> date | None:
     if not val:

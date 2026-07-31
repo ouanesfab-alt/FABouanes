@@ -5,15 +5,15 @@ import csv
 import io
 from datetime import date
 
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
-from app.modules.reports.service import ReportsService
-from app.web.deps import require_permission, template_context, templates
 from app.core.perf_cache import async_cached_result
 from app.core.rate_limit import limiter
+from app.modules.reports.service import ReportsService
+from app.web.deps import require_permission, template_context, templates
 
 router = APIRouter()
 

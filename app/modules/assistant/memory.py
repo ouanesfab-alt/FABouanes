@@ -7,7 +7,7 @@ contextes, corrections) dans une table PostgreSQL avec recherche full-text.
 from __future__ import annotations
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
 from app.core.db_helpers import db_manager
 

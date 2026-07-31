@@ -3,18 +3,19 @@ from __future__ import annotations
 import asyncio
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
-from sqlmodel import select, text
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.events import DomainEvent, emit
-from app.core.exceptions import ValidationError, ConflictError, NotFoundError
-from app.core.helpers import unit_choices
-from app.services.stock_service import qty_to_kg, unit_price_to_kg
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select, text
+
 from app.core.document_numbering import next_doc_number
+from app.core.events import DomainEvent, emit
+from app.core.exceptions import ConflictError, NotFoundError, ValidationError
+from app.core.helpers import unit_choices
+from app.core.models import FinishedProduct, Purchase, PurchaseDocument, RawMaterial, StockMovement, Supplier
 from app.core.perf_cache import invalidate_cache_domains
-from app.core.models import Purchase, PurchaseDocument, StockMovement, FinishedProduct, RawMaterial, Supplier
-from app.modules.purchases.repository import PurchaseRepository, PurchaseDocumentRepository
+from app.modules.purchases.repository import PurchaseDocumentRepository, PurchaseRepository
 from app.modules.purchases.schemas_validation import PurchaseFormSchema
+from app.services.stock_service import qty_to_kg, unit_price_to_kg
 
 
 class PurchaseService:

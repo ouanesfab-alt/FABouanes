@@ -18,7 +18,6 @@ from app.services.contact_directory_service import (
 )
 from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
 
-
 router = APIRouter()
 
 SUPPLIERS_FILTER_URL = "/contacts?type=supplier"

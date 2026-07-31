@@ -5,16 +5,23 @@ import csv
 import io
 from datetime import date, datetime
 
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.async_db import get_async_session
 
+from app.core.async_db import get_async_session
+from app.core.permissions import PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE, PERMISSION_PRODUCTION_WRITE
 from app.services.print_service import COMPANY_INFO, PRINT_LAYOUT, build_print_payload, generate_invoice_pdf
 from app.services.transactions_service import transactions_context, update_production_notes
-from app.web.deps import csrf_protect, flash, get_current_user, login_redirect, require_permission, template_context, templates
-from app.core.permissions import PERMISSION_OPERATIONS_READ, PERMISSION_PRODUCTION_WRITE, PERMISSION_OPERATIONS_WRITE
-
+from app.web.deps import (
+    csrf_protect,
+    flash,
+    get_current_user,
+    login_redirect,
+    require_permission,
+    template_context,
+    templates,
+)
 
 router = APIRouter()
 
@@ -122,10 +129,10 @@ async def new_operation_page(request: Request, db: AsyncSession = Depends(get_as
     if denied:
         return denied
 
+    from app.core.db_helpers import query_db
     from app.modules.purchases.service import PurchaseService
     from app.modules.sales.service import SalesService
     from app.services.payment_service import new_payment_context
-    from app.core.db_helpers import query_db
 
     p_ctx = await PurchaseService(db).purchase_form_context()
     s_ctx = await SalesService(db).sale_form_context()

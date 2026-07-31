@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Optional
-from sqlmodel import SQLModel, Field
+
 from pydantic import field_validator
+from sqlmodel import Field, SQLModel
 
 from app.core.model_utils import _now
 

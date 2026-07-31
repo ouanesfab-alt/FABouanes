@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.async_db import get_async_session
-from app.modules.clients.service import ClientService
-from app.modules.clients.schemas_validation import ClientCreateSchema
 
+from app.core.async_db import get_async_session
 from app.core.permissions import PERMISSION_CONTACTS_READ, PERMISSION_CONTACTS_WRITE
 from app.core.schema.client_validation import ClientValidationSchema
+from app.modules.clients.schemas_validation import ClientCreateSchema
+from app.modules.clients.service import ClientService
 from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
-
 
 router = APIRouter()
 

@@ -3,14 +3,14 @@ from __future__ import annotations
 from datetime import datetime
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
 from app.core.exceptions import get_friendly_error_message
-from app.modules.clients.service import ClientService
 from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
+from app.modules.clients.service import ClientService
 from app.services.print_service import COMPANY_INFO
 from app.web.deps import (
     csrf_protect,

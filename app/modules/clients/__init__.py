@@ -1,8 +1,9 @@
 """Module Clients — Gestion des partenaires clients."""
-from app.modules.base import ModuleBase
-from app.modules.clients.web import router as web_router
 from app.core.registry import register
+from app.modules.base import ModuleBase
 from app.modules.clients.schema import TABLES
+from app.modules.clients.web import router as web_router
+
 
 class ClientsModule(ModuleBase):
     @property

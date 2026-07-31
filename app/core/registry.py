@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi import APIRouter
+
     from app.modules.base import ModuleBase
 
 logger = logging.getLogger("fabouanes.registry")
@@ -145,6 +146,7 @@ def discover_modules(modules_dir: Path) -> None:
 def mount_web_routes(parent_router: "APIRouter") -> int:
     """Monte les web_router de tous les modules activés. Retourne le nombre monté."""
     from fastapi import Depends
+
     from app.web.deps import verify_csrf_token
     count = 0
     for module in get_enabled_modules():

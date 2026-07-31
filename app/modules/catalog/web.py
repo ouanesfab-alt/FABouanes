@@ -1,24 +1,24 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
 from app.core.exceptions import get_friendly_error_message
+from app.modules.catalog.schemas_validation import (
+    FinishedProductCreateSchema,
+    FinishedProductUpdateSchema,
+    RawMaterialCreateSchema,
+    RawMaterialUpdateSchema,
+)
 from app.modules.catalog.service import (
     CatalogService,
     new_catalog_context,
-    raw_material_edit_context,
     product_edit_context,
     quick_add_context,
+    raw_material_edit_context,
     resolve_name_from_form,
-)
-from app.modules.catalog.schemas_validation import (
-    RawMaterialCreateSchema,
-    RawMaterialUpdateSchema,
-    FinishedProductCreateSchema,
-    FinishedProductUpdateSchema,
 )
 from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
 

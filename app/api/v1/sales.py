@@ -1,22 +1,26 @@
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_error, api_success, require_api_user
 from app.api.v1._common import (
+    add_cache_headers,
     filtered_sellable_items,
     json_response,
     sale_document_payload,
     sale_payload,
-    add_cache_headers,
 )
-from app.core.permissions import PERMISSION_CATALOG_READ, PERMISSION_OPERATIONS_DELETE, PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
-from app.modules.reports.repository import list_recent_operations
+
 # list_sales is now handled via SalesService
 from app.core.async_db import get_async_session
-from app.modules.sales.service import SalesService
+from app.core.permissions import (
+    PERMISSION_CATALOG_READ,
+    PERMISSION_OPERATIONS_DELETE,
+    PERMISSION_OPERATIONS_READ,
+    PERMISSION_OPERATIONS_WRITE,
+)
+from app.modules.reports.repository import list_recent_operations
 from app.modules.sales.schemas_validation import SaleFormSchema
-
-
+from app.modules.sales.service import SalesService
 
 router = APIRouter(prefix="/api/v1", tags=["sales"])
 

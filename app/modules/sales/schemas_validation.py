@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import Optional, List, Any
 from datetime import date
+from typing import Any, List, Optional
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.modules.catalog.schemas_validation import parse_numeric
 

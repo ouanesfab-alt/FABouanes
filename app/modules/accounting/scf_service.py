@@ -3,7 +3,9 @@ Service de Comptabilité Système Comptable Financier (SCF Algérie).
 Génère la Balance Générale, le Bilan (Actif/Passif) et le Tableau des Comptes de Résultat (TCR).
 """
 from __future__ import annotations
-from typing import Dict, List, Any
+
+from typing import Any, Dict, List
+
 from app.core.db_helpers import query_db
 
 

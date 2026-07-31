@@ -3,18 +3,13 @@ Responsibility: Bootstrap the initial database schema and seed data.
 """
 from __future__ import annotations
 
-
 from app.core.config import settings
 from app.core.db_helpers import connect_database
-from app.core.schema.core import SCHEMA_CORE
-from app.core.schema.contacts import SCHEMA_CONTACTS
 from app.core.schema.catalog import SCHEMA_CATALOG
+from app.core.schema.contacts import SCHEMA_CONTACTS
+from app.core.schema.core import SCHEMA_CORE
 from app.core.schema.operations import SCHEMA_OPERATIONS
 from app.core.schema.production import SCHEMA_PRODUCTION
-
-
-
-
 
 ADVISORY_LOCK_ID = 884712
 
@@ -141,9 +136,10 @@ def bootstrap_schema() -> None:
         conn.commit()
 
         # Create all remaining SQLModel tables (like expenses)
-        from app.core.db import get_database_engine
         from sqlmodel import SQLModel
+
         import app.core.models  # noqa: F401
+        from app.core.db import get_database_engine
         engine = get_database_engine(settings.database_url)
         SQLModel.metadata.create_all(engine)
 

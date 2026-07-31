@@ -2,22 +2,24 @@ from __future__ import annotations
 
 import asyncio
 import logging
+
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
-from app.version import VERSION_LABEL
+
 from app.core.db import postgres_pool_status
 from app.core.runtime_paths import paths
 from app.services.bon_space_service import find_bon_space_document, list_bon_space_documents
 from app.utils.tool_pages import (
+    create_user_note,
     delete_pdf_reader_file,
+    delete_user_note,
     get_pdf_reader_file_path,
     list_pdf_reader_files,
-    save_pdf_reader_upload,
     list_user_notes,
+    save_pdf_reader_upload,
     save_user_note,
-    create_user_note,
-    delete_user_note,
 )
+from app.version import VERSION_LABEL
 from app.web.deps import csrf_protect, flash, get_current_user, template_context, templates
 
 logger = logging.getLogger("fabouanes.web.report_pages")
@@ -101,8 +103,9 @@ async def notes_api_delete(request: Request):
 
 @router.get("/sw.js", name="service_worker")
 async def service_worker():
-    from app.version import APP_VERSION
     from fastapi import Response
+
+    from app.version import APP_VERSION
     sw_path = paths.static_dir / "sw.js"
     headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
     if sw_path.exists():

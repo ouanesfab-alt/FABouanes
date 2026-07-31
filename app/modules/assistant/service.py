@@ -1,30 +1,33 @@
+import asyncio
 import json
 import logging
-import asyncio
 import time
-import httpx
 from typing import Any, Dict, List, Tuple
+
+import httpx
 
 from app.core.db_helpers import db_manager
 from app.modules.assistant.confirmations import get_tool_confirmation_message, tool_requires_confirmation
-from app.modules.assistant.sql_tools import execute_readonly_sql, execute_write_sql
-from app.modules.assistant.tool_specs import get_gemini_tools, get_ollama_tools
-from app.modules.assistant.tool_actions import execute_tool_action
-from app.modules.assistant.schema_context import (
-    get_schema,
-    get_sabrina_system_prompt,
-)
-from app.modules.assistant.intent import classify_intent
-from app.modules.assistant.rag import get_rag_context
-from app.modules.assistant.llm_client import (
-    get_gemini_client,
-    get_ollama_client,
-    close_http_clients,
+from app.modules.assistant.history import (
+    clean_unconfirmed_tool_calls,
 )
 from app.modules.assistant.history import (
     get_last_user_query as _get_last_user_query,
-    clean_unconfirmed_tool_calls,
 )
+from app.modules.assistant.intent import classify_intent
+from app.modules.assistant.llm_client import (
+    close_http_clients,
+    get_gemini_client,
+    get_ollama_client,
+)
+from app.modules.assistant.rag import get_rag_context
+from app.modules.assistant.schema_context import (
+    get_sabrina_system_prompt,
+    get_schema,
+)
+from app.modules.assistant.sql_tools import execute_readonly_sql, execute_write_sql
+from app.modules.assistant.tool_actions import execute_tool_action
+from app.modules.assistant.tool_specs import get_gemini_tools, get_ollama_tools
 
 logger = logging.getLogger("fabouanes.assistant")
 

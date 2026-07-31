@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
-from app.api.deps import require_api_user, api_success
+from app.api.deps import api_success, require_api_user
+from app.api.v1._common import add_cache_headers, json_response
 from app.core.permissions import PERMISSION_DASHBOARD_READ
 from app.modules.reports.repository import get_dashboard_snapshot
-
-from app.api.v1._common import add_cache_headers, json_response
 
 router = APIRouter(prefix="/api/v1", tags=["dashboard"])
 

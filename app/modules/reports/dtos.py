@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from decimal import Decimal
+
 from pydantic import BaseModel, ConfigDict
+
 
 class ReportsSummaryDTO(BaseModel):
     total_sales: Decimal

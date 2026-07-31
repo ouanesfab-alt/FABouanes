@@ -1,8 +1,10 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status, Request
+import logging
+from collections import defaultdict
+
+from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect, status
+
 from app.core.websockets import manager
 from app.utils.api_response import APIResponse
-from collections import defaultdict
-import logging
 
 logger = logging.getLogger("fabouanes.api.ws")
 router = APIRouter(prefix="/api/v1")

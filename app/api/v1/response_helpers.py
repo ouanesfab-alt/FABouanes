@@ -3,14 +3,25 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import Request
-from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import select, func, case, literal_column, table
+from fastapi.responses import JSONResponse
+from sqlalchemy import case, func, literal_column, select, table
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_success
+from app.core.models import (
+    Client,
+    FinishedProduct,
+    Payment,
+    ProductionBatch,
+    Purchase,
+    RawMaterial,
+    RawSale,
+    Sale,
+    Supplier,
+)
 from app.modules.sales.repository import build_sellable_items
-from app.core.models import Client, Supplier, RawMaterial, FinishedProduct, ProductionBatch, Purchase, Sale, RawSale, Payment
+
 
 def json_response(payload: dict[str, Any]) -> JSONResponse:
     status_code = int(payload.pop("_status_code", 200))

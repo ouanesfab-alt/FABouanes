@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+
 import logging
 import os
 from typing import Any, Dict
+
 from app.core.config import BASE_DIR
 from app.core.db_helpers import db_manager
 from app.modules.assistant.tool_actions import _assert_workspace_path
@@ -71,8 +73,8 @@ async def handle_admin(func_name: str, func_args: dict, session_maker, user_role
             username = func_args.get("username", "")
             new_password = func_args.get("new_password", "")
             from app.core.security import validate_password_strength
-            from app.services.auth_service import get_user_by_username, generate_password_hash
             from app.modules.users.repository import update_password
+            from app.services.auth_service import generate_password_hash, get_user_by_username
             ok, password_msg = validate_password_strength(new_password)
             if not ok:
                 return {"error": password_msg}

@@ -1,7 +1,8 @@
 """Module Ventes — Gestion des factures et lignes de vente."""
+from app.core.registry import register
 from app.modules.base import ModuleBase
 from app.modules.sales.web import router as web_router
-from app.core.registry import register
+
 
 class SalesModule(ModuleBase):
     @property

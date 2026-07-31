@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional, Tuple, Set
-from sqlmodel import select, func, case, literal, union_all, or_
+from typing import Any, Dict, List, Optional, Set, Tuple
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlmodel import case, func, literal, or_, select, union_all
 
-from app.core.models import Sale, RawSale, SaleDocument, FinishedProduct, Client, RawMaterial, Payment
+from app.core.async_db import get_async_sessionmaker
 from app.core.base_repository import AsyncRepository
 from app.core.helpers import db_task_compat
-from app.core.async_db import get_async_sessionmaker
+from app.core.models import Client, FinishedProduct, Payment, RawMaterial, RawSale, Sale, SaleDocument
 
 
 def _payment_references_sale(payment_row: Dict[str, Any], sale_refs: Set[Tuple[str, int]]) -> bool:

@@ -1,7 +1,8 @@
 """Module Catalogue — Gestion des matières premières, produits finis et recettes."""
+from app.core.registry import register
 from app.modules.base import ModuleBase
 from app.modules.catalog.web import router as web_router
-from app.core.registry import register
+
 
 class CatalogModule(ModuleBase):
     @property

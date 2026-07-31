@@ -1,16 +1,30 @@
 """Requêtes ORM d'agrégation et accès aux données pour le module Rapports."""
 from __future__ import annotations
 
-from datetime import date, timedelta
 import time
+from datetime import date, timedelta
 from typing import Any
 
-from sqlalchemy import select, union_all, func, case, cast, literal_column, String, Numeric, text, true
+from sqlalchemy import Numeric, String, case, cast, func, literal_column, select, text, true, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.async_db import get_async_sessionmaker
 from app.core.helpers import db_task_compat
-from app.core.perf_cache import async_cached_result, TTL_FREQUENT, TTL_SEMI_STABLE
-from app.core.models import Sale, RawSale, Purchase, Payment, Expense, Client, FinishedProduct, RawMaterial, Supplier, ProductionBatch, ProductionBatchItem
+from app.core.models import (
+    Client,
+    Expense,
+    FinishedProduct,
+    Payment,
+    ProductionBatch,
+    ProductionBatchItem,
+    Purchase,
+    RawMaterial,
+    RawSale,
+    Sale,
+    Supplier,
+)
+from app.core.perf_cache import TTL_FREQUENT, TTL_SEMI_STABLE, async_cached_result
+
 
 class ReportsRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -700,8 +714,8 @@ _REFRESH_PENDING = False
 async def refresh_client_balances_view(db: AsyncSession | None = None) -> None:
     """Refresh the mv_client_balances materialized view after financial mutations, throttled with a trailing call."""
     global _LAST_REFRESH_TIME_IN_MEM, _REFRESH_PENDING
-    import logging
     import asyncio
+    import logging
     logger = logging.getLogger("fabouanes")
 
     now = time.time()
@@ -1048,8 +1062,10 @@ async def get_kpi_history_last_30_days(metric: str, db: AsyncSession | None = No
 
 async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> tuple[list[str], list[float]]:
     from datetime import date, timedelta
+
+    from sqlalchemy import Date, cast
+
     from app.core.models import Client
-    from sqlalchemy import cast, Date
 
     today_obj = date.today()
     start_date = today_obj - timedelta(days=days - 1)

@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
-from sqlmodel import select, func, case, and_, or_
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.models import Payment, Client
-from app.core.base_repository import AsyncRepository
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import and_, case, func, or_, select
+
 from app.core.async_db import get_async_sessionmaker
+from app.core.base_repository import AsyncRepository
 from app.core.helpers import async_compat, db_task_compat, get_open_credit_entries
+from app.core.models import Client, Payment
+
 
 class PaymentRepository(AsyncRepository[Payment]):
     """Asynchronous repository for the Payment model."""

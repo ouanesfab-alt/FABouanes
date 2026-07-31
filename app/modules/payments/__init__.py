@@ -1,7 +1,8 @@
 """Module Règlements — Gestion des versements et avances clients."""
+from app.core.registry import register
 from app.modules.base import ModuleBase
 from app.modules.payments.web import router as web_router
-from app.core.registry import register
+
 
 class PaymentsModule(ModuleBase):
     @property

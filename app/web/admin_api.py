@@ -5,31 +5,32 @@ import asyncio
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from fastapi import APIRouter, Request, HTTPException, status, File, UploadFile
 
-from app.utils.api_response import APIResponse
-from app.web.deps import get_current_user
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
+
+from app.core.async_db import get_async_sessionmaker
+from app.core.db_helpers import db_manager
 from app.core.permissions import (
-    has_permission,
+    PERMISSION_AUDIT_READ,
     PERMISSION_SETTINGS_MANAGE,
     PERMISSION_USERS_MANAGE,
-    PERMISSION_AUDIT_READ,
+    has_permission,
 )
-from app.services.admin_service import (
-    create_user_account,
-    update_user_account,
-    delete_user_account,
-    create_manual_backup,
-    restore_backup_by_value,
-    save_backup_settings_from_form,
-    run_database_maintenance,
-)
-from app.core.db_helpers import db_manager
-from app.core.async_db import get_async_sessionmaker
-from app.modules.users.repository import list_users
 from app.core.storage import list_restore_backups
+from app.modules.users.repository import list_users
+from app.services.admin_service import (
+    create_manual_backup,
+    create_user_account,
+    delete_user_account,
+    restore_backup_by_value,
+    run_database_maintenance,
+    save_backup_settings_from_form,
+    update_user_account,
+)
 from app.services.backup_service import list_backup_jobs
 from app.services.system_service import get_system_status
+from app.utils.api_response import APIResponse
+from app.web.deps import get_current_user
 
 router = APIRouter(prefix="/api/admin", tags=["admin-api"])
 
@@ -173,6 +174,7 @@ async def api_list_backups(request: Request):
 async def api_download_backup(filename: str, request: Request):
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
     from fastapi.responses import FileResponse
+
     from app.core.storage import resolve_backup_path
     safe_filename = Path(filename).name
     path = resolve_backup_path(f"local:{safe_filename}")
@@ -265,7 +267,7 @@ async def api_get_audit_logs(request: Request):
 
 async def _get_filtered_audit_data(filters: dict[str, str], db) -> dict[str, Any]:
     from app.core.audit import list_audit_logs
-    from app.services.activity_service import list_admin_activity, activity_filter_values
+    from app.services.activity_service import activity_filter_values, list_admin_activity
 
     audit_logs = await list_audit_logs(filters, limit=150, db=db)
     activity_logs = await list_admin_activity(filters, limit=150, db=db)

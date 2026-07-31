@@ -4,14 +4,15 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
+
 from sqlalchemy import Column, Numeric, String
-from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.orm import relationship
+from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from app.core.models_pkg.clients import Client
-    from app.core.models_pkg.sales import Sale, RawSale
+    from app.core.models_pkg.sales import RawSale, Sale
 
 
 from app.core.model_utils import _now

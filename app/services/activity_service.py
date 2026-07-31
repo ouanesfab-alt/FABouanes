@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_sessionmaker
 
-
 ACTION_LABELS = {
     "backup_now": "a créé une sauvegarde",
     "change_password": "a changé un mot de passe",

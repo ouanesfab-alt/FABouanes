@@ -13,12 +13,12 @@ Usage:
 """
 from __future__ import annotations
 
+import datetime
+import decimal
+import json
 import logging
 import os
 import uuid
-import json
-import decimal
-import datetime
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -241,8 +241,9 @@ def _auto_refresh_balances(event: DomainEvent) -> None:
     """Refresh the mv_client_balances materialized view after financial mutations."""
     if event.entity_type in ("sale", "payment", "client", "sale_document"):
         try:
-            from app.modules.reports.repository import refresh_client_balances_view
             import asyncio
+
+            from app.modules.reports.repository import refresh_client_balances_view
             try:
                 loop = asyncio.get_running_loop()
             except RuntimeError:
@@ -302,6 +303,7 @@ def _auto_check_stock_alert(event: DomainEvent) -> None:
         return
     if event.entity_type in ("sale", "purchase", "production_batch", "raw_material", "finished_product"):
         import asyncio
+
         from app.services.alert_service import check_stock_alerts
         try:
             loop = asyncio.get_running_loop()
@@ -322,8 +324,9 @@ def _auto_rebuild_catalog_embeddings(event: DomainEvent) -> None:
     if event.action == "invalidate":
         return
     try:
-        from app.core.worker import enqueue_background_task
         import asyncio
+
+        from app.core.worker import enqueue_background_task
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -385,8 +388,9 @@ _last_seen_pubsub_id = 0
 
 def _db_event_listener_loop():
     global _db_listener_running, _last_seen_pubsub_id
-    import time
     import select
+    import time
+
     from app.core.db_helpers import execute_db, query_db
 
     # Initialize last seen ID to current max

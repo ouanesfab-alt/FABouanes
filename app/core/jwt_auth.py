@@ -7,13 +7,14 @@ Séparée des cookies de session web pour ne pas interférer.
 # 2. Utilisation de la dépendance HTTPBearer de FastAPI pour une extraction transparente du token depuis l'en-tête Authorization.
 
 from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import jwt as pyjwt
-from jwt.exceptions import PyJWTError
 from fastapi import HTTPException, Security
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jwt.exceptions import PyJWTError
 
 from app.core.config import settings
 
@@ -46,6 +47,7 @@ def create_refresh_token(user_id: int) -> str:
 
     # Save token hash in api_refresh_tokens
     import hashlib
+
     from app.core.db_helpers import execute_db
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
     expires_str = expires.strftime("%Y-%m-%d %H:%M:%S")
@@ -82,7 +84,8 @@ def validate_mobile_refresh_token(token: str) -> dict[str, Any]:
 
     # 2. Check in database
     import hashlib
-    from app.core.db_helpers import query_db, execute_db
+
+    from app.core.db_helpers import execute_db, query_db
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
 
     # Reuse detection check: check if it exists in db, even if revoked

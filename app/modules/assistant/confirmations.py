@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from app.modules.assistant.sql_tools import dry_run_sql
 
-
 READ_ONLY_TOOL_NAMES = frozenset({
     "change_theme",
     "execute_readonly_sql",

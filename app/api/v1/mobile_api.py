@@ -8,25 +8,30 @@ Toutes les routes sont protégées sauf /ping et /auth/token.
 # 2. Exécution systématique de toutes les fonctions de repositories et services synchrones via asyncio.to_thread pour ne pas bloquer la boucle d'événements.
 
 from __future__ import annotations
+
 import logging
 from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
-from app.api.v1._common import add_cache_headers
-from app.core.jwt_auth import (
-    create_access_token, create_refresh_token,
-    get_current_user_id, validate_mobile_refresh_token,
-)
-from app.services.auth_service import verify_credentials
-from app.modules.users.repository import get_user_by_id
-from app.modules.clients.service import ClientService
-from app.api.v1.clients import _fetch_client_history
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.v1._common import add_cache_headers
+from app.api.v1.clients import _fetch_client_history
 from app.core.async_db import get_async_session
+from app.core.jwt_auth import (
+    create_access_token,
+    create_refresh_token,
+    get_current_user_id,
+    validate_mobile_refresh_token,
+)
+from app.core.rate_limit import limiter
+from app.core.schema.payment_validation import PaymentCreate
+from app.modules.clients.service import ClientService
 from app.modules.payments.service import PaymentsService
 from app.modules.reports.repository import get_dashboard_snapshot
-from app.core.schema.payment_validation import PaymentCreate
-from app.core.rate_limit import limiter
+from app.modules.users.repository import get_user_by_id
+from app.services.auth_service import verify_credentials
 
 logger = logging.getLogger("fabouanes.mobile_api")
 

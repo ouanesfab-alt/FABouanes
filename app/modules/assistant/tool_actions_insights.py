@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+
 import logging
 from typing import Any, Dict
 
@@ -8,10 +9,11 @@ logger = logging.getLogger("fabouanes.assistant")
 async def search_web(query: str) -> Dict[str, Any]:
     from app.core.perf_cache import async_cached_result
     async def builder():
-        import httpx
-        import urllib.parse
-        import re
         import html
+        import re
+        import urllib.parse
+
+        import httpx
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }

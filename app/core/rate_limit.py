@@ -1,4 +1,5 @@
 from fastapi.responses import JSONResponse
+
 from app.core.config import settings
 
 try:

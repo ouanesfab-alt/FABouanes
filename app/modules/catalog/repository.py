@@ -1,20 +1,28 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
-from sqlmodel import select, func, case, literal, union_all, cast, Numeric, delete, or_
-from sqlalchemy.ext.asyncio import AsyncSession
 from decimal import Decimal
+from typing import Any, Dict, List, Optional
 
-from app.core.models import (
-    RawMaterial, FinishedProduct, SavedRecipe, SavedRecipeItem,
-    Purchase, RawSale, Sale, ProductionBatch, ProductionBatchItem,
-    StockMovement, Supplier
-)
-from app.core.base_repository import AsyncRepository
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Numeric, case, cast, delete, func, literal, or_, select, union_all
+
 from app.core.async_db import get_async_sessionmaker
+from app.core.base_repository import AsyncRepository
 from app.core.helpers import async_compat
+from app.core.models import (
+    FinishedProduct,
+    ProductionBatch,
+    ProductionBatchItem,
+    Purchase,
+    RawMaterial,
+    RawSale,
+    Sale,
+    SavedRecipe,
+    SavedRecipeItem,
+    StockMovement,
+    Supplier,
+)
 from app.services.recipe_service import load_saved_recipes  # noqa: F401
-
 
 
 class RawMaterialRepository(AsyncRepository[RawMaterial]):
@@ -356,8 +364,6 @@ from app.modules.production.repository import (  # noqa: F401, E402
     list_production_page_context,
     production_form_context,
 )
-
-
 
 
 @async_compat

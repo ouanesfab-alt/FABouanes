@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import os
 import logging
+import os
 import threading
-from time import monotonic
-from contextlib import contextmanager
 from collections import OrderedDict
+from contextlib import contextmanager
+from decimal import Decimal
+from time import monotonic
 from typing import Any, Callable
 from urllib.parse import urlparse
-from decimal import Decimal
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
@@ -769,8 +769,8 @@ def drain_performance_events_once() -> int:
 
 
 def db_task(func):
-    import functools
     import asyncio
+    import functools
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):

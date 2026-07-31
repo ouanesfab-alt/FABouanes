@@ -3,19 +3,21 @@ from __future__ import annotations
 import asyncio
 from datetime import date
 from typing import Tuple
-from sqlmodel import select, text
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.events import DomainEvent, emit
-from app.core.exceptions import ValidationError, ConflictError, NotFoundError
-from app.services.stock_service import qty_to_kg
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select, text
+
 from app.core.document_numbering import next_doc_number
+from app.core.events import DomainEvent, emit
+from app.core.exceptions import ConflictError, NotFoundError, ValidationError
+from app.core.models import FinishedProduct, Payment, RawMaterial, RawSale, Sale, SaleDocument, StockMovement
 from app.core.perf_cache import invalidate_cache_domains
-from app.core.models import Sale, RawSale, SaleDocument, StockMovement, Payment, FinishedProduct, RawMaterial
-from app.modules.sales.repository import SaleRepository, RawSaleRepository, SaleDocumentRepository
 from app.core.request_state import get_state_value
+from app.modules.sales.repository import RawSaleRepository, SaleDocumentRepository, SaleRepository
 from app.modules.sales.schemas_validation import SaleFormSchema
 from app.modules.sales.validation import SalesValidator
+from app.services.stock_service import qty_to_kg
+
 
 class SalesCommands:
     """Gestion des commandes (Commands / écritures) du module Sales."""

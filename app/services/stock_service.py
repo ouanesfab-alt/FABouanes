@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
 import re
+from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import select, func, update, delete, case
+from sqlalchemy import case, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.async_db import get_async_sessionmaker
-from app.core.request_state import get_state_value
 
-from app.core.exceptions import ValidationError, NotFoundError
+from app.core.async_db import get_async_sessionmaker
+from app.core.exceptions import NotFoundError, ValidationError
 from app.core.helpers import async_compat
+from app.core.request_state import get_state_value
 
 OTHER_OPERATION_NAME = "AUTRE"
 OTHER_OPERATION_UNIT = "unite"
@@ -107,7 +107,7 @@ async def recalc_raw_material_avg_cost(material_id: int, db: AsyncSession | None
 
 
 async def _recalc_raw_material_avg_cost_impl(material_id: int, db: AsyncSession) -> None:
-    from app.core.models import RawMaterial, Purchase
+    from app.core.models import Purchase, RawMaterial
 
     material = (await db.execute(select(RawMaterial).where(RawMaterial.id == material_id))).scalar_one_or_none()
     if not material:
@@ -235,7 +235,7 @@ async def recalc_sale_document_totals(document_id: int | None, db: AsyncSession 
 
 
 async def _recalc_sale_document_totals_impl(document_id: int, db: AsyncSession) -> None:
-    from app.core.models import Sale, RawSale, SaleDocument
+    from app.core.models import RawSale, Sale, SaleDocument
 
     finished_res = await db.execute(
         select(
@@ -286,7 +286,7 @@ async def refresh_sale_profits_for_item(item_kind: str, item_id: int, avg_cost: 
 
 
 async def _refresh_sale_profits_for_item_impl(item_kind: str, item_id: int, avg_cost: float, sale_price: float | None, db: AsyncSession) -> None:
-    from app.core.models import Sale, RawSale
+    from app.core.models import RawSale, Sale
 
     if item_kind == "raw":
         unit_lower = func.lower(func.trim(RawSale.unit))
@@ -375,7 +375,7 @@ async def _create_purchase_record_impl(
     item_id: int | None,
     db: AsyncSession,
 ) -> int:
-    from app.core.models import RawMaterial, FinishedProduct, Purchase
+    from app.core.models import FinishedProduct, Purchase, RawMaterial
 
     if isinstance(item_kind_or_raw_id, (int, float)) or (isinstance(item_kind_or_raw_id, str) and item_kind_or_raw_id.isdigit()):
         item_kind = "raw"
@@ -517,7 +517,7 @@ async def _create_sale_record_impl(
     custom_item_name: str,
     db: AsyncSession,
 ) -> tuple[str, int]:
-    from app.core.models import FinishedProduct, RawMaterial, Sale, RawSale, Payment
+    from app.core.models import FinishedProduct, Payment, RawMaterial, RawSale, Sale
 
     total = qty * unit_price
     requested_sale_type = (sale_type or "").strip().lower()
@@ -667,7 +667,7 @@ async def reverse_purchase(purchase_id: int, db: AsyncSession | None = None) -> 
 
 
 async def _reverse_purchase_impl(purchase_id: int, db: AsyncSession) -> bool:
-    from app.core.models import Purchase, FinishedProduct, RawMaterial
+    from app.core.models import FinishedProduct, Purchase, RawMaterial
 
     row_res = await db.execute(select(Purchase).where(Purchase.id == purchase_id))
     row = row_res.scalar_one_or_none()
@@ -727,7 +727,7 @@ async def reverse_sale(kind: str, row_id: int, db: AsyncSession | None = None) -
 
 
 async def _reverse_sale_impl(kind: str, row_id: int, db: AsyncSession) -> bool:
-    from app.core.models import Sale, RawSale, FinishedProduct, RawMaterial, Payment
+    from app.core.models import FinishedProduct, Payment, RawMaterial, RawSale, Sale
 
     if kind == "finished":
         row_res = await db.execute(select(Sale).where(Sale.id == row_id))
@@ -838,7 +838,7 @@ async def reverse_production(batch_id: int, db: AsyncSession | None = None) -> b
 
 
 async def _reverse_production_impl(batch_id: int, db: AsyncSession) -> bool:
-    from app.core.models import ProductionBatch, ProductionBatchItem, FinishedProduct, RawMaterial
+    from app.core.models import FinishedProduct, ProductionBatch, ProductionBatchItem, RawMaterial
 
     batch_res = await db.execute(select(ProductionBatch).where(ProductionBatch.id == batch_id))
     batch = batch_res.scalar_one_or_none()

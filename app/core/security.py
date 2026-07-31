@@ -168,6 +168,7 @@ def decrypt_val(enc_val: str | None, key: bytes | None) -> str | None:
             return "[DONNÉES SUPPRIMÉES]"
         try:
             import base64
+
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
             combined = base64.b64decode(enc_val[4:])
             if len(combined) < 12:
@@ -192,9 +193,10 @@ def get_client_key_sync(client_id: int) -> bytes | None:
 
 
 def create_client_key_sync(client_id: int) -> bytes:
-    from app.core.db_helpers import execute_db
-    import os
     import base64
+    import os
+
+    from app.core.db_helpers import execute_db
     key = os.urandom(32)
     b64_key = base64.b64encode(key).decode("utf-8")
     execute_db(

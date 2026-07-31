@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
-from sqlmodel import select, or_, func, case, literal, union_all, literal_column, text
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.models import Client, Sale, RawSale, FinishedProduct, RawMaterial, Payment, ClientHistory
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import case, func, literal, literal_column, or_, select, text, union_all
+
 from app.core.base_repository import AsyncRepository
+from app.core.models import Client, ClientHistory, FinishedProduct, Payment, RawMaterial, RawSale, Sale
 
 
 class ClientRepository(AsyncRepository[Client]):

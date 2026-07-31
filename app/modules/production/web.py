@@ -6,10 +6,9 @@ from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 
-from app.core.request_state import set_state_value
-from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
-from app.core.permissions import PERMISSION_PRODUCTION_DELETE, PERMISSION_PRODUCTION_READ, PERMISSION_PRODUCTION_WRITE
 from app.core.helpers import wants_print_after_submit
+from app.core.permissions import PERMISSION_PRODUCTION_DELETE, PERMISSION_PRODUCTION_READ, PERMISSION_PRODUCTION_WRITE
+from app.core.request_state import set_state_value
 from app.core.schema.production_validation import ProductionBatchCreate
 from app.modules.production.service import (
     create_production_from_form,
@@ -17,6 +16,7 @@ from app.modules.production.service import (
     new_production_context,
     productions_context,
 )
+from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
 
 router = APIRouter()
 

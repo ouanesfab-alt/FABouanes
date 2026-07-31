@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -8,14 +10,13 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-import hashlib
 
-from app.core.config import APP_DATA_DIR, DATABASE_URL
-from app.core.audit import audit_event
-import asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.async_db import get_async_sessionmaker
+from app.core.audit import audit_event
+from app.core.config import APP_DATA_DIR, DATABASE_URL
 from app.core.db_helpers import connect_database
 from app.core.helpers import async_compat
 
@@ -274,8 +275,8 @@ async def _mirror_backup_to_sync_folder(local_path: Path, db: AsyncSession) -> t
     target = target_dir / local_path.name
     if str(target.resolve()) != str(local_path.resolve()):
         # Copie atomique : écriture dans un fichier temporaire puis renommage
-        import tempfile
         import shutil
+        import tempfile
         with tempfile.NamedTemporaryFile(
             dir=target_dir, delete=False, suffix=".tmp"
         ) as tmp:
@@ -538,8 +539,9 @@ async def _weekly_vacuum() -> None:
         return
 
     try:
-        from app.core.config import DATABASE_URL
         from sqlalchemy import create_engine
+
+        from app.core.config import DATABASE_URL
 
         # VACUUM cannot run inside a transaction block, we need autocommit
         url = DATABASE_URL

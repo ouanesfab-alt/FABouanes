@@ -1,15 +1,14 @@
-import os
 import json
+import os
+
 from fastapi import APIRouter, Request
-from fastapi.responses import RedirectResponse, JSONResponse, StreamingResponse
-from app.web.deps import require_permission
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
+
 from app.core.db_helpers import db_manager
 from app.core.security import encrypt_val
-from app.modules.assistant.schema_context import get_gemini_api_key, get_encryption_key
-from app.modules.assistant.service import (
-    run_assistant_agent_generator,
-    start_ollama
-)
+from app.modules.assistant.schema_context import get_encryption_key, get_gemini_api_key
+from app.modules.assistant.service import run_assistant_agent_generator, start_ollama
+from app.web.deps import require_permission
 
 router = APIRouter()
 
@@ -87,6 +86,7 @@ def _handle_file_attachment(file_obj: dict | None, new_message: dict) -> None:
     if is_excel and mime_type and data:
         import base64
         from pathlib import Path
+
         from app.core.config import BASE_DIR
 
         import_dir = Path(BASE_DIR) / "app" / "runtime" / "imports"

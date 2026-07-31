@@ -1,23 +1,24 @@
 from __future__ import annotations
 
 import asyncio
+from collections import defaultdict
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
-from collections import defaultdict
 
-from app.core.models import RawMaterial, FinishedProduct, SavedRecipe, SavedRecipeItem
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.events import DomainEvent, emit
-from app.core.perf_cache import async_cached_result, invalidate_cache_domains
 from app.core.helpers import refresh_sale_profits_for_item, unit_choices
-from app.utils.pagination import paginate_sequence
-from app.modules.catalog.repository import RawMaterialRepository, FinishedProductRepository, SavedRecipeRepository
+from app.core.models import FinishedProduct, RawMaterial, SavedRecipe, SavedRecipeItem
+from app.core.perf_cache import async_cached_result, invalidate_cache_domains
+from app.modules.catalog.repository import FinishedProductRepository, RawMaterialRepository, SavedRecipeRepository
 from app.modules.catalog.schemas_validation import (
-    RawMaterialCreateSchema,
-    RawMaterialUpdateSchema,
     FinishedProductCreateSchema,
     FinishedProductUpdateSchema,
+    RawMaterialCreateSchema,
+    RawMaterialUpdateSchema,
 )
+from app.utils.pagination import paginate_sequence
 
 # Constants
 RAW_MATERIAL_PRESETS = [
@@ -319,6 +320,7 @@ class CatalogService:
         before_dump = rm.model_dump()
 
         from sqlalchemy.exc import IntegrityError
+
         from app.core.exceptions import ValidationError
         try:
             success = await self.raw_repo.delete(material_id)
@@ -350,6 +352,7 @@ class CatalogService:
         before_dump = fp.model_dump()
 
         from sqlalchemy.exc import IntegrityError
+
         from app.core.exceptions import ValidationError
         try:
             success = await self.finished_repo.delete(product_id)

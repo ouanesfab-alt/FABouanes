@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
-from pathlib import Path
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import Any
 
 

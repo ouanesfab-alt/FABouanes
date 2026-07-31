@@ -1,7 +1,8 @@
 """Module Achats — Gestion des approvisionnements et des bons d'achat."""
+from app.core.registry import register
 from app.modules.base import ModuleBase
 from app.modules.purchases.web import router as web_router
-from app.core.registry import register
+
 
 class PurchasesModule(ModuleBase):
     @property

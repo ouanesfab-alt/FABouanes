@@ -3,21 +3,22 @@
 from __future__ import annotations
 
 from datetime import date
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.async_db import get_async_sessionmaker
 
 from app.core.activity import log_activity
+from app.core.async_db import get_async_sessionmaker
 from app.core.audit import audit_event
-from app.core.helpers import to_float, async_compat
+from app.core.helpers import async_compat, to_float
+from app.core.models import FinishedProduct, ProductionBatch, ProductionBatchItem, RawMaterial, SavedRecipe
 from app.core.perf_cache import async_cached_result
+from app.core.request_state import get_state_value
 from app.core.storage import mark_backup_needed
 from app.modules.production.repository import list_production_page_context, production_form_context
 from app.modules.sales.repository import invalidate_sellable_items_cache
 from app.services.recipe_service import save_recipe_definition
 from app.services.stock_service import apply_finished_production, apply_raw_material_consumption, reverse_production
-from app.core.request_state import get_state_value
-from app.core.models import FinishedProduct, RawMaterial, ProductionBatch, ProductionBatchItem, SavedRecipe
 
 
 @async_compat

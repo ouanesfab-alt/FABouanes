@@ -1,24 +1,25 @@
 from __future__ import annotations
 
 import base64
-import math
 import json
-import shutil
+import math
 import secrets
+import shutil
 from time import time
 from typing import Any, Dict, List, Optional, Tuple
-from werkzeug.utils import secure_filename
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select, delete, func, literal, literal_column
 
-from app.core.models import Client, ClientKey, ClientHistory
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import delete, func, literal, literal_column, select
+from werkzeug.utils import secure_filename
+
 from app.core.events import DomainEvent, emit
+from app.core.helpers import parse_excel_client_file
+from app.core.models import Client, ClientHistory, ClientKey
 from app.core.perf_cache import invalidate_client_cache
+from app.core.security import decrypt_val
+from app.core.storage import IMPORT_DIR, ensure_runtime_dirs
 from app.modules.clients.repository import ClientRepository
 from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
-from app.core.storage import IMPORT_DIR, ensure_runtime_dirs
-from app.core.helpers import parse_excel_client_file
-from app.core.security import decrypt_val
 from app.services.excel_import_service import parse_client_history_excel
 
 _IMPORT_PREVIEW_TTL_SECONDS = 30 * 60
@@ -134,6 +135,7 @@ class ClientService:
             client_ids = [c["id"] for c in rows if c.get("id")]
             if client_ids:
                 import base64
+
                 from app.core.security import decrypt_val
 
                 stmt_keys = select(ClientKey.client_id, ClientKey.encryption_key).where(ClientKey.client_id.in_(client_ids))
@@ -161,8 +163,8 @@ class ClientService:
         )
         created = await self.repo.create(client)
 
-        import os
         import base64
+        import os
         key = os.urandom(32)
         b64_key = base64.b64encode(key).decode("utf-8")
 
@@ -264,6 +266,7 @@ class ClientService:
         before_dump = client.model_dump()
 
         from sqlalchemy.exc import IntegrityError
+
         from app.core.exceptions import ValidationError
         try:
             success = await self.repo.delete(client_id)

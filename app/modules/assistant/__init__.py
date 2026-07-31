@@ -1,7 +1,8 @@
 """Module Assistant IA — Assistant agentique connecté à l'API Gemini."""
-from app.modules.base import ModuleBase
-from app.modules.assistant.web import router as web_router
 from app.core.registry import register
+from app.modules.assistant.web import router as web_router
+from app.modules.base import ModuleBase
+
 
 class AssistantModule(ModuleBase):
     @property

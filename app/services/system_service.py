@@ -4,12 +4,13 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from app.core.config import APP_DATA_DIR, DATABASE_URL
-from app.core.db_helpers import connect_database, postgres_pool_status
-from app.core.activity import write_text_log
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.activity import write_text_log
 from app.core.async_db import get_async_sessionmaker
+from app.core.config import APP_DATA_DIR, DATABASE_URL
+from app.core.db_helpers import connect_database, postgres_pool_status
 from app.core.helpers import async_compat
 from app.core.storage import LOCAL_BACKUP_DIR, LOG_DIR, get_pending_backup_marker, list_restore_backups
 from app.version import VERSION_LABEL

@@ -1,19 +1,18 @@
 from fastapi import APIRouter, Depends
-from app.web.deps import verify_csrf_token
 
+from app.modules.accounting.web import router as accounting_router
+from app.web.admin_api import router as admin_api_router
 from app.web.admin_pages import router as admin_router
 from app.web.auth_pages import router as auth_router
 from app.web.client_pages import router as client_router
 from app.web.contacts_pages import router as contacts_router
 from app.web.dashboard_pages import router as dashboard_router
+from app.web.deps import verify_csrf_token
+from app.web.manual_pages import router as manual_router
 from app.web.operations_pages import router as operations_router
 from app.web.production_pages import router as production_router
 from app.web.report_pages import router as report_router
 from app.web.search_pages import router as search_router
-from app.web.admin_api import router as admin_api_router
-from app.web.manual_pages import router as manual_router
-from app.modules.accounting.web import router as accounting_router
-
 
 router = APIRouter()
 router.include_router(auth_router, dependencies=[Depends(verify_csrf_token)])

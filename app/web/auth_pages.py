@@ -3,15 +3,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 
-from app.core.auth_cookie import AUTH_COOKIE_NAME, build_auth_cookie_value
-from app.core.config import settings
-from app.web.deps import csrf_protect, flash, get_current_user, login_redirect, template_context, templates
 from app.core.activity import log_activity
 from app.core.audit import audit_event
-from app.services.auth_service import attempt_login, change_user_password
+from app.core.auth_cookie import AUTH_COOKIE_NAME, build_auth_cookie_value
+from app.core.config import settings
 from app.core.rate_limit import limiter
-
-
+from app.services.auth_service import attempt_login, change_user_password
+from app.web.deps import csrf_protect, flash, get_current_user, login_redirect, template_context, templates
 
 router = APIRouter()
 

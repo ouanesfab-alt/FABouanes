@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import json
+import logging
 import uuid
+
 from fastapi import WebSocket
 
 logger = logging.getLogger("fabouanes.websockets")

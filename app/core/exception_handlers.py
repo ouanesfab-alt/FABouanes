@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import logging
-from fastapi import Request, HTTPException
-from fastapi.responses import JSONResponse
+
+from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from app.core.exceptions import (
-    NotFoundError,
-    ValidationError,
-    ConflictError,
-    PermissionDeniedError,
     AuthenticationRequiredError,
+    ConflictError,
+    NotFoundError,
+    PermissionDeniedError,
+    ValidationError,
 )
 
 logger = logging.getLogger("fabouanes")

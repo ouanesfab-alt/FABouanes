@@ -1,16 +1,15 @@
 from __future__ import annotations
 
+import logging
 import os
 import sys
-import logging
 from typing import Any
 
 import structlog
 from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor, ConsoleSpanExporter
 from opentelemetry.sdk.resources import Resource
-
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor
 
 # Eventual OTLP exporter support
 try:

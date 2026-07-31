@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-import os
 import asyncio
+import os
 import threading
 from typing import AsyncGenerator
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession, AsyncEngine
+
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlmodel import SQLModel
 
 from app.core.config import settings
+
 
 def get_async_database_url(database_url: str) -> str:
     """Translates standard postgresql URLs to use the asyncpg driver."""

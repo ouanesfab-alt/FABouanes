@@ -1,18 +1,25 @@
 from __future__ import annotations
 
 import asyncio
-from werkzeug.security import generate_password_hash
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.async_db import get_async_sessionmaker
-from app.core.helpers import async_compat
+from werkzeug.security import generate_password_hash
 
 from app.core.activity import log_activity
+from app.core.async_db import get_async_sessionmaker
 from app.core.audit import audit_event, list_audit_logs
 from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_USERNAME
+from app.core.helpers import async_compat
 from app.core.perf_cache import async_cached_result
 from app.core.security import validate_password_strength
-from app.core.storage import backup_database, list_restore_backups, mark_backup_needed, resolve_backup_path, restore_database_from
+from app.core.storage import (
+    backup_database,
+    list_restore_backups,
+    mark_backup_needed,
+    resolve_backup_path,
+    restore_database_from,
+)
 from app.modules.users.repository import (
     create_user,
     get_user_by_id,
@@ -21,6 +28,12 @@ from app.modules.users.repository import (
     update_user_role_and_status,
     user_exists,
 )
+from app.services.activity_service import (
+    activity_filter_values,
+    list_activity_actions,
+    list_activity_entity_types,
+    list_admin_activity,
+)
 from app.services.auth_service import validate_new_user_payload
 from app.services.backup_service import (
     enqueue_backup_snapshot,
@@ -28,7 +41,6 @@ from app.services.backup_service import (
     list_backup_jobs,
     save_backup_configuration,
 )
-from app.services.activity_service import activity_filter_values, list_activity_actions, list_activity_entity_types, list_admin_activity
 from app.services.system_service import get_system_status
 
 
@@ -96,6 +108,7 @@ async def delete_user_account(user_id: int, db: AsyncSession | None = None):
         return {"ok": False, "message": "Le compte administrateur par défaut ne peut pas être supprimé."}
 
     from sqlalchemy.exc import IntegrityError
+
     from app.modules.users.repository import delete_user
 
     try:
@@ -224,9 +237,9 @@ async def _build_admin_view_data(audit_filters: dict[str, str], db: AsyncSession
     stock_movements_res = await db.execute(text("SELECT * FROM stock_movements ORDER BY id DESC LIMIT 20"))
     stock_movements = [dict(row._mapping) for row in stock_movements_res.all()]
 
-    from app.modules.assistant.service import is_ollama_available
-    from app.modules.assistant.schema_context import get_gemini_api_key
     from app.core.db_helpers import db_manager as helper_db_manager
+    from app.modules.assistant.schema_context import get_gemini_api_key
+    from app.modules.assistant.service import is_ollama_available
 
     sabrina_api_key = get_gemini_api_key()
     selected_model = helper_db_manager.get_setting("gemini_model", "gemini-3.1-flash-lite").strip() or "gemini-3.1-flash-lite"

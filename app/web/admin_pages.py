@@ -3,15 +3,14 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse, Response
 
-from app.web.deps import require_permission, template_context, templates
-from app.core.rate_limit import limiter
 from app.core.audit import export_audit_logs_csv
 from app.core.permissions import PERMISSION_AUDIT_READ, PERMISSION_SETTINGS_MANAGE, PERMISSION_USERS_MANAGE
+from app.core.rate_limit import limiter
 from app.services.admin_service import (
     get_admin_view_data,
 )
 from app.services.system_service import export_diagnostic_report, get_system_status
-
+from app.web.deps import require_permission, template_context, templates
 
 router = APIRouter()
 
@@ -22,8 +21,8 @@ async def admin_panel_page(request: Request):
     if denied:
         return denied
 
-    from app.modules.assistant.schema_context import get_gemini_api_key
     from app.core.db_helpers import db_manager
+    from app.modules.assistant.schema_context import get_gemini_api_key
     from app.modules.assistant.service import is_ollama_available
 
     sabrina_api_key = get_gemini_api_key()

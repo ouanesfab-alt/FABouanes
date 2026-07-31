@@ -4,7 +4,6 @@ from contextvars import ContextVar, Token
 from types import SimpleNamespace
 from typing import Any
 
-
 _request_state: ContextVar[SimpleNamespace | None] = ContextVar("fab_request_state", default=None)
 
 

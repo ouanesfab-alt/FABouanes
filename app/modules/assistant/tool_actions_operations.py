@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+
 import logging
 from typing import Any, Dict
-from app.modules.assistant.tool_actions import sanitize_numeric, EXPENSE_CATEGORY_MAP, _ALLOWED_EXPENSE_CATEGORIES
+
+from app.modules.assistant.tool_actions import _ALLOWED_EXPENSE_CATEGORIES, EXPENSE_CATEGORY_MAP, sanitize_numeric
 
 logger = logging.getLogger("fabouanes.assistant")
 
@@ -22,16 +24,16 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             unit_price = sanitize_numeric(func_args.get("unit_price"))
             amount_paid = sanitize_numeric(func_args.get("amount_paid", 0.0))
             notes = str(func_args.get("notes", "")).strip()
-            from app.modules.sales.service import SalesService
             from app.modules.sales.schemas_validation import SaleFormSchema, SaleLineSchema
+            from app.modules.sales.service import SalesService
             line = SaleLineSchema(item_key=f"{item_kind}:{item_id}", quantity=quantity, unit=unit, unit_price=unit_price)
             schema = SaleFormSchema(client_id=client_id, notes=notes, lines=[line])
             async with session_maker() as session:
                 service = SalesService(session)
                 res = await service.create_sale_from_form(schema)
                 if amount_paid > 0 and client_id:
-                    from app.modules.payments.service import PaymentsService
                     from app.modules.payments.schemas_validation import PaymentFormSchema
+                    from app.modules.payments.service import PaymentsService
                     pay_service = PaymentsService(session)
                     pay_schema = PaymentFormSchema(client_id=client_id, amount=amount_paid, payment_type="versement", notes=f"Paiement partiel vente {res.get('sale_id') or res.get('document_id')}")
                     await pay_service.create_payment_from_form(pay_schema)
@@ -51,8 +53,8 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             unit = str(func_args.get("unit", "kg")).strip().lower()
             unit_price = sanitize_numeric(func_args.get("unit_price"))
             notes = str(func_args.get("notes", "")).strip()
-            from app.modules.purchases.service import PurchaseService
             from app.modules.purchases.schemas_validation import PurchaseFormSchema, PurchaseLineSchema
+            from app.modules.purchases.service import PurchaseService
             line = PurchaseLineSchema(raw_material_id=f"{item_kind}:{item_id}", quantity=quantity, unit=unit, unit_price=unit_price)
             schema = PurchaseFormSchema(supplier_id=supplier_id, notes=notes, lines=[line])
             async with session_maker() as session:
@@ -69,8 +71,8 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             if payment_type not in ("versement", "avance"):
                 payment_type = "versement"
             notes = str(func_args.get("notes", "")).strip()
-            from app.modules.payments.service import PaymentsService
             from app.modules.payments.schemas_validation import PaymentFormSchema
+            from app.modules.payments.service import PaymentsService
             schema = PaymentFormSchema(client_id=client_id, amount=amount, payment_type=payment_type, notes=notes)
             async with session_maker() as session:
                 service = PaymentsService(session)
@@ -132,8 +134,9 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             }
             payment_method = method_map.get(payment_method, "cash")
 
-            from app.modules.expenses.schemas_validation import ExpenseCreateSchema
             import datetime
+
+            from app.modules.expenses.schemas_validation import ExpenseCreateSchema
             schema = ExpenseCreateSchema(
                 date=datetime.date.today(),
                 category=category,
@@ -210,6 +213,7 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             if purchase_id:
                 purchase_id = int(purchase_id)
             import datetime
+
             from sqlmodel import text
             async with session_maker() as session:
                 # Verify supplier exists
@@ -327,7 +331,7 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
         notes = str(func_args.get("notes", "")).strip()
         sale_date_str = func_args.get("sale_date")
 
-        from datetime import datetime, date
+        from datetime import date, datetime
         sale_date = date.today()
         if sale_date_str:
             try:
@@ -411,6 +415,7 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
         product_name = str(func_args.get("product_name", "")).strip().lower()
 
         from sqlmodel import select
+
         from app.core.models import FinishedProduct, RawMaterial
 
         finished_list = []
@@ -465,7 +470,8 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
             document_id = int(document_id)
 
         from sqlmodel import select
-        from app.core.models import Payment, Client
+
+        from app.core.models import Client, Payment
         from app.core.models_pkg.sales import SaleDocument
 
         payments_list = []
@@ -518,7 +524,7 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
         }
 
     elif func_name == "get_financial_report":
-        from datetime import datetime, date
+        from datetime import date, datetime
         start_date_str = func_args.get("start_date")
         end_date_str = func_args.get("end_date")
 
@@ -528,8 +534,9 @@ async def handle_operations(func_name: str, func_args: dict, session_maker, user
         except Exception:
             return {"error": "Format de date invalide. Utilisez YYYY-MM-DD."}
 
-        from sqlmodel import select, func
-        from app.core.models import Sale, Purchase, Expense
+        from sqlmodel import func, select
+
+        from app.core.models import Expense, Purchase, Sale
 
         async with session_maker() as session:
             # Sales total

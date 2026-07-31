@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import re
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
+
 # Dict mapping chapter IDs to HTML content
 MANUAL_CHAPTERS: dict[str, str] = {}
 

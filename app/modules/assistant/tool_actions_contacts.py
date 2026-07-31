@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+
 import logging
 import os
 from typing import Any, Dict
+
 from app.core.config import BASE_DIR
-from app.modules.assistant.tool_actions import sanitize_numeric, _assert_workspace_path
+from app.modules.assistant.tool_actions import _assert_workspace_path, sanitize_numeric
 
 logger = logging.getLogger("fabouanes.assistant")
 
@@ -16,8 +18,8 @@ async def handle_contacts(func_name: str, func_args: dict, session_maker, user_r
             address = str(func_args.get("address", "")).strip()
             notes = str(func_args.get("notes", "")).strip()
             opening_credit = sanitize_numeric(func_args.get("opening_credit"))
-            from app.modules.clients.service import ClientService
             from app.modules.clients.schemas_validation import ClientCreateSchema
+            from app.modules.clients.service import ClientService
             schema = ClientCreateSchema(name=name, phone=phone, address=address, notes=notes, opening_credit=opening_credit)
             async with session_maker() as session:
                 service = ClientService(session)
@@ -39,8 +41,8 @@ async def handle_contacts(func_name: str, func_args: dict, session_maker, user_r
             notes = func_args.get("notes")
             if notes:
                 notes = str(notes).strip()
-            from app.modules.clients.service import ClientService
             from app.modules.clients.schemas_validation import ClientUpdateSchema
+            from app.modules.clients.service import ClientService
             success = False
             async with session_maker() as session:
                 service = ClientService(session)
@@ -106,6 +108,7 @@ async def handle_contacts(func_name: str, func_args: dict, session_maker, user_r
             supplier_id = int(func_args.get("supplier_id"))
             from sqlalchemy import func
             from sqlmodel import select
+
             from app.core.models import Purchase, PurchaseDocument
             from app.services.contact_directory_service import delete_supplier_by_id, get_supplier
             async with session_maker() as session:
@@ -152,8 +155,8 @@ async def handle_contacts(func_name: str, func_args: dict, session_maker, user_r
                 data = parse_excel_client_file(abs_path)
             except Exception as e:
                 return {"error": f"Erreur de lecture du fichier Excel : {str(e)}"}
-            from app.modules.clients.service import ClientService
             from app.modules.clients.schemas_validation import ClientCreateSchema
+            from app.modules.clients.service import ClientService
             schema = ClientCreateSchema(
                 name=data["name"],
                 phone=data["phone"],
@@ -211,8 +214,8 @@ async def handle_contacts(func_name: str, func_args: dict, session_maker, user_r
             except Exception as e:
                 return {"error": f"Erreur de lecture du fichier Excel : {str(e)}"}
 
-            from app.modules.clients.service import ClientService
             from app.modules.clients.schemas_validation import ClientCreateSchema
+            from app.modules.clients.service import ClientService
 
             imported_count = 0
             async with session_maker() as session:

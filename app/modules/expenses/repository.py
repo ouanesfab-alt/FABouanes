@@ -1,9 +1,11 @@
 """Requêtes SQL du module Dépenses & Charges, implémentées avec SQLAlchemy ORM et AsyncSession."""
 from __future__ import annotations
 
-from datetime import datetime, date as d_cls
+from datetime import date as d_cls
+from datetime import datetime
 from typing import Any
-from sqlalchemy import select, and_, or_, func
+
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base_repository import AsyncRepository

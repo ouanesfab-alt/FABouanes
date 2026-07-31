@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.sales.schemas_validation import SaleFormSchema
-from app.modules.sales.queries import SalesQueries
 from app.modules.sales.commands import SalesCommands
+from app.modules.sales.queries import SalesQueries
+from app.modules.sales.schemas_validation import SaleFormSchema
 
 
 class SalesService:

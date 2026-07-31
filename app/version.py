@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 def _get_version() -> str:
     # 1. Try importlib.metadata first (standard if installed)
     try:

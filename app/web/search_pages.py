@@ -1,8 +1,8 @@
 """Endpoint de recherche globale - authentifié par session web (cookie)."""
 from __future__ import annotations
 
-import re
 import logging
+import re
 from datetime import date
 
 from fastapi import APIRouter, Request

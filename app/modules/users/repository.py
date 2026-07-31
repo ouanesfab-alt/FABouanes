@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from sqlalchemy import select, update, func
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.async_db import get_async_sessionmaker
-from app.core.helpers import db_task_compat
-from app.core.permissions import normalize_role
-from app.core.models import User
 from app.core.base_repository import AsyncRepository
+from app.core.helpers import db_task_compat
+from app.core.models import User
+from app.core.permissions import normalize_role
 
 
 class UserRepository(AsyncRepository[User]):
@@ -213,6 +214,7 @@ async def delete_user(user_id: int, db: AsyncSession | None = None) -> bool:
 
 async def _delete_user_impl(user_id: int, db: AsyncSession) -> bool:
     from sqlalchemy import delete
+
     from app.core.models_pkg.users import UserBadge
 
     # Supprimer d'abord les badges
@@ -247,6 +249,7 @@ async def _record_account_login_failure_impl(
     db: AsyncSession,
 ) -> tuple[int, bool]:
     from datetime import datetime, timedelta
+
     from sqlalchemy import func
     stmt = (
         update(User)

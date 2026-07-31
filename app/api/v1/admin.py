@@ -3,9 +3,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 
 from app.api.deps import api_success, require_api_user
-from app.api.v1._common import json_response, query_list_async, add_cache_headers
+from app.api.v1._common import add_cache_headers, json_response, query_list_async
 from app.core.permissions import PERMISSION_AUDIT_READ
-
 
 router = APIRouter(prefix="/api/v1", tags=["admin"])
 
@@ -23,9 +22,10 @@ async def api_audit_logs(request: Request):
 @router.post("/admin/users/{user_id}/unlock")
 async def api_unlock_user(user_id: int, request: Request):
     require_api_user(request, "users.write")
-    from app.modules.users.repository import unlock_user_account, get_user_by_id
-    from app.core.audit import audit_event
     from fastapi import HTTPException
+
+    from app.core.audit import audit_event
+    from app.modules.users.repository import get_user_by_id, unlock_user_account
 
     user = await get_user_by_id(user_id)
     if not user:

@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import os
-import shutil
 import secrets as _secrets
+import shutil
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
 from dotenv import load_dotenv
-
 
 APP_NAME = "FABOuanes"
 BASE_DIR = Path(os.getenv("FAB_BASE_DIR", "").strip() or Path(__file__).resolve().parents[2])

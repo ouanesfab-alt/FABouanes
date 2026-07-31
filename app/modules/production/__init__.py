@@ -1,9 +1,10 @@
 """Module Production — Gestion de la transformation et fabrication de produits."""
 from __future__ import annotations
 
-from app.modules.base import ModuleBase
 from app.core.registry import register
 from app.core.schema.production import SCHEMA_PRODUCTION
+from app.modules.base import ModuleBase
+
 
 class ProductionModule(ModuleBase):
     @property

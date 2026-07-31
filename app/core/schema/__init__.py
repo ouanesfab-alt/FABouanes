@@ -4,6 +4,7 @@ Responsibility: Seed functions, configuration parameters, and backward-compatibl
 from __future__ import annotations
 
 import os
+
 from werkzeug.security import generate_password_hash
 
 from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME

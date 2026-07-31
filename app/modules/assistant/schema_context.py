@@ -3,8 +3,8 @@ schema_context.py — Sabrina database structure and system prompts.
 """
 from __future__ import annotations
 
-import os
 import logging
+import os
 from typing import Any, Dict
 
 from app.core.db_helpers import db_manager
@@ -607,8 +607,9 @@ def get_sabrina_system_prompt(model_name: str, rag_context: str = "") -> str:
     return prompt_str
 
 def get_encryption_key() -> bytes:
-    from app.core.config import settings
     import hashlib
+
+    from app.core.config import settings
     secret = settings.secret_key or "fallback_secret_key_for_sabrina"
     return hashlib.sha256(secret.encode("utf-8")).digest()
 

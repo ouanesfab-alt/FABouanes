@@ -2,15 +2,17 @@
 Routes Web pour la Comptabilité SCF (Balance Général, Bilan, TCR).
 """
 from __future__ import annotations
+
 import csv
 import io
 from datetime import date
+
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
-from app.web.deps import get_current_user, template_context, templates
-from app.modules.accounting.scf_service import SCFService
 from app.core.rate_limit import limiter
+from app.modules.accounting.scf_service import SCFService
+from app.web.deps import get_current_user, template_context, templates
 
 router = APIRouter()
 

@@ -9,10 +9,9 @@ via ``FAB_RATE_LIMIT_BACKEND=db`` environment variable.
 from __future__ import annotations
 
 import os
-import time
 import threading
+import time
 from collections import defaultdict
-
 
 # Allow falling back to DB-backed rate limiting for multi-worker setups
 _BACKEND_MODE = os.environ.get("FAB_RATE_LIMIT_BACKEND", "memory").strip().lower()
@@ -147,6 +146,7 @@ class _DbRateLimitStore:
         key: str, max_attempts: int, window_s: float, lockout_s: float
     ) -> bool:
         import time as _time
+
         from app.core.db_helpers import execute_db, query_db
 
         max_age = max(window_s, lockout_s * 16.0)

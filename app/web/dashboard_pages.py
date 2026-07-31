@@ -5,12 +5,11 @@ from datetime import date
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
+from app.core.db_helpers import db_manager
+from app.modules.assistant.schema_context import get_gemini_api_key
+from app.modules.reports.repository import get_dashboard_snapshot, get_kpis_for_date
 from app.utils.mobile_connect import build_mobile_connect_context
 from app.web.deps import get_current_user, template_context, templates
-from app.modules.reports.repository import get_dashboard_snapshot, get_kpis_for_date
-from app.modules.assistant.schema_context import get_gemini_api_key
-from app.core.db_helpers import db_manager
-
 
 router = APIRouter()
 

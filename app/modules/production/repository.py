@@ -3,18 +3,19 @@
 from __future__ import annotations
 
 from datetime import date
-from sqlalchemy import select, func
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.async_db import get_async_sessionmaker
-from app.core.helpers import db_task_compat, async_compat
-from app.utils.pagination import parse_pagination, pagination_context
+from app.core.helpers import async_compat, db_task_compat
 from app.core.models import (
+    FinishedProduct,
     ProductionBatch,
     ProductionBatchItem,
-    FinishedProduct,
     RawMaterial,
 )
-
+from app.utils.pagination import pagination_context, parse_pagination
 
 
 @db_task_compat

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import secrets
 from types import SimpleNamespace
+
 from fastapi import Request
+from starlette.datastructures import FormData, UploadFile
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.staticfiles import StaticFiles
 
@@ -10,7 +12,6 @@ from app.core.request_state import push_request_state, reset_request_state, set_
 from app.core.sanitizer import sanitize_string
 from app.core.security import security_headers
 from app.web.deps import ensure_csrf_token, load_user_from_session
-from starlette.datastructures import FormData, UploadFile
 
 
 class CachedStaticFiles(StaticFiles):

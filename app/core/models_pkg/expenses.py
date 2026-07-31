@@ -4,9 +4,10 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Optional
-from sqlalchemy import Column, Numeric, BigInteger
-from sqlmodel import SQLModel, Field
+
 from pydantic import field_validator
+from sqlalchemy import BigInteger, Column, Numeric
+from sqlmodel import Field, SQLModel
 
 from app.core.model_utils import _now
 

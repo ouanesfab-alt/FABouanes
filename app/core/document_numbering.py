@@ -1,4 +1,5 @@
-from app.core.db_helpers import get_db, db_task
+from app.core.db_helpers import db_task, get_db
+
 
 @db_task
 def next_doc_number(doc_type: str, year: int) -> str:

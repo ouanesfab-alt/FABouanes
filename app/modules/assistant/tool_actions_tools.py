@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+
 import logging
 from typing import Any, Dict
 
@@ -71,7 +72,8 @@ async def handle_tools(func_name: str, func_args: dict, session_maker, user_role
 
     elif func_name == "get_active_alerts":
             from sqlalchemy import select
-            from app.core.models import RawMaterial, FinishedProduct
+
+            from app.core.models import FinishedProduct, RawMaterial
             from app.services.alert_service import check_overdue_clients
 
             alerts = []

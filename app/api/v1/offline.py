@@ -2,22 +2,23 @@
 from __future__ import annotations
 
 import logging
-from fastapi import APIRouter, Request, Depends
+
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_api_user, api_error
-from app.core.permissions import PERMISSION_OPERATIONS_WRITE
-from app.services.payment_service import create_payment_from_form
-from app.core.db_helpers import db_transaction
+from app.api.deps import api_error, require_api_user
 from app.core.async_db import get_async_session
+from app.core.db_helpers import db_transaction
+from app.core.exceptions import ConflictError, ValidationError
 from app.core.idempotency import check_idempotency, save_idempotency
-from app.core.exceptions import ValidationError, ConflictError
+from app.core.permissions import PERMISSION_OPERATIONS_WRITE
 from app.core.rate_limit import limiter
-from app.modules.sales.service import SalesService
-from app.modules.sales.schemas_validation import SaleFormSchema
-from app.modules.purchases.service import PurchaseService
 from app.modules.purchases.schemas_validation import PurchaseFormSchema
+from app.modules.purchases.service import PurchaseService
+from app.modules.sales.schemas_validation import SaleFormSchema
+from app.modules.sales.service import SalesService
+from app.services.payment_service import create_payment_from_form
 
 logger = logging.getLogger("fabouanes.offline")
 router = APIRouter(prefix="/api/mobile/v1/offline", tags=["offline"])
@@ -98,8 +99,9 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
     results = []
 
     if use_staging:
-        from app.core.db_helpers import execute_db
         import json
+
+        from app.core.db_helpers import execute_db
         from app.core.worker import enqueue_background_task
 
         for op in operations:

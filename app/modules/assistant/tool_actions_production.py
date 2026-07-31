@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+
 import logging
 from typing import Any, Dict
+
 from app.modules.assistant.tool_actions import sanitize_numeric
 
 logger = logging.getLogger("fabouanes.assistant")
@@ -13,12 +15,19 @@ async def handle_production(func_name: str, func_args: dict, session_maker, user
             quantity = sanitize_numeric(func_args.get("quantity"))
             notes = str(func_args.get("notes", "")).strip()
 
-            from app.core.models_pkg.catalog import FinishedProduct, RawMaterial
-            from app.core.models_pkg.production import ProductionBatch, ProductionBatchItem, SavedRecipe, SavedRecipeItem
-            from app.services.stock_service import apply_finished_production, apply_raw_material_consumption
-            from sqlmodel import select
-            from decimal import Decimal
             import datetime
+            from decimal import Decimal
+
+            from sqlmodel import select
+
+            from app.core.models_pkg.catalog import FinishedProduct, RawMaterial
+            from app.core.models_pkg.production import (
+                ProductionBatch,
+                ProductionBatchItem,
+                SavedRecipe,
+                SavedRecipeItem,
+            )
+            from app.services.stock_service import apply_finished_production, apply_raw_material_consumption
 
             async with session_maker() as session:
                 # 1. Fetch finished product
@@ -142,6 +151,7 @@ async def handle_production(func_name: str, func_args: dict, session_maker, user
 
     elif func_name == "delete_recipe":
             from sqlalchemy import delete
+
             from app.core.models import SavedRecipe, SavedRecipeItem
             recipe_id = int(func_args.get("recipe_id") or 0)
             async with session_maker() as session:

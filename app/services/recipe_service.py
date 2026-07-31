@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from collections import defaultdict
 from typing import Any
-from sqlalchemy import select, delete, func, update
+
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.async_db import get_async_sessionmaker
 from app.core.helpers import async_compat
-from app.core.models import SavedRecipe, SavedRecipeItem, FinishedProduct, RawMaterial
+from app.core.models import FinishedProduct, RawMaterial, SavedRecipe, SavedRecipeItem
 
 
 @async_compat

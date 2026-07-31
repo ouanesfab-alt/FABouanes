@@ -2,28 +2,28 @@ from __future__ import annotations
 
 import re
 import secrets
-from fastapi import Request
 
+from fastapi import Request
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_USERNAME
 from app.core.activity import log_activity
 from app.core.audit import audit_event
+from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_USERNAME
 from app.core.permissions import ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR, normalize_role
+from app.core.security import (
+    clear_login_failures,
+    client_ip,
+    consume_rate_limit,
+    get_client_fingerprint,
+    is_locked_out,
+    record_login_failure,
+    validate_password_strength,
+)
 from app.modules.users.repository import (
     get_user_by_id,
     get_user_by_username,
     touch_login,
     update_password,
-)
-from app.core.security import (
-    client_ip,
-    consume_rate_limit,
-    validate_password_strength,
-    is_locked_out,
-    record_login_failure,
-    clear_login_failures,
-    get_client_fingerprint,
 )
 
 VALID_ROLES = {ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR}

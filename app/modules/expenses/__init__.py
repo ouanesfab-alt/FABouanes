@@ -1,8 +1,9 @@
 """Module Dépenses & Charges — Suivi des frais de l'entreprise."""
-from app.modules.base import ModuleBase
-from app.modules.expenses.web import router as web_router
 from app.core.registry import register
+from app.modules.base import ModuleBase
 from app.modules.expenses.schema import TABLES
+from app.modules.expenses.web import router as web_router
+
 
 class ExpensesModule(ModuleBase):
     @property

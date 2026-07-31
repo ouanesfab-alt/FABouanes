@@ -3,9 +3,10 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.core.exceptions import ValidationError, NotFoundError
+from app.core.exceptions import NotFoundError, ValidationError
 from app.core.models import Client, FinishedProduct, RawMaterial
 from app.services.stock_service import qty_to_kg
+
 
 class SalesValidator:
     """Valide les règles métier du module Sales."""

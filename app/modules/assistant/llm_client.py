@@ -4,6 +4,7 @@ llm_client.py — Managed HTTP Clients for Gemini and Ollama APIs.
 from __future__ import annotations
 
 import logging
+
 import httpx
 
 logger = logging.getLogger("fabouanes.assistant.llm_client")

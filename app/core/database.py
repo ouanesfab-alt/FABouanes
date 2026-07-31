@@ -11,10 +11,9 @@ from threading import RLock
 from sqlalchemy import inspect, text
 
 from app.core.config import settings
+from app.core.db import connect_database, sqlalchemy_database_url
 from app.core.runtime_paths import ensure_runtime_dirs
 from app.core.schema_bootstrap import bootstrap_schema
-from app.core.db import connect_database, sqlalchemy_database_url
-
 
 _BOOTSTRAP_LOCK = RLock()
 _BOOTSTRAPPED = False

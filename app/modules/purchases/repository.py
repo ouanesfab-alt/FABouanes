@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
-from sqlmodel import select, func, case, cast, Numeric, or_
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.models import Purchase, PurchaseDocument, Supplier, RawMaterial, FinishedProduct
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Numeric, case, cast, func, or_, select
+
 from app.core.base_repository import AsyncRepository
+from app.core.models import FinishedProduct, Purchase, PurchaseDocument, RawMaterial, Supplier
+
 
 class PurchaseRepository(AsyncRepository[Purchase]):
     """Asynchronous repository for the Purchase model."""

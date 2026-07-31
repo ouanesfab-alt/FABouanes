@@ -3,15 +3,16 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
-from app.core.config import settings, validate_single_worker_runtime
-from app.core.runtime_paths import ensure_runtime_dirs
-from app.core.logging import configure_logging
 from app.core.audit import start_audit_worker, stop_audit_worker
+from app.core.config import settings, validate_single_worker_runtime
 from app.core.database import bootstrap_and_migrate
-from app.core.registry import get_enabled_modules
 from app.core.db_helpers import execute_db
+from app.core.logging import configure_logging
+from app.core.registry import get_enabled_modules
+from app.core.runtime_paths import ensure_runtime_dirs
 
 logger = logging.getLogger("fabouanes")
 
@@ -25,7 +26,7 @@ async def lifespan(app: FastAPI):
 
     # Initialize Observability (OpenTelemetry & structlog)
     try:
-        from app.core.observability import setup_observability, instrument_app
+        from app.core.observability import instrument_app, setup_observability
         setup_observability("fabouanes")
         instrument_app(app)
     except Exception as exc:

@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-import os
-import shutil
-import time
 import asyncio
 import logging
+import os
+import shutil
+import sys
+import time
 from pathlib import Path
 
-import sys
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+
 try:
     from prometheus_fastapi_instrumentator import Instrumentator
 except Exception:
@@ -20,9 +21,9 @@ try:
 except Exception:
     RateLimitExceeded = None
 
+from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.middleware.cors import CORSMiddleware
 
 if sys.platform == "win32":
     try:
@@ -37,18 +38,18 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-from app.core.config import settings
-from app.core.lifespan import lifespan
-from app.core.middleware import RequestContextMiddleware, CachedStaticFiles
-from app.core.exception_handlers import register_exception_handlers
-from app.core.timeout_middleware import RequestTimeoutMiddleware
-from app.core.registry import discover_modules, mount_api_routes, mount_web_routes
-from app.core.rate_limit import limiter, rate_limit_exceeded_handler
-from app.core.runtime_paths import paths
 from app.api.router import router as api_router
-from app.web.router import router as web_router
+from app.core.config import settings
+from app.core.exception_handlers import register_exception_handlers
+from app.core.lifespan import lifespan
+from app.core.middleware import CachedStaticFiles, RequestContextMiddleware
+from app.core.rate_limit import limiter, rate_limit_exceeded_handler
+from app.core.registry import discover_modules, mount_api_routes, mount_web_routes
+from app.core.runtime_paths import paths
+from app.core.timeout_middleware import RequestTimeoutMiddleware
 from app.services.backup_service import BACKGROUND_STATE
 from app.version import APP_VERSION
+from app.web.router import router as web_router
 
 logger = logging.getLogger("fabouanes")
 

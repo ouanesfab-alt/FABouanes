@@ -1,6 +1,9 @@
 from typing import Any
+
 from fastapi import Request
+
 from app.core.db_helpers import query_db_async
+
 
 def pagination_meta(request: Request) -> tuple[int, int, int]:
     page = max(int(request.query_params.get("page", "1") or "1"), 1)

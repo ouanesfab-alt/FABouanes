@@ -1,22 +1,22 @@
 from __future__ import annotations
 
+import asyncio
 import csv
 import decimal
 import io
 import json
 import logging
 import time
-import asyncio
 from collections.abc import Mapping
 from datetime import date, datetime
 from typing import Any
 
-from app.core.request_state import get_state_value
-
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.async_db import get_async_sessionmaker
 from app.core.helpers import async_compat
+from app.core.request_state import get_state_value
 
 _logger = logging.getLogger("fabouanes.audit")
 

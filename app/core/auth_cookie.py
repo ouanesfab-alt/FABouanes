@@ -4,7 +4,6 @@ from itsdangerous import BadSignature, URLSafeSerializer
 
 from app.core.config import settings
 
-
 AUTH_COOKIE_NAME = "fabouanes_auth"
 
 

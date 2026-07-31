@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 import time
-import json
 import unicodedata
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from pypdf import PdfReader
 
-from app.web.manual_pages import SPECIFIC_CHAPTER_DATA
 from app.core.runtime_paths import paths
+from app.web.manual_pages import SPECIFIC_CHAPTER_DATA
 
 INDEX_FILE = paths.pdf_reader_dir / "index_rag.json"
 
@@ -260,8 +261,9 @@ async def get_embedding(text: str, api_key: str) -> List[float] | None:
     if cached:
         return cached[1]
 
-    import httpx
     import logging
+
+    import httpx
     logger = logging.getLogger("fabouanes.rag")
 
     models_to_try = ["text-embedding-004", "embedding-001"]

@@ -1,35 +1,23 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException, Response, Depends
-from sqlalchemy import select, union_all, func, case, literal_column, table
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
+from sqlalchemy import case, func, literal_column, select, table, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_error, api_success, require_api_user
 from app.api.v1._common import (
+    add_cache_headers,
     client_history_payload,
     client_payload,
     finished_product_payload,
     json_response,
     raw_material_payload,
     supplier_payload,
-    add_cache_headers,
 )
-from app.modules.catalog.repository import list_suppliers, list_raw_materials, list_finished_products
 from app.core.activity import log_activity
-from app.core.audit import audit_event
 from app.core.async_db import get_async_session
-from app.core.models import Client, ClientHistory, Sale, RawSale, Payment, Supplier
-
-from app.modules.clients.service import ClientService
-from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
-from app.modules.catalog.service import CatalogService
-from app.modules.catalog.schemas_validation import (
-    RawMaterialCreateSchema,
-    RawMaterialUpdateSchema,
-    FinishedProductCreateSchema,
-    FinishedProductUpdateSchema,
-)
-
+from app.core.audit import audit_event
+from app.core.models import Client, ClientHistory, Payment, RawSale, Sale, Supplier
 from app.core.permissions import (
     PERMISSION_CATALOG_DELETE,
     PERMISSION_CATALOG_READ,
@@ -38,6 +26,16 @@ from app.core.permissions import (
     PERMISSION_CONTACTS_READ,
     PERMISSION_CONTACTS_WRITE,
 )
+from app.modules.catalog.repository import list_finished_products, list_raw_materials, list_suppliers
+from app.modules.catalog.schemas_validation import (
+    FinishedProductCreateSchema,
+    FinishedProductUpdateSchema,
+    RawMaterialCreateSchema,
+    RawMaterialUpdateSchema,
+)
+from app.modules.catalog.service import CatalogService
+from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
+from app.modules.clients.service import ClientService
 
 router = APIRouter(prefix="/api/v1", tags=["contacts"])
 
@@ -236,8 +234,8 @@ async def import_client_history(
     force_reimport: bool = Form(True),
 ):
     require_api_user(request, PERMISSION_CONTACTS_WRITE)
-    import tempfile
     import os
+    import tempfile
 
     suffix = os.path.splitext(file.filename)[1]
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
@@ -520,9 +518,9 @@ async def bulk_import_client_history(
     Importe chaque fichier et retourne un rapport global.
     """
     require_api_user(request, PERMISSION_CONTACTS_WRITE)
+    import os
     import tempfile
     import zipfile
-    import os
 
     # Enforce a strict 50MB file size limit for ZIP uploads
     MAX_SIZE = 50 * 1024 * 1024

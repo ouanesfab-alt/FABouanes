@@ -3,14 +3,14 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
-
 logger = logging.getLogger("fabouanes.assistant")
 
 
 def log_structured_failure(action: str, error: str, parameters: dict):
-    from app.core.config import BASE_DIR
     import datetime
     import json
+
+    from app.core.config import BASE_DIR
     log_file = BASE_DIR / "sabrina_failures.jsonl"
     log_entry = {
         "timestamp": datetime.datetime.now().isoformat(),
@@ -26,9 +26,10 @@ def log_structured_failure(action: str, error: str, parameters: dict):
 
 
 def log_sabrina_action(action: str, args: dict, confirmed: bool, success: bool, result_summary: str):
-    from app.core.config import BASE_DIR
     import datetime
     import json
+
+    from app.core.config import BASE_DIR
     log_file = BASE_DIR / "sabrina_audit.jsonl"
     log_entry = {
         "timestamp": datetime.datetime.now().isoformat(),
@@ -112,12 +113,12 @@ def _assert_workspace_path(abs_path: str, workspace_dir: str) -> None:
 
 async def _execute_tool_action_inner(func_name: str, func_args: dict, session_maker, user_role: str = "operator") -> Dict[str, Any]:
     from app.modules.assistant.tool_actions_admin import handle_admin
-    from app.modules.assistant.tool_actions_contacts import handle_contacts
     from app.modules.assistant.tool_actions_catalog import handle_catalog
+    from app.modules.assistant.tool_actions_contacts import handle_contacts
+    from app.modules.assistant.tool_actions_insights import handle_insights
     from app.modules.assistant.tool_actions_operations import handle_operations
     from app.modules.assistant.tool_actions_production import handle_production
     from app.modules.assistant.tool_actions_tools import handle_tools
-    from app.modules.assistant.tool_actions_insights import handle_insights
 
     res = await handle_admin(func_name, func_args, session_maker, user_role)
     if res is not None:

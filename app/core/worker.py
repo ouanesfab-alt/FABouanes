@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-import os
-import json
 import asyncio
+import json
+import os
+import select
 import threading
 import time
-import select
 from typing import Any, Callable
 
 import structlog
 
 from app.core.websockets import manager
-
 
 logger = structlog.get_logger("fabouanes.worker")
 
@@ -227,7 +226,7 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
         await update_task_progress(job_id, 100, "Erreur: Clé API manquante.")
         return 0
 
-    from app.core.db_helpers import query_db, execute_db
+    from app.core.db_helpers import execute_db, query_db
     from app.modules.assistant.rag import get_embedding
 
     raw_mats = query_db("SELECT id, name, unit FROM raw_materials") or []
@@ -314,12 +313,12 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
     job_id = ctx.get("job_id", "direct-run")
     await update_task_progress(job_id, 10, "Démarrage du traitement de la synchronisation hors-ligne...")
 
-    from app.core.db_helpers import query_db, execute_db
     from app.core.async_db import get_async_sessionmaker
-    from app.modules.sales.service import SalesService
-    from app.modules.sales.schemas_validation import SaleFormSchema
-    from app.services.payment_service import create_payment_from_form
+    from app.core.db_helpers import execute_db, query_db
     from app.core.idempotency import check_idempotency, save_idempotency
+    from app.modules.sales.schemas_validation import SaleFormSchema
+    from app.modules.sales.service import SalesService
+    from app.services.payment_service import create_payment_from_form
 
     pending_sales = query_db("SELECT id, idempotency_key, payload FROM offline_sales_staging WHERE status = 'pending' ORDER BY id ASC") or []
     processed_count = 0
@@ -513,9 +512,8 @@ def cleanup_background_jobs():
 
 def _worker_poll_loop():
     global _worker_running
-    from app.core.db_helpers import db_transaction
     from app.core.config import DATABASE_URL
-    from app.core.db_helpers import pool_manager
+    from app.core.db_helpers import db_transaction, pool_manager
     from app.core.events import WORKER_ID
 
     listen_conn = None

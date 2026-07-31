@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from app.api.deps import (
     ACCESS_TOKEN_TTL_SECONDS,
-    api_success,
     api_error,
+    api_success,
     create_access_token,
     create_refresh_token,
     require_api_user,
@@ -17,10 +18,9 @@ from app.api.deps import (
 )
 from app.core.activity import log_activity
 from app.core.audit import audit_event
-from app.services.auth_service import attempt_login
 from app.core.rate_limit import limiter
 from app.core.schema.auth_validation import LoginRequest as UserLoginSchema
-
+from app.services.auth_service import attempt_login
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 

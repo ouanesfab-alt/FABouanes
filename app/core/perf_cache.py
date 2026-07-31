@@ -309,7 +309,7 @@ _BACKEND = _initialize_backend()
 def bump_cache_generation() -> int:
     gen = _BACKEND.bump_cache_generation()
     try:
-        from app.core.events import emit, DomainEvent
+        from app.core.events import DomainEvent, emit
         emit(DomainEvent("invalidate", "all_cache", source="cache"))
     except Exception:
         pass
@@ -370,7 +370,7 @@ async def async_cached_result(
 def invalidate_cache_domain(domain: str) -> int:
     removed = _BACKEND.invalidate_domains(domain)
     try:
-        from app.core.events import emit, DomainEvent
+        from app.core.events import DomainEvent, emit
         emit(DomainEvent("invalidate", "cache", extra={"domains": [domain]}, source="cache"))
     except Exception:
         pass
@@ -380,7 +380,7 @@ def invalidate_cache_domain(domain: str) -> int:
 def invalidate_cache_domains(*domains: str) -> int:
     removed = _BACKEND.invalidate_domains(*domains)
     try:
-        from app.core.events import emit, DomainEvent
+        from app.core.events import DomainEvent, emit
         emit(DomainEvent("invalidate", "cache", extra={"domains": list(domains)}, source="cache"))
     except Exception:
         pass
@@ -414,11 +414,12 @@ async def warm_cache() -> None:
     """
     logger.info("Cache warming started …")
     try:
+        from datetime import date
+
         from app.modules.reports.repository import (
             get_dashboard_snapshot,
             get_kpis_for_date,
         )
-        from datetime import date
 
         today = date.today().isoformat()
         await get_dashboard_snapshot(today)
@@ -445,7 +446,7 @@ def invalidate_client_cache(client_id: int) -> None:
             _BACKEND._cache.pop(key, None)
 
     try:
-        from app.core.events import emit, DomainEvent
+        from app.core.events import DomainEvent, emit
         emit(DomainEvent("invalidate", "client_cache", extra={"client_id": client_id}, source="cache"))
     except Exception:
         pass
