@@ -316,7 +316,7 @@ def _auto_check_stock_alert(event: DomainEvent) -> None:
                 from app.core.helpers import async_compat
                 async_compat(check_stock_alerts)()
             except Exception:
-                pass
+                logger.debug("Stock alert check fallback failed (non-critical)")
 
 
 def _auto_rebuild_catalog_embeddings(event: DomainEvent) -> None:
@@ -338,9 +338,9 @@ def _auto_rebuild_catalog_embeddings(event: DomainEvent) -> None:
                 from app.core.helpers import async_compat
                 async_compat(enqueue_background_task)("rebuild_catalog_embeddings_task")
             except Exception:
-                pass
+                logger.debug("Catalog embedding enqueue fallback failed (non-critical)")
     except Exception:
-        pass
+        logger.debug("Catalog embedding rebuild trigger failed (non-critical)")
 
 
 # ── Enregistrement des listeners par défaut au chargement du module ──
@@ -399,7 +399,7 @@ def _db_event_listener_loop():
         if max_row and max_row.get("max_id"):
             _last_seen_pubsub_id = int(max_row["max_id"])
     except Exception:
-        pass
+        logger.debug("Initial pubsub max_id fetch failed (will start from 0)")
 
     # Try to set up a dedicated LISTEN connection
     listen_conn = None
@@ -434,7 +434,7 @@ def _db_event_listener_loop():
                         try:
                             listen_conn.commit()  # pg8000 reads notifications on commit/execute
                         except Exception:
-                            pass
+                            logger.debug("LISTEN commit failed, will retry next cycle")
                 except (OSError, ValueError):
                     # Socket closed, fall back to plain sleep
                     listen_fileno = None
@@ -503,7 +503,7 @@ def startup():
             from app.core.db_helpers import execute_db
             execute_db("DELETE FROM pubsub_events WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'")
         except Exception:
-            pass
+            logger.debug("Startup pubsub cleanup failed (non-critical)")
         _db_listener_running = True
         _db_listener_thread = threading.Thread(target=_db_event_listener_loop, daemon=True)
         _db_listener_thread.start()

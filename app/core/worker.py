@@ -242,7 +242,7 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
         row = query_db("SELECT 1 FROM pg_extension WHERE extname = 'vector'", one=True)
         has_vector = bool(row)
     except Exception:
-        pass
+        logger.debug("pgvector extension check failed, assuming unavailable")
 
     processed = 0
     await update_task_progress(job_id, 20, f"Traitement de {total_items} articles...")
@@ -436,7 +436,7 @@ async def enqueue_background_task(task_name: str, *args: Any, **kwargs: Any) -> 
     try:
         execute_db("NOTIFY background_jobs_channel")
     except Exception:
-        pass
+        logger.debug("NOTIFY background_jobs_channel failed (non-critical)")
 
     return job_id
 
@@ -542,7 +542,7 @@ def _worker_poll_loop():
                     from app.services.backup_service import trigger_nightly_snapshot_if_due
                     asyncio.run(trigger_nightly_snapshot_if_due())
                 except Exception:
-                    pass
+                    logger.debug("Nightly snapshot trigger skipped (import or execution error)")
                 last_cleanup = now_ts
 
             job = None
@@ -617,7 +617,7 @@ def _worker_poll_loop():
                         try:
                             listen_conn.commit()
                         except Exception:
-                            pass
+                            logger.debug("LISTEN connection commit failed, will reconnect")
                 except (OSError, ValueError):
                     listen_fileno = None
                     time.sleep(5.0)

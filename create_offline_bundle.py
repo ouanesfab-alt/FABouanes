@@ -19,12 +19,14 @@ def build_offline_pack():
     shutil.copytree(BASE_DIR / "app", OUTPUT_DIR / "app", dirs_exist_ok=True)
     shutil.copytree(BASE_DIR / "alembic", OUTPUT_DIR / "alembic", dirs_exist_ok=True)
     shutil.copytree(BASE_DIR / "static", OUTPUT_DIR / "static", dirs_exist_ok=True)
+    shutil.copytree(BASE_DIR / "templates", OUTPUT_DIR / "templates", dirs_exist_ok=True)
     shutil.copy(BASE_DIR / "alembic.ini", OUTPUT_DIR / "alembic.ini")
+    shutil.copy(BASE_DIR / "pyproject.toml", OUTPUT_DIR / "pyproject.toml")
     shutil.copy(BASE_DIR / "launcher.py", OUTPUT_DIR / "launcher.py")
     shutil.copy(BASE_DIR / "requirements-termux.txt", OUTPUT_DIR / "requirements-termux.txt")
     shutil.copy(BASE_DIR / "setup_termux.sh", OUTPUT_DIR / "setup_termux.sh")
     if (BASE_DIR / "wheels").exists():
-        print("[1b] Copie des 81 wheels précompilées...", flush=True)
+        print("[1b] Copie des wheels précompilées...", flush=True)
         shutil.copytree(BASE_DIR / "wheels", OUTPUT_DIR / "wheels", dirs_exist_ok=True)
 
     # 2. Script d'installation autonome hors-ligne
@@ -52,9 +54,11 @@ fi
 
 # Config PostgreSQL & base
 export DATABASE_URL="postgresql://$(whoami)@127.0.0.1:5432/fabouanes"
+ADMIN_PIN=$(python -c "import random; print(f'{random.randint(1000,9999):04d}')" 2>/dev/null || echo "7508")
 echo "DATABASE_URL=$DATABASE_URL" > .env
 echo "DEFAULT_ADMIN_USERNAME=admin" >> .env
-echo "DEFAULT_ADMIN_PASSWORD=7508" >> .env
+echo "DEFAULT_ADMIN_PASSWORD=$ADMIN_PIN" >> .env
+echo "FAB_PASSWORD_MODE=pin" >> .env
 echo "FAB_HTTPS=1" >> .env
 
 python -c "from app.core.database import bootstrap_and_migrate; bootstrap_and_migrate()"
@@ -74,7 +78,7 @@ echo "=================================================="
 echo "🎉 INSTALLATION COMPLÈTE EN MODE HORS-LIGNE !"
 echo "Compte administrateur initial :"
 echo "  Utilisateur : admin"
-echo "  Code PIN    : 7508"
+echo "  Code PIN    : $ADMIN_PIN"
 echo "Pour lancer le serveur: ~/start_fab.sh ou 'fab'"
 echo "=================================================="
 """
