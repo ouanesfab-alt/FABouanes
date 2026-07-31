@@ -14,6 +14,7 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL=https://fabouanes.local
+AppMutex=FABOuanesRunningInstanceMutex
 DefaultDirName={localappdata}\Programs\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputDir=..\..\installer_output
@@ -50,6 +51,11 @@ Name: "{localappdata}\{#MyAppName}\webview"
 
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\_internal"
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{localappdata}\{#MyAppName}\webview"
+Type: filesandordirs; Name: "{app}\_internal"
+
 
 [Files]
 Source: "..\..\dist\FABOuanes\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -711,6 +717,7 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   DbChoiceLabel: String;
+  ResultCode: Integer;
 begin
   if CurStep = ssPostInstall then
   begin
@@ -748,11 +755,19 @@ begin
     // Write the .env based on user choices
     WriteEnvFile();
 
+    // Configure Windows Firewall rule if in server mode
+    if GetDbChoice() = DB_POSTGRES_SERVER then
+    begin
+      Exec('netsh.exe', 'advfirewall firewall add rule name="FABOuanes Server Port 5000" dir=in action=allow protocol=TCP localport=5000', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    end;
+
+
     // Show what was configured
     case GetDbChoice() of
       DB_POSTGRES_LOCAL:  DbChoiceLabel := 'PostgreSQL (poste unique)';
       DB_POSTGRES_SERVER: DbChoiceLabel := 'PostgreSQL serveur reseau';
     end;
+
 
     // Bootstrap
     if not RunDesktopBootstrap() then
