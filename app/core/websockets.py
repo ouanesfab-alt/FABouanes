@@ -73,7 +73,7 @@ class ConnectionManager:
             )
 
     def broadcast_sync(self, message: str):
-        """Broadcast global."""
+        """Broadcast global (synchrone)."""
         try:
             from app.core.db_helpers import execute_db
             payload = json.dumps({"type": "global", "message": message, "sender_id": WORKER_ID})
@@ -87,8 +87,22 @@ class ConnectionManager:
         # Fallback local / run locally immediately
         self._local_broadcast_global(message)
 
+    async def broadcast_async(self, message: str):
+        """Broadcast global (asynchrone non-bloquant)."""
+        try:
+            from app.core.async_db import execute_sql_async
+            payload = json.dumps({"type": "global", "message": message, "sender_id": WORKER_ID})
+            await execute_sql_async(
+                "INSERT INTO pubsub_events (channel, payload, sender_worker_id) VALUES (:channel, :payload, :sender_worker_id)",
+                {"channel": "fabouanes:ws_broadcast", "payload": payload, "sender_worker_id": WORKER_ID}
+            )
+        except Exception as e:
+            logger.warning("DB pubsub websocket publish async failed: %s", e)
+
+        await self._send_to_connections(self.active_connections, message)
+
     def broadcast_to_user(self, user_id: int, message: str):
-        """Envoie un message uniquement aux connexions de cet utilisateur."""
+        """Envoie un message uniquement aux connexions de cet utilisateur (synchrone)."""
         try:
             from app.core.db_helpers import execute_db
             payload = json.dumps({"type": "user", "user_id": user_id, "message": message, "sender_id": WORKER_ID})
@@ -101,6 +115,22 @@ class ConnectionManager:
 
         # Fallback local / run locally immediately
         self._local_broadcast_user(user_id, message)
+
+    async def broadcast_to_user_async(self, user_id: int, message: str):
+        """Envoie un message uniquement aux connexions de cet utilisateur (asynchrone)."""
+        try:
+            from app.core.async_db import execute_sql_async
+            payload = json.dumps({"type": "user", "user_id": user_id, "message": message, "sender_id": WORKER_ID})
+            await execute_sql_async(
+                "INSERT INTO pubsub_events (channel, payload, sender_worker_id) VALUES (:channel, :payload, :sender_worker_id)",
+                {"channel": "fabouanes:ws_broadcast", "payload": payload, "sender_worker_id": WORKER_ID}
+            )
+        except Exception as e:
+            logger.warning("DB pubsub websocket user publish async failed: %s", e)
+
+        conns = self.user_connections.get(user_id, [])
+        if conns:
+            await self._send_to_connections(conns, message)
 
 
 manager = ConnectionManager()
