@@ -35,20 +35,28 @@ def get_async_engine() -> AsyncEngine:
     default_pool = "5" if is_termux else "10"
     with _ENGINES_LOCK:
         if loop not in _async_engines:
-            connect_kwargs = {}
-            if "asyncpg" in async_database_url:
-                connect_kwargs["server_settings"] = {"timezone": "UTC"}
+            if "sqlite" in async_database_url:
+                engine = create_async_engine(
+                    async_database_url,
+                    echo=False,
+                    future=True,
+                    pool_pre_ping=True,
+                )
+            else:
+                connect_kwargs = {}
+                if "asyncpg" in async_database_url:
+                    connect_kwargs["server_settings"] = {"timezone": "UTC"}
 
-            engine = create_async_engine(
-                async_database_url,
-                echo=False,
-                future=True,
-                pool_pre_ping=True,
-                pool_size=int(os.environ.get("FAB_PG_POOL_SIZE", default_pool)),
-                max_overflow=int(os.environ.get("FAB_PG_POOL_MAX_OVERFLOW", default_pool)),
-                pool_recycle=1800,
-                connect_args=connect_kwargs,
-            )
+                engine = create_async_engine(
+                    async_database_url,
+                    echo=False,
+                    future=True,
+                    pool_pre_ping=True,
+                    pool_size=int(os.environ.get("FAB_PG_POOL_SIZE", default_pool)),
+                    max_overflow=int(os.environ.get("FAB_PG_POOL_MAX_OVERFLOW", default_pool)),
+                    pool_recycle=1800,
+                    connect_args=connect_kwargs,
+                )
             _async_engines[loop] = engine
         return _async_engines[loop]
 
