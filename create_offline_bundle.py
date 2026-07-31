@@ -59,13 +59,14 @@ echo "FAB_HTTPS=1" >> .env
 
 python -c "from app.core.database import bootstrap_and_migrate; bootstrap_and_migrate()"
 
-# Création du lanceur
 cat << 'EOF' > ~/start_fab.sh
 #!/data/data/com.termux/files/usr/bin/bash
+termux-wake-lock || true
+rm -f $PREFIX/var/lib/postgresql/postmaster.pid
 pg_ctl -D $PREFIX/var/lib/postgresql status >/dev/null 2>&1 || pg_ctl -D $PREFIX/var/lib/postgresql start
 cd ~/FABouanes
 source venv/bin/activate
-python launcher.py --server --https
+python launcher.py --server
 EOF
 chmod +x ~/start_fab.sh
 

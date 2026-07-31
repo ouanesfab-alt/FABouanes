@@ -167,17 +167,74 @@ def _pg_is_ready(pg_bin: Path, host: str = "127.0.0.1", port: int = 5432) -> boo
         return False
 
 
+def manage_termux_wake_lock(acquire: bool = True) -> None:
+    """Acquires or releases Termux wake-lock to prevent Android CPU sleep during server execution."""
+    _is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux")
+    if not _is_termux:
+        return
+    import subprocess
+    cmd = "termux-wake-lock" if acquire else "termux-wake-unlock"
+    if shutil.which(cmd):
+        try:
+            subprocess.run([cmd], capture_output=True, check=False)
+            if acquire:
+                print("  [⚡] Termux Wake-Lock actif (serveur protégé du sommeil Android).", flush=True)
+        except Exception:
+            pass
+
+
+def ensure_windows_firewall_rule(port: int = 5000) -> None:
+    """Verifies and adds an inbound Windows Firewall rule for the server port if missing."""
+    if os.name != "nt":
+        return
+    import subprocess
+    try:
+        rule_name = f"FABOuanes_Port_{port}"
+        chk = subprocess.run(
+            ["netsh", "advfirewall", "firewall", "show", "rule", f"name={rule_name}"],
+            capture_output=True, text=True, timeout=5
+        )
+        if chk.returncode != 0 or "No rules match" in chk.stdout:
+            subprocess.run(
+                ["netsh", "advfirewall", "firewall", "add", "rule",
+                 f"name={rule_name}", "dir=in", "action=allow", "protocol=TCP", f"localport={port}"],
+                capture_output=True, timeout=10
+            )
+            print(f"  [🛡️] Règle Pare-feu Windows configurée pour le port {port}.", flush=True)
+    except Exception:
+        pass
+
+
 def ensure_postgres_running() -> None:
     """Auto-detect PostgreSQL, start the service if stopped, and create the DB if needed.
 
-    Designed for desktop/zero-config deployments on Windows where PostgreSQL is
-    installed but the service may not be running after a fresh install or reboot.
+    Designed for desktop/zero-config deployments on Windows and Termux / Android.
     """
     import subprocess
     from urllib.parse import urlparse
 
+    _is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux")
+    if _is_termux:
+        pg_var_dir = Path(os.environ.get("PREFIX", "/data/data/com.termux/files/usr")) / "var" / "lib" / "postgresql"
+        pid_file = pg_var_dir / "postmaster.pid"
+        try:
+            res = subprocess.run(["pg_isready", "-h", "127.0.0.1", "-p", "5432"], capture_output=True, timeout=4)
+            if res.returncode != 0:
+                print("  [Termux] Démarrage du service PostgreSQL...", flush=True)
+                if pid_file.exists():
+                    try:
+                        pid_file.unlink()
+                    except Exception:
+                        pass
+                subprocess.run(["pg_ctl", "-D", str(pg_var_dir), "start"], capture_output=True, timeout=10)
+                time.sleep(2)
+        except Exception:
+            pass
+        return
+
     if os.name != "nt":
         return
+
 
     db_url = os.environ.get("DATABASE_URL", "").strip()
     if not db_url or not db_url.lower().startswith(("postgres://", "postgresql://")):
@@ -775,6 +832,13 @@ def run_server(host: str, port: int) -> None:
     target_url = local_url
 
     if server_mode:
+        import atexit
+        if _is_termux_env:
+            manage_termux_wake_lock(acquire=True)
+            atexit.register(manage_termux_wake_lock, False)
+        if os.name == "nt":
+            ensure_windows_firewall_rule(port)
+
         lan_ip = os.environ.get("FAB_LAN_IP") or (get_local_ip() if host == "0.0.0.0" else host)
         client_host = lan_ip if host == "0.0.0.0" else host
         target_url = f"{proto}://{client_host}:{port}"
