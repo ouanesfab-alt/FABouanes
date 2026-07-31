@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 import pytest
-from datetime import date, timedelta
+from datetime import date
 from unittest import mock
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key-pytest-unit-only")

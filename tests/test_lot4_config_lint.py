@@ -5,7 +5,6 @@ Tests unitaires et d'intégration pour le Lot 4 (Nettoyage Config / Lint).
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
 from app.core.config import settings
 
 

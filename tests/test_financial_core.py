@@ -7,11 +7,10 @@ Aucune base de données ni connexion réseau réelle nécessaire.
 from __future__ import annotations
 
 import os
-import sys
 import threading
 import time
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 # ── Env vars AVANT tout import app ───────────────────────────────────────────
 os.environ.setdefault("SECRET_KEY", "test-secret-key-pytest-unit-only")

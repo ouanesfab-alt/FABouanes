@@ -8,7 +8,7 @@ import os
 import sys
 from datetime import datetime, date, timedelta
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from collections import OrderedDict
 
 # ── 1. Configuration des Mocks Redis et Caching AVANT tout import ────────────
@@ -461,7 +461,6 @@ app.core.database.healthcheck = MagicMock(return_value=True)
 app.core.database.run_alembic_upgrade = MagicMock()
 
 # ── 5. Patching de la session SQLAlchemy ORM pour les modules ────────────────
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.models import FinishedProduct, RawMaterial, Client, User, UserBadge, Sale, RawSale, Payment, ProductionBatch, SavedRecipe, Expense, StockAlert, Purchase
 
 def mock_sqlmodel_instance(model_class, ident=1):
@@ -940,7 +939,7 @@ class TestServicesDirect:
 
     @pytest.mark.asyncio
     async def test_payment_service(self):
-        from app.services.payment_service import new_payment_context, create_payment_from_form, create_mobile_payment
+        from app.services.payment_service import new_payment_context, create_mobile_payment
         assert await new_payment_context() is not None
         assert await create_mobile_payment(1, 100.0, "2026-05-31", "notes", 1) is not None
 
@@ -1024,7 +1023,6 @@ class TestCriticalServiceIntegrity:
     def test_expense_amount_is_decimal_type(self):
         """Vérifie que Expense.amount est bien Decimal et non float."""
         from app.core.models import Expense
-        from decimal import Decimal
         import sqlalchemy
         # Inspecter le type de la colonne amount
         col = Expense.__table__.c["amount"]
@@ -1117,10 +1115,8 @@ class TestCriticalServiceIntegrity:
 
     def test_decimal_financial_consistency(self):
         """Vérifie la cohérence des types Decimal pour tous les champs financiers."""
-        from decimal import Decimal
         from app.core.models import (
-            Sale, Purchase, Payment, RawSale,
-            SaleDocument, PurchaseDocument, Expense, ClientHistory
+            Sale, Purchase, Payment, Expense
         )
         import sqlalchemy
         # Tous ces champs doivent être NUMERIC et non FLOAT

@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, AsyncMock, patch
 from decimal import Decimal
 import datetime
 
-from app.modules.assistant.tool_actions import execute_tool_action
 from app.modules.assistant.tool_actions_insights import handle_insights
 from app.modules.assistant.tool_actions_catalog import handle_catalog
 from app.modules.assistant.tool_actions_contacts import handle_contacts

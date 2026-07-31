@@ -1,6 +1,4 @@
-import pytest
 import time
-import os
 from unittest import mock
 
 from app.core.rate_limit_store import (

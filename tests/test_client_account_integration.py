@@ -4,7 +4,6 @@ from __future__ import annotations
 import pytest
 import json
 from unittest.mock import MagicMock, patch, AsyncMock
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.client_account_service import (
     client_balance,

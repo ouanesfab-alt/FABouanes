@@ -6,14 +6,10 @@ Tout ce qui touche DB/Redis est mocké via unittest.mock.
 from __future__ import annotations
 
 import os
-import sys
-import pickle
-import time
 import threading
 from decimal import Decimal
-from datetime import datetime, timedelta, timezone
 from time import monotonic
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 from pathlib import Path
 import pytest
 

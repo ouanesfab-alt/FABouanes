@@ -5,14 +5,6 @@ from unittest.mock import patch
 from fastapi import HTTPException
 
 from app.core.jwt_auth import create_refresh_token
-from app.services.auth_service import attempt_login
-from app.modules.users.repository import (
-    create_user,
-    get_user_by_username,
-    unlock_user_account,
-    record_account_login_failure,
-)
-from werkzeug.security import generate_password_hash
 
 
 @pytest.mark.asyncio

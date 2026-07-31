@@ -8,7 +8,6 @@ import os
 import sys
 from unittest.mock import patch, MagicMock
 
-import pytest
 
 from scripts.check_termux_requirements import (
     is_termux_environment,

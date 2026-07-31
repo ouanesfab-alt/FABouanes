@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 from alembic.script import ScriptDirectory
 
 from app.core.database import _alembic_config

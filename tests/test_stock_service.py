@@ -17,7 +17,7 @@ from app.services.stock_service import (
     recalc_finished_product_avg_cost,
     create_purchase_record
 )
-from app.core.exceptions import ValidationError, NotFoundError
+from app.core.exceptions import ValidationError
 
 
 # =============================================================================

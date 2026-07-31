@@ -7,10 +7,8 @@ Tests pour couvrir les modules à faible couverture :
 from __future__ import annotations
 
 import os
-import sys
 import pytest
 from unittest import mock
-from pathlib import Path
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key-pytest-unit-only")
 os.environ.setdefault("FASTAPI_ENV", "test")

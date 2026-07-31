@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 from datetime import date
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from tests.test_services_coverage import client, MockAsyncSession
 from app.core.models import Expense

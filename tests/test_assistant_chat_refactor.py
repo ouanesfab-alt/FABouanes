@@ -1,8 +1,7 @@
 """Tests unitaires pour les sous-fonctions refactorées de assistant_chat (lot C4)."""
 from __future__ import annotations
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from app.modules.assistant.web import (
     _resolve_api_key,
     _parse_audio_message,

@@ -478,7 +478,7 @@ def test_sql_guard_write_allow_list_blocks_unknown_table():
 
 def test_sql_guard_write_allow_list_passes_all_allowed_tables():
     """All tables in ALLOWED_WRITE_TABLES should be valid write targets."""
-    from app.modules.assistant.sql_guard import validate_write_sql, ALLOWED_WRITE_TABLES
+    from app.modules.assistant.sql_guard import validate_write_sql
 
     # Test a subset of allowed tables to ensure they all pass
     test_queries = {
@@ -772,7 +772,6 @@ async def test_new_specialized_assistant_tools():
 
     # 2. Test get_stock_status
     fake_session = AsyncMock()
-    from sqlmodel import select
     from app.core.models import FinishedProduct, RawMaterial
     
     mock_finished = FinishedProduct(id=1, name="Finished A", stock_qty=5.0, default_unit="kg", avg_cost=100.0, sale_price=150.0, alert_threshold=10.0)
@@ -848,8 +847,6 @@ def test_rag_manual_search():
 
 
 def test_rag_user_document_search():
-    import os
-    from pathlib import Path
     from reportlab.pdfgen import canvas
     from app.core.runtime_paths import paths
     from app.modules.assistant.rag import update_pdf_index, search_user_documents, get_rag_context

@@ -1,7 +1,6 @@
 """Tests unitaires pour app/services/printing/invoice_printer.py (lot D2)."""
 from __future__ import annotations
 
-import pytest
 from unittest.mock import patch
 from app.services.printing.invoice_printer import generate_invoice_pdf
 

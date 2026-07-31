@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import pytest
-import time
 from unittest.mock import patch, MagicMock, AsyncMock
 from fastapi import HTTPException
 

@@ -1,7 +1,6 @@
 import pytest
 from decimal import Decimal
 from unittest import mock
-import asyncio
 
 from app.core.db_helpers.manager import (
     CompatRow,
@@ -16,7 +15,6 @@ from app.core.db_helpers.manager import (
     get_setting,
     set_setting,
 )
-from app.core.db_helpers import query_db, execute_db
 
 def test_compat_row():
     # Test dictionary-like row proxy
