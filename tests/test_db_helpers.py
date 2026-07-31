@@ -171,3 +171,184 @@ async def test_async_query_and_execute():
         e_res = await execute_db_async("INSERT INTO dummy VALUES (1)")
         assert e_res == 42
 
+
+# ---------------------------------------------------------------------------
+# Tests des méthodes utilitaires de DatabaseManager — couverture C2 (lot C)
+# ---------------------------------------------------------------------------
+
+def test_sqlalchemy_url_postgresql():
+    r = db_manager.sqlalchemy_database_url("postgresql://u:p@h/db")
+    assert r.startswith("postgresql+pg8000://")
+    assert "u:p@h/db" in r
+
+
+def test_sqlalchemy_url_postgres():
+    r = db_manager.sqlalchemy_database_url("postgres://u:p@h/db")
+    assert r.startswith("postgresql+pg8000://")
+
+
+def test_sqlalchemy_url_other_unchanged():
+    r = db_manager.sqlalchemy_database_url("sqlite:///test.db")
+    assert r == "sqlite:///test.db"
+
+
+def test_sqlalchemy_url_empty():
+    r = db_manager.sqlalchemy_database_url("")
+    assert r == ""
+
+
+def test_guard_pagination_adds_limit_to_bare_select():
+    result = db_manager._guard_pagination("SELECT id, name FROM clients")
+    assert "LIMIT" in result.upper()
+
+
+def test_guard_pagination_skips_count_star():
+    q = "SELECT COUNT(*) FROM clients"
+    assert db_manager._guard_pagination(q) == q
+
+
+def test_guard_pagination_skips_count_1():
+    q = "SELECT COUNT(1) FROM orders"
+    assert db_manager._guard_pagination(q) == q
+
+
+def test_guard_pagination_skips_insert():
+    q = "INSERT INTO clients (name) VALUES ('test')"
+    assert db_manager._guard_pagination(q) == q
+
+
+def test_guard_pagination_skips_update():
+    q = "UPDATE clients SET name='x' WHERE id=1"
+    assert db_manager._guard_pagination(q) == q
+
+
+def test_guard_pagination_no_double_limit():
+    q = "SELECT id FROM clients LIMIT 5"
+    result = db_manager._guard_pagination(q)
+    assert result.upper().count("LIMIT") == 1
+
+
+def test_invalidate_after_write_sales_insert():
+    with mock.patch("app.core.db_helpers.manager.invalidate_cache_domains") as m:
+        db_manager._invalidate_after_write("INSERT INTO sales (id) VALUES (1)")
+        m.assert_called_once()
+        domains = set(m.call_args[0])
+        assert "sales" in domains
+        assert "dashboard" in domains
+
+
+def test_invalidate_after_write_clients_update():
+    with mock.patch("app.core.db_helpers.manager.invalidate_cache_domains") as m:
+        db_manager._invalidate_after_write("UPDATE clients SET name='x'")
+        m.assert_called_once()
+        assert "clients" in set(m.call_args[0])
+
+
+def test_invalidate_after_write_skips_select():
+    with mock.patch("app.core.db_helpers.manager.invalidate_cache_domains") as m:
+        db_manager._invalidate_after_write("SELECT id FROM clients")
+        m.assert_not_called()
+
+
+def test_invalidate_after_write_raw_materials():
+    with mock.patch("app.core.db_helpers.manager.invalidate_cache_domains") as m:
+        db_manager._invalidate_after_write("UPDATE raw_materials SET price=100")
+        assert "catalog" in set(m.call_args[0])
+
+
+def test_invalidate_after_write_finished_products():
+    with mock.patch("app.core.db_helpers.manager.invalidate_cache_domains") as m:
+        db_manager._invalidate_after_write("INSERT INTO finished_products (name) VALUES ('x')")
+        assert "catalog" in set(m.call_args[0])
+
+
+def test_invalidate_after_write_purchases():
+    with mock.patch("app.core.db_helpers.manager.invalidate_cache_domains") as m:
+        db_manager._invalidate_after_write("INSERT INTO purchases (id) VALUES (1)")
+        assert "purchases" in set(m.call_args[0])
+
+
+def test_invalidate_after_write_production():
+    with mock.patch("app.core.db_helpers.manager.invalidate_cache_domains") as m:
+        db_manager._invalidate_after_write("INSERT INTO production_batches (id) VALUES (1)")
+        assert "productions" in set(m.call_args[0])
+
+
+def test_invalidate_after_write_expenses():
+    with mock.patch("app.core.db_helpers.manager.invalidate_cache_domains") as m:
+        db_manager._invalidate_after_write("INSERT INTO expenses (amount) VALUES (500)")
+        assert "dashboard" in set(m.call_args[0])
+
+
+def test_invalidate_after_write_users():
+    with mock.patch("app.core.db_helpers.manager.invalidate_cache_domains") as m:
+        db_manager._invalidate_after_write("UPDATE users SET role='admin'")
+        assert "admin" in set(m.call_args[0])
+
+
+def test_invalidate_after_write_audit_logs():
+    with mock.patch("app.core.db_helpers.manager.invalidate_cache_domains") as m:
+        db_manager._invalidate_after_write("INSERT INTO audit_logs (action) VALUES ('x')")
+        assert "admin" in set(m.call_args[0])
+
+
+def test_env_int_default_when_missing():
+    assert db_manager._env_int("FAB_NONEXISTENT_XYZ_12345", 42, 1, 100) == 42
+
+
+def test_env_int_clamps_to_min():
+    with mock.patch.dict("os.environ", {"FAB_CLM_MIN_TEST_XYZ": "0"}):
+        assert db_manager._env_int("FAB_CLM_MIN_TEST_XYZ", 5, 1, 10) == 1
+
+
+def test_env_int_clamps_to_max():
+    with mock.patch.dict("os.environ", {"FAB_CLM_MAX_TEST_XYZ": "999"}):
+        assert db_manager._env_int("FAB_CLM_MAX_TEST_XYZ", 5, 1, 10) == 10
+
+
+def test_env_int_valid_value():
+    with mock.patch.dict("os.environ", {"FAB_CLM_VAL_TEST_XYZ": "7"}):
+        assert db_manager._env_int("FAB_CLM_VAL_TEST_XYZ", 5, 1, 10) == 7
+
+
+def test_env_int_invalid_string_returns_default():
+    with mock.patch.dict("os.environ", {"FAB_CLM_STR_TEST_XYZ": "notanint"}):
+        assert db_manager._env_int("FAB_CLM_STR_TEST_XYZ", 42, 1, 100) == 42
+
+
+def test_record_sql_timing_below_threshold_no_event():
+    with mock.patch.object(db_manager, "_record_performance_event") as m:
+        db_manager._record_sql_timing("SELECT 1", (), 5.0)
+        m.assert_not_called()
+
+
+def test_record_sql_timing_above_threshold_fires_event():
+    with mock.patch.object(db_manager, "_record_performance_event") as m:
+        db_manager._record_sql_timing("SELECT id FROM clients", (), 99999.0)
+        m.assert_called_once()
+        args = m.call_args[0]
+        assert args[0] == "sql"
+
+
+def test_performance_event_normalizes_unknown_kind():
+    with mock.patch.object(db_manager, "_ensure_performance_worker"), \
+         mock.patch.object(db_manager._perf_event, "set"):
+        with db_manager._perf_lock:
+            before = len(db_manager._perf_queue)
+        db_manager._record_performance_event("badkind", "test_op", 350.0)
+        with db_manager._perf_lock:
+            assert len(db_manager._perf_queue) > before
+            last = db_manager._perf_queue[-1]
+        assert last[0] == "route"
+
+
+def test_performance_event_skips_performance_logs_table():
+    with mock.patch.object(db_manager, "_ensure_performance_worker") as m_worker:
+        db_manager._record_performance_event("sql", "performance_logs", 1000.0)
+        m_worker.assert_not_called()
+
+
+def test_performance_event_skips_zero_elapsed():
+    with mock.patch.object(db_manager, "_ensure_performance_worker") as m_worker:
+        db_manager._record_performance_event("sql", "some_query", 0.0)
+        m_worker.assert_not_called()
