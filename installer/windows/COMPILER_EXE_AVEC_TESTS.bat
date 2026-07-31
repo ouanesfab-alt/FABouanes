@@ -38,13 +38,14 @@ if errorlevel 1 (
 
 echo.
 echo  [2/4] Execution des tests pytest...
-rem %PY_CMD% -m pytest
-rem if errorlevel 1 (
-rem     echo.
-rem     echo  ECHEC: les tests ont echoue. Compilation annulee.
-rem     if not defined FAB_NO_PAUSE pause
-rem     exit /b 1
-rem )
+%PY_CMD% -m pytest tests/ -q
+if errorlevel 1 (
+    echo.
+    echo  ECHEC: les tests ont echoue. Compilation annulee.
+    if not defined FAB_NO_PAUSE pause
+    exit /b 1
+)
+
 
 echo.
 echo  [3/4] Compilation de l'EXE FastAPI...

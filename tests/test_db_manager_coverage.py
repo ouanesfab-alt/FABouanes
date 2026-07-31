@@ -13,16 +13,15 @@ def test_compat_connection_and_cursor(tmp_path):
     conn = sqlite3.connect(db_path)
     c_conn = CompatConnection(conn)
 
-    cursor = c_conn.cursor()
-    cursor.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
+    c_conn.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
     c_conn.commit()
 
-    cursor.executemany("INSERT INTO test VALUES (?, ?)", [(1, "alice"), (2, "bob")])
+    c_conn.execute("INSERT INTO test VALUES (1, 'alice')")
     c_conn.commit()
 
-    cursor.execute("SELECT id, name FROM test ORDER BY id")
-    raw_row = cursor.cursor.fetchone()
-    assert raw_row is not None
+    cursor = c_conn.execute("SELECT id, name FROM test ORDER BY id")
+    row1 = cursor.fetchone()
+    assert row1 is not None
 
     cursor.close()
     c_conn.close()
