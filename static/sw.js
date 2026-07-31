@@ -3,14 +3,19 @@ const CACHE_NAME = 'fabouanes-v2.0';
 
 const STATIC_ASSETS = [
   '/',
+  '/static/offline.html',
+  '/static/css/bootstrap.min.css',
+  '/static/css/bootstrap-icons.css',
   '/static/css/tokens.css',
   '/static/css/components.css',
   '/static/app.css',
   '/static/js/main.js',
   '/static/js/offline-db.js',
-  '/static/js/barcode_scanner.js',
+  '/static/js/offline-sync.js',
   '/static/manifest.json',
-  '/static/desktop_logo_shield.webp'
+  '/static/icon-512.png',
+  '/static/icon-192.png',
+  '/static/favicon.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -44,7 +49,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // HTML Page Navigation: Network first, fall back to cache
+  // HTML Page Navigation: Network first, fall back to cache then offline.html
   if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
       fetch(request)
@@ -58,7 +63,7 @@ self.addEventListener('fetch', (event) => {
         .catch(() => {
           return caches.match(request).then((cachedResponse) => {
             if (cachedResponse) return cachedResponse;
-            return caches.match('/');
+            return caches.match('/static/offline.html') || caches.match('/');
           });
         })
     );
