@@ -14,12 +14,13 @@ class NotFoundError(BusinessError):
         self.resource = resource
         self.id = id
 
-class ValidationError(BusinessError):
+class ValidationError(BusinessError, ValueError):
     def __init__(self, message: str, field: str | None = None):
         super().__init__(message, code="validation_error")
         self.field = field
         if field:
             self.details = {"field": field}
+
 
 class ConflictError(BusinessError):
     def __init__(self, message: str, details: dict | None = None):
