@@ -59,6 +59,8 @@ Type: filesandordirs; Name: "{app}\_internal"
 
 [Files]
 Source: "..\..\dist\FABOuanes\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "redist\postgresql_installer.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall ignoreversion skipifsourcedoesntexist; Check: not IsPostgresInstalled
+
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -545,11 +547,33 @@ var
   ResultCode: Integer;
   PsCommand: String;
   PgPass: String;
+  LocalInstallerPath: String;
 begin
   PgPass := Trim(Password);
   if PgPass = '' then
     PgPass := '0000';
 
+  LocalInstallerPath := ExpandConstant('{tmp}\postgresql_installer.exe');
+
+  // If PostgreSQL installer is bundled offline in {tmp}, execute it directly
+  if FileExists(LocalInstallerPath) then
+  begin
+    WizardForm.StatusLabel.Caption := 'Installation silencieuse de PostgreSQL 16 (embarqué)...';
+    WizardForm.ProgressGauge.Style := npbstMarquee;
+
+    Result := Exec(LocalInstallerPath,
+      '--mode unattended --unattendedmodeui none --superpassword ' + PgPass + ' --serverport 5432',
+      '', SW_SHOW, ewWaitUntilTerminated, ResultCode);
+    WizardForm.ProgressGauge.Style := npbstNormal;
+
+    if Result and (ResultCode = 0) then
+    begin
+      Result := True;
+      Exit;
+    end;
+  end;
+
+  // Fallback to automatic download if not bundled
   WizardForm.StatusLabel.Caption := 'Téléchargement de PostgreSQL 16 (environ 300 Mo)...';
   WizardForm.ProgressGauge.Style := npbstMarquee;
 
@@ -572,8 +596,8 @@ begin
 
   if not Result or (ResultCode <> 0) then
   begin
-    MsgBox('Le téléchargement ou l''installation automatique de PostgreSQL a échoué.' + #13#10 +
-           'Assurez-vous d''être connecté à Internet et réessayez.', mbError, MB_OK);
+    MsgBox('L''installation automatique de PostgreSQL a échoué.' + #13#10 +
+           'Assurez-vous d''être connecté à Internet ou de placer postgresql_installer.exe dans le dossier redist/.', mbError, MB_OK);
     Result := False;
   end
   else
@@ -581,6 +605,7 @@ begin
     Result := True;
   end;
 end;
+
 
 
 // ---- Run the desktop bootstrap (DB init / migration) ----
