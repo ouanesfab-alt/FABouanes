@@ -4,10 +4,11 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 from sqlalchemy import Column, Numeric, String
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.orm import relationship
+from pydantic import field_validator
 
 if TYPE_CHECKING:
     from app.core.models_pkg.clients import Client
@@ -49,6 +50,14 @@ class Sale(SQLModel, table=True):
     finished_product: Optional["FinishedProduct"] = Relationship(sa_relationship=relationship("FinishedProduct", back_populates="sales"))
     payments: list["Payment"] = Relationship(sa_relationship=relationship("Payment", back_populates="sale"))
 
+    @field_validator("sale_type", mode="before")
+    @classmethod
+    def _coerce_sale_type(cls, v: Any) -> "SaleType":
+        """Coerce les valeurs str retourées par PostgreSQL vers l'enum SaleType."""
+        if isinstance(v, str):
+            return SaleType(v)
+        return v
+
 
 class RawSale(SQLModel, table=True):
     __tablename__ = "raw_sales"
@@ -77,6 +86,14 @@ class RawSale(SQLModel, table=True):
     raw_material: Optional["RawMaterial"] = Relationship(sa_relationship=relationship("RawMaterial", back_populates="raw_sales"))
     payments: list["Payment"] = Relationship(sa_relationship=relationship("Payment", back_populates="raw_sale"))
 
+    @field_validator("sale_type", mode="before")
+    @classmethod
+    def _coerce_sale_type(cls, v: Any) -> "SaleType":
+        """Coerce les valeurs str retourées par PostgreSQL vers l'enum SaleType."""
+        if isinstance(v, str):
+            return SaleType(v)
+        return v
+
 
 class SaleDocument(SQLModel, table=True):
     __tablename__ = "sale_documents"
@@ -95,3 +112,11 @@ class SaleDocument(SQLModel, table=True):
 
     # Relationships
     client: Optional["Client"] = Relationship(sa_relationship=relationship("Client", back_populates="sale_documents"))
+
+    @field_validator("sale_type", mode="before")
+    @classmethod
+    def _coerce_sale_type(cls, v: Any) -> "SaleType":
+        """Coerce les valeurs str retourées par PostgreSQL vers l'enum SaleType."""
+        if isinstance(v, str):
+            return SaleType(v)
+        return v

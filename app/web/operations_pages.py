@@ -9,7 +9,6 @@ from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_session
-from app.core.db_helpers import query_db
 
 from app.services.print_service import COMPANY_INFO, PRINT_LAYOUT, build_print_payload, generate_invoice_pdf
 from app.services.transactions_service import transactions_context, update_production_notes

@@ -614,7 +614,7 @@ def _background_loop(app) -> None:
 
             if not success:
                 consecutive_failures += 1
-                sleep_time = min(300.0, 45.0 * (1.5 ** consecutive_failures) + random.uniform(0.0, 10.0))
+                sleep_time = min(300.0, 45.0 * (1.5 ** consecutive_failures) + random.uniform(0.0, 10.0))  # noqa: S311 jitter de retry non-cryptographique
             else:
                 consecutive_failures = 0
                 sleep_time = 45.0
