@@ -73,3 +73,17 @@ class AsyncRepository(Generic[T]):
             await self.session.refresh(entity)
         return entities
 
+    async def find_one_by(self, **kwargs) -> Optional[T]:
+        """Fetch the first record matching keyword criteria, or None."""
+        statement = select(self.model_cls)
+        for key, val in kwargs.items():
+            if hasattr(self.model_cls, key):
+                statement = statement.where(getattr(self.model_cls, key) == val)
+        statement = statement.limit(1)
+        results = await self.session.execute(statement)
+        return results.scalars().first()
+
+    async def exists(self, **kwargs) -> bool:
+        """Check if at least one record matching criteria exists."""
+        return (await self.find_one_by(**kwargs)) is not None
+
