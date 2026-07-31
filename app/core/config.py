@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import secrets as _secrets
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -38,8 +39,8 @@ def _ensure_env_file_exists() -> None:
         if example_path.exists():
             try:
                 shutil.copy(example_path, env_path)
-            except Exception:
-                pass
+            except Exception as _e:  # noqa: S110
+                warnings.warn(f"[config] Impossible de copier .env.example : {_e}", stacklevel=2)
         else:
             try:
                 env_path.write_text(
@@ -48,8 +49,8 @@ def _ensure_env_file_exists() -> None:
                     "FAB_PORT=5000\n",
                     encoding="utf-8",
                 )
-            except Exception:
-                pass
+            except Exception as _e:  # noqa: S110
+                warnings.warn(f"[config] Impossible de créer .env : {_e}", stacklevel=2)
 
 _ensure_env_file_exists()
 load_dotenv(BASE_DIR / ".env")
@@ -80,8 +81,8 @@ class Settings:
             if key_file.exists():
                 try:
                     self.secret_key = key_file.read_text(encoding="utf-8").strip()
-                except Exception:
-                    pass
+                except Exception as _e:  # noqa: S110
+                    warnings.warn(f"[config] Impossible de lire secret.key : {_e}", stacklevel=2)
             else:
                 try:
                     # En production locale ou desktop, si aucun SECRET_KEY n'est spécifié,
@@ -89,8 +90,8 @@ class Settings:
                     generated_key = _secrets.token_hex(32)
                     key_file.write_text(generated_key, encoding="utf-8")
                     self.secret_key = generated_key
-                except Exception:
-                    pass
+                except Exception as _e:  # noqa: S110
+                    warnings.warn(f"[config] Impossible d'écrire secret.key : {_e}", stacklevel=2)
 
         testing = os.getenv("PYTEST_CURRENT_TEST") or os.getenv("FAB_TESTING", "") == "1"
         if not self.secret_key:

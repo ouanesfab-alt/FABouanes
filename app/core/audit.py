@@ -4,6 +4,7 @@ import csv
 import decimal
 import io
 import json
+import logging
 import time
 import asyncio
 from collections.abc import Mapping
@@ -16,6 +17,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_sessionmaker
 from app.core.helpers import async_compat
+
+_logger = logging.getLogger("fabouanes.audit")
 
 _AUDIT_QUEUE: asyncio.Queue | None = None
 _AUDIT_TASK: asyncio.Task | None = None
@@ -90,11 +93,11 @@ async def stop_audit_worker() -> None:
                                     "meta_json": row[13],
                                 }
                             )
-                        except Exception:
-                            pass
+                        except Exception:  # noqa: S110
+                                _logger.warning("Audit: échec écriture d'un événement, ignoré", exc_info=True)
                     await session.commit()
             except Exception:
-                pass
+                _logger.warning("Audit: échec du flush de shutdown, %d événements perdus", len(batch), exc_info=True)
 
     _AUDIT_TASK.cancel()
     try:
@@ -104,8 +107,6 @@ async def stop_audit_worker() -> None:
     _AUDIT_TASK = None
 
 async def _audit_flusher_task() -> None:
-    import logging
-    logger = logging.getLogger("fabouanes.audit")
     queue = _get_audit_queue()
     while True:
         try:
@@ -151,17 +152,17 @@ async def _audit_flusher_task() -> None:
                                 }
                             )
                         except Exception:
-                            logger.exception("Unable to execute audit log row statement")
+                            _logger.exception("Unable to execute audit log row statement")
                     await session.commit()
             except Exception:
-                logger.exception("Unable to commit audit log batch")
+                _logger.exception("Unable to commit audit log batch")
             finally:
                 for _ in batch:
                     queue.task_done()
         except asyncio.CancelledError:
             break
         except Exception:
-            logger.exception("Error in audit flusher task")
+            _logger.exception("Error in audit flusher task")
             await asyncio.sleep(2.0)
 
 
