@@ -1064,6 +1064,15 @@ def open_ui(url: str) -> None:
                         try:
                             core_wv2 = sender.CoreWebView2
                             if core_wv2 is not None:
+                                try:
+                                    wv_settings = core_wv2.Settings
+                                    wv_settings.IsScriptEnabled = True
+                                    wv_settings.IsWebMessageEnabled = True
+                                    wv_settings.AreDefaultScriptDialogsEnabled = True
+                                    wv_settings.IsGeneralAutofillEnabled = True
+                                except Exception:
+                                    pass
+
                                 def on_permission_requested(s, e):
                                     try:
                                         # Allow all permissions (Microphone, Camera, Clipboard, etc.)

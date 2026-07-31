@@ -2015,6 +2015,25 @@
 	let currentFontIdx = -1;
 	let currentColorIdx = -1;
 
+	// Preconnect Google Fonts for instant PyWebView / WebView2 loading (< 5ms)
+	function initFontPreconnect() {
+		if (!document.getElementById('fab-gfonts-preconnect-1')) {
+			const p1 = document.createElement('link');
+			p1.id = 'fab-gfonts-preconnect-1';
+			p1.rel = 'preconnect';
+			p1.href = 'https://fonts.googleapis.com';
+			document.head.appendChild(p1);
+		}
+		if (!document.getElementById('fab-gfonts-preconnect-2')) {
+			const p2 = document.createElement('link');
+			p2.id = 'fab-gfonts-preconnect-2';
+			p2.rel = 'preconnect';
+			p2.href = 'https://fonts.gstatic.com';
+			p2.crossOrigin = 'anonymous';
+			document.head.appendChild(p2);
+		}
+	}
+
 	// Dynamic Style Container for WebView2 / PyWebView Windows Window Compatibility
 	let fontStyleElement = document.getElementById('fab-dynamic-google-font');
 	if (!fontStyleElement) {
@@ -2035,7 +2054,10 @@
 		// Inject @import rule directly into style tag (Bypasses WebView2 CORS restrictions)
 		fontStyleElement.textContent = `@import url('https://fonts.googleapis.com/css2?family=${fontObj.query}&display=swap');`;
 
-		const targetElements = document.querySelectorAll('.fab-logo-text-main, .page-title-main, .hero-font-target, body, h1, h2, h3, .card-title, .nav-link, .btn');
+		// Bind CSS root variables so the entire UI updates smoothly
+		document.documentElement.style.setProperty('--font-custom-active', fontObj.stack);
+
+		const targetElements = document.querySelectorAll('.fab-logo-text-main, .page-title-main, .hero-font-target, h1, h2, h3, .card-title, .nav-link, .btn-primary, .badge-custom');
 
 		targetElements.forEach(el => {
 			el.style.transition = 'opacity 0.2s ease, font-family 0.3s ease';
@@ -2043,7 +2065,7 @@
 			setTimeout(() => {
 				el.style.setProperty('font-family', fontObj.stack, 'important');
 				el.style.opacity = '1';
-			}, 200);
+			}, 150);
 		});
 	}
 
@@ -2063,6 +2085,7 @@
 	}
 
 	document.addEventListener('DOMContentLoaded', () => {
+		initFontPreconnect();
 		const logoText = document.querySelector('.fab-logo-text-main');
 		if (logoText) {
 			logoText.style.cursor = 'pointer';
