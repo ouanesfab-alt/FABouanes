@@ -16,23 +16,42 @@ import webbrowser
 from datetime import datetime
 from pathlib import Path
 
-if sys.platform == "win32":
+def optimize_windows_system():
+    if sys.platform != "win32":
+        return
     try:
         import ctypes
-        # Per-monitor DPI awareness (Windows 8.1 / 10 / 11) for ultra-sharp UI rendering on High-DPI screens
+        # 1. Elevate process priority to ABOVE_NORMAL_PRIORITY_CLASS (0x00008000) for instant window & UI responsiveness
+        try:
+            handle = ctypes.windll.kernel32.GetCurrentProcess()
+            ctypes.windll.kernel32.SetPriorityClass(handle, 0x00008000)
+        except Exception:
+            pass
+
+        # 2. Per-monitor DPI V2 Awareness for Windows 10 / 11 4K displays
         try:
             ctypes.windll.shcore.SetProcessDpiAwareness(2)
         except Exception:
-            ctypes.windll.user32.SetProcessDPIAware()
+            try:
+                ctypes.windll.user32.SetProcessDPIAware()
+            except Exception:
+                pass
 
-        # Set Windows Taskbar AppUserModelID for native icon & window grouping in Windows 10 / 11
+        # 3. AppUserModelID for Taskbar icon & notification grouping
         try:
-            myappid = "FABOuanes.ERP.EnterpriseDesktop.v1"
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("FABOuanes.ERP.EnterpriseDesktop.v1")
+        except Exception:
+            pass
+
+        # 4. Disable Windows error dialog boxes for background workers
+        try:
+            ctypes.windll.kernel32.SetErrorMode(0x0001 | 0x0002)
         except Exception:
             pass
     except Exception:
         pass
+
+optimize_windows_system()
 
 APP_NAME = "FABOuanes"
 SERVER_MODE_ARGS = {"--server", "--server-only", "--network-server"}
