@@ -59,7 +59,12 @@ Type: filesandordirs; Name: "{app}\_internal"
 
 [Files]
 Source: "..\..\dist\FABOuanes\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\postgresql-18.3-3-windows-x64.exe"; DestDir: "{tmp}"; DestName: "postgresql_installer.exe"; Flags: deleteafterinstall ignoreversion skipifsourcedoesntexist; Check: not IsPostgresInstalled
+Source: "..\..\postgresql-16.2-1-windows-x64.exe"; DestDir: "{tmp}"; DestName: "postgresql_installer.exe"; Flags: deleteafterinstall ignoreversion skipifsourcedoesntexist; Check: not IsPostgresInstalled
+Source: "..\..\postgresql.exe"; DestDir: "{tmp}"; DestName: "postgresql_installer.exe"; Flags: deleteafterinstall ignoreversion skipifsourcedoesntexist; Check: not IsPostgresInstalled
 Source: "redist\postgresql_installer.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall ignoreversion skipifsourcedoesntexist; Check: not IsPostgresInstalled
+
+
 
 
 [Icons]
