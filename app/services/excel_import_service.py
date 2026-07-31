@@ -4,6 +4,7 @@ import re
 from datetime import date, datetime
 from pathlib import Path
 from decimal import Decimal, InvalidOperation
+from typing import Any
 
 
 def parse_client_history_excel(file_path: str) -> dict:
@@ -234,7 +235,9 @@ def parse_flexible_date(value, fallback_to_today: bool = True) -> str | None:
         pass
 
     try:
-        return pd.to_datetime(text, dayfirst=True, errors="raise").date().isoformat()
+        # Tentative via dateutil si disponible (pas de dépendance directe à pandas)
+        from dateutil import parser as _du_parser
+        return _du_parser.parse(text, dayfirst=True).date().isoformat()
     except Exception:
         pass
 
