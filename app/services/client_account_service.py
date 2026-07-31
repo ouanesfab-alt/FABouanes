@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import warnings
 from datetime import date
-from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_sessionmaker

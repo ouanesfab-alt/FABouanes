@@ -47,7 +47,6 @@ from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.runtime_paths import paths
 from app.api.router import router as api_router
 from app.web.router import router as web_router
-from app.core.database import healthcheck
 from app.services.backup_service import BACKGROUND_STATE
 from app.version import APP_VERSION
 
