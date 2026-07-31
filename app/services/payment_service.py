@@ -6,9 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_sessionmaker
 from app.core.activity import log_activity
 from app.core.audit import audit_event, audit_delete_event
-from app.core.helpers import create_payment_record, get_open_credit_entries, reverse_payment_allocations, to_float, async_compat
+from app.core.helpers import to_float, async_compat
 from app.core.storage import mark_backup_needed
 from app.modules.payments.repository import payment_form_context
+from app.modules.payments.service import PaymentsService
 from app.core.models import Payment, Client, Sale, RawSale, FinishedProduct, RawMaterial
 
 
@@ -36,7 +37,8 @@ async def _create_payment_from_form_impl(form, db: AsyncSession):
     payment_date = form.get("payment_date") or date.today().isoformat()
     payment_type = (form.get("payment_type") or "versement").strip() or "versement"
     notes = form.get("notes", "").strip()
-    payment_id = await create_payment_record(client_id, amount, payment_date, notes, sale_link, payment_type, db=db)
+    payment_id = await PaymentsService(db).create_payment_record(client_id, amount, payment_date, notes, sale_link, payment_type)
+
 
     created_res = await db.execute(select(Payment).where(Payment.id == payment_id))
     created = created_res.scalar_one_or_none()
@@ -69,7 +71,7 @@ async def _get_edit_payment_context_impl(payment_id: int, db: AsyncSession):
     elif payment.get("sale_kind") == "raw" and payment.get("raw_sale_id"):
         current_link = f"raw:{payment['raw_sale_id']}"
 
-    open_sales = list(await get_open_credit_entries(db=db))
+    open_sales = list(await PaymentsService(db).get_open_credit_entries())
     existing_keys = [f"{sale['item_kind']}:{sale['id']}" for sale in open_sales]
 
     if current_link and current_link not in existing_keys:
@@ -134,10 +136,10 @@ async def _edit_payment_from_form_impl(payment_id: int, form, db: AsyncSession):
     notes = form.get("notes", "").strip()
     before = dict(payment_dict)
 
-    await reverse_payment_allocations(payment_dict, db=db)
+    await PaymentsService(db).reverse_payment_allocations(payment_dict)
     await db.execute(delete(Payment).where(Payment.id == payment_id))
 
-    new_payment_id = await create_payment_record(client_id, amount, payment_date, notes, sale_link, form.get("payment_type", "versement"), db=db)
+    new_payment_id = await PaymentsService(db).create_payment_record(client_id, amount, payment_date, notes, sale_link, form.get("payment_type", "versement"))
 
     after_res = await db.execute(select(Payment).where(Payment.id == new_payment_id))
     after_obj = after_res.scalar_one_or_none()
@@ -168,7 +170,7 @@ async def _delete_payment_by_id_impl(payment_id: int, db: AsyncSession) -> bool:
     before = dict(payment_dict)
     audit_delete_event("payment", payment_id, before)
 
-    await reverse_payment_allocations(payment_dict, db=db)
+    await PaymentsService(db).reverse_payment_allocations(payment_dict)
     await db.execute(delete(Payment).where(Payment.id == payment_id))
 
     log_activity("delete_payment", "payment", payment_id, "Suppression transaction client")
@@ -201,14 +203,13 @@ async def _create_mobile_payment_impl(
     recorded_by: int | None,
     db: AsyncSession,
 ) -> dict:
-    payment_id = await create_payment_record(
+    payment_id = await PaymentsService(db).create_payment_record(
         client_id=client_id,
         amount=amount,
         payment_date=payment_date or date.today().isoformat(),
         notes=notes,
         sale_link="",
         payment_type="versement",
-        db=db,
     )
     from app.core.audit import audit_event
     from app.modules.users.repository import get_user_by_id

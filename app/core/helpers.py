@@ -68,6 +68,7 @@ async def refresh_sale_profits_for_item(item_kind: str, item_id: int, avg_cost: 
 
 @async_compat
 async def get_open_credit_entries(client_id: int | None = None, db: AsyncSession | None = None):
+    """DEPRECATED: Utiliser app.modules.payments.service.PaymentsService.get_open_credit_entries à la place."""
     from app.modules.payments.service import PaymentsService
     from app.core.async_db import get_async_sessionmaker
     if db is None:
@@ -188,6 +189,7 @@ async def create_payment_record(
     payment_type: str = "versement",
     db: AsyncSession | None = None,
 ) -> int:
+    """DEPRECATED: Utiliser app.modules.payments.service.PaymentsService.create_payment_record à la place."""
     from app.modules.payments.service import PaymentsService
     from app.core.async_db import get_async_sessionmaker
     if db is None:
@@ -199,6 +201,7 @@ async def create_payment_record(
 
 @async_compat
 async def reverse_payment_allocations(payment_row, db: AsyncSession | None = None) -> None:
+    """DEPRECATED: Utiliser app.modules.payments.service.PaymentsService.reverse_payment_allocations à la place."""
     from app.modules.payments.service import PaymentsService
     from app.core.async_db import get_async_sessionmaker
     p_dict = dict(payment_row) if hasattr(payment_row, "keys") and not isinstance(payment_row, dict) else payment_row
