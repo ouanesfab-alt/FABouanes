@@ -35,8 +35,10 @@ async def attempt_login(username: str, password: str, request: Request | None = 
 
     from app.core.config import settings
 
-    # 1. Check IP lockout first
-    if not settings.desktop_mode and is_locked_out(ip):
+    user_key = f"user_account:{normalized.lower()}" if normalized else None
+
+    # 1. Check IP and Account lockout
+    if not settings.desktop_mode and (is_locked_out(ip) or (user_key and is_locked_out(user_key))):
         audit_event(
             action="login",
             entity_type="user",
@@ -45,7 +47,7 @@ async def attempt_login(username: str, password: str, request: Request | None = 
             actor={"username": normalized or "anonymous", "role": "anonymous"},
             meta={"reason": "locked_out", "ip": ip},
         )
-        return {"ok": False, "status": 429, "message": "Trop d'échecs de connexion. Votre IP est temporairement bloquée."}
+        return {"ok": False, "status": 429, "message": "Trop d'échecs de connexion. Accès temporairement bloqué."}
 
     # 2. Check standard rate limit (réduit à 5 tentatives / 5 minutes)
     login_key = f"login:{ip}:{normalized.lower()}"
@@ -62,7 +64,9 @@ async def attempt_login(username: str, password: str, request: Request | None = 
 
     user = await get_user_by_username(normalized)
     if user and int(user.get("is_active", 1) or 0) and check_password_hash(user["password_hash"], password or ""):
-        clear_login_failures(ip)  # Clear failures on success
+        clear_login_failures(ip)  # Clear IP failures on success
+        if user_key:
+            clear_login_failures(user_key)  # Clear account failures on success
         await touch_login(int(user["id"]))
         user = await get_user_by_username(normalized)
         log_activity("login", "user", user["id"], f"Connexion de {normalized}")
@@ -79,9 +83,10 @@ async def attempt_login(username: str, password: str, request: Request | None = 
 
         return {"ok": True, "user": user}
 
-
-    # Failed attempt
+    # Failed attempt: record failure on both IP and account key
     record_login_failure(ip)
+    if user_key:
+        record_login_failure(user_key)
     reason = "inactive" if user and not int(user.get("is_active", 1) or 0) else "invalid_credentials"
     audit_event(
         action="login",

@@ -102,7 +102,6 @@ class SaleFormSchema(BaseModel):
                             "unit_price": up,
                             "custom_item_name": cn
                         })
-                print(f"SCHEMA DEBUG: parsed lines={lines}")
                 data["lines"] = lines
         return data
     @field_validator("sale_date", mode="before")

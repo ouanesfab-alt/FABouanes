@@ -1,3 +1,7 @@
+# FABOuanes ERP — Dependances optimisees pour environnement Termux / ARM
+# Note d'architecture : pywebview et dependencies GUI Desktop sont volontairement omises
+# sur Android/Termux pour eviter le besoin de compilation Rust/C lourde sur architecture ARM mobile.
+
 fastapi>=0.115
 uvicorn>=0.34
 sqlalchemy>=2.0

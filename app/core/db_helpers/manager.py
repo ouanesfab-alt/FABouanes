@@ -270,8 +270,10 @@ class DatabaseManager:
                     with self._engine_lock:
                         old_engine = self._engines.pop(raw_url, None)
                         if old_engine is not None:
-                            try: old_engine.dispose()
-                            except Exception: pass
+                            try:
+                                old_engine.dispose()
+                            except Exception as dispose_exc:
+                                logger.debug("Failed to dispose engine: %s", dispose_exc)
 
                     if "shut down" in err_str or "closed" in err_str or "could not connect" in err_str:
                         if attempt == 0:

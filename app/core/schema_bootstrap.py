@@ -35,8 +35,11 @@ def _executescript(conn, sql: str) -> None:
         if stmt.strip():
             _execute(conn, stmt)
     if hasattr(conn, "commit"):
-        try: conn.commit()
-        except Exception: pass
+        try:
+            conn.commit()
+        except Exception as commit_exc:
+            import logging
+            logging.getLogger("fabouanes.db").warning("Commit failed in script statement execution: %s", commit_exc)
 
 
 def bootstrap_schema() -> None:

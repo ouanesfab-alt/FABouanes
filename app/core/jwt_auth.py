@@ -59,7 +59,8 @@ def create_refresh_token(user_id: int) -> str:
         )
     except Exception as exc:
         import logging
-        logging.getLogger("fabouanes.auth").warning("Could not persist mobile refresh token in DB: %s", exc)
+        logging.getLogger("fabouanes.auth").error("Could not persist mobile refresh token in DB: %s", exc, exc_info=True)
+        raise HTTPException(500, "Impossible de sécuriser la session mobile")
 
     return token
 
