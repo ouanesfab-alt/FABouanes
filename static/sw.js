@@ -10,6 +10,7 @@ const STATIC_ASSETS = [
   '/static/css/components.css',
   '/static/app.css',
   '/static/js/main.js',
+  '/static/js/modules/shortcuts.js',
   '/static/js/offline-db.js',
   '/static/js/offline-sync.js',
   '/static/manifest.json',

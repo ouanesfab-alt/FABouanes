@@ -18,6 +18,16 @@ from pathlib import Path
 
 if sys.platform == "win32":
     try:
+        import ctypes
+        # Per-monitor DPI awareness (Windows 8.1 / 10 / 11) for ultra-sharp UI rendering on High-DPI screens
+        try:
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        except Exception:
+            ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
+
+    try:
         from asyncio.proactor_events import _ProactorBasePipeTransport
         _old_call_connection_lost = _ProactorBasePipeTransport._call_connection_lost
         def _call_connection_lost_patched(self, exc):

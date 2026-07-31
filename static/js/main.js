@@ -9,6 +9,7 @@ import { initMobileShellModule } from './modules/mobileShell.js';
 import { initOfflineSync } from './offline-sync.js';
 import { initRippleModule } from './modules/ripple.js';
 import { initAudioModule } from './modules/audio.js';
+import { initShortcutsModule } from './modules/shortcuts.js';
 
 // Bind functions to window for backward compatibility with inline HTML events
 window.openInvoice = openInvoice;
@@ -28,5 +29,7 @@ initOfflineSync();
 initRippleModule();
 // Sons de clics et retours sonores PWA
 initAudioModule();
+// Raccourcis clavier optimisés pour Windows Desktop (Ctrl+K, Ctrl+N, Ctrl+B, etc.)
+initShortcutsModule();
 
 
