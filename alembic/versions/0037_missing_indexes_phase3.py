@@ -10,7 +10,8 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = '0037_missing_indexes_phase3'
-down_revision = '0036_sabrina_memory'
+down_revision = '0036'
+
 branch_labels = None
 depends_on = None
 

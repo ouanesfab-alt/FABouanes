@@ -111,3 +111,12 @@ omit = [
 
 [tool.setuptools.packages.find]
 include = ["app*"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "T201"]
+ignore = ["E501"]
+
+
