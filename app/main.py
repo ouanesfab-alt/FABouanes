@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 import time
 import asyncio
@@ -63,12 +64,19 @@ if Instrumentator is not None:
     except Exception as exc:
         logger.warning("Skipped Prometheus instrumentation: %s", exc)
 
+# CORS : en mode desktop/local, aucune origine externe n'est autorisée.
+# En mode serveur réseau, définir FAB_CORS_ORIGINS=http://ip:port,https://domaine.com
+_CORS_ORIGINS: list[str] = [
+    o.strip()
+    for o in os.environ.get("FAB_CORS_ORIGINS", "").split(",")
+    if o.strip()
+] or ["http://localhost", "http://127.0.0.1", f"http://127.0.0.1:{settings.port}"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_CORS_ORIGINS,
+    allow_credentials=bool(os.environ.get("FAB_CORS_ORIGINS", "").strip()),
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-CSRF-Token", "X-CSRFToken", "X-API-Key"],
 )
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(
