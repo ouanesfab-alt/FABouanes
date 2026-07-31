@@ -57,7 +57,11 @@ testpaths = [
   "tests",
 ]
 python_files = ["test_*.py"]
-addopts = "-q --cov=app --cov-config=pyproject.toml --cov-report=term-missing --cov-fail-under=75"
+addopts = "-q --cov=app --cov-config=pyproject.toml --cov-report=term-missing --cov-fail-under=85"
+
+
+
+
 filterwarnings = [
   "ignore::DeprecationWarning:app.services.client_account_service",
   # SQLite retourne des types primitifs (str, float, int) au lieu de date/Decimal/bool.
