@@ -113,4 +113,17 @@ async def execute_sql_async(statement_str: str, params: dict | tuple = ()):
         await session.commit()
         return result.rowcount
 
+async def async_healthcheck() -> bool:
+    """Perform a native async connectivity check to the database using AsyncEngine."""
+    try:
+        from sqlalchemy import text
+        engine = get_async_engine()
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return True
+    except Exception as e:
+        import logging
+        logging.getLogger("fabouanes").error("Async database healthcheck failed: %s", e)
+        return False
+
 

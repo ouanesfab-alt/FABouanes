@@ -91,9 +91,11 @@ async def health_check():
     checks: dict[str, str] = {"db": "ok", "scheduler": "ok", "disk": "ok", "version": APP_VERSION}
     now = time.time()
 
-    # Database connectivity
+    # Database connectivity (native async check)
     try:
-        await asyncio.wait_for(asyncio.to_thread(healthcheck), timeout=3.0)
+        from app.core.async_db import async_healthcheck
+        is_ok = await asyncio.wait_for(async_healthcheck(), timeout=3.0)
+        checks["db"] = "ok" if is_ok else "error"
     except asyncio.TimeoutError:
         checks["db"] = "timeout"
     except Exception:
