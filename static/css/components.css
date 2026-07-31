@@ -731,6 +731,30 @@ html, body {
   }
 }
 
+/* ── Ultra-Premium Sabrina AI & KPI Glow Enhancements ── */
+.sabrina-input-box, #aiInput, .search-modal {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.sabrina-input-box:focus-within, #aiInput:focus {
+  box-shadow: 0 0 24px rgba(0, 122, 255, 0.35), 0 8px 30px rgba(0, 0, 0, 0.2) !important;
+  border-color: rgba(0, 122, 255, 0.6) !important;
+}
+
+.nav-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-shrink: 0 !important;
+}
+
+.nav-inner {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+
 
 
 
