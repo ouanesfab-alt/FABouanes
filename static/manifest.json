@@ -1,6 +1,9 @@
 {
   "short_name": "FABouanes",
-  "name": "FABouanes — Gestion Douanière",
+  "name": "FABouanes — Solution ERP & Gestion Intégrée",
+  "description": "Système de gestion commerciale, comptabilité SCF et suivi d'exploitation",
+  "lang": "fr-FR",
+  "scope": "/",
   "icons": [
     {
       "src": "/static/icon-512.png",
