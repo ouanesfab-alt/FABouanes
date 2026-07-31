@@ -68,9 +68,13 @@ async def refresh_sale_profits_for_item(item_kind: str, item_id: int, avg_cost: 
 
 @async_compat
 async def get_open_credit_entries(client_id: int | None = None, db: AsyncSession | None = None):
-    from app.services.client_account_service import get_open_credit_entries as _get_open_credit_entries
+    from app.modules.payments.service import PaymentsService
+    from app.core.async_db import get_async_sessionmaker
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            return await PaymentsService(session).get_open_credit_entries(client_id)
+    return await PaymentsService(db).get_open_credit_entries(client_id)
 
-    return await _get_open_credit_entries(client_id, db=db)
 
 
 @async_compat
@@ -184,16 +188,26 @@ async def create_payment_record(
     payment_type: str = "versement",
     db: AsyncSession | None = None,
 ) -> int:
-    from app.services.client_account_service import create_payment_record as _create_payment_record
-
-    return await _create_payment_record(client_id, amount, payment_date, notes, sale_link, payment_type, db=db)
+    from app.modules.payments.service import PaymentsService
+    from app.core.async_db import get_async_sessionmaker
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            async with session.begin():
+                return await PaymentsService(session).create_payment_record(client_id, amount, payment_date, notes, sale_link, payment_type)
+    return await PaymentsService(db).create_payment_record(client_id, amount, payment_date, notes, sale_link, payment_type)
 
 
 @async_compat
 async def reverse_payment_allocations(payment_row, db: AsyncSession | None = None) -> None:
-    from app.services.client_account_service import reverse_payment_allocations as _reverse_payment_allocations
+    from app.modules.payments.service import PaymentsService
+    from app.core.async_db import get_async_sessionmaker
+    p_dict = dict(payment_row) if hasattr(payment_row, "keys") and not isinstance(payment_row, dict) else payment_row
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            async with session.begin():
+                return await PaymentsService(session).reverse_payment_allocations(p_dict)
+    return await PaymentsService(db).reverse_payment_allocations(p_dict)
 
-    return await _reverse_payment_allocations(payment_row, db=db)
 
 
 def parse_excel_client_file(file_path) -> dict:

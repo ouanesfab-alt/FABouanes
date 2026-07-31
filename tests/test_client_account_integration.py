@@ -68,8 +68,12 @@ class CustomAccountMockSession:
             # Client check
             mock_res.first.return_value = MockRow({"id": 1}) if self.client_exists else None
             return mock_res
+        elif "payments" in stmt_str:
+            mock_res.first.return_value = None
+            return mock_res
 
         return mock_res
+
 
     def add(self, instance, *args, **kwargs):
         self.added.append(instance)
