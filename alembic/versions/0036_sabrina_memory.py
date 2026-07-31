@@ -10,7 +10,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "0036_sabrina_memory"
-down_revision = "0035"
+down_revision = "0035_data_types_fix"
 branch_labels = None
 depends_on = None
 
