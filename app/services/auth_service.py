@@ -63,10 +63,37 @@ async def attempt_login(username: str, password: str, request: Request | None = 
         return {"ok": False, "status": 429, "message": "Trop de tentatives de connexion. Réessayez dans 5 minutes."}
 
     user = await get_user_by_username(normalized)
+
+    # Check if user account is locked in DB
+    if user:
+        from datetime import datetime
+        locked_until = user.get("locked_until")
+        if locked_until:
+            if isinstance(locked_until, str):
+                try:
+                    locked_until = datetime.fromisoformat(locked_until)
+                except Exception:
+                    locked_until = None
+            if isinstance(locked_until, datetime):
+                if locked_until.tzinfo is not None:
+                    locked_until = locked_until.replace(tzinfo=None)
+                if locked_until > datetime.now():
+                    audit_event(
+                        action="account_lockout",
+                        entity_type="user",
+                        entity_id=user["id"],
+                        status="failure",
+                        actor={"username": normalized, "role": user.get("role", "operator")},
+                        meta={"reason": "account_locked_until", "locked_until": str(locked_until)},
+                    )
+                    return {"ok": False, "status": 423, "message": "Compte verrouillé suite à trop d'échecs de connexion."}
+
     if user and int(user.get("is_active", 1) or 0) and check_password_hash(user["password_hash"], password or ""):
         clear_login_failures(ip)  # Clear IP failures on success
         if user_key:
             clear_login_failures(user_key)  # Clear account failures on success
+        from app.modules.users.repository import reset_account_login_failures
+        await reset_account_login_failures(int(user["id"]))
         await touch_login(int(user["id"]))
         user = await get_user_by_username(normalized)
         log_activity("login", "user", user["id"], f"Connexion de {normalized}")
@@ -83,10 +110,23 @@ async def attempt_login(username: str, password: str, request: Request | None = 
 
         return {"ok": True, "user": user}
 
-    # Failed attempt: record failure on both IP and account key
+    # Failed attempt: record failure on both IP, rate_limit_store, and DB user table
     record_login_failure(ip)
     if user_key:
         record_login_failure(user_key)
+    if user:
+        from app.modules.users.repository import record_account_login_failure
+        new_cnt, is_locked = await record_account_login_failure(int(user["id"]), max_attempts=5, lockout_minutes=15)
+        if is_locked:
+            audit_event(
+                action="account_lockout",
+                entity_type="user",
+                entity_id=user["id"],
+                status="warning",
+                actor={"username": normalized, "role": user.get("role", "operator")},
+                meta={"reason": "max_failed_attempts_reached"},
+            )
+
     reason = "inactive" if user and not int(user.get("is_active", 1) or 0) else "invalid_credentials"
     audit_event(
         action="login",

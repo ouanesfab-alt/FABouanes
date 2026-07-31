@@ -222,3 +222,85 @@ async def _delete_user_impl(user_id: int, db: AsyncSession) -> bool:
     stmt = delete(User).where(User.id == user_id)
     res = await db.execute(stmt)
     return res.rowcount > 0
+
+
+@db_task_compat
+async def record_account_login_failure(
+    user_id: int,
+    max_attempts: int = 5,
+    lockout_minutes: int = 15,
+    db: AsyncSession | None = None,
+) -> tuple[int, bool]:
+    """Increments failed_login_count. If count >= max_attempts, locks account for lockout_minutes."""
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            res = await _record_account_login_failure_impl(user_id, max_attempts, lockout_minutes, session)
+            await session.commit()
+            return res
+    return await _record_account_login_failure_impl(user_id, max_attempts, lockout_minutes, db)
+
+
+async def _record_account_login_failure_impl(
+    user_id: int,
+    max_attempts: int,
+    lockout_minutes: int,
+    db: AsyncSession,
+) -> tuple[int, bool]:
+    from datetime import datetime, timedelta
+    from sqlalchemy import func
+    stmt = (
+        update(User)
+        .where(User.id == user_id)
+        .values(failed_login_count=func.coalesce(User.failed_login_count, 0) + 1)
+        .returning(User.failed_login_count)
+    )
+    res = await db.execute(stmt)
+    row = res.scalar_one_or_none()
+    new_count = row if isinstance(row, int) else 1
+
+    is_locked = False
+    if new_count >= max_attempts:
+        lock_until = datetime.now() + timedelta(minutes=lockout_minutes)
+        await db.execute(
+            update(User).where(User.id == user_id).values(locked_until=lock_until)
+        )
+        is_locked = True
+
+    return new_count, is_locked
+
+
+@db_task_compat
+async def reset_account_login_failures(user_id: int, db: AsyncSession | None = None) -> None:
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            await _reset_account_login_failures_impl(user_id, session)
+            await session.commit()
+            return
+    await _reset_account_login_failures_impl(user_id, db)
+
+
+async def _reset_account_login_failures_impl(user_id: int, db: AsyncSession) -> None:
+    stmt = update(User).where(User.id == user_id).values(failed_login_count=0, locked_until=None)
+    await db.execute(stmt)
+
+
+@db_task_compat
+async def unlock_user_account(user_id: int, db: AsyncSession | None = None) -> bool:
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            res = await _unlock_user_account_impl(user_id, session)
+            await session.commit()
+            return res
+    return await _unlock_user_account_impl(user_id, db)
+
+
+async def _unlock_user_account_impl(user_id: int, db: AsyncSession) -> bool:
+    user_stmt = select(User.username).where(User.id == user_id)
+    res = await db.execute(user_stmt)
+    uname = res.scalar_one_or_none()
+    if uname:
+        from app.core.rate_limit_store import RateLimitStore
+        RateLimitStore.clear_user(uname)
+    stmt = update(User).where(User.id == user_id).values(failed_login_count=0, locked_until=None)
+    res_up = await db.execute(stmt)
+    return res_up.rowcount > 0

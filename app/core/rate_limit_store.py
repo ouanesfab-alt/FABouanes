@@ -78,6 +78,17 @@ class _InMemoryRateLimitStore:
             self._attempts.pop(key, None)
             self._lockouts.pop(key, None)
 
+    def clear_user(self, username: str) -> None:
+        """Clear all rate-limit entries associated with username."""
+        u = username.lower()
+        with self._lock:
+            for k in list(self._attempts.keys()):
+                if u in k:
+                    self._attempts.pop(k, None)
+            for k in list(self._lockouts.keys()):
+                if u in k:
+                    self._lockouts.pop(k, None)
+
     def clear_all(self) -> None:
         """Clear everything (mainly for tests)."""
         with self._lock:
@@ -162,6 +173,14 @@ class _DbRateLimitStore:
         from app.core.db_helpers import execute_db
         execute_db("DELETE FROM rate_limit_events WHERE key = %s", (key,))
 
+    @staticmethod
+    def clear_user(username: str) -> None:
+        from app.core.db_helpers import execute_db
+        try:
+            execute_db("DELETE FROM rate_limit_events WHERE key LIKE %s", (f"%{username.lower()}%",))
+        except Exception:
+            _fallback_in_memory.clear_user(username)
+
     def clear_all(self) -> None:
         from app.core.db_helpers import execute_db
         try:
@@ -242,6 +261,14 @@ class _RedisRateLimitStore:
             self.client.delete(f"rate_limit:hits:{key}", f"rate_limit:failures:{key}")
         except Exception:
             _fallback_in_memory.clear(key)
+
+    def clear_user(self, username: str) -> None:
+        try:
+            keys = self.client.keys(f"*:{username.lower()}*")
+            if keys:
+                self.client.delete(*keys)
+        except Exception:
+            _fallback_in_memory.clear_user(username)
 
     def clear_all(self) -> None:
         try:

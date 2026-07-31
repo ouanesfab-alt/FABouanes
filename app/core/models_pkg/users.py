@@ -21,6 +21,8 @@ class User(SQLModel, table=True):
     custom_permissions_json: str = Field(default="[]")
     last_login_at: Optional[datetime] = Field(default=None)
     last_password_change_at: Optional[datetime] = Field(default=None)
+    failed_login_count: int = Field(default=0)
+    locked_until: Optional[datetime] = Field(default=None)
     created_at: datetime = Field(default_factory=_now)
     xp: int = Field(default=0)
     level: int = Field(default=1)
