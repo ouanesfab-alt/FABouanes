@@ -168,6 +168,14 @@ def bootstrap_schema() -> None:
         CREATE INDEX IF NOT EXISTS idx_audit_logs_status ON audit_logs(status);
         CREATE INDEX IF NOT EXISTS idx_activity_logs_entity ON activity_logs(entity_type, entity_id);
         CREATE INDEX IF NOT EXISTS idx_performance_logs_created_at ON performance_logs(created_at);
+
+        -- High-speed indexes for Dashboard KPIs, Reports & Offline Sync Queues
+        CREATE INDEX IF NOT EXISTS idx_sales_sale_date ON sales(sale_date);
+        CREATE INDEX IF NOT EXISTS idx_purchases_purchase_date ON purchases(purchase_date);
+        CREATE INDEX IF NOT EXISTS idx_payments_client_date ON payments(client_id, payment_date);
+        CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date);
+        CREATE INDEX IF NOT EXISTS idx_offline_sales_status ON offline_sales_staging(status, created_at);
+        CREATE INDEX IF NOT EXISTS idx_offline_payments_status ON offline_payments_staging(status, created_at);
         """)
 
         # Then discover and execute module schemas
