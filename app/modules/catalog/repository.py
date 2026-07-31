@@ -13,6 +13,8 @@ from app.core.models import (
 from app.core.base_repository import AsyncRepository
 from app.core.async_db import get_async_sessionmaker
 from app.core.helpers import async_compat
+from app.services.recipe_service import load_saved_recipes  # noqa: F401
+
 
 
 class RawMaterialRepository(AsyncRepository[RawMaterial]):
@@ -350,6 +352,11 @@ async def _list_finished_products_impl(
 
 
 # --- Production Queries (migrated to app/modules/production/repository.py) ---
+from app.modules.production.repository import (  # noqa: F401
+    list_production_page_context,
+    production_form_context,
+)
+
 
 
 @async_compat

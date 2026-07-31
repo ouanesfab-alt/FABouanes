@@ -19,18 +19,35 @@ from app.modules.production.web import parse_production_form
 @pytest.mark.asyncio
 async def test_production_repository_and_service_contexts():
     """Vérifie la récupération des contextes de production et formulaires."""
-    form_ctx = await production_form_context()
-    assert isinstance(form_ctx, dict)
-    assert "raw_materials" in form_ctx
-    assert "products" in form_ctx
-    assert "recipes" in form_ctx
+    from unittest.mock import patch, MagicMock, AsyncMock
 
-    new_ctx = await new_production_context()
-    assert "raw_materials" in new_ctx
 
-    list_ctx = await list_production_page_context({"page": "1", "q": ""})
-    assert "productions" in list_ctx
-    assert "pagination" in list_ctx
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = []
+    mock_res = MagicMock()
+    mock_res.scalars.return_value = mock_scalars
+    mock_res.fetchall.return_value = []
+    mock_res.scalar.return_value = 0
+
+    mock_session = AsyncMock()
+    mock_session.execute = AsyncMock(return_value=mock_res)
+
+    with patch("app.modules.production.repository.get_async_sessionmaker") as mock_sm:
+        mock_sm.return_value.return_value.__aenter__.return_value = mock_session
+
+        form_ctx = await production_form_context()
+        assert isinstance(form_ctx, dict)
+        assert "raw_materials" in form_ctx
+        assert "products" in form_ctx
+        assert "recipes" in form_ctx
+
+        new_ctx = await new_production_context()
+        assert "raw_materials" in new_ctx
+
+        list_ctx = await list_production_page_context({"page": "1", "q": ""})
+        assert "productions" in list_ctx
+        assert "pagination" in list_ctx
+
 
 
 def test_parse_production_form_helper():
