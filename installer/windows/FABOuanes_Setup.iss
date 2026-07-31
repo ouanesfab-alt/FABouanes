@@ -22,7 +22,8 @@ OutputBaseFilename=FABOuanes_Setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-WizardSizePercent=115,115
+WizardResizable=yes
+WizardSizePercent=125,125
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 UsePreviousAppDir=yes
@@ -121,29 +122,85 @@ var
   PanelAiOllama: TPanel;
   PanelAiBoth: TPanel;
 
+procedure UpdateDbCardStates();
+begin
+  if RadioPgLocal.Checked then
+  begin
+    PanelPgLocal.Color := $F9ECDF;
+    RadioPgLocal.Font.Color := $B34700;
+  end else begin
+    PanelPgLocal.Color := clWhite;
+    RadioPgLocal.Font.Color := clWindowText;
+  end;
+
+  if RadioPgServer.Checked then
+  begin
+    PanelPgServer.Color := $F9ECDF;
+    RadioPgServer.Font.Color := $B34700;
+  end else begin
+    PanelPgServer.Color := clWhite;
+    RadioPgServer.Font.Color := clWindowText;
+  end;
+end;
+
+procedure UpdateAiCardStates();
+begin
+  if RadioAiGemini.Checked then
+  begin
+    PanelAiGemini.Color := $F9ECDF;
+    RadioAiGemini.Font.Color := $B34700;
+  end else begin
+    PanelAiGemini.Color := clWhite;
+    RadioAiGemini.Font.Color := clWindowText;
+  end;
+
+  if RadioAiOllama.Checked then
+  begin
+    PanelAiOllama.Color := $F9ECDF;
+    RadioAiOllama.Font.Color := $B34700;
+  end else begin
+    PanelAiOllama.Color := clWhite;
+    RadioAiOllama.Font.Color := clWindowText;
+  end;
+
+  if RadioAiBoth.Checked then
+  begin
+    PanelAiBoth.Color := $F9ECDF;
+    RadioAiBoth.Font.Color := $B34700;
+  end else begin
+    PanelAiBoth.Color := clWhite;
+    RadioAiBoth.Font.Color := clWindowText;
+  end;
+end;
+
 procedure PgLocalCardClick(Sender: TObject);
 begin
   RadioPgLocal.Checked := True;
+  UpdateDbCardStates();
 end;
 
 procedure PgServerCardClick(Sender: TObject);
 begin
   RadioPgServer.Checked := True;
+  UpdateDbCardStates();
 end;
 
 procedure AiGeminiCardClick(Sender: TObject);
 begin
   RadioAiGemini.Checked := True;
+  UpdateAiCardStates();
 end;
 
 procedure AiOllamaCardClick(Sender: TObject);
 begin
   RadioAiOllama.Checked := True;
+  UpdateAiCardStates();
 end;
 
 procedure AiBothCardClick(Sender: TObject);
 begin
   RadioAiBoth.Checked := True;
+  UpdateAiCardStates();
 end;
 
 function GetDbChoice(): Integer;
@@ -256,6 +313,11 @@ begin
   LabelDbDesc.WordWrap := True;
   LabelDbDesc.Cursor := crHand;
   LabelDbDesc.OnClick := @PgServerCardClick;
+
+  RadioPgLocal.OnClick := @PgLocalCardClick;
+  RadioPgServer.OnClick := @PgServerCardClick;
+
+  UpdateDbCardStates();
 end;
 
 
@@ -934,6 +996,7 @@ begin
   RadioAiBoth.Width := PanelAiBoth.Width - 32;
   RadioAiBoth.Checked := False;
   RadioAiBoth.Cursor := crHand;
+  RadioAiBoth.OnClick := @AiBothCardClick;
 
   LabelAiBothDesc := TNewStaticText.Create(PageAiChoice);
   LabelAiBothDesc.Parent := PanelAiBoth;
@@ -947,6 +1010,12 @@ begin
   LabelAiBothDesc.WordWrap := True;
   LabelAiBothDesc.Cursor := crHand;
   LabelAiBothDesc.OnClick := @AiBothCardClick;
+
+  RadioAiGemini.OnClick := @AiGeminiCardClick;
+  RadioAiOllama.OnClick := @AiOllamaCardClick;
+  RadioAiBoth.OnClick := @AiBothCardClick;
+
+  UpdateAiCardStates();
 end;
 
 
