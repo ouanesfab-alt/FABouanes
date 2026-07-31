@@ -2015,7 +2015,13 @@
 	let currentFontIdx = -1;
 	let currentColorIdx = -1;
 
-	const nonce = document.querySelector('script[nonce]')?.getAttribute('nonce') || '';
+	// Dynamic Style Container for WebView2 / PyWebView Windows Window Compatibility
+	let fontStyleElement = document.getElementById('fab-dynamic-google-font');
+	if (!fontStyleElement) {
+		fontStyleElement = document.createElement('style');
+		fontStyleElement.id = 'fab-dynamic-google-font';
+		document.head.appendChild(fontStyleElement);
+	}
 
 	function rotateFont() {
 		if (FONTS_POOL.length <= 1) return;
@@ -2025,37 +2031,20 @@
 		} while (randomIdx === currentFontIdx);
 		currentFontIdx = randomIdx;
 		const fontObj = FONTS_POOL[randomIdx];
-		const fontId = `gfont-${fontObj.query.toLowerCase()}`;
 
-		const targetElements = document.querySelectorAll('.fab-logo-text-main, .page-title-main, .hero-font-target');
+		// Inject @import rule directly into style tag (Bypasses WebView2 CORS restrictions)
+		fontStyleElement.textContent = `@import url('https://fonts.googleapis.com/css2?family=${fontObj.query}&display=swap');`;
 
-		const applyFontChange = () => {
-			targetElements.forEach(el => {
-				el.style.transition = 'opacity 0.2s ease, font-family 0.3s ease';
-				el.style.opacity = '0.1';
-				setTimeout(() => {
-					el.style.setProperty('font-family', fontObj.stack, 'important');
-					el.style.opacity = '1';
-				}, 200);
-			});
-		};
+		const targetElements = document.querySelectorAll('.fab-logo-text-main, .page-title-main, .hero-font-target, body, h1, h2, h3, .card-title, .nav-link, .btn');
 
-		if (document.getElementById(fontId)) {
-			applyFontChange();
-			return;
-		}
-
-		const link = document.createElement('link');
-		link.id = fontId;
-		link.rel = 'stylesheet';
-		link.href = `https://fonts.googleapis.com/css2?family=${fontObj.query}&display=swap`;
-		if (nonce) link.setAttribute('nonce', nonce);
-
-		link.onload = applyFontChange;
-		link.onerror = applyFontChange;
-		document.head.appendChild(link);
-
-		applyFontChange();
+		targetElements.forEach(el => {
+			el.style.transition = 'opacity 0.2s ease, font-family 0.3s ease';
+			el.style.opacity = '0.1';
+			setTimeout(() => {
+				el.style.setProperty('font-family', fontObj.stack, 'important');
+				el.style.opacity = '1';
+			}, 200);
+		});
 	}
 
 	function rotateColor() {
@@ -2077,7 +2066,7 @@
 		const logoText = document.querySelector('.fab-logo-text-main');
 		if (logoText) {
 			logoText.style.cursor = 'pointer';
-			logoText.setAttribute('title', 'Cliquer pour changer la police (400 Polices Google)');
+			logoText.setAttribute('title', 'Cliquer pour changer la police et le thème (400 Polices Google)');
 			logoText.addEventListener('click', () => {
 				rotateFont();
 				rotateColor();
@@ -2087,7 +2076,7 @@
 		rotateColor();
 	});
 
-	// Rotates font every 15 seconds so the user sees constant radical visual transformations
+	// Rotates font every 15 seconds in PyWebView / Browser
 	setInterval(rotateFont, 15000);
 	setInterval(rotateColor, 20000);
 })();
