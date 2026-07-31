@@ -199,7 +199,7 @@
 
 	.fab-search-bar {
 		display: flex;
-		align-items: flex-end;
+		align-items: center;
 		background: var(--glass-regular) !important;
 		backdrop-filter: var(--backdrop-blur);
 		-webkit-backdrop-filter: var(--backdrop-blur);
@@ -260,7 +260,7 @@
 		transition: all 0.15s ease;
 		font-size: 1.15rem;
 		flex-shrink: 0;
-		margin-bottom: 1px;
+		margin-bottom: 0;
 	}
 
 	.fab-bar-btn:hover {
@@ -965,7 +965,7 @@
 		<div class="fab-search-row">
 			<div class="fab-search-bar">
 				<!-- Single 'Plus' Action Button (Dropup to avoid overlapping period buttons below) -->
-				<div class="dropup d-inline-block">
+				<div class="dropup d-inline-flex align-items-center">
 					<button id="fabPlusBtn" class="fab-bar-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Plus d'actions">
 						<i class="bi bi-plus-lg" style="font-size: 1.1rem;"></i>
 					</button>
