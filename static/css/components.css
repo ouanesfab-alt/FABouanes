@@ -522,6 +522,7 @@ body.kpi-modal-open { overflow: hidden; }
   40% {
     transform: scale(1);
     opacity: 1;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
