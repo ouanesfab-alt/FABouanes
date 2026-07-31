@@ -29,16 +29,19 @@ def normalize_text(text: str) -> str:
 
 # Domain synonyms mapping for intelligent search matching
 SYNONYM_MAP: dict[str, list[str]] = {
-    "facture": ["vente", "operation", "bon", "facturation", "client"],
-    "vente": ["facture", "operation", "credit", "cash", "client"],
-    "client": ["contact", "creance", "compte", "clientele"],
-    "fournisseur": ["achat", "contact", "dette", "approvisionnement"],
-    "stock": ["produit", "matiere", "inventaire", "catalogue", "entrepot"],
-    "produit": ["stock", "article", "catalogue", "marchandise"],
-    "recette": ["production", "composition", "formule", "batch"],
-    "production": ["recette", "fabrique", "transformation", "batch"],
-    "depense": ["charge", "frais", "caisse", "sortie"],
-    "rapport": ["statistique", "bilan", "kpi", "chiffre"],
+    "facture": ["vente", "operation", "bon", "facturation", "client", "document"],
+    "vente": ["facture", "operation", "credit", "cash", "client", "recette", "revenu"],
+    "client": ["contact", "creance", "compte", "clientele", "debiteur", "solde"],
+    "fournisseur": ["achat", "contact", "dette", "approvisionnement", "crediteur"],
+    "stock": ["produit", "matiere", "inventaire", "catalogue", "entrepot", "seuil"],
+    "produit": ["stock", "article", "catalogue", "marchandise", "prix"],
+    "recette": ["production", "composition", "formule", "batch", "dosage"],
+    "production": ["recette", "fabrique", "transformation", "batch", "ordre"],
+    "depense": ["charge", "frais", "caisse", "sortie", "paiement"],
+    "rapport": ["statistique", "bilan", "kpi", "chiffre", "synthese", "scf"],
+    "dette": ["fournisseur", "impaye", "passif", "reglement", "credit"],
+    "creance": ["client", "debiteur", "impaye", "recouvrement", "solde"],
+    "caisse": ["encaisse", "especes", "banque", "fond", "paiement"],
 }
 
 def search_manual(query: str, limit: int = 3) -> List[Dict[str, Any]]:
