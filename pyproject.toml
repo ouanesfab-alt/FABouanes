@@ -62,6 +62,8 @@ addopts = "-q --cov=app --cov-config=pyproject.toml --cov-report=term-missing --
 
 
 
+
+
 filterwarnings = [
   "ignore::DeprecationWarning:app.services.client_account_service",
   # SQLite retourne des types primitifs (str, float, int) au lieu de date/Decimal/bool.

@@ -1,12 +1,19 @@
-"""Tests unitaires ciblés pour propulser le taux de couverture globale Python Core."""
+"""Suite complète et consolidée de tests unitaires pour Core et Services de FABOuanes."""
 from __future__ import annotations
 
 import pytest
 from unittest import mock
 
+from app.core.db_helpers.manager import DatabaseManager
 from app.core.exceptions import NotFoundError, ConflictError
 from app.modules.sales.commands import SalesCommands
 from app.modules.sales.schemas_validation import SaleFormSchema, SaleLineSchema
+
+
+def test_database_manager_helpers():
+    mgr = DatabaseManager()
+    assert mgr.sqlalchemy_database_url("postgres://user:pass@host/db") == "postgresql+pg8000://user:pass@host/db"
+    assert mgr._postgres_last_insert_id(mock.MagicMock(), "SELECT 1") == 0
 
 
 @pytest.mark.asyncio
