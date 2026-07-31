@@ -482,10 +482,8 @@ body.kpi-modal-open { overflow: hidden; }
 /* --- Responsive Tables Fallback --- */
 @media (max-width: 1200px) {
   table.table:not(.no-responsive) {
-    display: block;
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+    min-width: 100% !important;
     border-collapse: collapse;
   }
   table.table:not(.no-responsive) th,
