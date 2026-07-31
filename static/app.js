@@ -133,7 +133,9 @@
   },{passive:true});
   document.addEventListener('touchend',function(){clearTimeout(pressTimer);},{passive:true});
   document.addEventListener('touchmove',function(){clearTimeout(pressTimer);},{passive:true});
+  document.addEventListener('keydown',function(event){if(event.key==='Escape') hide();});
   document.addEventListener('click',function(event){if(!event.target.closest('.context-menu')) hide();});
   window.addEventListener('scroll',hide,true);
   window.addEventListener('resize',hide);
 })();
+
