@@ -37,7 +37,7 @@ InfoBeforeFile=
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Creer une icone sur le bureau"; GroupDescription: "Raccourcis supplementaires :"; Flags: unchecked
+Name: "desktopicon"; Description: "Creer une icone sur le bureau"; GroupDescription: "Raccourcis supplementaires :"; Flags: checked
 
 [Dirs]
 Name: "{localappdata}\{#MyAppName}"
@@ -856,11 +856,14 @@ begin
     // Write the .env based on user choices
     WriteEnvFile();
 
-    // Configure Windows Firewall rule if in server mode
-    if GetDbChoice() = DB_POSTGRES_SERVER then
-    begin
-      Exec('netsh.exe', 'advfirewall firewall add rule name="FABOuanes Server Port 5000" dir=in action=allow protocol=TCP localport=5000', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-    end;
+    // Configure PostgreSQL service auto-start and start it if stopped
+    Exec('sc.exe', 'config postgresql-x64-16 start= auto', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('sc.exe', 'start postgresql-x64-16', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('sc.exe', 'config postgresql-x64-15 start= auto', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('sc.exe', 'start postgresql-x64-15', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+    // Configure Windows Firewall rule for local and network access
+    Exec('netsh.exe', 'advfirewall firewall add rule name="FABOuanes ERP Application" dir=in action=allow protocol=TCP localport=5000', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 
 
     // Show what was configured
