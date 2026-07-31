@@ -576,29 +576,30 @@ var
   ResultCode: Integer;
 begin
   if RegKeyExists(HKLM, 'SOFTWARE\PostgreSQL\Installations') or
-     RegKeyExists(HKLM32, 'SOFTWARE\PostgreSQL\Installations') or
-     RegKeyExists(HKCU, 'SOFTWARE\PostgreSQL\Installations') then
+     RegKeyExists(HKLM64, 'SOFTWARE\PostgreSQL\Installations') or
+     RegKeyExists(HKLM, 'SOFTWARE\PostgreSQL\Services') or
+     RegKeyExists(HKLM64, 'SOFTWARE\PostgreSQL\Services') or
+     RegKeyExists(HKCU, 'SOFTWARE\PostgreSQL\Installations') or
+     FileExists('C:\Program Files\PostgreSQL\16\bin\postgres.exe') or
+     FileExists('C:\Program Files\PostgreSQL\15\bin\postgres.exe') or
+     FileExists('C:\Program Files\PostgreSQL\14\bin\postgres.exe') or
+     FileExists('C:\Program Files\PostgreSQL\13\bin\postgres.exe') then
   begin
     Result := True;
     Exit;
   end;
   
-  Result := Exec('sc.exe', 'querytype= service state= all postgresql-x64-16', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  if Result and (ResultCode = 0) then
+  if Exec('sc.exe', 'query postgresql-x64-16', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0) then
   begin
     Result := True;
     Exit;
   end;
-  
-  Result := Exec('sc.exe', 'querytype= service state= all postgresql-x64-15', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  if Result and (ResultCode = 0) then
+  if Exec('sc.exe', 'query postgresql-x64-15', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0) then
   begin
     Result := True;
     Exit;
   end;
-
-  Result := Exec('sc.exe', 'querytype= service state= all postgresql-x64-14', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  if Result and (ResultCode = 0) then
+  if Exec('sc.exe', 'query postgresql-x64-14', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0) then
   begin
     Result := True;
     Exit;
@@ -723,14 +724,22 @@ end;
 // ---- Check if Ollama is installed ----
 function IsOllamaInstalled(): Boolean;
 var
-  OllamaPath: String;
+  ResultCode: Integer;
 begin
-  OllamaPath := ExpandConstant('{localappdata}') + '\Programs\Ollama\ollama.exe';
-  if FileExists(OllamaPath) then
+  if FileExists(ExpandConstant('{localappdata}') + '\Programs\Ollama\ollama.exe') or
+     FileExists(ExpandConstant('{commonpf}') + '\Ollama\ollama.exe') or
+     FileExists('C:\Program Files\Ollama\ollama.exe') then
   begin
     Result := True;
     Exit;
   end;
+
+  if Exec('where.exe', 'ollama', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0) then
+  begin
+    Result := True;
+    Exit;
+  end;
+
   Result := False;
 end;
 
