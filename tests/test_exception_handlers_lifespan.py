@@ -10,16 +10,12 @@ from app.core.exception_handlers import (
     not_found_handler,
     validation_handler,
     conflict_handler,
-    permission_handler,
-    auth_required_handler,
     unhandled_exception_handler,
 )
 from app.core.exceptions import (
     NotFoundError,
     ValidationError,
     ConflictError,
-    PermissionDeniedError,
-    AuthenticationRequiredError,
 )
 from app.core.lifespan import lifespan
 

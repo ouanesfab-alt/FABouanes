@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 from decimal import Decimal
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock
 
 
 # ── history.py (77% → target 100%) ─────────────────────────────────

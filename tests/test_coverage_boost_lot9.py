@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, patch
 
 
 # ── assistant/rag.py (70% → target ~90%) ────────────────────────────

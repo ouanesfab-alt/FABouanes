@@ -5,7 +5,7 @@ Couvre: db_helpers/manager.py (DatabasePoolManager helper functions & async meth
 from __future__ import annotations
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 
 # ── db_helpers/manager.py (73% → target ~85%) ──────────────────────

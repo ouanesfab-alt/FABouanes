@@ -4,7 +4,6 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from unittest import mock
-import pytest
 
 from app.modules.assistant.rag import normalize_text, search_manual
 from app.modules.assistant.sql_tools import serialize_for_json, dry_run_sql

@@ -129,21 +129,21 @@ def mock_dbapi_rows_for_sql(sql: str, params: tuple | dict = (), *args, **kwargs
         return [("payment_date",), ("payment_type",), ("amount",)], [("2026-05-31", "versement", 200.0)]
 
     # Sales history
-    if "sum(" in q and "sale_date" in q and "sales" in q and not "client" in q and not "union" in q and not "sales_today" in q and not "stock_qty" in q and not "consumed_30d" in q and not "month" in q and not "day" in q:
+    if "sum(" in q and "sale_date" in q and "sales" in q and "client" not in q and "union" not in q and "sales_today" not in q and "stock_qty" not in q and "consumed_30d" not in q and "month" not in q and "day" not in q:
         if "profit" in q:
             return [("sale_date",), ("profit",)], [("2026-05-31", 150.0)]
         else:
             return [("sale_date",), ("total",)], [("2026-05-31", 300.0)]
 
     # Raw sales history
-    if "sum(" in q and "sale_date" in q and "raw_sales" in q and not "client" in q and not "sales_today" in q and not "stock_qty" in q and not "consumed_30d" in q and not "month" in q and not "day" in q:
+    if "sum(" in q and "sale_date" in q and "raw_sales" in q and "client" not in q and "sales_today" not in q and "stock_qty" not in q and "consumed_30d" not in q and "month" not in q and "day" not in q:
         if "profit" in q:
             return [("sale_date",), ("profit",)], [("2026-05-31", 50.0)]
         else:
             return [("sale_date",), ("total",)], [("2026-05-31", 100.0)]
 
     # Cash history
-    if "sum(" in q and "payment_date" in q and "payments" in q and not "client" in q and not "cash_today" in q:
+    if "sum(" in q and "payment_date" in q and "payments" in q and "client" not in q and "cash_today" not in q:
         return [("payment_date",), ("amount",)], [("2026-05-31", 200.0)]
     
     # 0_metadata. Column information schema

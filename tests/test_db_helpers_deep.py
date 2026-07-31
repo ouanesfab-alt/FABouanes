@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from unittest import mock
 import pytest
-from sqlalchemy import select, column, table
+from sqlalchemy import column, table
 
 from app.core.db_helpers.execute import execute_db, execute_db_async, execute_sa
 from app.core.db_helpers.manager import db_manager, _clean_params

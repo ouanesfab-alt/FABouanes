@@ -5,7 +5,6 @@ Couvre: assistant/tool_actions_contacts.py (import_client_excel, import_client_h
 """
 from __future__ import annotations
 
-import os
 import pytest
 from datetime import date
 from unittest.mock import MagicMock, AsyncMock, patch

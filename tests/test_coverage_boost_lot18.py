@@ -5,7 +5,7 @@ Couvre: assistant/tool_actions_production.py (add_production missing finished pr
 from __future__ import annotations
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 from app.modules.assistant.tool_actions_production import handle_production
 
 

@@ -3,7 +3,6 @@ Couverture > 90% exigée sur les assets non-python.
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from html.parser import HTMLParser
 import pytest

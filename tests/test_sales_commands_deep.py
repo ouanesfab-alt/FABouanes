@@ -8,7 +8,7 @@ import pytest
 
 from app.modules.sales.commands import SalesCommands
 from app.modules.sales.queries import SalesQueries
-from app.core.models import FinishedProduct, RawMaterial, Sale, RawSale, SaleDocument, Client
+from app.core.models import FinishedProduct, RawMaterial, Sale
 
 
 @pytest.mark.asyncio

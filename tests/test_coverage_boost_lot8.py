@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 
 # ── db_helpers/manager.py (72% → target ~85%) ──────────────────────

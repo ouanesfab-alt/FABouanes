@@ -580,8 +580,9 @@ def _background_loop(app) -> None:
     asyncio.set_event_loop(loop)
 
     async def main_loop():
-        import random
+        import secrets
         consecutive_failures = 0
+        rand = secrets.SystemRandom()
         while True:
             if _shutdown_requested():
                 logger.info("Scheduler: shutdown demandé, arrêt.")
@@ -616,7 +617,7 @@ def _background_loop(app) -> None:
 
             if not success:
                 consecutive_failures += 1
-                sleep_time = min(300.0, 45.0 * (1.5 ** consecutive_failures) + random.uniform(0.0, 10.0))  # noqa: S311 jitter de retry non-cryptographique
+                sleep_time = min(300.0, 45.0 * (1.5 ** consecutive_failures) + rand.uniform(0.0, 10.0))
             else:
                 consecutive_failures = 0
                 sleep_time = 45.0

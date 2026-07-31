@@ -1,7 +1,6 @@
 """Tests unitaires pour app/core/rate_limit.py et rate_limit_store.py (Couverture > 90%)."""
 from __future__ import annotations
 
-import time
 from unittest import mock
 import pytest
 from starlette.responses import JSONResponse

@@ -229,8 +229,8 @@ async def _create_mobile_payment_impl(
             if user_info:
                 actor_data["username"] = user_info.get("username", actor_data["username"])
                 actor_data["role"] = user_info.get("role", actor_data["role"])
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to resolve user_info for recorded_by #%s: %s", recorded_by, exc)
 
     audit_event(
         "create_payment",

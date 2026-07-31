@@ -6,8 +6,7 @@ Couvre: assistant/rag.py (normalize_text, search_manual, get_pdf_text_chunks, up
 from __future__ import annotations
 
 import os
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 
 # ── assistant/rag.py (69% → target ~90%) ────────────────────────────

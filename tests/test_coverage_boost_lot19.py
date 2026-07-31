@@ -5,7 +5,7 @@ Couvre: modules/sales/validation.py (validate_stock_availability raw material mi
 from __future__ import annotations
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 from app.core.exceptions import NotFoundError, ValidationError
 from app.modules.sales.validation import SalesValidator
 

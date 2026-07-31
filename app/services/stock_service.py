@@ -55,10 +55,12 @@ def is_other_operation_name(name: str | None) -> bool:
 def _actor_username() -> str:
     try:
         user = get_state_value("user")
-        if user:
+        if isinstance(user, dict) and "username" in user:
             return str(user["username"])
-    except Exception:
-        pass
+        if hasattr(user, "username"):
+            return str(getattr(user, "username"))
+    except Exception as exc:
+        logger.debug("Failed to resolve actor username from state: %s", exc)
     return "system"
 
 

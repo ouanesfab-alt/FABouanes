@@ -5,7 +5,6 @@ from types import SimpleNamespace
 from unittest import mock
 import pytest
 from fastapi import Request
-from starlette.datastructures import Headers
 from starlette.responses import Response
 
 from app.core.middleware import CachedStaticFiles, RequestContextMiddleware

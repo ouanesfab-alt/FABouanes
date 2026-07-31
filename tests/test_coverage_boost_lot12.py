@@ -5,7 +5,6 @@ Couvre: modules/sales/commands.py (edit_sale_document_from_form validation check
 from __future__ import annotations
 
 import pytest
-from datetime import date
 from unittest.mock import MagicMock, AsyncMock, patch
 from app.core.exceptions import NotFoundError, ConflictError
 from app.modules.sales.schemas_validation import SaleFormSchema, SaleLineSchema

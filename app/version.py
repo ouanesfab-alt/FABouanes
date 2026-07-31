@@ -6,7 +6,7 @@ def _get_version() -> str:
     try:
         import importlib.metadata
         return importlib.metadata.version("fabouanes")
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     # 2. Fall back to parsing pyproject.toml in base directory using tomllib
@@ -17,8 +17,8 @@ def _get_version() -> str:
         if toml_path.exists():
             with open(toml_path, "rb") as f:
                 data = tomllib.load(f)
-                return data.get("project", {}).get("version", "2.0.5")
-    except Exception:
+                return str(data.get("project", {}).get("version", "2.0.5"))
+    except Exception:  # noqa: S110
         pass
 
     return "2.0.5"  # absolute fallback

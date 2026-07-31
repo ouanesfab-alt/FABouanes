@@ -5,7 +5,7 @@ Couvre: rate_limit.py, intent.py, exception_handlers.py, middleware.py
 from __future__ import annotations
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, patch
 
 
 # ── rate_limit.py (62% → target 100%) ──────────────────────────────
@@ -15,7 +15,6 @@ def test_rate_limit_dummy_limiter_passthrough():
     """DummyLimiter.limit() should return the function unchanged."""
     with patch.dict("sys.modules", {"slowapi": None, "slowapi.util": None}):
         # Force reimport to trigger the except branch
-        import importlib
         # Just verify the current limiter works (either real or dummy)
         from app.core.rate_limit import limiter
         assert hasattr(limiter, "limit")

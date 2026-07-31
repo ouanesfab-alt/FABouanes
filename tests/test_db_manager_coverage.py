@@ -4,12 +4,10 @@ from __future__ import annotations
 import sqlite3
 from unittest import mock
 from decimal import Decimal
-import pytest
 
 from app.core.db_helpers.manager import (
     db_manager,
     CompatConnection,
-    CompatCursor,
     CompatRow,
     _wrap_rows,
     _clean_params,
