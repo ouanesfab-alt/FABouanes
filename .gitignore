@@ -26,6 +26,8 @@ installer_output/
 build/
 *.spec
 fabouanes/_internal/
+postgresql*.exe
+
 
 # Android / Node
 *.apk
