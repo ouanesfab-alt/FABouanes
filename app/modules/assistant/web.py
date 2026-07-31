@@ -31,6 +31,130 @@ async def assistant_briefing(request: Request):
     except Exception as e:
         return JSONResponse({"has_briefing": False, "error": str(e)})
 
+def _resolve_api_key(req_api_key: str) -> str:
+    """Détermine et met à jour si nécessaire la clé d'API Gemini active."""
+    api_key = ""
+    if req_api_key and not req_api_key.startswith("••••"):
+        api_key = req_api_key
+        try:
+            stored_key_encrypted = db_manager.get_setting("gemini_api_key", "").strip()
+            from app.core.security import decrypt_val
+            stored_key_decrypted = decrypt_val(stored_key_encrypted, get_encryption_key()) or ""
+            if api_key != stored_key_decrypted:
+                encrypted_key = encrypt_val(api_key, get_encryption_key())
+                db_manager.set_setting("gemini_api_key", encrypted_key)
+        except Exception:
+            pass
+
+    if not api_key:
+        api_key = get_gemini_api_key()
+    return api_key
+
+
+def _parse_audio_message(message: str) -> tuple[str, dict | None]:
+    """Extrait le texte et les données inline base64 d'une note vocale enregistrée."""
+    import re
+    audio_match = re.match(r"^\[AUDIO:([^|]+)\|(.*)\]$", message)
+    if not audio_match:
+        return message, None
+
+    data_url = audio_match.group(1).strip()
+    transcript = audio_match.group(2).strip()
+    audio_inline = None
+    if data_url.startswith("data:") and ";base64," in data_url:
+        meta, b64_data = data_url.split(";base64,", 1)
+        mime_type_audio = meta.split("data:")[1]
+        audio_inline = {"mimeType": mime_type_audio, "data": b64_data}
+
+    message_text_for_llm = transcript if transcript else "Transcris ce message audio et réponds en conséquence."
+    return message_text_for_llm, audio_inline
+
+
+def _handle_file_attachment(file_obj: dict | None, new_message: dict) -> None:
+    """Traite et attache un fichier (Excel ou générique) au message LLM."""
+    if not file_obj or not isinstance(file_obj, dict):
+        return
+
+    mime_type = file_obj.get("mime_type")
+    data = file_obj.get("data")
+    filename = file_obj.get("name", "upload.xlsx")
+
+    is_excel = (
+        filename.lower().endswith((".xlsx", ".xlsm")) or
+        (mime_type and ("sheet" in mime_type.lower() or "excel" in mime_type.lower()))
+    )
+
+    if is_excel and mime_type and data:
+        import base64
+        from pathlib import Path
+        from app.core.config import BASE_DIR
+
+        import_dir = Path(BASE_DIR) / "app" / "runtime" / "imports"
+        import_dir.mkdir(parents=True, exist_ok=True)
+
+        safe_name = "".join(c for c in filename if c.isalnum() or c in (".", "_", "-")).strip()
+        if not safe_name:
+            safe_name = "temp_upload.xlsx"
+
+        target_path = import_dir / safe_name
+        try:
+            file_bytes = base64.b64decode(data)
+            with open(target_path, "wb") as f:
+                f.write(file_bytes)
+
+            abs_path_str = os.path.abspath(str(target_path))
+            new_message["parts"][0]["text"] += f"\n\n[INFO SYSTÈME : Fichier Excel joint '{filename}' enregistré temporairement sur le serveur à l'emplacement : {abs_path_str}. Pour l'importer, appelle l'outil approprié comme `import_client_excel` ou `import_client_history_excel` avec cet emplacement exact.]"
+        except Exception as e:
+            new_message["parts"][0]["text"] += f"\n\n[INFO SYSTÈME : Échec de l'enregistrement du fichier Excel joint '{filename}' : {str(e)}]"
+    elif mime_type and data:
+        new_message["parts"].append({
+            "inlineData": {
+                "mimeType": mime_type,
+                "data": data
+            }
+        })
+
+
+def _create_chat_stream(history: list, new_message: dict, confirmed_query: str | None, api_key: str, user_role: str) -> StreamingResponse:
+    """Génère le flux StreamingResponse SSE pour le chat assistant."""
+    async def chat_event_generator():
+        try:
+            if confirmed_query:
+                messages_to_send = history
+            else:
+                if history and history[-1].get("role") == "user":
+                    messages_to_send = history
+                else:
+                    messages_to_send = history + [new_message]
+            async for event in run_assistant_agent_generator(
+                messages_to_send,
+                api_key or "",
+                confirmed_query,
+                user_role=user_role
+            ):
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)}, ensure_ascii=False)}\n\n"
+        finally:
+            from app.core.request_state import get_request_state
+            state = get_request_state()
+            if state is not None:
+                db = getattr(state, "db", None)
+                if db is not None:
+                    try:
+                        db.close()
+                    except Exception:
+                        pass
+                read_db = getattr(state, "read_db", None)
+                if read_db is not None:
+                    try:
+                        read_db.close()
+                    except Exception:
+                        pass
+
+    return StreamingResponse(chat_event_generator(), media_type="text/event-stream")
+
+
 @router.post("/assistant/chat")
 async def assistant_chat(request: Request):
     denied = require_permission(request, "assistant.write")
@@ -48,22 +172,7 @@ async def assistant_chat(request: Request):
         confirmed_query = body.get("confirmed_query")
         req_api_key = body.get("gemini_api_key", "").strip()
 
-        # Determine active API Key (from request or fallback to DB)
-        api_key = ""
-        if req_api_key and not req_api_key.startswith("••••"):
-            api_key = req_api_key
-            try:
-                stored_key_encrypted = db_manager.get_setting("gemini_api_key", "").strip()
-                from app.core.security import decrypt_val
-                stored_key_decrypted = decrypt_val(stored_key_encrypted, get_encryption_key()) or ""
-                if api_key != stored_key_decrypted:
-                    encrypted_key = encrypt_val(api_key, get_encryption_key())
-                    db_manager.set_setting("gemini_api_key", encrypted_key)
-            except Exception:
-                pass
-
-        if not api_key:
-            api_key = get_gemini_api_key()
+        api_key = _resolve_api_key(req_api_key)
 
         if not is_local and not api_key:
             return JSONResponse({
@@ -74,123 +183,29 @@ async def assistant_chat(request: Request):
         if not message:
             return JSONResponse({"success": False, "error": "Message vide."})
 
-        # Check if the message is a recorded audio note
-        # Format: [AUDIO:data:audio/webm;base64,...|transcript]
-        import re
-        audio_match = re.match(r"^\[AUDIO:([^|]+)\|(.*)\]$", message)
-        audio_inline = None
-        if audio_match:
-            data_url   = audio_match.group(1).strip()  # e.g. data:audio/webm;base64,AAA…
-            transcript = audio_match.group(2).strip()
-            # Extract mime type and raw base64 from the data URL
-            if data_url.startswith("data:") and ";base64," in data_url:
-                meta, b64_data = data_url.split(";base64,", 1)
-                mime_type_audio = meta.split("data:")[1]  # e.g. audio/webm
-                audio_inline = {"mimeType": mime_type_audio, "data": b64_data}
-            if transcript:
-                message_text_for_llm = transcript
-            else:
-                message_text_for_llm = "Transcris ce message audio et réponds en conséquence."
-        else:
-            message_text_for_llm = message
+        message_text_for_llm, audio_inline = _parse_audio_message(message)
 
-        # Construire le message utilisateur au format Gemini API
         new_message = {
             "role": "user",
             "parts": [{"text": message_text_for_llm}]
         }
-        # Attach audio inline data so Gemini can transcribe and understand the voice note
         if audio_inline:
             new_message["parts"].append({"inlineData": audio_inline})
 
-        if file_obj and isinstance(file_obj, dict):
-            mime_type = file_obj.get("mime_type")
-            data = file_obj.get("data")
-            filename = file_obj.get("name", "upload.xlsx")
+        _handle_file_attachment(file_obj, new_message)
 
-            is_excel = (
-                filename.lower().endswith((".xlsx", ".xlsm")) or
-                (mime_type and ("sheet" in mime_type.lower() or "excel" in mime_type.lower()))
-            )
-
-            if is_excel and mime_type and data:
-                import base64
-                from pathlib import Path
-                from app.core.config import BASE_DIR
-
-                import_dir = Path(BASE_DIR) / "app" / "runtime" / "imports"
-                import_dir.mkdir(parents=True, exist_ok=True)
-
-                safe_name = "".join(c for c in filename if c.isalnum() or c in (".", "_", "-")).strip()
-                if not safe_name:
-                    safe_name = "temp_upload.xlsx"
-
-                target_path = import_dir / safe_name
-                try:
-                    file_bytes = base64.b64decode(data)
-                    with open(target_path, "wb") as f:
-                        f.write(file_bytes)
-
-                    abs_path_str = os.path.abspath(str(target_path))
-                    new_message["parts"][0]["text"] += f"\n\n[INFO SYSTÈME : Fichier Excel joint '{filename}' enregistré temporairement sur le serveur à l'emplacement : {abs_path_str}. Pour l'importer, appelle l'outil approprié comme `import_client_excel` ou `import_client_history_excel` avec cet emplacement exact.]"
-                except Exception as e:
-                    new_message["parts"][0]["text"] += f"\n\n[INFO SYSTÈME : Échec de l'enregistrement du fichier Excel joint '{filename}' : {str(e)}]"
-            elif mime_type and data:
-                new_message["parts"].append({
-                    "inlineData": {
-                        "mimeType": mime_type,
-                        "data": data
-                    }
-                })
-
-        # Retourner un StreamingResponse pour le flux d'événements (SSE)
         from app.web.deps import get_current_user
         user = get_current_user(request)
         user_role = getattr(user, "role", "operator")
 
-        async def chat_event_generator():
-            try:
-                if confirmed_query:
-                    messages_to_send = history
-                else:
-                    # Eviter la duplication du message utilisateur si le client l'a déjà ajouté à l'historique
-                    if history and history[-1].get("role") == "user":
-                        messages_to_send = history
-                    else:
-                        messages_to_send = history + [new_message]
-                async for event in run_assistant_agent_generator(
-                    messages_to_send,
-                    api_key or "",
-                    confirmed_query,
-                    user_role=user_role
-                ):
-                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-            except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'error': str(e)}, ensure_ascii=False)}\n\n"
-            finally:
-                from app.core.request_state import get_request_state
-                state = get_request_state()
-                if state is not None:
-                    db = getattr(state, "db", None)
-                    if db is not None:
-                        try:
-                            db.close()
-                        except Exception:
-                            pass
-                    read_db = getattr(state, "read_db", None)
-                    if read_db is not None:
-                        try:
-                            read_db.close()
-                        except Exception:
-                            pass
-
-        return StreamingResponse(chat_event_generator(), media_type="text/event-stream")
+        return _create_chat_stream(history, new_message, confirmed_query, api_key, user_role)
 
     except Exception as e:
         return JSONResponse({
             "success": False,
             "error": f"Une erreur s'est produite : {str(e)}"
         })
+
 
 @router.post("/assistant/settings", name="assistant_save_settings")
 async def save_settings(request: Request):
