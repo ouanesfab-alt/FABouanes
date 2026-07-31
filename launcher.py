@@ -1019,28 +1019,89 @@ def show_startup_splash(port: int, timeout: float = 45.0) -> bool:
     return ready
 
 
+WINDOW_STATE_FILE = DATA_DIR / "window_state.json"
+
+class DesktopApi:
+    def __init__(self, window_ref=None):
+        self._window = window_ref
+
+    def set_window(self, win):
+        self._window = win
+
+    def open_data_folder(self):
+        try:
+            if sys.platform == "win32":
+                os.startfile(str(DATA_DIR))
+                return True
+        except Exception:
+            pass
+        return False
+
+    def open_backup_folder(self):
+        try:
+            if sys.platform == "win32":
+                os.startfile(str(LOCAL_BACKUP_DIR))
+                return True
+        except Exception:
+            pass
+        return False
+
+    def toggle_fullscreen(self):
+        if self._window:
+            self._window.toggle_fullscreen()
+            return True
+        return False
+
+    def minimize(self):
+        if self._window:
+            self._window.minimize()
+            return True
+        return False
+
+    def get_app_info(self):
+        return {"version": APP_VERSION, "data_dir": str(DATA_DIR), "platform": sys.platform}
+
+
+def load_window_state() -> dict:
+    if WINDOW_STATE_FILE.exists():
+        try:
+            return json.loads(WINDOW_STATE_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {"width": 1360, "height": 860, "maximized": True}
+
+
 def open_ui(url: str) -> None:
     try:
         import webview
 
         # Autoriser le téléchargement de fichiers dans l'application de bureau
         webview.settings['ALLOW_DOWNLOADS'] = True
+        webview.settings['ALLOW_FILE_URLS'] = True
 
         # Vider le cache HTTP de WebView2 pour charger les CSS/JS les plus récents
         clear_webview_http_cache()
 
+        api = DesktopApi()
+        w_state = load_window_state()
+        w_width = w_state.get("width", 1360)
+        w_height = w_state.get("height", 860)
+        w_maximized = w_state.get("maximized", True)
+
         window = webview.create_window(
             APP_NAME,
             url,
-            width=1360,
-            height=860,
+            width=w_width,
+            height=w_height,
             min_size=(1024, 640),
             resizable=True,
-            maximized=True,
+            maximized=w_maximized,
             confirm_close=True,
             text_select=True,
             background_color="#F5F7FB",
+            js_api=api
         )
+        api.set_window(window)
         icon_path = get_window_icon()
 
         def setup_webview_permissions(win):
