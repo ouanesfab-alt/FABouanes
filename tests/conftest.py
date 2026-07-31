@@ -36,3 +36,10 @@ def _ensure_test_db_exists():
         logging.warning("Could not auto-create test database: %s", e)
 
 _ensure_test_db_exists()
+
+try:
+    from app.core.schema_bootstrap import bootstrap_schema
+    bootstrap_schema()
+except Exception as e:
+    import logging
+    logging.warning("Could not bootstrap test database: %s", e)

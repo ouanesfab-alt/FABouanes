@@ -67,7 +67,13 @@ SESSION_COOKIE_SECURE=0
 DEFAULT_ADMIN_USERNAME=admin
 DEFAULT_ADMIN_PASSWORD=7508
 FAB_PASSWORD_MODE=pin
-EOF
+echo "🔍 6b. Verification des prerequis de compilation C/Rust pour Termux..."
+if [ -f "scripts/check_termux_requirements.py" ]; then
+    python scripts/check_termux_requirements.py || {
+        echo "⚠️ Des prérequis système manquent pour la compilation native. Tentative d'installation automatique via pkg..."
+        pkg install clang make pkg-config libffi openssl rust -y || true
+    }
+fi
 
 echo "🐍 7. Installation optimisée des bibliothèques Python..."
 pip install --upgrade setuptools wheel --quiet

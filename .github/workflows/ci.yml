@@ -23,6 +23,8 @@ jobs:
         run: ruff check app/ --select E,F,W --ignore E501
       - name: Typecheck with mypy
         run: mypy app/ --ignore-missing-imports
+      - name: Validate Termux requirements script
+        run: python scripts/check_termux_requirements.py
 
   test:
     runs-on: ubuntu-latest
