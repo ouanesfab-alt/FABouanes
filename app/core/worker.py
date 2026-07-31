@@ -495,7 +495,7 @@ def cleanup_background_jobs():
     try:
         execute_db(
             """
-            UPDATE background_jobs 
+            UPDATE background_jobs
             SET status = 'failed', error_message = 'Job timed out or worker crashed'
             WHERE status = 'running' AND started_at < CURRENT_TIMESTAMP - INTERVAL '2 hours'
             """
@@ -543,7 +543,7 @@ def _worker_poll_loop():
                 try:
                     from app.services.backup_service import trigger_nightly_snapshot_if_due
                     asyncio.run(trigger_nightly_snapshot_if_due())
-                except Exception as b_exc:
+                except Exception:
                     pass
                 last_cleanup = now_ts
 
@@ -552,10 +552,10 @@ def _worker_poll_loop():
                 with db_transaction() as conn:
                     cur = conn.execute(
                         """
-                        UPDATE background_jobs 
+                        UPDATE background_jobs
                         SET status = 'running', locked_by = %s, started_at = CURRENT_TIMESTAMP
                         WHERE id = (
-                            SELECT id FROM background_jobs 
+                            SELECT id FROM background_jobs
                             WHERE status = 'pending' AND run_at <= CURRENT_TIMESTAMP
                             ORDER BY priority DESC, created_at ASC
                             FOR UPDATE SKIP LOCKED

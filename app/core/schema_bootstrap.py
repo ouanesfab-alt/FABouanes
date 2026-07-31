@@ -24,6 +24,13 @@ def _execute(conn, query: str, params: tuple = ()):
 
 
 def _executescript(conn, sql: str) -> None:
+    from sqlalchemy import text
+    if hasattr(conn, "exec_driver_sql"):
+        try:
+            conn.exec_driver_sql(sql)
+            return
+        except Exception:
+            pass
     if hasattr(conn, "executescript"):
         try:
             conn.executescript(sql)
@@ -33,7 +40,10 @@ def _executescript(conn, sql: str) -> None:
     from app.core.db_helpers.query import split_sql_script
     for stmt in split_sql_script(sql):
         if stmt.strip():
-            _execute(conn, stmt)
+            if hasattr(conn, "execute"):
+                conn.execute(text(stmt))
+            elif hasattr(conn, "cursor"):
+                conn.cursor().execute(stmt)
     if hasattr(conn, "commit"):
         try:
             conn.commit()
@@ -196,11 +206,16 @@ def bootstrap_schema() -> None:
         from app.core.db_helpers import list_columns
         try:
             cols = list_columns(conn, "users")
-            if cols and "custom_permissions_json" not in cols:
-                _execute(conn, "ALTER TABLE users ADD COLUMN custom_permissions_json TEXT DEFAULT '[]'")
+            if cols:
+                if "custom_permissions_json" not in cols:
+                    _execute(conn, "ALTER TABLE users ADD COLUMN custom_permissions_json TEXT DEFAULT '[]'")
+                if "failed_login_count" not in cols:
+                    _execute(conn, "ALTER TABLE users ADD COLUMN failed_login_count INTEGER NOT NULL DEFAULT 0")
+                if "locked_until" not in cols:
+                    _execute(conn, "ALTER TABLE users ADD COLUMN locked_until TIMESTAMPTZ")
         except Exception:
             import logging
-            logging.getLogger("fabouanes").debug("Auto-migration for users.custom_permissions_json skipped", exc_info=True)
+            logging.getLogger("fabouanes").debug("Auto-migration for users columns skipped", exc_info=True)
 
         for table in ["purchases", "sales", "raw_sales", "payments"]:
             try:
@@ -295,14 +310,14 @@ def bootstrap_schema() -> None:
 
         # performance indexes
         is_sqlite = settings.database_url.startswith("sqlite")
-        
+
         # Check expenses table
         if is_sqlite:
             expenses_exists = _execute(conn, "SELECT 1 FROM sqlite_master WHERE type='table' AND name='expenses'").fetchone() is not None
         else:
             res = _execute(conn, "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'expenses')").fetchone()
             expenses_exists = res[0] if res else False
-            
+
         if expenses_exists:
             _execute(conn, "CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);")
 
@@ -312,7 +327,7 @@ def bootstrap_schema() -> None:
         else:
             res = _execute(conn, "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'stock_movements')").fetchone()
             movements_exists = res[0] if res else False
-            
+
         if movements_exists:
             _execute(conn, "CREATE INDEX IF NOT EXISTS idx_stock_movements_item ON stock_movements(item_kind, item_id);")
 

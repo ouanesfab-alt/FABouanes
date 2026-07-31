@@ -6,7 +6,6 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.staticfiles import StaticFiles
 
-from app.core.config import settings
 from app.core.request_state import push_request_state, reset_request_state, set_state_value
 from app.core.sanitizer import sanitize_string
 from app.core.security import security_headers

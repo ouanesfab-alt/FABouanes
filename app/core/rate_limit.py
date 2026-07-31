@@ -1,3 +1,6 @@
+from fastapi.responses import JSONResponse
+from app.core.config import settings
+
 try:
     from slowapi import Limiter
     from slowapi.util import get_remote_address

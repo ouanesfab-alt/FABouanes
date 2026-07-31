@@ -4,7 +4,6 @@ Responsibility: Seed functions, configuration parameters, and backward-compatibl
 from __future__ import annotations
 
 import os
-import secrets
 from werkzeug.security import generate_password_hash
 
 from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME
@@ -73,10 +72,10 @@ def _seed_default_admin(conn) -> None:
             "SELECT data_type FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'must_change_password'"
         ).fetchone()
         is_boolean = res and res[0].upper() == 'BOOLEAN'
-        
+
         val_must_change = False if is_boolean else 0
         val_is_active = True if is_boolean else 1
-        
+
         _exec(
             conn,
             """

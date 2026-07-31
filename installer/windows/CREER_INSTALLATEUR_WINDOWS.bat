@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 title FABOuanes - Création Installateur Windows
-cd /d "%~dp0"
+cd /d "%~dp0..\.."
 color 0A
 
 echo.
@@ -24,7 +24,7 @@ if not exist ".env" (
 rem 2. Autocréation du raccourci Bureau Windows
 echo.
 echo  [2/3] Création du raccourci officiel sur le Bureau Windows...
-powershell -Command "`$w = New-Object -ComObject WScript.Shell; `$s = `$w.CreateShortcut([System.IO.Path]::Combine([Environment]::GetFolderPath('Desktop'), 'FABOuanes.lnk')); `$s.TargetPath = '%~dp0LANCER.bat'; `$s.WorkingDirectory = '%~dp0'; `$s.IconLocation = '%~dp0static\FABOuanes_desktop.ico'; `$s.Save()"
+powershell -Command "`$w = New-Object -ComObject WScript.Shell; `$s = `$w.CreateShortcut([System.IO.Path]::Combine([Environment]::GetFolderPath('Desktop'), 'FABOuanes.lnk')); `$s.TargetPath = '%cd%\LANCER.bat'; `$s.WorkingDirectory = '%cd%'; `$s.IconLocation = '%cd%\static\FABOuanes_desktop.ico'; `$s.Save()"
 if not errorlevel 1 (
     echo        [OK] Raccourci 'FABOuanes' créé sur le Bureau Windows.
 ) else (
@@ -35,7 +35,7 @@ rem 3. Compilation du package exécutable & installateur Inno Setup
 echo.
 echo  [3/3] Compilation du package exécutable / installateur...
 set "FAB_NO_PAUSE=1"
-call "%~dp0installer\windows\BUILD_INSTALLATEUR_DESKTOP.bat"
+call "%~dp0BUILD_INSTALLATEUR_DESKTOP.bat"
 set "EXIT_CODE=%ERRORLEVEL%"
 
 echo.

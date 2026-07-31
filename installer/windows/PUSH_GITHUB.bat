@@ -2,7 +2,7 @@
 setlocal EnableExtensions
 title FABOuanes - Push GitHub
 
-cd /d "%~dp0"
+cd /d "%~dp0..\.."
 color 0A
 
 where git >nul 2>&1
