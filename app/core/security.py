@@ -69,11 +69,12 @@ def validate_password_strength(password: str, mode: str | None = None) -> tuple[
 
 def security_headers(response):
     from app.core.config import settings
-    from app.version import APP_VERSION
-    response.headers.setdefault("X-App-Version", APP_VERSION)
+    # Only expose version in desktop/dev mode to prevent fingerprinting in production
+    if settings.desktop_mode or settings.env == "development":
+        from app.version import APP_VERSION
+        response.headers.setdefault("X-App-Version", APP_VERSION)
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    response.headers.setdefault("X-XSS-Protection", "1; mode=block")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(self), camera=()")
 

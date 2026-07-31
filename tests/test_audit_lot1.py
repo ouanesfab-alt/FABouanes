@@ -70,3 +70,78 @@ def test_no_raw_print_in_app_directory():
                 forbidden_prints.append(f"{py_file.name}:{node.lineno}")
 
     assert not forbidden_prints, f"Raw print() calls found in app/ directory: {forbidden_prints}"
+
+
+def test_get_audit_stats_returns_dict():
+    """Verify get_audit_stats returns queue metrics dict."""
+    from app.core.audit import get_audit_stats
+    stats = get_audit_stats()
+    assert isinstance(stats, dict)
+    assert "audit_queue_size" in stats
+    assert "audit_dropped" in stats
+    assert isinstance(stats["audit_queue_size"], int)
+    assert isinstance(stats["audit_dropped"], int)
+    assert stats["audit_queue_size"] >= 0
+    assert stats["audit_dropped"] >= 0
+
+
+def test_security_headers_no_xss_protection():
+    """Verify X-XSS-Protection is no longer set (obsolete header removed)."""
+    from unittest.mock import MagicMock, patch
+    from app.core.security import security_headers
+
+    mock_response = MagicMock()
+    mock_response.headers = {}
+    with patch("app.core.security.get_state_value", return_value=None):
+        result = security_headers(mock_response)
+    assert "X-XSS-Protection" not in result.headers
+
+
+def test_security_headers_no_version_in_production():
+    """Verify X-App-Version is hidden in production server mode."""
+    from unittest.mock import MagicMock, patch
+    from app.core.security import security_headers
+
+    mock_response = MagicMock()
+    mock_response.headers = {}
+    with patch("app.core.config.settings") as mock_settings, \
+         patch("app.core.security.get_state_value", return_value=None):
+        mock_settings.desktop_mode = False
+        mock_settings.env = "production"
+        mock_settings.strict_csp = False
+        result = security_headers(mock_response)
+    assert "X-App-Version" not in result.headers
+
+
+def test_security_headers_version_exposed_in_desktop():
+    """Verify X-App-Version IS present in desktop mode."""
+    from unittest.mock import MagicMock, patch
+    from app.core.security import security_headers
+
+    mock_response = MagicMock()
+    mock_response.headers = {}
+    with patch("app.core.config.settings") as mock_settings, \
+         patch("app.core.security.get_state_value", return_value=None):
+        mock_settings.desktop_mode = True
+        mock_settings.env = "production"
+        mock_settings.strict_csp = False
+        result = security_headers(mock_response)
+    assert "X-App-Version" in result.headers
+    assert result.headers["Cache-Control"] == "no-store, no-cache, must-revalidate, max-age=0"
+
+
+def test_security_headers_hsts_in_production():
+    """Verify HSTS is set in non-desktop production mode."""
+    from unittest.mock import MagicMock, patch
+    from app.core.security import security_headers
+
+    mock_response = MagicMock()
+    mock_response.headers = {}
+    with patch("app.core.config.settings") as mock_settings, \
+         patch("app.core.security.get_state_value", return_value=None):
+        mock_settings.desktop_mode = False
+        mock_settings.env = "production"
+        mock_settings.strict_csp = False
+        result = security_headers(mock_response)
+    assert "Strict-Transport-Security" in result.headers
+

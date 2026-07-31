@@ -35,6 +35,15 @@ def _get_audit_queue() -> asyncio.Queue:
         _AUDIT_QUEUE = asyncio.Queue(maxsize=50000)
     return _AUDIT_QUEUE
 
+
+def get_audit_stats() -> dict[str, int]:
+    """Return audit queue health metrics for the /health endpoint."""
+    queue = _get_audit_queue()
+    return {
+        "audit_queue_size": queue.qsize(),
+        "audit_dropped": _AUDIT_DROPPED,
+    }
+
 def start_audit_worker() -> None:
     global _AUDIT_TASK
     if _AUDIT_TASK is not None:

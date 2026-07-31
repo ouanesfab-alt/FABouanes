@@ -54,6 +54,7 @@ fi
 echo "🔒 6. Configuration des variables d'environnement (.env)..."
 TERMUX_USER=$(whoami 2>/dev/null || echo "postgres")
 SECRET_TOKEN=$(python -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || echo "default-secret-key-termux-123456789")
+ADMIN_PIN=$(python -c "import random; print(f'{random.randint(1000,9999):04d}')" 2>/dev/null || echo "7508")
 
 cat << EOF > .env
 FASTAPI_ENV=production
@@ -65,8 +66,11 @@ FAB_DESKTOP=0
 FAB_HTTPS=0
 SESSION_COOKIE_SECURE=0
 DEFAULT_ADMIN_USERNAME=admin
-DEFAULT_ADMIN_PASSWORD=7508
+DEFAULT_ADMIN_PASSWORD=${ADMIN_PIN}
 FAB_PASSWORD_MODE=pin
+EOF
+
+echo -e "${GREEN}🔑 Code PIN admin généré: ${ADMIN_PIN}${RESET}"
 echo "🔍 6b. Verification des prerequis de compilation C/Rust pour Termux..."
 if [ -f "scripts/check_termux_requirements.py" ]; then
     python scripts/check_termux_requirements.py || {
@@ -74,6 +78,7 @@ if [ -f "scripts/check_termux_requirements.py" ]; then
         pkg install clang make pkg-config libffi openssl rust -y || true
     }
 fi
+
 
 echo "🐍 7. Installation optimisée des bibliothèques Python..."
 pip install --upgrade setuptools wheel --quiet
