@@ -27,7 +27,11 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     from app.core.db import sqlalchemy_database_url
     section = config.get_section(config.config_ini_section, {})
-    section["sqlalchemy.url"] = sqlalchemy_database_url(settings.database_url)
+    main_url = config.get_main_option("sqlalchemy.url")
+    if main_url and main_url != "postgresql://dummy":
+        section["sqlalchemy.url"] = main_url
+    else:
+        section["sqlalchemy.url"] = sqlalchemy_database_url(settings.database_url)
     connectable = engine_from_config(
         section,
         prefix="sqlalchemy.",
