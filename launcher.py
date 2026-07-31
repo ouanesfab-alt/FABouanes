@@ -24,6 +24,13 @@ if sys.platform == "win32":
             ctypes.windll.shcore.SetProcessDpiAwareness(2)
         except Exception:
             ctypes.windll.user32.SetProcessDPIAware()
+
+        # Set Windows Taskbar AppUserModelID for native icon & window grouping in Windows 10 / 11
+        try:
+            myappid = "FABOuanes.ERP.EnterpriseDesktop.v1"
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        except Exception:
+            pass
     except Exception:
         pass
 
