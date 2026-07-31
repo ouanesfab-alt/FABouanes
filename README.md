@@ -1,223 +1,245 @@
 # FABOuanes — Solution ERP & Gestion Intégrée
 
-**FABOuanes** est une solution ERP de gestion commerciale et financière de pointe conçue pour les PME : facturation, suivi client, gestion des stocks, production, comptabilité SCF et assistant métrique basé sur l'IA (**Sabrina**).
+**FABOuanes** est une solution ERP moderne de gestion commerciale, de production et financière conçue pour les PME. Elle rassemble la facturation, le suivi client, la gestion des stocks, la comptabilité selon le Système Comptable Financier (SCF) algérien, ainsi qu'un assistant métier basé sur l'IA (**Sabrina**).
 
-Le projet combine une application **FastAPI** haute performance (rendu serveur + API REST), une interface web PWA responsive avec synchronisation hors-ligne, un installateur desktop Windows 100% autonome (Inno Setup 6 + PyInstaller avec PostgreSQL 18 embarqué), et un support Termux/Android.
-
-![Version](https://img.shields.io/badge/version-2.1.0-blue)
-![Python](https://img.shields.io/badge/python-3.11%2B-blue)
-![Tests](https://img.shields.io/badge/tests-232%20passed%20100%25-brightgreen)
-![Coverage](https://img.shields.io/badge/couverture-gt%2090%25-brightgreen)
-![Windows](https://img.shields.io/badge/Windows-Installer%20.exe-0078D6)
-![License](https://img.shields.io/badge/license-Proprietary-lightgrey)
+Le projet combine une application **FastAPI** haute performance (rendu serveur + API REST JSON), une interface web PWA responsive avec synchronisation hors-ligne, un installateur desktop Windows 100% autonome (Inno Setup 6 + PyInstaller avec PostgreSQL 18 embarqué), et un support pour environnement Termux/Android.
 
 ---
 
-## Sommaire
-
-- [Fonctionnalités principales](#fonctionnalités-principales)
-- [Architecture](#architecture)
-- [Stack technique](#stack-technique)
-- [Modes de Déploiement & Installation](#modes-de-déploiement--installation)
-- [Configuration](#configuration)
-- [Structure du projet](#structure-du-projet)
-- [Modules métier](#modules-métier)
-- [Assurance Qualité & Tests](#assurance-qualité--tests)
-- [Observabilité & Sécurité](#observabilité--sécurité)
-- [Contribuer](#contribuer)
+<p align="center">
+  <img src="https://img.shields.io/badge/version-2.1.0-blue.svg?style=for-the-badge" alt="Version 2.1.0" />
+  <img src="https://img.shields.io/badge/python-3.11%2B-0078D6.svg?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+" />
+  <img src="https://img.shields.io/badge/tests-253%20passed%20100%25-brightgreen.svg?style=for-the-badge&logo=pytest&logoColor=white" alt="Tests 253 passing" />
+  <img src="https://img.shields.io/badge/couverture-%3E%2085%25-brightgreen.svg?style=for-the-badge" alt="Coverage > 85%" />
+  <img src="https://img.shields.io/badge/Windows-Installer%20.exe-0078D6.svg?style=for-the-badge&logo=windows&logoColor=white" alt="Windows Installer" />
+  <img src="https://img.shields.io/badge/license-Proprietary-lightgrey.svg?style=for-the-badge" alt="License" />
+</p>
 
 ---
 
-## Fonctionnalités principales
+## 📌 Sommaire
 
-- **Gestion commerciale complète** — Ventes cash/crédit, achats fournisseurs, facturation, suivi des acomptes et créances.
-- **Comptabilité SCF (Système Comptable Financier)** — Plan comptable conforme aux normes algériennes, écritures automatisées et bilans.
-- **Gestion des stocks en temps réel** — Alertes de seuil, coût moyen pondéré (CMP), traçabilité des mouvements et consommations de production.
-- **Assistant Sabrina (IA Métier)** — IA intégrée (Google Gemini API ou Ollama local 100% privé) capable d'exécuter des actions métier en langage naturel avec garde-fou SQL et mémoire persistante.
-- **Installateur Windows Autonome 100% Offline** — Package `.exe` généré par Inno Setup 6 embarquant PostgreSQL 18 et configurant automatiquement le pare-feu réseau.
-- **PWA Multi-plateforme & Mode Hors-ligne** — Application web progressive installable sur mobile/desktop avec synchronisation IndexedDB.
-- **API REST Mobile dédiée** — Authentification JWT Bearer pour les vendeurs et agents de terrain.
-- **Piste d'Audit & Sécurité avancée** — Traçabilité intégrale (qui a fait quoi, quand, données avant/après) et système RBAC multi-rôles.
+- [Fonctionnalités Principales](#-fonctionnalités-principales)
+- [Architecture Systèmes](#-architecture-systèmes)
+- [Stack Technique](#-stack-technique)
+- [Modes de Déploiement & Installation](#-modes-de-déploiement--installation)
+  - [1. Windows Desktop Installer (.exe autonome)](#1-windows-desktop-installer-exe-autonome)
+  - [2. Démarrage en Développement Python](#2-démarrage-en-développement-python)
+  - [3. Déploiement Docker Compose](#3-déploiement-docker-compose)
+- [Configuration (.env)](#-configuration-env)
+- [Arborescence du Projet](#-arborescence-du-projet)
+- [Modules Métier](#-modules-métier)
+- [Assurance Qualité & Tests](#-assurance-qualité--tests)
+- [Observabilité, Sécurité & Audit](#-observabilité-sécurité--audit)
+- [Dépôt & Licence](#-dépôt--licence)
 
 ---
 
-## Architecture
+## ✨ Fonctionnalités Principales
 
-FABOuanes repose sur une architecture modulaire découplée à découverte automatique des composants.
+- **🛒 Gestion Commerciale Complexe** : Ventes au comptant (cash) ou à crédit, achats auprès des fournisseurs, facturation proforma et définitive, gestion des acomptes, créances et règlements.
+- **📊 Comptabilité SCF Conforme** : Plan comptable général conforme aux normes SCF algériennes, génération automatique d'écritures comptables, journal centralisateur et bilans.
+- **📦 Stocks & Production en Temps Réel** : Suivi des matières premières et produits finis, coût moyen unitaire pondéré (CMP), alertes de seuil critique et consommation automatique lors de la production.
+- **🤖 Assistant IA Métier (Sabrina)** : Assistant intelligent capable de comprendre des requêtes en langage naturel, d'exécuter des actions sécurisées (achats, ventes, rapports, exports) avec mémoire de conversation et garde-fou SQL (AST analysis).
+- **🖥️ Installateur Windows 100% Offline** : Paquet d'installation `.exe` généré avec Inno Setup 6, incluant PostgreSQL 18 en mode d'installation silencieuse et la création automatique des règles de pare-feu Windows pour le port `5000`.
+- **📱 PWA Multi-plateforme & API Mobile** : Interface web progressive optimisée pour mobile et tablette, installable sans store, synchronisation hors-ligne avec IndexedDB et API REST JWT Bearer dédiée.
+- **🔒 Sécurité & Piste d'Audit Intégrale** : Journalisation d'audit asynchrone (deltas avant/après, auteur, horodatage IP), CSRF tokens, CSP nonces dynamiques, protection XSS et contrôle d'accès fondé sur les rôles (RBAC).
+
+---
+
+## 🏗️ Architecture Systèmes
+
+FABOuanes s'appuie sur une **architecture modulaire événementielle et découplée**, utilisant un système de découverte automatique des modules (`ModuleDescriptor`) au démarrage.
 
 ```mermaid
 flowchart TB
     subgraph Clients["Interface Utilisateur & Mobilité"]
-        WEB["Navigateur Web<br/>PWA Offline + Jinja2"]
-        DESKTOP["Application Bureau Windows<br/>Inno Setup + PyInstaller + pywebview"]
-        MOBILE["Application Vendeur Mobile<br/>JWT Bearer API"]
+        WEB["Navigateur Web<br/>PWA Offline + HTML/CSS/JS"]
+        DESKTOP["App Bureau Windows<br/>Inno Setup 6 + PyInstaller + pywebview"]
+        MOBILE["API Vendeur Mobile<br/>REST JSON + JWT Bearer"]
     end
 
     subgraph Core["Core Applicatif FastAPI"]
-        MW["Middlewares & Guards<br/>CSRF · CSP Nonce · XSS Sanitizer<br/>Rate Limiter · Session Manager"]
+        MW["Middlewares & Sécurité<br/>CSRF Guard · CSP Nonce · XSS Sanitizer<br/>Rate Limiter · Session Manager"]
+        DESCR["Système de Registre Modulaire<br/>Découverte automatique via ModuleDescriptor"]
     end
 
-    subgraph Registry["Registre des Modules Découverts"]
-        MODULES["sales · purchases · catalog · clients<br/>payments · expenses · production<br/>accounting_scf · reports · users"]
+    subgraph Registry["Modules Métier Interconnectés"]
+        MODULES["Sales · Purchases · Catalog · Clients<br/>Payments · Expenses · Production<br/>Accounting SCF · Reports · Users"]
     end
 
     subgraph Sabrina["Assistant IA Sabrina"]
-        AI["Classification d'intentions<br/>Outillage métier · SQL Guard<br/>Google Gemini / Ollama Local"]
+        AI["Parseur d'Intentions & NLP<br/>Garde-fou SQLGuard (AST sqlglot)<br/>Google Gemini / Ollama Local"]
     end
 
     subgraph Persistence["Couche Données & Événements"]
-        DB[("PostgreSQL 16/18 / SQLite<br/>SQLAlchemy 2.0 Async + Alembic")]
-        AUDIT["Audit Trail Asynchrone<br/>Event Bus · Cache In-Memory"]
+        DB[("PostgreSQL 18 / 16<br/>SQLAlchemy 2.0 Async + Alembic")]
+        AUDIT["Piste d'Audit Asynchrone<br/>Event Bus Interne · Cache In-Memory"]
     end
 
-    Clients --> Core
-    Core --> Registry
-    Core --> Sabrina
-    Registry --> DB
-    Sabrina --> DB
-    Core --> AUDIT
+    Clients --> MW
+    MW --> DESCR
+    DESCR --> MODULES
+    Clients --> Sabrina
+    Sabrina --> MODULES
+    MODULES --> DB
+    MW --> AUDIT
 ```
 
 > [!NOTE]
-> **Découverte Automatique des Modules** : Chaque domaine métier s'enregistre via un `ModuleDescriptor` au démarrage de l'application sans nécessiter de modification du core.
+> **Extensibilité Sans Friction** : Chaque nouveau domaine métier fournit son propre descripteur et ses scripts de schéma. Le cœur applicatif s'abstrait de la logique métier spécifique.
 
 ---
 
-## Stack technique
+## 🛠️ Stack Technique
 
-| Domaine | Technologies Utilisées |
-|---|---|
-| **Backend Core** | Python 3.11+, FastAPI, SQLAlchemy 2.0, Asyncpg, Alembic, Pydantic v2 |
-| **Frontend UI** | HTML5 Semantic, CSS Vanilla, Bootstrap 5, JavaScript Vanilla (Modular ES6), Chart.js |
-| **Desktop / Installer** | Inno Setup 6, PyInstaller, pywebview |
-| **Base de Données** | PostgreSQL 18 / 16 (avec fallback SQLite transparent pour tests et dev) |
-| **Intelligence Artificielle** | Google Gemini API (Cloud) & Ollama `qwen2.5:7b` (Local 100% privé) |
-| **Sécurité & RBAC** | JWT (PyJWT), Sessions signées, CSRF Token, Content Security Policy (CSP), Rate Limiting |
-| **Qualité & Linter** | Pytest, Coverage.py (> 90% exigé), Ruff Linter (Règles strictes dont T201) |
+| Composant | Technologie | Rôle / Description |
+|---|---|---|
+| **Backend Core** | Python 3.11+, FastAPI, Pydantic v2 | API REST asynchrone, micro-framework web ultra rapide |
+| **Base de Données** | PostgreSQL 18 / 16, SQLAlchemy 2.0 Async, Alembic | Persistence relationnelle async, ORM typé et migrations |
+| **Frontend UI** | HTML5, Vanilla CSS, Bootstrap 5, ES6 Modules, Chart.js | Interface responsive, légère, dynamique et moderne |
+| **PWA & Offline** | Service Workers, Manifest V2, IndexedDB | Application installable sur mobile & fonctionnement hors-ligne |
+| **Desktop Package** | Inno Setup 6, PyInstaller, pywebview | Packaging Windows natif autonome 100% hors-ligne |
+| **IA & NLP** | Google Gemini API (Cloud) / Ollama `qwen2.5:7b` (Local) | Traitement automatique des demandes métier en langage naturel |
+| **Sécurité** | PyJWT, CSRF Guard, CSP Nonces, RateLimitStore | Protection renforcée OWASP Top 10 |
+| **Qualité Code** | Pytest (253 tests verts), Coverage.py (> 85%), Ruff Linter | Suite de tests automatisée et validation statique rigoureuse |
 
 ---
 
-## Modes de Déploiement & Installation
+## 🚀 Modes de Déploiement & Installation
 
-### 1. Windows Desktop Installer (`.exe` Clé en Main)
+### 1. Windows Desktop Installer (`.exe` autonome)
 
-Pour déployer sur des postes de travail sous Windows sans aucune dépendance préalable :
+Pour installer et exécuter l'application sur un poste Windows sans prérequis technique :
 
-1. Exécutez l'installateur **`installer_output/FABOuanes_Setup.exe`**.
-2. L'assistant Inno Setup configure automatiquement :
-   - L'installation silencieuse de PostgreSQL 18.
-   - Les répertoires applicatifs dans `%LocalAppData%\Programs\FABOuanes`.
-   - La règle de pare-feu Windows pour le port `5000` en mode serveur réseau.
-   - La base de données et l'exécution des migrations au premier démarrage.
+1. Téléchargez et lancez **`installer_output/FABOuanes_Setup.exe`**.
+2. L'assistant d'installation gère automatiquement :
+   - L'installation et l'initialisation silencieuse du serveur **PostgreSQL 18**.
+   - Le déploiement du binaire dans `%LocalAppData%\Programs\FABOuanes`.
+   - L'ouverture du port `5000` sur le pare-feu réseau Windows (pour l'accès multi-postes).
+   - La création de la base de données et le passage des migrations Alembic.
 
-Pour re-compiler l'installateur vous-même :
+Pour re-compiler le binaire `.exe` et l'installateur :
 ```cmd
 installer\windows\BUILD_INSTALLATEUR_DESKTOP.bat
 ```
 
 ---
 
-### 2. Démarrage Rapide en Développement Python
+### 2. Démarrage en Développement Python
 
 ```powershell
-# 1. Cloner le dépôt
+# 1. Cloner le dépôt git
 git clone https://github.com/ouanesfab-alt/FABouanes.git
 cd FABouanes-main
 
-# 2. Créer et activer l'environnement virtuel
+# 2. Initialiser l'environnement virtuel Python
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 
-# 3. Installer les dépendances
+# 3. Installer les dépendances du projet
 python -m pip install -r requirements.txt
 
-# 4. Lancer le serveur d'application avec rechargement automatique
+# 4. Lancer l'application en mode serveur de développement
 python launcher.py --server
 ```
 
-L'application est accessible sur `http://localhost:5000`.
+L'application est disponible à l'adresse : **`http://localhost:5000`**
 
 ---
 
-### 3. Déploiement avec Docker Compose
+### 3. Déploiement Docker Compose
 
 ```bash
-# Lancer l'environnement conteneurisé complet (Web + PostgreSQL + pgAdmin)
-docker compose up --build
+# Lancer l'infrastructure complète (App FastAPI + PostgreSQL 18 + pgAdmin)
+docker compose up --build -d
 ```
 
 ---
 
-## Configuration
+## ⚙️ Configuration (`.env`)
 
-La configuration s'effectue via le fichier **`.env`** à la racine de l'application :
+La configuration est gérée via les variables d'environnement définies dans le fichier **`.env`** :
 
 | Variable | Description | Valeur par Défaut |
 |---|---|---|
-| `DATABASE_URL` | URL de connexion PostgreSQL | `postgresql://postgres:postgres@127.0.0.1:5432/fabouanes` |
-| `SECRET_KEY` | Clé secrète pour les sessions et JWT | Générée automatiquement au build |
-| `FAB_HOST` | Adresse d'écoute HTTP (`127.0.0.1` ou `0.0.0.0`) | `127.0.0.1` |
-| `FAB_PORT` | Port d'écoute HTTP | `5000` |
-| `GEMINI_API_KEY` | Clé API pour Google Gemini (IA Sabrina) | Optionnel |
-| `FAB_SLOW_SQL_MS` | Seuil de détection des requêtes lentes (ms) | `100` |
+| `DATABASE_URL` | Chaine de connexion PostgreSQL (ou SQLite) | `postgresql://postgres:postgres@127.0.0.1:5432/fabouanes` |
+| `SECRET_KEY` | Clé secrète pour les jetons JWT et sessions | Clé aléatoire sécurisée |
+| `FAB_HOST` | Adresse d'écoute HTTP du serveur | `127.0.0.1` (ou `0.0.0.0` pour le réseau) |
+| `FAB_PORT` | Port TCP d'écoute HTTP | `5000` |
+| `GEMINI_API_KEY` | Clé API pour l'IA Sabrina (Google Gemini) | Optionnel |
+| `OLLAMA_BASE_URL` | URL de l'instance Ollama locale | `http://127.0.0.1:11434` |
+| `FAB_SLOW_SQL_MS` | Seuil d'alerte des requêtes SQL lentes (ms) | `100` |
 
 ---
 
-## Structure du Projet
+## 📂 Arborescence du Projet
 
 ```text
 FABouanes/
 ├── app/
-│   ├── api/            # Endpoints API REST JSON (Vendeur mobile / API v1)
-│   ├── core/           # Moteur Async DB, sécurité JWT/CSRF, audit, permissions
-│   ├── modules/        # Modules métier (sales, purchases, catalog, accounting...)
-│   │   ├── accounting/ # Module Comptabilité SCF
-│   │   ├── assistant/  # Sabrina IA (RAG, SQL Guard, memory)
+│   ├── api/            # API REST v1 JSON (Authentification JWT Bearer & Vendeurs)
+│   ├── core/           # Moteur Async DB, sécurité JWT/CSRF, audit, permissions, config
+│   ├── modules/        # Domaines métier découplés (sales, purchases, catalog, accounting...)
+│   │   ├── accounting/ # Module Comptabilité SCF (Plan comptable & bilans)
+│   │   ├── assistant/  # Sabrina IA (Parser d'intentions, RAG, SQLGuard, mémoire)
 │   │   └── ...
-│   └── web/            # Contrôleurs web et rendu des pages Jinja2
+│   └── web/            # Contrôleurs web et rendu des templates Jinja2
 ├── alembic/            # Migrations de schéma de base de données (0001 à 0038)
-├── installer/          # Script Inno Setup 6 (.iss) & compilateurs d'installateurs Windows
-├── static/             # Feuilles de style CSS, scripts JavaScript, PWA Manifest & SW
-├── templates/          # Gabarits HTML Jinja2
-├── tests/              # Suite de tests automatisés Pytest (> 90% couverture)
-├── tests_frontend/     # Runner de tests JS Node.js pour les assets frontend
-└── launcher.py         # Point d'entrée exécutable & bootstrapper d'application
+├── installer/          # Scripts Inno Setup 6 (.iss) & compilateur d'installateur Windows
+├── static/             # Assets CSS, JavaScript ES6, PWA Manifest & Service Worker
+├── templates/          # Gabarits HTML Jinja2 (Rendu serveur)
+├── tests/              # Suite complète de 253 tests unitaires et d'intégration Pytest
+├── tests_frontend/     # Runner de tests JS Node.js pour la validation des modules frontend
+└── launcher.py         # Point d'entrée principal (CLI & GUI Desktop Launcher)
 ```
 
 ---
 
-## Assurance Qualité & Tests
+## 💼 Modules Métier
 
-Le projet impose une exigence de couverture de code globale et par module **> 90%** sur l'ensemble des composants Python et des assets non-Python (JavaScript, HTML, CSS, Scripts Shell & Batch).
+- **`sales`** : Enregistrement des ventes, gestion des articles vendus, devis proforma, facturation.
+- **`purchases`** : Commandes et achats auprès des fournisseurs, réception de matières premières.
+- **`catalog`** : Catalogue des produits finis, articles personnalisés et matières premières avec unités.
+- **`clients`** & **`suppliers`** : Annuaire des contacts, suivi des créances, historique et relevés de compte.
+- **`payments`** & **`expenses`** : Encaissements, décaissements, versemens et charges opérationnelles.
+- **`production`** : Ordres de fabrication, transformation de matières premières en produits finis.
+- **`accounting_scf`** : Gestion du plan comptable algérien (SCF), écritures comptables et journaux.
+- **`reports`** : Tableaux de bord financiers, synthèses d'activité et exports CSV/JSON.
 
-### Exécuter la Suite de Tests
+---
+
+## 🧪 Assurance Qualité & Tests
+
+Le projet intègre une démarche de qualité stricte soutenue par **253 tests automatisés** et un contrôle de couverture continue (**> 85% exigeant** sur tout le socle Python Core).
+
+### Commandes de Verification
 
 ```bash
-# Tests Backend Python (Pytest)
+# 1. Exécuter la suite complète des tests backend Python
 python -m pytest tests/ -q
 
-# Tests Frontend JavaScript (Node.js Test Runner)
+# 2. Exécuter les tests unitaires frontend JavaScript
 node --test tests_frontend/test_js_modules.test.js
 
-# Vérification Linteur & Formatage (Ruff)
+# 3. Analyser la conformité du code avec le linter Ruff
 python -m ruff check app/
 ```
 
 > [!IMPORTANT]
-> **Contrôle Strict en Intégration Continue (CI/CD)** :
-> Tous les tests doivent afficher **100% de succès** et aucun `print()` non structuré n'est toléré dans le code de production (règle linteur `T201`).
+> **Contrôle Qualité en CI/CD** : Tous les tests unitaires s'exécutent avec **100% de succès**. Aucune instruction `print()` non contrôlée n'est admise dans le code de production (règle linter `T201`).
 
 ---
 
-## Observabilité & Sécurité
+## 🔒 Observabilité, Sécurité & Audit
 
-- **Piste d'Audit Asynchrone** : Chaque création, modification ou suppression est enregistrée en arrière-plan avec l'identifiant de l'utilisateur, l'horodatage et les deltas avant/après.
-- **Pare-feu SQL & Garde-Fou IA** : Les requêtes exécutées par l'assistant Sabrina passent au crible d'un analyseur AST (`sqlglot`) interdisant toute instruction de suppression ou de modification risquée non confirmée.
-- **Protections Web Stricte** : Nonce CSP généré par requête, jetons CSRF sur chaque formulaire, et cookies HTTPS `SameSite=Lax`.
+1. **Piste d'Audit Complète** : Enregistrement asynchrone en arrière-plan des modifications de données avec capture des états avant/après (`before` / `after`).
+2. **Garde-Fou IA (SQLGuard)** : Analyse syntaxique AST avec `sqlglot` interdisant l'exécution non sollicitée d'instructions de suppression (`DROP`, `TRUNCATE`, `DELETE` de masse).
+3. **Sécurité Web Avancée** : Jetons CSRF obligatoires sur les formulaires, nonces dynamiques CSP, en-têtes de sécurité HTTP (`X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security`).
 
 ---
 
-## Dépôt GitHub & Contribution
+## 📜 Dépôt & Licence
 
-- **Dépôt Officiel** : [https://github.com/ouanesfab-alt/FABouanes](https://github.com/ouanesfab-alt/FABouanes)
+- **Dépôt GitHub** : [https://github.com/ouanesfab-alt/FABouanes](https://github.com/ouanesfab-alt/FABouanes)
 - **Licence** : Propriétaire — Tous droits réservés.
