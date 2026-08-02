@@ -60,6 +60,12 @@ function createRipple(element, event) {
   const y    = clientY - rect.top;
   const size = Math.max(rect.width, rect.height) * 2;
 
+  try {
+    if (event.type === 'touchstart' && navigator.vibrate) {
+      navigator.vibrate(8);
+    }
+  } catch (e) {}
+
   const ripple = document.createElement('span');
   ripple.className   = 'ripple-wave';
   ripple.style.width  = size + 'px';

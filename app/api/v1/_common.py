@@ -66,7 +66,8 @@ def add_cache_headers(request, response, response_data, max_age: int = 30) -> No
 
     # Generate ETag
     serialized = json.dumps(response_data, sort_keys=True, default=str)
-    etag = f'"{hashlib.md5(serialized.encode("utf-8"), usedforsecurity=False).hexdigest()}"'  # noqa: S324
+    etag = f'"{hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:32]}"'
+
 
     response.headers["ETag"] = etag
     response.headers["Cache-Control"] = f"private, max-age={max_age}"

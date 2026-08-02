@@ -168,13 +168,21 @@ def _find_pg_bin_dir() -> Path | None:
     return None
 
 
+def _sub_kwargs(kwargs: dict) -> dict:
+    """Ensure subprocess execution on Windows uses CREATE_NO_WINDOW flag to prevent console popups."""
+    if os.name == "nt":
+        creation_flags = kwargs.get("creationflags", 0)
+        kwargs["creationflags"] = creation_flags | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+    return kwargs
+
+
 def _pg_is_ready(pg_bin: Path, host: str = "127.0.0.1", port: int = 5432) -> bool:
     """Check if PostgreSQL is accepting connections."""
     import subprocess
     try:
         result = subprocess.run(
             [str(pg_bin / "pg_isready"), "-h", host, "-p", str(port)],
-            capture_output=True, timeout=5,
+            **_sub_kwargs({"capture_output": True, "timeout": 5})
         )
         return result.returncode == 0
     except Exception:
@@ -206,13 +214,13 @@ def ensure_windows_firewall_rule(port: int = 5000) -> None:
         rule_name = f"FABOuanes_Port_{port}"
         chk = subprocess.run(
             ["netsh", "advfirewall", "firewall", "show", "rule", f"name={rule_name}"],
-            capture_output=True, text=True, timeout=5
+            **_sub_kwargs({"capture_output": True, "text": True, "timeout": 5})
         )
         if chk.returncode != 0 or "No rules match" in chk.stdout:
             subprocess.run(
                 ["netsh", "advfirewall", "firewall", "add", "rule",
                  f"name={rule_name}", "dir=in", "action=allow", "protocol=TCP", f"localport={port}"],
-                capture_output=True, timeout=10
+                **_sub_kwargs({"capture_output": True, "timeout": 10})
             )
             print(f"  [🛡️] Règle Pare-feu Windows configurée pour le port {port}.", flush=True)
     except Exception:
@@ -278,9 +286,9 @@ def ensure_postgres_running() -> None:
     service_name = None
     try:
         result = subprocess.run(
-            ["powershell", "-Command",
+            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
              "Get-Service -Name 'postgresql*' | Select-Object -ExpandProperty Name"],
-            capture_output=True, text=True, timeout=10,
+            **_sub_kwargs({"capture_output": True, "text": True, "timeout": 10})
         )
         for line in result.stdout.strip().splitlines():
             svc = line.strip()
@@ -299,7 +307,7 @@ def ensure_postgres_running() -> None:
     try:
         result = subprocess.run(
             ["net", "start", service_name],
-            capture_output=True, text=True, timeout=30,
+            **_sub_kwargs({"capture_output": True, "text": True, "timeout": 30})
         )
         if result.returncode == 0:
             started = True
@@ -316,11 +324,13 @@ def ensure_postgres_running() -> None:
             subprocess.run(
                 [
                     "powershell",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
                     "-Command",
-                    f"Start-Process cmd.exe -ArgumentList '{cmd_args}' -Verb RunAs -Wait",
+                    f"Start-Process cmd.exe -ArgumentList '{cmd_args}' -WindowStyle Hidden -Verb RunAs -Wait",
                 ],
-                capture_output=True,
-                timeout=30,
+                **_sub_kwargs({"capture_output": True, "timeout": 30})
             )
             if _pg_is_ready(pg_bin, pg_host, pg_port):
                 started = True
@@ -368,7 +378,7 @@ def _ensure_database_exists(
         result = subprocess.run(
             [str(pg_bin / "psql"), "-h", host, "-p", str(port), "-U", user,
              "-tAc", f"SELECT 1 FROM pg_database WHERE datname = '{database}'"],
-            capture_output=True, text=True, timeout=10, env=env,
+            **_sub_kwargs({"capture_output": True, "text": True, "timeout": 10, "env": env})
         )
         if result.stdout.strip() == "1":
             return  # Database already exists
@@ -380,7 +390,7 @@ def _ensure_database_exists(
     try:
         result = subprocess.run(
             [str(pg_bin / "createdb"), "-h", host, "-p", str(port), "-U", user, database],
-            capture_output=True, text=True, timeout=15, env=env,
+            **_sub_kwargs({"capture_output": True, "text": True, "timeout": 15, "env": env})
         )
         if result.returncode == 0:
             print(f"  Base de donnees '{database}' creee avec succes.", flush=True)
@@ -514,10 +524,8 @@ def show_system_notification(title: str, message: str, url: str | None = None) -
                 $notification.ShowBalloonTip(5000)
                 """
                 subprocess.run(
-                    ["powershell", "-Command", ps_script],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    check=False,
+                    ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
+                    **_sub_kwargs({"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL, "check": False})
                 )
             except Exception:
                 pass
@@ -532,15 +540,24 @@ def free_stale_port(port: int = 5000) -> bool:
 
     try:
         if os.name == "nt":
-            output = subprocess.check_output(f"netstat -ano | findstr :{port}", shell=True, text=True)
+            output = subprocess.check_output(
+                f"netstat -ano | findstr :{port}", shell=True, text=True,
+                **_sub_kwargs({})
+            )
             for line in output.strip().splitlines():
                 if "LISTENING" in line:
                     parts = line.strip().split()
                     pid = parts[-1]
                     if pid and pid != "0":
-                        proc_info = subprocess.check_output(f"tasklist /fi \"PID eq {pid}\"", shell=True, text=True)
+                        proc_info = subprocess.check_output(
+                            f"tasklist /fi \"PID eq {pid}\"", shell=True, text=True,
+                            **_sub_kwargs({})
+                        )
                         if "python" in proc_info.lower():
-                            subprocess.run(f"taskkill /f /pid {pid}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            subprocess.run(
+                                f"taskkill /f /pid {pid}", shell=True,
+                                **_sub_kwargs({"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL})
+                            )
                             time.sleep(1)
                             print(f"  [OK] Processus orphelin sur port {port} (PID {pid}) libéré.", flush=True)
                             return port_bindable("0.0.0.0", port)
@@ -1232,6 +1249,7 @@ def main() -> None:
     port = find_port(start_port, host)
     os.environ["FAB_HOST"] = host
     os.environ["FAB_PORT"] = str(port)
+    os.environ["FAB_NO_BROWSER"] = "1"  # Désactiver le lancement du navigateur externe en mode desktop
     if host == "0.0.0.0":
         os.environ["FAB_LAN_IP"] = get_local_ip()
     else:

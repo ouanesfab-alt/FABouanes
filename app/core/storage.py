@@ -157,6 +157,23 @@ def _compress_sql_to_gz(sql_path: Path) -> Path:
     return gz_path
 
 
+def validate_pg_dump_binary_path(raw_path: str | None) -> str:
+    path_str = (raw_path or "").strip()
+    if not path_str or path_str == "pg_dump":
+        resolved = shutil.which("pg_dump")
+        return resolved or "pg_dump"
+
+    target_path = Path(path_str).resolve()
+    if not target_path.exists() or not target_path.is_file():
+        raise ValueError(f"Le chemin du binaire pg_dump spécifié n'existe pas : {path_str}")
+
+    executable_name = target_path.name.lower()
+    if executable_name not in ("pg_dump", "pg_dump.exe"):
+        raise ValueError(f"Binaire non autorisé pour la sauvegarde : {executable_name}. Seul pg_dump est permis.")
+
+    return str(target_path)
+
+
 def capture_local_backup_snapshot(reason: str = "manual") -> Path:
     """
     Produit une sauvegarde PostgreSQL compressée (.sql.gz).
@@ -196,7 +213,8 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
         tmp_sql = Path(tmp.name)
 
     try:
-        pg_dump_bin = get_setting("pg_dump_path", "").strip() or "pg_dump"
+        raw_pg_dump = get_setting("pg_dump_path", "").strip() or "pg_dump"
+        pg_dump_bin = validate_pg_dump_binary_path(raw_pg_dump)
         cmd = [
             pg_dump_bin,
             "-h", host, "-p", str(port), "-U", username,
@@ -205,7 +223,10 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
             "-f", str(tmp_sql),
             database,
         ]
-        subprocess.run(cmd, env=env, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        sub_kwargs = {"env": env, "check": True, "stdout": subprocess.PIPE, "stderr": subprocess.PIPE}
+        if os.name == "nt":
+            sub_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        subprocess.run(cmd, **sub_kwargs)
         # Compression
         gz_tmp = tmp_sql.with_suffix(".sql.gz")
         with open(tmp_sql, "rb") as fi, gzip.open(gz_tmp, "wb", compresslevel=6) as fo:

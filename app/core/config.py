@@ -163,6 +163,28 @@ def validate_single_worker_runtime() -> None:
     )
 
 
+def validate_security_runtime() -> None:
+    import sys
+    if "pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+
+    host = settings.host.strip()
+    is_external = host not in ("127.0.0.1", "localhost", "::1")
+    password_mode = os.environ.get("FAB_PASSWORD_MODE", "pin").strip().lower()
+    is_desktop = settings.desktop_mode or os.environ.get("FAB_DESKTOP") == "1"
+
+    if is_external and password_mode == "pin" and not is_desktop:
+        allow_insecure = os.environ.get("FAB_ALLOW_INSECURE_NETWORK_PIN", "0").strip().lower() in {"1", "true", "yes", "on"}
+        if not allow_insecure:
+            raise RuntimeError(
+                f"[SÉCURITÉ] FAB_HOST={host} (exposition réseau) combiné avec FAB_PASSWORD_MODE=pin (code à 4 chiffres) "
+                "est hautement vulnérable au bruteforce. Configurez FAB_PASSWORD_MODE=password dans votre .env, "
+                "ou écoutez sur 127.0.0.1, ou définissez FAB_ALLOW_INSECURE_NETWORK_PIN=1 pour outrepasser au besoin."
+            )
+
+
+
+
 settings = Settings()
 
 DATABASE_URL = settings.database_url

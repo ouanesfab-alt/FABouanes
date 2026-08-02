@@ -28,8 +28,16 @@ export function initShortcutsModule() {
       return;
     }
 
-    // Don't intercept standard typing shortcuts inside input fields unless specific
-    if (isInput) return;
+    // F1 or Shift+?: Open Shortcuts Help Modal
+    if (e.key === 'F1' || (e.key === '?' && !isInput)) {
+      e.preventDefault();
+      const modalEl = document.getElementById('shortcutsModal');
+      if (modalEl && window.bootstrap) {
+        const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+      }
+      return;
+    }
 
     // Ctrl + N: Shortcut to New Sale
     if (isCmdOrCtrl && e.key.toLowerCase() === 'n') {

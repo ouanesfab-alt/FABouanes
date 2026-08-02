@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+import logging
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,9 @@ from app.core.models import Client, FinishedProduct, Payment, RawMaterial, RawSa
 from app.core.storage import mark_backup_needed
 from app.modules.payments.repository import payment_form_context
 from app.modules.payments.service import PaymentsService
+
+logger = logging.getLogger("fabouanes")
+
 
 
 @async_compat

@@ -505,6 +505,17 @@ def cleanup_background_jobs():
         execute_db(
             "DELETE FROM background_jobs WHERE status = 'failed' AND completed_at < CURRENT_TIMESTAMP - INTERVAL '7 days'"
         )
+        try:
+            execute_db(
+                "DELETE FROM idempotent_requests WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '7 days'"
+            )
+        except Exception:
+            pass
+        try:
+            from app.core.rate_limit_store import get_rate_limit_store
+            get_rate_limit_store().clean_expired()
+        except Exception as store_err:
+            logger.debug("Rate limit store cleanup skipped: %s", store_err)
         logger.info("Completed stale job recovery and database cleanup")
     except Exception as exc:
         logger.error("Failed to run background jobs cleanup: %s", exc)

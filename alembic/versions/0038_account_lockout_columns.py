@@ -15,9 +15,10 @@ branch_labels = None
 depends_on = None
 
 def upgrade() -> None:
-    op.add_column('users', sa.Column('failed_login_count', sa.Integer(), server_default='0', nullable=False))
-    op.add_column('users', sa.Column('locked_until', sa.DateTime(timezone=True), nullable=True))
+    op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_count INTEGER DEFAULT 0 NOT NULL")
+    op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ")
 
 def downgrade() -> None:
-    op.drop_column('users', 'locked_until')
-    op.drop_column('users', 'failed_login_count')
+    op.execute("ALTER TABLE users DROP COLUMN IF EXISTS locked_until")
+    op.execute("ALTER TABLE users DROP COLUMN IF EXISTS failed_login_count")
+

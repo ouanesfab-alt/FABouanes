@@ -60,6 +60,16 @@ def unit_choices() -> list[str]:
     return _unit_choices()
 
 
+def format_dzd(amount: float | int | str | None) -> str:
+    """Formats monetary amounts into clean Dinar Algérien currency representation (ex: 125 450,00 DA)."""
+    try:
+        val = float(str(amount or 0).replace(",", "."))
+        formatted = f"{val:,.2f}".replace(",", " ").replace(".", ",")
+        return f"{formatted} DA"
+    except Exception:
+        return "0,00 DA"
+
+
 @async_compat
 async def refresh_sale_profits_for_item(item_kind: str, item_id: int, avg_cost: float, sale_price: float | None = None, db: AsyncSession | None = None) -> None:
     from app.services.stock_service import refresh_sale_profits_for_item as _refresh_sale_profits_for_item

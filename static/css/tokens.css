@@ -210,13 +210,22 @@ html[data-font="arial"] {
   --font-main: Arial, Helvetica, sans-serif !important;
   --font-title: Arial, Helvetica, sans-serif !important;
 }
-html[data-font="calibri"] {
-  --font-main: Calibri, Candara, "Segoe UI", sans-serif !important;
-  --font-title: Calibri, Candara, "Segoe UI", sans-serif !important;
+html[data-font="segoe"] {
+  --font-main: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif !important;
+  --font-title: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif !important;
 }
 html[data-font="system"] {
-  --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif !important;
-  --font-title: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif !important;
+  --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif !important;
+  --font-title: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif !important;
+}
+
+/* ── Smooth Font & Theme Transitions ── */
+html.font-changing,
+html.font-changing body,
+html.font-changing *,
+html.font-changing *::before,
+html.font-changing *::after {
+  transition: font-family 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* ── Sequoia Ambient Backdrop ── */
@@ -227,7 +236,19 @@ html[data-font="system"] {
   z-index: -2;
   pointer-events: none;
   background: var(--bg);
+  background-image:
+    radial-gradient(rgba(0, 122, 255, 0.06) 1px, transparent 1px),
+    radial-gradient(rgba(0, 122, 255, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: 0 0, 16px 16px;
   overflow: hidden;
+}
+
+[data-theme="dark"] .sequoia-backdrop,
+[data-theme="windows-dark"] .sequoia-backdrop {
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    radial-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px);
 }
 
 .sequoia-backdrop::before,

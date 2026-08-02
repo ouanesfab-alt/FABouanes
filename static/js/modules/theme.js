@@ -4,7 +4,7 @@ const themeColors = {
   windows: '#0067c0',
   'windows-dark': '#202020'
 };
-const fonts = { jakarta: true, arial: true, calibri: true, system: true };
+const fonts = { jakarta: true, arial: true, segoe: true, system: true };
 const navLayouts = { horizontal: true, vertical: true };
 
 function readStorage(key, fallback) {
@@ -45,12 +45,25 @@ export function applyTheme(theme, opts) {
       document.documentElement.classList.remove('theme-changing');
     }, 280);
   }
+  try {
+    document.dispatchEvent(new CustomEvent('fab:theme-changed', { detail: { theme: name } }));
+  } catch (e) {}
 }
 
-export function applyFont(font) {
+export function applyFont(font, opts) {
   const name = fonts[font] ? font : 'system';
+  if (opts && opts.animate) document.documentElement.classList.add('font-changing');
   document.documentElement.setAttribute('data-font', name);
   markSelected('.js-font', 'font', name);
+  window.clearTimeout(window.fabFontTimer);
+  if (opts && opts.animate) {
+    window.fabFontTimer = window.setTimeout(function () {
+      document.documentElement.classList.remove('font-changing');
+    }, 280);
+  }
+  try {
+    document.dispatchEvent(new CustomEvent('fab:font-changed', { detail: { font: name } }));
+  } catch (e) {}
 }
 
 export function navHidden() {
@@ -108,7 +121,7 @@ export function initThemeModule() {
     if (fontButton) {
       event.preventDefault();
       const font = fontButton.dataset.font;
-      applyFont(font);
+      applyFont(font, { animate: true });
       writeStorage('fab_font', font);
       return;
     }

@@ -68,6 +68,23 @@ class _FATemplates(Jinja2Templates):
 templates = _FATemplates(directory=str(paths.templates_dir))
 
 
+def preload_templates() -> int:
+    """Pre-compiles and loads all Jinja2 HTML templates into RAM memory at startup."""
+    from pathlib import Path
+    template_dir = Path(paths.templates_dir)
+    if not template_dir.exists():
+        return 0
+    count = 0
+    for p in template_dir.rglob("*.html"):
+        try:
+            rel = str(p.relative_to(template_dir)).replace("\\", "/")
+            templates.env.get_template(rel)
+            count += 1
+        except Exception:
+            pass
+    return count
+
+
 def _money_filter(value: Any) -> str:
     try:
         if value is None:
@@ -163,38 +180,8 @@ def ensure_csrf_token(request: Request) -> str:
 
 
 async def csrf_protect(request: Request) -> None:
-    if request.method not in ("POST", "PUT", "DELETE", "PATCH"):
-        return
-    if request.url.path.startswith("/api/v1/"):
-        return
-    # Skip CSRF for Bearer token / API Key authenticated requests
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer ") or request.headers.get("X-API-Key"):
-        return
+    await verify_csrf_token(request)
 
-    expected = ensure_csrf_token(request)
-    content_type = request.headers.get("content-type", "")
-    supplied = request.headers.get("X-CSRFToken") or request.headers.get("X-CSRF-Token") or request.headers.get("X-Csrf-Token")
-    if not supplied:
-        if "application/json" in content_type:
-            try:
-                payload = await request.json()
-                supplied = payload.get("csrf_token") or payload.get("_csrf_token")
-            except Exception:
-                pass
-        else:
-            try:
-                form = await request.form()
-                supplied = form.get("csrf_token") or form.get("_csrf_token")
-            except Exception:
-                pass
-
-    if supplied and hmac.compare_digest(str(supplied), str(expected)):
-        return
-    # Auto-fallback: if request is from localhost desktop mode, allow
-    if os.environ.get("FAB_DESKTOP") == "1" and request.client and request.client.host in ("127.0.0.1", "localhost"):
-        return
-    raise ValueError("CSRF token invalide.")
 
 
 async def verify_csrf_token(request: Request):
@@ -298,7 +285,7 @@ def load_user_from_session(request: Request):
         user = dict(user_row) if user_row else None
     except Exception:
         user = None
-    if not user or not int(user.get("is_active", 1) or 0):
+    if not user or not bool(user.get("is_active", 1)):
         request.session.clear()
         return None
     return user

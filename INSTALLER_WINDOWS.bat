@@ -30,7 +30,7 @@ echo        [OK] Python opérationnel.
 rem 2. Génération automatique du fichier de configuration .env si absent
 echo [2/5] Configuration du fichier d'environnement .env...
 if not exist ".env" (
-    %PY_CMD% -c "import secrets,random; pin=f'{random.randint(1000,9999):04d}'; print('FASTAPI_ENV=production\nDATABASE_URL=sqlite:///./fabouanes.db\nSECRET_KEY=' + secrets.token_hex(32) + '\nFAB_HOST=0.0.0.0\nFAB_PORT=5000\nFAB_HTTPS=0\nDEFAULT_ADMIN_USERNAME=admin\nDEFAULT_ADMIN_PASSWORD=' + pin + '\nFAB_PASSWORD_MODE=pin')" > .env
+    %PY_CMD% -c "import secrets,random; pin=f'{random.randint(1000,9999):04d}'; print('FASTAPI_ENV=production\nDATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/fabouanes\nSECRET_KEY=' + secrets.token_hex(32) + '\nFAB_HOST=0.0.0.0\nFAB_PORT=5000\nFAB_HTTPS=0\nDEFAULT_ADMIN_USERNAME=admin\nDEFAULT_ADMIN_PASSWORD=' + pin + '\nFAB_PASSWORD_MODE=pin')" > .env
     for /f "tokens=2 delims==" %%A in ('findstr "DEFAULT_ADMIN_PASSWORD" .env') do (
         echo        [NOTE] Code PIN Administrateur généré : %%A
     )

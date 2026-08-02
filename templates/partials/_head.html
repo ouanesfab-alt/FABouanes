@@ -1,3 +1,18 @@
+<script nonce="{{ csp_nonce }}">
+  (function() {
+    try {
+      var t = localStorage.getItem('fab_theme') || 'light';
+      if (t === 'auto') t = 'light';
+      document.documentElement.setAttribute('data-theme', t);
+      var f = localStorage.getItem('fab_font') || 'system';
+      document.documentElement.setAttribute('data-font', f);
+      var n = localStorage.getItem('fab_nav_layout') || 'horizontal';
+      document.documentElement.setAttribute('data-nav', n);
+      var h = localStorage.getItem('fab_nav_hidden') || '0';
+      document.documentElement.setAttribute('data-nav-hidden', h);
+    } catch(e) {}
+  })();
+</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="{{ csrf_token }}">
@@ -12,6 +27,9 @@
 <title>{{ title or "FABOuanes" }}</title>
 
 <link rel="preload" href="/static/fonts/PlusJakartaSans-0.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="modulepreload" href="{{ url_for('static', filename='js/main.js') }}">
+<link rel="modulepreload" href="{{ url_for('static', filename='js/modules/theme.js') }}">
+<link rel="modulepreload" href="{{ url_for('static', filename='js/modules/api.js') }}">
 
 <link href="{{ url_for('static', filename='css/bootstrap.min.css', v='20260516-local-assets') }}" rel="stylesheet">
 <link href="{{ url_for('static', filename='css/bootstrap-icons.css', v='20260516-local-assets') }}" rel="stylesheet"
@@ -19,7 +37,7 @@
 <noscript>
   <link href="{{ url_for('static', filename='css/bootstrap-icons.css', v='20260516-local-assets') }}" rel="stylesheet">
 </noscript>
-<link href="{{ url_for('static', filename='css/tokens.css', v='20260713-v10') }}" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/components.css', v='20260713-v10') }}" rel="stylesheet">
-<link href="{{ url_for('static', filename='fonts/fonts.css', v='20260517-spotlight') }}" rel="stylesheet">
-<link href="{{ url_for('static', filename='app.css', v='20260713-v13') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/tokens.css', v='20260802-v100') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/components.css', v='20260802-v100') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='fonts/fonts.css', v='20260802-v100') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='app.css', v='20260802-v100') }}" rel="stylesheet">

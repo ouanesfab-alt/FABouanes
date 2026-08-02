@@ -2,20 +2,6 @@
 <html lang="fr" class="{% if is_print_view %}print-route-html{% endif %}">
 
 <head>
-  <script nonce="{{ csp_nonce }}">
-    (function() {
-      try {
-        const theme = localStorage.getItem('fab_theme') || 'light';
-        document.documentElement.setAttribute('data-theme', theme);
-        const font = localStorage.getItem('fab_font') || 'system';
-        document.documentElement.setAttribute('data-font', font);
-        const nav = localStorage.getItem('fab_nav_layout') || 'horizontal';
-        document.documentElement.setAttribute('data-nav', nav);
-        const navHidden = localStorage.getItem('fab_nav_hidden') || '0';
-        document.documentElement.setAttribute('data-nav-hidden', navHidden);
-      } catch (e) {}
-    })();
-  </script>
   {% include 'partials/_head.html' %}
   <style nonce="{{ csp_nonce }}">
     /* Mobile layout: force margins and spacing to prevent navbar overlaps */
@@ -60,6 +46,7 @@
   {% include 'partials/_navbar.html' %}
   {% include 'partials/_drawer.html' %}
   {% include 'partials/_bottom_nav.html' %}
+  {% include 'partials/_shortcuts_modal.html' %}
   {% endif %}
 
   <!-- -- Main Content -- -->

@@ -41,6 +41,45 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     }
                 },
                 {
+                    "name": "explain_profit_decrease",
+                    "description": "Analyse les causes financières et de rentabilité (baisse des ventes, hausse du coût d'achat des matières, augmentation des dépenses) pour expliquer les variations de bénéfices.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "period_days": {
+                                "type": "INTEGER",
+                                "description": "Nombre de jours d'analyse (ex: 30 pour le mois en cours vs précédent)."
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "predict_business_trends",
+                    "description": "Génère des prévisions IA sur les ventes futures, les risques de rupture de stock, les besoins d'achat de réapprovisionnement et la trésorerie.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "target": {
+                                "type": "STRING",
+                                "description": "Type de prévision: 'sales' (ventes futures), 'stock' (rupture de stock), 'cashflow' (trésorerie et dettes) ou 'all' (prévision globale)."
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "detect_anomalies",
+                    "description": "Détecte automatiquement les anomalies de gestion (factures ou doubles paiements suspects, dépenses anormales, comportements débiteurs inhabituels).",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "anomaly_type": {
+                                "type": "STRING",
+                                "description": "Type d'anomalie: 'duplicate_payments', 'abnormal_expenses', 'suspicious_debtors' ou 'all'."
+                            }
+                        }
+                    }
+                },
+                {
                     "name": "execute_write_sql",
                     "description": (
                         "Exécute une seule requête SQL d'écriture (INSERT, UPDATE ou DELETE) "

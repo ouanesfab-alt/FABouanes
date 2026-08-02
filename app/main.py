@@ -8,8 +8,10 @@ import sys
 import time
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from starlette.requests import Request
+
 
 try:
     from prometheus_fastapi_instrumentator import Instrumentator
@@ -58,11 +60,28 @@ if limiter and RateLimitExceeded:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
+
+def _verify_metrics_access(request: Request):
+    client_host = getattr(getattr(request, "client", None), "host", "unknown")
+    if client_host in ("127.0.0.1", "localhost", "::1"):
+        return
+    try:
+        from app.core.permissions import PERMISSION_AUDIT_READ, has_permission
+        from app.core.request_state import get_state_value
+        user = get_state_value("user")
+        if user and has_permission(user, PERMISSION_AUDIT_READ):
+            return
+    except Exception:
+        pass
+    raise HTTPException(status_code=403, detail="Accès refusé aux métriques Prometheus.")
+
+
 if Instrumentator is not None:
     try:
-        Instrumentator().instrument(app).expose(app)
+        Instrumentator().instrument(app).expose(app, include_in_schema=False, dependencies=[Depends(_verify_metrics_access)])
     except Exception as exc:
         logger.warning("Skipped Prometheus instrumentation: %s", exc)
+
 
 # CORS : en mode desktop/local, aucune origine externe n'est autorisée.
 # En mode serveur réseau, définir FAB_CORS_ORIGINS=http://ip:port,https://domaine.com
@@ -71,10 +90,12 @@ _CORS_ORIGINS: list[str] = [
     for o in os.environ.get("FAB_CORS_ORIGINS", "").split(",")
     if o.strip()
 ] or ["http://localhost", "http://127.0.0.1", f"http://127.0.0.1:{settings.port}"]
+if "*" in _CORS_ORIGINS:
+    logger.warning("[SECURITY] CORS origins contain '*' wildcard! Avoid wildcard origins in production environments.")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_CORS_ORIGINS,
-    allow_credentials=bool(os.environ.get("FAB_CORS_ORIGINS", "").strip()),
+    allow_credentials=bool(os.environ.get("FAB_CORS_ORIGINS", "").strip()) and "*" not in _CORS_ORIGINS,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-CSRF-Token", "X-CSRFToken", "X-API-Key"],
 )

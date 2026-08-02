@@ -41,7 +41,8 @@ export function showToast(message, type = 'info') {
     container.style.zIndex = '99999';
     container.style.display = 'flex';
     container.style.flexDirection = 'column';
-    container.style.gap = '10px';
+    container.setAttribute('aria-live', 'polite');
+    container.setAttribute('aria-atomic', 'true');
     document.body.appendChild(container);
   }
 

@@ -75,6 +75,8 @@ def generate_briefing() -> Dict[str, Any]:
                 r = yesterday_summary[0]
                 row = {"ventes_hier": r[0], "achats_hier": r[1], "versements_hier": r[2], "depenses_hier": r[3]}
 
+            from app.core.helpers import format_dzd
+
             ventes = float(row.get("ventes_hier", 0))
             achats = float(row.get("achats_hier", 0))
             versements = float(row.get("versements_hier", 0))
@@ -83,13 +85,13 @@ def generate_briefing() -> Dict[str, Any]:
             if any([ventes, achats, versements, depenses]):
                 items = []
                 if ventes > 0:
-                    items.append(f"💰 Ventes : **{ventes:,.0f} DA**")
+                    items.append(f"💰 Ventes : **{format_dzd(ventes)}**")
                 if achats > 0:
-                    items.append(f"📦 Achats : **{achats:,.0f} DA**")
+                    items.append(f"📦 Achats : **{format_dzd(achats)}**")
                 if versements > 0:
-                    items.append(f"💵 Versements reçus : **{versements:,.0f} DA**")
+                    items.append(f"💵 Versements reçus : **{format_dzd(versements)}**")
                 if depenses > 0:
-                    items.append(f"📊 Dépenses : **{depenses:,.0f} DA**")
+                    items.append(f"📊 Dépenses : **{format_dzd(depenses)}**")
 
                 sections.append({
                     "title": "📋 Bilan d'hier",
@@ -114,6 +116,8 @@ def generate_briefing() -> Dict[str, Any]:
                 r = month_summary[0]
                 row = {"ca_mois": r[0], "benefice_mois": r[1]}
 
+            from app.core.helpers import format_dzd
+
             ca = float(row.get("ca_mois", 0))
             benefice = float(row.get("benefice_mois", 0))
 
@@ -121,8 +125,8 @@ def generate_briefing() -> Dict[str, Any]:
                 sections.append({
                     "title": "📈 Ce mois-ci",
                     "items": [
-                        f"Chiffre d'affaires : **{ca:,.0f} DA**",
-                        f"Bénéfice : **{benefice:,.0f} DA**"
+                        f"Chiffre d'affaires : **{format_dzd(ca)}**",
+                        f"Bénéfice : **{format_dzd(benefice)}**"
                     ],
                     "priority": "medium"
                 })
@@ -140,13 +144,14 @@ def generate_briefing() -> Dict[str, Any]:
         """)
 
         if top_debtors:
+            from app.core.helpers import format_dzd
             items = []
             for r in top_debtors:
                 try:
                     row = dict(r)
                 except Exception:
                     row = {"name": r[0], "current_balance": r[1]}
-                items.append(f"👤 {row['name']} — **{float(row['current_balance']):,.0f} DA**")
+                items.append(f"👤 {row['name']} — **{format_dzd(row['current_balance'])}**")
 
             sections.append({
                 "title": "💳 Principaux débiteurs",

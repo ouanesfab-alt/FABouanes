@@ -23,6 +23,88 @@
   --side-nav-w: 240px;
 }
 
+html, body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Zero Cumulative Layout Shift (CLS) Layout Stability Engine ── */
+.app-content {
+  min-height: calc(100vh - 70px);
+  contain-intrinsic-size: 1000px;
+}
+
+.table-responsive {
+  min-height: 140px;
+}
+
+.card, .stat-card, .fab-card, .panel {
+  contain: layout style;
+}
+
+img, svg, video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ── Sharp & Crisp Display Engine ── */
+svg, img, canvas {
+  shape-rendering: geometricPrecision;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+
+.card, .table, .modal-content, .dropdown-menu, input, select, textarea {
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .table,
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .dropdown-menu,
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* ── Premium iOS / macOS Design System Enhancements ── */
+.ios-card, .mac-panel {
+  border-radius: 16px !important;
+  background: rgba(255, 255, 255, 0.76) !important;
+  backdrop-filter: blur(24px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.6), 0 10px 30px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  transition: transform 0.3s var(--mac-spring, cubic-bezier(0.23, 1, 0.32, 1)), box-shadow 0.3s ease !important;
+}
+
+[data-theme="dark"] .ios-card,
+[data-theme="dark"] .mac-panel {
+  background: rgba(18, 26, 44, 0.68) !important;
+  border: 1px solid rgba(255, 255, 255, 0.11) !important;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12), 0 12px 36px rgba(0, 0, 0, 0.45) !important;
+}
+
+.ios-card:hover, .mac-panel:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.7), 0 18px 42px rgba(0, 0, 0, 0.12) !important;
+}
+
+.mac-pill, .mac-badge {
+  border-radius: 20px !important;
+  padding: 4px 12px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
 html[data-font="jakarta"] {
   --font-main: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -31,12 +113,27 @@ html[data-font="arial"] {
   --font-main: Arial, Helvetica, sans-serif;
 }
 
-html[data-font="calibri"] {
-  --font-main: Calibri, Candara, "Segoe UI", system-ui, sans-serif;
+html[data-font="segoe"] {
+  --font-main: "Segoe UI", Tahoma, Geneva, Verdana, system-ui, sans-serif;
 }
 
 html[data-font="system"] {
   --font-main: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* ── UI Preferences Active Selector Styling ── */
+.js-font, .js-theme, .js-nav-layout {
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.js-font.active, .js-theme.active, .js-nav-layout.active {
+  background: var(--accent) !important;
+  color: var(--text-on-accent, #ffffff) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 4px 14px rgba(0, 122, 255, 0.32);
+  transform: translateY(-1px);
 }
 
 [data-theme="dark"] {
@@ -7935,4 +8032,233 @@ body::before {
     width: 32px !important;
     height: 32px !important;
   }
+}
+
+/* ── Option 2: Style Navbar Pilules Classiques ── */
+.app-navbar .nav-links a,
+.app-navbar .nav-link-menu,
+.app-navbar .nav-btn {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 20px !important;
+  padding: 6px 14px !important;
+  font-size: 0.88rem !important;
+  font-weight: 500 !important;
+  color: var(--text, #ffffff) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: all 0.2s ease !important;
+}
+
+.app-navbar .nav-links a:hover,
+.app-navbar .nav-link-menu:hover,
+.app-navbar .nav-btn:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.app-navbar .nav-links a.active,
+.app-navbar .nav-link-menu.active,
+.app-navbar .nav-btn.active {
+  background: var(--accent, #007AFF) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  border-radius: 20px !important;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3) !important;
+}
+
+/* ── Global Ultra-Premium Design Polish Package ── */
+
+/* 1. Global Cards & Panels Polish (Zero Jump/Shift on Page Load) */
+.card, .stat-card, .fab-card, .panel {
+  border-radius: 14px;
+  transition: none;
+}
+
+.card:hover, .stat-card:hover, .fab-card:hover, .panel:hover {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .card:hover,
+[data-theme="dark"] .stat-card:hover,
+[data-theme="dark"] .fab-card:hover,
+[data-theme="dark"] .panel:hover {
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* 2. Global Buttons & Action Controls */
+.btn-primary, .btn-success, .btn-danger, .btn-warning, .btn-info {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border-radius: 10px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #007AFF 0%, #0056b3 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 122, 255, 0.45) !important;
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* 3. Form Controls & Select Inputs */
+.form-control, .form-select {
+  border-radius: 10px;
+  font-size: 0.92rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: var(--accent, #007AFF) !important;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.22) !important;
+}
+
+/* 4. Tables & Data Grids */
+.table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.table th {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 12px 16px;
+}
+
+.table td {
+  padding: 12px 16px;
+  vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(0, 122, 255, 0.04) !important;
+}
+
+[data-theme="dark"] .table-hover tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 5. Modals & Dialog Windows */
+.modal-content {
+  border-radius: 16px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .modal-content {
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* ── 6. Rich Color Badges & Vibrant Icon Containers ── */
+.icon-shape, .stat-icon, .badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  font-size: 1.2rem;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.icon-shape.primary {
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.15) 0%, rgba(0, 86, 179, 0.25) 100%);
+  color: #007AFF;
+  border: 1px solid rgba(0, 122, 255, 0.3);
+}
+
+.icon-shape.success {
+  background: linear-gradient(135deg, rgba(52, 199, 89, 0.15) 0%, rgba(40, 167, 69, 0.25) 100%);
+  color: #34C759;
+  border: 1px solid rgba(52, 199, 89, 0.3);
+}
+
+.icon-shape.warning {
+  background: linear-gradient(135deg, rgba(255, 149, 0, 0.15) 0%, rgba(217, 119, 6, 0.25) 100%);
+  color: #FF9500;
+  border: 1px solid rgba(255, 149, 0, 0.3);
+}
+
+.icon-shape.danger {
+  background: linear-gradient(135deg, rgba(255, 59, 48, 0.15) 0%, rgba(220, 38, 38, 0.25) 100%);
+  color: #FF3B30;
+  border: 1px solid rgba(255, 59, 48, 0.3);
+}
+
+.icon-shape:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* ── 7. macOS Sleek Overlay Scrollbars ── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  background-clip: content-box;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.45);
+  background-clip: content-box;
+}
+
+/* ── 8. Skeleton Shimmer & Pulse Glow Animations ── */
+@keyframes fab-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
+  background-size: 200% 100%;
+  animation: fab-shimmer 1.8s infinite linear;
+}
+
+@keyframes fab-pulse-glow {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.04); opacity: 0.85; }
+}
+
+.glow-pulse {
+  animation: fab-pulse-glow 2.5s infinite ease-in-out;
 }

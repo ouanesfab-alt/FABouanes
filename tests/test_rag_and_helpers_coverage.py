@@ -1,7 +1,6 @@
 """
 test_rag_and_helpers_coverage.py — Tests targeting RAG, PDF indexing, and DB fallback logic.
 """
-import os
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -9,9 +8,7 @@ from unittest.mock import MagicMock, patch
 from app.modules.assistant.rag import (
     search_vector_manual,
     get_pdf_text_chunks,
-    update_pdf_index,
-    get_embedding,
-    INDEX_FILE
+    update_pdf_index
 )
 from app.core.db_helpers.manager import DatabaseManager
 

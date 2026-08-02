@@ -10,6 +10,7 @@ import { initOfflineSync } from './offline-sync.js';
 import { initRippleModule } from './modules/ripple.js';
 import { initAudioModule } from './modules/audio.js';
 import { initShortcutsModule } from './modules/shortcuts.js';
+import { initInstantNavModule } from './modules/instantNav.js';
 
 // Bind functions to window for backward compatibility with inline HTML events
 window.openInvoice = openInvoice;
@@ -31,5 +32,7 @@ initRippleModule();
 initAudioModule();
 // Raccourcis clavier optimisés pour Windows Desktop (Ctrl+K, Ctrl+N, Ctrl+B, etc.)
 initShortcutsModule();
+// Navigation SPA Turbo Instantanée (Zéro rechargement complet de page, basculement ultra-rapide)
+initInstantNavModule();
 
 

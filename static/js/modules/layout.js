@@ -87,28 +87,72 @@ export function initLayoutModule() {
   const close = document.getElementById('drawerClose');
   const drawer = document.getElementById('navDrawer');
   const overlay = document.getElementById('navOverlay');
-  if (!btn || !drawer || !overlay) {
-    window.openInvoice = window.openInvoice || openInvoice;
-    return;
+
+  if (btn && drawer && overlay) {
+    let previousOverflow = '';
+    const open = function () { previousOverflow = document.body.style.overflow; drawer.classList.add('open'); overlay.classList.add('open'); document.body.style.overflow = 'hidden'; };
+    const shut = function () { drawer.classList.remove('open'); overlay.classList.remove('open'); document.body.style.overflow = previousOverflow; };
+    btn.addEventListener('click', open);
+    close?.addEventListener('click', shut);
+    overlay.addEventListener('click', shut);
+    document.addEventListener('keydown', function (event) { if (event.key === 'Escape' && drawer.classList.contains('open')) shut(); });
+    drawer.querySelectorAll('a').forEach(function (link) { link.addEventListener('click', shut); });
   }
-  let previousOverflow = '';
-  function open() { previousOverflow = document.body.style.overflow; drawer.classList.add('open'); overlay.classList.add('open'); document.body.style.overflow = 'hidden'; }
-  function shut() { drawer.classList.remove('open'); overlay.classList.remove('open'); document.body.style.overflow = previousOverflow; }
-  btn.addEventListener('click', open);
-  close?.addEventListener('click', shut);
-  overlay.addEventListener('click', shut);
-  document.addEventListener('keydown', function (event) { if (event.key === 'Escape' && drawer.classList.contains('open')) shut(); });
-  drawer.querySelectorAll('[data-drawer-toggle]').forEach(function (toggle) {
+
+  // ── 0. Drawer Submenu Accordions (Mobile & Sidebar Outils Toggle) ──
+  document.addEventListener('click', function (e) {
+    const toggle = e.target.closest('[data-drawer-toggle]');
+    if (!toggle) return;
     const group = toggle.closest('.drawer-group');
     if (!group) return;
-    toggle.addEventListener('click', function (event) {
-      event.preventDefault();
-      const nextOpen = !group.classList.contains('open');
-      group.classList.toggle('open', nextOpen);
-      toggle.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
-    });
+    const nextOpen = !group.classList.contains('open');
+    group.classList.toggle('open', nextOpen);
+    toggle.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
   });
-  drawer.querySelectorAll('a').forEach(function (link) { link.addEventListener('click', shut); });
+
+  // ── 0b. Robust Navbar Dropdown Click Handler (Conflict-free Bootstrap 5 & Fallback) ──
+  document.addEventListener('click', function (e) {
+    const trigger = e.target.closest('[data-bs-toggle="dropdown"], .nav-link-menu');
+    if (!trigger) {
+      if (!e.target.closest('.dropdown')) {
+        document.querySelectorAll('.dropdown.show, .dropdown-menu.show').forEach(function (el) {
+          el.classList.remove('show');
+        });
+      }
+      return;
+    }
+
+    // If Bootstrap 5 is active, let Bootstrap manage the dropdown natively to prevent double-toggling (open/close conflict)
+    if (window.bootstrap && window.bootstrap.Dropdown) {
+      try {
+        const instance = window.bootstrap.Dropdown.getOrCreateInstance(trigger);
+        if (instance) return;
+      } catch (err) {}
+    }
+
+    // Fallback if Bootstrap JS is not loaded or fails
+    const parent = trigger.closest('.dropdown') || trigger.parentElement;
+    if (!parent) return;
+    const menu = parent.querySelector('.dropdown-menu');
+    if (!menu) return;
+
+    const isShown = menu.classList.contains('show') || parent.classList.contains('show');
+
+    document.querySelectorAll('.dropdown.show, .dropdown-menu.show').forEach(function (el) {
+      if (el !== parent && el !== menu) {
+        el.classList.remove('show');
+      }
+    });
+
+    const nextShow = !isShown;
+    parent.classList.toggle('show', nextShow);
+    menu.classList.toggle('show', nextShow);
+    trigger.setAttribute('aria-expanded', nextShow ? 'true' : 'false');
+  });
+
+
+
+
 
   // ── 1. Global Keyboard Shortcuts (Ctrl+K / Cmd+K -> Search, Alt+N -> New Operation) ──
   document.addEventListener('keydown', function (e) {

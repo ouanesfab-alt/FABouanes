@@ -21,5 +21,28 @@
   "background_color": "#16253F",
   "theme_color": "#16253F",
   "display": "standalone",
-  "orientation": "any"
+  "orientation": "any",
+  "shortcuts": [
+    {
+      "name": "Nouvelle Vente",
+      "short_name": "Vente",
+      "description": "Créer rapidement une nouvelle facture ou vente",
+      "url": "/sales/new",
+      "icons": [{ "src": "/static/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Catalogue Produits",
+      "short_name": "Catalogue",
+      "description": "Consulter les articles et stocks",
+      "url": "/catalog",
+      "icons": [{ "src": "/static/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Assistant IA Sabrina",
+      "short_name": "Sabrina",
+      "description": "Poser une question à l'assistant IA",
+      "url": "/assistant",
+      "icons": [{ "src": "/static/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
 }

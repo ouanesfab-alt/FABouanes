@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.audit import start_audit_worker, stop_audit_worker
-from app.core.config import settings, validate_single_worker_runtime
+from app.core.config import settings, validate_security_runtime, validate_single_worker_runtime
 from app.core.database import bootstrap_and_migrate
 from app.core.db_helpers import execute_db
 from app.core.logging import configure_logging
@@ -20,6 +20,7 @@ logger = logging.getLogger("fabouanes")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     validate_single_worker_runtime()
+    validate_security_runtime()
     ensure_runtime_dirs()
     configure_logging()
     start_audit_worker()
@@ -65,7 +66,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("Erreur au démarrage du service WebSockets: %s", e)
 
-    # Pre-load critical dashboard data asynchronously in background so Uvicorn serves requests instantly
+    # Pre-load entire application into RAM (Static Assets, Jinja2 Templates, and Data Caches)
+    try:
+        from app.core.middleware import preload_static_files
+        from app.core.runtime_paths import paths
+        static_count = preload_static_files(paths.static_dir)
+        logger.info("RAM Static Cache: %d assets loaded into memory.", static_count)
+    except Exception as e:
+        logger.warning("Erreur préchargement des fichiers statiques en RAM: %s", e)
+
+    try:
+        from app.web.deps import preload_templates
+        template_count = preload_templates()
+        logger.info("RAM Template Cache: %d templates pre-compiled into memory.", template_count)
+    except Exception as e:
+        logger.warning("Erreur pré-compilation des templates HTML en RAM: %s", e)
+
+    # Pre-load critical dashboard data asynchronously in background
     try:
         from app.core.perf_cache import warm_cache
         asyncio.create_task(warm_cache())

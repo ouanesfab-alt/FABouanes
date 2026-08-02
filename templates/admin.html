@@ -469,6 +469,9 @@
             <li class="nav-item" role="presentation">
               <button class="nav-link py-1" id="sys-errors-tab" data-bs-toggle="tab" data-bs-target="#sys-errors" type="button" role="tab">Erreurs</button>
             </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link py-1" id="sys-security-tab" data-bs-toggle="tab" data-bs-target="#sys-security" type="button" role="tab"><i class="bi bi-shield-lock me-1"></i>Sécurité</button>
+            </li>
           </ul>
 
           <div class="tab-content" id="sysTabContent">
@@ -534,6 +537,27 @@
                 </table>
               </div>
             </div>
+
+            <!-- Tab 4: Journal de Sécurité & Connexions -->
+            <div class="tab-pane fade" id="sys-security" role="tabpanel">
+              <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                <table class="table table-sm table-hover align-middle" style="font-size:0.8rem;">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Horodatage</th>
+                      <th>Événement</th>
+                      <th>Utilisateur / IP</th>
+                      <th>Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sysSecurityTableBody">
+                    <tr>
+                      <td colspan="4" class="text-center text-muted py-3">Aucun événement de sécurité suspect récent.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -565,7 +589,7 @@
         <div class="d-flex flex-wrap gap-2">
           <button class="btn btn-outline-secondary js-font d-flex align-items-center gap-2" type="button" data-font="jakarta" style="min-width:140px;"><i class="bi bi-type"></i> Plus Jakarta</button>
           <button class="btn btn-outline-secondary js-font d-flex align-items-center gap-2" type="button" data-font="arial" style="min-width:140px;"><i class="bi bi-type"></i> Arial</button>
-          <button class="btn btn-outline-secondary js-font d-flex align-items-center gap-2" type="button" data-font="calibri" style="min-width:140px;"><i class="bi bi-type"></i> Calibri</button>
+          <button class="btn btn-outline-secondary js-font d-flex align-items-center gap-2" type="button" data-font="segoe" style="min-width:140px;"><i class="bi bi-type"></i> Segoe UI</button>
           <button class="btn btn-outline-secondary js-font d-flex align-items-center gap-2" type="button" data-font="system" style="min-width:140px;"><i class="bi bi-type"></i> Système</button>
         </div>
       </div>

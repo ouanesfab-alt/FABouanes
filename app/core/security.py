@@ -76,7 +76,8 @@ def security_headers(response):
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-    response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(self), camera=()")
+    response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(self), camera=(), payment=()")
+    response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin-allow-popups")
 
     # En mode desktop (WebView2), désactiver tout cache disque pour éviter
     # que WebView2 serve d'anciennes versions des pages et CSS entre navigations.
@@ -98,17 +99,20 @@ def security_headers(response):
             f"font-src 'self' https://fonts.gstatic.com; "
             f"img-src 'self' data: blob:; "
             f"media-src 'self' blob: data:; "
-            f"connect-src 'self';"
+            f"connect-src 'self' ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com;"
         )
     else:
+        # Relaxed CSP: use nonce when available for better security than unsafe-inline
+        script_src = f"'nonce-{nonce}'" if nonce else "'unsafe-inline'"
+        style_src = f"'nonce-{nonce}'" if nonce else "'unsafe-inline'"
         csp = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-            "font-src 'self' https://fonts.gstatic.com; "
-            "img-src 'self' data: blob:; "
-            "media-src 'self' blob: data:; "
-            "connect-src 'self';"
+            f"default-src 'self'; "
+            f"script-src 'self' {script_src} 'unsafe-inline'; "
+            f"style-src 'self' {style_src} 'unsafe-inline' https://fonts.googleapis.com; "
+            f"font-src 'self' https://fonts.gstatic.com; "
+            f"img-src 'self' data: blob:; "
+            f"media-src 'self' blob: data:; "
+            f"connect-src 'self' ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com;"
         )
     response.headers["Content-Security-Policy"] = csp
     return response

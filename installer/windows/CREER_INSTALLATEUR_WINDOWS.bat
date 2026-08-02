@@ -24,7 +24,7 @@ if not exist ".env" (
 rem 2. Autocréation du raccourci Bureau Windows
 echo.
 echo  [2/3] Création du raccourci officiel sur le Bureau Windows...
-powershell -Command "`$w = New-Object -ComObject WScript.Shell; `$s = `$w.CreateShortcut([System.IO.Path]::Combine([Environment]::GetFolderPath('Desktop'), 'FABOuanes.lnk')); `$s.TargetPath = '%cd%\LANCER.bat'; `$s.WorkingDirectory = '%cd%'; `$s.IconLocation = '%cd%\static\FABOuanes_desktop.ico'; `$s.Save()"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$w = New-Object -ComObject WScript.Shell; $desktop = [Environment]::GetFolderPath('Desktop'); $s = $w.CreateShortcut([System.IO.Path]::Combine($desktop, 'FABOuanes.lnk')); $s.TargetPath = '%cd%\LANCER.bat'; $s.WorkingDirectory = '%cd%'; $s.IconLocation = '%cd%\static\FABOuanes_desktop.ico'; $s.Save()" >nul 2>&1
 if not errorlevel 1 (
     echo        [OK] Raccourci 'FABOuanes' créé sur le Bureau Windows.
 ) else (

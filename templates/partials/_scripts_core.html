@@ -30,16 +30,23 @@
       }
     }
 
-    // Auto-resize textareas to fit content dynamically
+    // Auto-resize textareas to fit content dynamically without page load layout shift
     const autoResizeTextarea = (el) => {
-      el.style.height = 'auto';
-      el.style.height = el.scrollHeight + 'px';
+      if (el.scrollHeight > 0) {
+        el.style.height = el.scrollHeight + 'px';
+      }
     };
     document.querySelectorAll('textarea').forEach(tx => {
       tx.style.overflowY = 'hidden';
-      setTimeout(() => autoResizeTextarea(tx), 50);
-      tx.addEventListener('input', () => autoResizeTextarea(tx));
-      tx.addEventListener('focus', () => autoResizeTextarea(tx));
+      autoResizeTextarea(tx);
+      tx.addEventListener('input', () => {
+        tx.style.height = 'auto';
+        tx.style.height = tx.scrollHeight + 'px';
+      });
+      tx.addEventListener('focus', () => {
+        tx.style.height = 'auto';
+        tx.style.height = tx.scrollHeight + 'px';
+      });
     });
 
     // Floating labels select fix

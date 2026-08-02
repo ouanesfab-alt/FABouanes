@@ -277,7 +277,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .title-premium {
   border: 0.5px solid var(--separator) !important;
   background: var(--glass-thick) !important;
   color: var(--text) !important;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 .pagination .page-item.active .page-link {
   background: var(--accent) !important;
@@ -321,8 +321,8 @@ h1, h2, h3, h4, h5, h6, .brand-title, .title-premium {
 /* --- Shared KPI Card Styles (Liquid Glass Enhanced) --- */
 .dashboard-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
 .dashboard-kpis > * { min-width: 0; }
-.kpi-card { position: relative; overflow: hidden; border: 1px solid var(--glass-border)!important; border-radius: 18px!important; padding: 22px; min-height: 190px; background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.01) 100%), var(--card)!important; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: var(--shadow-glass)!important; cursor: pointer; transition: all .35s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; align-items: flex-start; gap: 0; }
-.kpi-card:hover { transform: translateY(-5px) scale(1.01); box-shadow: 0 14px 36px rgba(0, 122, 255, 0.14), var(--shadow-glass-hover)!important; border-color: rgba(0, 122, 255, 0.35)!important; }
+.kpi-card { position: relative; overflow: hidden; border: 1px solid var(--glass-border)!important; border-radius: 18px!important; padding: 22px; min-height: 190px; background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.01) 100%), var(--card)!important; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: var(--shadow-glass)!important; cursor: pointer; transition: none; display: flex; flex-direction: column; align-items: flex-start; gap: 0; }
+.kpi-card:hover { transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease !important; transform: translateY(-5px) scale(1.01); box-shadow: 0 14px 36px rgba(0, 122, 255, 0.14), var(--shadow-glass-hover)!important; border-color: rgba(0, 122, 255, 0.35)!important; }
 .kpi-card::before { content: ''; position: absolute; right: -40px; top: -40px; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, rgba(37, 99, 235, 0.12), transparent 70%); transition: transform 0.4s ease, opacity 0.4s ease; opacity: 0.8; }
 .kpi-card:hover::before { transform: scale(1.25); opacity: 1; }
 .kpi-card.green::before { background: radial-gradient(circle, rgba(34, 197, 94, 0.14), transparent 70%); }
@@ -470,7 +470,7 @@ body.kpi-modal-open { overflow: hidden; }
   color: #fff !important;
   border: none !important;
   box-shadow: 0 4px 12px rgba(124, 45, 18, 0.3) !important;
-  transition: all 0.2s ease !important;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease !important;
 }
 .btn-brown:hover {
   background: linear-gradient(135deg, #9a3412, #b45309) !important;
@@ -579,7 +579,7 @@ html, body {
   color: var(--text-secondary) !important;
   border: none !important;
   background: transparent !important;
-  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  transition: background 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
 }
 .fab-switch-btn.is-active, .fab-switch-btn[aria-pressed="true"] {
   background: #FFFFFF !important;
@@ -639,7 +639,7 @@ html, body {
   font-size: 0.72rem !important;
   background: rgba(0, 0, 0, 0.05) !important;
   border: 1px solid rgba(0, 0, 0, 0.06) !important;
-  transition: all 0.2s ease !important;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease !important;
 }
 [data-theme="dark"] .kpi-date-badge {
   background: rgba(255, 255, 255, 0.08) !important;
@@ -703,11 +703,68 @@ html, body {
   flex-shrink: 0 !important;
 }
 
-.app-navbar .nav-links {
-  flex-wrap: nowrap !important;
+/* ── Ultra-Modern Navbar Buttons & Links ── */
+.app-navbar .nav-links a,
+.app-navbar .nav-link-menu,
+.app-navbar .nav-btn {
+  border-radius: 10px !important;
+  padding: 6px 13px !important;
+  font-weight: 500 !important;
+  transition: background 0.22s cubic-bezier(0.4, 0, 0.2, 1), color 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1), transform 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: inline-flex !important;
+  align-items: center !important;
   gap: 6px !important;
-  overflow: hidden !important;
 }
+
+.app-navbar .nav-links a:hover,
+.app-navbar .nav-link-menu:hover,
+.app-navbar .nav-btn:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  transform: translateY(-1px) !important;
+}
+
+.app-navbar .nav-links a.active,
+.app-navbar .nav-link-menu.active,
+.app-navbar .nav-btn.active {
+  background: var(--accent, #007AFF) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.35) !important;
+}
+
+/* ── 9. Universal Dropdown & Popup Overflow Safety Rules ── */
+.dropdown,
+.dropdown-center,
+.dropup,
+.dropend,
+.dropstart,
+.app-navbar,
+.app-navbar .nav-inner,
+.app-navbar .nav-links,
+.app-navbar .nav-actions,
+.page-header,
+.page-actions,
+.toolbar {
+  overflow: visible !important;
+}
+
+.dropdown-menu {
+  z-index: 999999 !important;
+  margin-top: 6px !important;
+}
+
+.app-navbar .dropdown.show > .dropdown-menu,
+.app-navbar .dropdown-menu.show,
+.dropdown.show > .dropdown-menu,
+.dropdown-menu.show,
+[data-bs-toggle="dropdown"].show + .dropdown-menu {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+
+
 
 .app-navbar .nav-btn {
   white-space: nowrap !important;
@@ -720,6 +777,47 @@ html, body {
   .app-navbar .nav-clock {
     display: none !important;
   }
+}
+
+/* ── 10. Optimized Print Styles ── */
+@media print {
+  .app-navbar,
+  .app-sidebar,
+  .app-drawer,
+  .app-bottom-nav,
+  .toast-container,
+  .toast-container-app,
+  .page-actions,
+  .no-print,
+  button:not(.print-keep),
+  .btn:not(.print-keep) {
+    display: none !important;
+  }
+
+  body, .app-content, main {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  th, td {
+    border: 1px solid #ddd !important;
+    padding: 8px !important;
+  }
+
+  .card, .panel {
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+}
   .app-navbar .nav-kbd {
     display: none !important;
   }
@@ -733,7 +831,7 @@ html, body {
 
 /* ── Ultra-Premium Sabrina AI & KPI Glow Enhancements ── */
 .sabrina-input-box, #aiInput, .search-modal {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .sabrina-input-box:focus-within, #aiInput:focus {

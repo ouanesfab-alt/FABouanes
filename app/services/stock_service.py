@@ -13,6 +13,8 @@ from app.core.exceptions import NotFoundError, ValidationError
 from app.core.helpers import async_compat
 from app.core.request_state import get_state_value
 
+logger = logging.getLogger("fabouanes")
+
 OTHER_OPERATION_NAME = "AUTRE"
 OTHER_OPERATION_UNIT = "unite"
 

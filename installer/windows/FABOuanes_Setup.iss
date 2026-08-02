@@ -13,7 +13,7 @@ AppId={{9C83D15A-8D36-4B64-96C4-FAB0UANES001}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-AppPublisherURL=https://fabouanes.local
+AppPublisherURL=https://github.com/ouanesfab-alt/FABouanes
 AppMutex=FABOuanesRunningInstanceMutex
 DefaultDirName={localappdata}\Programs\{#MyAppName}
 DefaultGroupName={#MyAppName}
@@ -22,22 +22,20 @@ OutputBaseFilename=FABOuanes_Setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-WizardResizable=yes
 WizardSizePercent=125,125
 ArchitecturesInstallIn64BitMode=x64compatible
+MinVersion=10.0.17763
 PrivilegesRequired=lowest
 UsePreviousAppDir=yes
 DisableProgramGroupPage=yes
 SetupIconFile=..\..\static\FABOuanes.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
-LicenseFile=
-InfoBeforeFile=
 
 [Languages]
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Creer une icone sur le bureau"; GroupDescription: "Raccourcis supplementaires :"; Flags: checked
+Name: "desktopicon"; Description: "Creer une icone sur le bureau"; GroupDescription: "Raccourcis supplementaires :"
 
 [Dirs]
 Name: "{localappdata}\{#MyAppName}"
@@ -173,34 +171,75 @@ begin
   end;
 end;
 
+var
+  InCardClick: Boolean;
+
 procedure PgLocalCardClick(Sender: TObject);
 begin
-  RadioPgLocal.Checked := True;
-  UpdateDbCardStates();
+  if InCardClick then Exit;
+  InCardClick := True;
+  try
+    RadioPgLocal.Checked := True;
+    RadioPgServer.Checked := False;
+    UpdateDbCardStates();
+  finally
+    InCardClick := False;
+  end;
 end;
 
 procedure PgServerCardClick(Sender: TObject);
 begin
-  RadioPgServer.Checked := True;
-  UpdateDbCardStates();
+  if InCardClick then Exit;
+  InCardClick := True;
+  try
+    RadioPgLocal.Checked := False;
+    RadioPgServer.Checked := True;
+    UpdateDbCardStates();
+  finally
+    InCardClick := False;
+  end;
 end;
 
 procedure AiGeminiCardClick(Sender: TObject);
 begin
-  RadioAiGemini.Checked := True;
-  UpdateAiCardStates();
+  if InCardClick then Exit;
+  InCardClick := True;
+  try
+    RadioAiGemini.Checked := True;
+    RadioAiOllama.Checked := False;
+    RadioAiBoth.Checked := False;
+    UpdateAiCardStates();
+  finally
+    InCardClick := False;
+  end;
 end;
 
 procedure AiOllamaCardClick(Sender: TObject);
 begin
-  RadioAiOllama.Checked := True;
-  UpdateAiCardStates();
+  if InCardClick then Exit;
+  InCardClick := True;
+  try
+    RadioAiGemini.Checked := False;
+    RadioAiOllama.Checked := True;
+    RadioAiBoth.Checked := False;
+    UpdateAiCardStates();
+  finally
+    InCardClick := False;
+  end;
 end;
 
 procedure AiBothCardClick(Sender: TObject);
 begin
-  RadioAiBoth.Checked := True;
-  UpdateAiCardStates();
+  if InCardClick then Exit;
+  InCardClick := True;
+  try
+    RadioAiGemini.Checked := False;
+    RadioAiOllama.Checked := False;
+    RadioAiBoth.Checked := True;
+    UpdateAiCardStates();
+  finally
+    InCardClick := False;
+  end;
 end;
 
 function GetDbChoice(): Integer;
@@ -467,6 +506,101 @@ begin
 end;
 
 
+// ---- Win32 Cryptographic PRNG functions ----
+function CryptAcquireContext(var hProv: THandle; pszContainer: String; pszProvider: String; dwProvType: DWORD; dwFlags: DWORD): Boolean;
+external 'CryptAcquireContextW@advapi32.dll stdcall';
+
+function CryptGenRandom(hProv: THandle; dwLen: DWORD; pbBuffer: String): Boolean;
+external 'CryptGenRandom@advapi32.dll stdcall';
+
+function CryptReleaseContext(hProv: THandle; dwFlags: DWORD): Boolean;
+external 'CryptReleaseContext@advapi32.dll stdcall';
+
+const
+  PROV_RSA_FULL = 1;
+  CRYPT_VERIFYCONTEXT = $F0000000;
+
+function GenerateCryptographicRandomHex(ByteLen: Integer): String;
+var
+  hProv: THandle;
+  Buffer: String;
+  I: Integer;
+  HexChar: String;
+  Val: Byte;
+begin
+  Result := '';
+  SetLength(Buffer, ByteLen);
+  if CryptAcquireContext(hProv, '', '', PROV_RSA_FULL, CRYPT_VERIFYCONTEXT) then
+  begin
+    try
+      if CryptGenRandom(hProv, ByteLen, Buffer) then
+      begin
+        for I := 1 to ByteLen do
+        begin
+          Val := Ord(Buffer[I]);
+          HexChar := Format('%.2x', [Val]);
+          Result := Result + LowerCase(HexChar);
+        end;
+      end;
+    finally
+      CryptReleaseContext(hProv, 0);
+    end;
+  end;
+
+  // Fallback if Win32 Crypto API call is unavailable
+  if Length(Result) < (ByteLen * 2) then
+  begin
+    for I := 1 to (ByteLen * 2) do
+      Result := Result + Format('%x', [Random(16)]);
+  end;
+end;
+
+function GenerateSecretKey(): String;
+begin
+  Result := GenerateCryptographicRandomHex(32); // 256 bits = 64 hex characters
+end;
+
+function GenerateSecurePassword(): String;
+begin
+  Result := GenerateCryptographicRandomHex(12); // 24 hex characters
+end;
+
+function UrlEncode(const S: String): String;
+var
+  I: Integer;
+  Ch: Char;
+  Code: Integer;
+begin
+  Result := '';
+  for I := 1 to Length(S) do
+  begin
+    Ch := S[I];
+    Code := Ord(Ch);
+    if ((Code >= 48) and (Code <= 57)) or  // 0-9
+       ((Code >= 65) and (Code <= 90)) or  // A-Z
+       ((Code >= 97) and (Code <= 122)) or // a-z
+       (Ch = '-') or (Ch = '_') or (Ch = '.') or (Ch = '~') then
+      Result := Result + Ch
+    else
+      Result := Result + '%' + Format('%.2x', [Code]);
+  end;
+end;
+
+function IsNumericStr(const S: String): Boolean;
+var
+  I: Integer;
+begin
+  Result := Length(S) > 0;
+  for I := 1 to Length(S) do
+  begin
+    if (S[I] < '0') or (S[I] > '9') then
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
+end;
+
 // ---- Validate PostgreSQL fields ----
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
@@ -477,6 +611,12 @@ begin
     if Trim(EditPgPort.Text) = '' then
     begin
       MsgBox('Le port PostgreSQL est obligatoire.', mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
+    if not IsNumericStr(Trim(EditPgPort.Text)) then
+    begin
+      MsgBox('Le port PostgreSQL doit être un nombre valide (ex: 5432).', mbError, MB_OK);
       Result := False;
       Exit;
     end;
@@ -496,27 +636,12 @@ begin
 end;
 
 
-// ---- Generate a random SECRET_KEY ----
-function GenerateSecretKey(): String;
-var
-  I: Integer;
-  Hex: String;
-  Chars: String;
-begin
-  Chars := '0123456789abcdef';
-  Hex := '';
-  for I := 1 to 64 do
-    Hex := Hex + Chars[Random(16) + 1];
-  Result := Hex;
-end;
-
-
 // ---- Build DATABASE_URL from user input ----
 function BuildDatabaseUrl(): String;
 begin
-  Result := 'postgresql://' + Trim(EditPgUser.Text) + ':' + Trim(EditPgPass.Text)
+  Result := 'postgresql://' + UrlEncode(Trim(EditPgUser.Text)) + ':' + UrlEncode(Trim(EditPgPass.Text))
             + '@127.0.0.1:' + Trim(EditPgPort.Text)
-            + '/' + Trim(EditPgDbName.Text);
+            + '/' + UrlEncode(Trim(EditPgDbName.Text));
 end;
 
 
@@ -580,6 +705,7 @@ begin
      RegKeyExists(HKLM, 'SOFTWARE\PostgreSQL\Services') or
      RegKeyExists(HKLM64, 'SOFTWARE\PostgreSQL\Services') or
      RegKeyExists(HKCU, 'SOFTWARE\PostgreSQL\Installations') or
+     FileExists('C:\Program Files\PostgreSQL\18\bin\postgres.exe') or
      FileExists('C:\Program Files\PostgreSQL\16\bin\postgres.exe') or
      FileExists('C:\Program Files\PostgreSQL\15\bin\postgres.exe') or
      FileExists('C:\Program Files\PostgreSQL\14\bin\postgres.exe') or
@@ -589,6 +715,11 @@ begin
     Exit;
   end;
   
+  if Exec('sc.exe', 'query postgresql-x64-18', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0) then
+  begin
+    Result := True;
+    Exit;
+  end;
   if Exec('sc.exe', 'query postgresql-x64-16', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0) then
   begin
     Result := True;
@@ -608,6 +739,33 @@ begin
   Result := False;
 end;
 
+// ---- Check if Microsoft WebView2 Runtime is installed ----
+function IsWebView2Installed(): Boolean;
+var
+  VersionStr: String;
+begin
+  if RegKeyExists(HKLM, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4470-9A37-2C3D60E91530}') or
+     RegKeyExists(HKLM64, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4470-9A37-2C3D60E91530}') or
+     RegKeyExists(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4470-9A37-2C3D60E91530}') or
+     RegKeyExists(HKLM64, 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4470-9A37-2C3D60E91530}') or
+     RegKeyExists(HKCU, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4470-9A37-2C3D60E91530}') or
+     RegQueryStringValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4470-9A37-2C3D60E91530}', 'pv', VersionStr) or
+     RegQueryStringValue(HKLM64, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4470-9A37-2C3D60E91530}', 'pv', VersionStr) or
+     RegQueryStringValue(HKCU, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4470-9A37-2C3D60E91530}', 'pv', VersionStr) or
+     FileExists('C:\Program Files (x86)\Microsoft\EdgeWebView\Application\msedgewebview2.exe') or
+     FileExists('C:\Program Files\Microsoft\EdgeWebView\Application\msedgewebview2.exe') or
+     FileExists('C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe') or
+     FileExists('C:\Program Files\Microsoft\Edge\Application\msedge.exe') or
+     FileExists(ExpandConstant('{commonpf32}') + '\Microsoft\EdgeWebView\Application\msedgewebview2.exe') or
+     FileExists(ExpandConstant('{commonpf64}') + '\Microsoft\EdgeWebView\Application\msedgewebview2.exe') or
+     FileExists(ExpandConstant('{localappdata}') + '\Microsoft\EdgeWebView\Application\msedgewebview2.exe') then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  Result := False;
+end;
 
 // ---- Automatically download and install PostgreSQL silently ----
 function InstallPostgresAutomatically(Password: String): Boolean;
@@ -619,14 +777,20 @@ var
 begin
   PgPass := Trim(Password);
   if PgPass = '' then
-    PgPass := '0000';
+  begin
+    PgPass := GenerateSecurePassword();
+    EditPgPass.Text := PgPass;
+    MsgBox('Un mot de passe aléatoire sécurisé a été généré pour le super-utilisateur PostgreSQL :' + #13#10 + #13#10 +
+           '    Mot de passe : ' + PgPass + #13#10 + #13#10 +
+           'Ce mot de passe a été enregistré automatiquement dans la configuration (.env).', mbInformation, MB_OK);
+  end;
 
   LocalInstallerPath := ExpandConstant('{tmp}\postgresql_installer.exe');
 
   // If PostgreSQL installer is bundled offline in {tmp}, execute it directly
   if FileExists(LocalInstallerPath) then
   begin
-    WizardForm.StatusLabel.Caption := 'Installation silencieuse de PostgreSQL 16 (embarqué)...';
+    WizardForm.StatusLabel.Caption := 'Installation silencieuse de PostgreSQL 18 (embarqué)...';
     WizardForm.ProgressGauge.Style := npbstMarquee;
 
     Result := Exec(LocalInstallerPath,
@@ -642,21 +806,20 @@ begin
   end;
 
   // Fallback to automatic download if not bundled
-  WizardForm.StatusLabel.Caption := 'Téléchargement de PostgreSQL 16 (environ 300 Mo)...';
+  WizardForm.StatusLabel.Caption := 'Téléchargement de PostgreSQL 18 (environ 300 Mo)...';
   WizardForm.ProgressGauge.Style := npbstMarquee;
 
   PsCommand := '-NoProfile -ExecutionPolicy Bypass -Command "' +
-    'Write-Host ''[FABOuanes] Téléchargement de PostgreSQL 16...''; ' +
+    'Write-Host ''[FABOuanes] Téléchargement de PostgreSQL 18...''; ' +
     '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ' +
     'try { ' +
-    '  Invoke-WebRequest -Uri ''https://get.enterprisedb.com/postgresql/postgresql-16.2-1-windows-x64.exe'' -OutFile ''$env:TEMP\postgresql_installer.exe''; ' +
+    '  Invoke-WebRequest -Uri ''https://get.enterprisedb.com/postgresql/postgresql-18.3-3-windows-x64.exe'' -OutFile ''$env:TEMP\postgresql_installer.exe''; ' +
     '} catch { ' +
     '  Write-Error ''Échec du téléchargement''; ' +
     '  exit 1; ' +
     '} ' +
-    'Write-Host ''[FABOuanes] Installation silencieuse de PostgreSQL...''; ' +
-    'Start-Process -FilePath ''$env:TEMP\postgresql_installer.exe'' -ArgumentList ''--mode unattended --unattendedmodeui none --superpassword ' + PgPass + ' --serverport 5432'' -Wait; ' +
-    'exit 0;' +
+    'Write-Host ''[FABOuanes] Installation silencieuse de PostgreSQL 18...''; ' +
+    'Start-Process -FilePath ''$env:TEMP\postgresql_installer.exe'' -ArgumentList ''--mode unattended --unattendedmodeui none --superpassword ' + PgPass + ' --serverport 5432'' -Wait -PassThru | ForEach-Object { exit $_.ExitCode }; ' +
     '"';
 
   Result := Exec('powershell.exe', PsCommand, '', SW_SHOW, ewWaitUntilTerminated, ResultCode);
@@ -822,6 +985,13 @@ var
 begin
   if CurStep = ssPostInstall then
   begin
+    // Check WebView2 Runtime availability
+    if not IsWebView2Installed() then
+    begin
+      MsgBox('Avertissement : Le composant Microsoft WebView2 Runtime ne semble pas être installé sur cette machine.' + #13#10 +
+             'L''interface graphique desktop utilise WebView2. Si l''application ne s''ouvre pas, veuillez installer WebView2 Runtime depuis le site officiel de Microsoft.', mbInformation, MB_OK);
+    end;
+
     // Check and install PostgreSQL if not present
     if not IsPostgresInstalled() then
     begin
@@ -857,13 +1027,18 @@ begin
     WriteEnvFile();
 
     // Configure PostgreSQL service auto-start and start it if stopped
+    Exec('sc.exe', 'config postgresql-x64-18 start= auto', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('sc.exe', 'start postgresql-x64-18', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
     Exec('sc.exe', 'config postgresql-x64-16 start= auto', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
     Exec('sc.exe', 'start postgresql-x64-16', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
     Exec('sc.exe', 'config postgresql-x64-15 start= auto', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
     Exec('sc.exe', 'start postgresql-x64-15', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 
-    // Configure Windows Firewall rule for local and network access
-    Exec('netsh.exe', 'advfirewall firewall add rule name="FABOuanes ERP Application" dir=in action=allow protocol=TCP localport=5000', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    // Configure Windows Firewall rule ONLY if network server mode chosen
+    if GetDbChoice() = DB_POSTGRES_SERVER then
+    begin
+      Exec('netsh.exe', 'advfirewall firewall add rule name="FABOuanes ERP Application" dir=in action=allow protocol=TCP localport=5000', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    end;
 
 
     // Show what was configured

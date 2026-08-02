@@ -1,14 +1,13 @@
 """
 test_ultra_coverage_98.py — Comprehensive branch coverage test suite.
 """
-import pytest
 from datetime import date, datetime
 from decimal import Decimal
 
-from app.core.db_helpers.manager import DatabaseManager, CompatRow
+from app.core.db_helpers.manager import CompatRow
 from app.modules.assistant.rag import search_manual, normalize_text, SYNONYM_MAP
 from app.modules.assistant.sql_tools import serialize_for_json
-from app.modules.assistant.sql_guard import validate_readonly_sql, validate_write_sql, get_allowed_write_tables
+from app.modules.assistant.sql_guard import validate_readonly_sql, get_allowed_write_tables
 from app.core.permissions import has_permission, PERMISSION_DASHBOARD_READ
 from app.core.helpers import async_compat
 
