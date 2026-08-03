@@ -300,14 +300,26 @@ def start_ollama() -> bool:
         logger.error("Failed to start Ollama process: %s", e)
         return False
 
+_last_ollama_check_time: float = 0.0
+_last_ollama_check_result: bool = False
+
 async def is_ollama_available() -> bool:
-    """Vérifie si le serveur Ollama local est actif."""
+    """Vérifie si le serveur Ollama local est actif (avec cache court de 15s pour réactivité maximale)."""
+    global _last_ollama_check_time, _last_ollama_check_result
+    now = time.time()
+    if now - _last_ollama_check_time < 15.0:
+        return _last_ollama_check_result
+
     try:
         client = get_ollama_client()
-        r = await client.get(f"{OLLAMA_URL}/api/tags", timeout=2.0)
-        return r.status_code == 200
+        r = await client.get(f"{OLLAMA_URL}/api/tags", timeout=0.3)
+        _last_ollama_check_result = (r.status_code == 200)
     except Exception:
-        return False
+        _last_ollama_check_result = False
+
+    _last_ollama_check_time = now
+    return _last_ollama_check_result
+
 
 
 def normalize_args_dict(args: dict | None) -> dict:

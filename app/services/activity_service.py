@@ -183,11 +183,17 @@ def activity_filter_values(filters: Mapping[str, str] | None = None) -> dict[str
     return _filters(filters)
 
 
+from app.core.perf_cache import async_cached_result
+
+
 async def list_activity_actions(db: AsyncSession | None = None) -> list[str]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_activity_actions_impl(session)
-    return await _list_activity_actions_impl(db)
+    async def load():
+        if db is None:
+            async with get_async_sessionmaker()() as session:
+                return await _list_activity_actions_impl(session)
+        return await _list_activity_actions_impl(db)
+
+    return await async_cached_result("activity_actions_list", load, ttl_seconds=60.0)
 
 
 async def _list_activity_actions_impl(db: AsyncSession) -> list[str]:
@@ -196,12 +202,16 @@ async def _list_activity_actions_impl(db: AsyncSession) -> list[str]:
 
 
 async def list_activity_entity_types(db: AsyncSession | None = None) -> list[str]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_activity_entity_types_impl(session)
-    return await _list_activity_entity_types_impl(db)
+    async def load():
+        if db is None:
+            async with get_async_sessionmaker()() as session:
+                return await _list_activity_entity_types_impl(session)
+        return await _list_activity_entity_types_impl(db)
+
+    return await async_cached_result("activity_entity_types_list", load, ttl_seconds=60.0)
 
 
 async def _list_activity_entity_types_impl(db: AsyncSession) -> list[str]:
     res = await db.execute(text("SELECT DISTINCT entity_type FROM activity_logs WHERE COALESCE(entity_type, '') <> '' ORDER BY entity_type"))
     return [str(row.entity_type) for row in res.all() if row.entity_type]
+

@@ -20,12 +20,19 @@ def _ok_status(ok: bool) -> str:
     return "OK" if ok else "Attention"
 
 
+from app.core.perf_cache import async_cached_result
+
+
 @async_compat
 async def get_system_status(db: AsyncSession | None = None) -> dict:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _get_system_status_impl(session)
-    return await _get_system_status_impl(db)
+    async def load():
+        if db is None:
+            async with get_async_sessionmaker()() as session:
+                return await _get_system_status_impl(session)
+        return await _get_system_status_impl(db)
+
+    return await async_cached_result("system_status_cache", load, ttl_seconds=15.0)
+
 
 
 async def _get_system_status_impl(db: AsyncSession) -> dict:
