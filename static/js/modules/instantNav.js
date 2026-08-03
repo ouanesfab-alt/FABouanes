@@ -1,4 +1,4 @@
-// FABOuanes ERP — Instant Native Hover Prefetcher & Random Vibrant Progress Bar Module
+// FABOuanes ERP — Instant Native Hover/Focus/Idle Prefetcher & Vibrant Progress Bar
 
 let progressBar = null;
 
@@ -33,12 +33,12 @@ function getProgressBar() {
   if (!progressBar) {
     progressBar = document.createElement('div');
     progressBar.id = 'instant-nav-bar';
-    progressBar.style.cssText = 'position:fixed;top:0;left:0;height:2.5px;z-index:999999;transition:width 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;width:0%;pointer-events:none;';
+    progressBar.style.cssText = 'position:fixed;top:0;left:0;height:3px;z-index:999999;transition:width 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;width:0%;pointer-events:none;';
 
     if (!document.getElementById('rainbow-nav-style')) {
       const style = document.createElement('style');
       style.id = 'rainbow-nav-style';
-      style.textContent = '@keyframes rainbow-shift { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } } #instant-nav-bar { animation: rainbow-shift 2s infinite linear; }';
+      style.textContent = '@keyframes rainbow-shift { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } } #instant-nav-bar { animation: rainbow-shift 1.5s infinite linear; }';
       document.head.appendChild(style);
     }
 
@@ -47,7 +47,7 @@ function getProgressBar() {
   return progressBar;
 }
 
-function triggerRainbowProgressBar() {
+export function triggerRainbowProgressBar() {
   const bar = getProgressBar();
   const palette = RANDOM_GRADIENTS[Math.floor(Math.random() * RANDOM_GRADIENTS.length)];
 
@@ -56,21 +56,21 @@ function triggerRainbowProgressBar() {
   bar.style.boxShadow = palette.shadow;
 
   bar.style.opacity = '1';
-  bar.style.width = '45%';
+  bar.style.width = '65%';
   setTimeout(() => {
     bar.style.width = '100%';
     setTimeout(() => {
       bar.style.opacity = '0';
       setTimeout(() => {
         bar.style.width = '0%';
-      }, 300);
-    }, 200);
-  }, 100);
+      }, 250);
+    }, 150);
+  }, 80);
 }
 
 const prefetchedUrls = new Set();
 
-function prefetch(url) {
+export function prefetch(url) {
   if (!url || prefetchedUrls.has(url)) return;
   if (url.startsWith('#') || url.startsWith('javascript:')) return;
   if (url.includes('/logout') || url.includes('/print/')) return;
@@ -88,16 +88,31 @@ function prefetch(url) {
   } catch (e) {}
 }
 
-export function initInstantNavModule() {
-  document.addEventListener('mouseover', (e) => {
-    const link = e.target.closest('a');
-    if (link && link.href) prefetch(link.href);
-  }, { passive: true });
+export function prefetchPrimaryRoutes() {
+  const primaryRoutes = [
+    '/sales', '/catalog', '/clients', '/purchases',
+    '/reports', '/expenses', '/production', '/accounting', '/admin'
+  ];
+  primaryRoutes.forEach((route) => prefetch(route));
+}
 
-  document.addEventListener('touchstart', (e) => {
+export function initInstantNavModule() {
+  // Prefetch primary navigation routes during browser idle
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(() => prefetchPrimaryRoutes(), { timeout: 1000 });
+  } else {
+    setTimeout(prefetchPrimaryRoutes, 600);
+  }
+
+  // Mouse / Touch / Focus prefetching
+  const prefetchHandler = (e) => {
     const link = e.target.closest('a');
     if (link && link.href) prefetch(link.href);
-  }, { passive: true });
+  };
+
+  document.addEventListener('mouseover', prefetchHandler, { passive: true });
+  document.addEventListener('touchstart', prefetchHandler, { passive: true });
+  document.addEventListener('focusin', prefetchHandler, { passive: true });
 
   document.addEventListener('click', (e) => {
     const link = e.target.closest('a');
@@ -115,3 +130,4 @@ export function initInstantNavModule() {
     } catch (err) {}
   });
 }
+
