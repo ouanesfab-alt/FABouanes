@@ -35,13 +35,15 @@
       <h2 class="section-title mb-1">Contacts</h2>
       <p class="contacts-summary mb-0">{{ pagination.total }} contact(s) visibles.</p>
     </div>
-    <div class="contacts-actions">
+    <div class="contacts-actions align-items-center">
+      <div class="fab-switcher d-inline-flex gap-1" id="contactsSwitchButtons" data-fab-switch-root>
+        <a href="{{ url_for('contacts', type='all') }}" class="fab-switch-btn js-filter-tab {{ 'is-active' if filter_type=='all' or not filter_type else '' }}"><i class="bi bi-people"></i> Tous</a>
+        <a href="{{ url_for('contacts', type='client') }}" class="fab-switch-btn js-filter-tab {{ 'is-active' if filter_type=='client' else '' }}"><i class="bi bi-person-check"></i> Clients</a>
+        <a href="{{ url_for('contacts', type='supplier') }}" class="fab-switch-btn js-filter-tab {{ 'is-active' if filter_type=='supplier' else '' }}"><i class="bi bi-truck"></i> Fournisseurs</a>
+      </div>
       <a href="{{ url_for('new_contact') }}" class="btn btn-warning">
         <i class="bi bi-plus-lg me-1"></i>Ajouter un contact
       </a>
-      <a href="{{ url_for('contacts', type='all') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='all' else 'btn-outline-secondary' }}">Tous</a>
-      <a href="{{ url_for('contacts', type='client') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='client' else 'btn-outline-secondary' }}">Clients</a>
-      <a href="{{ url_for('contacts', type='supplier') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='supplier' else 'btn-outline-secondary' }}">Fournis.</a>
       <a href="{{ url_for('import_clients_excel') }}" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-excel me-1"></i>Import Excel</a>
     </div>
   </div>
