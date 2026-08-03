@@ -407,12 +407,11 @@ def set_cached(key: tuple[Hashable, ...], value: Any, *, ttl: float = 30.0, doma
 
 
 async def warm_cache() -> None:
-    """Pre-load critical dashboard data into cache at startup.
+    """Pre-load critical dashboard data, activity lists, and system status into RAM cache at startup.
 
-    Eliminates cold-start latency on first request.  Non-critical:
-    if warming fails (e.g. empty DB), the app still works fine.
+    Eliminates cold-start latency on first request for all primary routes.
     """
-    logger.info("Cache warming started …")
+    logger.info("RAM Cache warming started …")
     try:
         from datetime import date
 
@@ -420,11 +419,19 @@ async def warm_cache() -> None:
             get_dashboard_snapshot,
             get_kpis_for_date,
         )
+        from app.services.activity_service import (
+            list_activity_actions,
+            list_activity_entity_types,
+        )
+        from app.services.system_service import get_system_status
 
         today = date.today().isoformat()
         await get_dashboard_snapshot(today)
         await get_kpis_for_date(today)
-        logger.info("Cache warming completed — dashboard snapshot ready (%d entries)", cache_entry_count())
+        await list_activity_actions()
+        await list_activity_entity_types()
+        await get_system_status()
+        logger.info("RAM Cache warming completed — dashboard, activity & system metrics pre-loaded in memory (%d entries)", cache_entry_count())
     except Exception:
         logger.warning("Cache warming failed (non-critical, app will still work)", exc_info=True)
 
