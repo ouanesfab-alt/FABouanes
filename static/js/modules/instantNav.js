@@ -122,7 +122,30 @@ function cleanupPageGlobals() {
     try { window.kpiChartInstance.destroy(); } catch(e) {}
     window.kpiChartInstance = null;
   }
+
+  // Clean up any open Bootstrap Modals & Backdrops
+  try {
+    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+    document.querySelectorAll('.modal.show').forEach(el => {
+      el.classList.remove('show');
+      el.style.display = 'none';
+    });
+    document.body.classList.remove('modal-open', 'kpi-modal-open', 'drawer-open');
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('padding-right');
+  } catch (e) {}
+
+  // Close drawers & overlays
+  try {
+    const kpiOverlay = document.getElementById('kpiSheetOverlay');
+    if (kpiOverlay) kpiOverlay.classList.remove('open');
+    const drawer = document.getElementById('drawer');
+    const drawerOverlay = document.getElementById('drawerOverlay');
+    if (drawer) drawer.classList.remove('open');
+    if (drawerOverlay) drawerOverlay.classList.remove('open');
+  } catch (e) {}
 }
+
 
 async function loadPjaxPage(url, pushState = true) {
   const currentContainer = document.querySelector('.app-content');

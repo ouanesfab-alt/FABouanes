@@ -493,6 +493,8 @@ if (document.readyState === 'loading') {
 } else {
   initReportsCharts();
 }
+document.addEventListener('fab:page-loaded', initReportsCharts);
+
 
 function exportReport(format) {
   const url = new URL(window.location.href);
