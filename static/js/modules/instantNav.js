@@ -135,37 +135,31 @@ async function loadPjaxPage(url, pushState = true) {
       return;
     }
 
-    // Fade out current content slightly for smooth transition
-    currentContainer.style.transition = 'opacity 0.12s ease';
-    currentContainer.style.opacity = '0.4';
+    // Direct, single-frame instant replacement (no double flash)
+    currentContainer.innerHTML = newContainer.innerHTML;
+    currentContainer.style.opacity = '1';
 
-    setTimeout(() => {
-      // Replace inner content
-      currentContainer.innerHTML = newContainer.innerHTML;
-      currentContainer.style.opacity = '1';
+    // Update Document Title
+    if (doc.title) {
+      document.title = doc.title;
+    }
 
-      // Update Document Title
-      if (doc.title) {
-        document.title = doc.title;
-      }
+    // Update PushState URL if requested
+    if (pushState) {
+      window.history.pushState({ pjaxUrl: url }, doc.title || '', url);
+    }
 
-      // Update PushState URL if requested
-      if (pushState) {
-        window.history.pushState({ pjaxUrl: url }, doc.title || '', url);
-      }
+    // Update Navbar Active States
+    updateNavbarActiveLinks(url);
 
-      // Update Navbar Active States
-      updateNavbarActiveLinks(url);
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'instant' });
 
-      // Scroll to top
-      window.scrollTo({ top: 0, behavior: 'instant' });
+    // Execute scripts contained within the new page content
+    executeContainerScripts(currentContainer);
 
-      // Execute scripts contained within the new page content
-      executeContainerScripts(currentContainer);
-
-      // Fire custom page-loaded event for main re-initialization
-      document.dispatchEvent(new CustomEvent('fab:page-loaded', { detail: { url } }));
-    }, 120);
+    // Fire custom page-loaded event for main re-initialization
+    document.dispatchEvent(new CustomEvent('fab:page-loaded', { detail: { url } }));
 
   } catch (err) {
     console.warn('[PJAX] Navigation failed, fallback to standard link:', err);
@@ -194,12 +188,22 @@ function updateNavbarActiveLinks(url) {
 function executeContainerScripts(container) {
   const scripts = Array.from(container.querySelectorAll('script'));
   scripts.forEach(script => {
+    const code = script.innerHTML;
+    if (!code.trim()) return;
+
+    // Transform DOMContentLoaded wrapper to IIFE so it executes immediately ONCE in PJAX context
+    const patchedCode = code.replace(
+      /document\.addEventListener\s*\(\s*['"]DOMContentLoaded['"]\s*,\s*(?:function\s*\([^\)]*\)|`?\([^\)]*\)`?\s*=>)\s*\{/g,
+      '(function(){'
+    );
+
     const newScript = document.createElement('script');
     Array.from(script.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-    newScript.appendChild(document.createTextNode(script.innerHTML));
+    newScript.textContent = patchedCode;
     script.parentNode.replaceChild(newScript, script);
   });
 }
+
 
 export function initInstantNavModule() {
   // Prefetch on hover/touch
