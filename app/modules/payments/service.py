@@ -90,9 +90,9 @@ class PaymentsService:
             sale = res.scalar_one_or_none()
             if not sale:
                 return 0.0
-            paid = min(amount, float(sale.balance_due))
-            sale.balance_due = float(sale.balance_due) - paid
-            sale.amount_paid = float(sale.amount_paid) + paid
+            paid = round(min(amount, float(sale.balance_due or 0.0)), 2)
+            sale.balance_due = round(max(0.0, float(sale.balance_due or 0.0) - paid), 2)
+            sale.amount_paid = round(float(sale.amount_paid or 0.0) + paid, 2)
             self.session.add(sale)
             await self.session.flush()
             if sale.document_id:
@@ -104,9 +104,9 @@ class PaymentsService:
             sale = res.scalar_one_or_none()
             if not sale:
                 return 0.0
-            paid = min(amount, float(sale.balance_due))
-            sale.balance_due = float(sale.balance_due) - paid
-            sale.amount_paid = float(sale.amount_paid) + paid
+            paid = round(min(amount, float(sale.balance_due or 0.0)), 2)
+            sale.balance_due = round(max(0.0, float(sale.balance_due or 0.0) - paid), 2)
+            sale.amount_paid = round(float(sale.amount_paid or 0.0) + paid, 2)
             self.session.add(sale)
             await self.session.flush()
             if sale.document_id:
@@ -133,8 +133,8 @@ class PaymentsService:
                     res = await self.session.execute(stmt)
                     doc_row = res.scalar_one_or_none()
                     if doc_row:
-                        doc_row.amount_paid = float(doc_row.amount_paid) - amount
-                        doc_row.balance_due = float(doc_row.balance_due) + amount
+                        doc_row.amount_paid = round(max(0.0, float(doc_row.amount_paid or 0.0) - amount), 2)
+                        doc_row.balance_due = round(float(doc_row.balance_due or 0.0) + amount, 2)
                         self.session.add(doc_row)
                         await self.session.flush()
                         if doc_row.document_id:
@@ -144,8 +144,8 @@ class PaymentsService:
                     res = await self.session.execute(stmt)
                     doc_row = res.scalar_one_or_none()
                     if doc_row:
-                        doc_row.amount_paid = float(doc_row.amount_paid) - amount
-                        doc_row.balance_due = float(doc_row.balance_due) + amount
+                        doc_row.amount_paid = round(max(0.0, float(doc_row.amount_paid or 0.0) - amount), 2)
+                        doc_row.balance_due = round(float(doc_row.balance_due or 0.0) + amount, 2)
                         self.session.add(doc_row)
                         await self.session.flush()
                         if doc_row.document_id:
@@ -162,8 +162,8 @@ class PaymentsService:
             res = await self.session.execute(stmt)
             doc_row = res.scalar_one_or_none()
             if doc_row:
-                doc_row.amount_paid = float(doc_row.amount_paid) - amount
-                doc_row.balance_due = float(doc_row.balance_due) + amount
+                doc_row.amount_paid = round(max(0.0, float(doc_row.amount_paid or 0.0) - amount), 2)
+                doc_row.balance_due = round(float(doc_row.balance_due or 0.0) + amount, 2)
                 self.session.add(doc_row)
                 await self.session.flush()
                 if doc_row.document_id:
@@ -175,8 +175,8 @@ class PaymentsService:
             res = await self.session.execute(stmt)
             doc_row = res.scalar_one_or_none()
             if doc_row:
-                doc_row.amount_paid = float(doc_row.amount_paid) - amount
-                doc_row.balance_due = float(doc_row.balance_due) + amount
+                doc_row.amount_paid = round(max(0.0, float(doc_row.amount_paid or 0.0) - amount), 2)
+                doc_row.balance_due = round(float(doc_row.balance_due or 0.0) + amount, 2)
                 self.session.add(doc_row)
                 await self.session.flush()
                 if doc_row.document_id:
