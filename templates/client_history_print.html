@@ -699,7 +699,7 @@
 
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/html2pdf.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/html2pdf.bundle.min.js') }}" nonce="{{ csp_nonce }}"></script>
 <script nonce="{{ csp_nonce }}">
 // ── Mobile: scale document to fit viewport width ──
 (function() {
