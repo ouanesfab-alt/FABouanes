@@ -4,6 +4,13 @@
 <head>
   {% include 'partials/_head.html' %}
   <style nonce="{{ csp_nonce }}">
+    /* Accélération Matérielle GPU & Parallélisme Rendu UI */
+    .app-content, .card, .table-responsive, canvas, .fab-switch-panel {
+      transform: translate3d(0, 0, 0);
+      backface-visibility: hidden;
+      will-change: transform, opacity;
+    }
+
     /* Mobile layout: force margins and spacing to prevent navbar overlaps */
     @media(max-width:767px) {
       .app-content {

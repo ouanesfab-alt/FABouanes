@@ -637,12 +637,18 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
     max_turns = 15
     sql_errors_count = 0
     for turn in range(max_turns):
+        import os
         payload = {
             "model": OLLAMA_MODEL,
             "messages": ollama_messages,
             "tools": tools,
             "stream": True,
-            "options": {"temperature": 0.3, "num_predict": 2048}
+            "options": {
+                "temperature": 0.3,
+                "num_predict": 2048,
+                "num_gpu": -1,
+                "num_thread": max(1, os.cpu_count() or 4)
+            }
         }
 
         content = ""
