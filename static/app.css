@@ -2095,7 +2095,7 @@ html[data-nav="vertical"] body.desktop-app .production-table-wrap {
   width: 100%;
   margin: 0;
   border-collapse: collapse;
-  table-layout: auto;
+  table-layout: fixed;
 }
 
 .table thead th {

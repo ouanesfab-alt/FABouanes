@@ -36,16 +36,14 @@
     <div>
       <h2 class="section-title mb-1">Opérations</h2>
     </div>
-    <div class="transactions-actions align-items-center">
-      <div class="fab-switcher d-inline-flex gap-1" id="transactionsSwitchButtons" data-fab-switch-root>
-        <a href="{{ url_for('operations', type='all') }}" class="fab-switch-btn js-filter-tab {{ 'is-active' if filter_type=='all' or not filter_type else '' }}"><i class="bi bi-layers"></i> Toutes</a>
-        <a href="{{ url_for('operations', type='purchase') }}" class="fab-switch-btn js-filter-tab {{ 'is-active' if filter_type=='purchase' else '' }}"><i class="bi bi-cart-in"></i> Achats</a>
-        <a href="{{ url_for('operations', type='sale') }}" class="fab-switch-btn js-filter-tab {{ 'is-active' if filter_type=='sale' else '' }}"><i class="bi bi-cart-check"></i> Ventes</a>
-        <a href="{{ url_for('operations', type='payment') }}" class="fab-switch-btn js-filter-tab {{ 'is-active' if filter_type=='payment' else '' }}"><i class="bi bi-wallet2"></i> Versements</a>
-      </div>
+    <div class="transactions-actions">
       <a href="{{ url_for('new_operation') }}" class="btn btn-success">
         <i class="bi bi-plus-lg me-1"></i>Ajouter une opération
       </a>
+      <a href="{{ url_for('operations', type='all') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='all' else 'btn-outline-secondary' }}">Toutes</a>
+      <a href="{{ url_for('operations', type='purchase') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='purchase' else 'btn-outline-secondary' }}">Achats</a>
+      <a href="{{ url_for('operations', type='sale') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='sale' else 'btn-outline-secondary' }}">Ventes</a>
+      <a href="{{ url_for('operations', type='payment') }}" class="btn js-filter-tab {{ 'btn-dark' if filter_type=='payment' else 'btn-outline-secondary' }}">Versements / avances</a>
       <div class="dropdown">
         <button type="button" class="btn btn-outline-success dropdown-toggle w-100" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
           <i class="bi bi-download me-1"></i>Exporter

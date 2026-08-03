@@ -464,12 +464,14 @@ h1, h2, h3, h4, h5, h6, .section-title {
   border-right: 0.5px solid var(--separator) !important;
 }
 
-/* ── Tables — Finder style ── */
-.table {
+/* ── Tables — Finder style (Fixed layout for Zero CLS) ── */
+.table, .record-table {
   color: var(--text) !important;
   font-size: 13px;
+  table-layout: fixed !important;
+  width: 100% !important;
 }
-.table th {
+.table th, .record-table th {
   font-weight: 600 !important;
   font-size: 11px !important;
   text-transform: uppercase !important;

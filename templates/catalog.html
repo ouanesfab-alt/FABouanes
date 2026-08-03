@@ -42,13 +42,8 @@
       <h2 class="section-title mb-1">Catalogue</h2>
       <p class="catalog-summary mb-0">{{ pagination.total }} produit(s) enregistré(s).</p>
     </div>
-    <div class="catalog-actions align-items-center">
-      <div class="fab-switcher d-inline-flex gap-1" id="catalogSwitchButtons" data-fab-switch-root>
-        <a href="{{ url_for('catalog', kind='all') }}" class="fab-switch-btn js-filter-tab {{ 'is-active' if catalog_filters.kind == 'all' or not catalog_filters.kind else '' }}"><i class="bi bi-grid"></i> Tous</a>
-        <a href="{{ url_for('catalog', kind='finished') }}" class="fab-switch-btn js-filter-tab {{ 'is-active' if catalog_filters.kind == 'finished' else '' }}"><i class="bi bi-box-seam"></i> Produits finis</a>
-        <a href="{{ url_for('catalog', kind='raw') }}" class="fab-switch-btn js-filter-tab {{ 'is-active' if catalog_filters.kind == 'raw' else '' }}"><i class="bi bi-layers"></i> Matières premières</a>
-      </div>
-      <a href="{{ url_for('new_catalog_item') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Ajouter un produit</a>
+    <div class="catalog-actions">
+      <a href="{{ url_for('new_catalog_item') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-2"></i>Ajouter un produit</a>
     </div>
   </div>
 
