@@ -333,14 +333,57 @@
   <!-- ========================================================================= -->
   <!-- 3. JOURNAUX & AUDIT (ASYNCHRONE AVEC RECHERCHE ET FILTRES RAPIDES) -->
   <!-- ========================================================================= -->
+  <!-- ========================================================================= -->
+  <!-- 3. JOURNAUX & AUDIT APPROFONDI (TEMPS RÉEL & INSPECTION) -->
+  <!-- ========================================================================= -->
   <section id="adminLogs" class="fab-switch-panel" hidden>
     <div class="card p-3 shadow-sm border mb-3">
       <div class="card-header-row mb-3 d-flex justify-content-between align-items-center">
         <div>
-          <h5 class="section-title fw-bold text-primary"><i class="bi bi-shield-check me-1"></i> Journaux de Sécurité & d'Audit</h5>
-          <div class="small text-muted mt-1">Superviser toutes les transactions, modifications et suppressions en temps réel.</div>
+          <h5 class="section-title fw-bold text-primary"><i class="bi bi-shield-check me-1"></i> Journal d'Audit Approfondi & Traçabilité</h5>
+          <div class="small text-muted mt-1">Superviser toutes les transactions, modifications, suppressions et connexions en temps réel.</div>
         </div>
         <button class="btn btn-outline-dark btn-sm" id="btnExportAuditCSV"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Exporter CSV</button>
+      </div>
+
+      <!-- Indicateurs KPI d'Audit -->
+      <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3">
+          <div class="p-2 border rounded bg-body-tertiary d-flex align-items-center gap-2">
+            <div class="p-2 bg-primary-subtle text-primary rounded-circle"><i class="bi bi-shield-check fs-6"></i></div>
+            <div>
+              <div class="small text-muted" style="font-size:0.75rem;">Total Événements</div>
+              <div class="fw-bold fs-6" id="auditStatTotal">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="p-2 border rounded bg-body-tertiary d-flex align-items-center gap-2">
+            <div class="p-2 bg-success-subtle text-success rounded-circle"><i class="bi bi-pencil-square fs-6"></i></div>
+            <div>
+              <div class="small text-muted" style="font-size:0.75rem;">Créations / Éditions</div>
+              <div class="fw-bold fs-6" id="auditStatWrites">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="p-2 border rounded bg-body-tertiary d-flex align-items-center gap-2">
+            <div class="p-2 bg-danger-subtle text-danger rounded-circle"><i class="bi bi-trash3 fs-6"></i></div>
+            <div>
+              <div class="small text-muted" style="font-size:0.75rem;">Suppressions / Alertes</div>
+              <div class="fw-bold fs-6" id="auditStatDeletes">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="p-2 border rounded bg-body-tertiary d-flex align-items-center gap-2">
+            <div class="p-2 bg-info-subtle text-info rounded-circle"><i class="bi bi-person-lock fs-6"></i></div>
+            <div>
+              <div class="small text-muted" style="font-size:0.75rem;">Sécurité & Accès</div>
+              <div class="fw-bold fs-6" id="auditStatAuth">0</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Filtres rapides asynchrones -->
@@ -367,6 +410,7 @@
             <option value="">Tous les statuts</option>
             <option value="success">Success (Succès)</option>
             <option value="failure">Failure (Échec)</option>
+            <option value="denied">Denied (Refusé)</option>
           </select>
         </div>
         <div class="col-md-1 d-flex align-items-end">
@@ -375,21 +419,22 @@
       </div>
 
       <!-- Tableau dynamique des logs d'audit -->
-      <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
+      <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
         <table class="table align-middle table-hover" style="font-size: 0.85rem;">
           <thead class="table-light sticky-top">
             <tr>
-              <th>Date</th>
-              <th>Utilisateur</th>
+              <th>Date &amp; Heure</th>
+              <th>Acteur / Rôle</th>
               <th>Action</th>
-              <th>Cible / Entité</th>
+              <th>Entité / Cible</th>
               <th>Statut</th>
-              <th>Détails Modifiés (Avant / Après)</th>
+              <th>Modifications (Diff)</th>
+              <th class="text-center">Inspection</th>
             </tr>
           </thead>
           <tbody id="auditLogsTableBody">
             <tr>
-              <td colspan="6" class="text-center py-4 text-muted">Veuillez patienter ou saisir un filtre...</td>
+              <td colspan="7" class="text-center py-4 text-muted">Veuillez patienter ou saisir un filtre...</td>
             </tr>
           </tbody>
         </table>
@@ -1047,9 +1092,62 @@
       return params.toString();
     }
 
+    window.auditLogsStore = {};
+
+    function formatAuditDiffSummary(before, after) {
+      try {
+        let bObj = typeof before === 'string' && before ? JSON.parse(before) : before;
+        let aObj = typeof after === 'string' && after ? JSON.parse(after) : after;
+        
+        if (!bObj && !aObj) return `<span class="text-muted">—</span>`;
+        
+        if (!bObj && aObj) {
+          const keys = Object.keys(aObj).filter(k => aObj[k] !== null && aObj[k] !== '');
+          const summary = keys.slice(0, 2).map(k => `${k}: ${aObj[k]}`).join(', ');
+          return `<span class="badge bg-success-subtle text-success border">Création</span> <span class="small text-muted">${summary}</span>`;
+        }
+        
+        if (bObj && !aObj) {
+          return `<span class="badge bg-danger-subtle text-danger border">Suppression</span>`;
+        }
+
+        if (bObj && aObj) {
+          const diffs = [];
+          for (const k of Object.keys(aObj)) {
+            if (JSON.stringify(bObj[k]) !== JSON.stringify(aObj[k])) {
+              diffs.push(`<strong>${k}:</strong> ${bObj[k] ?? '—'} ➔ ${aObj[k] ?? '—'}`);
+            }
+          }
+          if (diffs.length === 0) return `<span class="text-muted">Aucun changement</span>`;
+          return diffs.slice(0, 2).join('<br>') + (diffs.length > 2 ? ` <span class="badge bg-secondary">+${diffs.length - 2} de plus</span>` : '');
+        }
+      } catch (e) {}
+      return `<div class="small text-muted text-truncate" style="max-width:260px;">${after || before || '—'}</div>`;
+    }
+
+    function getActionBadge(action) {
+      const act = (action || '').toLowerCase();
+      if (act.includes('delete') || act.includes('shred')) {
+        return `<span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="bi bi-trash3 me-1"></i>${action}</span>`;
+      }
+      if (act.includes('create') || act.includes('add')) {
+        return `<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-plus-circle me-1"></i>${action}</span>`;
+      }
+      if (act.includes('update') || act.includes('edit') || act.includes('change')) {
+        return `<span class="badge bg-primary-subtle text-primary border border-primary-subtle"><i class="bi bi-pencil me-1"></i>${action}</span>`;
+      }
+      if (act.includes('login') || act.includes('logout') || act.includes('auth') || act.includes('unlock')) {
+        return `<span class="badge bg-info-subtle text-info border border-info-subtle"><i class="bi bi-key me-1"></i>${action}</span>`;
+      }
+      if (act.includes('backup') || act.includes('restore')) {
+        return `<span class="badge bg-warning-subtle text-warning border border-warning-subtle"><i class="bi bi-database me-1"></i>${action}</span>`;
+      }
+      return `<span class="badge bg-secondary-subtle text-dark border">${action}</span>`;
+    }
+
     async function loadAuditLogs() {
       if (auditLogsTableBody) {
-        auditLogsTableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span> Filtrage en cours...</td></tr>`;
+        auditLogsTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span> Chargement des journaux...</td></tr>`;
       }
       try {
         const q = buildAuditQueryString();
@@ -1058,38 +1156,130 @@
         if (data.ok && auditLogsTableBody) {
           auditLogsTableBody.innerHTML = '';
           if (data.audit_logs.length === 0) {
-            auditLogsTableBody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">Aucun journal correspondant.</td></tr>`;
+            auditLogsTableBody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-inbox me-1"></i> Aucun journal d'audit correspondant.</td></tr>`;
             return;
           }
+
+          let totalWrites = 0;
+          let totalDeletes = 0;
+          let totalAuth = 0;
+          window.auditLogsStore = {};
+
           data.audit_logs.forEach(l => {
-            const dateStr = l.created_at ? new Date(l.created_at).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'short'}) : '-';
-            const badgeClass = l.status === 'success' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle';
-            
+            window.auditLogsStore[l.id] = l;
+
+            const act = (l.action || '').toLowerCase();
+            if (act.includes('delete') || act.includes('shred') || l.status === 'failure' || l.status === 'denied') totalDeletes++;
+            else if (act.includes('create') || act.includes('update') || act.includes('edit')) totalWrites++;
+            else if (act.includes('login') || act.includes('auth') || act.includes('password') || act.includes('unlock')) totalAuth++;
+
+            const dateStr = l.created_at ? new Date(l.created_at).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'medium'}) : '-';
+            const badgeClass = l.status === 'success' ? 'bg-success-subtle text-success border border-success-subtle' : (l.status === 'denied' ? 'bg-warning-subtle text-warning border border-warning-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle');
+            const actionHtml = getActionBadge(l.action);
+            const diffHtml = formatAuditDiffSummary(l.before_json, l.after_json);
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
-              <td>${dateStr}</td>
+              <td><span class="font-monospace small text-nowrap">${dateStr}</span></td>
               <td>
                 <div class="fw-semibold">${l.actor_username || 'Système'}</div>
-                <div class="small text-muted">${l.actor_role || ''}</div>
+                <div class="small text-muted" style="font-size:0.75rem;">${l.actor_role || 'Rôle -'}</div>
               </td>
-              <td><span class="fw-medium">${l.action}</span></td>
-              <td>${l.entity_type} ${l.entity_id ? '#' + l.entity_id : ''}</td>
+              <td>${actionHtml}</td>
+              <td><span class="badge bg-body-secondary text-dark border">${l.entity_type || '-'} ${l.entity_id ? '#' + l.entity_id : ''}</span></td>
               <td><span class="badge ${badgeClass}">${l.status}</span></td>
               <td>
-                <div class="small text-muted text-break" style="max-width:300px; max-height:80px; overflow-y:auto;">
-                  <strong>Avant:</strong> ${l.before_json || '-'}<br>
-                  <strong>Après:</strong> ${l.after_json || '-'}
+                <div class="small text-break" style="max-width:280px;">
+                  ${diffHtml}
                 </div>
+              </td>
+              <td class="text-center">
+                <button class="btn btn-sm btn-outline-primary py-0 px-2 btn-inspect-audit" data-audit-id="${l.id}" title="Inspecter l'empreinte et les détails complets">
+                  <i class="bi bi-search me-1"></i>Détails
+                </button>
               </td>
             `;
             auditLogsTableBody.appendChild(tr);
+          });
+
+          // Mettre à jour les cartes d'indicateurs KPI
+          const elTotal = document.getElementById('auditStatTotal');
+          const elWrites = document.getElementById('auditStatWrites');
+          const elDeletes = document.getElementById('auditStatDeletes');
+          const elAuth = document.getElementById('auditStatAuth');
+          if (elTotal) elTotal.textContent = data.audit_logs.length;
+          if (elWrites) elWrites.textContent = totalWrites;
+          if (elDeletes) elDeletes.textContent = totalDeletes;
+          if (elAuth) elAuth.textContent = totalAuth;
+
+          // Attacher les clics d'inspection
+          auditLogsTableBody.querySelectorAll('.btn-inspect-audit').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const auditId = btn.getAttribute('data-audit-id');
+              showAuditInspectModal(auditId);
+            });
           });
         }
       } catch (err) {
         console.error(err);
         if (auditLogsTableBody) {
-          auditLogsTableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Erreur lors de la récupération des logs.</td></tr>`;
+          auditLogsTableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">Erreur lors de la récupération des logs.</td></tr>`;
         }
+      }
+    }
+
+    function showAuditInspectModal(logId) {
+      const l = window.auditLogsStore[logId];
+      if (!l) return;
+
+      const actorEl = document.getElementById('modalAuditActor');
+      const roleEl = document.getElementById('modalAuditRole');
+      const timeEl = document.getElementById('modalAuditTime');
+      const sourceEl = document.getElementById('modalAuditSource');
+      const ipEl = document.getElementById('modalAuditIp');
+      const uaEl = document.getElementById('modalAuditUserAgent');
+      const reqIdEl = document.getElementById('modalAuditRequestId');
+      const diffContainer = document.getElementById('modalAuditDiffContainer');
+
+      if (actorEl) actorEl.textContent = l.actor_username || 'Système (Interne)';
+      if (roleEl) roleEl.textContent = l.actor_role || 'Privilège Système';
+      if (timeEl) timeEl.textContent = l.created_at ? new Date(l.created_at).toLocaleString('fr-FR', {dateStyle:'full', timeStyle:'medium'}) : '-';
+      if (sourceEl) sourceEl.textContent = `Origine: ${l.source || 'web'}`;
+      if (ipEl) ipEl.textContent = l.ip_address || 'Non spécifiée (Locale/Directe)';
+      if (uaEl) uaEl.textContent = l.user_agent || 'Client système';
+      if (reqIdEl) reqIdEl.textContent = l.request_id || 'Non assigné';
+
+      if (diffContainer) {
+        let html = `<div class="mb-3 d-flex align-items-center gap-2">
+          ${getActionBadge(l.action)}
+          <span class="badge bg-secondary">${l.entity_type} #${l.entity_id || 'Global'}</span>
+          <span class="badge ${l.status === 'success' ? 'bg-success' : 'bg-danger'}">${l.status}</span>
+        </div>`;
+
+        try {
+          let bObj = typeof l.before_json === 'string' && l.before_json ? JSON.parse(l.before_json) : l.before_json;
+          let aObj = typeof l.after_json === 'string' && l.after_json ? JSON.parse(l.after_json) : l.after_json;
+          let mObj = typeof l.meta_json === 'string' && l.meta_json ? JSON.parse(l.meta_json) : l.meta_json;
+
+          html += `<div class="row g-2">`;
+          html += `<div class="col-md-6"><div class="fw-bold small text-danger mb-1"><i class="bi bi-box-arrow-right me-1"></i>État Précédent (Avant)</div><pre class="bg-body-secondary p-2 rounded small border" style="max-height:220px; overflow:auto;">${bObj ? JSON.stringify(bObj, null, 2) : 'Aucun (Action de création)'}</pre></div>`;
+          html += `<div class="col-md-6"><div class="fw-bold small text-success mb-1"><i class="bi bi-box-arrow-in-right me-1"></i>Nouvel État (Après)</div><pre class="bg-body-secondary p-2 rounded small border" style="max-height:220px; overflow:auto;">${aObj ? JSON.stringify(aObj, null, 2) : 'Aucun (Action de suppression)'}</pre></div>`;
+          html += `</div>`;
+
+          if (mObj) {
+            html += `<div class="mt-2"><div class="fw-bold small text-muted mb-1"><i class="bi bi-info-circle me-1"></i>Métadonnées d'exécution</div><pre class="bg-body-secondary p-2 rounded small border" style="max-height:120px; overflow:auto;">${JSON.stringify(mObj, null, 2)}</pre></div>`;
+          }
+        } catch (e) {
+          html += `<div class="alert alert-secondary small mb-0">Avant: ${l.before_json || '-'}<br>Après: ${l.after_json || '-'}</div>`;
+        }
+
+        diffContainer.innerHTML = html;
+      }
+
+      const modalEl = document.getElementById('auditInspectModal');
+      if (modalEl) {
+        const bsModal = new bootstrap.Modal(modalEl);
+        bsModal.show();
       }
     }
 
@@ -1352,4 +1542,63 @@
     });
   });
 </script>
+{% endblock %}
+
+{% block modals %}
+<!-- Modale d'Inspection Approfondie du Journal d'Audit -->
+<div class="modal fade" id="auditInspectModal" tabindex="-1" aria-labelledby="auditInspectModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header bg-dark text-white p-3">
+        <h5 class="modal-title fs-6 fw-bold" id="auditInspectModalLabel">
+          <i class="bi bi-shield-lock me-2 text-primary"></i> Empreinte Numérique &amp; Détails d'Événement Audit
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body p-4">
+        <!-- Empreinte Numérique & Entête -->
+        <div class="row g-3 mb-4 p-3 bg-body-tertiary rounded border">
+          <div class="col-md-6">
+            <div class="small text-muted fw-bold mb-1">Acteur &amp; Rôle</div>
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-person-badge fs-5 text-primary"></i>
+              <div>
+                <div class="fw-bold" id="modalAuditActor">-</div>
+                <div class="small text-muted" id="modalAuditRole">-</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="small text-muted fw-bold mb-1">Horodatage &amp; Source</div>
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-clock-history fs-5 text-info"></i>
+              <div>
+                <div class="fw-bold" id="modalAuditTime">-</div>
+                <div class="small text-muted" id="modalAuditSource">-</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 border-top pt-2 mt-2">
+            <div class="small text-muted fw-bold">Adresse IP &amp; Client</div>
+            <div class="font-monospace small" id="modalAuditIp">-</div>
+            <div class="small text-muted text-truncate" id="modalAuditUserAgent" style="max-width: 350px;">-</div>
+          </div>
+          <div class="col-md-6 border-top pt-2 mt-2">
+            <div class="small text-muted fw-bold">ID Requête / Transaction</div>
+            <div class="font-monospace small text-primary" id="modalAuditRequestId">-</div>
+          </div>
+        </div>
+
+        <!-- Comparateur Visuel Diff -->
+        <h6 class="fw-bold mb-2"><i class="bi bi-file-diff me-1 text-primary"></i> Comparatif des Modifications (Avant / Après)</h6>
+        <div id="modalAuditDiffContainer" class="p-3 border rounded bg-light" style="max-height: 320px; overflow-y: auto;">
+          <p class="text-muted text-center py-3 mb-0">Chargement des détails...</p>
+        </div>
+      </div>
+      <div class="modal-footer bg-light p-2">
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
