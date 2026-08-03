@@ -954,19 +954,24 @@ iframe {
   background: transparent;
 }
 
-.nav-links .dropdown-menu .dropdown-item:hover {
-  background: var(--bg);
-  color: var(--text);
+.nav-links .dropdown-menu .dropdown-item:hover,
+.nav-links .dropdown-menu .dropdown-item:focus {
+  background: #007AFF !important;
+  color: #FFFFFF !important;
+}
+.nav-links .dropdown-menu .dropdown-item:hover i,
+.nav-links .dropdown-menu .dropdown-item:focus i {
+  color: #FFFFFF !important;
 }
 
-.nav-links .dropdown-item.active,
-.nav-links .dropdown-item:active {
-  background: rgba(37, 99, 235, .12);
-  color: #1d4ed8;
+.nav-links .dropdown-item.active {
+  background: rgba(0, 122, 255, 0.08) !important;
+  color: #007AFF !important;
+  font-weight: 700 !important;
 }
-
-[data-theme="dark"] .nav-links .dropdown-item.active,
-[data-theme="dark"] .nav-links .dropdown-item:active {
+.nav-links .dropdown-item.active i {
+  color: #007AFF !important;
+}
   background: rgba(96, 165, 250, .18);
   color: #93c5fd;
 }
@@ -5701,12 +5706,12 @@ html:not([data-theme="light"]) .nav-kbd {
 }
 
 /* Dropdown menus - Dark Mode */
-html:not([data-theme="light"]) .dropdown-menu {
-  background: rgba(30, 30, 32, 0.94) !important;
-  backdrop-filter: blur(35px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(35px) saturate(190%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+html:not([data-theme="light"]) .dropdown-menu,
+[data-theme="dark"] .dropdown-menu,
+[data-theme="windows-dark"] .dropdown-menu {
+  background: #1C1C1E !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.5) !important;
 }
 
 html:not([data-theme="light"]) .dropdown-item {
@@ -5996,14 +6001,13 @@ html[data-theme="windows"] .nav-kbd {
   color: #86868b !important;
 }
 
-/* Dropdown menus - Light Mode (Apple style) */
+/* Dropdown menus - Light Mode (Apple style - Opaque) */
 html[data-theme="light"] .dropdown-menu,
-html[data-theme="windows"] .dropdown-menu {
-  background: rgba(255, 255, 255, 0.94) !important;
-  backdrop-filter: blur(24px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06) !important;
+html[data-theme="windows"] .dropdown-menu,
+:root .dropdown-menu {
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18) !important;
 }
 
 html[data-theme="light"] .dropdown-item,
@@ -6012,15 +6016,30 @@ html[data-theme="windows"] .dropdown-item {
 }
 
 html[data-theme="light"] .dropdown-item:hover,
-html[data-theme="windows"] .dropdown-item:hover {
-  background: rgba(0, 0, 0, 0.04) !important;
-  color: #1d1d1f !important;
+html[data-theme="light"] .dropdown-item:focus,
+html[data-theme="windows"] .dropdown-item:hover,
+html[data-theme="windows"] .dropdown-item:focus {
+  background: #007AFF !important;
+  color: #FFFFFF !important;
+}
+
+html[data-theme="light"] .dropdown-item:hover i,
+html[data-theme="light"] .dropdown-item:focus i,
+html[data-theme="windows"] .dropdown-item:hover i,
+html[data-theme="windows"] .dropdown-item:focus i {
+  color: #FFFFFF !important;
 }
 
 html[data-theme="light"] .dropdown-item.active,
 html[data-theme="windows"] .dropdown-item.active {
-  background: #007aff !important;
-  color: #ffffff !important;
+  background: rgba(0, 122, 255, 0.08) !important;
+  color: #007AFF !important;
+  font-weight: 700 !important;
+}
+
+html[data-theme="light"] .dropdown-item.active i,
+html[data-theme="windows"] .dropdown-item.active i {
+  color: #007AFF !important;
 }
 
 /* Glass Inputs - Light Mode */
@@ -8261,4 +8280,122 @@ body::before {
 
 .glow-pulse {
   animation: fab-pulse-glow 2.5s infinite ease-in-out;
-}
+}
+
+/* ── 9. Global Dark Mode Theme Overrides (Fix Contrast & White Boxes in Dark Mode) ── */
+[data-theme="dark"] .bg-body-tertiary,
+[data-theme="dark"] .bg-light,
+[data-theme="dark"] .bg-light-subtle {
+  background-color: var(--bg-tertiary, #2C2C2E) !important;
+  color: var(--text-primary, #F5F5F7) !important;
+  border-color: var(--line, rgba(255, 255, 255, 0.1)) !important;
+}
+
+[data-theme="dark"] .bg-body-secondary {
+  background-color: var(--bg-secondary, #1C1C1E) !important;
+  color: var(--text-primary, #F5F5F7) !important;
+  border-color: var(--line, rgba(255, 255, 255, 0.1)) !important;
+}
+
+[data-theme="dark"] .table-light,
+[data-theme="dark"] .table-light th {
+  background-color: var(--bg-th-opaque, #2C2C2E) !important;
+  color: var(--text-primary, #F5F5F7) !important;
+  border-color: var(--line, rgba(255, 255, 255, 0.1)) !important;
+}
+
+[data-theme="dark"] .text-dark {
+  color: var(--text-primary, #F5F5F7) !important;
+}
+
+[data-theme="dark"] .text-muted,
+[data-theme="dark"] .small.text-muted {
+  color: var(--text-secondary, #98989D) !important;
+}
+
+[data-theme="dark"] .card {
+  background-color: var(--glass-thick, rgba(28, 28, 30, 0.82));
+  border-color: var(--glass-border, rgba(255, 255, 255, 0.08));
+}
+
+/* ── 10. Audit KPI Cards & Filter Bar Modern Theme Styling ── */
+.audit-kpi-card {
+  background: var(--bg-secondary, #ffffff);
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+  border-radius: var(--radius-md, 12px);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.22s var(--ease-spring), box-shadow 0.22s var(--ease-spring);
+}
+
+[data-theme="dark"] .audit-kpi-card {
+  background: var(--glass-thick, rgba(28, 28, 30, 0.85));
+  border-color: var(--glass-border, rgba(255, 255, 255, 0.08));
+  box-shadow: var(--shadow-md);
+}
+
+.audit-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.audit-kpi-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary, #86868B);
+  margin-bottom: 2px;
+}
+
+[data-theme="dark"] .audit-kpi-title {
+  color: var(--text-secondary, #98989D) !important;
+}
+
+.audit-kpi-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary, #1D1D1F);
+  line-height: 1.2;
+}
+
+[data-theme="dark"] .audit-kpi-value {
+  color: var(--text-primary, #F5F5F7) !important;
+}
+
+.audit-filter-bar {
+  background: var(--bg-tertiary, #F2F2F7);
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+  border-radius: var(--radius-md, 12px);
+  padding: 16px;
+}
+
+[data-theme="dark"] .audit-filter-bar {
+  background: var(--glass-regular, rgba(28, 28, 30, 0.65));
+  border-color: var(--glass-border, rgba(255, 255, 255, 0.08));
+}
+
+/* ── 11. High Contrast Dark Mode Balance Colors (Fix text-danger in Dark Mode) ── */
+[data-theme="dark"] .text-danger,
+[data-theme="windows-dark"] .text-danger,
+[data-theme="dark"] .col-balance.text-danger,
+[data-theme="windows-dark"] .col-balance.text-danger {
+  color: #FF453A !important; /* Vivid Apple Dark Mode Red */
+}
+
+[data-theme="dark"] .text-success,
+[data-theme="windows-dark"] .text-success,
+[data-theme="dark"] .col-balance.text-success,
+[data-theme="windows-dark"] .col-balance.text-success {
+  color: #30D158 !important; /* Vivid Apple Dark Mode Green */
+}
+
+[data-theme="dark"] .detail-stat.stat-red .detail-stat-value {
+  color: #FF453A !important;
+}
+
+[data-theme="dark"] .detail-stat.stat-green .detail-stat-value {
+  color: #30D158 !important;
+}
+

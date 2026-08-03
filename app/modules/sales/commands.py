@@ -43,7 +43,7 @@ class SalesCommands:
         document_id: int | None = None,
         custom_item_name: str = "",
     ) -> Tuple[str, int]:
-        total = qty * unit_price
+        total = round(qty * unit_price, 2)
         requested_sale_type = sale_type.strip().lower()
         if requested_sale_type not in {"cash", "credit"}:
             requested_sale_type = "credit" if client_id else "cash"
@@ -51,8 +51,8 @@ class SalesCommands:
         SalesValidator.validate_sale_type(client_id, requested_sale_type)
         SalesValidator.validate_quantity(qty)
 
-        amount_paid = total if requested_sale_type == "cash" else max(0.0, min(amount_paid_input, total))
-        balance_due = round(total - amount_paid, 2)
+        amount_paid = round(total if requested_sale_type == "cash" else max(0.0, min(amount_paid_input, total)), 2)
+        balance_due = round(max(0.0, total - amount_paid), 2)
 
         if item_kind == "finished":
             item, qty_kg = await SalesValidator.validate_stock_availability(
@@ -60,7 +60,7 @@ class SalesCommands:
             )
             stock_before = float(item.stock_qty)
             cost_snapshot = float(item.avg_cost)
-            profit_amount = total - qty_kg * cost_snapshot
+            profit_amount = round(total - qty_kg * cost_snapshot, 2)
 
             sale_row = Sale(
                 client_id=client_id,
@@ -82,7 +82,7 @@ class SalesCommands:
             await self.session.flush()
             row_id = sale_row.id
 
-            stock_after = stock_before - qty_kg
+            stock_after = max(0.0, round(stock_before - qty_kg, 4))
             item.stock_qty = stock_after
             self.session.add(item)
 
@@ -116,7 +116,7 @@ class SalesCommands:
         custom_item_name = custom_item_name.strip() if str(item.name or "").strip().casefold() == "autre" else ""
         stock_before = float(item.stock_qty)
         cost_snapshot = float(item.avg_cost)
-        profit_amount = total - qty_kg * cost_snapshot
+        profit_amount = round(total - qty_kg * cost_snapshot, 2)
 
         raw_sale_row = RawSale(
             client_id=client_id,
@@ -139,7 +139,7 @@ class SalesCommands:
         await self.session.flush()
         row_id = raw_sale_row.id
 
-        stock_after = stock_before - qty_kg
+        stock_after = max(0.0, round(stock_before - qty_kg, 4))
         item.stock_qty = stock_after
         self.session.add(item)
 
@@ -162,7 +162,7 @@ class SalesCommands:
 
     async def reverse_sale(self, kind: str, row_id: int, recalc: bool = True) -> bool:
         if kind == "finished":
-            stmt_sale = select(Sale).where(Sale.id == row_id)
+            stmt_sale = select(Sale).where(Sale.id == row_id).with_for_update()
             res_sale = await self.session.execute(stmt_sale)
             row = res_sale.scalar_one_or_none()
             if not row:
@@ -196,7 +196,7 @@ class SalesCommands:
             return True
 
         # Raw material sale reversal
-        stmt_sale = select(RawSale).where(RawSale.id == row_id)
+        stmt_sale = select(RawSale).where(RawSale.id == row_id).with_for_update()
         res_sale = await self.session.execute(stmt_sale)
         row = res_sale.scalar_one_or_none()
         if not row:
@@ -245,7 +245,12 @@ class SalesCommands:
         try:
             from app.core.request_state import get_state_value
             actor = get_state_value("user")
-            username = actor["username"] if actor else "system"
+            if isinstance(actor, dict) and "username" in actor:
+                username = str(actor["username"])
+            elif hasattr(actor, "username"):
+                username = str(getattr(actor, "username"))
+            else:
+                username = "system"
 
             movement = StockMovement(
                 item_kind=item_kind,
@@ -264,12 +269,17 @@ class SalesCommands:
         except Exception:
             pass
 
+    _DOCUMENT_LINE_TABLES = {"sales": "sales", "raw_sales": "raw_sales"}
+
     async def _sum_document_lines(self, table_name: str, document_id: int) -> dict:
+        safe_table = self._DOCUMENT_LINE_TABLES.get(table_name)
+        if not safe_table:
+            raise ValueError(f"Table name not allowed: {table_name}")
         res = await self.session.execute(
             text(f"""
                 SELECT COUNT(*) AS line_count, COALESCE(SUM(total), 0) AS total_amount,
                        COALESCE(SUM(amount_paid), 0) AS paid_amount, COALESCE(SUM(balance_due), 0) AS due_amount
-                FROM {table_name} WHERE document_id = :doc_id
+                FROM {safe_table} WHERE document_id = :doc_id
             """),
             {"doc_id": document_id}
         )

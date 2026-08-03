@@ -47,7 +47,11 @@ def get_async_engine() -> AsyncEngine:
             else:
                 connect_kwargs = {}
                 if "asyncpg" in async_database_url:
-                    connect_kwargs["server_settings"] = {"timezone": "UTC"}
+                    connect_kwargs["server_settings"] = {
+                        "timezone": "UTC",
+                        "synchronous_commit": "off",
+                        "work_mem": os.environ.get("FAB_PG_WORK_MEM", "64MB"),
+                    }
 
                 engine = create_async_engine(
                     async_database_url,
@@ -66,9 +70,13 @@ async def close_async_engine() -> None:
     """Properly closes and disposes of all global AsyncEngines."""
     global _async_engines
     with _ENGINES_LOCK:
-        for engine in _async_engines.values():
-            await engine.dispose()
+        engines = list(_async_engines.values())
         _async_engines.clear()
+    for engine in engines:
+        try:
+            await engine.dispose()
+        except Exception:
+            pass
 
 
 def get_async_sessionmaker():

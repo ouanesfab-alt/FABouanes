@@ -1,6 +1,77 @@
 """Lanceur desktop FABOuanes."""
 import os
+import sys
 os.environ["FAB_DESKTOP"] = "1"
+def detect_and_apply_adaptive_hardware_profile():
+    if "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS" in os.environ or "--disable-gpu" in sys.argv:
+        return
+
+    cpu_count = os.cpu_count() or 4
+    total_ram_gb = 8.0
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            class MEMORYSTATUSEX(ctypes.Structure):
+                _fields_ = [
+                    ('dwLength', ctypes.c_ulong),
+                    ('dwMemoryLoad', ctypes.c_ulong),
+                    ('ullTotalPhys', ctypes.c_ulonglong),
+                    ('ullAvailPhys', ctypes.c_ulonglong),
+                    ('ullTotalPageFile', ctypes.c_ulonglong),
+                    ('ullAvailPageFile', ctypes.c_ulonglong),
+                    ('ullTotalVirtual', ctypes.c_ulonglong),
+                    ('ullAvailVirtual', ctypes.c_ulonglong),
+                    ('ullAvailExtendedVirtual', ctypes.c_ulonglong),
+                ]
+            stat = MEMORYSTATUSEX()
+            stat.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+            ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat))
+            total_ram_gb = round(stat.ullTotalPhys / (1024 ** 3), 1)
+        except Exception:
+            pass
+
+    has_dedicated_gpu = False
+    gpu_name = "Intégré / Standard"
+    if sys.platform == "win32":
+        try:
+            import subprocess
+            cmd = 'wmic path win32_videocard get name,adapterram'
+            out = subprocess.check_output(cmd, shell=True, text=True, stderr=subprocess.DEVNULL)
+            out_lower = out.lower()
+            if any(brand in out_lower for brand in ("nvidia", "geforce", "rtx", "gtx", "radeon", "arc")):
+                has_dedicated_gpu = True
+                for line in out.splitlines():
+                    if any(b in line.lower() for b in ("nvidia", "geforce", "rtx", "gtx", "radeon", "arc")):
+                        gpu_name = line.strip()
+                        break
+        except Exception:
+            pass
+
+    if has_dedicated_gpu or total_ram_gb >= 16.0 or cpu_count >= 8:
+        raster_threads = min(8, max(4, cpu_count))
+        os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (
+            f"--enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist "
+            f"--enable-features=CanvasOopRasterization,UseSkiaRenderer,GpuRasterizationAndCompositing "
+            f"--num-raster-threads={raster_threads}"
+        )
+        os.environ.setdefault("FAB_PG_POOL_SIZE", "20")
+        os.environ.setdefault("FAB_UVICORN_CONCURRENCY", "500")
+        os.environ.setdefault("FAB_PG_WORK_MEM", "128MB")
+        print(f"  [Hardware] Profil DEDIE / HAUTE PERFORMANCE ({gpu_name}, {total_ram_gb} GB RAM, {cpu_count} vCPUs).", flush=True)
+    else:
+        raster_threads = min(4, max(2, cpu_count // 2))
+        os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (
+            f"--enable-gpu-rasterization --enable-zero-copy "
+            f"--enable-features=CanvasOopRasterization,UseSkiaRenderer "
+            f"--num-raster-threads={raster_threads}"
+        )
+        os.environ.setdefault("FAB_PG_POOL_SIZE", "10")
+        os.environ.setdefault("FAB_UVICORN_CONCURRENCY", "250")
+        os.environ.setdefault("FAB_PG_WORK_MEM", "32MB")
+        print(f"  [Hardware] Profil INTEGRE / EQUILIBRE ({gpu_name}, {total_ram_gb} GB RAM, {cpu_count} vCPUs).", flush=True)
+
+detect_and_apply_adaptive_hardware_profile()
+
 # Ecoute sur toutes les interfaces (LAN + localhost) par defaut
 # Peut etre remplace par FAB_HOST=127.0.0.1 dans .env pour revenir en mode local uniquement
 if not os.environ.get("FAB_HOST", "").strip():
@@ -8,7 +79,6 @@ if not os.environ.get("FAB_HOST", "").strip():
 
 import json
 import shutil
-import sys
 import time
 import socket
 import threading
@@ -21,14 +91,20 @@ def optimize_windows_system():
         return
     try:
         import ctypes
-        # 1. Elevate process priority to ABOVE_NORMAL_PRIORITY_CLASS (0x00008000) for instant window & UI responsiveness
+        # 1. Elevate process priority to HIGH_PRIORITY_CLASS (0x00000080) for max hardware response speed
         try:
             handle = ctypes.windll.kernel32.GetCurrentProcess()
-            ctypes.windll.kernel32.SetPriorityClass(handle, 0x00008000)
+            ctypes.windll.kernel32.SetPriorityClass(handle, 0x00000080)
         except Exception:
             pass
 
-        # 2. Per-monitor DPI V2 Awareness for Windows 10 / 11 4K displays
+        # 2. Enable 1ms High-Precision System Timer Resolution (sub-millisecond event loop ticks)
+        try:
+            ctypes.windll.winmm.timeBeginPeriod(1)
+        except Exception:
+            pass
+
+        # 3. Per-monitor DPI V2 Awareness for Windows 10 / 11 4K displays
         try:
             ctypes.windll.shcore.SetProcessDpiAwareness(2)
         except Exception:
@@ -37,13 +113,13 @@ def optimize_windows_system():
             except Exception:
                 pass
 
-        # 3. AppUserModelID for Taskbar icon & notification grouping
+        # 4. AppUserModelID for Taskbar icon & notification grouping
         try:
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("FABOuanes.ERP.EnterpriseDesktop.v1")
         except Exception:
             pass
 
-        # 4. Disable Windows error dialog boxes for background workers
+        # 5. Disable Windows error dialog boxes for background workers
         try:
             ctypes.windll.kernel32.SetErrorMode(0x0001 | 0x0002)
         except Exception:
@@ -906,8 +982,8 @@ def run_server(host: str, port: int) -> None:
 
     is_termux = "com.termux" in os.environ.get("PREFIX", "") or "com.termux" in sys.prefix or Path("/data/data/com.termux").exists()
     log_level = os.environ.get("FAB_UVICORN_LOG_LEVEL") or "warning"
-    limit_concurrency = int(os.environ.get("FAB_UVICORN_CONCURRENCY", "100" if is_termux else "250"))
-    timeout_keep_alive = int(os.environ.get("FAB_UVICORN_KEEP_ALIVE", "30"))
+    limit_concurrency = int(os.environ.get("FAB_UVICORN_CONCURRENCY", "100" if is_termux else "500"))
+    timeout_keep_alive = int(os.environ.get("FAB_UVICORN_KEEP_ALIVE", "60"))
 
     config_kwargs: dict = dict(
         app="app.main:app",
@@ -920,7 +996,9 @@ def run_server(host: str, port: int) -> None:
         ws=ws_protocol,
         limit_concurrency=limit_concurrency,
         timeout_keep_alive=timeout_keep_alive,
-        backlog=128,
+        backlog=2048,
+        loop="asyncio",
+        http="h11",
     )
     if is_termux:
         print("  Mode Termux/Mobile détecté — optimisations mémoire et réactivité actives.", flush=True)
@@ -1110,6 +1188,12 @@ def load_window_state() -> dict:
 def open_ui(url: str) -> None:
     try:
         import webview
+
+        if "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS" not in os.environ and "--disable-gpu" not in sys.argv:
+            os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (
+                "--enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist "
+                "--enable-features=CanvasOopRasterization,UseSkiaRenderer"
+            )
 
         # Autoriser le téléchargement de fichiers dans l'application de bureau
         webview.settings['ALLOW_DOWNLOADS'] = True

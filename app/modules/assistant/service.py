@@ -646,7 +646,7 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
             "options": {
                 "temperature": 0.3,
                 "num_predict": 2048,
-                "num_gpu": -1,
+                "num_gpu": int(os.environ.get("FAB_OLLAMA_NUM_GPU", "1") or "1"),
                 "num_thread": max(1, os.cpu_count() or 4)
             }
         }

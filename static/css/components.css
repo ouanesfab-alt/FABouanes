@@ -650,31 +650,46 @@ html, body {
   color: #007AFF !important;
 }
 
-/* ── 9. macOS Frosted Dropdown Menus ── */
+/* ── 9. macOS Opaque Dropdown Menus (Crisp & Legible) ── */
 .dropdown-menu {
-  border-radius: 14px !important;
-  border: 1px solid rgba(0, 0, 0, 0.1) !important;
-  background: rgba(255, 255, 255, 0.88) !important;
-  backdrop-filter: blur(25px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(25px) saturate(190%) !important;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  background: #FFFFFF !important;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.18) !important;
   padding: 6px !important;
 }
-[data-theme="dark"] .dropdown-menu {
-  background: rgba(32, 32, 32, 0.88) !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
+[data-theme="dark"] .dropdown-menu,
+[data-theme="windows-dark"] .dropdown-menu {
+  background: #1C1C1E !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5) !important;
 }
 .dropdown-item {
   border-radius: 8px !important;
   font-weight: 600 !important;
   font-size: 0.88rem !important;
   padding: 7px 12px !important;
+  color: var(--text-primary, #1D1D1F) !important;
   transition: background-color 0.15s ease, color 0.15s ease !important;
 }
-.dropdown-item:hover, .dropdown-item.active {
+[data-theme="dark"] .dropdown-item,
+[data-theme="windows-dark"] .dropdown-item {
+  color: #F5F5F7 !important;
+}
+.dropdown-item:hover, .dropdown-item:focus {
   background-color: #007AFF !important;
   color: #FFFFFF !important;
+}
+.dropdown-item:hover i, .dropdown-item:focus i {
+  color: #FFFFFF !important;
+}
+.dropdown-item.active {
+  background-color: rgba(0, 122, 255, 0.08) !important;
+  color: #007AFF !important;
+  font-weight: 700 !important;
+}
+.dropdown-item.active i {
+  color: #007AFF !important;
 }
 
 /* ── 10. macOS Frosted Toast Notifications ── */

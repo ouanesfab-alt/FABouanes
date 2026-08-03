@@ -256,56 +256,38 @@ html.font-changing *::after {
   content: "";
   position: absolute;
   border-radius: 50%;
-  filter: blur(120px);
   pointer-events: none;
-  will-change: transform;
-  transform: translate3d(0, 0, 0);
-  backface-visibility: hidden;
+  opacity: 0.6;
 }
 
 /* Light ambient spheres */
 :root .sequoia-backdrop::before,
 [data-theme="light"] .sequoia-backdrop::before,
 [data-theme="windows"] .sequoia-backdrop::before {
-  width: 65vmax; height: 65vmax;
-  left: -18vmax; top: -8vmax;
-  background: radial-gradient(circle, var(--sequoia-color-1) 0%, transparent 70%);
-  animation: sequoia-drift-1 35s infinite alternate ease-in-out;
+  width: 60vmax; height: 60vmax;
+  left: -15vmax; top: -10vmax;
+  background: radial-gradient(circle, var(--sequoia-color-1) 0%, transparent 65%);
 }
 :root .sequoia-backdrop::after,
 [data-theme="light"] .sequoia-backdrop::after,
 [data-theme="windows"] .sequoia-backdrop::after {
-  width: 70vmax; height: 70vmax;
-  right: -22vmax; bottom: -12vmax;
-  background: radial-gradient(circle, var(--sequoia-color-2) 0%, transparent 70%);
-  animation: sequoia-drift-2 45s infinite alternate ease-in-out;
+  width: 65vmax; height: 65vmax;
+  right: -20vmax; bottom: -15vmax;
+  background: radial-gradient(circle, var(--sequoia-color-2) 0%, transparent 65%);
 }
 
 /* Dark ambient spheres */
 [data-theme="dark"] .sequoia-backdrop::before,
 [data-theme="windows-dark"] .sequoia-backdrop::before {
-  width: 70vmax; height: 70vmax;
-  left: -12vmax; top: -12vmax;
-  background: radial-gradient(circle, var(--sequoia-color-1) 0%, transparent 70%);
-  animation: sequoia-drift-1 40s infinite alternate ease-in-out;
+  width: 65vmax; height: 65vmax;
+  left: -10vmax; top: -10vmax;
+  background: radial-gradient(circle, var(--sequoia-color-1) 0%, transparent 65%);
 }
 [data-theme="dark"] .sequoia-backdrop::after,
 [data-theme="windows-dark"] .sequoia-backdrop::after {
-  width: 75vmax; height: 75vmax;
-  right: -18vmax; bottom: -18vmax;
-  background: radial-gradient(circle, var(--sequoia-color-2) 0%, transparent 70%);
-  animation: sequoia-drift-2 50s infinite alternate ease-in-out;
-}
-
-@keyframes sequoia-drift-1 {
-  0%   { transform: translate(0, 0) scale(1); }
-  50%  { transform: translate(8vw, 6vh) scale(1.08); }
-  100% { transform: translate(-4vw, -3vh) scale(0.95); }
-}
-@keyframes sequoia-drift-2 {
-  0%   { transform: translate(0, 0) scale(1); }
-  50%  { transform: translate(-6vw, -8vh) scale(0.96); }
-  100% { transform: translate(5vw, 4vh) scale(1.04); }
+  width: 70vmax; height: 70vmax;
+  right: -15vmax; bottom: -15vmax;
+  background: radial-gradient(circle, var(--sequoia-color-2) 0%, transparent 65%);
 }
 
 /* ── Global Resets — macOS style ── */
@@ -559,33 +541,41 @@ h1, h2, h3, h4, h5, h6, .section-title {
 [data-theme="dark"] .alert-danger  { color: var(--system-red) !important; }
 [data-theme="dark"] .alert-warning { color: var(--system-orange) !important; }
 
-/* ── Dropdown — macOS menu style ── */
+/* ── Dropdown — macOS menu style (Opaque & Legible) ── */
 .dropdown-menu {
-  background: var(--glass-chrome) !important;
-  backdrop-filter: var(--blur-lg) saturate(180%) !important;
-  -webkit-backdrop-filter: var(--blur-lg) saturate(180%) !important;
-  border: 0.5px solid var(--separator) !important;
-  border-radius: var(--radius-md) !important;
-  box-shadow: var(--shadow-xl) !important;
-  padding: 4px !important;
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  border-radius: var(--radius-md, 12px) !important;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.18) !important;
+  padding: 6px !important;
 }
 .dropdown-item {
-  border-radius: var(--radius-xs) !important;
+  border-radius: var(--radius-xs, 6px) !important;
   font-size: 13px !important;
   padding: 6px 10px !important;
-  color: var(--text) !important;
-  transition: background 0.1s ease !important;
+  color: var(--text-primary, #1D1D1F) !important;
+  transition: background 0.1s ease, color 0.1s ease !important;
 }
-.dropdown-item:hover, .dropdown-item:focus {
-  background: var(--system-blue) !important;
+[data-theme="dark"] .dropdown-item,
+[data-theme="windows-dark"] .dropdown-item {
+  color: #F5F5F7 !important;
+}
+.dropdown-item:hover, .dropdown-item:focus, .dropdown-item.active {
+  background: var(--system-blue, #007AFF) !important;
   color: white !important;
 }
 .dropdown-divider {
-  border-color: var(--separator) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
   margin: 4px 0 !important;
 }
-[data-theme="dark"] .dropdown-menu {
-  background: rgba(40, 40, 42, 0.95) !important;
+[data-theme="dark"] .dropdown-divider,
+[data-theme="windows-dark"] .dropdown-divider {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+[data-theme="dark"] .dropdown-menu,
+[data-theme="windows-dark"] .dropdown-menu {
+  background: #1C1C1E !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
 }
 
 /* ── macOS Page & Micro-Animations ── */

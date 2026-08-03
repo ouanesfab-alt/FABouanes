@@ -80,6 +80,8 @@ async def test_reconcile_client_balances_exception():
     assert res["error"] == "Query Timeout"
 
 
+from app.core.perf_cache import clear_cache
+
 @pytest.mark.asyncio
 @patch("app.services.system_service.reconcile_client_balances")
 @patch("app.services.system_service._probe_db_write")
@@ -89,6 +91,7 @@ async def test_reconcile_client_balances_exception():
 async def test_get_system_status_includes_reconciliation(
     mock_pending, mock_backups, mock_probe_dir, mock_probe_db, mock_reconcile
 ):
+    clear_cache()
     mock_reconcile.return_value = {"ok": True, "status": "Conforme", "count": 0, "discrepancies": []}
     mock_pending.return_value = {}
     mock_backups.return_value = []

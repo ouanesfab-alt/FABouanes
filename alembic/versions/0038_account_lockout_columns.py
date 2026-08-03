@@ -15,10 +15,20 @@ branch_labels = None
 depends_on = None
 
 def upgrade() -> None:
-    op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_count INTEGER DEFAULT 0 NOT NULL")
-    op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ")
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    cols = [c["name"] for c in insp.get_columns("users")]
+    if "failed_login_count" not in cols:
+        op.add_column("users", sa.Column("failed_login_count", sa.Integer(), nullable=False, server_default="0"))
+    if "locked_until" not in cols:
+        op.add_column("users", sa.Column("locked_until", sa.DateTime(timezone=True), nullable=True))
 
 def downgrade() -> None:
-    op.execute("ALTER TABLE users DROP COLUMN IF EXISTS locked_until")
-    op.execute("ALTER TABLE users DROP COLUMN IF EXISTS failed_login_count")
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    cols = [c["name"] for c in insp.get_columns("users")]
+    if "locked_until" in cols:
+        op.drop_column("users", "locked_until")
+    if "failed_login_count" in cols:
+        op.drop_column("users", "failed_login_count")
 

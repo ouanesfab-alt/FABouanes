@@ -349,63 +349,63 @@
       <!-- Indicateurs KPI d'Audit -->
       <div class="row g-2 mb-3">
         <div class="col-6 col-md-3">
-          <div class="p-2 border rounded bg-body-tertiary d-flex align-items-center gap-2">
-            <div class="p-2 bg-primary-subtle text-primary rounded-circle"><i class="bi bi-shield-check fs-6"></i></div>
+          <div class="audit-kpi-card">
+            <div class="p-2 bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center" style="width:36px; height:36px;"><i class="bi bi-shield-check fs-6"></i></div>
             <div>
-              <div class="small text-muted" style="font-size:0.75rem;">Total Événements</div>
-              <div class="fw-bold fs-6" id="auditStatTotal">0</div>
+              <div class="audit-kpi-title">Total Événements</div>
+              <div class="audit-kpi-value" id="auditStatTotal">0</div>
             </div>
           </div>
         </div>
         <div class="col-6 col-md-3">
-          <div class="p-2 border rounded bg-body-tertiary d-flex align-items-center gap-2">
-            <div class="p-2 bg-success-subtle text-success rounded-circle"><i class="bi bi-pencil-square fs-6"></i></div>
+          <div class="audit-kpi-card">
+            <div class="p-2 bg-success-subtle text-success rounded-circle d-flex align-items-center justify-content-center" style="width:36px; height:36px;"><i class="bi bi-pencil-square fs-6"></i></div>
             <div>
-              <div class="small text-muted" style="font-size:0.75rem;">Créations / Éditions</div>
-              <div class="fw-bold fs-6" id="auditStatWrites">0</div>
+              <div class="audit-kpi-title">Créations / Éditions</div>
+              <div class="audit-kpi-value" id="auditStatWrites">0</div>
             </div>
           </div>
         </div>
         <div class="col-6 col-md-3">
-          <div class="p-2 border rounded bg-body-tertiary d-flex align-items-center gap-2">
-            <div class="p-2 bg-danger-subtle text-danger rounded-circle"><i class="bi bi-trash3 fs-6"></i></div>
+          <div class="audit-kpi-card">
+            <div class="p-2 bg-danger-subtle text-danger rounded-circle d-flex align-items-center justify-content-center" style="width:36px; height:36px;"><i class="bi bi-trash3 fs-6"></i></div>
             <div>
-              <div class="small text-muted" style="font-size:0.75rem;">Suppressions / Alertes</div>
-              <div class="fw-bold fs-6" id="auditStatDeletes">0</div>
+              <div class="audit-kpi-title">Suppressions / Alertes</div>
+              <div class="audit-kpi-value" id="auditStatDeletes">0</div>
             </div>
           </div>
         </div>
         <div class="col-6 col-md-3">
-          <div class="p-2 border rounded bg-body-tertiary d-flex align-items-center gap-2">
-            <div class="p-2 bg-info-subtle text-info rounded-circle"><i class="bi bi-person-lock fs-6"></i></div>
+          <div class="audit-kpi-card">
+            <div class="p-2 bg-info-subtle text-info rounded-circle d-flex align-items-center justify-content-center" style="width:36px; height:36px;"><i class="bi bi-person-lock fs-6"></i></div>
             <div>
-              <div class="small text-muted" style="font-size:0.75rem;">Sécurité & Accès</div>
-              <div class="fw-bold fs-6" id="auditStatAuth">0</div>
+              <div class="audit-kpi-title">Sécurité & Accès</div>
+              <div class="audit-kpi-value" id="auditStatAuth">0</div>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Filtres rapides asynchrones -->
-      <div class="row g-2 mb-3 bg-light p-3 rounded border">
+      <div class="row g-2 mb-3 audit-filter-bar">
         <div class="col-md-3">
-          <label class="form-label small fw-bold">Recherche globale</label>
+          <label class="form-label small fw-bold mb-1">Recherche globale</label>
           <input type="text" id="auditQueryInput" class="form-control form-control-sm" placeholder="Nom, détails, ID, action...">
         </div>
         <div class="col-md-2">
-          <label class="form-label small fw-bold">Acteur / Rôle</label>
+          <label class="form-label small fw-bold mb-1">Acteur / Rôle</label>
           <input type="text" id="auditActorInput" class="form-control form-control-sm" placeholder="ex: admin">
         </div>
         <div class="col-md-2">
-          <label class="form-label small fw-bold">Date de début</label>
+          <label class="form-label small fw-bold mb-1">Date de début</label>
           <input type="date" id="auditDateFromInput" class="form-control form-control-sm">
         </div>
         <div class="col-md-2">
-          <label class="form-label small fw-bold">Date de fin</label>
+          <label class="form-label small fw-bold mb-1">Date de fin</label>
           <input type="date" id="auditDateToInput" class="form-control form-control-sm">
         </div>
         <div class="col-md-2">
-          <label class="form-label small fw-bold">Statut</label>
+          <label class="form-label small fw-bold mb-1">Statut</label>
           <select id="auditStatusSelect" class="form-select form-select-sm">
             <option value="">Tous les statuts</option>
             <option value="success">Success (Succès)</option>
@@ -1142,7 +1142,7 @@
       if (act.includes('backup') || act.includes('restore')) {
         return `<span class="badge bg-warning-subtle text-warning border border-warning-subtle"><i class="bi bi-database me-1"></i>${action}</span>`;
       }
-      return `<span class="badge bg-secondary-subtle text-dark border">${action}</span>`;
+      return `<span class="badge bg-secondary-subtle text-body border">${action}</span>`;
     }
 
     async function loadAuditLogs() {
@@ -1186,7 +1186,7 @@
                 <div class="small text-muted" style="font-size:0.75rem;">${l.actor_role || 'Rôle -'}</div>
               </td>
               <td>${actionHtml}</td>
-              <td><span class="badge bg-body-secondary text-dark border">${l.entity_type || '-'} ${l.entity_id ? '#' + l.entity_id : ''}</span></td>
+              <td><span class="badge bg-body-secondary text-body border">${l.entity_type || '-'} ${l.entity_id ? '#' + l.entity_id : ''}</span></td>
               <td><span class="badge ${badgeClass}">${l.status}</span></td>
               <td>
                 <div class="small text-break" style="max-width:280px;">

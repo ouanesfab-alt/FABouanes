@@ -102,13 +102,13 @@
                 <span class="text-muted">-</span>
               {% endif %}
             </td>
-            <td class="col-balance fw-semibold {{ 'text-danger' if row.contact_type == 'Client' and row.current_balance > 0 else '' }}">
+            <td class="col-balance fw-semibold">
               {% if row.contact_type == 'Client' and row.current_balance > 0 %}
-                {{ row.current_balance|money }}
+                <span class="text-danger fw-bold">{{ row.current_balance|money }}</span>
               {% elif row.contact_type == 'Fournisseur' %}
                 <span class="text-muted">-</span>
               {% else %}
-                <span class="text-success">OK</span>
+                <span class="text-success fw-bold">OK</span>
               {% endif %}
             </td>
             <td class="col-actions text-nowrap">

@@ -392,7 +392,7 @@ async def _create_purchase_record_impl(
         raise ValidationError("La date d'achat ne peut pas être dans le futur.", field="purchase_date")
 
     custom_item_name = str(custom_item_name or "").strip()
-    total = qty * unit_price
+    total = round(qty * unit_price, 2)
     qty_kg = qty_to_kg(qty, unit)
     unit_price_kg = unit_price_to_kg(unit_price, unit)
 
@@ -426,11 +426,11 @@ async def _create_purchase_record_impl(
         purchase_id = p.id
 
         stock_before = float(material.stock_qty)
-        stock_after = stock_before + qty_kg
+        stock_after = round(stock_before + qty_kg, 4)
         current_value = stock_before * float(material.avg_cost)
         added_value = qty_kg * unit_price_kg
-        avg_cost = (current_value + added_value) / stock_after if stock_after > 0 else 0
-        sale_price = float(material.sale_price) or unit_price
+        avg_cost = round((current_value + added_value) / stock_after, 4) if stock_after > 0 else 0.0
+        sale_price = round(float(material.sale_price) or unit_price, 2)
 
         material.stock_qty = Decimal(str(stock_after))
         material.avg_cost = Decimal(str(avg_cost))
@@ -461,11 +461,11 @@ async def _create_purchase_record_impl(
         purchase_id = p.id
 
         stock_before = float(product.stock_qty)
-        stock_after = stock_before + qty_kg
+        stock_after = round(stock_before + qty_kg, 4)
         current_value = stock_before * float(product.avg_cost)
         added_value = qty_kg * unit_price_kg
-        avg_cost = (current_value + added_value) / stock_after if stock_after > 0 else 0
-        sale_price = float(product.sale_price) or unit_price
+        avg_cost = round((current_value + added_value) / stock_after, 4) if stock_after > 0 else 0.0
+        sale_price = round(float(product.sale_price) or unit_price, 2)
 
         product.stock_qty = Decimal(str(stock_after))
         product.avg_cost = Decimal(str(avg_cost))
@@ -523,14 +523,14 @@ async def _create_sale_record_impl(
 ) -> tuple[str, int]:
     from app.core.models import FinishedProduct, Payment, RawMaterial, RawSale, Sale
 
-    total = qty * unit_price
+    total = round(qty * unit_price, 2)
     requested_sale_type = (sale_type or "").strip().lower()
     if requested_sale_type not in {"cash", "credit"}:
         requested_sale_type = "credit" if client_id else "cash"
     if requested_sale_type == "credit" and not client_id:
         raise ValidationError("Une vente à crédit nécessite un client.", field="client_id")
-    amount_paid = total if requested_sale_type == "cash" else max(0.0, min(float(amount_paid_input or 0), total))
-    balance_due = round(total - amount_paid, 2)
+    amount_paid = round(total if requested_sale_type == "cash" else max(0.0, min(float(amount_paid_input or 0), total)), 2)
+    balance_due = round(max(0.0, total - amount_paid), 2)
     if qty <= 0:
         raise ValidationError("La quantité doit être supérieure à zéro.", field="quantity")
     if sale_date and sale_date > date.today().isoformat():
@@ -549,7 +549,7 @@ async def _create_sale_record_impl(
             raise ValidationError(f"Stock produit insuffisant (disponible: {stock_before:.2f} kg, requis: {qty_kg:.2f} kg).", field="quantity")
 
         cost_snapshot = float(item.avg_cost)
-        profit_amount = total - qty_kg * cost_snapshot
+        profit_amount = round(total - qty_kg * cost_snapshot, 2)
 
         s = Sale(
             client_id=client_id,
@@ -614,7 +614,7 @@ async def _create_sale_record_impl(
         raise ValidationError(f"Stock matière insuffisant (disponible: {stock_before:.2f} kg, requis: {qty_kg:.2f} kg).", field="quantity")
 
     cost_snapshot = float(item.avg_cost)
-    profit_amount = total - qty_kg * cost_snapshot
+    profit_amount = round(total - qty_kg * cost_snapshot, 2)
 
     rs = RawSale(
         client_id=client_id,
@@ -689,7 +689,7 @@ async def _reverse_purchase_impl(purchase_id: int, db: AsyncSession) -> bool:
         current_value = stock_before * float(product.avg_cost)
         removed_value = float(row.quantity) * float(row.unit_price)
         restored_value = current_value - removed_value
-        avg_cost_restored = restored_value / stock_after if stock_after > 0 else float(product.avg_cost)
+        avg_cost_restored = round(restored_value / stock_after, 4) if stock_after > 0 else float(product.avg_cost)
 
         product.stock_qty = Decimal(str(stock_after))
         product.avg_cost = Decimal(str(avg_cost_restored))
@@ -708,7 +708,7 @@ async def _reverse_purchase_impl(purchase_id: int, db: AsyncSession) -> bool:
         current_value = stock_before * float(material.avg_cost)
         removed_value = float(row.quantity) * float(row.unit_price)
         restored_value = current_value - removed_value
-        avg_cost_restored = restored_value / stock_after if stock_after > 0 else float(material.avg_cost)
+        avg_cost_restored = round(restored_value / stock_after, 4) if stock_after > 0 else float(material.avg_cost)
 
         material.stock_qty = Decimal(str(stock_after))
         material.avg_cost = Decimal(str(avg_cost_restored))
@@ -821,9 +821,9 @@ async def _apply_finished_production_impl(product, output_qty: float, total_cost
     stock_before = float(db_product.stock_qty)
     current_value = stock_before * float(db_product.avg_cost)
     new_value = current_value + float(total_cost)
-    stock_after = stock_before + float(output_qty)
-    new_avg = (new_value / stock_after) if stock_after > 0 else 0
-    sale_price = float(db_product.sale_price) if float(db_product.sale_price) > 0 else new_avg * 1.15
+    stock_after = round(stock_before + float(output_qty), 4)
+    new_avg = round(new_value / stock_after, 4) if stock_after > 0 else 0.0
+    sale_price = round(float(db_product.sale_price) if float(db_product.sale_price) > 0 else new_avg * 1.15, 2)
 
     db_product.stock_qty = Decimal(str(stock_after))
     db_product.avg_cost = Decimal(str(new_avg))
@@ -870,7 +870,7 @@ async def _reverse_production_impl(batch_id: int, db: AsyncSession) -> bool:
     current_value = stock_before * float(product.avg_cost)
     removed_value = float(batch.production_cost)
     restored_value = current_value - removed_value
-    avg_cost_restored = restored_value / stock_after if stock_after > 0 else float(product.avg_cost)
+    avg_cost_restored = round(restored_value / stock_after, 4) if stock_after > 0 else float(product.avg_cost)
 
     product.stock_qty = Decimal(str(stock_after))
     product.avg_cost = Decimal(str(avg_cost_restored))
