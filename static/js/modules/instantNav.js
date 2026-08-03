@@ -103,6 +103,27 @@ function isPjaxEligible(link) {
   }
 }
 
+function cleanupPageGlobals() {
+  try {
+    if (typeof window.Chart !== 'undefined' && window.Chart.instances) {
+      Object.keys(window.Chart.instances).forEach(id => {
+        try { window.Chart.instances[id].destroy(); } catch (e) {}
+      });
+    }
+  } catch (e) {}
+
+  if (window.reportChartInstances) {
+    Object.keys(window.reportChartInstances).forEach(k => {
+      try { window.reportChartInstances[k].destroy(); } catch(e) {}
+    });
+    delete window.reportChartInstances;
+  }
+  if (window.kpiChartInstance) {
+    try { window.kpiChartInstance.destroy(); } catch(e) {}
+    window.kpiChartInstance = null;
+  }
+}
+
 async function loadPjaxPage(url, pushState = true) {
   const currentContainer = document.querySelector('.app-content');
   if (!currentContainer) {
@@ -135,6 +156,9 @@ async function loadPjaxPage(url, pushState = true) {
       return;
     }
 
+    // Clean up stale chart instances before DOM swap
+    cleanupPageGlobals();
+
     // Direct, single-frame instant replacement (no double flash)
     currentContainer.innerHTML = newContainer.innerHTML;
     currentContainer.style.opacity = '1';
@@ -158,8 +182,11 @@ async function loadPjaxPage(url, pushState = true) {
     // Execute scripts contained within the new page content
     executeContainerScripts(currentContainer);
 
-    // Fire custom page-loaded event for main re-initialization
-    document.dispatchEvent(new CustomEvent('fab:page-loaded', { detail: { url } }));
+    // Fire custom page-loaded & resize events for chart & layout re-initialization
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+      document.dispatchEvent(new CustomEvent('fab:page-loaded', { detail: { url } }));
+    }, 20);
 
   } catch (err) {
     console.warn('[PJAX] Navigation failed, fallback to standard link:', err);
@@ -188,24 +215,38 @@ function updateNavbarActiveLinks(url) {
 function executeContainerScripts(container) {
   const scripts = Array.from(container.querySelectorAll('script'));
   scripts.forEach(script => {
-    const code = script.innerHTML;
-    if (!code.trim()) return;
-
-    // Transform DOMContentLoaded wrapper to IIFE so it executes immediately ONCE in PJAX context
-    const patchedCode = code.replace(
-      /document\.addEventListener\s*\(\s*['"]DOMContentLoaded['"]\s*,\s*(?:function\s*\([^\)]*\)|`?\([^\)]*\)`?\s*=>)\s*\{/g,
-      '(function(){'
-    );
-
     const newScript = document.createElement('script');
     Array.from(script.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-    newScript.textContent = patchedCode;
+    if (script.src) {
+      newScript.src = script.src;
+    } else {
+      newScript.textContent = script.innerHTML;
+    }
     script.parentNode.replaceChild(newScript, script);
   });
 }
 
 
+
 export function initInstantNavModule() {
+  // Patch document.addEventListener for DOMContentLoaded so dynamic PJAX scripts execute immediately
+  if (!window._pjaxDCLPatched) {
+    window._pjaxDCLPatched = true;
+    const origAddEv = document.addEventListener.bind(document);
+    document.addEventListener = function (type, listener, options) {
+      origAddEv(type, listener, options);
+      if (type === 'DOMContentLoaded' && (document.readyState === 'complete' || document.readyState === 'interactive')) {
+        try {
+          if (typeof listener === 'function') {
+            setTimeout(listener, 10);
+          } else if (listener && typeof listener.handleEvent === 'function') {
+            setTimeout(() => listener.handleEvent(), 10);
+          }
+        } catch (e) {}
+      }
+    };
+  }
+
   // Prefetch on hover/touch
   document.addEventListener('mouseover', (e) => {
     const link = e.target.closest('a');
@@ -235,4 +276,5 @@ export function initInstantNavModule() {
     loadPjaxPage(targetUrl, false);
   });
 }
+
 
