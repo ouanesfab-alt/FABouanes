@@ -1,4 +1,4 @@
-// FABOuanes ERP — Instant Native Hover Prefetcher & Random Vibrant Progress Bar Module
+// FABOuanes ERP — Instant Native Hover Prefetcher & SPA PJAX Page Switcher Module
 
 let progressBar = null;
 
@@ -73,7 +73,7 @@ const prefetchedUrls = new Set();
 function prefetch(url) {
   if (!url || prefetchedUrls.has(url)) return;
   if (url.startsWith('#') || url.startsWith('javascript:')) return;
-  if (url.includes('/logout') || url.includes('/print/')) return;
+  if (url.includes('/logout') || url.includes('/print/') || url.includes('/export')) return;
 
   try {
     const urlObj = new URL(url, window.location.origin);
@@ -88,7 +88,121 @@ function prefetch(url) {
   } catch (e) {}
 }
 
+function isPjaxEligible(link) {
+  if (!link) return false;
+  const href = link.getAttribute('href');
+  if (!href || href.startsWith('#') || href.startsWith('javascript:')) return false;
+  if (link.target === '_blank' || link.hasAttribute('download') || link.getAttribute('data-no-pjax') === 'true') return false;
+  if (href.includes('/logout') || href.includes('/print/') || href.includes('/export')) return false;
+
+  try {
+    const urlObj = new URL(link.href, window.location.origin);
+    return urlObj.origin === window.location.origin;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function loadPjaxPage(url, pushState = true) {
+  const currentContainer = document.querySelector('.app-content');
+  if (!currentContainer) {
+    window.location.href = url;
+    return;
+  }
+
+  triggerRainbowProgressBar();
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'X-PJAX': 'true',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    });
+
+    if (!response.ok) {
+      window.location.href = url;
+      return;
+    }
+
+    const htmlText = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlText, 'text/html');
+
+    const newContainer = doc.querySelector('.app-content');
+    if (!newContainer) {
+      window.location.href = url;
+      return;
+    }
+
+    // Fade out current content slightly for smooth transition
+    currentContainer.style.transition = 'opacity 0.12s ease';
+    currentContainer.style.opacity = '0.4';
+
+    setTimeout(() => {
+      // Replace inner content
+      currentContainer.innerHTML = newContainer.innerHTML;
+      currentContainer.style.opacity = '1';
+
+      // Update Document Title
+      if (doc.title) {
+        document.title = doc.title;
+      }
+
+      // Update PushState URL if requested
+      if (pushState) {
+        window.history.pushState({ pjaxUrl: url }, doc.title || '', url);
+      }
+
+      // Update Navbar Active States
+      updateNavbarActiveLinks(url);
+
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'instant' });
+
+      // Execute scripts contained within the new page content
+      executeContainerScripts(currentContainer);
+
+      // Fire custom page-loaded event for main re-initialization
+      document.dispatchEvent(new CustomEvent('fab:page-loaded', { detail: { url } }));
+    }, 120);
+
+  } catch (err) {
+    console.warn('[PJAX] Navigation failed, fallback to standard link:', err);
+    window.location.href = url;
+  }
+}
+
+function updateNavbarActiveLinks(url) {
+  try {
+    const path = new URL(url, window.location.origin).pathname;
+    document.querySelectorAll('.nav-link, .fab-drawer-item, .bottom-nav-item').forEach(link => {
+      const href = link.getAttribute('href');
+      if (!href) return;
+      const linkPath = new URL(href, window.location.origin).pathname;
+      if (linkPath === path || (path !== '/' && linkPath.length > 1 && path.startsWith(linkPath))) {
+        link.classList.add('active');
+        link.setAttribute('aria-current', 'page');
+      } else {
+        link.classList.remove('active');
+        link.removeAttribute('aria-current');
+      }
+    });
+  } catch (e) {}
+}
+
+function executeContainerScripts(container) {
+  const scripts = Array.from(container.querySelectorAll('script'));
+  scripts.forEach(script => {
+    const newScript = document.createElement('script');
+    Array.from(script.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+    newScript.appendChild(document.createTextNode(script.innerHTML));
+    script.parentNode.replaceChild(newScript, script);
+  });
+}
+
 export function initInstantNavModule() {
+  // Prefetch on hover/touch
   document.addEventListener('mouseover', (e) => {
     const link = e.target.closest('a');
     if (link && link.href) prefetch(link.href);
@@ -99,19 +213,22 @@ export function initInstantNavModule() {
     if (link && link.href) prefetch(link.href);
   }, { passive: true });
 
+  // SPA PJAX click interceptor
   document.addEventListener('click', (e) => {
     const link = e.target.closest('a');
-    if (!link) return;
+    if (!link || !isPjaxEligible(link)) return;
 
-    const href = link.getAttribute('href');
-    if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
-    if (link.target === '_blank' || link.hasAttribute('download')) return;
+    // Ignore modifier clicks (Ctrl+Click, Cmd+Click, Shift+Click)
+    if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
 
-    try {
-      const urlObj = new URL(link.href, window.location.origin);
-      if (urlObj.origin === window.location.origin) {
-        triggerRainbowProgressBar();
-      }
-    } catch (err) {}
+    e.preventDefault();
+    loadPjaxPage(link.href, true);
+  });
+
+  // Handle Browser Back/Forward buttons
+  window.addEventListener('popstate', (e) => {
+    const targetUrl = window.location.href;
+    loadPjaxPage(targetUrl, false);
   });
 }
+

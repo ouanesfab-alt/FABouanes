@@ -35,4 +35,14 @@ initShortcutsModule();
 // Navigation SPA Turbo Instantanée (Zéro rechargement complet de page, basculement ultra-rapide)
 initInstantNavModule();
 
+// Auto-reinitialization on SPA PJAX page transitions
+document.addEventListener('fab:page-loaded', () => {
+  initLayoutModule();
+  initFormsModule();
+  initTablesModule();
+  initContextMenuModule();
+  initRippleModule();
+});
+
+
 
