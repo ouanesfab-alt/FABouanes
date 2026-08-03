@@ -23,13 +23,50 @@ def _is_local_host(host: str) -> bool:
     return not normalized or normalized in _LOCAL_HOSTS or normalized == "0.0.0.0"
 
 
+def _get_tailscale_ips() -> list[str]:
+    """Détecte les adresses IPv4 Tailscale (gamme 100.64.0.0/10)."""
+    ts_ips = []
+    for k in ("TAILSCALE_IP", "FAB_TAILSCALE_IP"):
+        val = str(os.environ.get(k, "")).strip()
+        if val and val.startswith("100.") and val not in ts_ips:
+            ts_ips.append(val)
+
+    try:
+        import subprocess
+        proc = subprocess.run(["tailscale", "ip", "-4"], capture_output=True, text=True, timeout=1.2)
+        if proc.returncode == 0:
+            for line in proc.stdout.splitlines():
+                ip = line.strip()
+                if ip and ip.startswith("100.") and ip not in ts_ips:
+                    ts_ips.append(ip)
+    except Exception:
+        pass
+
+    try:
+        import psutil
+        for iface, addrs in psutil.net_if_addrs().items():
+            if "tailscale" in iface.lower() or "ts" in iface.lower():
+                for addr in addrs:
+                    if addr.family == socket.AF_INET and addr.address.startswith("100.") and addr.address not in ts_ips:
+                        ts_ips.append(addr.address)
+    except Exception:
+        pass
+
+    return ts_ips
+
+
 def _get_all_ips() -> list[str]:
     ips = []
     env_ip = str(os.environ.get("FAB_LAN_IP", "")).strip()
     if env_ip and not _is_local_host(env_ip):
         ips.append(env_ip)
 
-    # 1. Utilisation de la table de routage (la plus fiable pour le LAN principal)
+    # 1. Tailscale VPN IPs en priorité
+    for ts_ip in _get_tailscale_ips():
+        if ts_ip not in ips:
+            ips.append(ts_ip)
+
+    # 2. Utilisation de la table de routage (la plus fiable pour le LAN principal)
     probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         probe.connect(("8.8.8.8", 80))
@@ -41,7 +78,7 @@ def _get_all_ips() -> list[str]:
     finally:
         probe.close()
 
-    # 2. Ajout des interfaces virtuelles (Tailscale/ZeroTier/etc.)
+    # 3. Ajout des interfaces virtuelles & socket
     try:
         for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
             ip = str(info[4][0] or "").strip()
@@ -90,10 +127,10 @@ def _configured_mobile_url() -> str:
     return ""
 
 
-def resolve_mobile_connect_urls(request: Request) -> list[dict[str, str]]:
+def resolve_mobile_connect_urls(request: Request) -> list[dict[str, Any]]:
     configured_url = _configured_mobile_url()
     if configured_url:
-        return [{"name": "Réseau configuré", "url": configured_url}]
+        return [{"name": "Réseau configuré", "url": configured_url, "is_tailscale": "100." in configured_url or "ts.net" in configured_url}]
 
     scheme = _request_scheme(request)
     request_host = _request_host(request)
@@ -105,10 +142,20 @@ def resolve_mobile_connect_urls(request: Request) -> list[dict[str, str]]:
 
     # Check if the current Host header is public/remote
     if current_host and not _is_local_host(current_host):
-        networks.append({"name": "Domaine actuel", "url": _compose_url(scheme, current_host, port)})
+        is_ts = current_host.startswith("100.") or "ts.net" in current_host
+        networks.append({
+            "name": "Accès Distant (Tailscale)" if is_ts else "Domaine actuel",
+            "url": _compose_url(scheme, current_host, port),
+            "is_tailscale": is_ts
+        })
 
     if env_host and not _is_local_host(env_host) and env_host != current_host:
-        networks.append({"name": "IP Serveur", "url": _compose_url(scheme, env_host, port)})
+        is_ts = env_host.startswith("100.") or "ts.net" in env_host
+        networks.append({
+            "name": "Accès Distant (Tailscale)" if is_ts else "IP Serveur",
+            "url": _compose_url(scheme, env_host, port),
+            "is_tailscale": is_ts
+        })
 
     ips = _get_all_ips()
     for ip in ips:
@@ -116,16 +163,19 @@ def resolve_mobile_connect_urls(request: Request) -> list[dict[str, str]]:
         if any(n["url"] == url for n in networks):
             continue
 
-        name = "Réseau Local (LAN / Wi-Fi)"
-        if ip.startswith("100."):
-            name = "Réseau VPN (Tailscale)"
-        elif ip.startswith("10.") or ip.startswith("172.") or ip.startswith("192.168."):
-            pass # Keep Local
-        else:
+        is_ts = ip.startswith("100.")
+        name = "Réseau Distant VPN (Tailscale)" if is_ts else "Réseau Local (LAN / Wi-Fi)"
+        if not is_ts and not (ip.startswith("10.") or ip.startswith("172.") or ip.startswith("192.168.")):
             name = "Réseau Externe"
 
-        networks.append({"name": name, "url": url})
+        networks.append({
+            "name": name,
+            "url": url,
+            "is_tailscale": is_ts
+        })
 
+    # Sort so Tailscale VPN is featured first for remote access
+    networks.sort(key=lambda n: 0 if n.get("is_tailscale") else 1)
     return networks
 
 
