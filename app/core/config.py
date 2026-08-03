@@ -171,9 +171,10 @@ def validate_security_runtime() -> None:
     host = settings.host.strip()
     is_external = host not in ("127.0.0.1", "localhost", "::1")
     password_mode = os.environ.get("FAB_PASSWORD_MODE", "pin").strip().lower()
-    is_desktop = settings.desktop_mode or os.environ.get("FAB_DESKTOP") == "1"
+    is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux") or "com.termux" in sys.prefix
+    is_standalone_app = settings.desktop_mode or os.environ.get("FAB_DESKTOP") == "1" or is_termux
 
-    if is_external and password_mode == "pin" and not is_desktop:
+    if is_external and password_mode == "pin" and not is_standalone_app:
         allow_insecure = os.environ.get("FAB_ALLOW_INSECURE_NETWORK_PIN", "0").strip().lower() in {"1", "true", "yes", "on"}
         if not allow_insecure:
             raise RuntimeError(
