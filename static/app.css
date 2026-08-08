@@ -8422,6 +8422,20 @@ table.record-table thead th,
 .contacts-table-wrap table thead th,
 .transactions-table-wrap table thead th,
 .catalog-table-wrap table thead th,
+.app-content .table-responsive,
+.contacts-table-wrap,
+.transactions-table-wrap,
+.catalog-table-wrap,
+.production-table-wrap,
+.table-responsive {
+  clip-path: inset(0 0 0 0) !important;
+  border-radius: 12px !important;
+}
+
+.table {
+  margin-top: 0 !important;
+}
+
 /* Enforce strict stacking context: thead always above tbody */
 .table thead {
   position: relative !important;

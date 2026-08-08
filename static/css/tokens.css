@@ -1104,6 +1104,12 @@ html[data-theme="windows-dark"] .table tbody tr:hover > th {
 .table-responsive {
   overflow: auto !important;
   position: relative !important;
+  clip-path: inset(0 0 0 0) !important;
+  border-radius: var(--radius-md, 12px) !important;
+}
+
+.table {
+  margin-top: 0 !important;
 }
 
 @media (min-width: 768px) {
