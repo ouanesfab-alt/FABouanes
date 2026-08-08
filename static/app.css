@@ -6811,18 +6811,7 @@ textarea:focus {
   font-size: 13px !important;
 }
 
-.table th {
-  background: rgba(246, 246, 248, 0.78) !important;
-  backdrop-filter: blur(20px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
-  font-family: var(--font-title, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif) !important;
-  font-weight: 600 !important;
-  font-size: 11px !important;
-  text-transform: uppercase;
-  color: var(--text-secondary) !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
-  padding: 10px 14px !important;
-}
+/* .table th styling is defined centrally in tokens.css */
 
 .table td {
   padding: 8px 12px !important;
@@ -8155,14 +8144,7 @@ body::before {
   overflow: visible;
 }
 
-.table th {
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.03em !important;
-  padding: 10px 14px !important;
-  line-height: 1.4 !important;
-}
+/* .table th base font and spacing are defined centrally in tokens.css */
 
 .table td {
   padding: 10px 14px !important;
