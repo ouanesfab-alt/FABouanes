@@ -5,14 +5,16 @@
 /* ── Typography: SF Pro with graceful fallbacks ── */
 @font-face {
   font-family: 'Plus Jakarta Sans';
-  src: url('../fonts/PlusJakartaSans-Regular.ttf') format('truetype');
+  src: url('../fonts/PlusJakartaSans-Regular.woff2') format('woff2'),
+       url('../fonts/PlusJakartaSans-Regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Plus Jakarta Sans';
-  src: url('../fonts/PlusJakartaSans-Bold.ttf') format('truetype');
+  src: url('../fonts/PlusJakartaSans-Bold.woff2') format('woff2'),
+       url('../fonts/PlusJakartaSans-Bold.ttf') format('truetype');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -44,7 +46,6 @@
   --bg-secondary: #FFFFFF;
   --bg-tertiary: #F2F2F7;
   --bg-grouped: #F2F2F7;
-  --bg-th-opaque: #F2F2F7;
 
   /* Text */
   --text: #1D1D1F;
@@ -128,7 +129,7 @@
   /* Layout */
   --sidebar-w: 240px;
   --sidebar-collapsed-w: 64px;
-  --nav-h: 70px;
+  --nav-h: 52px;
   --bot-h: 64px;
   --content-max-w: 1200px;
 
@@ -146,7 +147,6 @@
   --bg-secondary: #2C2C2E;
   --bg-tertiary: #3A3A3C;
   --bg-grouped: #000000;
-  --bg-th-opaque: #2C2C2E;
 
   --text: #F5F5F7;
   --text-primary: #F5F5F7;
@@ -210,22 +210,13 @@ html[data-font="arial"] {
   --font-main: Arial, Helvetica, sans-serif !important;
   --font-title: Arial, Helvetica, sans-serif !important;
 }
-html[data-font="segoe"] {
-  --font-main: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif !important;
-  --font-title: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif !important;
+html[data-font="calibri"] {
+  --font-main: Calibri, Candara, "Segoe UI", sans-serif !important;
+  --font-title: Calibri, Candara, "Segoe UI", sans-serif !important;
 }
 html[data-font="system"] {
-  --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif !important;
-  --font-title: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif !important;
-}
-
-/* ── Smooth Font & Theme Transitions ── */
-html.font-changing,
-html.font-changing body,
-html.font-changing *,
-html.font-changing *::before,
-html.font-changing *::after {
-  transition: font-family 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif !important;
+  --font-title: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif !important;
 }
 
 /* ── Sequoia Ambient Backdrop ── */
@@ -236,19 +227,7 @@ html.font-changing *::after {
   z-index: -2;
   pointer-events: none;
   background: var(--bg);
-  background-image:
-    radial-gradient(rgba(0, 122, 255, 0.06) 1px, transparent 1px),
-    radial-gradient(rgba(0, 122, 255, 0.03) 1px, transparent 1px);
-  background-size: 32px 32px;
-  background-position: 0 0, 16px 16px;
   overflow: hidden;
-}
-
-[data-theme="dark"] .sequoia-backdrop,
-[data-theme="windows-dark"] .sequoia-backdrop {
-  background-image:
-    radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    radial-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px);
 }
 
 .sequoia-backdrop::before,
@@ -256,38 +235,56 @@ html.font-changing *::after {
   content: "";
   position: absolute;
   border-radius: 50%;
+  filter: blur(120px);
   pointer-events: none;
-  opacity: 0.6;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
 }
 
 /* Light ambient spheres */
 :root .sequoia-backdrop::before,
 [data-theme="light"] .sequoia-backdrop::before,
 [data-theme="windows"] .sequoia-backdrop::before {
-  width: 60vmax; height: 60vmax;
-  left: -15vmax; top: -10vmax;
-  background: radial-gradient(circle, var(--sequoia-color-1) 0%, transparent 65%);
+  width: 65vmax; height: 65vmax;
+  left: -18vmax; top: -8vmax;
+  background: radial-gradient(circle, var(--sequoia-color-1) 0%, transparent 70%);
+  animation: sequoia-drift-1 35s infinite alternate ease-in-out;
 }
 :root .sequoia-backdrop::after,
 [data-theme="light"] .sequoia-backdrop::after,
 [data-theme="windows"] .sequoia-backdrop::after {
-  width: 65vmax; height: 65vmax;
-  right: -20vmax; bottom: -15vmax;
-  background: radial-gradient(circle, var(--sequoia-color-2) 0%, transparent 65%);
+  width: 70vmax; height: 70vmax;
+  right: -22vmax; bottom: -12vmax;
+  background: radial-gradient(circle, var(--sequoia-color-2) 0%, transparent 70%);
+  animation: sequoia-drift-2 45s infinite alternate ease-in-out;
 }
 
 /* Dark ambient spheres */
 [data-theme="dark"] .sequoia-backdrop::before,
 [data-theme="windows-dark"] .sequoia-backdrop::before {
-  width: 65vmax; height: 65vmax;
-  left: -10vmax; top: -10vmax;
-  background: radial-gradient(circle, var(--sequoia-color-1) 0%, transparent 65%);
+  width: 70vmax; height: 70vmax;
+  left: -12vmax; top: -12vmax;
+  background: radial-gradient(circle, var(--sequoia-color-1) 0%, transparent 70%);
+  animation: sequoia-drift-1 40s infinite alternate ease-in-out;
 }
 [data-theme="dark"] .sequoia-backdrop::after,
 [data-theme="windows-dark"] .sequoia-backdrop::after {
-  width: 70vmax; height: 70vmax;
-  right: -15vmax; bottom: -15vmax;
-  background: radial-gradient(circle, var(--sequoia-color-2) 0%, transparent 65%);
+  width: 75vmax; height: 75vmax;
+  right: -18vmax; bottom: -18vmax;
+  background: radial-gradient(circle, var(--sequoia-color-2) 0%, transparent 70%);
+  animation: sequoia-drift-2 50s infinite alternate ease-in-out;
+}
+
+@keyframes sequoia-drift-1 {
+  0%   { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(8vw, 6vh) scale(1.08); }
+  100% { transform: translate(-4vw, -3vh) scale(0.95); }
+}
+@keyframes sequoia-drift-2 {
+  0%   { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(-6vw, -8vh) scale(0.96); }
+  100% { transform: translate(5vw, 4vh) scale(1.04); }
 }
 
 /* ── Global Resets — macOS style ── */
@@ -374,7 +371,9 @@ h1, h2, h3, h4, h5, h6, .section-title {
   transition: all 0.2s var(--ease-spring) !important;
   letter-spacing: -0.01em;
 }
-/* scale removed — ripple effect only */
+.btn:active {
+  transform: scale(0.97) !important;
+}
 
 /* Primary — filled blue */
 .btn-primary, .btn-premium {
@@ -460,6 +459,7 @@ h1, h2, h3, h4, h5, h6, .section-title {
   padding: 8px 12px !important;
   border-bottom: 0.5px solid var(--separator) !important;
   background: var(--bg-tertiary) !important;
+  backdrop-filter: var(--blur-xs);
 }
 .table td {
   padding: 8px 12px !important;
@@ -541,41 +541,33 @@ h1, h2, h3, h4, h5, h6, .section-title {
 [data-theme="dark"] .alert-danger  { color: var(--system-red) !important; }
 [data-theme="dark"] .alert-warning { color: var(--system-orange) !important; }
 
-/* ── Dropdown — macOS menu style (Opaque & Legible) ── */
+/* ── Dropdown — macOS menu style ── */
 .dropdown-menu {
-  background: #FFFFFF !important;
-  border: 1px solid rgba(0, 0, 0, 0.12) !important;
-  border-radius: var(--radius-md, 12px) !important;
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.18) !important;
-  padding: 6px !important;
+  background: var(--glass-chrome) !important;
+  backdrop-filter: var(--blur-lg) saturate(180%) !important;
+  -webkit-backdrop-filter: var(--blur-lg) saturate(180%) !important;
+  border: 0.5px solid var(--separator) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-xl) !important;
+  padding: 4px !important;
 }
 .dropdown-item {
-  border-radius: var(--radius-xs, 6px) !important;
+  border-radius: var(--radius-xs) !important;
   font-size: 13px !important;
   padding: 6px 10px !important;
-  color: var(--text-primary, #1D1D1F) !important;
-  transition: background 0.1s ease, color 0.1s ease !important;
+  color: var(--text) !important;
+  transition: background 0.1s ease !important;
 }
-[data-theme="dark"] .dropdown-item,
-[data-theme="windows-dark"] .dropdown-item {
-  color: #F5F5F7 !important;
-}
-.dropdown-item:hover, .dropdown-item:focus, .dropdown-item.active {
-  background: var(--system-blue, #007AFF) !important;
+.dropdown-item:hover, .dropdown-item:focus {
+  background: var(--system-blue) !important;
   color: white !important;
 }
 .dropdown-divider {
-  border-color: rgba(0, 0, 0, 0.08) !important;
+  border-color: var(--separator) !important;
   margin: 4px 0 !important;
 }
-[data-theme="dark"] .dropdown-divider,
-[data-theme="windows-dark"] .dropdown-divider {
-  border-color: rgba(255, 255, 255, 0.1) !important;
-}
-[data-theme="dark"] .dropdown-menu,
-[data-theme="windows-dark"] .dropdown-menu {
-  background: #1C1C1E !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
+[data-theme="dark"] .dropdown-menu {
+  background: rgba(40, 40, 42, 0.95) !important;
 }
 
 /* ── macOS Page & Micro-Animations ── */
@@ -602,116 +594,14 @@ h1, h2, h3, h4, h5, h6, .section-title {
   box-shadow: var(--shadow-glass-hover), var(--shadow-md) !important;
 }
 
-/* scale removed — ripple effect only */
+/* Micro-feedback spring scale-down on active button press */
+.btn:active, .dropdown-item:active {
+  transform: scale(0.96) !important;
+}
 
 /* Spring transition hover for interactive items */
 .nav-link, .sidebar-link, .dropdown-item, .btn {
   transition: all 0.25s var(--ease-spring) !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   RIPPLE EFFECT — Global button click animation (200ms)
-   Covers ALL .btn, button, [type=submit], [type=button],
-   .dropdown-item, .nav-link, .sidebar-link, .list-group-item
-   ══════════════════════════════════════════════════════════ */
-
-/* ══ RIPPLE — overflow:hidden sur TOUS les éléments cliquables ══ */
-.btn,
-button,
-[type="submit"],
-[type="button"],
-[type="reset"],
-/* Bootstrap variants */
-.btn-primary, .btn-secondary, .btn-danger, .btn-success,
-.btn-warning, .btn-dark, .btn-link, .btn-lg, .btn-sm,
-.btn-outline-primary, .btn-outline-secondary, .btn-outline-danger,
-.btn-outline-success, .btn-outline-dark,
-/* App-specific buttons */
-.btn-premium, .btn-brown, .btn-login,
-.btn-cancel-write, .btn-confirm-write,
-.btn-copy, .btn-send, .btn-speak, .btn-stop,
-.btn-page-action, .btn-page-action-secondary,
-.btn-achat-submit, .btn-vente-submit, .btn-payment-submit,
-/* Navbar & layout */
-.nav-brand, .nav-links a,
-.nav-btn, .nav-btn-primary, .nav-link-menu,
-.nav-hamburger, .side-nav-toggle, .bot-tab-add, .bot-tab,
-.nav-link, .nav-drawer-close,
-.drawer-link, .drawer-link-btn, .drawer-sublink,
-/* Dropdowns & menus */
-.dropdown-item, .dropdown-toggle,
-/* Lists & tabs */
-.list-group-item-action, .page-link,
-.search-tab, .view-tab, .category-tab,
-.sidebar-link,
-/* Misc interactive */
-.fab-bar-btn, .fab-bubble-btn, .fab-sheet-close, .fab-switch-btn,
-.kpi-quick-btn, .kpi-sheet-close,
-.mac-btn, .mac-modal-close,
-.toolbar-btn, .pin-toggle, .toggle-pass,
-.bubble-action-btn, .chat-send-btn,
-.flash-toast-close, .btn-close,
-.doc-line-remove, .remove-row,
-.js-theme, .js-font, .js-nav-layout,
-.search-result-item,
-.cm-print, .thread-delete-btn,
-.contacts-link,
-.fab-action-btn, .icon-btn, .quick-action-btn, .action-btn {
-  position: relative !important;
-  overflow: hidden !important;
-}
-
-/* Absolute position override for elements that need to be absolute inside wraps */
-.pin-toggle,
-.toggle-pass {
-  position: absolute !important;
-}
-
-/* The ripple span injected by JS */
-.ripple-wave {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.35);
-  transform: scale(0);
-  animation: ripple-expand 700ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-  pointer-events: none;
-  z-index: 9999;
-}
-
-/* Dark-theme ripple: slightly brighter overlay */
-html[data-theme="dark"]  .ripple-wave,
-html[data-theme="windows-dark"] .ripple-wave {
-  background: rgba(255, 255, 255, 0.20);
-}
-
-/* Navbar buttons: ripple adapté (fond clair ou transparent) */
-.nav-brand .ripple-wave,
-.nav-links a .ripple-wave,
-.nav-btn .ripple-wave,
-.nav-btn-primary .ripple-wave,
-.nav-link-menu .ripple-wave,
-.nav-hamburger .ripple-wave,
-.side-nav-toggle .ripple-wave,
-.bot-tab-add .ripple-wave,
-.bot-tab .ripple-wave,
-.drawer-link .ripple-wave,
-.drawer-sublink .ripple-wave {
-  background: rgba(255, 255, 255, 0.30);
-}
-
-/* Light buttons (secondary/outline) get a darker ripple */
-.btn-secondary      .ripple-wave,
-.btn-outline-secondary .ripple-wave,
-.btn-outline-primary   .ripple-wave,
-.btn-light             .ripple-wave,
-.btn-page-action-secondary .ripple-wave {
-  background: rgba(0, 0, 0, 0.10);
-}
-
-@keyframes ripple-expand {
-  0%   { transform: scale(0); opacity: 1; }
-  70%  { transform: scale(2.5); opacity: 0.5; }
-  100% { transform: scale(3);   opacity: 0; }
 }
 
 /* ── Additional Premium macOS Sequoia Styles ── */
@@ -847,19 +737,18 @@ h1, h2, h3, h4, h5, h6, .brand-title, .title-premium, .section-title, .modal-tit
   color: var(--text-primary) !important;
 }
 
-/* Full-width macOS Window Container */
+/* Floating macOS Window Container */
 @media (min-width: 992px) {
   .app-content {
-    background: transparent !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-    max-width: none !important;
-    padding: 0 !important;
+    background: var(--glass-thick) !important;
+    backdrop-filter: blur(35px) !important;
+    -webkit-backdrop-filter: blur(35px) !important;
+    border: 0.5px solid var(--glass-border) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.16) !important;
+    margin-top: 24px !important;
+    margin-bottom: 40px !important;
+    padding: 30px !important;
     transition: background-color 0.4s var(--ease-smooth) !important;
   }
 }
@@ -976,19 +865,21 @@ html[data-theme="windows-dark"] textarea {
   transition: all 0.12s ease-in-out !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
-/* scale removed — ripple effect only */
+.btn:active {
+  transform: scale(0.98) !important;
+}
 
-.btn-primary, .btn-premium {
+.btn-primary, .btn-premium, .btn-success {
   background: linear-gradient(to bottom, #3498ff, #0076f6) !important;
   border: 0.5px solid rgba(0, 0, 0, 0.15) !important;
   color: #ffffff !important;
   text-shadow: 0 -0.5px 0.5px rgba(0, 0, 0, 0.15) !important;
 }
-.btn-primary:hover, .btn-premium:hover {
+.btn-primary:hover, .btn-premium:hover, .btn-success:hover {
   background: linear-gradient(to bottom, #4fa5ff, #1182ff) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 118, 246, 0.2) !important;
 }
-.btn-primary:active, .btn-premium:active {
+.btn-primary:active, .btn-premium:active, .btn-success:active {
   background: #0060cc !important;
 }
 
@@ -1079,311 +970,4 @@ html[data-theme="windows-dark"] .table tbody tr:hover > th {
 
 /* End of tokens.css */
 
-/* ══════════════════════════════════════════════════════════════
-   Sticky Table Headers & Internal Scroll — Visible en permanence
-   ══════════════════════════════════════════════════════════════ */
 
-/* Conteneur scrollable verticalement pour permettre aux en-têtes d'être sticky et horizontalement pour la réactivité mobile */
-.app-content .table-responsive,
-.contacts-table-wrap,
-.transactions-table-wrap,
-.catalog-table-wrap,
-.production-table-wrap {
-  overflow: auto !important;
-  position: relative !important;
-}
-
-@media (min-width: 768px) {
-  .app-content .table-responsive,
-  .contacts-table-wrap,
-  .transactions-table-wrap,
-  .catalog-table-wrap,
-  .production-table-wrap {
-    max-height: max(535px, calc(100vh - 262px)) !important;
-  }
-}
-
-@media (max-width: 767px) {
-  .app-content .table-responsive,
-  .contacts-table-wrap,
-  .transactions-table-wrap,
-  .catalog-table-wrap,
-  .production-table-wrap {
-    max-height: max(445px, calc(100vh - 182px)) !important;
-  }
-}
-
-
-
-
-
-
-
-/* Force les en-têtes th à être sticky en haut et à avoir un arrière-plan opaque sur tous les tableaux */
-.table-responsive > table > thead > tr,
-.table-responsive > .table > thead > tr,
-.table-responsive > .record-table > thead > tr,
-table.table > thead > tr,
-table.record-table > thead > tr,
-.contacts-table-wrap table > thead > tr,
-.transactions-table-wrap table > thead > tr,
-.catalog-table-wrap table > thead > tr,
-.production-table-wrap table > thead > tr {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 100 !important;
-  background: var(--glass-thick) !important;
-  backdrop-filter: var(--blur-xs) !important;
-  -webkit-backdrop-filter: var(--blur-xs) !important;
-  box-shadow: 0 1px 0 var(--line, #e0e0e0) !important;
-}
-
-.table-responsive > table > thead > tr > th,
-.table-responsive > .table > thead > tr > th,
-.table-responsive > .record-table > thead > tr > th,
-table.table > thead > tr > th,
-table.record-table > thead > tr > th,
-.contacts-table-wrap table > thead > tr > th,
-.transactions-table-wrap table > thead > tr > th,
-.catalog-table-wrap table > thead > tr > th,
-.production-table-wrap table > thead > tr > th {
-  background: transparent !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  box-shadow: none !important;
-}
-
-
-/* ══════════════════════════════════════════════════════════════
-   MOBILE RESPONSIVE DESIGN — 2026
-   Comprehensive mobile-first responsive layer
-   ══════════════════════════════════════════════════════════════ */
-
-/* ─ Utility Classes ──────────────────────────────────────── */
-@media (max-width: 767px) {
-  .hide-mobile      { display: none !important; }
-  .show-mobile      { display: block !important; }
-  .show-mobile-flex { display: flex !important; }
-}
-
-/* ─ App Content: Remove floating glass panel below desktop ─ */
-@media (max-width: 991px) {
-  .app-content {
-    background: transparent !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-  }
-}
-
-/* ─ Body: bottom padding for mobile bottom nav ─ */
-@media (max-width: 767px) {
-  body {
-    padding-bottom: 64px;
-  }
-}
-
-/* ─ Dashboard KPI Grid: 2 columns on mobile ─ */
-@media (max-width: 767px) {
-  .dashboard-kpis {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 10px !important;
-  }
-  .kpi-card {
-    min-height: 110px !important;
-    padding: 12px 14px !important;
-    border-radius: 16px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: space-between !important;
-    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
-  }
-  .kpi-card:hover, .kpi-card:active {
-    transform: scale(0.98) !important;
-    box-shadow: var(--shadow-glass) !important;
-  }
-  .kpi-value {
-    font-size: 1.45rem !important;
-    margin-top: 4px !important;
-    font-weight: 900 !important;
-    word-break: break-word !important;
-  }
-  .kpi-label {
-    font-size: 0.72rem !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.03em !important;
-  }
-  .kpi-delta {
-    font-size: 0.68rem !important;
-    padding: 2px 6px !important;
-    margin-top: 2px !important;
-    border-radius: 6px !important;
-  }
-  .kpi-date-badge {
-    display: none !important;
-  }
-}
-
-/* ─ Dashboard Shell & Panels ─────────────────────────────── */
-@media (max-width: 767px) {
-  .dashboard-shell       { gap: 12px; }
-  .dashboard-switch-stack { gap: 10px; }
-  .dashboard-panel-title  { font-size: 0.95rem; }
-  .dashboard-panel-subtitle {
-    font-size: 0.82rem;
-    margin-bottom: 10px;
-  }
-  /* Panel cards: reduced padding */
-  #dashboardOperations.card,
-  #dashboardTopDebtors.card,
-  #dashboardLowStock.card,
-  #dashboardRecentSales.card,
-  #dashboardDailySummary.card {
-    padding: 12px !important;
-    border-radius: 12px !important;
-  }
-}
-
-/* ─ Fab Switcher: horizontal scroll on mobile ─────────────── */
-@media (max-width: 767px) {
-  .fab-switcher {
-    display: flex !important;
-    width: 100% !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    border-radius: 16px !important;
-    -webkit-overflow-scrolling: touch !important;
-    scrollbar-width: none !important;
-    padding: 3px !important;
-  }
-  .fab-switcher::-webkit-scrollbar { display: none !important; }
-
-  .fab-switch-btn {
-    flex-shrink: 0 !important;
-    white-space: nowrap !important;
-    font-size: 12px !important;
-    padding: 7px 12px !important;
-  }
-  .fab-switch-placeholder {
-    border-radius: 12px !important;
-  }
-}
-
-/* ─ Tables: 100% full width and responsive touch scroll ──── */
-@media (max-width: 767px) {
-  .table-responsive,
-  .contacts-table-wrap,
-  .transactions-table-wrap,
-  .catalog-table-wrap,
-  .production-table-wrap {
-    width: 100% !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-  .table, table.table {
-    width: 100% !important;
-    min-width: 100% !important;
-    display: table !important;
-    font-size: 12px !important;
-  }
-  .table th {
-    font-size: 10px !important;
-    padding: 6px 8px !important;
-  }
-  .table td { padding: 7px 8px !important; }
-}
-
-/* ─ Cards: disable hover elevation on touch devices ──────── */
-@media (hover: none) {
-  .card:hover,
-  .glass-panel:hover,
-  .kpi-card:hover,
-  .dashboard-card:hover,
-  .table-card:hover {
-    transform: none !important;
-    box-shadow: var(--shadow-glass) !important;
-  }
-}
-
-/* ─ Navbar: compact height on mobile ─────────────────────── */
-@media (max-width: 767px) {
-  .nav-inner {
-    padding: 0 12px !important;
-    min-height: 52px !important;
-  }
-  .nav-btn {
-    width: 36px !important;
-    height: 36px !important;
-    padding: 0 !important;
-    justify-content: center !important;
-  }
-  /* Remove hover transforms on touch */
-  .nav-btn:hover { transform: none !important; }
-}
-
-/* ─ Drawer: max width on mobile ──────────────────────────── */
-@media (max-width: 767px) {
-  .nav-drawer { width: min(82vw, 320px) !important; }
-}
-
-/* ─ Search overlay: remove excess top padding ────────────── */
-@media (max-width: 575px) {
-  .search-overlay {
-    padding: 16px 10px !important;
-    align-items: flex-start !important;
-  }
-  .search-modal {
-    border-radius: 14px !important;
-    width: 100% !important;
-  }
-  .search-input-row {
-    padding: 14px 16px !important;
-  }
-}
-
-/* ─ Nav clock: smaller on mobile ─────────────────────────── */
-@media (max-width: 767px) {
-  .nav-clock {
-    font-size: 0.8rem !important;
-    letter-spacing: 0.04em !important;
-  }
-}
-
-/* ─ prefers-reduced-motion: kill all animations ──────────── */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* ─ Mobile page enter: scale-free and fast transition ────── */
-@media (max-width: 767px) {
-  @keyframes mac-page-enter-mobile {
-    from {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  .app-content > * {
-    animation: mac-page-enter-mobile 0.22s ease-out both !important;
-  }
-}
-
-/* ── iOS zoom prevention: force 16px min on all inputs ── */
-@supports (-webkit-touch-callout: none) {
-  input, select, textarea {
-    font-size: max(1rem, 16px) !important;
-  }
-}
