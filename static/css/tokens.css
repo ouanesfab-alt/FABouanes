@@ -1032,7 +1032,7 @@ html[data-theme="windows-dark"] .btn-outline-primary:hover {
   border-spacing: 0 !important;
 }
 .table th {
-  background: rgba(255, 255, 255, 0.45) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
   font-family: var(--font-title, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif) !important;
@@ -1044,12 +1044,15 @@ html[data-theme="windows-dark"] .btn-outline-primary:hover {
   border-left: none !important;
   border-right: none !important;
   border-top: none !important;
-  padding: 10px 14px !important;
+  padding: 8px 12px !important;
   line-height: 1.4 !important;
+  vertical-align: middle !important;
 }
 .table td {
   padding: 8px 12px !important;
+  line-height: 1.4 !important;
   border-bottom: 0.5px solid var(--line) !important;
+  vertical-align: middle !important;
 }
 .table tbody tr:nth-child(even) {
   background: rgba(0, 0, 0, 0.015) !important;
@@ -1137,7 +1140,21 @@ html[data-theme="windows-dark"] .table tbody tr:hover > th {
   --bs-table-hover-bg: transparent !important;
 }
 
-/* Force les en-têtes th à être sticky en haut avec un rendu macOS Sequoia Frosted Glass authentique et translucide */
+/* Enforce strict stacking context: thead always above tbody */
+.table thead {
+  position: relative !important;
+  z-index: 9999 !important;
+  isolation: isolate !important;
+}
+
+.table tbody,
+.table tbody tr,
+.table tbody td {
+  position: relative;
+  z-index: 1 !important;
+}
+
+/* Force les en-têtes th à être sticky en haut avec un rendu macOS Sequoia Frosted Glass authentique */
 .table thead th,
 .table thead th.col-name,
 .table thead th.col-phone,
@@ -1160,8 +1177,8 @@ table.record-table thead th,
 thead.table-light th {
   position: sticky !important;
   top: 0 !important;
-  z-index: 30 !important;
-  background: rgba(255, 255, 255, 0.50) !important;
+  z-index: 9999 !important;
+  background: rgba(255, 255, 255, 0.72) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
   color: var(--text-secondary, #86868B) !important;
@@ -1170,8 +1187,9 @@ thead.table-light th {
   font-weight: 600 !important;
   letter-spacing: 0.03em !important;
   text-transform: uppercase !important;
-  padding: 10px 14px !important;
+  padding: 8px 12px !important;
   line-height: 1.4 !important;
+  vertical-align: middle !important;
   border-left: none !important;
   border-right: none !important;
   border-top: none !important;
@@ -1203,7 +1221,7 @@ thead.table-light th {
 [data-theme="windows-dark"] table.table thead th,
 [data-theme="windows-dark"] table.record-table thead th,
 [data-theme="windows-dark"] thead.table-light th {
-  background: rgba(18, 18, 22, 0.45) !important;
+  background: rgba(24, 24, 28, 0.75) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
   color: #98989D !important;

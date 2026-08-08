@@ -8160,13 +8160,15 @@ body::before {
   font-weight: 600 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.03em !important;
-  padding: 10px 14px !important;
+  padding: 8px 12px !important;
   line-height: 1.4 !important;
+  vertical-align: middle !important;
 }
 
 .table td {
-  padding: 10px 14px !important;
+  padding: 8px 12px !important;
   line-height: 1.4 !important;
+  vertical-align: middle !important;
 }
 
 .table td {
@@ -8420,6 +8422,20 @@ table.record-table thead th,
 .contacts-table-wrap table thead th,
 .transactions-table-wrap table thead th,
 .catalog-table-wrap table thead th,
+/* Enforce strict stacking context: thead always above tbody */
+.table thead {
+  position: relative !important;
+  z-index: 9999 !important;
+  isolation: isolate !important;
+}
+
+.table tbody,
+.table tbody tr,
+.table tbody td {
+  position: relative;
+  z-index: 1 !important;
+}
+
 .production-table-wrap table thead th,
 .table thead th.col-name,
 .table thead th.col-phone,
@@ -8433,8 +8449,8 @@ table.record-table thead th,
 thead.table-light th {
   position: sticky !important;
   top: 0 !important;
-  z-index: 30 !important;
-  background: rgba(255, 255, 255, 0.50) !important;
+  z-index: 9999 !important;
+  background: rgba(255, 255, 255, 0.72) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
   color: var(--text-secondary, #86868B) !important;
@@ -8443,8 +8459,9 @@ thead.table-light th {
   font-weight: 600 !important;
   letter-spacing: 0.03em !important;
   text-transform: uppercase !important;
-  padding: 10px 14px !important;
+  padding: 8px 12px !important;
   line-height: 1.4 !important;
+  vertical-align: middle !important;
   border-left: none !important;
   border-right: none !important;
   border-top: none !important;
@@ -8478,7 +8495,7 @@ thead.table-light th {
 [data-theme="windows-dark"] .js-datagrid thead th,
 [data-theme="windows-dark"] .table-responsive table thead th,
 [data-theme="windows-dark"] thead.table-light th {
-  background: rgba(18, 18, 22, 0.45) !important;
+  background: rgba(24, 24, 28, 0.75) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
   color: #98989D !important;
