@@ -1029,18 +1029,23 @@ html[data-theme="windows-dark"] .btn-outline-primary:hover {
 .table {
   font-size: 13px !important;
   border-collapse: collapse !important;
+  border-spacing: 0 !important;
 }
 .table th {
-  background: rgba(246, 246, 248, 0.78) !important;
-  backdrop-filter: blur(20px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
   font-family: var(--font-title, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif) !important;
   font-weight: 600 !important;
   font-size: 11px !important;
   text-transform: uppercase;
   color: var(--text-secondary) !important;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
   padding: 10px 14px !important;
+  line-height: 1.4 !important;
 }
 .table td {
   padding: 8px 12px !important;
@@ -1118,7 +1123,21 @@ html[data-theme="windows-dark"] .table tbody tr:hover > th {
   }
 }
 
-/* Force les en-têtes th à être sticky en haut avec un rendu macOS Sequoia Frosted Glass authentique */
+/* Override Bootstrap table variable defaults */
+.table,
+.table > :not(caption) > * > *,
+.table th,
+.table td,
+.table thead,
+.table thead tr,
+.table thead th {
+  --bs-table-bg: transparent !important;
+  --bs-table-accent-bg: transparent !important;
+  --bs-table-striped-bg: transparent !important;
+  --bs-table-hover-bg: transparent !important;
+}
+
+/* Force les en-têtes th à être sticky en haut avec un rendu macOS Sequoia Frosted Glass authentique et translucide */
 .table thead th,
 .table thead th.col-name,
 .table thead th.col-phone,
@@ -1137,13 +1156,14 @@ table.record-table thead th,
 .contacts-table-wrap table thead th,
 .transactions-table-wrap table thead th,
 .catalog-table-wrap table thead th,
-.production-table-wrap table thead th {
+.production-table-wrap table thead th,
+thead.table-light th {
   position: sticky !important;
   top: 0 !important;
   z-index: 30 !important;
-  background: rgba(246, 246, 248, 0.78) !important;
-  backdrop-filter: blur(20px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
+  background: rgba(255, 255, 255, 0.50) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
   color: var(--text-secondary, #86868B) !important;
   font-family: var(--font-title, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif) !important;
   font-size: 11px !important;
@@ -1151,6 +1171,7 @@ table.record-table thead th,
   letter-spacing: 0.03em !important;
   text-transform: uppercase !important;
   padding: 10px 14px !important;
+  line-height: 1.4 !important;
   border-left: none !important;
   border-right: none !important;
   border-top: none !important;
@@ -1174,15 +1195,17 @@ table.record-table thead th,
 [data-theme="dark"] .transactions-table-wrap table thead th,
 [data-theme="dark"] .catalog-table-wrap table thead th,
 [data-theme="dark"] .production-table-wrap table thead th,
+[data-theme="dark"] thead.table-light th,
 [data-theme="windows-dark"] .table thead th,
 [data-theme="windows-dark"] .table-responsive table thead th,
 [data-theme="windows-dark"] .table-responsive .table thead th,
 [data-theme="windows-dark"] .table-responsive .record-table thead th,
 [data-theme="windows-dark"] table.table thead th,
-[data-theme="windows-dark"] table.record-table thead th {
-  background: rgba(30, 30, 35, 0.78) !important;
-  backdrop-filter: blur(20px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
+[data-theme="windows-dark"] table.record-table thead th,
+[data-theme="windows-dark"] thead.table-light th {
+  background: rgba(18, 18, 22, 0.45) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
   color: #98989D !important;
   border-left: none !important;
   border-right: none !important;
