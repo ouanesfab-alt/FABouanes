@@ -1819,8 +1819,53 @@ body.desktop-app .app-content {
 .table {
   width: 100%;
   margin: 0;
-  border-collapse: collapse !important;
+  border-collapse: collapse;
   table-layout: auto;
+}
+
+.table thead th {
+  white-space: nowrap;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+  border-bottom: 2px solid var(--line);
+  padding: 9px 10px;
+  background: var(--card);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.table tbody td {
+  vertical-align: middle;
+  border-bottom: 1px solid var(--line);
+  padding: 9px 10px;
+  font-size: .92rem;
+  overflow-wrap: anywhere;
+}
+
+.table thead th:first-child,
+.table tbody td:first-child {
+  padding-left: 16px;
+}
+
+.table thead th:last-child,
+.table tbody td:last-child {
+  padding-right: 16px;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table-hover tbody tr:hover {
+  background: #f8fafc;
+}
+
+[data-theme="dark"] .table-hover tbody tr:hover {
+  background: #1f2937;
 }
 
 .cell-num {
@@ -2108,31 +2153,7 @@ body.desktop-app .app-content {
   border: 1px solid rgba(148, 163, 184, .18);
 }
 
-.data-table-premium thead th {
-  border: none !important;
-  background: transparent !important;
-  color: var(--muted) !important;
-  font-size: .75rem;
-  font-weight: 800;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  padding: .95rem .8rem;
-}
-
-.data-table-premium tbody tr {
-  border-top: 1px solid rgba(148, 163, 184, .14);
-}
-
-.data-table-premium tbody td {
-  padding: .95rem .8rem;
-  vertical-align: middle;
-  border: none !important;
-  background: transparent !important;
-}
-
-.data-table-premium tbody tr:hover {
-  background: rgba(37, 99, 235, .035) !important;
-}
+/* data-table-premium overrides moved to tokens.css */
 
 .soft-badge {
   display: inline-flex;
@@ -3127,7 +3148,15 @@ a {
   width: min(100%, 408px);
 }
 
-/* ── Dark theme table fix (deferred to tokens.css) ── */
+/* ── Dark theme table fix ── */
+[data-theme="dark"] .table thead th {
+  background: var(--card);
+  color: var(--muted);
+}
+
+[data-theme="dark"] .table tbody td {
+  color: var(--text);
+}
 
 [data-theme="dark"] .card {
   background: var(--card);
@@ -3892,7 +3921,18 @@ html.theme-changing .btn {
   color: #ffffff !important;
 }
 
-/* Dark theme table overrides deferred to tokens.css */
+
+[data-theme="dark"] .table> :not(caption)>*>*,
+[data-theme="windows-dark"] .table> :not(caption)>*>* {
+  background-color: #161b22 !important;
+  color: #e6edf3 !important;
+  border-bottom-color: #21262d !important;
+}
+
+[data-theme="dark"] .table-hover>tbody>tr:hover>*,
+[data-theme="windows-dark"] .table-hover>tbody>tr:hover>* {
+  background-color: #1c2128 !important;
+}
 
 [data-theme="dark"] .alert,
 [data-theme="windows-dark"] .alert {
@@ -5236,7 +5276,31 @@ html:not([data-theme="light"]) .btn-outline-secondary.active {
   color: #ffffff !important;
 }
 
-/* Tables - Dark Mode (deferred to tokens.css) */
+/* Tables - Dark Mode */
+html:not([data-theme="light"]) .record-table tbody tr,
+html:not([data-theme="light"]) .table tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+}
+html:not([data-theme="light"]) .record-table tbody tr > td,
+html:not([data-theme="light"]) .record-table tbody tr > th,
+html:not([data-theme="light"]) .table tbody tr > td,
+html:not([data-theme="light"]) .table tbody tr > th {
+  transition: background-color 0.25s var(--mac-spring) !important;
+}
+html:not([data-theme="light"]) .record-table tbody tr:hover > td, 
+html:not([data-theme="light"]) .record-table tbody tr:hover > th,
+html:not([data-theme="light"]) .table tbody tr:hover > td,
+html:not([data-theme="light"]) .table tbody tr:hover > th {
+  background-color: rgba(10, 132, 255, 0.15) !important;
+  box-shadow: none !important;
+}
+html:not([data-theme="light"]) .record-table thead th, 
+html:not([data-theme="light"]) .table thead th {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
 html:not([data-theme="light"]) .contacts-link,
 html:not([data-theme="light"]) .col-name a {
   color: #f5f5f7 !important;
@@ -5480,7 +5544,31 @@ html[data-theme="light"] .btn-outline-secondary.active {
   color: #1d1d1f !important;
 }
 
-/* Tables - Light Mode (deferred to tokens.css) */
+/* Tables - Light Mode (macOS premium grid style) */
+html[data-theme="light"] .record-table tbody tr,
+html[data-theme="light"] .table tbody tr {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
+}
+html[data-theme="light"] .record-table tbody tr > td,
+html[data-theme="light"] .record-table tbody tr > th,
+html[data-theme="light"] .table tbody tr > td,
+html[data-theme="light"] .table tbody tr > th {
+  transition: background-color 0.25s var(--mac-spring) !important;
+}
+html[data-theme="light"] .record-table tbody tr:hover > td, 
+html[data-theme="light"] .record-table tbody tr:hover > th,
+html[data-theme="light"] .table tbody tr:hover > td,
+html[data-theme="light"] .table tbody tr:hover > th {
+  background-color: rgba(0, 122, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+html[data-theme="light"] .record-table thead th, 
+html[data-theme="light"] .table thead th {
+  background: rgba(0, 0, 0, 0.02) !important;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.06) !important;
+  color: #1d1d1f !important;
+  font-weight: 700 !important;
+}
 html[data-theme="light"] .contacts-link,
 html[data-theme="light"] .col-name a {
   color: #1d1d1f !important;
@@ -6042,7 +6130,40 @@ html:not([data-theme="light"]) textarea {
   background: #0060cc !important;
 }
 
-/* macOS zebra tables (deferred to tokens.css) */
+/* macOS zebra tables */
+.table {
+  font-size: 13px !important;
+}
+.table th {
+  background: var(--bg-tertiary) !important;
+  font-family: var(--font-title) !important;
+  font-weight: 600 !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  color: var(--text-secondary) !important;
+  border-bottom: 1px solid var(--separator) !important;
+  padding: 8px 12px !important;
+}
+.table td {
+  padding: 8px 12px !important;
+  border-bottom: 0.5px solid var(--line) !important;
+}
+.table tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.015) !important;
+}
+html:not([data-theme="light"]) .table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.015) !important;
+}
+.table tbody tr:hover > td,
+.table tbody tr:hover > th {
+  background-color: rgba(0, 122, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+html:not([data-theme="light"]) .table tbody tr:hover > td,
+html:not([data-theme="light"]) .table tbody tr:hover > th {
+  background-color: rgba(10, 132, 255, 0.15) !important;
+  box-shadow: none !important;
+}
 
 /* Floating macOS window style for main container */
 @media (min-width: 992px) {

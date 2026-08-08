@@ -445,147 +445,39 @@ h1, h2, h3, h4, h5, h6, .section-title {
   border-right: 0.5px solid var(--separator) !important;
 }
 
-/* ══════════════════════════════════════════════════════════════
-   Tables — macOS Finder Data Grid (Single Source of Truth)
-   ══════════════════════════════════════════════════════════════ */
-
-/* Kill Bootstrap table variables that create opaque overlays */
-.table,
-.table > :not(caption) > * > * {
-  --bs-table-bg: transparent !important;
-  --bs-table-accent-bg: transparent !important;
-  --bs-table-striped-bg: transparent !important;
-  --bs-table-hover-bg: transparent !important;
-  box-shadow: none !important;
-}
-
-/* Base table */
+/* ── Tables — Finder style ── */
 .table {
-  width: 100%;
-  margin: 0;
   color: var(--text) !important;
-  font-size: 13px !important;
-  border-collapse: collapse !important;
-  border-spacing: 0 !important;
-  table-layout: auto;
+  font-size: 13px;
 }
-
-/* Sticky thead container */
-.table thead {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 100 !important;
-}
-
-/* Header cells — OPAQUE like macOS Finder (not translucent) */
-.table thead th {
-  padding: 8px 12px !important;
-  line-height: 1.4 !important;
-  vertical-align: middle !important;
-  white-space: nowrap;
-  font-family: var(--font-title) !important;
-  font-size: 11px !important;
+.table th {
   font-weight: 600 !important;
-  letter-spacing: 0.02em !important;
+  font-size: 11px !important;
   text-transform: uppercase !important;
+  letter-spacing: 0.02em !important;
   color: var(--text-secondary) !important;
-  background: var(--bg-tertiary, #F2F2F7) !important;
-  border-top: none !important;
-  border-left: none !important;
-  border-right: none !important;
-  border-bottom: 0.5px solid var(--separator) !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-/* Data cells — same padding as header */
-.table tbody td {
   padding: 8px 12px !important;
-  line-height: 1.4 !important;
+  border-bottom: 0.5px solid var(--separator) !important;
+  background: var(--bg-tertiary) !important;
+  backdrop-filter: var(--blur-xs);
+}
+.table td {
+  padding: 8px 12px !important;
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.04) !important;
   vertical-align: middle !important;
-  border-bottom: 0.5px solid var(--line) !important;
-  border-left: none !important;
-  border-right: none !important;
-  transition: background-color 0.15s ease !important;
 }
-
-/* Last row — no bottom border */
-.table tbody tr:last-child td { border-bottom: none !important; }
-
-/* Zebra stripes */
-.table tbody tr:nth-child(even) {
-  background: rgba(0, 0, 0, 0.015) !important;
-}
-
-/* Hover — Apple blue highlight */
-.table tbody tr:hover > td,
 .table-hover tbody tr:hover td,
 .table-row-hover tr:hover td {
-  background-color: rgba(0, 122, 255, 0.06) !important;
+  background: rgba(0, 122, 255, 0.08) !important;
   box-shadow: none !important;
 }
-
-/* ── Dark Mode Tables ── */
-[data-theme="dark"] .table thead th,
-[data-theme="windows-dark"] .table thead th {
-  background: var(--bg-tertiary, #2C2C2E) !important;
-  color: var(--text-secondary, #98989D) !important;
-  border-bottom: 0.5px solid rgba(255, 255, 255, 0.08) !important;
-}
-
-[data-theme="dark"] .table tbody td,
-[data-theme="windows-dark"] .table tbody td {
+[data-theme="dark"] .table td {
   border-bottom-color: rgba(255, 255, 255, 0.04) !important;
 }
-
-[data-theme="dark"] .table tbody tr:nth-child(even),
-[data-theme="windows-dark"] .table tbody tr:nth-child(even) {
-  background: rgba(255, 255, 255, 0.015) !important;
-}
-
-[data-theme="dark"] .table tbody tr:hover > td,
 [data-theme="dark"] .table-hover tbody tr:hover td,
-[data-theme="dark"] .table-row-hover tr:hover td,
-[data-theme="windows-dark"] .table tbody tr:hover > td,
-[data-theme="windows-dark"] .table-hover tbody tr:hover td {
-  background-color: rgba(10, 132, 255, 0.12) !important;
+[data-theme="dark"] .table-row-hover tr:hover td {
+  background: rgba(10, 132, 255, 0.15) !important;
   box-shadow: none !important;
-}
-
-/* No vertical separators anywhere */
-.table th, .table td,
-.record-table th, .record-table td {
-  border-left: none !important;
-  border-right: none !important;
-}
-
-/* Scrollable table containers */
-.table-responsive,
-.contacts-table-wrap,
-.transactions-table-wrap,
-.catalog-table-wrap,
-.production-table-wrap {
-  overflow: auto !important;
-  position: relative !important;
-}
-@media (min-width: 768px) {
-  .table-responsive,
-  .contacts-table-wrap,
-  .transactions-table-wrap,
-  .catalog-table-wrap,
-  .production-table-wrap {
-    max-height: max(535px, calc(100vh - 262px)) !important;
-  }
-}
-@media (max-width: 767px) {
-  .table-responsive,
-  .contacts-table-wrap,
-  .transactions-table-wrap,
-  .catalog-table-wrap,
-  .production-table-wrap {
-    max-height: max(445px, calc(100vh - 182px)) !important;
-  }
 }
 
 /* ── Modals — macOS sheet ── */
@@ -1022,7 +914,201 @@ html[data-theme="windows-dark"] .btn-outline-primary:hover {
   background: linear-gradient(to bottom, #4a4a4c, #3a3a3c) !important;
 }
 
-/* macOS Finder Zebra Lists — deduplicated, see main table block above */
+/* ══════════════════════════════════════════════════════════════
+   macOS Finder/Sequoia Data Grid — Single Source of Truth
+   ══════════════════════════════════════════════════════════════ */
+
+/* 1. Scrollable container */
+.app-content .table-responsive,
+.contacts-table-wrap,
+.transactions-table-wrap,
+.catalog-table-wrap,
+.production-table-wrap,
+.table-responsive {
+  overflow: auto !important;
+  position: relative !important;
+  clip-path: inset(0 0 0 0) !important;
+  border-radius: var(--radius-md, 12px) !important;
+}
+
+@media (min-width: 768px) {
+  .app-content .table-responsive,
+  .contacts-table-wrap,
+  .transactions-table-wrap,
+  .catalog-table-wrap,
+  .production-table-wrap {
+    max-height: max(535px, calc(100vh - 262px)) !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-content .table-responsive,
+  .contacts-table-wrap,
+  .transactions-table-wrap,
+  .catalog-table-wrap,
+  .production-table-wrap {
+    max-height: max(445px, calc(100vh - 182px)) !important;
+  }
+}
+
+/* 2. Neutralize Bootstrap table variables & shadows */
+.table,
+.table > :not(caption) > * > *,
+.table th,
+.table td,
+.table thead,
+.table thead tr,
+.table thead th {
+  --bs-table-bg: transparent !important;
+  --bs-table-accent-bg: transparent !important;
+  --bs-table-striped-bg: transparent !important;
+  --bs-table-hover-bg: transparent !important;
+  box-shadow: none !important;
+}
+
+/* 3. Base Table Structure */
+.table {
+  width: 100% !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+  font-size: 13px !important;
+  table-layout: auto;
+}
+
+/* 4. Strict Stacking Context: Header stays on top */
+.table thead {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 9999 !important;
+  isolation: isolate !important;
+}
+
+.table tbody,
+.table tbody tr,
+.table tbody td {
+  position: relative;
+  z-index: 1 !important;
+}
+
+/* 5. Header — Authentic macOS Opaque System Background & Identical Padding */
+.table thead th,
+.table th,
+.table-sticky thead th,
+.js-datagrid thead th,
+.table-responsive table thead th,
+.table-responsive .table thead th,
+.table-responsive .record-table thead th,
+table.table thead th,
+table.record-table thead th,
+.contacts-table-wrap table thead th,
+.transactions-table-wrap table thead th,
+.catalog-table-wrap table thead th,
+.production-table-wrap table thead th,
+thead.table-light th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 9999 !important;
+  padding: 8px 12px !important;
+  line-height: 1.4 !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
+  font-family: var(--font-title, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.03em !important;
+  text-transform: uppercase !important;
+  color: var(--text-secondary, #86868B) !important;
+  background: var(--bg-th-opaque, #F2F2F7) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: 0.5px solid var(--separator, rgba(60,60,67,0.12)) !important;
+  box-shadow: none !important;
+}
+
+/* 6. Body Cells — Identical Padding & Line Height */
+.table td,
+.table tbody td,
+.table-responsive table td,
+.record-table td {
+  padding: 8px 12px !important;
+  line-height: 1.4 !important;
+  vertical-align: middle !important;
+  border-bottom: 0.5px solid var(--line, rgba(0,0,0,0.08)) !important;
+  border-left: none !important;
+  border-right: none !important;
+}
+
+/* 7. Zebra Stripes */
+.table tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.015) !important;
+}
+
+/* 8. Row Hover */
+.table tbody tr:hover > td,
+.table tbody tr:hover > th {
+  background-color: rgba(0, 122, 255, 0.06) !important;
+  box-shadow: none !important;
+}
+
+/* ── Dark Mode Overrides ── */
+[data-theme="dark"] .table thead th,
+[data-theme="dark"] .table th,
+[data-theme="dark"] .table-sticky thead th,
+[data-theme="dark"] .js-datagrid thead th,
+[data-theme="dark"] .table-responsive table thead th,
+[data-theme="dark"] table.table thead th,
+[data-theme="dark"] .contacts-table-wrap table thead th,
+[data-theme="dark"] .transactions-table-wrap table thead th,
+[data-theme="dark"] .catalog-table-wrap table thead th,
+[data-theme="dark"] .production-table-wrap table thead th,
+[data-theme="dark"] thead.table-light th,
+[data-theme="windows-dark"] .table thead th,
+[data-theme="windows-dark"] .table th,
+[data-theme="windows-dark"] thead.table-light th {
+  background: var(--bg-th-opaque, #2C2C2E) !important;
+  color: #98989D !important;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme="dark"] .table td,
+[data-theme="dark"] .table tbody td,
+[data-theme="windows-dark"] .table td,
+[data-theme="windows-dark"] .table tbody td {
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-theme="dark"] .table tbody tr:nth-child(even),
+[data-theme="windows-dark"] .table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.015) !important;
+}
+
+[data-theme="dark"] .table tbody tr:hover > td,
+[data-theme="dark"] .table tbody tr:hover > th,
+[data-theme="windows-dark"] .table tbody tr:hover > td,
+[data-theme="windows-dark"] .table tbody tr:hover > th {
+  background-color: rgba(10, 132, 255, 0.12) !important;
+  box-shadow: none !important;
+}
+
+/* 9. Zero Vertical Separators System-Wide */
+.table th,
+.table td,
+.table thead th,
+.table tbody td,
+.table-responsive table th,
+.table-responsive table td,
+.record-table th,
+.record-table td {
+  border-left: none !important;
+  border-right: none !important;
+}
 
 /* Thin macOS scrollbars */
 ::-webkit-scrollbar {
