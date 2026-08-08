@@ -1080,7 +1080,7 @@ html[data-theme="windows-dark"] .table tbody tr:hover > th {
 /* End of tokens.css */
 
 /* ══════════════════════════════════════════════════════════════
-   Sticky Table Headers & Internal Scroll — Visible en permanence
+   Sticky Table Headers & Internal Scroll — Translucent Frosted Glass
    ══════════════════════════════════════════════════════════════ */
 
 /* Conteneur scrollable verticalement pour permettre aux en-têtes d'être sticky et horizontalement pour la réactivité mobile */
@@ -1088,7 +1088,8 @@ html[data-theme="windows-dark"] .table tbody tr:hover > th {
 .contacts-table-wrap,
 .transactions-table-wrap,
 .catalog-table-wrap,
-.production-table-wrap {
+.production-table-wrap,
+.table-responsive {
   overflow: auto !important;
   position: relative !important;
 }
@@ -1113,44 +1114,46 @@ html[data-theme="windows-dark"] .table tbody tr:hover > th {
   }
 }
 
-
-
-
-
-
-
-/* Force les en-têtes th à être sticky en haut et à avoir un arrière-plan opaque sur tous les tableaux */
-.table-responsive > table > thead > tr,
-.table-responsive > .table > thead > tr,
-.table-responsive > .record-table > thead > tr,
-table.table > thead > tr,
-table.record-table > thead > tr,
-.contacts-table-wrap table > thead > tr,
-.transactions-table-wrap table > thead > tr,
-.catalog-table-wrap table > thead > tr,
-.production-table-wrap table > thead > tr {
+/* Force les en-têtes th à être sticky en haut avec effet de flou frosted glass */
+.table thead th,
+.table-responsive table thead th,
+.table-responsive .table thead th,
+.table-responsive .record-table thead th,
+table.table thead th,
+table.record-table thead th,
+.contacts-table-wrap table thead th,
+.transactions-table-wrap table thead th,
+.catalog-table-wrap table thead th,
+.production-table-wrap table thead th {
   position: sticky !important;
   top: 0 !important;
-  z-index: 100 !important;
-  background: var(--glass-thick) !important;
-  backdrop-filter: var(--blur-xs) !important;
-  -webkit-backdrop-filter: var(--blur-xs) !important;
-  box-shadow: 0 1px 0 var(--line, #e0e0e0) !important;
+  z-index: 20 !important;
+  background: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  box-shadow: 0 1px 0 var(--line, rgba(0, 0, 0, 0.12)) !important;
 }
 
-.table-responsive > table > thead > tr > th,
-.table-responsive > .table > thead > tr > th,
-.table-responsive > .record-table > thead > tr > th,
-table.table > thead > tr > th,
-table.record-table > thead > tr > th,
-.contacts-table-wrap table > thead > tr > th,
-.transactions-table-wrap table > thead > tr > th,
-.catalog-table-wrap table > thead > tr > th,
-.production-table-wrap table > thead > tr > th {
-  background: transparent !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  box-shadow: none !important;
+[data-theme="dark"] .table thead th,
+[data-theme="dark"] .table-responsive table thead th,
+[data-theme="dark"] .table-responsive .table thead th,
+[data-theme="dark"] .table-responsive .record-table thead th,
+[data-theme="dark"] table.table thead th,
+[data-theme="dark"] table.record-table thead th,
+[data-theme="dark"] .contacts-table-wrap table thead th,
+[data-theme="dark"] .transactions-table-wrap table thead th,
+[data-theme="dark"] .catalog-table-wrap table thead th,
+[data-theme="dark"] .production-table-wrap table thead th,
+[data-theme="windows-dark"] .table thead th,
+[data-theme="windows-dark"] .table-responsive table thead th,
+[data-theme="windows-dark"] .table-responsive .table thead th,
+[data-theme="windows-dark"] .table-responsive .record-table thead th,
+[data-theme="windows-dark"] table.table thead th,
+[data-theme="windows-dark"] table.record-table thead th {
+  background: rgba(28, 28, 30, 0.82) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1) !important;
 }
 
 

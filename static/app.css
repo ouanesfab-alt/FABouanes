@@ -8398,4 +8398,52 @@ body::before {
 [data-theme="dark"] .detail-stat.stat-green .detail-stat-value {
   color: #30D158 !important;
 }
+
+/* ── Global Sticky Table Headers & Frosted Glass Blur ── */
+.table thead th,
+.table th,
+.table-sticky thead th,
+.js-datagrid thead th,
+.table-responsive table thead th,
+.table-responsive .table thead th,
+.table-responsive .record-table thead th,
+table.table thead th,
+table.record-table thead th,
+.contacts-table-wrap table thead th,
+.transactions-table-wrap table thead th,
+.catalog-table-wrap table thead th,
+.production-table-wrap table thead th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 25 !important;
+  background: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  box-shadow: 0 1px 0 var(--line, rgba(0, 0, 0, 0.12)) !important;
+}
+
+[data-theme="dark"] .table thead th,
+[data-theme="dark"] .table th,
+[data-theme="dark"] .table-sticky thead th,
+[data-theme="dark"] .js-datagrid thead th,
+[data-theme="dark"] .table-responsive table thead th,
+[data-theme="dark"] .table-responsive .table thead th,
+[data-theme="dark"] .table-responsive .record-table thead th,
+[data-theme="dark"] table.table thead th,
+[data-theme="dark"] table.record-table thead th,
+[data-theme="dark"] .contacts-table-wrap table thead th,
+[data-theme="dark"] .transactions-table-wrap table thead th,
+[data-theme="dark"] .catalog-table-wrap table thead th,
+[data-theme="dark"] .production-table-wrap table thead th,
+[data-theme="windows-dark"] .table thead th,
+[data-theme="windows-dark"] .table th,
+[data-theme="windows-dark"] .table-sticky thead th,
+[data-theme="windows-dark"] .js-datagrid thead th,
+[data-theme="windows-dark"] .table-responsive table thead th {
+  background: rgba(28, 28, 30, 0.82) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
 
