@@ -8150,7 +8150,7 @@ body::before {
   border-collapse: separate;
   border-spacing: 0;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .table th {

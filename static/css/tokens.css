@@ -327,7 +327,7 @@ h1, h2, h3, h4, h5, h6, .section-title {
   border-radius: var(--radius-lg) !important;
   box-shadow: var(--shadow-glass) !important;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   transition: transform 0.3s var(--ease-spring), box-shadow 0.3s var(--ease-spring) !important;
 }
 .card:hover, .glass-panel:hover {
