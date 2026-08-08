@@ -8414,7 +8414,16 @@ table.record-table thead th,
 .contacts-table-wrap table thead th,
 .transactions-table-wrap table thead th,
 .catalog-table-wrap table thead th,
-.production-table-wrap table thead th {
+.production-table-wrap table thead th,
+.table thead th.col-name,
+.table thead th.col-phone,
+.table thead th.col-type,
+.table thead th.col-money,
+.table thead th.col-balance,
+.table thead th.col-actions,
+.table thead th.col-date,
+.table thead th.col-product,
+.table thead th.col-recipe {
   position: sticky !important;
   top: 0 !important;
   z-index: 30 !important;
@@ -8436,6 +8445,12 @@ table.record-table thead th,
 }
 
 [data-theme="dark"] .table thead th,
+[data-theme="dark"] .table thead th.col-name,
+[data-theme="dark"] .table thead th.col-phone,
+[data-theme="dark"] .table thead th.col-type,
+[data-theme="dark"] .table thead th.col-money,
+[data-theme="dark"] .table thead th.col-balance,
+[data-theme="dark"] .table thead th.col-actions,
 [data-theme="dark"] .table th,
 [data-theme="dark"] .table-sticky thead th,
 [data-theme="dark"] .js-datagrid thead th,

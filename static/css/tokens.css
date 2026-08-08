@@ -1120,6 +1120,15 @@ html[data-theme="windows-dark"] .table tbody tr:hover > th {
 
 /* Force les en-têtes th à être sticky en haut avec un rendu macOS Sequoia Frosted Glass authentique */
 .table thead th,
+.table thead th.col-name,
+.table thead th.col-phone,
+.table thead th.col-type,
+.table thead th.col-money,
+.table thead th.col-balance,
+.table thead th.col-actions,
+.table thead th.col-date,
+.table thead th.col-product,
+.table thead th.col-recipe,
 .table-responsive table thead th,
 .table-responsive .table thead th,
 .table-responsive .record-table thead th,
@@ -1150,6 +1159,12 @@ table.record-table thead th,
 }
 
 [data-theme="dark"] .table thead th,
+[data-theme="dark"] .table thead th.col-name,
+[data-theme="dark"] .table thead th.col-phone,
+[data-theme="dark"] .table thead th.col-type,
+[data-theme="dark"] .table thead th.col-money,
+[data-theme="dark"] .table thead th.col-balance,
+[data-theme="dark"] .table thead th.col-actions,
 [data-theme="dark"] .table-responsive table thead th,
 [data-theme="dark"] .table-responsive .table thead th,
 [data-theme="dark"] .table-responsive .record-table thead th,
