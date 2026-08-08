@@ -6,6 +6,14 @@
 
 /* ── Light Mode — macOS Sequoia ── */
 :root, [data-theme="light"], [data-theme="windows"] {
+  /* Breakpoints Reference */
+  /* --bp-xs: 375px;  (Small Phones)
+     --bp-sm: 576px;  (Mobiles / Bootstrap sm)
+     --bp-md: 768px;  (Tablets / Mobile-Desktop Boundary)
+     --bp-lg: 992px;  (Desktops / Laptops)
+     --bp-xl: 1200px; (Large Screens)
+     --bp-xxl: 1400px;(Ultra Wide) */
+
   /* Apple System Colors */
   --system-blue: #007AFF;
   --system-green: #34C759;

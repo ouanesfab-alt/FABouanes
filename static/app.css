@@ -662,7 +662,7 @@ iframe {
   min-width: 0;
 }
 
-@media(max-width:767px) {
+@media (max-width: 767px) {
   body {
     padding-bottom: calc(var(--bot-h) + 18px + env(safe-area-inset-bottom, 0px));
   }
@@ -1047,7 +1047,7 @@ iframe {
   display: none;
 }
 
-@media(min-width:768px) {
+@media (min-width: 768px) {
   html[data-nav="vertical"] body:not(.auth-page):not(.print-route) {
     padding-top: 0 !important;
     padding-left: var(--side-nav-w);
@@ -1284,7 +1284,7 @@ iframe {
   }
 }
 
-@media(max-width:991px) {
+@media (max-width: 991px) {
 
   .nav-links>a,
   .nav-links>.dropdown>.nav-link-menu {
@@ -1297,7 +1297,7 @@ iframe {
   }
 }
 
-@media(max-width:1180px) {
+@media (max-width: 1199px) {
 
   .nav-links,
   .nav-actions .d-desktop,
@@ -1312,7 +1312,7 @@ iframe {
   }
 }
 
-@media(max-width:767px) {
+@media (max-width: 767px) {
 
   .nav-links,
   .nav-actions .d-desktop {
@@ -1612,7 +1612,7 @@ iframe {
 
 /* scale removed — ripple only */
 
-@media(max-width:767px) {
+@media (max-width: 767px) {
   .bot-nav {
     display: block;
   }
@@ -1739,7 +1739,7 @@ html[data-nav="vertical"] body.desktop-app .production-table-wrap {
   max-height: none !important;
 }
 
-@media(max-width:575px) {
+@media (max-width: 575px) {
   .app-content {
     padding: 10px 8px;
   }
@@ -1773,7 +1773,7 @@ html[data-nav="vertical"] body.desktop-app .production-table-wrap {
   flex-wrap: wrap;
 }
 
-@media(min-width:768px) {
+@media (min-width: 768px) {
   .pwa-banner {
     left: auto;
     right: 16px;
@@ -1892,7 +1892,7 @@ html[data-nav="vertical"] body.desktop-app .production-table-wrap {
   justify-content: center;
 }
 
-@media(max-width:767px) {
+@media (max-width: 767px) {
   .entity-form-card {
     padding: 16px;
   }
@@ -2056,7 +2056,7 @@ html[data-nav="vertical"] body.desktop-app .production-table-wrap {
   color: var(--text);
 }
 
-@media(max-width:575px) {
+@media (max-width: 575px) {
   .fab-accordion-title {
     font-size: .96rem;
   }
@@ -2168,7 +2168,7 @@ html[data-nav="vertical"] body.desktop-app .production-table-wrap {
 }
 
 /* Compact table on mobile */
-@media(max-width:575px) {
+@media (max-width: 575px) {
 
   .table thead th,
   .table tbody td {
@@ -2189,13 +2189,13 @@ html[data-nav="vertical"] body.desktop-app .production-table-wrap {
   margin-bottom: 14px;
 }
 
-@media(min-width:768px) {
+@media (min-width: 768px) {
   .kpi-grid {
     grid-template-columns: repeat(4, 1fr);
   }
 }
 
-@media(min-width:1200px) {
+@media (min-width: 1200px) {
   .kpi-grid {
     grid-template-columns: repeat(5, 1fr);
   }
@@ -2642,7 +2642,7 @@ html[data-nav="vertical"] body.desktop-app .production-table-wrap {
   flex-wrap: wrap;
 }
 
-@media(max-width:767px) {
+@media (max-width: 767px) {
 
   .premium-hero,
   .section-card,
@@ -2903,7 +2903,7 @@ html[data-nav="vertical"] body.desktop-app .production-table-wrap {
   color: var(--text);
 }
 
-@media(max-width:991px) {
+@media (max-width: 991px) {
 
   .record-grid,
   .record-grid.record-grid-three {
@@ -2911,7 +2911,7 @@ html[data-nav="vertical"] body.desktop-app .production-table-wrap {
   }
 }
 
-@media(max-width:767px) {
+@media (max-width: 767px) {
   .record-header {
     padding: 22px 18px 18px
   }
@@ -3361,7 +3361,7 @@ html:not([data-theme="dark"]):not([data-theme="windows-dark"]) .bg-warning-subtl
   padding-bottom: calc(var(--bot-h) + 92px);
 }
 
-@media(min-width:768px) {
+@media (min-width: 768px) {
   .fab-mobile-return {
     bottom: 20px;
   }
@@ -4651,7 +4651,7 @@ html.theme-changing .btn {
   border-color: #243042 !important;
 }
 
-@media(max-width:767px) {
+@media (max-width: 767px) {
   .premium-hero {
     padding: 20px;
     border-radius: 22px;
@@ -4675,7 +4675,7 @@ html.theme-changing .btn {
   }
 }
 
-@media(max-width:991px) {
+@media (max-width: 991px) {
   .app-content {
     padding: 14px 12px;
   }
@@ -4714,7 +4714,7 @@ html.theme-changing .btn {
   }
 }
 
-@media(max-width:767px) {
+@media (max-width: 767px) {
   .table-scroll {
     max-height: none;
   }
@@ -5276,7 +5276,7 @@ th.sort-desc .sort-icon::before {
   width: calc(50% - 4px) !important;
 }
 
-@media(max-width:767px) {
+@media (max-width: 767px) {
   .glass-segmented-control {
     flex-wrap: wrap;
     gap: 4px;
@@ -7460,10 +7460,10 @@ html:not([data-theme="light"]) .table tbody tr:hover>th {
  * a hamburger — on 1024-1180px laptops this is unnecessary.
  * We restore nav links for screens ≥ 960px.
  *
- * This overrides the existing @media(max-width:1180px) rule
+ * This overrides the existing @media (max-width: 1199px) rule
  * by re-showing the nav at 960px+.
  */
-@media (min-width: 960px) {
+@media (min-width: 992px) {
   .nav-links {
     display: flex !important;
   }
@@ -8391,4 +8391,4 @@ body::before {
 
 /* ── Global Table Sticky Header & Frosted Glass rules are centralized in tokens.css ── */
 
-
+

@@ -346,18 +346,18 @@ h1, h2, h3, h4, h5, h6, .brand-title, .title-premium {
 [data-theme="dark"] .kpi-date-badge, [data-theme="windows-dark"] .kpi-date-badge { background: rgba(30, 58, 138, 0.45); border-color: rgba(147, 197, 253, 0.2); color: #93c5fd; }
 [data-theme="dark"] .kpi-card:hover .kpi-date-badge, [data-theme="windows-dark"] .kpi-card:hover .kpi-date-badge { background: rgba(30, 58, 138, 0.85); border-color: rgba(147, 197, 253, 0.4); color: #bfdbfe; }
 
-@media(max-width:1199px) {
+@media (max-width: 1199px) {
   .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media(max-width:991px) {
+@media (max-width: 991px) {
   .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media(max-width:767px) {
+@media (max-width: 767px) {
   .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
   .kpi-card { min-height: 105px !important; padding: 12px 14px !important; border-radius: 14px !important; }
   .kpi-value { font-size: 1.4rem !important; }
 }
-@media(max-width:375px) {
+@media (max-width: 375px) {
   .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
   .kpi-card { min-height: 95px !important; padding: 10px !important; }
   .kpi-value { font-size: 1.25rem !important; }
@@ -394,7 +394,7 @@ body.kpi-modal-open { overflow: hidden; }
 .kpi-quick-btn { padding: 5px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: .8rem; font-weight: 600; cursor: pointer; transition: all .15s; }
 .kpi-quick-btn:hover, .kpi-quick-btn.active { background: #2563eb; border-color: #2563eb; color: #fff; }
 
-@media(max-width:575px) {
+@media (max-width: 575px) {
   .kpi-sheet-overlay { padding: 12px!important; align-items: center!important; justify-content: center!important; }
   .kpi-sheet { width: 96vw!important; max-height: 84vh!important; border-radius: 18px!important; }
   .kpi-sheet-head { padding: 14px 16px 10px; }
@@ -448,10 +448,10 @@ body.kpi-modal-open { overflow: hidden; }
 [data-theme="dark"] .rpt-debt-danger, [data-theme="windows-dark"] .rpt-debt-danger { color: #f87171 !important; }
 [data-theme="dark"] .rpt-badge-delay, [data-theme="windows-dark"] .rpt-badge-delay { background: rgba(156, 163, 175, 0.12); color: #cbd5e1; border-color: rgba(156, 163, 175, 0.2); }
 
-@media(max-width:991px) {
+@media (max-width: 991px) {
   .rpt-chart-grid, .rpt-top-grid { grid-template-columns: 1fr; }
 }
-@media(max-width:767px) {
+@media (max-width: 767px) {
   .rpt-kpis { grid-template-columns: 1fr 1fr; }
   .rpt-kpi-value { font-size: 1.2rem; }
 }
