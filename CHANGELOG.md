@@ -8,11 +8,12 @@ Le format s'inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) 
 
 ---
 
-## [Non publié]
+## [2.2.0] — 2026-08-08
 
-### À venir
-- Backend Redis optionnel pour le cache et le rate limiting (multi-worker)
-- Import/export Excel enrichi
+### Refactorisation CSS Majeure
+- **Nettoyage & Consolidation CSS** : Branche `refacto/css-cleanup` avec zéro régression visuelle et 1323 tests validés (96.84% couverture).
+- **Suppression du Code Mort & Doublons** : Nettoyage des `@font-face` `.ttf` superflus, suppression des fichiers `.woff2` non référencés, fusion des sélecteurs `.btn` (6 occurrences réduites à 1) et `.app-content`.
+- **Outillage & Production** : Ajout de `.editorconfig`, `.stylelintrc.json`, script de bundling/minification `scripts/build_css.py` et documentation dans `docs/css_architecture.md`.
 
 ---
 
