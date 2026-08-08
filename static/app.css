@@ -6812,16 +6812,14 @@ textarea:focus {
 }
 
 .table th {
-  background: rgba(246, 246, 248, 0.78) !important;
-  backdrop-filter: blur(20px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
-  font-family: var(--font-title, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif) !important;
+  background: var(--bg-tertiary) !important;
+  font-family: var(--font-title) !important;
   font-weight: 600 !important;
   font-size: 11px !important;
   text-transform: uppercase;
   color: var(--text-secondary) !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
-  padding: 10px 14px !important;
+  border-bottom: 1px solid var(--separator) !important;
+  padding: 8px 12px !important;
 }
 
 .table td {
@@ -8149,26 +8147,18 @@ body::before {
 
 /* 4. Tables & Data Grids */
 .table {
-  border-collapse: collapse !important;
-  border-spacing: 0 !important;
+  border-collapse: separate;
+  border-spacing: 0;
   border-radius: 12px;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .table th {
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.03em !important;
-  padding: 8px 12px !important;
-  line-height: 1.4 !important;
-  vertical-align: middle !important;
-}
-
-.table td {
-  padding: 8px 12px !important;
-  line-height: 1.4 !important;
-  vertical-align: middle !important;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 12px 16px;
 }
 
 .table td {
@@ -8408,129 +8398,4 @@ body::before {
 [data-theme="dark"] .detail-stat.stat-green .detail-stat-value {
   color: #30D158 !important;
 }
-
-/* ── Global Sticky Table Headers & Frosted Glass Blur ── */
-.table thead th,
-.table th,
-.table-sticky thead th,
-.js-datagrid thead th,
-.table-responsive table thead th,
-.table-responsive .table thead th,
-.table-responsive .record-table thead th,
-table.table thead th,
-table.record-table thead th,
-.contacts-table-wrap table thead th,
-.transactions-table-wrap table thead th,
-.catalog-table-wrap table thead th,
-.app-content .table-responsive,
-.contacts-table-wrap,
-.transactions-table-wrap,
-.catalog-table-wrap,
-.production-table-wrap,
-.table-responsive {
-  clip-path: inset(0 0 0 0) !important;
-  border-radius: 12px !important;
-}
-
-.table {
-  margin-top: 0 !important;
-}
-
-/* Enforce strict stacking context: thead always above tbody */
-.table thead {
-  position: relative !important;
-  z-index: 9999 !important;
-  isolation: isolate !important;
-}
-
-.table tbody,
-.table tbody tr,
-.table tbody td {
-  position: relative;
-  z-index: 1 !important;
-}
-
-.production-table-wrap table thead th,
-.table thead th.col-name,
-.table thead th.col-phone,
-.table thead th.col-type,
-.table thead th.col-money,
-.table thead th.col-balance,
-.table thead th.col-actions,
-.table thead th.col-date,
-.table thead th.col-product,
-.table thead th.col-recipe,
-thead.table-light th {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 9999 !important;
-  background: rgba(255, 255, 255, 0.72) !important;
-  backdrop-filter: blur(16px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-  color: var(--text-secondary, #86868B) !important;
-  font-family: var(--font-title, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif) !important;
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.03em !important;
-  text-transform: uppercase !important;
-  padding: 8px 12px !important;
-  line-height: 1.4 !important;
-  vertical-align: middle !important;
-  border-left: none !important;
-  border-right: none !important;
-  border-top: none !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04) !important;
-}
-
-[data-theme="dark"] .table thead th,
-[data-theme="dark"] .table thead th.col-name,
-[data-theme="dark"] .table thead th.col-phone,
-[data-theme="dark"] .table thead th.col-type,
-[data-theme="dark"] .table thead th.col-money,
-[data-theme="dark"] .table thead th.col-balance,
-[data-theme="dark"] .table thead th.col-actions,
-[data-theme="dark"] .table th,
-[data-theme="dark"] .table-sticky thead th,
-[data-theme="dark"] .js-datagrid thead th,
-[data-theme="dark"] .table-responsive table thead th,
-[data-theme="dark"] .table-responsive .table thead th,
-[data-theme="dark"] .table-responsive .record-table thead th,
-[data-theme="dark"] table.table thead th,
-[data-theme="dark"] table.record-table thead th,
-[data-theme="dark"] .contacts-table-wrap table thead th,
-[data-theme="dark"] .transactions-table-wrap table thead th,
-[data-theme="dark"] .catalog-table-wrap table thead th,
-[data-theme="dark"] .production-table-wrap table thead th,
-[data-theme="dark"] thead.table-light th,
-[data-theme="windows-dark"] .table thead th,
-[data-theme="windows-dark"] .table th,
-[data-theme="windows-dark"] .table-sticky thead th,
-[data-theme="windows-dark"] .js-datagrid thead th,
-[data-theme="windows-dark"] .table-responsive table thead th,
-[data-theme="windows-dark"] thead.table-light th {
-  background: rgba(24, 24, 28, 0.75) !important;
-  backdrop-filter: blur(16px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-  color: #98989D !important;
-  border-left: none !important;
-  border-right: none !important;
-  border-top: none !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25) !important;
-}
-
-/* Supprime complètement les lignes verticales/séparateurs entre les colonnes de tableau */
-.table th,
-.table td,
-.table thead th,
-.table tbody td,
-.table-responsive table th,
-.table-responsive table td,
-.record-table th,
-.record-table td {
-  border-left: none !important;
-  border-right: none !important;
-}
-
 
