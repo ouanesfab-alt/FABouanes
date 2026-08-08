@@ -1114,7 +1114,7 @@ html[data-theme="windows-dark"] .table tbody tr:hover > th {
   }
 }
 
-/* Force les en-têtes th à être sticky en haut avec effet de flou frosted glass */
+/* Force les en-têtes th à être sticky en haut avec effet de flou frosted glass haute qualité */
 .table thead th,
 .table-responsive table thead th,
 .table-responsive .table thead th,
@@ -1127,11 +1127,15 @@ table.record-table thead th,
 .production-table-wrap table thead th {
   position: sticky !important;
   top: 0 !important;
-  z-index: 20 !important;
-  background: rgba(255, 255, 255, 0.82) !important;
-  backdrop-filter: blur(16px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-  box-shadow: 0 1px 0 var(--line, rgba(0, 0, 0, 0.12)) !important;
+  z-index: 25 !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(24px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
 [data-theme="dark"] .table thead th,
@@ -1150,10 +1154,27 @@ table.record-table thead th,
 [data-theme="windows-dark"] .table-responsive .record-table thead th,
 [data-theme="windows-dark"] table.table thead th,
 [data-theme="windows-dark"] table.record-table thead th {
-  background: rgba(28, 28, 30, 0.82) !important;
-  backdrop-filter: blur(16px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  background: rgba(22, 22, 26, 0.72) !important;
+  backdrop-filter: blur(24px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Supprime complètement les lignes verticales/séparateurs entre les colonnes de tableau */
+.table th,
+.table td,
+.table thead th,
+.table tbody td,
+.table-responsive table th,
+.table-responsive table td,
+.record-table th,
+.record-table td {
+  border-left: none !important;
+  border-right: none !important;
 }
 
 
