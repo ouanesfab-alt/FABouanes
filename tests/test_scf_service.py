@@ -72,3 +72,34 @@ async def test_get_tcr_and_bilan():
         assert "actif" in bilan
         assert "passif" in bilan
         assert bilan["actif"]["total"] == 7500.0  # 3000 (stocks) + 1500 (creances) + 3000 (tresorerie)
+
+
+@pytest.mark.asyncio
+async def test_get_balance_generale_orm():
+    from unittest.mock import AsyncMock, MagicMock
+
+    mock_session = AsyncMock()
+    # Ordre des 8 requêtes de get_balance_generale_orm:
+    # 1: Sales, 2: RawSales, 3: Purchases, 4: Payments, 5: Expenses, 6: Clients, 7: RawMats, 8: FinProds
+    values = [5000.0, 2000.0, 3000.0, 4000.0, 500.0, 1500.0, 1000.0, 2500.0]
+    mock_results = []
+    for v in values:
+        m_res = MagicMock()
+        m_res.scalar.return_value = v
+        mock_results.append(m_res)
+
+    mock_session.execute.side_effect = mock_results
+
+    balance = await SCFService.get_balance_generale(db=mock_session)
+    assert isinstance(balance, list)
+    assert len(balance) == 8
+
+    codes = {item["code"]: item for item in balance}
+    assert codes["700"]["credit"] == 5000.0
+    assert codes["707"]["credit"] == 2000.0
+    assert codes["600"]["debit"] == 3000.0
+    assert codes["530"]["debit"] == 3500.0  # 4000 - 500
+    assert codes["411"]["debit"] == 1500.0
+    assert codes["300"]["debit"] == 1000.0
+    assert codes["355"]["debit"] == 2500.0
+

@@ -93,3 +93,32 @@ test('Offline Sync and DB scripts exist and parse cleanly', () => {
         assert.ok(code.length > 0);
     }
 });
+
+test('forms.js preserves existing pre-filled dates', () => {
+    const formsPath = path.join(process.cwd(), 'static', 'js', 'modules', 'forms.js');
+    const code = fs.readFileSync(formsPath, 'utf8');
+    assert.strictEqual(code.includes('if (input.value) return;'), true);
+});
+
+test('api.js exports dynamic getCsrfToken helper', () => {
+    const apiPath = path.join(process.cwd(), 'static', 'js', 'modules', 'api.js');
+    const code = fs.readFileSync(apiPath, 'utf8');
+    assert.strictEqual(code.includes('export function getCsrfToken()'), true);
+    assert.strictEqual(code.includes('window.fabCsrfToken'), true);
+});
+
+test('shortcuts.js resolves Ctrl+K search and Ctrl+J Sabrina', () => {
+    const shortcutsPath = path.join(process.cwd(), 'static', 'js', 'modules', 'shortcuts.js');
+    const code = fs.readFileSync(shortcutsPath, 'utf8');
+    assert.strictEqual(code.includes("e.key.toLowerCase() === 'k'"), true);
+    assert.strictEqual(code.includes("e.key.toLowerCase() === 'j'"), true);
+    assert.strictEqual(code.includes('openSearch'), true);
+});
+
+test('sw.js safely handles cache-first and background revalidation', () => {
+    const swPath = path.join(process.cwd(), 'static', 'sw.js');
+    const code = fs.readFileSync(swPath, 'utf8');
+    assert.strictEqual(code.includes('fetchPromise.catch('), true);
+    assert.strictEqual(!code.includes('.catch(() => null);'), true);
+});
+

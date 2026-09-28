@@ -54,14 +54,14 @@
         </div>
       </form>
       <div class="table-responsive">
-        <table class="record-table js-datagrid align-middle">
+        <table class="table table-hover js-datagrid align-middle">
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Désignation</th>
-              <th>Quantité</th>
-                <th class="col-right hide-mobile">Prix unitaire</th>
-                <th class="col-right">Total</th>
+              <th class="col-date">Date</th>
+              <th class="col-designation">Désignation</th>
+              <th class="col-qty cell-num">Quantité</th>
+              <th class="col-money cell-num col-right hide-mobile">Prix unitaire</th>
+              <th class="col-money cell-num col-right">Total</th>
             </tr>
           </thead>
           <tbody>
@@ -70,14 +70,14 @@
                   data-delete-label="cet achat"
                   data-edit-url="{{ url_for('edit_purchase_document', document_id=item.document_id) if item.document_id else url_for('edit_purchase', purchase_id=item.id) }}"
                   data-delete-url="{{ url_for('delete_purchase', purchase_id=item.id) }}">
-              <td>{{ item.event_date }}</td>
-              <td>{{ item.designation }}</td>
-              <td>{{ "%.2f"|format(item.quantity|float) }} {{ item.unit }}</td>
-                <td class="col-right hide-mobile">{{ item.unit_price|money }}</td>
-                <td class="col-right"><strong>{{ item.total|money }}</strong></td>
+              <td class="col-date">{{ item.event_date }}</td>
+              <td class="col-designation">{{ item.designation }}</td>
+              <td class="col-qty cell-num">{{ "%.2f"|format(item.quantity|float) }} {{ item.unit }}</td>
+              <td class="col-money cell-num col-right hide-mobile">{{ item.unit_price|money }}</td>
+              <td class="col-money cell-num col-right"><strong>{{ item.total|money }}</strong></td>
             </tr>
             {% else %}
-            <tr><td colspan="5" class="text-muted">Aucun historique.</td></tr>
+            <tr><td colspan="5" class="text-muted text-center py-4">Aucun historique.</td></tr>
             {% endfor %}
           </tbody>
         </table>

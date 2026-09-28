@@ -154,19 +154,8 @@ export function initLayoutModule() {
 
 
 
-  // ── 1. Global Keyboard Shortcuts (Ctrl+K / Cmd+K -> Search, Alt+N -> New Operation) ──
+  // ── 1. Global Keyboard Shortcuts (Alt+N -> New Operation) ──
   document.addEventListener('keydown', function (e) {
-    // Ctrl+K or Cmd+K: Open Quick Search
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-      e.preventDefault();
-      const searchTrigger = document.querySelector('[data-search-trigger]') || document.getElementById('globalSearchBtn');
-      if (searchTrigger) {
-        searchTrigger.click();
-      } else {
-        const searchModal = document.getElementById('searchOverlay') || document.querySelector('.search-overlay');
-        if (searchModal) searchModal.hidden = !searchModal.hidden;
-      }
-    }
     // Alt+N: Quick New Sale / Operation
     if (e.altKey && e.key.toLowerCase() === 'n') {
       e.preventDefault();

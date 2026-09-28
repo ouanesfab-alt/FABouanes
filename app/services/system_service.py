@@ -12,15 +12,13 @@ from app.core.async_db import get_async_sessionmaker
 from app.core.config import APP_DATA_DIR, DATABASE_URL
 from app.core.db_helpers import connect_database, postgres_pool_status
 from app.core.helpers import async_compat
+from app.core.perf_cache import async_cached_result
 from app.core.storage import LOCAL_BACKUP_DIR, LOG_DIR, get_pending_backup_marker, list_restore_backups
 from app.version import VERSION_LABEL
 
 
 def _ok_status(ok: bool) -> str:
     return "OK" if ok else "Attention"
-
-
-from app.core.perf_cache import async_cached_result
 
 
 @async_compat

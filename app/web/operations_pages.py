@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import csv
 import io
 from datetime import date, datetime
@@ -129,22 +128,27 @@ async def new_operation_page(request: Request, db: AsyncSession = Depends(get_as
     if denied:
         return denied
 
-    from app.core.db_helpers import query_db
+    from sqlalchemy import select
+
+    from app.core.models import Client, Supplier
     from app.modules.purchases.service import PurchaseService
     from app.modules.sales.service import SalesService
     from app.services.payment_service import new_payment_context
 
     p_ctx = await PurchaseService(db).purchase_form_context()
     s_ctx = await SalesService(db).sale_form_context()
-    pay_ctx = await new_payment_context()
+    pay_ctx = await new_payment_context(db=db)
 
     context = {}
     context.update(p_ctx)
     context.update(s_ctx)
     context.update(pay_ctx)
 
-    context["clients"] = await asyncio.to_thread(query_db, "SELECT * FROM clients ORDER BY name")
-    context["suppliers"] = await asyncio.to_thread(query_db, "SELECT * FROM suppliers ORDER BY name")
+    clients_res = await db.execute(select(Client).order_by(Client.name))
+    context["clients"] = [c.model_dump() for c in clients_res.scalars().all()]
+
+    suppliers_res = await db.execute(select(Supplier).order_by(Supplier.name))
+    context["suppliers"] = [s.model_dump() for s in suppliers_res.scalars().all()]
     context["mode"] = request.query_params.get("mode", "achat")
 
     return templates.TemplateResponse("operation_new.html", template_context(request, **context))

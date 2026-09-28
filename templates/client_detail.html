@@ -73,17 +73,6 @@
   .detail-section-title { font-size: .95rem; font-weight: 800; color: var(--text); margin: 0; }
   .detail-section-sub { font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 2px; }
 
-  /* Record table dark overrides */
-  [data-theme="dark"] .record-table thead th { background: rgba(15,23,42,.6) !important; color: var(--muted) !important; border-color: var(--line) !important; }
-  [data-theme="dark"] .record-table tbody td { border-color: var(--line) !important; color: var(--text) !important; }
-  [data-theme="dark"] .record-table tbody tr:hover { background: rgba(59,130,246,.04) !important; }
-
-  /* Dark mode text colors */
-  [data-theme="dark"] .text-danger { color: #f87171 !important; }
-  [data-theme="dark"] .text-success { color: #4ade80 !important; }
-  [data-theme="dark"] .text-primary { color: #60a5fa !important; }
-  [data-theme="dark"] .text-info { color: #38bdf8 !important; }
-  [data-theme="dark"] .text-warning { color: #fbbf24 !important; }
 
   /* Buttons */
   .detail-actions { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -181,15 +170,15 @@
           </a>
         </div>
       </div>
-      <div class="table-responsive" style="border-radius:10px; overflow:hidden;">
-        <table class="record-table js-datagrid align-middle">
+      <div class="table-responsive">
+        <table class="table table-hover js-datagrid align-middle">
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Désignation d'achat / opération</th>
-              <th class="col-right hide-mobile">Prix d'achat / crédit</th>
-              <th class="col-right hide-mobile">Versement</th>
-              <th class="col-right">Reste à payer</th>
+              <th class="col-date">Date</th>
+              <th class="col-designation">Désignation d'achat / opération</th>
+              <th class="col-money cell-num col-right hide-mobile">Prix d'achat / crédit</th>
+              <th class="col-money cell-num col-right hide-mobile">Versement</th>
+              <th class="col-balance cell-num col-right">Reste à payer</th>
             </tr>
           </thead>
           <tbody>
@@ -199,23 +188,23 @@
                   data-delete-label="{% if item.event_type in ['sale_finished','sale_raw'] %}cette vente{% elif item.event_type in ['payment','advance'] %}cette transaction{% else %}cet élément{% endif %}"
                   data-edit-url="{% if item.event_type == 'sale_finished' %}{{ url_for('edit_sale_document', document_id=item.document_id) if item.document_id else url_for('edit_sale', kind='finished', row_id=item.row_id) }}{% elif item.event_type == 'sale_raw' %}{{ url_for('edit_sale_document', document_id=item.document_id) if item.document_id else url_for('edit_sale', kind='raw', row_id=item.row_id) }}{% elif item.event_type in ['payment','advance'] %}{{ url_for('edit_payment', payment_id=item.row_id) }}{% endif %}"
                   data-delete-url="{% if item.event_type == 'sale_finished' %}{{ url_for('delete_sale', kind='finished', row_id=item.row_id) }}{% elif item.event_type == 'sale_raw' %}{{ url_for('delete_sale', kind='raw', row_id=item.row_id) }}{% elif item.event_type in ['payment','advance'] %}{{ url_for('delete_payment', payment_id=item.row_id) }}{% endif %}">
-              <td>{{ item.event_date }}</td>
-              <td><span class="fw-medium">{{ item.designation }}</span></td>
-              <td class="col-right hide-mobile">
+              <td class="col-date">{{ item.event_date }}</td>
+              <td class="col-designation"><span class="fw-medium">{{ item.designation }}</span></td>
+              <td class="col-money cell-num col-right hide-mobile">
                 {% if item.purchase_amount > 0 %}
                   <span class="text-danger">{{ item.purchase_amount|money }}</span>
                 {% else %}
                   <span class="text-muted">-</span>
                 {% endif %}
               </td>
-              <td class="col-right hide-mobile">
+              <td class="col-money cell-num col-right hide-mobile">
                 {% if item.payment_amount > 0 %}
                   <span class="text-success">{{ item.payment_amount|money }}</span>
                 {% else %}
                   <span class="text-muted">-</span>
                 {% endif %}
               </td>
-              <td class="col-right">
+              <td class="col-balance cell-num col-right">
                 <strong class="{% if item.running_balance > 0 %}text-danger{% elif item.running_balance < 0 %}text-success{% endif %}">
                   {{ item.running_balance|money }}
                 </strong>

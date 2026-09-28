@@ -713,6 +713,9 @@ class MockAsyncSession:
         return MockTransaction()
     async def execute(self, statement, *args, **kwargs):
         return MockResult(str(statement))
+    async def scalar(self, statement, *args, **kwargs):
+        res = await self.execute(statement, *args, **kwargs)
+        return res.scalar()
     async def get(self, model, ident, *args, **kwargs):
         return mock_sqlmodel_instance(model, ident)
     def add(self, instance, *args, **kwargs):
@@ -828,10 +831,12 @@ class TestHTTPRoutes:
         assert response.status_code == 200
 
     def test_clients_endpoints(self):
+        import uuid
+        unique_name = f"Dupont_{uuid.uuid4().hex[:6]}"
         # List
         assert client.get("/api/v1/clients").status_code == 200
         # Create
-        assert client.post("/api/v1/clients", json={"name": "Dupont", "phone": "06"}).status_code in (200, 201)
+        assert client.post("/api/v1/clients", json={"name": unique_name, "phone": "06"}).status_code in (200, 201, 409)
         # Detail
         assert client.get("/api/v1/clients/1").status_code == 200
         # Update

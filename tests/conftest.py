@@ -4,9 +4,20 @@ import os
 os.environ["FASTAPI_ENV"] = "test"
 os.environ.setdefault("SECRET_KEY", "test-secret-key-pytest-unit-only")
 os.environ.setdefault("FAB_DESKTOP", "0")
-# Base de données de test PostgreSQL — peut être surchargée via TEST_DATABASE_URL
-_test_db_url = os.environ.get("TEST_DATABASE_URL", "postgresql://postgres:0000@localhost:5432/fabouanes_test")
-os.environ.setdefault("DATABASE_URL", _test_db_url)
+# Base de données de test PostgreSQL — surchargeable via TEST_DATABASE_URL
+def _resolve_test_db_url() -> str:
+    if "TEST_DATABASE_URL" in os.environ:
+        return os.environ["TEST_DATABASE_URL"]
+    # Deriver depuis DATABASE_URL si configurée (ex: postgres:postgres)
+    db_env = os.environ.get("DATABASE_URL", "")
+    if "127.0.0.1" in db_env or "localhost" in db_env:
+        from urllib.parse import urlparse, urlunparse
+        p = urlparse(db_env)
+        return urlunparse((p.scheme, p.netloc, "/fabouanes_test", p.params, p.query, p.fragment))
+    return "postgresql://postgres:postgres@localhost:5432/fabouanes_test"
+
+_test_db_url = _resolve_test_db_url()
+os.environ["DATABASE_URL"] = _test_db_url
 os.environ.setdefault("REDIS_URL", "")
 os.environ.setdefault("FAB_DISABLE_BACKGROUND_JOBS", "1")
 

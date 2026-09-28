@@ -5,6 +5,7 @@ import re
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -271,3 +272,11 @@ class ReportsService:
             date_from=date_from,
             date_to=date_to,
         )
+
+    async def get_livre_journal_entries(self, limit: int = 5000) -> list[dict[str, Any]]:
+        """Délègue la récupération des écritures du Livre Journal au repository."""
+        return await self.repository.get_livre_journal_entries(limit=limit)
+
+    async def get_marge_brute_data(self) -> list[dict[str, Any]]:
+        """Délègue la récupération des données de marge brute au repository."""
+        return await self.repository.get_marge_brute_data()

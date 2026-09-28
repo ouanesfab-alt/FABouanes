@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_error, require_api_user
 from app.core.async_db import get_async_session
-from app.core.db_helpers import db_transaction
 from app.core.exceptions import ConflictError, ValidationError
 from app.core.idempotency import check_idempotency, save_idempotency
 from app.core.permissions import PERMISSION_OPERATIONS_WRITE
@@ -56,8 +55,16 @@ async def sync_operation(request: Request, db: AsyncSession = Depends(get_async_
             result = await service.create_purchase_from_form(validated)
             res_payload = {"ok": True, "mode": result.get("mode")}
         elif op_type == "create_payment":
-            payment_id, payment_type = await create_payment_from_form(payload)
+            payment_id, payment_type = await create_payment_from_form(payload, db=db)
             res_payload = {"ok": True, "id": payment_id, "payment_type": payment_type}
+        elif op_type == "create_production":
+            from app.core.schema.production_validation import ProductionBatchCreate
+            from app.modules.production.service import ProductionService
+
+            ProductionBatchCreate.model_validate(payload)
+            service = ProductionService(db)
+            result = await service.create_production(payload)
+            res_payload = {"ok": True, "batch_id": result.get("batch_id")}
         else:
             err_res = {"success": False, "error": {"code": "unknown_type", "message": f"Type inconnu : {op_type}", "details": None}}
             if idempotency_key:
@@ -171,9 +178,16 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
                 result = await service.create_purchase_from_form(validated)
                 res_payload = {"ok": True, "mode": result.get("mode")}
             elif op_type == "create_payment":
-                with db_transaction():
-                    payment_id, payment_type = await create_payment_from_form(payload)
+                payment_id, payment_type = await create_payment_from_form(payload, db=db)
                 res_payload = {"ok": True, "id": payment_id, "payment_type": payment_type}
+            elif op_type == "create_production":
+                from app.core.schema.production_validation import ProductionBatchCreate
+                from app.modules.production.service import ProductionService
+
+                ProductionBatchCreate.model_validate(payload)
+                service = ProductionService(db)
+                result = await service.create_production(payload)
+                res_payload = {"ok": True, "batch_id": result.get("batch_id")}
             else:
                 res_payload = {"error": f"Type inconnu : {op_type}"}
                 if idempotency_key:

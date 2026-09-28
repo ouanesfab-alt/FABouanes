@@ -15,15 +15,26 @@
 	// ─── KPI SHEET HELPERS ───
 	async function fetchKpiAtDate() {
 		if (!currentKpiKey) return;
-		const date = document.getElementById('kpiDateInput').value;
+		const dateInput = document.getElementById('kpiDateInput');
+		const date = dateInput ? dateInput.value : '';
 		if (!date) return;
-		const res = await fetch(`/api/kpi-at-date?metric=${encodeURIComponent(currentKpiKey)}&date=${encodeURIComponent(date)}`);
-		const data = await res.json();
-		const result = document.getElementById('kpiResult');
-		document.getElementById('kpiResultLabel').textContent = currentKpiLabel;
-		document.getElementById('kpiResultValue').textContent = (data.display || '0').replace(' DA', '');
-		document.getElementById('kpiResultDate').textContent = 'Date : ' + date;
-		result.classList.add('show');
+		try {
+			const res = await fetch(`/api/kpi-at-date?metric=${encodeURIComponent(currentKpiKey)}&date=${encodeURIComponent(date)}`);
+			if (!res.ok) throw new Error('HTTP ' + res.status);
+			const data = await res.json();
+			const result = document.getElementById('kpiResult');
+			if (result) {
+				const labelEl = document.getElementById('kpiResultLabel');
+				const valueEl = document.getElementById('kpiResultValue');
+				const dateEl = document.getElementById('kpiResultDate');
+				if (labelEl) labelEl.textContent = currentKpiLabel || '';
+				if (valueEl) valueEl.textContent = (data.display || '0').replace(' DA', '');
+				if (dateEl) dateEl.textContent = 'Date : ' + date;
+				result.classList.add('show');
+			}
+		} catch (err) {
+			console.warn('[KPI] Erreur chargement KPI à la date:', err);
+		}
 	}
 	document.addEventListener('keydown', function (event) {
 		if (event.key === 'Escape') {

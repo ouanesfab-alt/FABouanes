@@ -2,10 +2,12 @@
 """Web routes module for Production domain."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.async_db import get_async_session
 from app.core.helpers import wants_print_after_submit
 from app.core.permissions import PERMISSION_PRODUCTION_DELETE, PERMISSION_PRODUCTION_READ, PERMISSION_PRODUCTION_WRITE
 from app.core.request_state import set_state_value
@@ -58,15 +60,18 @@ def parse_production_form(form) -> dict:
 
 
 @router.get("/production", name="production")
-async def production_page(request: Request):
+async def production_page(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_PRODUCTION_READ)
     if denied:
         return denied
-    return templates.TemplateResponse("production.html", template_context(request, **await productions_context(request.query_params)))
+    return templates.TemplateResponse(
+        "production.html",
+        template_context(request, **await productions_context(request.query_params, db=db)),
+    )
 
 
 @router.post("/production", name="production")
-async def production_submit(request: Request):
+async def production_submit(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_PRODUCTION_WRITE)
     if denied:
         return denied
@@ -76,7 +81,7 @@ async def production_submit(request: Request):
     try:
         parsed = parse_production_form(form)
         ProductionBatchCreate.model_validate(parsed)
-        await create_production_from_form(form)
+        await create_production_from_form(form, db=db)
         flash(request, "Production multi-matières enregistrée avec coût de revient.", "success")
     except Exception as exc:
         from app.core.exceptions import get_friendly_error_message
@@ -90,15 +95,18 @@ async def production_submit(request: Request):
 
 
 @router.get("/production/new", name="new_production")
-async def new_production_page(request: Request):
+async def new_production_page(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_PRODUCTION_WRITE)
     if denied:
         return denied
-    return templates.TemplateResponse("production_new.html", template_context(request, **await new_production_context()))
+    return templates.TemplateResponse(
+        "production_new.html",
+        template_context(request, **await new_production_context(db=db)),
+    )
 
 
 @router.post("/production/new", name="new_production")
-async def new_production_submit(request: Request):
+async def new_production_submit(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_PRODUCTION_WRITE)
     if denied:
         return denied
@@ -108,7 +116,7 @@ async def new_production_submit(request: Request):
     try:
         parsed = parse_production_form(form)
         ProductionBatchCreate.model_validate(parsed)
-        result = await create_production_from_form(form)
+        result = await create_production_from_form(form, db=db)
         if result["recipe_id"]:
             flash(request, f"Production enregistrée. Recette sauvegardée ({result['recipe_label']}). Reste théorique : {result['remainder']:.2f} kg.", "success")
         else:
@@ -128,12 +136,12 @@ async def new_production_submit(request: Request):
 
 
 @router.post("/production/{batch_id}/delete", name="delete_production")
-async def delete_production(request: Request, batch_id: int):
+async def delete_production(request: Request, batch_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_PRODUCTION_DELETE)
     if denied:
         return denied
     await csrf_protect(request)
-    if await delete_production_by_id(batch_id):
+    if await delete_production_by_id(batch_id, db=db):
         flash(request, "Production supprimée et stock corrigé.", "success")
     else:
         flash(request, "Impossible de supprimer cette production.", "danger")

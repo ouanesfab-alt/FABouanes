@@ -7,7 +7,6 @@ Create Date: 2026-07-13 19:45:00.000000
 from __future__ import annotations
 
 from alembic import op
-import sqlalchemy as sa
 
 revision = '0037_missing_indexes_phase3'
 down_revision = '0036'

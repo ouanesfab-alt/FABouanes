@@ -174,7 +174,8 @@ async def health_check():
         checks["audit_queue_size"] = str(audit_stats["audit_queue_size"])
         checks["audit_dropped"] = str(audit_stats["audit_dropped"])
     except Exception:
-        pass
+        checks["audit_queue_size"] = "unknown"
+        checks["audit_dropped"] = "unknown"
 
     _info_keys = {"disk_free_mb", "last_run_age_s", "last_backup_age_h", "version", "cache_entries", "perf_queue_size", "audit_queue_size", "audit_dropped"}
     status = "ok" if all(v == "ok" for k, v in checks.items() if k not in _info_keys) else "degraded"

@@ -5,10 +5,23 @@ import logging
 import re
 from datetime import date
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy import String, cast, func, select, union_all
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.db_helpers import query_db
+from app.core.async_db import get_async_session
+from app.core.models import (
+    Client,
+    FinishedProduct,
+    Payment,
+    ProductionBatch,
+    Purchase,
+    RawMaterial,
+    RawSale,
+    Sale,
+    Supplier,
+)
 from app.web.deps import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -80,22 +93,9 @@ def _partial_date_like(q: str) -> str | None:
     return None
 
 
-def _safe_query(sql: str, params: tuple) -> list:
-    """Wrapper autour de query_db qui retourne [] en cas d'erreur SQL."""
-    try:
-        result = query_db(sql, params)
-        return result or []
-    except Exception as exc:
-        logger.warning("Search query failed: %s | params=%s | err=%s", sql[:120], params, exc)
-        return []
+# ── Recherche par Catégorie ──────────────────────────────────────────────────
 
-
-# ── Endpoint ──────────────────────────────────────────────────────────────────
-
-ALLOWED_OPERATORS = {"=": "=", "LIKE": "LIKE"}
-
-
-def _search_numeric_matches(q: str, results: list) -> None:
+async def _search_numeric_matches(db: AsyncSession, q: str, results: list) -> None:
     try:
         cleaned = q.replace(" ", "").replace(",", ".")
         amount_val = float(cleaned)
@@ -105,212 +105,306 @@ def _search_numeric_matches(q: str, results: list) -> None:
     lo = amount_val * 0.95
     hi = amount_val * 1.05
 
-    for row in _safe_query(
-        """SELECT client_name, item_name, total, sale_date FROM (
-            SELECT COALESCE(c.name, 'Comptoir') AS client_name,
-                   f.name AS item_name, s.total, s.sale_date
-            FROM sales s
-            LEFT JOIN clients c ON c.id = s.client_id
-            JOIN finished_products f ON f.id = s.finished_product_id
-            WHERE s.total BETWEEN %s AND %s
-            UNION ALL
-            SELECT COALESCE(c.name, 'Comptoir') AS client_name,
-                   r.name AS item_name, rs.total, rs.sale_date
-            FROM raw_sales rs
-            LEFT JOIN clients c ON c.id = rs.client_id
-            JOIN raw_materials r ON r.id = rs.raw_material_id
-            WHERE rs.total BETWEEN %s AND %s
-        ) t ORDER BY sale_date DESC LIMIT 5""",
-        (lo, hi, lo, hi),
-    ):
-        fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-        results.append({"title": f"Vente — {row['client_name']}", "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}", "icon": "bi-receipt", "type": "Vente", "href": "/sales"})
+    # 1. Ventes (finies et matières brutes)
+    subq_sales = select(
+        func.coalesce(Client.name, "Comptoir").label("client_name"),
+        FinishedProduct.name.label("item_name"),
+        Sale.total,
+        Sale.sale_date,
+    ).select_from(Sale).outerjoin(Client, Client.id == Sale.client_id).join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id).where(Sale.total.between(lo, hi))
 
-    for row in _safe_query(
-        """SELECT COALESCE(s.name,'Inconnu') AS supplier_name,
-                  COALESCE(NULLIF(p.custom_item_name,''), r.name) AS material_name,
-                  p.total, p.purchase_date
-           FROM purchases p
-           LEFT JOIN suppliers s ON s.id = p.supplier_id
-           LEFT JOIN raw_materials r ON r.id = p.raw_material_id
-           WHERE p.total BETWEEN %s AND %s
-           ORDER BY p.purchase_date DESC LIMIT 4""",
-        (lo, hi),
-    ):
-        fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-        results.append({"title": f"Achat — {row['supplier_name']}", "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}", "icon": "bi-cart", "type": "Achat", "href": "/purchases"})
+    subq_raw_sales = select(
+        func.coalesce(Client.name, "Comptoir").label("client_name"),
+        RawMaterial.name.label("item_name"),
+        RawSale.total,
+        RawSale.sale_date,
+    ).select_from(RawSale).outerjoin(Client, Client.id == RawSale.client_id).join(RawMaterial, RawMaterial.id == RawSale.raw_material_id).where(RawSale.total.between(lo, hi))
 
-    for row in _safe_query(
-        """SELECT c.name AS client_name, p.amount, p.payment_type, p.payment_date
-           FROM payments p
-           JOIN clients c ON c.id = p.client_id
-           WHERE p.amount BETWEEN %s AND %s
-           ORDER BY p.payment_date DESC LIMIT 4""",
-        (lo, hi),
-    ):
-        fmt = f"{float(row['amount'] or 0):,.0f} DA".replace(",", " ")
-        results.append({"title": f"Versement — {row['client_name']}", "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}", "icon": "bi-cash-stack", "type": "Paiement", "href": "/payments"})
+    u = union_all(subq_sales, subq_raw_sales).subquery()
+    stmt_sales = select(u.c.client_name, u.c.item_name, u.c.total, u.c.sale_date).order_by(u.c.sale_date.desc()).limit(5)
+    try:
+        res = await db.execute(stmt_sales)
+        for row in res.mappings().all():
+            fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
+            results.append({"title": f"Vente — {row['client_name']}", "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}", "icon": "bi-receipt", "type": "Vente", "href": "/sales"})
+    except Exception as exc:
+        logger.warning("Numeric sales search failed: %s", exc)
 
-    for row in _safe_query(
-        """SELECT f.name AS product_name, pb.output_quantity, pb.production_date
-           FROM production_batches pb
-           JOIN finished_products f ON f.id = pb.finished_product_id
-           WHERE pb.output_quantity BETWEEN %s AND %s
-           ORDER BY pb.production_date DESC LIMIT 4""",
-        (lo, hi),
-    ):
-        results.append({"title": f"Production — {row['product_name']}", "sub": f"{int(row['output_quantity'] or 0)} unités · {row['production_date']}", "icon": "bi-gear", "type": "Production", "href": "/production"})
+    # 2. Achats
+    stmt_purchases = (
+        select(
+            func.coalesce(Supplier.name, "Inconnu").label("supplier_name"),
+            func.coalesce(func.nullif(Purchase.custom_item_name, ""), RawMaterial.name).label("material_name"),
+            Purchase.total,
+            Purchase.purchase_date,
+        )
+        .select_from(Purchase)
+        .outerjoin(Supplier, Supplier.id == Purchase.supplier_id)
+        .outerjoin(RawMaterial, RawMaterial.id == Purchase.raw_material_id)
+        .where(Purchase.total.between(lo, hi))
+        .order_by(Purchase.purchase_date.desc())
+        .limit(4)
+    )
+    try:
+        res = await db.execute(stmt_purchases)
+        for row in res.mappings().all():
+            fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
+            results.append({"title": f"Achat — {row['supplier_name']}", "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}", "icon": "bi-cart", "type": "Achat", "href": "/purchases"})
+    except Exception as exc:
+        logger.warning("Numeric purchases search failed: %s", exc)
+
+    # 3. Versements
+    stmt_payments = (
+        select(Client.name.label("client_name"), Payment.amount, Payment.payment_type, Payment.payment_date)
+        .select_from(Payment)
+        .join(Client, Client.id == Payment.client_id)
+        .where(Payment.amount.between(lo, hi))
+        .order_by(Payment.payment_date.desc())
+        .limit(4)
+    )
+    try:
+        res = await db.execute(stmt_payments)
+        for row in res.mappings().all():
+            fmt = f"{float(row['amount'] or 0):,.0f} DA".replace(",", " ")
+            results.append({"title": f"Versement — {row['client_name']}", "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}", "icon": "bi-cash-stack", "type": "Paiement", "href": "/payments"})
+    except Exception as exc:
+        logger.warning("Numeric payments search failed: %s", exc)
+
+    # 4. Production
+    stmt_prod = (
+        select(FinishedProduct.name.label("product_name"), ProductionBatch.output_quantity, ProductionBatch.production_date)
+        .select_from(ProductionBatch)
+        .join(FinishedProduct, FinishedProduct.id == ProductionBatch.finished_product_id)
+        .where(ProductionBatch.output_quantity.between(lo, hi))
+        .order_by(ProductionBatch.production_date.desc())
+        .limit(4)
+    )
+    try:
+        res = await db.execute(stmt_prod)
+        for row in res.mappings().all():
+            results.append({"title": f"Production — {row['product_name']}", "sub": f"{int(row['output_quantity'] or 0)} unités · {row['production_date']}", "icon": "bi-gear", "type": "Production", "href": "/production"})
+    except Exception as exc:
+        logger.warning("Numeric production search failed: %s", exc)
 
 
-def _search_date_matches(q: str, results: list) -> None:
+async def _search_date_matches(db: AsyncSession, q: str, results: list) -> None:
     exact_date = _parse_date_query(q)
     partial_date_like = _partial_date_like(q) if not exact_date else None
 
     if not (exact_date or partial_date_like):
         return
 
-    date_param = exact_date if exact_date else partial_date_like
-    raw_op = "=" if exact_date else "LIKE"
-    operator = ALLOWED_OPERATORS.get(raw_op, "=")
-
-    if operator == "=":
-        sales_sql = """SELECT client_name, item_name, total, sale_date FROM (
-            SELECT COALESCE(c.name, 'Comptoir') AS client_name, f.name AS item_name, s.total, s.sale_date
-            FROM sales s LEFT JOIN clients c ON c.id = s.client_id JOIN finished_products f ON f.id = s.finished_product_id
-            WHERE CAST(s.sale_date AS TEXT) = %s
-            UNION ALL
-            SELECT COALESCE(c.name, 'Comptoir') AS client_name, r.name AS item_name, rs.total, rs.sale_date
-            FROM raw_sales rs LEFT JOIN clients c ON c.id = rs.client_id JOIN raw_materials r ON r.id = rs.raw_material_id
-            WHERE CAST(rs.sale_date AS TEXT) = %s
-        ) t ORDER BY sale_date DESC LIMIT 5"""
-        purchases_sql = """SELECT COALESCE(s.name, 'Inconnu') AS supplier_name, COALESCE(NULLIF(p.custom_item_name,''), r.name) AS material_name, p.total, p.purchase_date
-            FROM purchases p LEFT JOIN suppliers s ON s.id = p.supplier_id LEFT JOIN raw_materials r ON r.id = p.raw_material_id
-            WHERE CAST(p.purchase_date AS TEXT) = %s ORDER BY p.purchase_date DESC LIMIT 4"""
-        payments_sql = """SELECT c.name AS client_name, p.amount, p.payment_type, p.payment_date
-            FROM payments p JOIN clients c ON c.id = p.client_id
-            WHERE CAST(p.payment_date AS TEXT) = %s ORDER BY p.payment_date DESC LIMIT 4"""
+    # Ventes
+    if exact_date:
+        cond_sale = (cast(Sale.sale_date, String) == exact_date)
+        cond_raw = (cast(RawSale.sale_date, String) == exact_date)
+        cond_pur = (cast(Purchase.purchase_date, String) == exact_date)
+        cond_pay = (cast(Payment.payment_date, String) == exact_date)
     else:
-        sales_sql = """SELECT client_name, item_name, total, sale_date FROM (
-            SELECT COALESCE(c.name, 'Comptoir') AS client_name, f.name AS item_name, s.total, s.sale_date
-            FROM sales s LEFT JOIN clients c ON c.id = s.client_id JOIN finished_products f ON f.id = s.finished_product_id
-            WHERE CAST(s.sale_date AS TEXT) LIKE %s
-            UNION ALL
-            SELECT COALESCE(c.name, 'Comptoir') AS client_name, r.name AS item_name, rs.total, rs.sale_date
-            FROM raw_sales rs LEFT JOIN clients c ON c.id = rs.client_id JOIN raw_materials r ON r.id = rs.raw_material_id
-            WHERE CAST(rs.sale_date AS TEXT) LIKE %s
-        ) t ORDER BY sale_date DESC LIMIT 5"""
-        purchases_sql = """SELECT COALESCE(s.name, 'Inconnu') AS supplier_name, COALESCE(NULLIF(p.custom_item_name,''), r.name) AS material_name, p.total, p.purchase_date
-            FROM purchases p LEFT JOIN suppliers s ON s.id = p.supplier_id LEFT JOIN raw_materials r ON r.id = p.raw_material_id
-            WHERE CAST(p.purchase_date AS TEXT) LIKE %s ORDER BY p.purchase_date DESC LIMIT 4"""
-        payments_sql = """SELECT c.name AS client_name, p.amount, p.payment_type, p.payment_date
-            FROM payments p JOIN clients c ON c.id = p.client_id
-            WHERE CAST(p.payment_date AS TEXT) LIKE %s ORDER BY p.payment_date DESC LIMIT 4"""
+        cond_sale = cast(Sale.sale_date, String).like(partial_date_like)
+        cond_raw = cast(RawSale.sale_date, String).like(partial_date_like)
+        cond_pur = cast(Purchase.purchase_date, String).like(partial_date_like)
+        cond_pay = cast(Payment.payment_date, String).like(partial_date_like)
 
-    for row in _safe_query(sales_sql, (date_param, date_param)):
-        fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-        results.append({"title": f"Vente — {row['client_name']}", "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}", "icon": "bi-receipt", "type": "Vente", "href": "/sales"})
+    s1 = select(
+        func.coalesce(Client.name, "Comptoir").label("client_name"),
+        FinishedProduct.name.label("item_name"),
+        Sale.total,
+        Sale.sale_date,
+    ).select_from(Sale).outerjoin(Client, Client.id == Sale.client_id).join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id).where(cond_sale)
 
-    for row in _safe_query(purchases_sql, (date_param,)):
-        fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-        results.append({"title": f"Achat — {row['supplier_name']}", "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}", "icon": "bi-cart", "type": "Achat", "href": "/purchases"})
+    s2 = select(
+        func.coalesce(Client.name, "Comptoir").label("client_name"),
+        RawMaterial.name.label("item_name"),
+        RawSale.total,
+        RawSale.sale_date,
+    ).select_from(RawSale).outerjoin(Client, Client.id == RawSale.client_id).join(RawMaterial, RawMaterial.id == RawSale.raw_material_id).where(cond_raw)
 
-    for row in _safe_query(payments_sql, (date_param,)):
-        fmt = f"{float(row['amount'] or 0):,.0f} DA".replace(",", " ")
-        results.append({"title": f"Versement — {row['client_name']}", "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}", "icon": "bi-cash-stack", "type": "Paiement", "href": "/payments"})
+    u = union_all(s1, s2).subquery()
+    stmt_sales = select(u.c.client_name, u.c.item_name, u.c.total, u.c.sale_date).order_by(u.c.sale_date.desc()).limit(5)
+    try:
+        res = await db.execute(stmt_sales)
+        for row in res.mappings().all():
+            fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
+            results.append({"title": f"Vente — {row['client_name']}", "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}", "icon": "bi-receipt", "type": "Vente", "href": "/sales"})
+    except Exception as exc:
+        logger.warning("Date sales search failed: %s", exc)
+
+    stmt_pur = (
+        select(
+            func.coalesce(Supplier.name, "Inconnu").label("supplier_name"),
+            func.coalesce(func.nullif(Purchase.custom_item_name, ""), RawMaterial.name).label("material_name"),
+            Purchase.total,
+            Purchase.purchase_date,
+        )
+        .select_from(Purchase)
+        .outerjoin(Supplier, Supplier.id == Purchase.supplier_id)
+        .outerjoin(RawMaterial, RawMaterial.id == Purchase.raw_material_id)
+        .where(cond_pur)
+        .order_by(Purchase.purchase_date.desc())
+        .limit(4)
+    )
+    try:
+        res = await db.execute(stmt_pur)
+        for row in res.mappings().all():
+            fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
+            results.append({"title": f"Achat — {row['supplier_name']}", "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}", "icon": "bi-cart", "type": "Achat", "href": "/purchases"})
+    except Exception as exc:
+        logger.warning("Date purchases search failed: %s", exc)
+
+    stmt_pay = (
+        select(Client.name.label("client_name"), Payment.amount, Payment.payment_type, Payment.payment_date)
+        .select_from(Payment)
+        .join(Client, Client.id == Payment.client_id)
+        .where(cond_pay)
+        .order_by(Payment.payment_date.desc())
+        .limit(4)
+    )
+    try:
+        res = await db.execute(stmt_pay)
+        for row in res.mappings().all():
+            fmt = f"{float(row['amount'] or 0):,.0f} DA".replace(",", " ")
+            results.append({"title": f"Versement — {row['client_name']}", "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}", "icon": "bi-cash-stack", "type": "Paiement", "href": "/payments"})
+    except Exception as exc:
+        logger.warning("Date payments search failed: %s", exc)
 
 
-def _search_text_matches(needle: str, results: list) -> None:
-    for row in _safe_query(
-        """SELECT id, name, phone, address FROM clients
-           WHERE LOWER(name) LIKE %s OR LOWER(COALESCE(phone,'')) LIKE %s
-           ORDER BY name LIMIT 5""",
-        (needle, needle),
-    ):
-        results.append({"title": row["name"], "sub": row["phone"] or row["address"] or "", "icon": "bi-person", "type": "Client", "href": f"/contacts/clients/{row['id']}"})
+async def _search_text_matches(db: AsyncSession, needle: str, results: list) -> None:
+    try:
+        res_clients = await db.execute(
+            select(Client.id, Client.name, Client.phone, Client.address)
+            .where(func.lower(Client.name).like(needle) | func.lower(func.coalesce(Client.phone, "")).like(needle))
+            .order_by(Client.name)
+            .limit(5)
+        )
+        for row in res_clients.mappings().all():
+            results.append({"title": row["name"], "sub": row["phone"] or row["address"] or "", "icon": "bi-person", "type": "Client", "href": f"/contacts/clients/{row['id']}"})
+    except Exception as exc:
+        logger.warning("Text clients search failed: %s", exc)
 
-    for row in _safe_query(
-        """SELECT id, name, phone FROM suppliers
-           WHERE LOWER(name) LIKE %s OR LOWER(COALESCE(phone,'')) LIKE %s
-           ORDER BY name LIMIT 3""",
-        (needle, needle),
-    ):
-        results.append({"title": row["name"], "sub": row["phone"] or "", "icon": "bi-truck", "type": "Fournisseur", "href": f"/contacts/suppliers/{row['id']}"})
+    try:
+        res_suppliers = await db.execute(
+            select(Supplier.id, Supplier.name, Supplier.phone)
+            .where(func.lower(Supplier.name).like(needle) | func.lower(func.coalesce(Supplier.phone, "")).like(needle))
+            .order_by(Supplier.name)
+            .limit(3)
+        )
+        for row in res_suppliers.mappings().all():
+            results.append({"title": row["name"], "sub": row["phone"] or "", "icon": "bi-truck", "type": "Fournisseur", "href": f"/contacts/suppliers/{row['id']}"})
+    except Exception as exc:
+        logger.warning("Text suppliers search failed: %s", exc)
 
-    for row in _safe_query(
-        """SELECT id, name, unit FROM raw_materials
-           WHERE LOWER(name) LIKE %s ORDER BY name LIMIT 4""",
-        (needle,),
-    ):
-        results.append({"title": row["name"], "sub": row["unit"] or "", "icon": "bi-box", "type": "Matière", "href": "/catalog"})
+    try:
+        res_raw = await db.execute(
+            select(RawMaterial.id, RawMaterial.name, RawMaterial.unit)
+            .where(func.lower(RawMaterial.name).like(needle))
+            .order_by(RawMaterial.name)
+            .limit(4)
+        )
+        for row in res_raw.mappings().all():
+            results.append({"title": row["name"], "sub": row["unit"] or "", "icon": "bi-box", "type": "Matière", "href": "/catalog"})
+    except Exception as exc:
+        logger.warning("Text raw materials search failed: %s", exc)
 
-    for row in _safe_query(
-        """SELECT id, name, default_unit AS unit FROM finished_products
-           WHERE LOWER(name) LIKE %s ORDER BY name LIMIT 4""",
-        (needle,),
-    ):
-        results.append({"title": row["name"], "sub": row["unit"] or "", "icon": "bi-box-seam", "type": "Produit", "href": "/catalog"})
+    try:
+        res_finished = await db.execute(
+            select(FinishedProduct.id, FinishedProduct.name, FinishedProduct.default_unit.label("unit"))
+            .where(func.lower(FinishedProduct.name).like(needle))
+            .order_by(FinishedProduct.name)
+            .limit(4)
+        )
+        for row in res_finished.mappings().all():
+            results.append({"title": row["name"], "sub": row["unit"] or "", "icon": "bi-box-seam", "type": "Produit", "href": "/catalog"})
+    except Exception as exc:
+        logger.warning("Text finished products search failed: %s", exc)
 
-    for row in _safe_query(
-        """SELECT client_name, item_name, total, sale_date FROM (
-            SELECT COALESCE(c.name, 'Comptoir') AS client_name,
-                   f.name AS item_name, s.total, s.sale_date
-            FROM sales s
-            LEFT JOIN clients c ON c.id = s.client_id
-            JOIN finished_products f ON f.id = s.finished_product_id
-            WHERE LOWER(COALESCE(c.name, '')) LIKE %s OR LOWER(f.name) LIKE %s
-            UNION ALL
-            SELECT COALESCE(c.name, 'Comptoir') AS client_name,
-                   r.name AS item_name, rs.total, rs.sale_date
-            FROM raw_sales rs
-            LEFT JOIN clients c ON c.id = rs.client_id
-            JOIN raw_materials r ON r.id = rs.raw_material_id
-            WHERE LOWER(COALESCE(c.name, '')) LIKE %s OR LOWER(r.name) LIKE %s
-        ) t ORDER BY sale_date DESC LIMIT 5""",
-        (needle, needle, needle, needle),
-    ):
-        fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-        results.append({"title": f"Vente — {row['client_name']}", "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}", "icon": "bi-receipt", "type": "Vente", "href": "/sales"})
+    try:
+        s1 = select(
+            func.coalesce(Client.name, "Comptoir").label("client_name"),
+            FinishedProduct.name.label("item_name"),
+            Sale.total,
+            Sale.sale_date,
+        ).select_from(Sale).outerjoin(Client, Client.id == Sale.client_id).join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id).where(
+            func.lower(func.coalesce(Client.name, "")).like(needle) | func.lower(FinishedProduct.name).like(needle)
+        )
+        s2 = select(
+            func.coalesce(Client.name, "Comptoir").label("client_name"),
+            RawMaterial.name.label("item_name"),
+            RawSale.total,
+            RawSale.sale_date,
+        ).select_from(RawSale).outerjoin(Client, Client.id == RawSale.client_id).join(RawMaterial, RawMaterial.id == RawSale.raw_material_id).where(
+            func.lower(func.coalesce(Client.name, "")).like(needle) | func.lower(RawMaterial.name).like(needle)
+        )
+        u = union_all(s1, s2).subquery()
+        res_sales = await db.execute(select(u.c.client_name, u.c.item_name, u.c.total, u.c.sale_date).order_by(u.c.sale_date.desc()).limit(5))
+        for row in res_sales.mappings().all():
+            fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
+            results.append({"title": f"Vente — {row['client_name']}", "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}", "icon": "bi-receipt", "type": "Vente", "href": "/sales"})
+    except Exception as exc:
+        logger.warning("Text sales search failed: %s", exc)
 
-    for row in _safe_query(
-        """SELECT COALESCE(s.name,'Inconnu') AS supplier_name,
-                  COALESCE(NULLIF(p.custom_item_name,''), r.name) AS material_name,
-                  p.total, p.purchase_date
-           FROM purchases p
-           LEFT JOIN suppliers s ON s.id = p.supplier_id
-           LEFT JOIN raw_materials r ON r.id = p.raw_material_id
-           WHERE LOWER(COALESCE(s.name,'')) LIKE %s
-              OR LOWER(COALESCE(r.name,'')) LIKE %s
-              OR LOWER(COALESCE(p.custom_item_name,'')) LIKE %s
-           ORDER BY p.purchase_date DESC LIMIT 4""",
-        (needle, needle, needle),
-    ):
-        fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-        results.append({"title": f"Achat — {row['supplier_name']}", "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}", "icon": "bi-cart", "type": "Achat", "href": "/purchases"})
+    try:
+        res_purchases = await db.execute(
+            select(
+                func.coalesce(Supplier.name, "Inconnu").label("supplier_name"),
+                func.coalesce(func.nullif(Purchase.custom_item_name, ""), RawMaterial.name).label("material_name"),
+                Purchase.total,
+                Purchase.purchase_date,
+            )
+            .select_from(Purchase)
+            .outerjoin(Supplier, Supplier.id == Purchase.supplier_id)
+            .outerjoin(RawMaterial, RawMaterial.id == Purchase.raw_material_id)
+            .where(
+                func.lower(func.coalesce(Supplier.name, "")).like(needle)
+                | func.lower(func.coalesce(RawMaterial.name, "")).like(needle)
+                | func.lower(func.coalesce(Purchase.custom_item_name, "")).like(needle)
+            )
+            .order_by(Purchase.purchase_date.desc())
+            .limit(4)
+        )
+        for row in res_purchases.mappings().all():
+            fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
+            results.append({"title": f"Achat — {row['supplier_name']}", "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}", "icon": "bi-cart", "type": "Achat", "href": "/purchases"})
+    except Exception as exc:
+        logger.warning("Text purchases search failed: %s", exc)
 
-    for row in _safe_query(
-        """SELECT f.name AS product_name, pb.output_quantity, pb.production_date
-           FROM production_batches pb
-           JOIN finished_products f ON f.id = pb.finished_product_id
-           WHERE LOWER(f.name) LIKE %s
-           ORDER BY pb.production_date DESC LIMIT 4""",
-        (needle,),
-    ):
-        results.append({"title": f"Production — {row['product_name']}", "sub": f"{int(row['output_quantity'] or 0)} unités · {row['production_date']}", "icon": "bi-gear", "type": "Production", "href": "/production"})
+    try:
+        res_prod = await db.execute(
+            select(FinishedProduct.name.label("product_name"), ProductionBatch.output_quantity, ProductionBatch.production_date)
+            .select_from(ProductionBatch)
+            .join(FinishedProduct, FinishedProduct.id == ProductionBatch.finished_product_id)
+            .where(func.lower(FinishedProduct.name).like(needle))
+            .order_by(ProductionBatch.production_date.desc())
+            .limit(4)
+        )
+        for row in res_prod.mappings().all():
+            results.append({"title": f"Production — {row['product_name']}", "sub": f"{int(row['output_quantity'] or 0)} unités · {row['production_date']}", "icon": "bi-gear", "type": "Production", "href": "/production"})
+    except Exception as exc:
+        logger.warning("Text production search failed: %s", exc)
 
-    for row in _safe_query(
-        """SELECT c.name AS client_name, p.amount, p.payment_type, p.payment_date
-           FROM payments p
-           JOIN clients c ON c.id = p.client_id
-           WHERE LOWER(c.name) LIKE %s
-           ORDER BY p.payment_date DESC LIMIT 4""",
-        (needle,),
-    ):
-        fmt = f"{float(row['amount'] or 0):,.0f} DA".replace(",", " ")
-        results.append({"title": f"Versement — {row['client_name']}", "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}", "icon": "bi-cash-stack", "type": "Paiement", "href": "/payments"})
+    try:
+        res_payments = await db.execute(
+            select(Client.name.label("client_name"), Payment.amount, Payment.payment_type, Payment.payment_date)
+            .select_from(Payment)
+            .join(Client, Client.id == Payment.client_id)
+            .where(func.lower(Client.name).like(needle))
+            .order_by(Payment.payment_date.desc())
+            .limit(4)
+        )
+        for row in res_payments.mappings().all():
+            fmt = f"{float(row['amount'] or 0):,.0f} DA".replace(",", " ")
+            results.append({"title": f"Versement — {row['client_name']}", "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}", "icon": "bi-cash-stack", "type": "Paiement", "href": "/payments"})
+    except Exception as exc:
+        logger.warning("Text payments search failed: %s", exc)
 
+
+# ── Endpoint ──────────────────────────────────────────────────────────────────
 
 @router.get("/api/search", name="global_search")
-async def global_search(request: Request):
+async def global_search(
+    request: Request,
+    db: AsyncSession = Depends(get_async_session),
+):
     """Recherche globale par session web (pas de token Bearer requis)."""
     user = get_current_user(request)
     if not user:
@@ -323,9 +417,8 @@ async def global_search(request: Request):
     results = []
     needle = f"%{q.lower()}%"
 
-    _search_numeric_matches(q, results)
-    _search_date_matches(q, results)
-    _search_text_matches(needle, results)
+    await _search_numeric_matches(db, q, results)
+    await _search_date_matches(db, q, results)
+    await _search_text_matches(db, needle, results)
 
     return JSONResponse({"data": results})
-

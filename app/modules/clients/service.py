@@ -13,6 +13,7 @@ from sqlmodel import delete, func, literal, literal_column, select
 from werkzeug.utils import secure_filename
 
 from app.core.events import DomainEvent, emit
+from app.core.exceptions import ConflictError
 from app.core.helpers import parse_excel_client_file
 from app.core.models import Client, ClientHistory, ClientKey
 from app.core.perf_cache import invalidate_client_cache
@@ -108,13 +109,13 @@ class ClientService:
         self, search: Optional[str] = None, page: int = 1, page_size: int = 25
     ) -> Tuple[List[dict], int]:
         """Lists clients with calculated statistics and balance from the database view."""
-        from sqlalchemy import text
+        from sqlalchemy import table
         stmt = select(
             *Client.__table__.columns,
             literal_column("current_balance"),
             literal_column("total_sales"),
             literal_column("total_payments")
-        ).select_from(text("clients_with_stats"))
+        ).select_from(table("clients_with_stats"))
 
         if search:
             stmt = stmt.where(literal_column("search_vector").op("@@")(func.plainto_tsquery('french', search)))
@@ -154,6 +155,10 @@ class ClientService:
 
     async def create_client(self, schema: ClientCreateSchema) -> Client:
         """Create and persist a new client."""
+        existing = await self.repo.find_by_name(schema.name)
+        if existing:
+            raise ConflictError(f"Un client nommé '{schema.name}' existe déjà.")
+
         client = Client(
             name=schema.name,
             phone="",
@@ -526,9 +531,8 @@ class ClientService:
                 errors.append(f"{filename}: {exc}")
             finally:
                 try:
-                    if temp_path.exists():
-                        temp_path.unlink()
-                except Exception:
+                    temp_path.unlink(missing_ok=True)
+                except OSError:
                     pass
         return {"rows": parsed_rows, "errors": errors, "duplicates": duplicates}
 
@@ -540,7 +544,7 @@ class ClientService:
         if file_obj is not None:
             try:
                 file_obj.seek(0)
-            except Exception:
+            except (AttributeError, OSError):
                 pass
             with open(temp_path, "wb") as output:
                 shutil.copyfileobj(file_obj, output)

@@ -8,6 +8,27 @@ Le format s'inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) 
 
 ---
 
+## [2.3.0] — 2026-09-16
+
+### Architecture & Unification des Données
+- **Domaine Production Standardisé** : Création des classes `ProductionBatchRepository`, `ProductionBatchItemRepository` et `ProductionService` alignées sur l'architecture en couches du projet, avec session asynchrone `AsyncSession` injectée via `Depends(get_async_session)`.
+- **Accès aux Données Async ORM (SQLAlchemy 2.0)** :
+  - Migration intégrale du service de comptabilité SCF (`scf_service.py`) vers des requêtes typées SQLAlchemy 2.0 Async sans SQL brut.
+  - Migration des exports de rapports (Livre Journal et Marge Brute) dans `ReportsRepository` et `ReportsService`.
+  - Migration des sélections de partenaires (`operations_pages.py`) et du calcul prédictif Sabrina (`dashboard_pages.py`).
+- **Élimination des Conflits et Duplications** :
+  - Suppression de `app/core/db.py` en doublon avec le package `app/core/db/`.
+  - Résolution de la double inclusion du router comptabilité (`AccountingModule` unifié).
+  - Déduplication de `recipe_service.py` délégant directement à `SavedRecipeRepository`.
+  - Protection contre la duplication d'entités clientes (`ConflictError` sur doublon de nom).
+- **Performances & Base de Données** :
+  - Migration Alembic `0039_perf_indexes_v2_3` ajoutant les index de performance B-Tree sur `production_batches`, `expenses`, `payments` et `sales`.
+- **Nettoyage & Outillage** :
+  - 0 warning / 0 erreur Ruff sur l'ensemble du projet.
+  - Synchronisation stricte des versions (`pyproject.toml`, `app/version.py`, `README.md`).
+
+---
+
 ## [2.2.0] — 2026-08-08
 
 ### Refactorisation CSS Majeure

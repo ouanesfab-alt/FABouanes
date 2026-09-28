@@ -258,8 +258,9 @@ async def import_client_history(
         }))
     except Exception as e:
         try:
-            os.unlink(temp_path)
-        except Exception:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+        except OSError:
             pass
         api_error("bad_request", f"Erreur lors du lancement de l'import : {str(e)}", 400)
 

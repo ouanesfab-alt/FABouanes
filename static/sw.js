@@ -78,14 +78,19 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const fetchPromise = fetch(request).then((networkResponse) => {
-        if (networkResponse.status === 200) {
+        if (networkResponse && networkResponse.status === 200) {
           const copy = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         }
         return networkResponse;
-      }).catch(() => null);
+      });
 
-      return cachedResponse || fetchPromise;
+      if (cachedResponse) {
+        // Run background revalidation silently
+        fetchPromise.catch(() => {});
+        return cachedResponse;
+      }
+      return fetchPromise;
     })
   );
 });

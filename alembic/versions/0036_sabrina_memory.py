@@ -7,7 +7,6 @@ entre les sessions de conversation.
 from __future__ import annotations
 
 from alembic import op
-import sqlalchemy as sa
 
 revision = "0036"
 down_revision = "0035"

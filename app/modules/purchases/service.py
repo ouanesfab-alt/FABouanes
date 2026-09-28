@@ -295,9 +295,10 @@ class PurchaseService:
             """),
             {"doc_id": document_id}
         )
-        stats = dict(res.first()._mapping)
+        first_row = res.first()
+        stats = dict(first_row._mapping) if first_row else {"line_count": 0, "total_amount": 0}
 
-        line_count = int(stats["line_count"] or 0)
+        line_count = int(stats.get("line_count") or 0)
         if line_count <= 0:
             doc = await self.doc_repo.get(document_id)
             if doc:

@@ -7,7 +7,6 @@ Create Date: 2026-05-25 18:00:00.000000
 from __future__ import annotations
 
 from alembic import op
-import sqlalchemy as sa
 
 revision = '0032_client_history'
 down_revision = '0031_updated_at_triggers'

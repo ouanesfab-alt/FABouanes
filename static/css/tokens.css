@@ -94,6 +94,8 @@
   --font-mono: "SF Mono", "Menlo", "Cascadia Code", "Consolas", monospace;
   --font-rounded: ui-rounded, "SF Pro Rounded", var(--font-main);
   /* Back-compat aliases */
+  --font-body: var(--font-main);
+  --font-sans: var(--font-main);
   --font-title-val: var(--font-title);
 
   /* Spacing — Apple 8pt grid */
@@ -380,10 +382,8 @@ h1, h2, h3, h4, h5, h6, .section-title {
               inset 0 0.5px 0 rgba(255, 255, 255, 0.20) !important;
 }
 .btn-primary:hover, .btn-premium:hover {
-  background: #0071EB !important;
-  box-shadow: 0 3px 12px rgba(0, 122, 255, 0.35),
-              inset 0 0.5px 0 rgba(255, 255, 255, 0.25) !important;
-  transform: translateY(-0.5px) !important;
+  background: var(--system-blue-hover, #0066d6) !important;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.35) !important;
 }
 
 /* Danger */
@@ -399,11 +399,6 @@ h1, h2, h3, h4, h5, h6, .section-title {
   backdrop-filter: var(--blur-xs);
   border: 0.5px solid var(--separator) !important;
   color: var(--text) !important;
-  box-shadow: var(--shadow-sm), inset 0 0.5px 0 var(--glass-border-light) !important;
-}
-.btn-outline-secondary:hover, .btn-outline-dark:hover {
-  background: var(--glass-chrome) !important;
-  border-color: var(--separator-opaque) !important;
 }
 
 .btn-dark {
@@ -411,19 +406,7 @@ h1, h2, h3, h4, h5, h6, .section-title {
   color: var(--bg) !important;
   border: none !important;
 }
-[data-theme="dark"] .btn-dark {
-  background: var(--glass-thick) !important;
-  color: var(--text) !important;
-  border: 0.5px solid var(--glass-border) !important;
-}
 
-.btn-warning {
-  background: var(--system-orange) !important;
-  border: none !important;
-  color: #fff !important;
-}
-
-/* ── Translucent Navbar / Toolbar ── */
 .app-navbar {
   background: var(--glass-thin) !important;
   backdrop-filter: var(--blur-lg) saturate(180%) !important;
@@ -450,11 +433,6 @@ h1, h2, h3, h4, h5, h6, .section-title {
   font-size: 11px !important;
   text-transform: uppercase !important;
   letter-spacing: 0.03em !important;
-  color: var(--text-secondary) !important;
-  padding: 10px 14px !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
-  background: rgba(246, 246, 248, 0.78) !important;
-  backdrop-filter: blur(20px) saturate(190%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
 }
 .table td {
@@ -470,27 +448,15 @@ h1, h2, h3, h4, h5, h6, .section-title {
 [data-theme="dark"] .table td {
   border-bottom-color: rgba(255, 255, 255, 0.04) !important;
 }
-[data-theme="dark"] .table-hover tbody tr:hover td,
-[data-theme="dark"] .table-row-hover tr:hover td {
-  background: rgba(10, 132, 255, 0.15) !important;
-  box-shadow: none !important;
-}
-
-/* ── Modals — macOS sheet ── */
 .modal-content {
-  background: var(--glass-thick) !important;
-  backdrop-filter: var(--blur-lg) saturate(150%) !important;
   -webkit-backdrop-filter: var(--blur-lg) saturate(150%) !important;
   border: 0.5px solid var(--glass-border) !important;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: var(--shadow-xl) !important;
 }
 .modal-header { border-bottom: 0.5px solid var(--separator) !important; }
 .modal-footer { border-top: 0.5px solid var(--separator) !important; }
 
 /* ── macOS Scrollbar ── */
 ::-webkit-scrollbar { width: 7px; height: 7px; }
-::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.12);
   border-radius: 10px;
@@ -502,10 +468,6 @@ h1, h2, h3, h4, h5, h6, .section-title {
   background: rgba(255, 255, 255, 0.12);
   border: 1.5px solid transparent;
   background-clip: padding-box;
-}
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
 
 /* ── Badges ── */
 .badge { font-weight: 500; font-size: 11px; letter-spacing: 0.01em; }
@@ -545,10 +507,6 @@ h1, h2, h3, h4, h5, h6, .section-title {
   box-shadow: 0 10px 32px rgba(0, 0, 0, 0.18) !important;
   padding: 6px !important;
 }
-.dropdown-item {
-  border-radius: var(--radius-xs, 6px) !important;
-  font-size: 13px !important;
-  padding: 6px 10px !important;
   color: var(--text-primary, #1D1D1F) !important;
   transition: background 0.1s ease, color 0.1s ease !important;
 }
@@ -557,15 +515,6 @@ h1, h2, h3, h4, h5, h6, .section-title {
   color: #F5F5F7 !important;
 }
 .dropdown-item:hover, .dropdown-item:focus, .dropdown-item.active {
-  background: var(--system-blue, #007AFF) !important;
-  color: white !important;
-}
-.dropdown-divider {
-  border-color: rgba(0, 0, 0, 0.08) !important;
-  margin: 4px 0 !important;
-}
-[data-theme="dark"] .dropdown-divider,
-[data-theme="windows-dark"] .dropdown-divider {
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 [data-theme="dark"] .dropdown-menu,
@@ -710,68 +659,6 @@ html[data-theme="windows-dark"] .ripple-wave {
   100% { transform: scale(3);   opacity: 0; }
 }
 
-/* ── Additional Premium macOS Sequoia Styles ── */
-
-/* 1. macOS Spotlight Search Overhaul */
-.search-overlay {
-  background: rgba(0, 0, 0, 0.25) !important;
-  backdrop-filter: var(--blur-md) saturate(140%) !important;
-  -webkit-backdrop-filter: var(--blur-md) saturate(140%) !important;
-  display: flex !important;
-  align-items: flex-start !important;
-  padding-top: 120px !important;
-}
-
-.search-modal {
-  background: var(--glass-chrome) !important;
-  backdrop-filter: var(--blur-lg) saturate(190%) !important;
-  -webkit-backdrop-filter: var(--blur-lg) saturate(190%) !important;
-  border: 0.5px solid var(--glass-border) !important;
-  border-radius: var(--radius-xl) !important;
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.22), var(--shadow-sm) !important;
-  animation: searchIn 0.3s var(--ease-spring) both !important;
-}
-
-.search-input-row {
-  border-bottom: 0.5px solid var(--separator) !important;
-  padding: 18px 22px !important;
-  gap: 14px !important;
-}
-
-.search-input {
-  font-size: 16px !important;
-  font-family: var(--font-main) !important;
-  letter-spacing: -0.015em !important;
-}
-
-.search-kbd {
-  border: 0.5px solid var(--separator) !important;
-  background: var(--glass-ultra-thin) !important;
-  box-shadow: var(--shadow-sm) !important;
-  font-family: var(--font-mono) !important;
-}
-
-.search-result-item {
-  border-radius: var(--radius-md) !important;
-  margin: 2px 6px !important;
-  transition: all 0.15s ease !important;
-}
-
-.search-result-item:hover {
-  background: var(--system-blue) !important;
-  color: white !important;
-}
-
-.search-result-item:hover .search-result-sub,
-.search-result-item:hover .search-result-icon,
-.search-result-item:hover .search-result-type {
-  color: rgba(255, 255, 255, 0.8) !important;
-}
-
-.search-result-item:hover .search-result-type {
-  border-color: rgba(255, 255, 255, 0.4) !important;
-  background: rgba(255, 255, 255, 0.15) !important;
-}
 
 /* 2. Premium Translucent PWA Banner */
 .pwa-banner {
@@ -809,13 +696,7 @@ html[data-theme="windows-dark"] .ripple-wave {
   -webkit-backdrop-filter: var(--blur-md) !important;
   border: 0.5px solid var(--glass-border) !important;
   border-radius: var(--radius-xl) !important;
-  box-shadow: var(--shadow-glass) !important;
-  transition: transform 0.3s var(--ease-spring), box-shadow 0.3s var(--ease-spring) !important;
-}
 
-.kpi-card:hover {
-  transform: translateY(-4px) scale(1.01) !important;
-  box-shadow: var(--shadow-glass-hover), var(--shadow-lg) !important;
   border-color: rgba(0, 122, 255, 0.25) !important;
 }
 
@@ -850,25 +731,8 @@ h1, h2, h3, h4, h5, h6, .brand-title, .title-premium, .section-title, .modal-tit
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-    max-width: none !important;
-    padding: 0 !important;
-    transition: background-color 0.4s var(--ease-smooth) !important;
   }
 }
-
-/* macOS Top Navbar Titlebar */
-.app-navbar {
-  background: var(--glass-chrome) !important;
-  backdrop-filter: blur(25px) !important;
-  -webkit-backdrop-filter: blur(25px) !important;
-  border-bottom: 0.5px solid var(--separator) !important;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 30px rgba(0, 0, 0, 0.06) !important;
-}
-
 /* macOS Segmented Switcher Controls */
 .fab-switcher {
   background: rgba(0, 0, 0, 0.05) !important;
@@ -960,124 +824,6 @@ html[data-theme="windows-dark"] textarea {
   border-color: #007AFF !important;
   box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25) !important;
   outline: none !important;
-}
-
-/* macOS System Pill Buttons */
-.btn {
-  font-family: var(--font-title) !important;
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  padding: 6px 14px !important;
-  border-radius: 6px !important;
-  transition: all 0.12s ease-in-out !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
-}
-/* scale removed — ripple effect only */
-
-.btn-primary, .btn-premium {
-  background: linear-gradient(to bottom, #3498ff, #0076f6) !important;
-  border: 0.5px solid rgba(0, 0, 0, 0.15) !important;
-  color: #ffffff !important;
-  text-shadow: 0 -0.5px 0.5px rgba(0, 0, 0, 0.15) !important;
-}
-.btn-primary:hover, .btn-premium:hover {
-  background: linear-gradient(to bottom, #4fa5ff, #1182ff) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 118, 246, 0.2) !important;
-}
-.btn-primary:active, .btn-premium:active {
-  background: #0060cc !important;
-}
-
-.btn-secondary, .btn-outline-secondary, .btn-page-action-secondary, .btn-outline-primary {
-  background: linear-gradient(to bottom, #ffffff, #f5f5f7) !important;
-  border: 0.5px solid rgba(0, 0, 0, 0.15) !important;
-  color: #1d1d1f !important;
-}
-html[data-theme="dark"] .btn-secondary,
-html[data-theme="dark"] .btn-outline-secondary,
-html[data-theme="dark"] .btn-page-action-secondary,
-html[data-theme="dark"] .btn-outline-primary,
-html[data-theme="windows-dark"] .btn-secondary,
-html[data-theme="windows-dark"] .btn-outline-secondary,
-html[data-theme="windows-dark"] .btn-page-action-secondary,
-html[data-theme="windows-dark"] .btn-outline-primary {
-  background: linear-gradient(to bottom, #3a3a3c, #2c2c2e) !important;
-  border: 0.5px solid rgba(255, 255, 255, 0.15) !important;
-  color: #f5f5f7 !important;
-}
-.btn-secondary:hover, .btn-outline-secondary:hover, .btn-page-action-secondary:hover, .btn-outline-primary:hover {
-  background: linear-gradient(to bottom, #fafafc, #ececee) !important;
-}
-html[data-theme="dark"] .btn-secondary:hover,
-html[data-theme="dark"] .btn-outline-secondary:hover,
-html[data-theme="dark"] .btn-page-action-secondary:hover,
-html[data-theme="dark"] .btn-outline-primary:hover,
-html[data-theme="windows-dark"] .btn-secondary:hover,
-html[data-theme="windows-dark"] .btn-outline-secondary:hover,
-html[data-theme="windows-dark"] .btn-page-action-secondary:hover,
-html[data-theme="windows-dark"] .btn-outline-primary:hover {
-  background: linear-gradient(to bottom, #4a4a4c, #3a3a3c) !important;
-}
-
-/* macOS Finder Zebra Lists & Tables */
-.table {
-  font-size: 13px !important;
-  border-collapse: collapse !important;
-  border-spacing: 0 !important;
-}
-.table th {
-  background: rgba(255, 255, 255, 0.45) !important;
-  backdrop-filter: blur(16px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-  font-family: var(--font-title, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif) !important;
-  font-weight: 600 !important;
-  font-size: 11px !important;
-  text-transform: uppercase;
-  color: var(--text-secondary) !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
-  border-left: none !important;
-  border-right: none !important;
-  border-top: none !important;
-  padding: 10px 14px !important;
-  line-height: 1.4 !important;
-}
-.table td {
-  padding: 8px 12px !important;
-  border-bottom: 0.5px solid var(--line) !important;
-}
-.table tbody tr:nth-child(even) {
-  background: rgba(0, 0, 0, 0.015) !important;
-}
-html[data-theme="dark"] .table tbody tr:nth-child(even),
-html[data-theme="windows-dark"] .table tbody tr:nth-child(even) {
-  background: rgba(255, 255, 255, 0.015) !important;
-}
-.table tbody tr:hover > td,
-.table tbody tr:hover > th {
-  background-color: rgba(0, 122, 255, 0.08) !important;
-  box-shadow: none !important;
-}
-html[data-theme="dark"] .table tbody tr:hover > td,
-html[data-theme="dark"] .table tbody tr:hover > th,
-html[data-theme="windows-dark"] .table tbody tr:hover > td,
-html[data-theme="windows-dark"] .table tbody tr:hover > th {
-  background-color: rgba(10, 132, 255, 0.15) !important;
-  box-shadow: none !important;
-}
-
-/* Thin macOS scrollbars */
-::-webkit-scrollbar {
-  width: 8px; height: 8px;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(120, 120, 120, 0.25) !important;
-  border-radius: 4px !important;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(120, 120, 120, 0.45) !important;
-}
-::-webkit-scrollbar-track {
-  background: transparent !important;
 }
 
 /* End of tokens.css */
@@ -1220,7 +966,6 @@ thead.table-light th {
   border-left: none !important;
   border-right: none !important;
 }
-
 
 /* ══════════════════════════════════════════════════════════════
    MOBILE RESPONSIVE DESIGN — 2026

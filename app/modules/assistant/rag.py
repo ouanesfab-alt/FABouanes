@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import time
@@ -13,6 +14,7 @@ from pypdf import PdfReader
 from app.core.runtime_paths import paths
 from app.web.manual_pages import SPECIFIC_CHAPTER_DATA
 
+_logger = logging.getLogger("fabouanes.rag")
 INDEX_FILE = paths.pdf_reader_dir / "index_rag.json"
 
 def normalize_text(text: str) -> str:
@@ -110,8 +112,8 @@ async def search_vector_manual(query: str, api_key: str, limit: int = 2) -> List
     try:
         row = query_db("SELECT 1 FROM pg_extension WHERE extname = 'vector'", one=True)
         has_vector = bool(row)
-    except Exception:
-        pass
+    except Exception as exc:
+        _logger.debug("pg_extension vector check failed: %s", exc)
 
     results = []
     if has_vector:
@@ -166,8 +168,8 @@ def get_pdf_text_chunks(pdf_path: Path) -> List[Dict[str, Any]]:
                     "page": page_idx + 1,
                     "para_idx": p_idx
                 })
-    except Exception:
-        pass
+    except Exception as exc:
+        _logger.warning("Failed extracting PDF text from %s: %s", pdf_path, exc)
     return chunks
 
 def update_pdf_index() -> Dict[str, Any]:
@@ -179,7 +181,8 @@ def update_pdf_index() -> Dict[str, Any]:
         try:
             with INDEX_FILE.open("r", encoding="utf-8") as f:
                 index_data = json.load(f)
-        except Exception:
+        except Exception as exc:
+            _logger.warning("Failed reading index file %s: %s", INDEX_FILE, exc)
             index_data = {}
 
     pdf_files = list(paths.pdf_reader_dir.glob("*.pdf"))
@@ -210,8 +213,8 @@ def update_pdf_index() -> Dict[str, Any]:
         try:
             with INDEX_FILE.open("w", encoding="utf-8") as f:
                 json.dump(index_data, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+        except Exception as exc:
+            _logger.warning("Failed writing index file %s: %s", INDEX_FILE, exc)
 
     return index_data
 
@@ -315,8 +318,8 @@ async def search_vector_catalog(query: str, api_key: str, limit: int = 5) -> Lis
     try:
         row = query_db("SELECT 1 FROM pg_extension WHERE extname = 'vector'", one=True)
         has_vector = bool(row)
-    except Exception:
-        pass
+    except Exception as exc:
+        _logger.debug("pg_extension vector check failed: %s", exc)
 
     emb = await get_embedding(query, api_key)
     if not emb or len(emb) != 1536:
@@ -361,8 +364,8 @@ async def search_vector_catalog(query: str, api_key: str, limit: int = 5) -> Lis
                     # Enforce similarity threshold of 0.5
                     if sim >= 0.5:
                         scored.append((sim, r))
-            except Exception:
-                pass
+            except Exception as exc:
+                _logger.debug("Failed parsing catalog embedding: %s", exc)
         scored.sort(key=lambda x: x[0], reverse=True)
         for sim, r in scored[:limit]:
             results.append({

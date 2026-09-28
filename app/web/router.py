@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends
 
-from app.modules.accounting.web import router as accounting_router
 from app.web.admin_api import router as admin_api_router
 from app.web.admin_pages import router as admin_router
 from app.web.auth_pages import router as auth_router
@@ -24,7 +23,6 @@ router.include_router(production_router, dependencies=[Depends(verify_csrf_token
 router.include_router(admin_router, dependencies=[Depends(verify_csrf_token)])
 router.include_router(admin_api_router, dependencies=[Depends(verify_csrf_token)])
 router.include_router(report_router, dependencies=[Depends(verify_csrf_token)])
-router.include_router(accounting_router)
 router.include_router(search_router)
 router.include_router(manual_router)
 

@@ -6,7 +6,7 @@
 <p align="center"><strong>ERP de Gestion Commerciale, Production & Comptabilité SCF</strong></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.0.5-blue.svg?style=flat-square" alt="v2.0.5" />
+  <img src="https://img.shields.io/badge/version-2.3.0-blue.svg?style=flat-square" alt="v2.3.0" />
   <img src="https://img.shields.io/badge/python-3.11+-3776AB.svg?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+" />
   <img src="https://img.shields.io/badge/framework-FastAPI-009688.svg?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/database-PostgreSQL%2018-336791.svg?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL" />

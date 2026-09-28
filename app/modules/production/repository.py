@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_sessionmaker
+from app.core.base_repository import AsyncRepository
 from app.core.helpers import async_compat, db_task_compat
 from app.core.models import (
     FinishedProduct,
@@ -18,12 +19,49 @@ from app.core.models import (
 from app.utils.pagination import pagination_context, parse_pagination
 
 
+class ProductionBatchRepository(AsyncRepository[ProductionBatch]):
+    """Asynchronous repository for ProductionBatch entities."""
+
+    def __init__(self, session: AsyncSession):
+        super().__init__(session, ProductionBatch)
+
+    async def list_page_context(self, args: dict | None = None) -> dict:
+        return await _list_production_page_context_impl(args, self.session)
+
+    async def get_form_context(self) -> dict:
+        return await _production_form_context_impl(self.session)
+
+
+class ProductionBatchItemRepository(AsyncRepository[ProductionBatchItem]):
+    """Asynchronous repository for ProductionBatchItem entities."""
+
+    def __init__(self, session: AsyncSession):
+        super().__init__(session, ProductionBatchItem)
+
+    async def get_items_for_batches(self, batch_ids: list[int]):
+        if not batch_ids:
+            return []
+        items_stmt = (
+            select(
+                ProductionBatchItem.batch_id,
+                ProductionBatchItem.quantity,
+                RawMaterial.name,
+                RawMaterial.unit,
+            )
+            .join(RawMaterial, RawMaterial.id == ProductionBatchItem.raw_material_id)
+            .where(ProductionBatchItem.batch_id.in_(batch_ids))
+            .order_by(ProductionBatchItem.batch_id, ProductionBatchItem.id)
+        )
+        items_res = await self.session.execute(items_stmt)
+        return items_res.all()
+
+
 @db_task_compat
 async def list_production_page_context(args=None, db: AsyncSession | None = None):
     if db is None:
         async with get_async_sessionmaker()() as session:
-            return await _list_production_page_context_impl(args, session)
-    return await _list_production_page_context_impl(args, db)
+            return await ProductionBatchRepository(session).list_page_context(args)
+    return await ProductionBatchRepository(db).list_page_context(args)
 
 
 async def _list_production_page_context_impl(args, db: AsyncSession):
@@ -92,8 +130,8 @@ async def _list_production_page_context_impl(args, db: AsyncSession):
 async def production_form_context(db: AsyncSession | None = None):
     if db is None:
         async with get_async_sessionmaker()() as session:
-            return await _production_form_context_impl(session)
-    return await _production_form_context_impl(db)
+            return await ProductionBatchRepository(session).get_form_context()
+    return await ProductionBatchRepository(db).get_form_context()
 
 
 async def _production_form_context_impl(db: AsyncSession):

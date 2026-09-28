@@ -52,6 +52,7 @@
     <!-- 1. ACHAT SECTION -->
     <div class="card entity-form-card" id="section-purchase" style="display: none;">
       <form method="post" class="entity-form-grid" id="purchaseDocumentForm" action="/operations/purchases/new">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="span-6">
           <label for="supplierSelect" class="form-label mb-1">Fournisseur</label>
           <select name="supplier_id" class="form-select" id="supplierSelect">
@@ -104,6 +105,7 @@
     <!-- 2. VENTE SECTION -->
     <div class="card entity-form-card" id="section-sale" style="display: none;">
       <form method="post" class="entity-form-grid" id="sale-form" action="/operations/sales/new">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="span-6">
           <label for="clientSelect" class="form-label mb-1">Client</label>
           <select name="client_id" class="form-select" id="clientSelect">
@@ -156,6 +158,7 @@
     <!-- 3. VERSEMENT & AVANCE SECTION -->
     <div class="card entity-form-card" id="section-payment" style="display: none;">
       <form method="post" class="entity-form-grid" id="payment-form" action="/operations/payments/new">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="payment_type" id="paymentTypeInput" value="versement">
         
         <div class="span-6">

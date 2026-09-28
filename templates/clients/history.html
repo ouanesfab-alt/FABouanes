@@ -4,27 +4,6 @@
   /* ── macOS-style History Page ── */
   .hist-shell { max-width: 1080px; margin: 0 auto; }
 
-  /* Record table styles */
-  .record-table {
-    width: 100%; border-collapse: collapse; margin-top: 8px;
-  }
-  .record-table thead tr {
-    position: sticky !important;
-    top: 0 !important;
-    background: var(--glass-thick) !important;
-    backdrop-filter: var(--blur-md) !important;
-    -webkit-backdrop-filter: var(--blur-md) !important;
-    z-index: 10 !important;
-  }
-  .record-table thead th {
-    background: transparent !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    color: var(--text-secondary) !important;
-    font-weight: 700; font-size: 0.75rem; text-transform: uppercase;
-    letter-spacing: 0.05em; padding: 12px 16px;
-    border-bottom: 1.5px solid var(--separator) !important;
-  }
 
   /* Header */
   .hist-header {
@@ -168,14 +147,14 @@
       </div>
 
       <div class="table-responsive" style="border-radius:10px; max-height: 520px; overflow-y: auto;">
-        <table class="record-table align-middle">
+        <table class="table table-hover js-datagrid align-middle">
           <thead>
             <tr>
-              <th style="width:110px;">Date</th>
-              <th>Désignation</th>
-              <th class="col-right" style="width:130px;">Prix d'achat</th>
-              <th class="col-right" style="width:130px;">Versement</th>
-              <th class="col-right" style="width:140px;">Reste à payer</th>
+              <th class="col-date" style="width:110px;">Date</th>
+              <th class="col-designation">Désignation</th>
+              <th class="col-money cell-num col-right" style="width:130px;">Prix d'achat</th>
+              <th class="col-money cell-num col-right" style="width:130px;">Versement</th>
+              <th class="col-balance cell-num col-right" style="width:140px;">Reste à payer</th>
             </tr>
           </thead>
           <tbody>
@@ -191,28 +170,27 @@
               {% endif %}
 
               <tr>
-                <td>{{ item.operation_date }}</td>
-                <td><span class="fw-medium">{{ item.designation or '-' }}</span></td>
-                <td class="col-right">
+                <td class="col-date">{{ item.operation_date }}</td>
+                <td class="col-designation"><span class="fw-medium">{{ item.designation or '-' }}</span></td>
+                <td class="col-money cell-num col-right">
                   {% if item.montant_achat > 0 %}
                     <span class="text-danger">{{ item.montant_achat|money }}</span>
                   {% else %}
                     <span class="text-muted">-</span>
                   {% endif %}
                 </td>
-                <td class="col-right">
+                <td class="col-money cell-num col-right">
                   {% if item.montant_verse > 0 %}
                     <span class="text-success">{{ item.montant_verse|money }}</span>
                   {% else %}
                     <span class="text-muted">-</span>
                   {% endif %}
                 </td>
-                <td class="col-right font-monospace">
+                <td class="col-balance cell-num col-right font-monospace">
                   <strong class="{% if item.solde_cumule > 0 %}text-danger{% elif item.solde_cumule < 0 %}text-success{% endif %}">
                     {{ item.solde_cumule|money }}
                   </strong>
                 </td>
-
               </tr>
             {% else %}
               <tr>

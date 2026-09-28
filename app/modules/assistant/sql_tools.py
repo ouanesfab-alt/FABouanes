@@ -69,8 +69,8 @@ def dry_run_sql(query: str) -> str:
                             inserted_id = row.get("id")
                         elif isinstance(row, (list, tuple)) and len(row) > 0:
                             inserted_id = row[0]
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Could not fetch inserted_id: %s", exc)
 
                 # Récupérer les soldes clients après
                 client_balances_after = {}
@@ -197,13 +197,13 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
                             inserted_id = row.get("id")
                         elif isinstance(row, (list, tuple)) and len(row) > 0:
                             inserted_id = row[0]
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Could not fetch inserted_id: %s", exc)
             rowcount = getattr(cur, "rowcount", None)
             try:
                 cur.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Error closing cursor: %s", exc)
             result: Dict[str, Any] = {"success": True}
             if auto_eval_reports:
                 result["auto_evaluation"] = auto_eval_reports

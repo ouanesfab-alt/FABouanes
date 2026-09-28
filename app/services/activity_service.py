@@ -8,6 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_sessionmaker
+from app.core.perf_cache import async_cached_result
 
 ACTION_LABELS = {
     "backup_now": "a créé une sauvegarde",
@@ -181,9 +182,6 @@ async def _list_admin_activity_impl(
 
 def activity_filter_values(filters: Mapping[str, str] | None = None) -> dict[str, str]:
     return _filters(filters)
-
-
-from app.core.perf_cache import async_cached_result
 
 
 async def list_activity_actions(db: AsyncSession | None = None) -> list[str]:

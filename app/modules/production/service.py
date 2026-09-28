@@ -15,22 +15,52 @@ from app.core.models import FinishedProduct, ProductionBatch, ProductionBatchIte
 from app.core.perf_cache import async_cached_result
 from app.core.request_state import get_state_value
 from app.core.storage import mark_backup_needed
-from app.modules.production.repository import list_production_page_context, production_form_context
+from app.modules.production.repository import (
+    ProductionBatchItemRepository,
+    ProductionBatchRepository,
+    list_production_page_context,
+    production_form_context,
+)
 from app.modules.sales.repository import invalidate_sellable_items_cache
 from app.services.recipe_service import save_recipe_definition
 from app.services.stock_service import apply_finished_production, apply_raw_material_consumption, reverse_production
 
 
+class ProductionService:
+    """Asynchronous business service layer for the Production domain."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+        self.batch_repo = ProductionBatchRepository(session)
+        self.item_repo = ProductionBatchItemRepository(session)
+
+    async def get_page_context(self, args: dict | None = None) -> dict:
+        return await self.batch_repo.list_page_context(args)
+
+    async def get_form_context(self) -> dict:
+        return await self.batch_repo.get_form_context()
+
+    async def create_production(self, form) -> dict:
+        return await _create_production_from_form_impl(form, self.session)
+
+    async def delete_production(self, batch_id: int) -> bool:
+        return await _delete_production_by_id_impl(batch_id, self.session)
+
+
 @async_compat
-async def productions_context(args=None):
+async def productions_context(args=None, db: AsyncSession | None = None):
     args = args or {}
     cache_key = tuple(sorted((str(key), str(value)) for key, value in dict(args).items()))
-    return await async_cached_result(("productions_context", cache_key), lambda: list_production_page_context(args), ttl_seconds=30.0)
+    return await async_cached_result(
+        ("productions_context", cache_key),
+        lambda: list_production_page_context(args, db=db),
+        ttl_seconds=30.0,
+    )
 
 
 @async_compat
-async def new_production_context():
-    return await production_form_context()
+async def new_production_context(db: AsyncSession | None = None):
+    return await production_form_context(db=db)
 
 
 def _current_user_id() -> int | None:
@@ -48,8 +78,8 @@ async def create_production_from_form(form, db: AsyncSession | None = None):
     if db is None:
         async with get_async_sessionmaker()() as session:
             async with session.begin():
-                return await _create_production_from_form_impl(form, session)
-    return await _create_production_from_form_impl(form, db)
+                return await ProductionService(session).create_production(form)
+    return await ProductionService(db).create_production(form)
 
 
 async def _create_production_from_form_impl(form, db: AsyncSession):
@@ -181,8 +211,8 @@ async def delete_production_by_id(batch_id: int, db: AsyncSession | None = None)
     if db is None:
         async with get_async_sessionmaker()() as session:
             async with session.begin():
-                return await _delete_production_by_id_impl(batch_id, session)
-    return await _delete_production_by_id_impl(batch_id, db)
+                return await ProductionService(session).delete_production(batch_id)
+    return await ProductionService(db).delete_production(batch_id)
 
 
 async def _delete_production_by_id_impl(batch_id: int, db: AsyncSession) -> bool:

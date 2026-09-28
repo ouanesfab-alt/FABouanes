@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fabouanes"
-version = "2.0.5"
+version = "2.3.0"
 description = "FABOuanes migrated to FastAPI with preserved server-rendered UI and business workflows."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -69,7 +69,8 @@ filterwarnings = [
   # SQLite retourne des types primitifs (str, float, int) au lieu de date/Decimal/bool.
 
   # Ces avertissements Pydantic sont normaux en test et n'affectent pas la production (PostgreSQL).
-  "ignore:Pydantic serializer warnings.*PydanticSerializationUnexpectedValue:UserWarning",
+  "ignore:.*Pydantic serializer warnings.*:UserWarning",
+  "ignore:.*PydanticSerializationUnexpectedValue.*:UserWarning",
   "ignore:SelectableGroups dict interface is deprecated:DeprecationWarning",
   "ignore:DB-API extension cursor.connection used:UserWarning",
 ]
@@ -87,8 +88,8 @@ omit = [
   "app/modules/*/repository.py",
   "app/modules/*/service.py",
   "app/core/storage.py",
-  "app/core/sanitizer.py",
-  "app/utils/*",
+  "app/utils/mobile_connect.py",
+  "app/utils/tool_pages.py",
   "app/services/*",
   "app/services/print_service.py",
   # Fichiers requérant une vraie base de données (exclus des tests unitaires)

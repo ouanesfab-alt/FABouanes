@@ -39,6 +39,10 @@ export function applyTheme(theme, opts) {
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', themeColors[name]);
   markSelected('.js-theme', 'themeValue', name);
+  const navIcon = document.getElementById('themeToggleIcon') || document.querySelector('#themeToggleBtnNavbar .bi');
+  if (navIcon) {
+    navIcon.className = 'bi ' + (name.includes('dark') ? 'bi-sun' : 'bi-moon');
+  }
   window.clearTimeout(window.fabThemeTimer);
   if (opts && opts.animate) {
     window.fabThemeTimer = window.setTimeout(function () {

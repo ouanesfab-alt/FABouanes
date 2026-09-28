@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy import Float, cast, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.async_db import get_async_session
 from app.core.db_helpers import db_manager
+from app.core.models import FinishedProduct, Sale
 from app.modules.assistant.schema_context import get_gemini_api_key
 from app.modules.reports.repository import get_dashboard_snapshot, get_kpis_for_date
 from app.utils.mobile_connect import build_mobile_connect_context
@@ -159,35 +163,49 @@ async def api_kpi_history(request: Request):
 
 
 @router.get("/api/sabrina/smart-summary", name="api_sabrina_smart_summary")
-async def api_sabrina_smart_summary(request: Request):
+async def api_sabrina_smart_summary(
+    request: Request,
+    db: AsyncSession = Depends(get_async_session),
+):
     """Generates daily predictive AI stock alerts and business summary for Sabrina assistant."""
     if not get_current_user(request):
         return JSONResponse({"error": "Authentification requise."}, status_code=401)
 
     try:
-        from app.core.db_helpers import query_db
         # 1. Calculate items running out of stock within 7 days based on 30-day sales rate
-        predicted_depletions = query_db("""
-            SELECT fp.name, CAST(fp.stock_qty AS FLOAT) as stock,
-                   COALESCE(SUM(s.quantity), 0) / 30.0 as daily_rate
-            FROM finished_products fp
-            LEFT JOIN sales s ON s.finished_product_id = fp.id AND s.sale_date >= CURRENT_DATE - INTERVAL '30 days'
-            GROUP BY fp.id, fp.name, fp.stock_qty
-            HAVING fp.stock_qty > 0 AND (COALESCE(SUM(s.quantity), 0) / 30.0) > 0
-               AND (fp.stock_qty / (COALESCE(SUM(s.quantity), 0) / 30.0)) <= 7
-            LIMIT 5
-        """)
+        cutoff_30d = date.today() - timedelta(days=30)
+        daily_rate_expr = func.coalesce(func.sum(Sale.quantity), 0.0) / 30.0
+
+        depletion_stmt = (
+            select(
+                FinishedProduct.name,
+                cast(FinishedProduct.stock_qty, Float).label("stock"),
+                daily_rate_expr.label("daily_rate"),
+            )
+            .outerjoin(
+                Sale,
+                (Sale.finished_product_id == FinishedProduct.id) & (Sale.sale_date >= cutoff_30d),
+            )
+            .group_by(FinishedProduct.id, FinishedProduct.name, FinishedProduct.stock_qty)
+            .having(
+                (FinishedProduct.stock_qty > 0)
+                & (daily_rate_expr > 0)
+                & ((FinishedProduct.stock_qty / daily_rate_expr) <= 7)
+            )
+            .limit(5)
+        )
+        depletions_res = await db.execute(depletion_stmt)
+        predicted_depletions = depletions_res.mappings().all()
 
         # 2. Get yesterday's sales KPI
-        yesterday_sales = query_db("""
-            SELECT COALESCE(SUM(total), 0) as total FROM sales WHERE sale_date = CURRENT_DATE - INTERVAL '1 day'
-        """, one=True)
-        yesterday_total = float(yesterday_sales["total"]) if yesterday_sales else 0.0
+        yesterday = date.today() - timedelta(days=1)
+        yesterday_stmt = select(func.coalesce(func.sum(Sale.total), 0.0)).where(Sale.sale_date == yesterday)
+        yesterday_total = float(await db.scalar(yesterday_stmt) or 0.0)
 
         alerts = []
         if predicted_depletions:
             for item in predicted_depletions:
-                days_left = max(1, int(item["stock"] / item["daily_rate"]))
+                days_left = max(1, int(float(item["stock"]) / float(item["daily_rate"])))
                 alerts.append(f"• {item['name']} : ~{days_left} jour(s) de stock restant ({int(item['stock'])} en réserve)")
 
         return JSONResponse({

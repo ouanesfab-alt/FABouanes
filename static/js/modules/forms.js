@@ -58,6 +58,7 @@ export function initFormsModule() {
   const today = _getLocalDate();
   document.querySelectorAll('input[type="date"]').forEach(function (input) {
     if (input.dataset.noAutoDate === '1') return;
+    if (input.value) return;
     const form = input.closest('form');
     if (form && (form.method || 'get').toLowerCase() === 'get') return;
     input.value = today;

@@ -254,8 +254,8 @@ async def call_gemini_api_generator(contents: List[Dict[str, Any]], api_key: str
                                             yield {"type": "text_chunk", "text": part["text"]}
                                         if "functionCall" in part:
                                             yield {"type": "function_call", "functionCall": part["functionCall"]}
-                            except Exception:
-                                pass
+                            except Exception as exc:
+                                logger.debug("Failed parsing SSE candidate part: %s", exc)
                         buffer = buffer[last_end:]
             break
         except httpx.HTTPStatusError as exc:
@@ -419,8 +419,8 @@ def find_past_tool_execution(messages: List[Dict[str, Any]], func_name: str, fun
                 if isinstance(call_args, str):
                     try:
                         call_args = json.loads(call_args)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("Failed parsing call_args: %s", exc)
                 if not isinstance(call_args, dict):
                     call_args = {}
                 normalized_call_args = normalize_args_dict(call_args)
@@ -677,8 +677,8 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
                         chunk_tool_calls = msg.get("tool_calls", [])
                         for tc in chunk_tool_calls:
                             tool_calls.append(tc)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("Failed reading Ollama message chunk: %s", exc)
         except Exception as e:
             yield {"type": "error", "error": f"⚠️ Erreur IA locale (Ollama) : {str(e)}"}
             return
@@ -741,8 +741,8 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
                         cq_data = json.loads(confirmed_query)
                         if cq_data.get("name") == "execute_write_sql" and cq_data.get("args", {}).get("query") == sql_query:
                             is_confirmed = True
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("Failed parsing confirmed_query JSON: %s", exc)
                 if not is_confirmed:
                     yield {
                         "type": "confirmation_required",
@@ -772,8 +772,8 @@ async def run_ollama_agent_generator(messages: List[Dict[str, Any]], confirmed_q
                                     cq_args = cq_data.get("args") or {}
                                     if normalize_args_dict(cq_args) == normalize_args_dict(func_args):
                                         is_confirmed = True
-                            except Exception:
-                                pass
+                            except Exception as exc:
+                                logger.debug("Failed parsing confirmed_query JSON: %s", exc)
                     if not is_confirmed:
                         msg = get_tool_confirmation_message(func_name, func_args)
                         yield {
@@ -875,8 +875,8 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
             if isinstance(cq_data, dict) and "name" in cq_data:
                 func_name = cq_data.get("name")
                 func_args = cq_data.get("args", {})
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed decoding confirmed_query: %s", exc)
 
         if not func_name:
             func_name = "execute_write_sql"
@@ -1057,8 +1057,8 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
                             from app.core.db_helpers import db_manager as helper_db_manager
                             helper_db_manager.set_setting("gemini_api_key", "")
                             logger.info("Clé d'API invalide supprimée de la base de données pour forcer l'utilisateur à en saisir une nouvelle.")
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logger.warning("Could not clear invalid gemini_api_key: %s", exc)
                     continue
             if res_ok:
                 break
@@ -1143,8 +1143,8 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
                             cq_data = json.loads(confirmed_query)
                             if cq_data.get("name") == "execute_write_sql" and cq_data.get("args", {}).get("query") == sql_query:
                                 is_confirmed = True
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logger.debug("Failed parsing confirmed_query JSON: %s", exc)
                 if not is_confirmed:
                     yield {
                         "type": "confirmation_required",
@@ -1177,8 +1177,8 @@ async def run_assistant_agent_generator(messages: List[Dict[str, Any]], api_key:
                                     cq_args = cq_data.get("args") or {}
                                     if normalize_args_dict(cq_args) == normalize_args_dict(func_args):
                                         is_confirmed = True
-                            except Exception:
-                                pass
+                            except Exception as exc:
+                                logger.debug("Failed parsing confirmed_query JSON: %s", exc)
                     if not is_confirmed:
                         msg = get_tool_confirmation_message(func_name, func_args)
                         yield {

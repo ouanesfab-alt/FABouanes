@@ -21,12 +21,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FABOuanes">
-<link rel="manifest" href="/static/manifest.json">
-<link rel="apple-touch-icon" href="/static/icon-192.png">
-<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
 <title>{{ title or "FABOuanes" }}</title>
 
-<link rel="preload" href="/static/fonts/PlusJakartaSans-0.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{{ url_for('static', filename='fonts/PlusJakartaSans-0.woff2') }}" as="font" type="font/woff2" crossorigin>
 <link rel="modulepreload" href="{{ url_for('static', filename='js/main.js') }}">
 <link rel="modulepreload" href="{{ url_for('static', filename='js/modules/theme.js') }}">
 <link rel="modulepreload" href="{{ url_for('static', filename='js/modules/api.js') }}">

@@ -1,18 +1,26 @@
 from __future__ import annotations
 
+import inspect
 from typing import Any, Generic, List, Optional, Type, TypeVar
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import SQLModel, select
+from sqlmodel import SQLModel
 
 T = TypeVar("T", bound=SQLModel)
 
-class AsyncRepository(Generic[T]):
-    """Generic asynchronous repository providing common CRUD operations using SQLModel."""
+
+class BaseRepository(Generic[T]):
+    """Standardized asynchronous Base Repository providing full CRUD operations."""
 
     def __init__(self, session: AsyncSession, model_cls: Type[T]):
         self.session = session
         self.model_cls = model_cls
+
+    async def _safe_add(self, entity: T) -> None:
+        res = self.session.add(entity)
+        if inspect.isawaitable(res):
+            await res
 
     async def get(self, id_val: Any) -> Optional[T]:
         """Fetch a single record by primary key."""
@@ -26,7 +34,7 @@ class AsyncRepository(Generic[T]):
 
     async def create(self, entity: T) -> T:
         """Persist a new entity to the database."""
-        self.session.add(entity)
+        await self._safe_add(entity)
         await self.session.commit()
         await self.session.refresh(entity)
         return entity
@@ -35,7 +43,7 @@ class AsyncRepository(Generic[T]):
         """Update an existing entity. Raises ValueError if the entity is None."""
         if entity is None:
             raise ValueError(f"Cannot update a None entity for {self.model_cls.__name__}")
-        self.session.add(entity)
+        await self._safe_add(entity)
         await self.session.commit()
         await self.session.refresh(entity)
         return entity
@@ -68,7 +76,7 @@ class AsyncRepository(Generic[T]):
     async def create_many(self, entities: List[T]) -> List[T]:
         """Persist multiple entities in a single transaction."""
         for entity in entities:
-            self.session.add(entity)
+            await self._safe_add(entity)
         await self.session.commit()
         for entity in entities:
             await self.session.refresh(entity)
@@ -87,4 +95,9 @@ class AsyncRepository(Generic[T]):
     async def exists(self, **kwargs) -> bool:
         """Check if at least one record matching criteria exists."""
         return (await self.find_one_by(**kwargs)) is not None
+
+
+AsyncRepository = BaseRepository
+__all__ = ["BaseRepository", "AsyncRepository"]
+
 

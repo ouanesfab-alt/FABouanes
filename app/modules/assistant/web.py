@@ -1,5 +1,8 @@
 import json
+import logging
 import os
+
+_logger = logging.getLogger("fabouanes.assistant.web")
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
@@ -42,8 +45,8 @@ def _resolve_api_key(req_api_key: str) -> str:
             if api_key != stored_key_decrypted:
                 encrypted_key = encrypt_val(api_key, get_encryption_key())
                 db_manager.set_setting("gemini_api_key", encrypted_key)
-        except Exception:
-            pass
+        except Exception as exc:
+            _logger.warning("Failed persisting encrypted API key: %s", exc)
 
     if not api_key:
         api_key = get_gemini_api_key()
@@ -143,14 +146,14 @@ def _create_chat_stream(history: list, new_message: dict, confirmed_query: str |
                 if db is not None:
                     try:
                         db.close()
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        _logger.debug("Error closing db connection on generator exit: %s", exc)
                 read_db = getattr(state, "read_db", None)
                 if read_db is not None:
                     try:
                         read_db.close()
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        _logger.debug("Error closing read_db connection on generator exit: %s", exc)
 
     return StreamingResponse(chat_event_generator(), media_type="text/event-stream")
 
@@ -234,8 +237,8 @@ async def save_settings(request: Request):
         if selected_model.lower() in ("local", "ollama"):
             try:
                 start_ollama()
-            except Exception:
-                pass
+            except Exception as exc:
+                _logger.warning("Failed auto-starting Ollama process: %s", exc)
 
     is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest" or \
               "application/json" in request.headers.get("accept", "") or \

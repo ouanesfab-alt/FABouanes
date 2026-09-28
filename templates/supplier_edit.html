@@ -11,6 +11,7 @@
   <div class="entity-form-shell is-narrow">
     <div class="card entity-form-card supplier-edit-card">
       <form method="post" class="entity-form-grid">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="span-6">
           <label class="form-label">Nom</label>
           <input name="name" value="{{ supplier.name }}" class="form-control" required>

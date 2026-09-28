@@ -164,6 +164,7 @@
       <div class="mac-card">
         <div class="mac-card-title"><i class="bi bi-cloud-arrow-up"></i> Téléverser les fichiers</div>
         <form method="post" enctype="multipart/form-data" id="importForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <div class="mac-upload-zone mb-3" id="uploadZone" onclick="document.getElementById('fileInput').click()">
             <div class="mac-upload-icon"><i class="bi bi-folder2-open"></i></div>
             <div class="mac-upload-text">Glisser-déposer ou cliquer pour sélectionner</div>

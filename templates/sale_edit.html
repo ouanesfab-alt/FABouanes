@@ -36,6 +36,7 @@
   <div class="entity-form-shell is-wide">
     <div class="card entity-form-card sale-edit-card">
       <form method="post" class="entity-form-grid" id="saleDocumentEditForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="span-6">
           <label class="form-label">Client</label>
           <select name="client_id" class="form-select" {% if edit_locked %}disabled{% endif %}>

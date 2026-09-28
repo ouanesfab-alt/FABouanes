@@ -80,7 +80,16 @@ function createRipple(element, event) {
   }, DURATION + 50);
 }
 
+let lastTouchTime = 0;
+
 function handleRipple(event) {
+  if (event.type === 'touchstart') {
+    lastTouchTime = Date.now();
+  } else if (event.type === 'mousedown') {
+    // Ignore synthetic mousedown triggered immediately after touchstart on mobile
+    if (Date.now() - lastTouchTime < 500) return;
+  }
+
   const el  = event.target;
   const btn = el.closest ? el.closest(RIPPLE_SELECTOR) : null;
   if (!btn) return;

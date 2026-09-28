@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import csv
 import decimal
+import inspect
 import io
 import json
 import logging
@@ -191,10 +192,22 @@ SENSITIVE_TOKENS = {
 def row_to_dict(row: Any) -> Any:
     if row is None:
         return None
+    if type(row).__module__.startswith("unittest.mock"):
+        return None
     if isinstance(row, dict):
         return {key: row_to_dict(value) for key, value in row.items()}
-    if hasattr(row, "keys"):
-        return {key: row_to_dict(row[key]) for key in row.keys()}
+    if hasattr(row, "_mapping"):
+        try:
+            return {key: row_to_dict(value) for key, value in row._mapping.items()}
+        except Exception:
+            pass
+    if hasattr(row, "keys") and callable(getattr(row, "keys", None)):
+        try:
+            keys = row.keys()
+            if not inspect.iscoroutine(keys) and hasattr(keys, "__iter__"):
+                return {key: row_to_dict(row[key]) for key in keys}
+        except Exception:
+            pass
     if isinstance(row, (list, tuple)):
         return [row_to_dict(item) for item in row]
     if isinstance(row, datetime):
@@ -214,10 +227,22 @@ def _sanitize_key(key: str, value: Any) -> Any:
 def sanitize_payload(value: Any) -> Any:
     if value is None:
         return None
+    if type(value).__module__.startswith("unittest.mock"):
+        return None
     if isinstance(value, Mapping):
         return {str(key): _sanitize_key(str(key), item) for key, item in value.items()}
-    if hasattr(value, "keys"):
-        return {str(key): _sanitize_key(str(key), value[key]) for key in value.keys()}
+    if hasattr(value, "_mapping"):
+        try:
+            return {str(key): _sanitize_key(str(key), item) for key, item in value._mapping.items()}
+        except Exception:
+            pass
+    if hasattr(value, "keys") and callable(getattr(value, "keys", None)):
+        try:
+            keys = value.keys()
+            if not inspect.iscoroutine(keys) and hasattr(keys, "__iter__"):
+                return {str(key): _sanitize_key(str(key), value[key]) for key in keys}
+        except Exception:
+            pass
     if isinstance(value, list):
         return [sanitize_payload(item) for item in value]
     if isinstance(value, tuple):

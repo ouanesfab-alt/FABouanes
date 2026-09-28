@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_sessionmaker
 from app.core.helpers import async_compat
-from app.core.models import FinishedProduct, RawMaterial, SavedRecipe, SavedRecipeItem
+from app.core.models import SavedRecipe, SavedRecipeItem
 
 
 @async_compat
@@ -20,41 +20,14 @@ async def load_saved_recipes(db: AsyncSession | None = None) -> list[dict[str, A
 
 
 async def _load_saved_recipes_impl(db: AsyncSession) -> list[dict[str, Any]]:
-    stmt = (
-        select(
-            SavedRecipe.id,
-            SavedRecipe.finished_product_id,
-            SavedRecipe.name,
-            func.coalesce(SavedRecipe.notes, "").label("notes"),
-            SavedRecipe.created_at,
-            FinishedProduct.name.label("finished_name"),
-        )
-        .select_from(SavedRecipe)
-        .join(FinishedProduct, FinishedProduct.id == SavedRecipe.finished_product_id)
-        .order_by(FinishedProduct.name, SavedRecipe.name)
-    )
-    res = await db.execute(stmt)
-    recipes = [dict(row._mapping) for row in res.fetchall()]
+    from app.modules.catalog.repository import SavedRecipeRepository
+
+    repo = SavedRecipeRepository(db)
+    recipes = await repo.get_all_with_products()
     if not recipes:
         return []
 
-    item_stmt = (
-        select(
-            SavedRecipeItem.recipe_id,
-            SavedRecipeItem.raw_material_id,
-            SavedRecipeItem.quantity,
-            SavedRecipeItem.position,
-            RawMaterial.name.label("material_name"),
-            RawMaterial.stock_qty,
-            RawMaterial.unit,
-        )
-        .select_from(SavedRecipeItem)
-        .join(RawMaterial, RawMaterial.id == SavedRecipeItem.raw_material_id)
-        .order_by(SavedRecipeItem.recipe_id, SavedRecipeItem.position, SavedRecipeItem.id)
-    )
-    item_res = await db.execute(item_stmt)
-    item_rows = [dict(row._mapping) for row in item_res.fetchall()]
-
+    item_rows = await repo.get_recipe_items()
     grouped: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for row in item_rows:
         grouped[int(row["recipe_id"])].append(

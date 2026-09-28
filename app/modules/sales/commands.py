@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import date
+import inspect
 from typing import Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +28,12 @@ class SalesCommands:
         self.sale_repo = SaleRepository(session)
         self.raw_sale_repo = RawSaleRepository(session)
         self.doc_repo = SaleDocumentRepository(session)
+
+    async def _safe_add(self, entity: Any) -> None:
+        res = self.session.add(entity)
+        if inspect.isawaitable(res):
+            await res
+
 
     async def create_sale_record(
         self,
@@ -78,13 +85,13 @@ class SalesCommands:
                 sale_date=sale_date,
                 notes=notes
             )
-            self.session.add(sale_row)
+            await self._safe_add(sale_row)
             await self.session.flush()
             row_id = sale_row.id
 
             stock_after = max(0.0, round(stock_before - qty_kg, 4))
             item.stock_qty = stock_after
-            self.session.add(item)
+            await self._safe_add(item)
 
             await self.record_stock_movement("finished", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "sale", row_id)
 
@@ -98,7 +105,7 @@ class SalesCommands:
                     payment_date=sale_date,
                     notes="Paiement initial vente"
                 )
-                self.session.add(p_row)
+                await self._safe_add(p_row)
 
             await self.recalc_sale_document_totals(document_id)
             return "finished", row_id
@@ -135,13 +142,13 @@ class SalesCommands:
             notes=notes,
             custom_item_name=custom_item_name
         )
-        self.session.add(raw_sale_row)
+        await self._safe_add(raw_sale_row)
         await self.session.flush()
         row_id = raw_sale_row.id
 
         stock_after = max(0.0, round(stock_before - qty_kg, 4))
         item.stock_qty = stock_after
-        self.session.add(item)
+        await self._safe_add(item)
 
         await self.record_stock_movement("raw", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "raw_sale", row_id)
 
@@ -155,7 +162,7 @@ class SalesCommands:
                 payment_date=sale_date,
                 notes="Paiement initial vente"
             )
-            self.session.add(p_row)
+            await self._safe_add(p_row)
 
         await self.recalc_sale_document_totals(document_id)
         return "raw", row_id
@@ -178,7 +185,7 @@ class SalesCommands:
 
             if product:
                 product.stock_qty = stock_after
-                self.session.add(product)
+                await self._safe_add(product)
 
             # Delete payments associated with this sale
             await self.session.execute(
@@ -212,7 +219,7 @@ class SalesCommands:
 
         if material:
             material.stock_qty = stock_after
-            self.session.add(material)
+            await self._safe_add(material)
 
         # Delete payments associated
         await self.session.execute(
@@ -265,7 +272,7 @@ class SalesCommands:
                 reference_id=reference_id,
                 created_by_username=username
             )
-            self.session.add(movement)
+            await self._safe_add(movement)
         except Exception:
             pass
 
@@ -283,7 +290,11 @@ class SalesCommands:
             """),
             {"doc_id": document_id}
         )
-        return dict(res.first()._mapping)
+        row = res.first()
+        if not row:
+            return {"line_count": 0, "total_amount": 0, "paid_amount": 0, "due_amount": 0}
+        return dict(row._mapping)
+
 
     async def recalc_sale_document_totals(self, document_id: int | None) -> None:
         if not document_id:
@@ -308,7 +319,7 @@ class SalesCommands:
             doc.total = total
             doc.amount_paid = paid
             doc.balance_due = due
-            self.session.add(doc)
+            await self._safe_add(doc)
 
     async def _insert_sale_document(
         self,
@@ -330,7 +341,7 @@ class SalesCommands:
             sale_date=sale_date,
             notes=notes
         )
-        self.session.add(doc)
+        await self._safe_add(doc)
         await self.session.flush()
         return doc.id
 

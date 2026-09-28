@@ -255,6 +255,9 @@ async def _update_production_notes_impl(
         if key not in ALLOWED_KEYS:
             raise ValueError(f"Key {key} is not allowed for update")
 
+    if not updates:
+        return
+
     sets = ", ".join(f"{key}=:{key}" for key in updates)
     values = {**updates, "batch_id": batch_id}
     await db.execute(text(f"UPDATE production_batches SET {sets} WHERE id = :batch_id"), values)
@@ -263,7 +266,8 @@ async def _update_production_notes_impl(
         text("SELECT * FROM production_batches WHERE id = :batch_id"),
         {"batch_id": batch_id},
     )
-    after = dict(after_res.first()._mapping)
+    after_row = after_res.first()
+    after = dict(after_row._mapping) if after_row else before
 
     log_activity("edit_production_notes", "production", batch_id, f"date={production_date}")
     audit_event("edit_production_notes", "production", batch_id, before=before, after=after)

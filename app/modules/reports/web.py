@@ -211,44 +211,27 @@ async def export_csv(
 
 @router.get("/reports/livre-journal/export", name="reports_export_livre_journal")
 @limiter.limit("10/minute")
-async def export_livre_journal(request: Request):
+async def export_livre_journal(
+    request: Request,
+    service: ReportsService = Depends(get_reports_service),
+):
     """Export standard Livre Journal (accounting ledger) in CSV/Excel format."""
     denied = require_permission(request, "reports.read")
     if denied:
         return denied
 
-    from app.core.db_helpers import query_db
-
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
     writer.writerow(["Date", "Type / Ref", "Libellé / Partenaire", "Débit (DA)", "Crédit (DA)"])
 
-    # Extract all transactions sorted by date safely
-    entries = query_db("""
-        SELECT sale_date as tx_date, 'Vente #' || id as tx_ref, 'Vente client ID ' || client_id as label, COALESCE(total, 0) as debit, 0 as credit FROM sales
-        UNION ALL
-        SELECT purchase_date as tx_date, 'Achat #' || id as tx_ref, 'Achat fourn. ID ' || COALESCE(supplier_id, 0) as label, 0 as debit, COALESCE(total, 0) as credit FROM purchases
-        UNION ALL
-        SELECT payment_date as tx_date, 'Versement #' || id as tx_ref, 'Règlement client ID ' || client_id as label, 0 as debit, COALESCE(amount, 0) as credit FROM payments
-        UNION ALL
-        SELECT date as tx_date, 'Dépense #' || id as tx_ref, COALESCE(category, 'Autre') || ' : ' || COALESCE(description, '') as label, 0 as debit, COALESCE(amount, 0) as credit FROM expenses
-        ORDER BY tx_date DESC, tx_ref DESC
-        LIMIT 5000
-    """)
+    entries = await service.get_livre_journal_entries()
 
     for row in entries:
-        if hasattr(row, "keys"):
-            tx_date = str(row.get("tx_date", "") or "")
-            tx_ref = str(row.get("tx_ref", "") or "")
-            label = str(row.get("label", "") or "")
-            debit_val = float(row.get("debit") or 0.0)
-            credit_val = float(row.get("credit") or 0.0)
-        else:
-            tx_date = str(row[0]) if len(row) > 0 and row[0] is not None else ""
-            tx_ref = str(row[1]) if len(row) > 1 and row[1] is not None else ""
-            label = str(row[2]) if len(row) > 2 and row[2] is not None else ""
-            debit_val = float(row[3]) if len(row) > 3 and row[3] is not None else 0.0
-            credit_val = float(row[4]) if len(row) > 4 and row[4] is not None else 0.0
+        tx_date = str(row.get("tx_date", "") or "")
+        tx_ref = str(row.get("tx_ref", "") or "")
+        label = str(row.get("label", "") or "")
+        debit_val = float(row.get("debit") or 0.0)
+        credit_val = float(row.get("credit") or 0.0)
         writer.writerow([
             tx_date,
             tx_ref,
@@ -268,28 +251,20 @@ async def export_livre_journal(request: Request):
 
 @router.get("/reports/marge-brute/export", name="reports_export_marge_brute")
 @limiter.limit("10/minute")
-async def export_marge_brute(request: Request):
+async def export_marge_brute(
+    request: Request,
+    service: ReportsService = Depends(get_reports_service),
+):
     """Export product margin analysis (Gross Margin & % Margin) in CSV/Excel format."""
     denied = require_permission(request, "reports.read")
     if denied:
         return denied
 
-    from app.core.db_helpers import query_db
-
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
     writer.writerow(["Produit Fini", "Quantité Vendue", "Chiffre d'Affaires (DA)", "Coût Moyen (CMP DA)", "Coût Total (DA)", "Marge Brute (DA)", "Taux de Marge (%)"])
 
-    rows = query_db("""
-        SELECT fp.name,
-               COALESCE(SUM(s.quantity), 0) as total_qty,
-               COALESCE(SUM(s.total), 0) as total_revenue,
-               CAST(fp.avg_cost AS FLOAT) as avg_cost
-        FROM finished_products fp
-        LEFT JOIN sales s ON s.finished_product_id = fp.id
-        GROUP BY fp.id, fp.name, fp.avg_cost
-        ORDER BY total_revenue DESC
-    """)
+    rows = await service.get_marge_brute_data()
 
     for r in rows:
         qty = float(r["total_qty"])

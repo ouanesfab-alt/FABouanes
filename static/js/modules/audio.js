@@ -12,12 +12,17 @@ const fabAudio = {
     // Load preference
     const stored = localStorage.getItem('fab_audio_enabled');
     this.enabled = stored !== 'false';
+  },
 
-    if (this.ctx) return;
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (AudioContext) {
-      this.ctx = new AudioContext();
+  ensureContext() {
+    if (this.ctx) return this.ctx;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) {
+      try {
+        this.ctx = new AudioContextClass();
+      } catch (e) {}
     }
+    return this.ctx;
   },
 
   toggle() {
@@ -26,6 +31,7 @@ const fabAudio = {
     localStorage.setItem('fab_audio_enabled', String(this.enabled));
     this.updateUI();
     if (this.enabled) {
+      this.ensureContext();
       this.playClick();
     }
   },
@@ -45,18 +51,19 @@ const fabAudio = {
   },
 
   playClick(style = 'soft') {
-    this.init();
-    if (!this.enabled || !this.ctx) return;
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (!this.enabled) return;
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    const filter = this.ctx.createBiquadFilter();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
 
     osc.connect(filter);
     filter.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(ctx.destination);
 
     filter.type = 'lowpass';
 
@@ -97,18 +104,19 @@ const fabAudio = {
   },
 
   playSuccess() {
-    this.init();
-    if (!this.enabled || !this.ctx) return;
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (!this.enabled) return;
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = this.ctx.currentTime;
+    const now = ctx.currentTime;
     
     // Warm harmonic chord (major triad arpeggio)
     const playTone = (freq, time, duration) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(ctx.destination);
       
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, time);
@@ -126,18 +134,19 @@ const fabAudio = {
   },
 
   playError() {
-    this.init();
-    if (!this.enabled || !this.ctx) return;
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (!this.enabled) return;
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = this.ctx.currentTime;
+    const now = ctx.currentTime;
     
     // Warm detuned/low warning tone
     const playTone = (freq, time, duration) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(ctx.destination);
       
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(freq, time);

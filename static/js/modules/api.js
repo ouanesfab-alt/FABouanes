@@ -1,4 +1,6 @@
-const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+export function getCsrfToken() {
+  return window.fabCsrfToken || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
 
 export function absoluteUrl(url) {
   if (!url) return url;
@@ -17,7 +19,7 @@ export function absoluteUrl(url) {
 }
 
 export function headers(extra) {
-  return Object.assign({ 'X-CSRFToken': token, 'Content-Type': 'application/json' }, extra || {});
+  return Object.assign({ 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' }, extra || {});
 }
 
 export function showToast(message, type = 'info') {
@@ -90,7 +92,7 @@ export function showToast(message, type = 'info') {
 export async function fabFetch(url, options = {}) {
   const finalUrl = absoluteUrl(url);
   const defaultHeaders = {
-    'X-CSRFToken': token,
+    'X-CSRFToken': getCsrfToken(),
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   };
@@ -137,7 +139,8 @@ export async function fabFetch(url, options = {}) {
 
 export function initApiModule() {
   window.fabApi = {
-    csrfToken: token,
+    get csrfToken() { return getCsrfToken(); },
+    getCsrfToken: getCsrfToken,
     absoluteUrl: absoluteUrl,
     headers: headers,
     fetch: fabFetch,

@@ -7,8 +7,20 @@ export function initShortcutsModule() {
     const activeElement = document.activeElement;
     const isInput = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable);
 
-    // Ctrl + K: Focus Sabrina Assistant input
+    // Ctrl + K: Open Global Quick Search
     if (isCmdOrCtrl && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      if (typeof window.openSearch === 'function') {
+        window.openSearch();
+      } else {
+        const searchBtn = document.getElementById('globalSearchBtn') || document.querySelector('[data-search-trigger]');
+        if (searchBtn) searchBtn.click();
+      }
+      return;
+    }
+
+    // Ctrl + J: Focus Sabrina Assistant input
+    if (isCmdOrCtrl && e.key.toLowerCase() === 'j') {
       e.preventDefault();
       const chatInput = document.getElementById('fabChatInput');
       if (chatInput) {

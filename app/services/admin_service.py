@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.security import generate_password_hash
+
+logger = logging.getLogger("fabouanes.admin")
 
 from app.core.activity import log_activity
 from app.core.async_db import get_async_sessionmaker
@@ -59,8 +62,8 @@ async def create_user_account(username: str, password: str, role: str, db: Async
     audit_event("create_user", "user", user_id, after=created_user)
     try:
         mark_backup_needed("create_user")
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Failed marking backup needed: %s", exc)
     return {"ok": True, "message": "Compte créé avec succès."}
 
 
@@ -82,8 +85,8 @@ async def update_user_account(user_id: int, role: str, is_active: bool, new_pass
         if str(user["username"]) == DEFAULT_ADMIN_USERNAME:
             try:
                 (APP_DATA_DIR / "first_admin_password.txt").unlink(missing_ok=True)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed unlinking first_admin_password.txt: %s", exc)
     updated = await get_user_by_id(user_id, db=db)
     detail = f"Role={updated['role']} actif={updated['is_active']}"
     if password_changed:
@@ -92,8 +95,8 @@ async def update_user_account(user_id: int, role: str, is_active: bool, new_pass
     audit_event("update_user", "user", user_id, before=before, after=updated)
     try:
         mark_backup_needed("update_user_password" if password_changed else "update_user")
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Failed marking backup needed: %s", exc)
     message = "Compte et mot de passe mis à jour." if password_changed else "Compte mis à jour."
     return {"ok": True, "message": message}
 
@@ -120,8 +123,8 @@ async def delete_user_account(user_id: int, db: AsyncSession | None = None):
             audit_event("delete_user", "user", user_id, before=before, after=None)
             try:
                 mark_backup_needed("delete_user")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed marking backup needed: %s", exc)
             return {"ok": True, "message": "Utilisateur supprimé avec succès."}
         else:
             return {"ok": False, "message": "Erreur lors de la suppression de l'utilisateur."}
