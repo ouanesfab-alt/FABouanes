@@ -103,3 +103,30 @@ async def test_get_balance_generale_orm():
     assert codes["300"]["debit"] == 1000.0
     assert codes["355"]["debit"] == 2500.0
 
+
+@pytest.mark.asyncio
+async def test_export_scf_excel():
+    from unittest.mock import AsyncMock, MagicMock
+    from fastapi import Request
+    from app.modules.accounting.web import export_scf_excel
+
+    mock_request = MagicMock(spec=Request)
+    mock_balance = [
+        {"code": "300", "label": "Stocks MP", "debit": 1000.0, "credit": 0.0, "solde_debiteur": 1000.0, "solde_crediteur": 0.0},
+        {"code": "355", "label": "Stocks PF", "debit": 2000.0, "credit": 0.0, "solde_debiteur": 2000.0, "solde_crediteur": 0.0},
+        {"code": "411", "label": "Clients", "debit": 1500.0, "credit": 0.0, "solde_debiteur": 1500.0, "solde_crediteur": 0.0},
+        {"code": "401", "label": "Fournisseurs", "debit": 0.0, "credit": 500.0, "solde_debiteur": 0.0, "solde_crediteur": 500.0},
+        {"code": "530", "label": "Caisse", "debit": 3000.0, "credit": 0.0, "solde_debiteur": 3000.0, "solde_crediteur": 0.0},
+        {"code": "600", "label": "Achats", "debit": 4000.0, "credit": 0.0, "solde_debiteur": 4000.0, "solde_crediteur": 0.0},
+        {"code": "629", "label": "Charges", "debit": 500.0, "credit": 0.0, "solde_debiteur": 500.0, "solde_crediteur": 0.0},
+        {"code": "700", "label": "Ventes", "debit": 0.0, "credit": 8000.0, "solde_debiteur": 0.0, "solde_crediteur": 8000.0},
+    ]
+
+    with patch("app.modules.accounting.web.get_current_user", return_value={"id": 1, "username": "admin"}), \
+         patch.object(SCFService, "get_balance_generale", new_callable=AsyncMock, return_value=mock_balance):
+        response = await export_scf_excel(mock_request)
+        assert response.status_code == 200
+        assert "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" in response.media_type
+        assert "etats_financiers_scf_" in response.headers["Content-Disposition"]
+
+

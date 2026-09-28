@@ -45,7 +45,9 @@ def get_async_engine() -> AsyncEngine:
                     echo=False,
                     future=True,
                     pool_pre_ping=True,
+                    connect_args={"timeout": 30.0},
                 )
+
             else:
                 connect_kwargs = {}
                 if "asyncpg" in async_database_url:

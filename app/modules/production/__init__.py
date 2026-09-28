@@ -25,6 +25,12 @@ class ProductionModule(ModuleBase):
         return 70
 
     @property
+    def web_router(self):
+        from app.modules.production.web import router
+
+        return router
+
+    @property
     def schema_sql(self) -> list[str]:
         return [SCHEMA_PRODUCTION]
 

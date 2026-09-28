@@ -434,7 +434,9 @@ class CatalogService:
             await self.recipe_repo.add_recipe_item(recipe_item)
 
         await self.session.commit()
+        invalidate_cache_domains("catalog")
         return recipe_id
+
 
 
 # Helper methods for controller/route templates mapping

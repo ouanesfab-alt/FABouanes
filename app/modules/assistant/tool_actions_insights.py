@@ -272,13 +272,15 @@ async def handle_insights(
         async with session_maker() as session:
             d_30 = date.today() - timedelta(days=30)
             stmt_dups = (
-                select(Sale.client_name, Sale.total, func.count().label("count"))
+                select(func.coalesce(Client.name, "Client Divers").label("client_name"), Sale.total, func.count().label("count"))
+                .join(Client, Sale.client_id == Client.id, isouter=True)
                 .where(Sale.sale_date >= d_30)
-                .group_by(Sale.client_name, Sale.total)
+                .group_by(Client.name, Sale.total)
                 .having(func.count() > 1)
                 .limit(5)
             )
             duplicates = (await session.execute(stmt_dups)).fetchall()
+
 
             avg_exp = float((await session.execute(select(func.coalesce(func.avg(Expense.amount), 0)))).scalar() or 0)
             threshold_amt = avg_exp * 2.5 if avg_exp > 0 else 10000.0
