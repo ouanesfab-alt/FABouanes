@@ -883,6 +883,7 @@ html, body {
   background: #FFFFFF !important;
   box-shadow: 0 10px 32px rgba(0, 0, 0, 0.18) !important;
   padding: 6px !important;
+  z-index: 1060 !important;
 }
 [data-theme="dark"] .dropdown-menu,
 [data-theme="windows-dark"] .dropdown-menu {
@@ -894,8 +895,18 @@ html, body {
   border-radius: 8px !important;
   font-weight: 600 !important;
   font-size: 0.88rem !important;
-  padding: 7px 12px !important;
-  color: var(--text-primary, #1D1D1F) !important;
+  padding: 8px 12px !important;
+  color: #1D1D1F !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+[data-theme="dark"] .dropdown-item,
+[data-theme="windows-dark"] .dropdown-item {
   color: #F5F5F7 !important;
 }
 .dropdown-item:hover, .dropdown-item:focus {
@@ -914,6 +925,19 @@ html, body {
   color: #007AFF !important;
 }
 
+/* Stacking context safety for toolbars and dropdown menus */
+.page-hero,
+.section-head,
+.table-toolbar {
+  position: relative !important;
+  z-index: 30 !important;
+}
+.dropdown.show,
+.dropdown:focus-within {
+  position: relative !important;
+  z-index: 1050 !important;
+}
+
 /* ── 10. macOS Frosted Toast Notifications ── */
 .flash-toast, .toast {
   border-radius: 14px !important;
@@ -928,7 +952,31 @@ html, body {
   border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
-/* ── Responsive Desktop Navbar Fix for Resized/Minimized Window ── */
+/* ── Clean macOS Sequoia Navbar (Both Light & Dark) ── */
+.app-navbar {
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+[data-theme="dark"] .app-navbar,
+[data-theme="windows-dark"] .app-navbar {
+  background: rgba(18, 18, 22, 0.92) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+}
+
+.app-navbar .nav-brand-title {
+  color: #1D1D1F !important;
+  font-weight: 800 !important;
+}
+[data-theme="dark"] .app-navbar .nav-brand-title,
+[data-theme="windows-dark"] .app-navbar .nav-brand-title {
+  color: #F5F5F7 !important;
+}
+
+/* Responsive Desktop Navbar Fix for Resized/Minimized Window */
 .app-navbar .nav-links a,
 .app-navbar .nav-link-menu,
 .app-navbar .nav-btn,
@@ -940,32 +988,111 @@ html, body {
   flex-shrink: 0 !important;
 }
 
-/* ── Ultra-Modern Navbar Buttons & Links ── */
+/* Ultra-Modern Navbar Buttons & Links */
 .app-navbar .nav-links a,
-.app-navbar .nav-link-menu,
-.app-navbar .nav-btn {
+.app-navbar .nav-link-menu {
+  color: #334155 !important;
   border-radius: 10px !important;
   padding: 6px 13px !important;
-  font-weight: 500 !important;
-  transition: background 0.22s cubic-bezier(0.4, 0, 0.2, 1), color 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1), transform 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  font-weight: 600 !important;
   display: inline-flex !important;
   align-items: center !important;
   gap: 6px !important;
+  text-decoration: none !important;
+  transition: background 0.22s cubic-bezier(0.4, 0, 0.2, 1), color 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1), transform 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
-
 .app-navbar .nav-links a:hover,
-.app-navbar .nav-link-menu:hover,
-.app-navbar .nav-btn:hover {
-  background: rgba(255, 255, 255, 0.16) !important;
+.app-navbar .nav-link-menu:hover {
+  background: rgba(0, 122, 255, 0.08) !important;
+  color: #007AFF !important;
   transform: translateY(-1px) !important;
 }
-
 .app-navbar .nav-links a.active,
-.app-navbar .nav-link-menu.active,
-.app-navbar .nav-btn.active {
-  background: var(--accent, #007AFF) !important;
-  color: #ffffff !important;
+.app-navbar .nav-link-menu.active {
+  background: #007AFF !important;
+  color: #FFFFFF !important;
   box-shadow: 0 4px 12px rgba(0, 122, 255, 0.35) !important;
+}
+
+[data-theme="dark"] .app-navbar .nav-links a,
+[data-theme="dark"] .app-navbar .nav-link-menu,
+[data-theme="windows-dark"] .app-navbar .nav-links a,
+[data-theme="windows-dark"] .app-navbar .nav-link-menu {
+  color: #E2E8F0 !important;
+}
+[data-theme="dark"] .app-navbar .nav-links a:hover,
+[data-theme="dark"] .app-navbar .nav-link-menu:hover,
+[data-theme="windows-dark"] .app-navbar .nav-links a:hover,
+[data-theme="windows-dark"] .app-navbar .nav-link-menu:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #FFFFFF !important;
+}
+[data-theme="dark"] .app-navbar .nav-links a.active,
+[data-theme="dark"] .app-navbar .nav-link-menu.active,
+[data-theme="windows-dark"] .app-navbar .nav-links a.active,
+[data-theme="windows-dark"] .app-navbar .nav-link-menu.active {
+  background: #0A84FF !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 12px rgba(10, 132, 255, 0.4) !important;
+}
+
+.app-navbar .nav-btn {
+  color: #1D1D1F !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-radius: 10px !important;
+  padding: 6px 13px !important;
+  font-weight: 600 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  transition: background 0.22s cubic-bezier(0.4, 0, 0.2, 1), color 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1), transform 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.app-navbar .nav-btn:hover {
+  background: rgba(0, 122, 255, 0.08) !important;
+  color: #007AFF !important;
+  border-color: rgba(0, 122, 255, 0.2) !important;
+  transform: translateY(-1px) !important;
+}
+.app-navbar .nav-btn.active {
+  background: #007AFF !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.35) !important;
+}
+
+[data-theme="dark"] .app-navbar .nav-btn,
+[data-theme="windows-dark"] .app-navbar .nav-btn {
+  color: #F5F5F7 !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+[data-theme="dark"] .app-navbar .nav-btn:hover,
+[data-theme="windows-dark"] .app-navbar .nav-btn:hover {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #FFFFFF !important;
+}
+
+.app-navbar .nav-kbd {
+  background: rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  color: #64748B !important;
+}
+[data-theme="dark"] .app-navbar .nav-kbd,
+[data-theme="windows-dark"] .app-navbar .nav-kbd {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.app-navbar .nav-clock {
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  color: #007AFF !important;
+  text-shadow: none !important;
+}
+[data-theme="dark"] .app-navbar .nav-clock,
+[data-theme="windows-dark"] .app-navbar .nav-clock {
+  color: #38BDF8 !important;
 }
 
 /* ── 9. Universal Dropdown & Popup Overflow Safety Rules ── */

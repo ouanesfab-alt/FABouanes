@@ -877,7 +877,7 @@ html[data-theme="windows-dark"] textarea {
   --bs-table-hover-bg: transparent !important;
 }
 
-/* Force les en-têtes th à être sticky en haut avec un rendu macOS Sequoia Frosted Glass authentique et translucide */
+/* macOS Sequoia Frosted Glass Sticky Table Headers (Crisp, High-Contrast & Legible) */
 .table thead th,
 .table thead th.col-name,
 .table thead th.col-phone,
@@ -900,23 +900,27 @@ table.record-table thead th,
 thead.table-light th {
   position: sticky !important;
   top: 0 !important;
-  z-index: 30 !important;
-  background: rgba(255, 255, 255, 0.50) !important;
-  backdrop-filter: blur(16px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-  color: var(--text-secondary, #86868B) !important;
-  font-family: var(--font-title, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif) !important;
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.03em !important;
+  z-index: 15 !important;
+  background: rgba(248, 250, 252, 0.96) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  color: #334155 !important;
+  font-family: var(--font-title, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif) !important;
+  font-size: 0.78rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
   text-transform: uppercase !important;
-  padding: 10px 14px !important;
-  line-height: 1.4 !important;
+  padding: 12px 14px !important;
+  line-height: 1.35 !important;
   border-left: none !important;
   border-right: none !important;
   border-top: none !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04) !important;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+  white-space: nowrap !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease !important;
 }
 
 [data-theme="dark"] .table thead th,
@@ -943,15 +947,51 @@ thead.table-light th {
 [data-theme="windows-dark"] table.table thead th,
 [data-theme="windows-dark"] table.record-table thead th,
 [data-theme="windows-dark"] thead.table-light th {
-  background: rgba(18, 18, 22, 0.45) !important;
-  backdrop-filter: blur(16px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-  color: #98989D !important;
+  background: rgba(22, 27, 34, 0.96) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  color: #CBD5E1 !important;
   border-left: none !important;
   border-right: none !important;
   border-top: none !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25) !important;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Interactive Table Sorting Indicators */
+th[data-sortable="1"] {
+  cursor: pointer !important;
+}
+th[data-sortable="1"]:hover {
+  background: rgba(0, 122, 255, 0.06) !important;
+  color: #007AFF !important;
+}
+th[aria-sort="ascending"] {
+  color: #007AFF !important;
+  border-bottom: 2px solid #007AFF !important;
+  background: rgba(0, 122, 255, 0.06) !important;
+}
+th[aria-sort="ascending"]::after {
+  content: " \2191";
+  color: #007AFF;
+  font-weight: 800;
+  margin-left: 5px;
+}
+th[aria-sort="descending"] {
+  color: #007AFF !important;
+  border-bottom: 2px solid #007AFF !important;
+  background: rgba(0, 122, 255, 0.06) !important;
+}
+th[aria-sort="descending"]::after {
+  content: " \2193";
+  color: #007AFF;
+  font-weight: 800;
+  margin-left: 5px;
+}
+th[data-sortable="1"]:not([aria-sort="ascending"]):not([aria-sort="descending"]):hover::after {
+  content: " \21C5";
+  opacity: 0.5;
+  margin-left: 5px;
 }
 
 /* Supprime complètement les lignes verticales/séparateurs entre les colonnes de tableau */
