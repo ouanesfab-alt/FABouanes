@@ -1,0 +1,1018 @@
+"""Requêtes et constructeurs de KPIs / Snapshots pour le Tableau de bord."""
+
+from __future__ import annotations
+
+import time
+from datetime import date, timedelta
+
+from sqlalchemy import Numeric, case, cast, func, literal_column, select, text, true, union_all
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.async_db import get_async_sessionmaker
+from app.core.helpers import db_task_compat
+from app.core.models import (
+    Client,
+    FinishedProduct,
+    Payment,
+    ProductionBatch,
+    ProductionBatchItem,
+    Purchase,
+    RawMaterial,
+    RawSale,
+    Sale,
+    Supplier,
+)
+from app.core.perf_cache import TTL_FREQUENT, TTL_SEMI_STABLE, async_cached_result
+
+
+
+# --- Dashboard Queries (migrated from dashboard_repository) ---
+
+
+@db_task_compat
+async def get_dashboard_snapshot(target_date: str | None = None, db: AsyncSession | None = None) -> dict:
+    resolved_date = target_date or date.today().isoformat()
+
+    async def load():
+        if db is None:
+            async with get_async_sessionmaker()() as session:
+                return await _build_dashboard_snapshot(resolved_date, session)
+        return await _build_dashboard_snapshot(resolved_date, db)
+
+    return await async_cached_result(
+        ("dashboard_snapshot", resolved_date),
+        load,
+        ttl_seconds=45.0,
+    )
+
+
+@db_task_compat
+async def get_kpis_for_date(target_date: str, db: AsyncSession | None = None) -> dict[str, float | str]:
+    async def load():
+        if db is None:
+            async with get_async_sessionmaker()() as session:
+                return await _build_kpis_for_date(target_date, session)
+        return await _build_kpis_for_date(target_date, db)
+
+    return await async_cached_result(
+        ("dashboard_kpis", target_date),
+        load,
+        ttl_seconds=45.0,
+    )
+
+
+async def _build_dashboard_snapshot(today: str, db: AsyncSession) -> dict:
+    target_day = date.fromisoformat(today)
+    cutoff_30d = (target_day - timedelta(days=30)).isoformat()
+    week_iso = (target_day - timedelta(days=7)).isoformat()
+
+    daily_sum = await _dashboard_daily_summary(today, week_iso, db)
+    cum_sum = await _dashboard_cumulative_summary(db)
+    summary = {**daily_sum, **cum_sum}
+
+    # Low stock query
+    async def load_low_stock():
+        low_stock_query = (
+            select(RawMaterial)
+            .where(RawMaterial.stock_qty <= RawMaterial.alert_threshold)
+            .order_by(RawMaterial.stock_qty.asc())
+        )
+        res = await db.execute(low_stock_query)
+        return [r.model_dump() for r in res.scalars().all()]
+
+    low_stock = await async_cached_result(
+        ("dashboard", "low_stock"),
+        load_low_stock,
+        ttl_seconds=TTL_FREQUENT,
+    )
+
+    # Recent sales query
+    async def load_recent_sales():
+        finished_sub = (
+            select(
+                Sale.sale_date,
+                func.coalesce(Client.name, "Comptoir").label("client_name"),
+                FinishedProduct.name.label("item_name"),
+                Sale.total,
+                Sale.balance_due,
+                Sale.profit_amount,
+                literal_column("'Produit final'").label("source"),
+            )
+            .select_from(Sale)
+            .outerjoin(Client, Client.id == Sale.client_id)
+            .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
+            .order_by(Sale.sale_date.desc(), Sale.id.desc())
+            .limit(15)
+            .subquery()
+        )
+
+        raw_sub = (
+            select(
+                RawSale.sale_date,
+                func.coalesce(Client.name, "Comptoir").label("client_name"),
+                func.coalesce(func.nullif(RawSale.custom_item_name, ""), RawMaterial.name).label("item_name"),
+                RawSale.total,
+                RawSale.balance_due,
+                RawSale.profit_amount,
+                literal_column("'Matiere premiere'").label("source"),
+            )
+            .select_from(RawSale)
+            .outerjoin(Client, Client.id == RawSale.client_id)
+            .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
+            .order_by(RawSale.sale_date.desc(), RawSale.id.desc())
+            .limit(15)
+            .subquery()
+        )
+
+        recent_query = (
+            select(
+                finished_sub.c.sale_date,
+                finished_sub.c.client_name,
+                finished_sub.c.item_name,
+                finished_sub.c.total,
+                finished_sub.c.balance_due,
+                finished_sub.c.profit_amount,
+                finished_sub.c.source,
+            )
+            .union_all(
+                select(
+                    raw_sub.c.sale_date,
+                    raw_sub.c.client_name,
+                    raw_sub.c.item_name,
+                    raw_sub.c.total,
+                    raw_sub.c.balance_due,
+                    raw_sub.c.profit_amount,
+                    raw_sub.c.source,
+                )
+            )
+            .order_by(literal_column("sale_date").desc())
+            .limit(10)
+        )
+        res = await db.execute(recent_query)
+        return [dict(r._mapping) for r in res.all()]
+
+    recent_sales = await async_cached_result(
+        ("dashboard", "recent_sales"),
+        load_recent_sales,
+        ttl_seconds=TTL_FREQUENT,
+    )
+
+    # Counts query
+    async def load_counts():
+        counts_query = select(
+            select(func.count()).select_from(Client).scalar_subquery().label("clients"),
+            select(func.count()).select_from(Supplier).scalar_subquery().label("suppliers"),
+            select(func.count()).select_from(RawMaterial).scalar_subquery().label("raw_materials"),
+            select(func.count()).select_from(FinishedProduct).scalar_subquery().label("products"),
+        )
+        res = await db.execute(counts_query)
+        row = res.first()
+        return dict(row._mapping) if row else {}
+
+    counts = await async_cached_result(
+        ("dashboard", "counts"),
+        load_counts,
+        ttl_seconds=TTL_FREQUENT,
+    )
+
+    # Sales summary query
+    async def load_sales_summary():
+        f_sub = select(
+            Sale.sale_date,
+            func.count().label("nb_sales"),
+            func.sum(Sale.total).label("total_sales"),
+            func.sum(Sale.amount_paid).label("total_paid"),
+            func.sum(Sale.balance_due).label("total_due"),
+            func.sum(Sale.profit_amount).label("total_profit"),
+        ).group_by(Sale.sale_date)
+
+        r_sub = select(
+            RawSale.sale_date,
+            func.count().label("nb_sales"),
+            func.sum(RawSale.total).label("total_sales"),
+            func.sum(RawSale.amount_paid).label("total_paid"),
+            func.sum(RawSale.balance_due).label("total_due"),
+            func.sum(RawSale.profit_amount).label("total_profit"),
+        ).group_by(RawSale.sale_date)
+
+        union_sub = union_all(f_sub, r_sub).subquery("union_sub")
+
+        sales_summary_query = (
+            select(
+                union_sub.c.sale_date,
+                func.sum(union_sub.c.nb_sales).label("nb_sales"),
+                func.sum(union_sub.c.total_sales).label("total_sales"),
+                func.sum(union_sub.c.total_paid).label("total_paid"),
+                func.sum(union_sub.c.total_due).label("total_due"),
+                func.sum(union_sub.c.total_profit).label("total_profit"),
+            )
+            .group_by(union_sub.c.sale_date)
+            .order_by(union_sub.c.sale_date.desc())
+            .limit(15)
+        )
+
+        res = await db.execute(sales_summary_query)
+        return [dict(r._mapping) for r in res.all()]
+
+    sales_summary = await async_cached_result(
+        ("dashboard", "sales_summary"),
+        load_sales_summary,
+        ttl_seconds=TTL_FREQUENT,
+    )
+
+    async def load_stock_materials():
+        return await _build_stock_materials(cutoff_30d, db)
+
+    stock_materials = await async_cached_result(
+        ("dashboard", "stock_materials", cutoff_30d),
+        load_stock_materials,
+        ttl_seconds=TTL_FREQUENT,
+    )
+
+    async def load_stock_products():
+        stock_products_query = select(FinishedProduct).order_by(FinishedProduct.name).limit(10)
+        res = await db.execute(stock_products_query)
+        return [r.model_dump() for r in res.scalars().all()]
+
+    stock_products = await async_cached_result(
+        ("dashboard", "stock_products"),
+        load_stock_products,
+        ttl_seconds=TTL_FREQUENT,
+    )
+
+    today_value = float(summary["sales_today"])
+    week_value = float(summary["sales_week_ago"])
+    sales_delta_pct = round((today_value - week_value) / week_value * 100, 1) if week_value > 0 else None
+
+    async def load_debt_by_client():
+        return await _build_debt_by_client(db)
+
+    debt_by_client = await async_cached_result(
+        ("dashboard", "debt_by_client"),
+        load_debt_by_client,
+        ttl_seconds=TTL_FREQUENT,
+    )
+
+    async def load_production_history():
+        production_history_query = (
+            select(
+                ProductionBatch.production_date,
+                FinishedProduct.name.label("product_name"),
+                ProductionBatch.output_quantity,
+                ProductionBatch.production_cost,
+                ProductionBatch.unit_cost,
+            )
+            .join(FinishedProduct, FinishedProduct.id == ProductionBatch.finished_product_id)
+            .order_by(ProductionBatch.id.desc())
+            .limit(10)
+        )
+        res = await db.execute(production_history_query)
+        return [dict(r._mapping) for r in res.all()]
+
+    production_history = await async_cached_result(
+        ("dashboard", "production_history"),
+        load_production_history,
+        ttl_seconds=TTL_SEMI_STABLE,
+    )
+
+    return {
+        "today": today,
+        "sales_today": summary["sales_today"],
+        "cash_today": summary["cash_today"],
+        "total_receivables": summary["total_receivables"],
+        "profit_today": summary["profit_today"],
+        "total_profit": summary["total_profit"],
+        "low_stock": low_stock,
+        "recent_sales": recent_sales,
+        "counts": dict(counts or {}),
+        "sales_summary": sales_summary,
+        "stock_materials": stock_materials,
+        "stock_products": stock_products,
+        "sales_delta_pct": sales_delta_pct,
+        "profit_stats": {
+            "revenue": summary["revenue"],
+            "cost_of_goods": summary["cost_of_goods"],
+            "gross_profit": summary["gross_profit"],
+        },
+        "debt_by_client": debt_by_client,
+        "production_history": production_history,
+    }
+
+
+async def _build_stock_materials(cutoff_30d: str, db: AsyncSession) -> list[dict]:
+    cutoff_date = date.fromisoformat(cutoff_30d) if isinstance(cutoff_30d, str) else cutoff_30d
+    raw_sale_qty_expr = case(
+        (
+            func.lower(RawSale.unit).like("sac%"),
+            RawSale.quantity
+            * func.coalesce(func.nullif(func.regexp_replace(RawSale.unit, "[^0-9.]", "", "g"), "").cast(Numeric), 50),
+        ),
+        (func.lower(RawSale.unit).in_(["qt", "quintal"]), RawSale.quantity * 100),
+        else_=RawSale.quantity,
+    )
+
+    raw_sale_sub = select(RawSale.raw_material_id, raw_sale_qty_expr.label("qty")).where(
+        RawSale.sale_date >= cutoff_date
+    )
+
+    prod_sub = (
+        select(ProductionBatchItem.raw_material_id, ProductionBatchItem.quantity.label("qty"))
+        .join(ProductionBatch, ProductionBatch.id == ProductionBatchItem.batch_id)
+        .where(ProductionBatch.production_date >= cutoff_date)
+    )
+
+    source_union = union_all(raw_sale_sub, prod_sub).subquery("source_union")
+
+    consumed_sub = (
+        select(source_union.c.raw_material_id, func.sum(source_union.c.qty).label("consumed_30d"))
+        .group_by(source_union.c.raw_material_id)
+        .subquery("consumed")
+    )
+
+    stock_materials_query = (
+        select(*RawMaterial.__table__.columns, func.coalesce(consumed_sub.c.consumed_30d, 0).label("consumed_30d"))
+        .select_from(RawMaterial)
+        .outerjoin(consumed_sub, consumed_sub.c.raw_material_id == RawMaterial.id)
+        .order_by(RawMaterial.name)
+        .limit(15)
+    )
+
+    res = await db.execute(stock_materials_query)
+    stock_materials_raw = res.all()
+    result = []
+    for material in stock_materials_raw:
+        row = dict(material._mapping)
+        daily = float(row.get("consumed_30d") or 0) / 30.0
+        row["days_left"] = int(round(float(row["stock_qty"]) / daily)) if daily > 0.01 else None
+        result.append(row)
+    return result
+
+
+async def _build_debt_by_client(db: AsyncSession) -> list:
+    try:
+        mv_query = (
+            select(literal_column("client_id").label("id"), literal_column("name"), literal_column("balance"))
+            .select_from(text("mv_client_balances"))
+            .where(literal_column("balance") > 0)
+            .order_by(literal_column("balance").desc())
+            .limit(10)
+        )
+        res = await db.execute(mv_query)
+        return [dict(r._mapping) for r in res.all()]
+    except Exception:
+        pass
+
+    finished_totals = (
+        select(Sale.client_id, func.sum(Sale.total).label("credit_total"))
+        .where(Sale.client_id.is_not(None), Sale.sale_type == "credit")
+        .group_by(Sale.client_id)
+        .cte("finished_totals")
+    )
+
+    raw_totals = (
+        select(RawSale.client_id, func.sum(RawSale.total).label("credit_total"))
+        .where(RawSale.client_id.is_not(None), RawSale.sale_type == "credit")
+        .group_by(RawSale.client_id)
+        .cte("raw_totals")
+    )
+
+    payment_totals = (
+        select(
+            Payment.client_id,
+            func.sum(case((Payment.payment_type == "versement", Payment.amount), else_=0)).label("versements"),
+            func.sum(case((Payment.payment_type == "avance", Payment.amount), else_=0)).label("avances"),
+        )
+        .group_by(Payment.client_id)
+        .cte("payment_totals")
+    )
+
+    balance_expr = (
+        Client.opening_credit
+        + func.coalesce(finished_totals.c.credit_total, 0)
+        + func.coalesce(raw_totals.c.credit_total, 0)
+        - func.coalesce(payment_totals.c.versements, 0)
+        + func.coalesce(payment_totals.c.avances, 0)
+    )
+
+    fallback_query = (
+        select(Client.id, Client.name, balance_expr.label("balance"))
+        .select_from(Client)
+        .outerjoin(finished_totals, finished_totals.c.client_id == Client.id)
+        .outerjoin(raw_totals, raw_totals.c.client_id == Client.id)
+        .outerjoin(payment_totals, payment_totals.c.client_id == Client.id)
+        .where(balance_expr > 0)
+        .order_by(literal_column("balance").desc())
+        .limit(10)
+    )
+
+    res = await db.execute(fallback_query)
+    return [dict(r._mapping) for r in res.all()]
+
+
+_LAST_REFRESH_TIME_IN_MEM = 0.0
+_REFRESH_PENDING = False
+
+
+@db_task_compat
+async def refresh_client_balances_view(db: AsyncSession | None = None) -> None:
+    """Refresh the mv_client_balances materialized view after financial mutations, throttled with a trailing call."""
+    global _LAST_REFRESH_TIME_IN_MEM, _REFRESH_PENDING
+    import asyncio
+    import logging
+
+    logger = logging.getLogger("fabouanes")
+
+    now = time.time()
+    if now - _LAST_REFRESH_TIME_IN_MEM < 10.0:
+        if not _REFRESH_PENDING:
+            _REFRESH_PENDING = True
+            logger.debug("Materialized view refresh throttled, scheduling trailing call...")
+            delay = 10.0 - (now - _LAST_REFRESH_TIME_IN_MEM) + 0.1
+
+            async def delayed_refresh():
+                await asyncio.sleep(delay)
+                global _REFRESH_PENDING
+                _REFRESH_PENDING = False
+                await refresh_client_balances_view()
+
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(delayed_refresh())
+            except RuntimeError:
+                import threading
+
+                def thread_target():
+                    time.sleep(delay)
+                    global _REFRESH_PENDING
+                    _REFRESH_PENDING = False
+                    refresh_client_balances_view.sync()
+
+                threading.Thread(target=thread_target, daemon=True).start()
+        return
+
+    _LAST_REFRESH_TIME_IN_MEM = now
+
+    try:
+        if db is None:
+            async with get_async_sessionmaker()() as session:
+                await session.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_client_balances"))
+                await session.commit()
+        else:
+            await db.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_client_balances"))
+        logger.info("Materialized view mv_client_balances refreshed successfully")
+    except Exception as e:
+        logger.debug("Could not refresh mv_client_balances: %s", e)
+
+
+async def _dashboard_daily_summary(today: str, week_iso: str, db: AsyncSession) -> dict[str, float]:
+    today_date = date.fromisoformat(today) if isinstance(today, str) else today
+    week_iso_date = date.fromisoformat(week_iso) if isinstance(week_iso, str) else week_iso
+    ts_sales = select(func.coalesce(func.sum(Sale.total), 0)).where(Sale.sale_date == today_date).scalar_subquery()
+    ts_profit = (
+        select(func.coalesce(func.sum(Sale.profit_amount), 0)).where(Sale.sale_date == today_date).scalar_subquery()
+    )
+    trs_sales = (
+        select(func.coalesce(func.sum(RawSale.total), 0)).where(RawSale.sale_date == today_date).scalar_subquery()
+    )
+    trs_profit = (
+        select(func.coalesce(func.sum(RawSale.profit_amount), 0))
+        .where(RawSale.sale_date == today_date)
+        .scalar_subquery()
+    )
+    tp_cash = (
+        select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.payment_date == today_date).scalar_subquery()
+    )
+    ws_sales = select(func.coalesce(func.sum(Sale.total), 0)).where(Sale.sale_date == week_iso_date).scalar_subquery()
+    wrs_sales = (
+        select(func.coalesce(func.sum(RawSale.total), 0)).where(RawSale.sale_date == week_iso_date).scalar_subquery()
+    )
+
+    daily_query = select(
+        (ts_sales + trs_sales).label("sales_today"),
+        (ws_sales + wrs_sales).label("sales_week_ago"),
+        tp_cash.label("cash_today"),
+        (ts_profit + trs_profit).label("profit_today"),
+    )
+
+    async def load():
+        res = await db.execute(daily_query)
+        row = res.first()
+        return dict(row._mapping) if row else {}
+
+    row = await async_cached_result(
+        ("dashboard_daily_summary", today, week_iso),
+        load,
+        ttl_seconds=20.0,
+    )
+    return {
+        key: float(row[key] if row else 0) for key in ("sales_today", "sales_week_ago", "cash_today", "profit_today")
+    }
+
+
+async def _dashboard_cumulative_summary(db: AsyncSession) -> dict[str, float]:
+    total_receivables_sub = (
+        select(func.coalesce(func.sum(literal_column("balance")), 0))
+        .select_from(text("mv_client_balances"))
+        .scalar_subquery()
+    )
+
+    total_profit_sub = select(
+        func.coalesce(select(func.sum(Sale.profit_amount)).scalar_subquery(), 0)
+        + func.coalesce(select(func.sum(RawSale.profit_amount)).scalar_subquery(), 0)
+    ).scalar_subquery()
+
+    revenue_sub = select(
+        func.coalesce(select(func.sum(Sale.total)).scalar_subquery(), 0)
+        + func.coalesce(select(func.sum(RawSale.total)).scalar_subquery(), 0)
+    ).scalar_subquery()
+
+    raw_sale_cog_expr = (
+        case(
+            (
+                func.lower(RawSale.unit).like("sac%"),
+                RawSale.quantity
+                * func.coalesce(
+                    func.nullif(func.regexp_replace(RawSale.unit, "[^0-9.]", "", "g"), "").cast(Numeric), 50
+                ),
+            ),
+            (func.lower(RawSale.unit).in_(["qt", "quintal"]), RawSale.quantity * 100),
+            else_=RawSale.quantity,
+        )
+        * RawSale.cost_price_snapshot
+    )
+
+    cost_of_goods_sub = select(
+        func.coalesce(select(func.sum(Sale.quantity * Sale.cost_price_snapshot)).scalar_subquery(), 0)
+        + func.coalesce(select(func.sum(raw_sale_cog_expr)).scalar_subquery(), 0)
+    ).scalar_subquery()
+
+    cumulative_query = select(
+        total_receivables_sub.label("total_receivables"),
+        total_profit_sub.label("total_profit"),
+        revenue_sub.label("revenue"),
+        cost_of_goods_sub.label("cost_of_goods"),
+        total_profit_sub.label("gross_profit"),
+    )
+
+    async def load():
+        res = await db.execute(cumulative_query)
+        row = res.first()
+        return dict(row._mapping) if row else {}
+
+    row = await async_cached_result(
+        ("dashboard_cumulative_summary",),
+        load,
+        ttl_seconds=300.0,
+    )
+    return {
+        key: float(row[key] if row else 0)
+        for key in ("total_receivables", "total_profit", "revenue", "cost_of_goods", "gross_profit")
+    }
+
+
+async def _build_kpis_for_date(target_date: str, db: AsyncSession) -> dict[str, float | str]:
+    target_date_obj = date.fromisoformat(target_date) if isinstance(target_date, str) else target_date
+    s_cte = (
+        select(
+            func.coalesce(func.sum(Sale.total), 0).label("sales_total"),
+            func.coalesce(func.sum(Sale.profit_amount), 0).label("profit"),
+        )
+        .where(Sale.sale_date == target_date_obj)
+        .cte("s")
+    )
+    rs_cte = (
+        select(
+            func.coalesce(func.sum(RawSale.total), 0).label("sales_total"),
+            func.coalesce(func.sum(RawSale.profit_amount), 0).label("profit"),
+        )
+        .where(RawSale.sale_date == target_date_obj)
+        .cte("rs")
+    )
+    p_cte = (
+        select(func.coalesce(func.sum(Payment.amount), 0).label("cash"))
+        .where(Payment.payment_date == target_date_obj)
+        .cte("p")
+    )
+
+    receivables_val = (
+        select(func.coalesce(func.sum(Client.opening_credit), 0)).scalar_subquery()
+        + select(func.coalesce(func.sum(Sale.total), 0))
+        .where(Sale.sale_type == "credit", Sale.sale_date <= target_date_obj)
+        .scalar_subquery()
+        + select(func.coalesce(func.sum(RawSale.total), 0))
+        .where(RawSale.sale_type == "credit", RawSale.sale_date <= target_date_obj)
+        .scalar_subquery()
+        - select(func.coalesce(func.sum(Payment.amount), 0))
+        .where(Payment.payment_type == "versement", Payment.payment_date <= target_date_obj)
+        .scalar_subquery()
+        + select(func.coalesce(func.sum(Payment.amount), 0))
+        .where(Payment.payment_type == "avance", Payment.payment_date <= target_date_obj)
+        .scalar_subquery()
+    )
+
+    kpi_query = select(
+        (s_cte.c.sales_total + rs_cte.c.sales_total).label("sales"),
+        p_cte.c.cash.label("cash"),
+        (s_cte.c.profit + rs_cte.c.profit).label("profit"),
+        receivables_val.label("receivables"),
+    ).select_from(s_cte.join(rs_cte, true()).join(p_cte, true()))
+
+    res = await db.execute(kpi_query)
+    row = res.first()
+    return {
+        "date": target_date,
+        "sales": float(row._mapping["sales"] if row else 0),
+        "cash": float(row._mapping["cash"] if row else 0),
+        "profit": float(row._mapping["profit"] if row else 0),
+        "receivables": float(row._mapping["receivables"] if row else 0),
+    }
+
+
+# --- Operation / Journal Queries (migrated from operation_repository) ---
+
+
+async def list_recent_operations(
+    search: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    kind: str | None = None,
+    page: int = 1,
+    page_size: int = 25,
+    db: AsyncSession | None = None,
+) -> tuple[list[dict], int]:
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            return await _list_recent_operations_impl(search, date_from, date_to, kind, page, page_size, session)
+    return await _list_recent_operations_impl(search, date_from, date_to, kind, page, page_size, db)
+
+
+async def _list_recent_operations_impl(
+    search: str | None,
+    date_from: str | None,
+    date_to: str | None,
+    kind: str | None,
+    page: int,
+    page_size: int,
+    db: AsyncSession,
+) -> tuple[list[dict], int]:
+    # finished sales
+    s1 = (
+        select(
+            literal_column("'sale'").label("operation_type"),
+            Sale.id.label("row_id"),
+            Sale.sale_date.label("event_date"),
+            func.coalesce(Client.name, "Comptoir").label("partner_name"),
+            FinishedProduct.name.label("item_name"),
+            Sale.notes,
+            Sale.total.label("amount"),
+            Sale.balance_due.label("balance_due"),
+            literal_column("'Vente produit final'").label("operation_label"),
+        )
+        .select_from(Sale)
+        .outerjoin(Client, Client.id == Sale.client_id)
+        .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
+    )
+
+    # raw sales
+    s2 = (
+        select(
+            literal_column("'sale'").label("operation_type"),
+            RawSale.id.label("row_id"),
+            RawSale.sale_date.label("event_date"),
+            func.coalesce(Client.name, "Comptoir").label("partner_name"),
+            RawMaterial.name.label("item_name"),
+            RawSale.notes,
+            RawSale.total.label("amount"),
+            RawSale.balance_due.label("balance_due"),
+            literal_column("'Vente matiere premiere'").label("operation_label"),
+        )
+        .select_from(RawSale)
+        .outerjoin(Client, Client.id == RawSale.client_id)
+        .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
+    )
+
+    # payments
+    s3 = (
+        select(
+            literal_column("'payment'").label("operation_type"),
+            Payment.id.label("row_id"),
+            Payment.payment_date.label("event_date"),
+            Client.name.label("partner_name"),
+            case((Payment.payment_type == "avance", "Avance client"), else_="Versement client").label("item_name"),
+            Payment.notes,
+            Payment.amount.label("amount"),
+            literal_column("0").label("balance_due"),
+            case((Payment.payment_type == "avance", "Avance"), else_="Versement").label("operation_label"),
+        )
+        .select_from(Payment)
+        .join(Client, Client.id == Payment.client_id)
+    )
+
+    # purchases
+    s4 = (
+        select(
+            literal_column("'purchase'").label("operation_type"),
+            Purchase.id.label("row_id"),
+            Purchase.purchase_date.label("event_date"),
+            func.coalesce(Supplier.name, "Sans fournisseur").label("partner_name"),
+            RawMaterial.name.label("item_name"),
+            Purchase.notes,
+            Purchase.total.label("amount"),
+            literal_column("0").label("balance_due"),
+            literal_column("'Achat'").label("operation_label"),
+        )
+        .select_from(Purchase)
+        .outerjoin(Supplier, Supplier.id == Purchase.supplier_id)
+        .join(RawMaterial, RawMaterial.id == Purchase.raw_material_id)
+    )
+
+    # productions
+    s5 = (
+        select(
+            literal_column("'production'").label("operation_type"),
+            ProductionBatch.id.label("row_id"),
+            ProductionBatch.production_date.label("event_date"),
+            literal_column("''").label("partner_name"),
+            FinishedProduct.name.label("item_name"),
+            ProductionBatch.notes,
+            ProductionBatch.production_cost.label("amount"),
+            literal_column("0").label("balance_due"),
+            literal_column("'Production'").label("operation_label"),
+        )
+        .select_from(ProductionBatch)
+        .join(FinishedProduct, FinishedProduct.id == ProductionBatch.finished_product_id)
+    )
+
+    # Combine using union_all
+    union_stmt = union_all(s1, s2, s3, s4, s5).subquery("x")
+
+    stmt = select(union_stmt)
+    if search:
+        search_pat = f"%{search}%"
+        stmt = stmt.where(
+            func.lower(
+                func.coalesce(union_stmt.c.partner_name, "")
+                + " "
+                + func.coalesce(union_stmt.c.item_name, "")
+                + " "
+                + func.coalesce(union_stmt.c.notes, "")
+                + " "
+                + func.coalesce(union_stmt.c.operation_label, "")
+            ).like(search_pat.lower())
+        )
+
+    if date_from:
+        stmt = stmt.where(union_stmt.c.event_date >= date_from)
+    if date_to:
+        stmt = stmt.where(union_stmt.c.event_date <= date_to)
+    if kind in {"sale", "payment", "purchase", "production"}:
+        stmt = stmt.where(union_stmt.c.operation_type == kind)
+
+    stmt = stmt.add_columns(func.count().over().label("_total_count"))
+
+    # Order by event_date desc, row_id desc
+    stmt = (
+        stmt.order_by(union_stmt.c.event_date.desc(), union_stmt.c.row_id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+
+    res = await db.execute(stmt)
+    rows = [dict(row._mapping) for row in res.fetchall()]
+    total = int(rows[0]["_total_count"]) if rows else 0
+    return rows, total
+
+
+@db_task_compat
+async def get_kpis_for_period(period: str, db: AsyncSession | None = None) -> dict[str, float]:
+    async def load():
+        if db is None:
+            async with get_async_sessionmaker()() as session:
+                return await _build_kpis_for_period(period, session)
+        return await _build_kpis_for_period(period, db)
+
+    return await async_cached_result(
+        ("dashboard_kpis_period", period),
+        load,
+        ttl_seconds=45.0,
+    )
+
+
+async def _build_kpis_for_period(period: str, db: AsyncSession) -> dict[str, float]:
+    from datetime import date, timedelta
+
+    today_obj = date.today()
+
+    if period == "today":
+        start_date = today_obj
+    elif period == "week":
+        start_date = today_obj - timedelta(days=today_obj.weekday())
+    elif period == "month":
+        start_date = today_obj.replace(day=1)
+    else:
+        raise ValueError(f"Invalid period: {period}")
+
+    s_sales = (
+        select(func.coalesce(func.sum(Sale.total), 0))
+        .where(Sale.sale_date >= start_date, Sale.sale_date <= today_obj)
+        .scalar_subquery()
+    )
+    rs_sales = (
+        select(func.coalesce(func.sum(RawSale.total), 0))
+        .where(RawSale.sale_date >= start_date, RawSale.sale_date <= today_obj)
+        .scalar_subquery()
+    )
+
+    p_cash = (
+        select(func.coalesce(func.sum(Payment.amount), 0))
+        .where(Payment.payment_date >= start_date, Payment.payment_date <= today_obj)
+        .scalar_subquery()
+    )
+
+    s_profit = (
+        select(func.coalesce(func.sum(Sale.profit_amount), 0))
+        .where(Sale.sale_date >= start_date, Sale.sale_date <= today_obj)
+        .scalar_subquery()
+    )
+    rs_profit = (
+        select(func.coalesce(func.sum(RawSale.profit_amount), 0))
+        .where(RawSale.sale_date >= start_date, RawSale.sale_date <= today_obj)
+        .scalar_subquery()
+    )
+
+    total_receivables_sub = (
+        select(func.coalesce(func.sum(literal_column("balance")), 0))
+        .select_from(text("mv_client_balances"))
+        .scalar_subquery()
+    )
+
+    query = select(
+        (s_sales + rs_sales).label("sales"),
+        p_cash.label("cash"),
+        (s_profit + rs_profit).label("profit"),
+        total_receivables_sub.label("receivables"),
+    )
+
+    res = await db.execute(query)
+    row = res.first()
+    return {
+        "sales": float(row._mapping["sales"] if row else 0),
+        "cash": float(row._mapping["cash"] if row else 0),
+        "profit": float(row._mapping["profit"] if row else 0),
+        "receivables": float(row._mapping["receivables"] if row else 0),
+    }
+
+
+@db_task_compat
+async def get_kpi_history_last_30_days(
+    metric: str, db: AsyncSession | None = None, days: int = 30
+) -> tuple[list[str], list[float]]:
+    async def load():
+        if db is None:
+            async with get_async_sessionmaker()() as session:
+                return await _build_kpi_history(metric, session, days=days)
+        return await _build_kpi_history(metric, db, days=days)
+
+    return await async_cached_result(
+        ("dashboard_kpis_history", metric, days),
+        load,
+        ttl_seconds=45.0,
+    )
+
+
+async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> tuple[list[str], list[float]]:
+    from datetime import date, timedelta
+
+    from sqlalchemy import Date
+
+    from app.core.models import Client
+
+    today_obj = date.today()
+    start_date = today_obj - timedelta(days=days - 1)
+
+    # Générer toutes les dates de la période
+    date_list = [start_date + timedelta(days=i) for i in range(days)]
+    date_strs = [d.isoformat() for d in date_list]
+
+    values = {d: 0.0 for d in date_list}
+
+    if metric == "sales":
+        q1 = select(Sale.sale_date, func.sum(Sale.total)).where(Sale.sale_date >= start_date).group_by(Sale.sale_date)
+        res1 = await db.execute(q1)
+        for d, tot in res1.all():
+            if d in values:
+                values[d] += float(tot or 0)
+        q2 = (
+            select(RawSale.sale_date, func.sum(RawSale.total))
+            .where(RawSale.sale_date >= start_date)
+            .group_by(RawSale.sale_date)
+        )
+        res2 = await db.execute(q2)
+        for d, tot in res2.all():
+            if d in values:
+                values[d] += float(tot or 0)
+
+        # Rendre cumulatif
+        running = 0.0
+        for d in date_list:
+            running += values[d]
+            values[d] = running
+
+    elif metric == "cash":
+        q = (
+            select(Payment.payment_date, func.sum(Payment.amount))
+            .where(Payment.payment_date >= start_date)
+            .group_by(Payment.payment_date)
+        )
+        res = await db.execute(q)
+        for d, tot in res.all():
+            if d in values:
+                values[d] = float(tot or 0)
+
+        # Rendre cumulatif
+        running = 0.0
+        for d in date_list:
+            running += values[d]
+            values[d] = running
+
+    elif metric == "profit":
+        q1 = (
+            select(Sale.sale_date, func.sum(Sale.profit_amount))
+            .where(Sale.sale_date >= start_date)
+            .group_by(Sale.sale_date)
+        )
+        res1 = await db.execute(q1)
+        for d, tot in res1.all():
+            if d in values:
+                values[d] += float(tot or 0)
+        q2 = (
+            select(RawSale.sale_date, func.sum(RawSale.profit_amount))
+            .where(RawSale.sale_date >= start_date)
+            .group_by(RawSale.sale_date)
+        )
+        res2 = await db.execute(q2)
+        for d, tot in res2.all():
+            if d in values:
+                values[d] += float(tot or 0)
+
+        # Rendre cumulatif
+        running = 0.0
+        for d in date_list:
+            running += values[d]
+            values[d] = running
+
+    elif metric == "receivables":
+        current_rec = float(
+            await db.scalar(
+                select(func.coalesce(func.sum(literal_column("balance")), 0)).select_from(text("mv_client_balances"))
+            )
+            or 0
+        )
+
+        sf_changes = (
+            select(Sale.sale_date, func.sum(Sale.total))
+            .where(Sale.sale_type == "credit", Sale.sale_date >= start_date)
+            .group_by(Sale.sale_date)
+        )
+        res_sf = await db.execute(sf_changes)
+        sf_map = {d: float(tot or 0) for d, tot in res_sf.all()}
+
+        sr_changes = (
+            select(RawSale.sale_date, func.sum(RawSale.total))
+            .where(RawSale.sale_type == "credit", RawSale.sale_date >= start_date)
+            .group_by(RawSale.sale_date)
+        )
+        res_sr = await db.execute(sr_changes)
+        sr_map = {d: float(tot or 0) for d, tot in res_sr.all()}
+
+        p_changes = (
+            select(Payment.payment_date, Payment.payment_type, func.sum(Payment.amount))
+            .where(Payment.payment_date >= start_date)
+            .group_by(Payment.payment_date, Payment.payment_type)
+        )
+        res_p = await db.execute(p_changes)
+        p_map = {}
+        for d, ptype, amt in res_p.all():
+            if d not in p_map:
+                p_map[d] = 0.0
+            if ptype == "versement":
+                p_map[d] -= float(amt or 0)
+            elif ptype == "avance":
+                p_map[d] += float(amt or 0)
+
+        # Intégrer les crédits initiaux créés sur la période à leur date de création
+        oc_changes = (
+            select(cast(Client.created_at, Date), func.sum(Client.opening_credit))
+            .where(Client.opening_credit > 0, cast(Client.created_at, Date) >= start_date)
+            .group_by(cast(Client.created_at, Date))
+        )
+        res_oc = await db.execute(oc_changes)
+        oc_map = {d: float(tot or 0) for d, tot in res_oc.all()}
+
+        running_receivables = current_rec
+        for d in reversed(date_list):
+            values[d] = running_receivables
+            change = sf_map.get(d, 0.0) + sr_map.get(d, 0.0) + p_map.get(d, 0.0) + oc_map.get(d, 0.0)
+            running_receivables -= change
+
+    return date_strs, [values[d] for d in date_list]
