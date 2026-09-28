@@ -1,4 +1,5 @@
 """Modèles SQLModel pour le module Production."""
+
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -30,7 +31,9 @@ class ProductionBatch(SQLModel, table=True):
 
     # Relationships
     finished_product: Optional["FinishedProduct"] = Relationship(sa_relationship=relationship("FinishedProduct"))
-    items: list["ProductionBatchItem"] = Relationship(sa_relationship=relationship("ProductionBatchItem", back_populates="batch"))
+    items: list["ProductionBatchItem"] = Relationship(
+        sa_relationship=relationship("ProductionBatchItem", back_populates="batch")
+    )
 
     @field_validator("production_date", mode="before")
     @classmethod
@@ -62,7 +65,9 @@ class ProductionBatchItem(SQLModel, table=True):
     line_cost: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
 
     # Relationships
-    batch: Optional["ProductionBatch"] = Relationship(sa_relationship=relationship("ProductionBatch", back_populates="items"))
+    batch: Optional["ProductionBatch"] = Relationship(
+        sa_relationship=relationship("ProductionBatch", back_populates="items")
+    )
     raw_material: Optional["RawMaterial"] = Relationship(sa_relationship=relationship("RawMaterial"))
 
     @field_validator("quantity", "unit_cost_snapshot", "line_cost", mode="before")
@@ -89,7 +94,9 @@ class SavedRecipe(SQLModel, table=True):
 
     # Relationships
     finished_product: Optional["FinishedProduct"] = Relationship(sa_relationship=relationship("FinishedProduct"))
-    items: list["SavedRecipeItem"] = Relationship(sa_relationship=relationship("SavedRecipeItem", back_populates="recipe"))
+    items: list["SavedRecipeItem"] = Relationship(
+        sa_relationship=relationship("SavedRecipeItem", back_populates="recipe")
+    )
 
 
 class SavedRecipeItem(SQLModel, table=True):

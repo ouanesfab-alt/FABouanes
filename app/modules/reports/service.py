@@ -1,4 +1,5 @@
 """Service de traitement décisionnel et métier pour le module Rapports."""
+
 from __future__ import annotations
 
 import re
@@ -29,12 +30,15 @@ def _to_date(val) -> date | None:
         return date.fromisoformat(val)
     return val
 
+
 class ReportsService:
     def __init__(self, session: AsyncSession, repository: ReportsRepository | None = None) -> None:
         self.session = session
         self.repository = repository or ReportsRepository(session)
 
-    async def build_reports_context(self, date_from: str | None = None, date_to: str | None = None) -> ReportsContextDTO:
+    async def build_reports_context(
+        self, date_from: str | None = None, date_to: str | None = None
+    ) -> ReportsContextDTO:
         """Construit toutes les données nécessaires pour la page de rapports via DTOs typés."""
 
         summary_raw = await self.repository.get_period_summary(date_from, date_to)
@@ -88,7 +92,9 @@ class ReportsService:
             c_payments = payments_by_client[client["id"]]
 
             total_credit = Decimal(str(client["opening_credit"])) + sum(Decimal(str(s["total"])) for s in c_sales)
-            total_paid_versements = sum(Decimal(str(p["amount"])) for p in c_payments if p["payment_type"] == "versement")
+            total_paid_versements = sum(
+                Decimal(str(p["amount"])) for p in c_payments if p["payment_type"] == "versement"
+            )
             total_paid_avances = sum(Decimal(str(p["amount"])) for p in c_payments if p["payment_type"] == "avance")
 
             current_debt = total_credit - total_paid_versements + total_paid_avances
@@ -149,19 +155,21 @@ class ReportsService:
                 limit_utilized_pct_clamped = min(limit_utilized_pct, 100.0)
                 limit_exceeded = current_debt > limit
 
-                client_debts.append(ClientDebtDTO(
-                    id=client["id"],
-                    name=client["name"],
-                    debt=current_debt,
-                    under_30=brackets["under_30"],
-                    days_30_to_90=brackets["days_30_to_90"],
-                    over_90=brackets["over_90"],
-                    avg_delay=avg_delay,
-                    limit=limit,
-                    limit_utilized_pct=limit_utilized_pct,
-                    limit_utilized_pct_clamped=limit_utilized_pct_clamped,
-                    limit_exceeded=limit_exceeded,
-                ))
+                client_debts.append(
+                    ClientDebtDTO(
+                        id=client["id"],
+                        name=client["name"],
+                        debt=current_debt,
+                        under_30=brackets["under_30"],
+                        days_30_to_90=brackets["days_30_to_90"],
+                        over_90=brackets["over_90"],
+                        avg_delay=avg_delay,
+                        limit=limit,
+                        limit_utilized_pct=limit_utilized_pct,
+                        limit_utilized_pct_clamped=limit_utilized_pct_clamped,
+                        limit_exceeded=limit_exceeded,
+                    )
+                )
 
                 total_under_30 += brackets["under_30"]
                 total_30_to_90 += brackets["days_30_to_90"]
@@ -180,11 +188,13 @@ class ReportsService:
         monthly_purchases = await self.repository.get_purchases_by_month(12)
         monthly_expenses = await self.repository.get_expenses_by_month(12)
 
-        all_months = sorted(set(
-            [r["month"] for r in monthly_sales]
-            + [r["month"] for r in monthly_purchases]
-            + [r["month"] for r in monthly_expenses]
-        ))
+        all_months = sorted(
+            set(
+                [r["month"] for r in monthly_sales]
+                + [r["month"] for r in monthly_purchases]
+                + [r["month"] for r in monthly_expenses]
+            )
+        )
         sales_map = {r["month"]: r for r in monthly_sales}
         purchases_map = {r["month"]: r for r in monthly_purchases}
         expenses_map = {r["month"]: r for r in monthly_expenses}
@@ -196,8 +206,18 @@ class ReportsService:
         chart_profit = [s - p - e for s, p, e in zip(chart_sales, chart_purchases, chart_expenses)]
 
         month_names = {
-            "01": "Jan", "02": "Fév", "03": "Mar", "04": "Avr", "05": "Mai", "06": "Jui",
-            "07": "Jul", "08": "Aoû", "09": "Sep", "10": "Oct", "11": "Nov", "12": "Déc",
+            "01": "Jan",
+            "02": "Fév",
+            "03": "Mar",
+            "04": "Avr",
+            "05": "Mai",
+            "06": "Jui",
+            "07": "Jul",
+            "08": "Aoû",
+            "09": "Sep",
+            "10": "Oct",
+            "11": "Nov",
+            "12": "Déc",
         }
         chart_labels = []
         for m in chart_months:
@@ -234,7 +254,8 @@ class ReportsService:
                 qty=float(p["qty"]),
                 revenue=Decimal(str(p["revenue"])),
                 profit=Decimal(str(p["profit"])),
-            ) for p in top_products_raw
+            )
+            for p in top_products_raw
         ]
 
         top_clients_raw = await self.repository.get_top_clients_by_revenue(10, date_from, date_to)
@@ -244,7 +265,8 @@ class ReportsService:
                 count=int(c["count"]),
                 revenue=Decimal(str(c["revenue"])),
                 profit=Decimal(str(c["profit"])),
-            ) for c in top_clients_raw
+            )
+            for c in top_clients_raw
         ]
 
         return ReportsContextDTO(

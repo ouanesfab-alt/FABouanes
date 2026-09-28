@@ -6,6 +6,7 @@ per rate-limited HTTP request (DELETE + SELECT + INSERT).
 Falls back to DB-backed implementation for multi-worker deployments
 via ``FAB_RATE_LIMIT_BACKEND=db`` environment variable.
 """
+
 from __future__ import annotations
 
 import os
@@ -46,9 +47,7 @@ class _InMemoryRateLimitStore:
             if len(self._attempts[key]) > 100:
                 self._attempts[key] = self._attempts[key][-100:]
 
-    def is_locked_out(
-        self, key: str, max_attempts: int, window_s: float, lockout_s: float
-    ) -> bool:
+    def is_locked_out(self, key: str, max_attempts: int, window_s: float, lockout_s: float) -> bool:
         """Check if *key* is locked out with exponential backoff."""
         now = time.monotonic()
         with self._lock:
@@ -98,9 +97,7 @@ class _InMemoryRateLimitStore:
 
     def _purge(self, key: str, now: float, window: float) -> None:
         """Remove entries older than *window* seconds (caller holds lock)."""
-        self._attempts[key] = [
-            t for t in self._attempts[key] if now - t < window
-        ]
+        self._attempts[key] = [t for t in self._attempts[key] if now - t < window]
 
 
 class _DbRateLimitStore:
@@ -142,9 +139,7 @@ class _DbRateLimitStore:
         )
 
     @staticmethod
-    def is_locked_out(
-        key: str, max_attempts: int, window_s: float, lockout_s: float
-    ) -> bool:
+    def is_locked_out(key: str, max_attempts: int, window_s: float, lockout_s: float) -> bool:
         import time as _time
 
         from app.core.db_helpers import execute_db, query_db
@@ -171,11 +166,13 @@ class _DbRateLimitStore:
     @staticmethod
     def clear(key: str) -> None:
         from app.core.db_helpers import execute_db
+
         execute_db("DELETE FROM rate_limit_events WHERE key = %s", (key,))
 
     @staticmethod
     def clear_user(username: str) -> None:
         from app.core.db_helpers import execute_db
+
         try:
             execute_db("DELETE FROM rate_limit_events WHERE key LIKE %s", (f"%{username.lower()}%",))
         except Exception:
@@ -183,6 +180,7 @@ class _DbRateLimitStore:
 
     def clear_all(self) -> None:
         from app.core.db_helpers import execute_db
+
         try:
             execute_db("DELETE FROM rate_limit_events")
         except Exception:
@@ -199,6 +197,7 @@ class _RedisRateLimitStore:
 
     def __init__(self, redis_url: str) -> None:
         import redis
+
         self.client = redis.from_url(redis_url)
 
     def consume(self, key: str, limit: int, window_seconds: float) -> bool:
@@ -229,15 +228,13 @@ class _RedisRateLimitStore:
         try:
             pipeline = self.client.pipeline()
             pipeline.zadd(r_key, {str(now): now})
-            pipeline.zremrangebyscore(r_key, 0, now - 86400) # Keep 24 hours
+            pipeline.zremrangebyscore(r_key, 0, now - 86400)  # Keep 24 hours
             pipeline.expire(r_key, 86400)
             pipeline.execute()
         except Exception:
             _fallback_in_memory.record_failure(key)
 
-    def is_locked_out(
-        self, key: str, max_attempts: int, window_s: float, lockout_s: float
-    ) -> bool:
+    def is_locked_out(self, key: str, max_attempts: int, window_s: float, lockout_s: float) -> bool:
         r_key = f"rate_limit:failures:{key}"
         now = time.time()
         try:
@@ -290,4 +287,3 @@ elif _BACKEND_MODE == "db":
     RateLimitStore = _DbRateLimitStore()
 else:
     RateLimitStore = _fallback_in_memory
-

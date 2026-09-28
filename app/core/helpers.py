@@ -8,10 +8,12 @@ from app.core.request_state import get_state_value
 
 logger = logging.getLogger("fabouanes.helpers")
 
+
 def async_compat(func):
     """Allows an async function to be called synchronously if no event loop is running."""
     import asyncio
     import functools
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -27,6 +29,7 @@ def async_compat(func):
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
             return loop.run_until_complete(func(*args, **kwargs))
+
     return wrapper
 
 
@@ -71,7 +74,9 @@ def format_dzd(amount: float | int | str | None) -> str:
 
 
 @async_compat
-async def refresh_sale_profits_for_item(item_kind: str, item_id: int, avg_cost: float, sale_price: float | None = None, db: AsyncSession | None = None) -> None:
+async def refresh_sale_profits_for_item(
+    item_kind: str, item_id: int, avg_cost: float, sale_price: float | None = None, db: AsyncSession | None = None
+) -> None:
     from app.services.stock_service import refresh_sale_profits_for_item as _refresh_sale_profits_for_item
 
     return await _refresh_sale_profits_for_item(item_kind, item_id, avg_cost, sale_price, db=db)
@@ -82,11 +87,11 @@ async def get_open_credit_entries(client_id: int | None = None, db: AsyncSession
     """DEPRECATED: Utiliser app.modules.payments.service.PaymentsService.get_open_credit_entries à la place."""
     from app.core.async_db import get_async_sessionmaker
     from app.modules.payments.service import PaymentsService
+
     if db is None:
         async with get_async_sessionmaker()() as session:
             return await PaymentsService(session).get_open_credit_entries(client_id)
     return await PaymentsService(db).get_open_credit_entries(client_id)
-
 
 
 @async_compat
@@ -97,7 +102,14 @@ async def load_saved_recipes(db: AsyncSession | None = None):
 
 
 @async_compat
-async def save_recipe_definition(finished_id: int, recipe_name: str, notes: str, recipe_lines: list, user_id: int | None = None, db: AsyncSession | None = None):
+async def save_recipe_definition(
+    finished_id: int,
+    recipe_name: str,
+    notes: str,
+    recipe_lines: list,
+    user_id: int | None = None,
+    db: AsyncSession | None = None,
+):
     from app.services.recipe_service import save_recipe_definition as _save_recipe_definition
 
     return await _save_recipe_definition(finished_id, recipe_name, notes, recipe_lines, user_id, db=db)
@@ -203,11 +215,16 @@ async def create_payment_record(
     """DEPRECATED: Utiliser app.modules.payments.service.PaymentsService.create_payment_record à la place."""
     from app.core.async_db import get_async_sessionmaker
     from app.modules.payments.service import PaymentsService
+
     if db is None:
         async with get_async_sessionmaker()() as session:
             async with session.begin():
-                return await PaymentsService(session).create_payment_record(client_id, amount, payment_date, notes, sale_link, payment_type)
-    return await PaymentsService(db).create_payment_record(client_id, amount, payment_date, notes, sale_link, payment_type)
+                return await PaymentsService(session).create_payment_record(
+                    client_id, amount, payment_date, notes, sale_link, payment_type
+                )
+    return await PaymentsService(db).create_payment_record(
+        client_id, amount, payment_date, notes, sale_link, payment_type
+    )
 
 
 @async_compat
@@ -215,13 +232,13 @@ async def reverse_payment_allocations(payment_row, db: AsyncSession | None = Non
     """DEPRECATED: Utiliser app.modules.payments.service.PaymentsService.reverse_payment_allocations à la place."""
     from app.core.async_db import get_async_sessionmaker
     from app.modules.payments.service import PaymentsService
+
     p_dict = dict(payment_row) if hasattr(payment_row, "keys") and not isinstance(payment_row, dict) else payment_row
     if db is None:
         async with get_async_sessionmaker()() as session:
             async with session.begin():
                 return await PaymentsService(session).reverse_payment_allocations(p_dict)
     return await PaymentsService(db).reverse_payment_allocations(p_dict)
-
 
 
 def parse_excel_client_file(file_path) -> dict:
@@ -232,6 +249,7 @@ def parse_excel_client_file(file_path) -> dict:
 
 def parse_excel_client_history(file_path) -> dict:
     from app.services.excel_import_service import parse_client_history_excel
+
     try:
         data = parse_client_history_excel(file_path)
         rows = data.get("rows", [])
@@ -245,6 +263,7 @@ def parse_excel_client_history(file_path) -> dict:
 
 def init_db() -> None:
     from app.core.schema import init_db as _init_db
+
     return _init_db()
 
 

@@ -1,4 +1,5 @@
 """Modèles SQLModel pour le module Purchases."""
+
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -30,7 +31,9 @@ class Supplier(SQLModel, table=True):
 
     # Relationships
     purchases: list[Purchase] = Relationship(sa_relationship=relationship("Purchase", back_populates="supplier"))
-    purchase_documents: list[PurchaseDocument] = Relationship(sa_relationship=relationship("PurchaseDocument", back_populates="supplier"))
+    purchase_documents: list[PurchaseDocument] = Relationship(
+        sa_relationship=relationship("PurchaseDocument", back_populates="supplier")
+    )
 
 
 class Purchase(SQLModel, table=True):
@@ -53,9 +56,12 @@ class Purchase(SQLModel, table=True):
 
     # Relationships
     supplier: Optional["Supplier"] = Relationship(sa_relationship=relationship("Supplier", back_populates="purchases"))
-    raw_material: Optional["RawMaterial"] = Relationship(sa_relationship=relationship("RawMaterial", back_populates="purchases"))
-    finished_product: Optional["FinishedProduct"] = Relationship(sa_relationship=relationship("FinishedProduct", back_populates="purchases"))
-
+    raw_material: Optional["RawMaterial"] = Relationship(
+        sa_relationship=relationship("RawMaterial", back_populates="purchases")
+    )
+    finished_product: Optional["FinishedProduct"] = Relationship(
+        sa_relationship=relationship("FinishedProduct", back_populates="purchases")
+    )
 
 
 class PurchaseDocument(SQLModel, table=True):
@@ -71,4 +77,6 @@ class PurchaseDocument(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=_now)
 
     # Relationships
-    supplier: Optional[Supplier] = Relationship(sa_relationship=relationship("Supplier", back_populates="purchase_documents"))
+    supplier: Optional[Supplier] = Relationship(
+        sa_relationship=relationship("Supplier", back_populates="purchase_documents")
+    )

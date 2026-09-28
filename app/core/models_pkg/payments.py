@@ -1,4 +1,5 @@
 """Modèles SQLModel pour le module Payments."""
+
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -31,7 +32,9 @@ class Payment(SQLModel, table=True):
     sale_id: Optional[int] = Field(default=None, foreign_key="sales.id")
     raw_sale_id: Optional[int] = Field(default=None, foreign_key="raw_sales.id")
     sale_kind: Optional[str] = Field(default=None)
-    payment_type: PaymentType = Field(default=PaymentType.VERSEMENT, sa_column=Column(String, nullable=False, server_default="versement"))
+    payment_type: PaymentType = Field(
+        default=PaymentType.VERSEMENT, sa_column=Column(String, nullable=False, server_default="versement")
+    )
     allocation_meta: Optional[str] = Field(default=None)
     amount: Decimal = Field(sa_column=Column(Numeric(15, 2)))
     payment_date: date

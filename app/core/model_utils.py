@@ -1,4 +1,5 @@
 """Utilitaires partagés pour les modèles SQLModel (sans dépendance circulaire)."""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -8,6 +9,7 @@ from typing import Any
 def _now() -> datetime:
     """Retourne l'heure courante locale sans timezone (naïve) pour éviter les doubles conversions de fuseau horaire par le driver."""
     return datetime.now().replace(tzinfo=None)
+
 
 def to_gmt1(dt: Any) -> Any:
     """Convertit un datetime (naïf supposé UTC ou conscient) vers le fuseau GMT+1 (Algérie)."""

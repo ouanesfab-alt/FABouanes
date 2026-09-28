@@ -33,7 +33,9 @@ async def contacts_page(request: Request):
     filter_name = request.query_params.get("name", "")
     return templates.TemplateResponse(
         "contacts.html",
-        template_context(request, **await contacts_context(filter_type, filter_name, request.query_params, request.url.path)),
+        template_context(
+            request, **await contacts_context(filter_type, filter_name, request.query_params, request.url.path)
+        ),
     )
 
 
@@ -54,12 +56,14 @@ async def suppliers_submit(request: Request):
     form = await request.form()
     try:
         from app.core.schema.supplier_validation import SupplierValidationSchema
+
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
         await create_supplier_from_form(validated.model_dump())
         flash(request, "Fournisseur ajouté avec succès.", "success")
     except Exception as e:
         from app.core.exceptions import get_friendly_error_message
+
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur de validation : {friendly}", "danger")
         return RedirectResponse(NEW_SUPPLIER_URL, status_code=303)
@@ -91,8 +95,6 @@ async def new_supplier_page(request: Request):
     return RedirectResponse("/contacts/new?kind=supplier", status_code=303)
 
 
-
-
 @router.post("/contacts/suppliers/new", name="new_supplier")
 @router.post("/suppliers/new", name="compat_new_supplier_submit")
 async def new_supplier_submit(request: Request):
@@ -103,12 +105,14 @@ async def new_supplier_submit(request: Request):
     form = await request.form()
     try:
         from app.core.schema.supplier_validation import SupplierValidationSchema
+
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
         await create_supplier_from_form(validated.model_dump())
         flash(request, "Fournisseur ajouté avec succès.", "success")
     except Exception as e:
         from app.core.exceptions import get_friendly_error_message
+
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur de validation : {friendly}", "danger")
         return RedirectResponse(NEW_SUPPLIER_URL, status_code=303)
@@ -169,12 +173,14 @@ async def edit_supplier_submit(request: Request, supplier_id: int):
     form = await request.form()
     try:
         from app.core.schema.supplier_validation import SupplierValidationSchema
+
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
         await update_supplier_from_form(supplier_id, validated.model_dump())
         flash(request, "Fournisseur modifié.", "success")
     except Exception as e:
         from app.core.exceptions import get_friendly_error_message
+
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur de validation : {friendly}", "danger")
         return RedirectResponse(str(request.url), status_code=303)

@@ -64,6 +64,7 @@ ENTITY_LABELS = {
 
 def _display_date(value) -> str:
     from app.core.model_utils import to_gmt1
+
     value = to_gmt1(value)
     if hasattr(value, "strftime"):
         return value.strftime("%d/%m/%Y %H:%M")
@@ -210,6 +211,9 @@ async def list_activity_entity_types(db: AsyncSession | None = None) -> list[str
 
 
 async def _list_activity_entity_types_impl(db: AsyncSession) -> list[str]:
-    res = await db.execute(text("SELECT DISTINCT entity_type FROM activity_logs WHERE COALESCE(entity_type, '') <> '' ORDER BY entity_type"))
+    res = await db.execute(
+        text(
+            "SELECT DISTINCT entity_type FROM activity_logs WHERE COALESCE(entity_type, '') <> '' ORDER BY entity_type"
+        )
+    )
     return [str(row.entity_type) for row in res.all() if row.entity_type]
-

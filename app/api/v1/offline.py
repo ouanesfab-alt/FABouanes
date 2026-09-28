@@ -1,4 +1,5 @@
 """Endpoints de synchronisation des opérations saisies hors-ligne."""
+
 from __future__ import annotations
 
 import logging
@@ -66,7 +67,10 @@ async def sync_operation(request: Request, db: AsyncSession = Depends(get_async_
             result = await service.create_production(payload)
             res_payload = {"ok": True, "batch_id": result.get("batch_id")}
         else:
-            err_res = {"success": False, "error": {"code": "unknown_type", "message": f"Type inconnu : {op_type}", "details": None}}
+            err_res = {
+                "success": False,
+                "error": {"code": "unknown_type", "message": f"Type inconnu : {op_type}", "details": None},
+            }
             if idempotency_key:
                 await save_idempotency(idempotency_key, {"content": err_res, "status_code": 400})
             api_error("unknown_type", f"Type inconnu : {op_type}", 400)
@@ -84,7 +88,10 @@ async def sync_operation(request: Request, db: AsyncSession = Depends(get_async_
         api_error(code, message, 422)
     except Exception as exc:
         logger.exception("Offline sync operation failed")
-        err_res = {"success": False, "error": {"code": "internal_error", "message": "Erreur serveur", "details": str(exc)}}
+        err_res = {
+            "success": False,
+            "error": {"code": "internal_error", "message": "Erreur serveur", "details": str(exc)},
+        }
         if idempotency_key:
             await save_idempotency(idempotency_key, {"content": err_res, "status_code": 500})
         api_error("internal_error", "Erreur serveur", 500, details=str(exc))
@@ -122,28 +129,26 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
                 elif op_type == "create_payment":
                     table_name = "offline_payments_staging"
                 else:
-                    results.append({
-                        "idempotency_key": idempotency_key,
-                        "status_code": 400,
-                        "response": {"error": f"Type d'opération inconnu pour staging : {op_type}"}
-                    })
+                    results.append(
+                        {
+                            "idempotency_key": idempotency_key,
+                            "status_code": 400,
+                            "response": {"error": f"Type d'opération inconnu pour staging : {op_type}"},
+                        }
+                    )
                     continue
 
                 execute_db(
                     f"INSERT INTO {table_name} (idempotency_key, payload, status) VALUES (%s, %s, 'pending') ON CONFLICT DO NOTHING",
-                    (idempotency_key, json.dumps(payload))
+                    (idempotency_key, json.dumps(payload)),
                 )
-                results.append({
-                    "idempotency_key": idempotency_key,
-                    "status_code": 202,
-                    "response": {"status": "staged"}
-                })
+                results.append(
+                    {"idempotency_key": idempotency_key, "status_code": 202, "response": {"status": "staged"}}
+                )
             except Exception as exc:
-                results.append({
-                    "idempotency_key": idempotency_key,
-                    "status_code": 500,
-                    "response": {"error": str(exc)}
-                })
+                results.append(
+                    {"idempotency_key": idempotency_key, "status_code": 500, "response": {"error": str(exc)}}
+                )
 
         await enqueue_background_task("process_offline_staging_task")
         return JSONResponse({"results": results})
@@ -158,11 +163,13 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
         if idempotency_key:
             cached_res = await check_idempotency(idempotency_key)
             if cached_res is not None:
-                results.append({
-                    "idempotency_key": idempotency_key,
-                    "status_code": cached_res["status_code"],
-                    "response": cached_res["content"]
-                })
+                results.append(
+                    {
+                        "idempotency_key": idempotency_key,
+                        "status_code": cached_res["status_code"],
+                        "response": cached_res["content"],
+                    }
+                )
                 continue
 
         # 2. Process operation
@@ -192,39 +199,23 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
                 res_payload = {"error": f"Type inconnu : {op_type}"}
                 if idempotency_key:
                     await save_idempotency(idempotency_key, {"content": res_payload, "status_code": 400})
-                results.append({
-                    "idempotency_key": idempotency_key,
-                    "status_code": 400,
-                    "response": res_payload
-                })
+                results.append({"idempotency_key": idempotency_key, "status_code": 400, "response": res_payload})
                 continue
 
             # Save idempotency on success
             if idempotency_key:
                 await save_idempotency(idempotency_key, {"content": res_payload, "status_code": 200})
 
-            results.append({
-                "idempotency_key": idempotency_key,
-                "status_code": 200,
-                "response": res_payload
-            })
+            results.append({"idempotency_key": idempotency_key, "status_code": 200, "response": res_payload})
 
         except (ValueError, ValidationError, ConflictError) as exc:
             res_payload = {"error": str(exc)}
             if idempotency_key:
                 await save_idempotency(idempotency_key, {"content": res_payload, "status_code": 422})
-            results.append({
-                "idempotency_key": idempotency_key,
-                "status_code": 422,
-                "response": res_payload
-            })
+            results.append({"idempotency_key": idempotency_key, "status_code": 422, "response": res_payload})
         except Exception as exc:
             logger.exception("Bulk sync operation failed due to internal error")
             res_payload = {"error": "Erreur serveur", "details": str(exc)}
-            results.append({
-                "idempotency_key": idempotency_key,
-                "status_code": 500,
-                "response": res_payload
-            })
+            results.append({"idempotency_key": idempotency_key, "status_code": 500, "response": res_payload})
 
     return JSONResponse({"results": results})

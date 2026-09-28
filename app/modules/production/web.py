@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Web routes module for Production domain."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
@@ -40,22 +41,16 @@ def parse_production_form(form) -> dict:
     for r_id, qty in zip(raw_ids, quantities):
         if r_id or qty:
             try:
-                items.append({
-                    "raw_material_id": int(r_id) if r_id else None,
-                    "quantity": float(qty) if qty else None
-                })
+                items.append({"raw_material_id": int(r_id) if r_id else None, "quantity": float(qty) if qty else None})
             except ValueError:
-                items.append({
-                    "raw_material_id": r_id,
-                    "quantity": qty
-                })
+                items.append({"raw_material_id": r_id, "quantity": qty})
 
     return {
         "finished_product_id": finished_product_id,
         "output_quantity": output_quantity,
         "production_date": production_date,
         "notes": notes,
-        "items": items
+        "items": items,
     }
 
 
@@ -85,6 +80,7 @@ async def production_submit(request: Request, db: AsyncSession = Depends(get_asy
         flash(request, "Production multi-matières enregistrée avec coût de revient.", "success")
     except Exception as exc:
         from app.core.exceptions import get_friendly_error_message
+
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)
@@ -118,14 +114,23 @@ async def new_production_submit(request: Request, db: AsyncSession = Depends(get
         ProductionBatchCreate.model_validate(parsed)
         result = await create_production_from_form(form, db=db)
         if result["recipe_id"]:
-            flash(request, f"Production enregistrée. Recette sauvegardée ({result['recipe_label']}). Reste théorique : {result['remainder']:.2f} kg.", "success")
+            flash(
+                request,
+                f"Production enregistrée. Recette sauvegardée ({result['recipe_label']}). Reste théorique : {result['remainder']:.2f} kg.",
+                "success",
+            )
         else:
-            flash(request, f"Production enregistrée avec recette et coût de revient. Reste théorique : {result['remainder']:.2f} kg.", "success")
+            flash(
+                request,
+                f"Production enregistrée avec recette et coût de revient. Reste théorique : {result['remainder']:.2f} kg.",
+                "success",
+            )
         if wants_print_after_submit():
             return RedirectResponse(f"/print/production/{result['batch_id']}", status_code=303)
         return RedirectResponse("/production", status_code=303)
     except Exception as exc:
         from app.core.exceptions import get_friendly_error_message
+
         errors = (
             [err["msg"] for err in exc.errors()]
             if isinstance(exc, ValidationError)

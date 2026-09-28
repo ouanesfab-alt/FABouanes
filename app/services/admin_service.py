@@ -7,8 +7,6 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.security import generate_password_hash
 
-logger = logging.getLogger("fabouanes.admin")
-
 from app.core.activity import log_activity
 from app.core.async_db import get_async_sessionmaker
 from app.core.audit import audit_event, list_audit_logs
@@ -46,6 +44,8 @@ from app.services.backup_service import (
 )
 from app.services.system_service import get_system_status
 
+logger = logging.getLogger("fabouanes.admin")
+
 
 @async_compat
 async def create_user_account(username: str, password: str, role: str, db: AsyncSession | None = None):
@@ -68,7 +68,9 @@ async def create_user_account(username: str, password: str, role: str, db: Async
 
 
 @async_compat
-async def update_user_account(user_id: int, role: str, is_active: bool, new_password: str = "", db: AsyncSession | None = None):
+async def update_user_account(
+    user_id: int, role: str, is_active: bool, new_password: str = "", db: AsyncSession | None = None
+):
     user = await get_user_by_id(user_id, db=db)
     if not user:
         return {"ok": False, "message": "Utilisateur introuvable."}
@@ -134,7 +136,7 @@ async def delete_user_account(user_id: int, db: AsyncSession | None = None):
             await db.rollback()
         return {
             "ok": False,
-            "message": "Cet utilisateur a des opérations comptables ou d'audit liées (ventes, achats, recettes, etc.) et ne peut pas être supprimé physiquement. Veuillez le désactiver à la place."
+            "message": "Cet utilisateur a des opérations comptables ou d'audit liées (ventes, achats, recettes, etc.) et ne peut pas être supprimé physiquement. Veuillez le désactiver à la place.",
         }
 
 
@@ -174,7 +176,9 @@ async def restore_backup_by_value(backup_value: str):
         await asyncio.to_thread(backup_database, "before_restore", backup_type="manual")
         await asyncio.to_thread(restore_database_from, str(backup_path))
     except Exception as exc:
-        audit_event("restore_backup", "backup", str(backup_value or "").strip(), status="failure", meta={"reason": str(exc)})
+        audit_event(
+            "restore_backup", "backup", str(backup_value or "").strip(), status="failure", meta={"reason": str(exc)}
+        )
         return {"ok": False, "message": f"Restauration impossible: {exc}"}
     log_activity("restore_backup", "backup", None, backup_path.name)
     audit_event("restore_backup", "backup", backup_path.name, after={"filename": backup_path.name})
@@ -245,7 +249,9 @@ async def _build_admin_view_data(audit_filters: dict[str, str], db: AsyncSession
     from app.modules.assistant.service import is_ollama_available
 
     sabrina_api_key = get_gemini_api_key()
-    selected_model = helper_db_manager.get_setting("gemini_model", "gemini-3.1-flash-lite").strip() or "gemini-3.1-flash-lite"
+    selected_model = (
+        helper_db_manager.get_setting("gemini_model", "gemini-3.1-flash-lite").strip() or "gemini-3.1-flash-lite"
+    )
     has_key = bool(sabrina_api_key)
     ollama_ok = await is_ollama_available()
 

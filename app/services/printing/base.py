@@ -59,6 +59,7 @@ PDF_FONT_BOLD = "PlusJakartaSans-Bold"
 # Helper functions
 # ---------------------------------------------------------------------------
 
+
 def _pdf_font_names() -> tuple[str, str]:
     if not REPORTLAB_AVAILABLE:
         return "Helvetica", "Helvetica-Bold"
@@ -117,10 +118,9 @@ def _logo_cell(logo_path: Path, width_cm: float, height_cm: float):
         return RLImage(str(logo_path), width=width_cm * cm, height=height_cm * cm)
 
     # Fallback to .webp if the requested .png doesn't exist
-    if logo_path.suffix.lower() == '.png':
-        webp_path = logo_path.with_suffix('.webp')
+    if logo_path.suffix.lower() == ".png":
+        webp_path = logo_path.with_suffix(".webp")
         if webp_path.exists():
             return RLImage(str(webp_path), width=width_cm * cm, height=height_cm * cm)
 
     return Spacer(width_cm * cm, height_cm * cm)
-

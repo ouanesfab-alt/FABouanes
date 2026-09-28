@@ -17,6 +17,7 @@ from app.services.production_service import create_production_from_form, delete_
 
 router = APIRouter(prefix="/api/v1", tags=["production"])
 
+
 @router.get("/production-batches")
 async def api_get_production_batches(request: Request, db: AsyncSession = Depends(get_async_session)):
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_READ)
@@ -28,7 +29,7 @@ async def api_get_production_batches(request: Request, db: AsyncSession = Depend
         date_to=request.query_params.get("date_to"),
         page=page,
         page_size=page_size,
-        db=db
+        db=db,
     )
     meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
     res_data = api_success(rows, meta)
@@ -36,8 +37,11 @@ async def api_get_production_batches(request: Request, db: AsyncSession = Depend
     add_cache_headers(request, response, res_data, max_age=30)
     return response
 
+
 @router.post("/production-batches", status_code=201)
-async def api_create_production_batch(request: Request, payload: ProductionCreateSchema, db: AsyncSession = Depends(get_async_session)):
+async def api_create_production_batch(
+    request: Request, payload: ProductionCreateSchema, db: AsyncSession = Depends(get_async_session)
+):
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_WRITE)
 
     # Use by_alias=True to map "raw_material_ids" to "raw_material_id[]", and "quantities" to "quantity[]"
@@ -59,9 +63,13 @@ async def api_create_production_batch(request: Request, payload: ProductionCreat
     batch = await production_payload(result["batch_id"], db=db)
     return json_response(api_success({"batch": batch, "recipe_id": result["recipe_id"]}, status_code=201))
 
+
 @router.get("/production-batches/{batch_id}")
-async def api_get_production_batch_detail(request: Request, batch_id: int, db: AsyncSession = Depends(get_async_session)):
+async def api_get_production_batch_detail(
+    request: Request, batch_id: int, db: AsyncSession = Depends(get_async_session)
+):
     import asyncio
+
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_READ)
     batch = await production_payload(batch_id, db=db)
     if not batch:
@@ -76,9 +84,11 @@ async def api_get_production_batch_detail(request: Request, batch_id: int, db: A
     add_cache_headers(request, response, res_data, max_age=30)
     return response
 
+
 @router.delete("/production-batches/{batch_id}")
 async def api_delete_production_batch(request: Request, batch_id: int, db: AsyncSession = Depends(get_async_session)):
     import asyncio
+
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_DELETE)
     batch = await production_payload(batch_id, db=db)
     if not batch:
@@ -88,9 +98,11 @@ async def api_delete_production_batch(request: Request, batch_id: int, db: Async
         api_error("conflict", "Suppression impossible.", 409)
     return json_response(api_success({"deleted": True}))
 
+
 @router.get("/recipes")
 async def api_recipes(request: Request, db: AsyncSession = Depends(get_async_session)):
     import asyncio
+
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_READ)
     page = max(int(request.query_params.get("page", 1)), 1)
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
@@ -101,14 +113,20 @@ async def api_recipes(request: Request, db: AsyncSession = Depends(get_async_ses
     add_cache_headers(request, response, res_data, max_age=30)
     return response
 
+
 @router.get("/recipes/{recipe_id}")
 async def api_recipe_detail(request: Request, recipe_id: int, db: AsyncSession = Depends(get_async_session)):
     import asyncio
+
     await asyncio.to_thread(require_api_user, request, PERMISSION_PRODUCTION_READ)
     recipe = await db.get(SavedRecipe, recipe_id)
     if not recipe:
         api_error("not_found", "Recette introuvable.", 404)
-    stmt_items = select(SavedRecipeItem).where(SavedRecipeItem.recipe_id == recipe_id).order_by(SavedRecipeItem.position, SavedRecipeItem.id)
+    stmt_items = (
+        select(SavedRecipeItem)
+        .where(SavedRecipeItem.recipe_id == recipe_id)
+        .order_by(SavedRecipeItem.position, SavedRecipeItem.id)
+    )
     res_items = await db.execute(stmt_items)
     items = res_items.scalars().all()
     payload = recipe.model_dump()

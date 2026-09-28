@@ -56,4 +56,3 @@ class ModuleBase(ABC):
     def role_permissions(self) -> dict[str, list[str]]:
         """Default role-to-permission mapping for this module."""
         return {}
-

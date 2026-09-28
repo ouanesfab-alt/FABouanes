@@ -1,6 +1,7 @@
 """
 Bilingual/International phone number normalization utility.
 """
+
 from __future__ import annotations
 
 

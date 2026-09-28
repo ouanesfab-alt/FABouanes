@@ -29,9 +29,7 @@ async def purchases_page(request: Request):
 
 
 @router.post("/purchases", name="purchases")
-async def purchases_submit(
-    request: Request, db: AsyncSession = Depends(get_async_session)
-):
+async def purchases_submit(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
@@ -74,9 +72,7 @@ async def new_purchase_page(request: Request):
 
 @router.post("/operations/purchases/new", name="new_purchase")
 @router.post("/purchases/new", name="compat_new_purchase_submit")
-async def new_purchase_submit(
-    request: Request, db: AsyncSession = Depends(get_async_session)
-):
+async def new_purchase_submit(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
@@ -166,9 +162,7 @@ async def compat_edit_purchase_page(request: Request, purchase_id: int):
 
 
 @router.get("/operations/purchases/{purchase_id}/edit", name="edit_purchase")
-async def edit_purchase_page(
-    request: Request, purchase_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def edit_purchase_page(request: Request, purchase_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
@@ -179,7 +173,9 @@ async def edit_purchase_page(
         flash(request, "Achat introuvable.", "danger")
         return RedirectResponse(PURCHASES_FILTER_URL, status_code=303)
     if context.get("redirect_document_id"):
-        return RedirectResponse(f"/operations/purchases/document/{context['redirect_document_id']}/edit", status_code=303)
+        return RedirectResponse(
+            f"/operations/purchases/document/{context['redirect_document_id']}/edit", status_code=303
+        )
 
     form_context = await service.purchase_form_context()
     form_context.update(context)
@@ -188,9 +184,7 @@ async def edit_purchase_page(
 
 @router.post("/operations/purchases/{purchase_id}/edit", name="edit_purchase")
 @router.post("/purchases/{purchase_id}/edit", name="compat_edit_purchase_submit")
-async def edit_purchase_submit(
-    request: Request, purchase_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def edit_purchase_submit(request: Request, purchase_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
@@ -216,9 +210,7 @@ async def edit_purchase_submit(
 
 @router.post("/operations/purchases/{purchase_id}/delete", name="delete_purchase")
 @router.post("/purchases/{purchase_id}/delete", name="compat_delete_purchase")
-async def delete_purchase(
-    request: Request, purchase_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def delete_purchase(request: Request, purchase_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_DELETE)
     if denied:
         return denied

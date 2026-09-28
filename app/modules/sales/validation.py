@@ -30,12 +30,7 @@ class SalesValidator:
 
     @staticmethod
     async def validate_stock_availability(
-        item_kind: str,
-        item_id: int,
-        qty: float,
-        unit: str,
-        custom_item_name: str,
-        session: AsyncSession
+        item_kind: str, item_id: int, qty: float, unit: str, custom_item_name: str, session: AsyncSession
     ) -> tuple[FinishedProduct | RawMaterial, float]:
         qty_kg = qty_to_kg(qty, unit)
 

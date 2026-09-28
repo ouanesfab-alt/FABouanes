@@ -96,15 +96,12 @@ class SaleFormSchema(BaseModel):
                     cn = custom_names[idx] if idx < len(custom_names) else ""
 
                     if ik or q or up:
-                        lines.append({
-                            "item_key": ik,
-                            "quantity": q,
-                            "unit": u,
-                            "unit_price": up,
-                            "custom_item_name": cn
-                        })
+                        lines.append(
+                            {"item_key": ik, "quantity": q, "unit": u, "unit_price": up, "custom_item_name": cn}
+                        )
                 data["lines"] = lines
         return data
+
     @field_validator("sale_date", mode="before")
     @classmethod
     def parse_sale_date(cls, val: Any) -> date:

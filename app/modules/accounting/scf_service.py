@@ -3,6 +3,7 @@ Service de Comptabilité Système Comptable Financier (SCF Algérie).
 Génère la Balance Générale, le Bilan (Actif/Passif) et le Tableau des Comptes de Résultat (TCR).
 Supporte l'accès par ORM Asynchrone (SQLAlchemy 2.0 / SQLModel) et fallback SQL natif.
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -166,7 +167,9 @@ class SCFService:
         solde_clients = _safe_float(clients_row["total_debt"]) if clients_row else 0.0
 
         raw_stock_row = query_db("SELECT COALESCE(SUM(stock_qty * avg_cost), 0) as val FROM raw_materials", one=True)
-        fin_stock_row = query_db("SELECT COALESCE(SUM(stock_qty * avg_cost), 0) as val FROM finished_products", one=True)
+        fin_stock_row = query_db(
+            "SELECT COALESCE(SUM(stock_qty * avg_cost), 0) as val FROM finished_products", one=True
+        )
         val_stock_raw = _safe_float(raw_stock_row["val"]) if raw_stock_row else 0.0
         val_stock_fin = _safe_float(fin_stock_row["val"]) if fin_stock_row else 0.0
 
@@ -193,6 +196,7 @@ class SCFService:
         # Si query_db est patché (ex. dans des tests unitaires mockés), utiliser le fallback
         try:
             from unittest.mock import Mock
+
             if isinstance(query_db, Mock) or getattr(query_db, "side_effect", None) is not None:
                 return SCFService._get_balance_generale_raw()
         except Exception:
@@ -271,4 +275,3 @@ class SCFService:
                 "total": round(total_passif, 2),
             },
         }
-

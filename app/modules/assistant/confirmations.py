@@ -2,35 +2,37 @@ from __future__ import annotations
 
 from app.modules.assistant.sql_tools import dry_run_sql
 
-READ_ONLY_TOOL_NAMES = frozenset({
-    "change_theme",
-    "execute_readonly_sql",
-    "get_active_alerts",
-    "get_business_insights",
-    "get_current_weather",
-    "get_enum_values",
-    "get_export_link",
-    "get_print_link",
-    "get_recent_activity_logs",
-    "get_schema",
-    "get_user_note",
-    "list_app_backups",
-    "list_bon_space_documents",
-    "list_recipes",
-    "list_user_notes",
-    "read_app_file",
-    "recall",
-    "redirect_to",
-    "remember",
-    "run_system_maintenance",
-    "search_clients",
-    "search_products",
-    "search_web",
-    "get_stock_status",
-    "get_payment_status",
-    "get_financial_report",
-    "generate_quote",
-})
+READ_ONLY_TOOL_NAMES = frozenset(
+    {
+        "change_theme",
+        "execute_readonly_sql",
+        "get_active_alerts",
+        "get_business_insights",
+        "get_current_weather",
+        "get_enum_values",
+        "get_export_link",
+        "get_print_link",
+        "get_recent_activity_logs",
+        "get_schema",
+        "get_user_note",
+        "list_app_backups",
+        "list_bon_space_documents",
+        "list_recipes",
+        "list_user_notes",
+        "read_app_file",
+        "recall",
+        "redirect_to",
+        "remember",
+        "run_system_maintenance",
+        "search_clients",
+        "search_products",
+        "search_web",
+        "get_stock_status",
+        "get_payment_status",
+        "get_financial_report",
+        "generate_quote",
+    }
+)
 
 
 def tool_requires_confirmation(tool_name: str) -> bool:
@@ -39,7 +41,7 @@ def tool_requires_confirmation(tool_name: str) -> bool:
 
 def get_tool_confirmation_message(name: str, args: dict) -> str:
     if name == "execute_write_sql":
-        query = args.get('query', '')
+        query = args.get("query", "")
         dry_summary = dry_run_sql(query)
         return (
             f"Exécuter la requête SQL suivante :\n```sql\n{query}\n```\n"
@@ -102,7 +104,7 @@ def get_tool_confirmation_message(name: str, args: dict) -> str:
     elif name == "delete_user_note":
         return f"Supprimer la note ID '{args.get('note_id')}' ?"
     elif name == "add_product":
-        cat = args.get('category', 'produit')
+        cat = args.get("category", "produit")
         return f"Créer le produit `{args.get('name')}` ({cat}, prix: {args.get('price', '-')} DA, stock initial: {args.get('stock_qty', 0)}) ?"
     elif name == "modify_product":
         return f"Modifier le produit ID `{args.get('product_id')}` ({args.get('category', '')}) ?"
@@ -115,7 +117,7 @@ def get_tool_confirmation_message(name: str, args: dict) -> str:
     elif name == "import_bulk_clients_excel":
         return f"Importer en masse les clients depuis le fichier `{args.get('filepath', '')}` ? Cette opération peut créer plusieurs enregistrements."
     elif name == "import_bulk_products_excel":
-        kind = "matières premières" if args.get('is_raw_material') else "produits finis"
+        kind = "matières premières" if args.get("is_raw_material") else "produits finis"
         return f"Importer en masse les {kind} depuis `{args.get('filepath', '')}` ?"
     elif name == "import_client_excel":
         return f"Importer le client depuis le fichier Excel `{args.get('filepath', '')}` ?"

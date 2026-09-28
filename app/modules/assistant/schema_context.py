@@ -1,6 +1,7 @@
 """
 schema_context.py — Sabrina database structure and system prompts.
 """
+
 from __future__ import annotations
 
 import logging
@@ -202,32 +203,35 @@ TABLE_SCHEMAS = {
     ),
 }
 
+
 def get_schema() -> Dict[str, Any]:
     """Retourne la description de la structure de la base de données."""
     from app.core.perf_cache import cached_result
+
     return cached_result(("sabrina_schema",), lambda: {"schema": TABLE_SCHEMAS}, ttl_seconds=300.0)
+
 
 # Mapping: table → lien de formulaire de création et de liste
 FORM_LINKS = {
-    "clients":             ("/contacts/clients/new", "/contacts/clients"),
-    "suppliers":           ("/contacts/suppliers/new", "/contacts/suppliers"),
-    "finished_products":   ("/products/new", "/products"),
-    "raw_materials":       ("/raw-materials/new", "/raw-materials"),
-    "sales":               ("/operations/sales/new", "/operations"),
-    "raw_sales":           ("/operations/sales/new", "/operations"),
-    "purchases":           ("/operations/purchases/new", "/operations"),
-    "payments":            ("/operations/payments/new", "/operations"),
-    "expenses":            ("/expenses/new", "/expenses"),
-    "production_batches":  ("/production/new", "/production"),
+    "clients": ("/contacts/clients/new", "/contacts/clients"),
+    "suppliers": ("/contacts/suppliers/new", "/contacts/suppliers"),
+    "finished_products": ("/products/new", "/products"),
+    "raw_materials": ("/raw-materials/new", "/raw-materials"),
+    "sales": ("/operations/sales/new", "/operations"),
+    "raw_sales": ("/operations/sales/new", "/operations"),
+    "purchases": ("/operations/purchases/new", "/operations"),
+    "payments": ("/operations/payments/new", "/operations"),
+    "expenses": ("/expenses/new", "/expenses"),
+    "production_batches": ("/production/new", "/production"),
 }
 
 # Mapping: table → type d'impression (pour les liens /print/{doc_type}/{id})
 PRINT_DOC_TYPES = {
-    "sales":               "sale_finished",
-    "raw_sales":           "sale_raw",
-    "purchases":           "purchase",
-    "payments":            "payment",
-    "production_batches":  "production",
+    "sales": "sale_finished",
+    "raw_sales": "sale_raw",
+    "purchases": "purchase",
+    "payments": "payment",
+    "production_batches": "production",
 }
 
 APP_ROUTES = (
@@ -527,11 +531,12 @@ ACTION_GUIDE = (
     "    ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP\n"
 )
 
+
 def get_sabrina_system_prompt(model_name: str, rag_context: str = "") -> str:
     """Génère le prompt système personnalisé pour Sabrina avec le contexte de l'entreprise."""
     company_name = db_manager.get_setting("company_name", "FABOuanes").strip() or "FABOuanes"
     currency = "DZD"  # Devise par défaut
-    tva = "19%"       # TVA standard algérienne
+    tva = "19%"  # TVA standard algérienne
 
     schema_text = "\n".join(f"- {t}: {d}" for t, d in TABLE_SCHEMAS.items())
 
@@ -539,12 +544,14 @@ def get_sabrina_system_prompt(model_name: str, rag_context: str = "") -> str:
     memory_context = ""
     try:
         from app.modules.assistant.memory import get_context_memories
+
         memory_context = get_context_memories(limit=15)
     except Exception:
         pass
 
     # Calcul dynamique de la date et heure courantes en GMT+1 (Algérie)
     import datetime
+
     tz_gmt1 = datetime.timezone(datetime.timedelta(hours=1))
     now_gmt1 = datetime.datetime.now(tz_gmt1)
     date_str = now_gmt1.strftime("%d/%m/%Y")
@@ -623,14 +630,17 @@ def get_encryption_key() -> bytes:
     import hashlib
 
     from app.core.config import settings
+
     secret = settings.secret_key or "fallback_secret_key_for_sabrina"
     return hashlib.sha256(secret.encode("utf-8")).digest()
+
 
 def get_gemini_api_key() -> str:
     """Récupère la clé d'API depuis l'environnement ou les paramètres de la base de données (déchiffrée)."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         from app.core.security import decrypt_val
+
         raw_val = db_manager.get_setting("gemini_api_key", "").strip()
         api_key = decrypt_val(raw_val, get_encryption_key()) or ""
 

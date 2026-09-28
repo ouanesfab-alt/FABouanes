@@ -34,6 +34,7 @@ def _get_tailscale_ips() -> list[str]:
 
     try:
         import subprocess
+
         proc = subprocess.run(["tailscale", "ip", "-4"], capture_output=True, text=True, timeout=1.2)
         if proc.returncode == 0:
             for line in proc.stdout.splitlines():
@@ -45,6 +46,7 @@ def _get_tailscale_ips() -> list[str]:
 
     try:
         import psutil
+
         for iface, addrs in psutil.net_if_addrs().items():
             if "tailscale" in iface.lower() or "ts" in iface.lower():
                 for addr in addrs:
@@ -112,7 +114,11 @@ def _port_from_request(request: Request) -> str:
 def _compose_url(scheme: str, host: str, port: str) -> str:
     scheme_name = (scheme or "http").strip() or "http"
     port_value = str(port or "").strip()
-    if not port_value or (scheme_name == "http" and port_value == "80") or (scheme_name == "https" and port_value == "443"):
+    if (
+        not port_value
+        or (scheme_name == "http" and port_value == "80")
+        or (scheme_name == "https" and port_value == "443")
+    ):
         return f"{scheme_name}://{host}"
     return f"{scheme_name}://{host}:{port_value}"
 
@@ -131,11 +137,19 @@ def _configured_mobile_url() -> str:
 def resolve_mobile_connect_urls(request: Request) -> list[dict[str, Any]]:
     configured_url = _configured_mobile_url()
     if configured_url:
-        return [{"name": "Réseau configuré", "url": configured_url, "is_tailscale": "100." in configured_url or "ts.net" in configured_url}]
+        return [
+            {
+                "name": "Réseau configuré",
+                "url": configured_url,
+                "is_tailscale": "100." in configured_url or "ts.net" in configured_url,
+            }
+        ]
 
     scheme = _request_scheme(request)
     request_host = _request_host(request)
-    current_host = request.url.hostname or (request_host.rsplit(":", 1)[0] if request_host and not request_host.startswith("[") else request_host)
+    current_host = request.url.hostname or (
+        request_host.rsplit(":", 1)[0] if request_host and not request_host.startswith("[") else request_host
+    )
     port = _port_from_request(request)
     env_host = str(os.environ.get("FAB_HOST", "")).strip()
 
@@ -144,19 +158,23 @@ def resolve_mobile_connect_urls(request: Request) -> list[dict[str, Any]]:
     # Check if the current Host header is public/remote
     if current_host and not _is_local_host(current_host):
         is_ts = current_host.startswith("100.") or "ts.net" in current_host
-        networks.append({
-            "name": "Accès Distant (Tailscale)" if is_ts else "Domaine actuel",
-            "url": _compose_url(scheme, current_host, port),
-            "is_tailscale": is_ts
-        })
+        networks.append(
+            {
+                "name": "Accès Distant (Tailscale)" if is_ts else "Domaine actuel",
+                "url": _compose_url(scheme, current_host, port),
+                "is_tailscale": is_ts,
+            }
+        )
 
     if env_host and not _is_local_host(env_host) and env_host != current_host:
         is_ts = env_host.startswith("100.") or "ts.net" in env_host
-        networks.append({
-            "name": "Accès Distant (Tailscale)" if is_ts else "IP Serveur",
-            "url": _compose_url(scheme, env_host, port),
-            "is_tailscale": is_ts
-        })
+        networks.append(
+            {
+                "name": "Accès Distant (Tailscale)" if is_ts else "IP Serveur",
+                "url": _compose_url(scheme, env_host, port),
+                "is_tailscale": is_ts,
+            }
+        )
 
     ips = _get_all_ips()
     for ip in ips:
@@ -169,11 +187,7 @@ def resolve_mobile_connect_urls(request: Request) -> list[dict[str, Any]]:
         if not is_ts and not (ip.startswith("10.") or ip.startswith("172.") or ip.startswith("192.168.")):
             name = "Réseau Externe"
 
-        networks.append({
-            "name": name,
-            "url": url,
-            "is_tailscale": is_ts
-        })
+        networks.append({"name": name, "url": url, "is_tailscale": is_ts})
 
     # Sort so Tailscale VPN is featured first for remote access
     networks.sort(key=lambda n: 0 if n.get("is_tailscale") else 1)
@@ -211,11 +225,7 @@ def build_mobile_connect_context(request: Request) -> dict:
     for net in networks_info:
         qr = build_mobile_connect_qr_data_uri(net["url"])
         if qr:
-            networks.append({
-                "name": net["name"],
-                "url": net["url"],
-                "qr_uri": qr
-            })
+            networks.append({"name": net["name"], "url": net["url"], "qr_uri": qr})
 
     if not networks:
         return {

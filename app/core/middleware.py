@@ -79,6 +79,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 
         if is_form:
             original_form = request.form
+
             async def sanitized_form():
                 form_data = await original_form()
                 cleaned_items = []
@@ -90,6 +91,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                     else:
                         cleaned_items.append((k, sanitize_string(v)))
                 return FormData(cleaned_items)
+
             request.form = sanitized_form
 
         csp_nonce = secrets.token_hex(16)
@@ -113,6 +115,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         finally:
             try:
                 from app.core.request_state import get_request_state
+
                 state = get_request_state()
                 if state is not None:
                     write_db = getattr(state, "db", None)

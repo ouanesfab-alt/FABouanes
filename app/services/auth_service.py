@@ -67,6 +67,7 @@ async def attempt_login(username: str, password: str, request: Request | None = 
     # Check if user account is locked in DB
     if user:
         from datetime import datetime
+
         locked_until = user.get("locked_until")
         if locked_until:
             if isinstance(locked_until, str):
@@ -86,13 +87,18 @@ async def attempt_login(username: str, password: str, request: Request | None = 
                         actor={"username": normalized, "role": user.get("role", "operator")},
                         meta={"reason": "account_locked_until", "locked_until": str(locked_until)},
                     )
-                    return {"ok": False, "status": 423, "message": "Compte verrouillé suite à trop d'échecs de connexion."}
+                    return {
+                        "ok": False,
+                        "status": 423,
+                        "message": "Compte verrouillé suite à trop d'échecs de connexion.",
+                    }
 
     if user and int(user.get("is_active", 1) or 0) and check_password_hash(user["password_hash"], password or ""):
         clear_login_failures(ip)  # Clear IP failures on success
         if user_key:
             clear_login_failures(user_key)  # Clear account failures on success
         from app.modules.users.repository import reset_account_login_failures
+
         await reset_account_login_failures(int(user["id"]))
         await touch_login(int(user["id"]))
         user = await get_user_by_username(normalized)
@@ -116,6 +122,7 @@ async def attempt_login(username: str, password: str, request: Request | None = 
         record_login_failure(user_key)
     if user:
         from app.modules.users.repository import record_account_login_failure
+
         new_cnt, is_locked = await record_account_login_failure(int(user["id"]), max_attempts=5, lockout_minutes=15)
         if is_locked:
             audit_event(
@@ -169,7 +176,10 @@ async def change_user_password(user_id: int, current_password: str, new_password
         "user",
         user_id,
         before=before,
-        after={"must_change_password": int(updated_user["must_change_password"] or 0), "last_password_change_at": updated_user["last_password_change_at"]},
+        after={
+            "must_change_password": int(updated_user["must_change_password"] or 0),
+            "last_password_change_at": updated_user["last_password_change_at"],
+        },
     )
     return {"ok": True, "message": "Mot de passe mis à jour."}
 
@@ -185,7 +195,10 @@ def validate_new_user_payload(username: str, password: str, role: str):
     if role_value not in VALID_ROLES:
         return {"ok": False, "message": "Role invalide."}
     if not re.fullmatch(r"[A-Za-z0-9_.-]{3,50}", normalized):
-        return {"ok": False, "message": "Nom d'utilisateur invalide. Utilisez 3 à 50 caractères : lettres, chiffres, point, tiret, underscore."}
+        return {
+            "ok": False,
+            "message": "Nom d'utilisateur invalide. Utilisez 3 à 50 caractères : lettres, chiffres, point, tiret, underscore.",
+        }
     return {"ok": True, "username": normalized, "role": role_value}
 
 
@@ -198,4 +211,3 @@ async def verify_credentials(username: str, password: str) -> dict | None:
     if res.get("ok") and "user" in res:
         return res["user"]
     return None
-

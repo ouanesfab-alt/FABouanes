@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Service module for Production domain."""
+
 from __future__ import annotations
 
 from datetime import date
@@ -138,7 +139,9 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
             if qty > float(material["stock_qty"]):
                 raise ValueError(f"Stock insuffisant pour {material['name']}.")
             line_cost = qty * float(material["avg_cost"])
-            recipe_lines.append({"material": material, "qty": qty, "unit_cost": float(material["avg_cost"]), "line_cost": line_cost})
+            recipe_lines.append(
+                {"material": material, "qty": qty, "unit_cost": float(material["avg_cost"]), "line_cost": line_cost}
+            )
             total_cost += line_cost
             total_recipe_qty += qty
 
@@ -153,7 +156,7 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
         production_cost=total_cost,
         unit_cost=(total_cost / output_qty) if output_qty else 0,
         production_date=production_date_obj,
-        notes=notes
+        notes=notes,
     )
     db.add(batch)
     await db.flush()
@@ -165,34 +168,36 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
             raw_material_id=int(line["material"]["id"]),
             quantity=line["qty"],
             unit_cost_snapshot=line["unit_cost"],
-            line_cost=line["line_cost"]
+            line_cost=line["line_cost"],
         )
         db.add(item)
-        await apply_raw_material_consumption(line["material"], line["qty"], "production", batch_id, "create_production", db=db)
+        await apply_raw_material_consumption(
+            line["material"], line["qty"], "production", batch_id, "create_production", db=db
+        )
 
     await apply_finished_production(product, output_qty, total_cost, batch_id, db=db)
 
     if save_recipe_flag:
         recipe_id = await save_recipe_definition(
-            finished_id,
-            recipe_name or f"Recette {product['name']}",
-            notes,
-            recipe_lines,
-            _current_user_id(),
-            db=db
+            finished_id, recipe_name or f"Recette {product['name']}", notes, recipe_lines, _current_user_id(), db=db
         )
 
     batch_res = await db.execute(select(ProductionBatch).where(ProductionBatch.id == batch_id))
     batch_obj = batch_res.scalar_one_or_none()
     batch_dict = batch_obj.model_dump() if batch_obj else None
 
-    log_activity("create_production", "production", batch_id, f"produit #{finished_id} sortie={output_qty}kg cout={total_cost}")
+    log_activity(
+        "create_production", "production", batch_id, f"produit #{finished_id} sortie={output_qty}kg cout={total_cost}"
+    )
     audit_event(
         "create_production",
         "production",
         batch_id,
         after=batch_dict,
-        meta={"recipe_id": recipe_id, "lines": [{"raw_material_id": line["material"]["id"], "quantity": line["qty"]} for line in recipe_lines]},
+        meta={
+            "recipe_id": recipe_id,
+            "lines": [{"raw_material_id": line["material"]["id"], "quantity": line["qty"]} for line in recipe_lines],
+        },
     )
     if recipe_id:
         recipe_res = await db.execute(select(SavedRecipe).where(SavedRecipe.id == recipe_id))
@@ -203,7 +208,12 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
     invalidate_sellable_items_cache()
     mark_backup_needed("create_production")
     remainder = output_qty - total_recipe_qty
-    return {"batch_id": batch_id, "recipe_id": recipe_id, "recipe_label": recipe_name or f"Recette {product['name']}", "remainder": remainder}
+    return {
+        "batch_id": batch_id,
+        "recipe_id": recipe_id,
+        "recipe_label": recipe_name or f"Recette {product['name']}",
+        "remainder": remainder,
+    }
 
 
 @async_compat

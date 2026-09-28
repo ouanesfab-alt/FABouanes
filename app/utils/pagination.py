@@ -10,9 +10,6 @@ DEFAULT_PAGE_SIZE = 25
 MAX_PAGE_SIZE = 200
 
 
-
-
-
 def pagination_meta(total: int, page: int, page_size: int) -> dict[str, Any]:
     """Generate pagination metadata dict for API JSON responses."""
     page_size = min(max(1, int(page_size or DEFAULT_PAGE_SIZE)), MAX_PAGE_SIZE)
@@ -25,6 +22,7 @@ def pagination_meta(total: int, page: int, page_size: int) -> dict[str, Any]:
         "has_next": page * page_size < total,
         "has_prev": page > 1,
     }
+
 
 def _args_dict(args: Any) -> dict[str, Any]:
     if hasattr(args, "multi_items"):
@@ -114,5 +112,6 @@ def pagination_context(
 def paginate_sequence(rows: list[Any], args: Any, path: str) -> tuple[list[Any], dict[str, Any]]:
     page, page_size, offset = parse_pagination(args)
     total = len(rows)
-    return rows[offset : offset + page_size], pagination_context(path, args, total=total, page=page, page_size=page_size)
-
+    return rows[offset : offset + page_size], pagination_context(
+        path, args, total=total, page=page, page_size=page_size
+    )

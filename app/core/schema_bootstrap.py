@@ -1,6 +1,7 @@
 """
 Responsibility: Bootstrap the initial database schema and seed data.
 """
+
 from __future__ import annotations
 
 from app.core.config import settings
@@ -20,6 +21,7 @@ def _execute(conn, query: str, params: tuple = ()):
 
 def _executescript(conn, sql: str) -> None:
     from sqlalchemy import text
+
     if hasattr(conn, "exec_driver_sql"):
         try:
             conn.exec_driver_sql(sql)
@@ -33,6 +35,7 @@ def _executescript(conn, sql: str) -> None:
         except Exception:
             pass
     from app.core.db_helpers.query import split_sql_script
+
     for stmt in split_sql_script(sql):
         if stmt.strip():
             if hasattr(conn, "execute"):
@@ -44,6 +47,7 @@ def _executescript(conn, sql: str) -> None:
             conn.commit()
         except Exception as commit_exc:
             import logging
+
             logging.getLogger("fabouanes.db").warning("Commit failed in script statement execution: %s", commit_exc)
 
 
@@ -58,9 +62,10 @@ def bootstrap_schema() -> None:
         # Core schema first
         _executescript(conn, SCHEMA_CORE)
 
-
         # Create rate_limit_events and stock_alerts tables
-        _executescript(conn, """
+        _executescript(
+            conn,
+            """
         CREATE TABLE IF NOT EXISTS rate_limit_events (
             key TEXT NOT NULL,
             hit_at TIMESTAMPTZ NOT NULL
@@ -120,11 +125,11 @@ def bootstrap_schema() -> None:
             created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         );
         CREATE INDEX IF NOT EXISTS idx_background_jobs_status_run_at ON background_jobs(status, run_at);
-        """)
+        """,
+        )
         # Commit explicite ici pour garantir que background_jobs et les tables
         # precedentes sont persistees meme si le bloc pgvector echoue ensuite.
         conn.commit()
-
 
         # Then domain schemas
         _executescript(conn, SCHEMA_CONTACTS)
@@ -140,11 +145,14 @@ def bootstrap_schema() -> None:
 
         import app.core.models  # noqa: F401
         from app.core.db import get_database_engine
+
         engine = get_database_engine(settings.database_url)
         SQLModel.metadata.create_all(engine)
 
         # Then schema updates and indexes for Options J, I, K
-        _executescript(conn, """
+        _executescript(
+            conn,
+            """
         CREATE TABLE IF NOT EXISTS client_keys (
             client_id BIGINT PRIMARY KEY,
             encryption_key TEXT NOT NULL,
@@ -185,21 +193,25 @@ def bootstrap_schema() -> None:
         CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date);
         CREATE INDEX IF NOT EXISTS idx_offline_sales_status ON offline_sales_staging(status, created_at);
         CREATE INDEX IF NOT EXISTS idx_offline_payments_status ON offline_payments_staging(status, created_at);
-        """)
+        """,
+        )
 
         # Then discover and execute module schemas
         try:
             from app.core.registry import discover_modules, get_enabled_modules
+
             discover_modules(settings.base_dir / "app" / "modules")
             for module in get_enabled_modules():
                 for sql in module.schema_sql:
                     _executescript(conn, sql)
         except Exception as e:
             import logging
+
             logging.getLogger("fabouanes").warning("Failed to bootstrap module schemas: %s", e)
 
         # Auto-migrate existing database for operations time tracking and finished product purchases
         from app.core.db_helpers import list_columns
+
         try:
             cols = list_columns(conn, "users")
             if cols:
@@ -211,6 +223,7 @@ def bootstrap_schema() -> None:
                     _execute(conn, "ALTER TABLE users ADD COLUMN locked_until TIMESTAMPTZ")
         except Exception:
             import logging
+
             logging.getLogger("fabouanes").debug("Auto-migration for users columns skipped", exc_info=True)
 
         for table in ["purchases", "sales", "raw_sales", "payments"]:
@@ -224,12 +237,17 @@ def bootstrap_schema() -> None:
         try:
             cols = list_columns(conn, "purchases")
             if cols and "finished_product_id" not in cols:
-                _execute(conn, "ALTER TABLE purchases ADD COLUMN finished_product_id BIGINT REFERENCES finished_products(id) ON DELETE CASCADE")
+                _execute(
+                    conn,
+                    "ALTER TABLE purchases ADD COLUMN finished_product_id BIGINT REFERENCES finished_products(id) ON DELETE CASCADE",
+                )
             if cols:
                 # PostgreSQL command to drop not null constraint if present
                 _execute(conn, "ALTER TABLE purchases ALTER COLUMN raw_material_id DROP NOT NULL")
         except Exception:
-            logging.getLogger("fabouanes").debug("Auto-migration for purchases.finished_product_id skipped", exc_info=True)
+            logging.getLogger("fabouanes").debug(
+                "Auto-migration for purchases.finished_product_id skipped", exc_info=True
+            )
 
         try:
             cols = list_columns(conn, "outbox_events")
@@ -239,10 +257,14 @@ def bootstrap_schema() -> None:
                 if "last_error" not in cols:
                     _execute(conn, "ALTER TABLE outbox_events ADD COLUMN last_error TEXT")
         except Exception:
-            logging.getLogger("fabouanes").debug("Auto-migration for outbox_events retry columns skipped", exc_info=True)
+            logging.getLogger("fabouanes").debug(
+                "Auto-migration for outbox_events retry columns skipped", exc_info=True
+            )
 
         # Staging tables for PWA offline sync
-        _executescript(conn, """
+        _executescript(
+            conn,
+            """
         CREATE TABLE IF NOT EXISTS offline_sales_staging (
             id BIGSERIAL PRIMARY KEY,
             idempotency_key VARCHAR(255) UNIQUE,
@@ -262,12 +284,15 @@ def bootstrap_schema() -> None:
             created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             processed_at TIMESTAMPTZ
         );
-        """)
+        """,
+        )
 
         # pgvector extension activation and catalog embeddings
         has_vector = False
         try:
-            res = _execute(conn, "SELECT 1 FROM pg_available_extensions WHERE name = 'vector' AND installed_version IS NOT NULL;").fetchone()
+            res = _execute(
+                conn, "SELECT 1 FROM pg_available_extensions WHERE name = 'vector' AND installed_version IS NOT NULL;"
+            ).fetchone()
             if res:
                 has_vector = True
             else:
@@ -280,7 +305,9 @@ def bootstrap_schema() -> None:
             conn.rollback()
 
         if has_vector:
-            _executescript(conn, """
+            _executescript(
+                conn,
+                """
             CREATE TABLE IF NOT EXISTS catalog_embeddings (
                 id BIGSERIAL PRIMARY KEY,
                 item_kind VARCHAR(50) NOT NULL,
@@ -290,9 +317,12 @@ def bootstrap_schema() -> None:
                 created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
             );
             CREATE UNIQUE INDEX IF NOT EXISTS idx_catalog_embeddings_item ON catalog_embeddings(item_kind, item_id);
-            """)
+            """,
+            )
         else:
-            _executescript(conn, """
+            _executescript(
+                conn,
+                """
             CREATE TABLE IF NOT EXISTS catalog_embeddings (
                 id BIGSERIAL PRIMARY KEY,
                 item_kind VARCHAR(50) NOT NULL,
@@ -302,16 +332,22 @@ def bootstrap_schema() -> None:
                 created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
             );
             CREATE UNIQUE INDEX IF NOT EXISTS idx_catalog_embeddings_item ON catalog_embeddings(item_kind, item_id);
-            """)
+            """,
+            )
 
         # performance indexes
         is_sqlite = settings.database_url.startswith("sqlite")
 
         # Check expenses table
         if is_sqlite:
-            expenses_exists = _execute(conn, "SELECT 1 FROM sqlite_master WHERE type='table' AND name='expenses'").fetchone() is not None
+            expenses_exists = (
+                _execute(conn, "SELECT 1 FROM sqlite_master WHERE type='table' AND name='expenses'").fetchone()
+                is not None
+            )
         else:
-            res = _execute(conn, "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'expenses')").fetchone()
+            res = _execute(
+                conn, "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'expenses')"
+            ).fetchone()
             expenses_exists = res[0] if res else False
 
         if expenses_exists:
@@ -319,20 +355,27 @@ def bootstrap_schema() -> None:
 
         # Check stock_movements table
         if is_sqlite:
-            movements_exists = _execute(conn, "SELECT 1 FROM sqlite_master WHERE type='table' AND name='stock_movements'").fetchone() is not None
+            movements_exists = (
+                _execute(conn, "SELECT 1 FROM sqlite_master WHERE type='table' AND name='stock_movements'").fetchone()
+                is not None
+            )
         else:
-            res = _execute(conn, "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'stock_movements')").fetchone()
+            res = _execute(
+                conn,
+                "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'stock_movements')",
+            ).fetchone()
             movements_exists = res[0] if res else False
 
         if movements_exists:
-            _execute(conn, "CREATE INDEX IF NOT EXISTS idx_stock_movements_item ON stock_movements(item_kind, item_id);")
-
+            _execute(
+                conn, "CREATE INDEX IF NOT EXISTS idx_stock_movements_item ON stock_movements(item_kind, item_id);"
+            )
 
         conn.commit()
 
-
         # ── Seeds (absorbé depuis schema.py) ─────────────────────────────────
         from app.core.schema import _seed_default_admin, _seed_default_settings, _seed_other_operation
+
         _seed_default_admin(conn)
         _seed_default_settings(conn)
         _seed_other_operation(conn)
@@ -343,4 +386,3 @@ def bootstrap_schema() -> None:
         except Exception:
             pass
         conn.close()
-

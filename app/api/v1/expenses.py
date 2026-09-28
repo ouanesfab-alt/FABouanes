@@ -1,4 +1,5 @@
 """API JSON Endpoints pour le module Dépenses, avec documentation OpenAPI enrichie."""
+
 from __future__ import annotations
 
 from datetime import date as d_cls
@@ -16,6 +17,7 @@ from app.modules.expenses.service import add_expense, get_expense, list_expenses
 router = APIRouter(prefix="/api/v1", tags=["expenses"])
 
 # ── Schémas de données OpenAPI ──
+
 
 class ExpenseBaseSchema(BaseModel):
     date: d_cls = Field(..., description="Date de la dépense (format YYYY-MM-DD)")
@@ -55,17 +57,15 @@ class ErrorResponseSchema(BaseModel):
 
 # ── Endpoints de l'API ──
 
+
 @router.get(
     "/expenses",
     response_model=ExpensesListResponse,
     responses={401: {"model": ErrorResponseSchema}, 403: {"model": ErrorResponseSchema}},
     summary="Lister les dépenses",
-    description="Récupère la liste de toutes les dépenses enregistrées avec filtres optionnels."
+    description="Récupère la liste de toutes les dépenses enregistrées avec filtres optionnels.",
 )
-async def api_get_expenses(
-    request: Request,
-    db: AsyncSession = Depends(get_async_session)
-):
+async def api_get_expenses(request: Request, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, "expenses.read")
     filters = {
         "q": request.query_params.get("q", ""),
@@ -76,14 +76,16 @@ async def api_get_expenses(
     expenses = await list_expenses(db, filters)
     payloads = []
     for e in expenses:
-        payloads.append(ExpenseOutSchema(
-            id=e.id,
-            date=e.date,
-            category=e.category,
-            description=e.description,
-            amount=e.amount,
-            payment_method=e.payment_method
-        ))
+        payloads.append(
+            ExpenseOutSchema(
+                id=e.id,
+                date=e.date,
+                category=e.category,
+                description=e.description,
+                amount=e.amount,
+                payment_method=e.payment_method,
+            )
+        )
     return json_response(api_success(payloads))
 
 
@@ -94,15 +96,13 @@ async def api_get_expenses(
     responses={
         400: {"model": ErrorResponseSchema},
         401: {"model": ErrorResponseSchema},
-        403: {"model": ErrorResponseSchema}
+        403: {"model": ErrorResponseSchema},
     },
     summary="Créer une nouvelle dépense",
-    description="Crée une nouvelle dépense et l'enregistre en base de données."
+    description="Crée une nouvelle dépense et l'enregistre en base de données.",
 )
 async def api_create_expense(
-    request: Request,
-    payload: ExpenseCreateSchema,
-    db: AsyncSession = Depends(get_async_session)
+    request: Request, payload: ExpenseCreateSchema, db: AsyncSession = Depends(get_async_session)
 ):
     require_api_user(request, "expenses.write")
     expense_id = await add_expense(
@@ -111,7 +111,7 @@ async def api_create_expense(
         category=payload.category,
         description=payload.description,
         amount=payload.amount,
-        method=payload.payment_method
+        method=payload.payment_method,
     )
     expense = await get_expense(db, expense_id)
     if not expense:
@@ -122,7 +122,7 @@ async def api_create_expense(
         category=expense.category,
         description=expense.description,
         amount=expense.amount,
-        payment_method=expense.payment_method
+        payment_method=expense.payment_method,
     )
     return json_response(api_success(out, status_code=201))
 
@@ -133,16 +133,12 @@ async def api_create_expense(
     responses={
         401: {"model": ErrorResponseSchema},
         403: {"model": ErrorResponseSchema},
-        404: {"model": ErrorResponseSchema}
+        404: {"model": ErrorResponseSchema},
     },
     summary="Récupérer le détail d'une dépense",
-    description="Récupère les détails d'une dépense par son identifiant unique."
+    description="Récupère les détails d'une dépense par son identifiant unique.",
 )
-async def api_get_expense_detail(
-    request: Request,
-    expense_id: int,
-    db: AsyncSession = Depends(get_async_session)
-):
+async def api_get_expense_detail(request: Request, expense_id: int, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, "expenses.read")
     expense = await get_expense(db, expense_id)
     if not expense:
@@ -153,7 +149,7 @@ async def api_get_expense_detail(
         category=expense.category,
         description=expense.description,
         amount=expense.amount,
-        payment_method=expense.payment_method
+        payment_method=expense.payment_method,
     )
     return json_response(api_success(out))
 
@@ -165,16 +161,13 @@ async def api_get_expense_detail(
         400: {"model": ErrorResponseSchema},
         401: {"model": ErrorResponseSchema},
         403: {"model": ErrorResponseSchema},
-        404: {"model": ErrorResponseSchema}
+        404: {"model": ErrorResponseSchema},
     },
     summary="Modifier une dépense",
-    description="Modifie une dépense existante à l'aide des informations fournies."
+    description="Modifie une dépense existante à l'aide des informations fournies.",
 )
 async def api_update_expense(
-    request: Request,
-    expense_id: int,
-    payload: ExpenseUpdateSchema,
-    db: AsyncSession = Depends(get_async_session)
+    request: Request, expense_id: int, payload: ExpenseUpdateSchema, db: AsyncSession = Depends(get_async_session)
 ):
     require_api_user(request, "expenses.write")
     expense = await get_expense(db, expense_id)
@@ -187,7 +180,7 @@ async def api_update_expense(
         category=payload.category,
         description=payload.description,
         amount=payload.amount,
-        method=payload.payment_method
+        method=payload.payment_method,
     )
     updated = await get_expense(db, expense_id)
     out = ExpenseOutSchema(
@@ -196,7 +189,7 @@ async def api_update_expense(
         category=updated.category,
         description=updated.description,
         amount=updated.amount,
-        payment_method=updated.payment_method
+        payment_method=updated.payment_method,
     )
     return json_response(api_success(out))
 
@@ -206,16 +199,12 @@ async def api_update_expense(
     responses={
         401: {"model": ErrorResponseSchema},
         403: {"model": ErrorResponseSchema},
-        404: {"model": ErrorResponseSchema}
+        404: {"model": ErrorResponseSchema},
     },
     summary="Supprimer une dépense",
-    description="Supprime définitivement une dépense par son identifiant unique."
+    description="Supprime définitivement une dépense par son identifiant unique.",
 )
-async def api_delete_expense(
-    request: Request,
-    expense_id: int,
-    db: AsyncSession = Depends(get_async_session)
-):
+async def api_delete_expense(request: Request, expense_id: int, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, "expenses.delete")
     success = await remove_expense(db, expense_id)
     if not success:

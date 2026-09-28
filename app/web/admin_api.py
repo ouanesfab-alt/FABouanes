@@ -39,21 +39,16 @@ def enforce_permission(request: Request, permission: str) -> dict[str, Any]:
     """S'assure que l'utilisateur est authentifié et possède la permission requise."""
     user = get_current_user(request)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expirée ou non authentifiée."
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expirée ou non authentifiée.")
     if not has_permission(user, permission):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Accès interdit : privilèges insuffisants."
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès interdit : privilèges insuffisants.")
     return user
 
 
 # ==========================================
 # GESTION DES UTILISATEURS
 # ==========================================
+
 
 @router.get("/users")
 async def api_get_users(request: Request):
@@ -84,7 +79,6 @@ async def api_create_user(request: Request):
             await session.commit()
             return APIResponse.success(message="Utilisateur créé avec succès.")
     return APIResponse.error(message=result.get("message", "Erreur lors de la création."))
-
 
 
 @router.put("/users/{user_id}")
@@ -125,6 +119,7 @@ async def api_delete_user(request: Request, user_id: int):
 # SAUVEGARDES & RESTAURATION
 # ==========================================
 
+
 @router.get("/backups")
 async def api_get_backups(request: Request):
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
@@ -136,6 +131,7 @@ async def api_get_backups(request: Request):
     async with get_async_sessionmaker()() as session:
         jobs = await list_backup_jobs(limit=30, db=session)
         from app.services.backup_service import get_backup_settings
+
         settings = await get_backup_settings(db=session)
 
     return {
@@ -147,8 +143,8 @@ async def api_get_backups(request: Request):
             "pg_dump_path": settings.get("pg_dump_path") or "",
             "backup_snapshot_time": settings.get("backup_snapshot_time") or "02:00",
             "backup_local_retention": settings.get("backup_local_retention") or 30,
-            "backup_event_retention": settings.get("backup_event_retention") or 100
-        }
+            "backup_event_retention": settings.get("backup_event_retention") or 100,
+        },
     }
 
 
@@ -156,17 +152,18 @@ async def api_get_backups(request: Request):
 async def api_list_backups(request: Request):
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
     from app.core.storage import list_restore_backups, resolve_backup_path
+
     items = list_restore_backups()
     result = []
     for item in items:
         path = resolve_backup_path(item["value"])
-        size_str = f"{path.stat().st_size / (1024*1024):.2f} MB" if (path and path.exists()) else "N/A"
-        mtime_str = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S") if (path and path.exists()) else ""
-        result.append({
-            **item,
-            "size": size_str,
-            "modified_at": mtime_str
-        })
+        size_str = f"{path.stat().st_size / (1024 * 1024):.2f} MB" if (path and path.exists()) else "N/A"
+        mtime_str = (
+            datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+            if (path and path.exists())
+            else ""
+        )
+        result.append({**item, "size": size_str, "modified_at": mtime_str})
     return {"ok": True, "backups": result}
 
 
@@ -176,6 +173,7 @@ async def api_download_backup(filename: str, request: Request):
     from fastapi.responses import FileResponse
 
     from app.core.storage import resolve_backup_path
+
     safe_filename = Path(filename).name
     path = resolve_backup_path(f"local:{safe_filename}")
     if not path or not path.exists():
@@ -194,6 +192,7 @@ async def api_upload_and_restore_backup(request: Request, file: UploadFile = Fil
         return {"ok": False, "message": "Format de fichier invalide. Extensions acceptées: .sql, .sql.gz, .sql.gz.enc"}
 
     from app.core.storage import LOCAL_BACKUP_DIR, restore_database_from
+
     dest_path = LOCAL_BACKUP_DIR / f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
 
     content = await file.read()
@@ -248,6 +247,7 @@ async def api_save_backup_settings(request: Request):
 # JOURNAUX & AUDIT
 # ==========================================
 
+
 @router.get("/audit")
 async def api_get_audit_logs(request: Request):
     enforce_permission(request, PERMISSION_AUDIT_READ)
@@ -261,7 +261,7 @@ async def api_get_audit_logs(request: Request):
         "ok": True,
         "audit_logs": data["audit_logs"],
         "activity_logs": data["activity_logs"],
-        "filters": data["filters"]
+        "filters": data["filters"],
     }
 
 
@@ -272,12 +272,7 @@ async def _get_filtered_audit_data(filters: dict[str, str], db) -> dict[str, Any
     audit_logs = await list_audit_logs(filters, limit=150, db=db)
     activity_logs = await list_admin_activity(filters, limit=150, db=db)
 
-    return {
-        "audit_logs": audit_logs,
-        "activity_logs": activity_logs,
-        "filters": activity_filter_values(filters)
-    }
-
+    return {"audit_logs": audit_logs, "activity_logs": activity_logs, "filters": activity_filter_values(filters)}
 
 
 @router.patch("/sabrina/settings")
@@ -301,6 +296,7 @@ async def api_save_sabrina_settings(request: Request):
         if not api_key.startswith("••••"):
             from app.core.security import encrypt_val
             from app.modules.assistant.schema_context import get_encryption_key
+
             encrypted_key = encrypt_val(api_key, get_encryption_key())
             db_manager.set_setting("gemini_api_key", encrypted_key)
 
@@ -310,6 +306,7 @@ async def api_save_sabrina_settings(request: Request):
 # ==========================================
 # SYSTÈME & MAINTENANCE
 # ==========================================
+
 
 @router.get("/system")
 async def api_get_system_status(request: Request):
@@ -334,7 +331,7 @@ async def api_get_system_status(request: Request):
         "status": status_info,
         "error_logs": error_logs,
         "performance_logs": perf_logs,
-        "system_logs": sys_logs
+        "system_logs": sys_logs,
     }
 
 

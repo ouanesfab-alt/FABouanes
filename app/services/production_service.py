@@ -3,6 +3,7 @@
 Shim de compatibilité pour production_service.
 Toutes les fonctions sont désormais hébergées dans app.modules.production.service.
 """
+
 from __future__ import annotations
 
 from app.modules.production.service import (

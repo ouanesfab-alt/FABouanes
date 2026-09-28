@@ -64,7 +64,18 @@ async def operations_page(request: Request):
 
         if fmt == "csv":
             output = io.StringIO()
-            fieldnames = ["tx_type", "tx_date", "partner_name", "designation", "quantity", "unit", "unit_price", "total", "paid", "due"]
+            fieldnames = [
+                "tx_type",
+                "tx_date",
+                "partner_name",
+                "designation",
+                "quantity",
+                "unit",
+                "unit_price",
+                "total",
+                "paid",
+                "due",
+            ]
             writer = csv.DictWriter(output, fieldnames=fieldnames, delimiter=";", extrasaction="ignore")
             writer.writerow({f: f.upper() for f in fieldnames})
             for row in data:
@@ -80,14 +91,37 @@ async def operations_page(request: Request):
         elif fmt == "xlsx":
             import openpyxl
             from openpyxl.styles import Font
+
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Transactions"
 
-            headers = ["TYPE", "DATE", "TIERS", "DÉSIGNATION", "QUANTITÉ", "UNITÉ", "PRIX UNITAIRE", "TOTAL", "PAYÉ", "DU"]
+            headers = [
+                "TYPE",
+                "DATE",
+                "TIERS",
+                "DÉSIGNATION",
+                "QUANTITÉ",
+                "UNITÉ",
+                "PRIX UNITAIRE",
+                "TOTAL",
+                "PAYÉ",
+                "DU",
+            ]
             ws.append(headers)
 
-            fieldnames = ["tx_type", "tx_date", "partner_name", "designation", "quantity", "unit", "unit_price", "total", "paid", "due"]
+            fieldnames = [
+                "tx_type",
+                "tx_date",
+                "partner_name",
+                "designation",
+                "quantity",
+                "unit",
+                "unit_price",
+                "total",
+                "paid",
+                "due",
+            ]
             for row in data:
                 ws.append([str(row.get(f) or "") if row.get(f) is not None else "" for f in fieldnames])
 
@@ -97,7 +131,7 @@ async def operations_page(request: Request):
                 cell.font = bold_font
 
             for col in ws.columns:
-                max_len = max(len(str(cell.value or '')) for cell in col)
+                max_len = max(len(str(cell.value or "")) for cell in col)
                 col_letter = openpyxl.utils.get_column_letter(col[0].column)
                 ws.column_dimensions[col_letter].width = max(max_len + 3, 10)
 
@@ -154,9 +188,10 @@ async def new_operation_page(request: Request, db: AsyncSession = Depends(get_as
     return templates.TemplateResponse("operation_new.html", template_context(request, **context))
 
 
-
 @router.get("/print/{doc_type}/{item_id}", name="print_document")
-async def print_document_page(request: Request, doc_type: str, item_id: int, db: AsyncSession = Depends(get_async_session)):
+async def print_document_page(
+    request: Request, doc_type: str, item_id: int, db: AsyncSession = Depends(get_async_session)
+):
     user = get_current_user(request)
     if not user:
         return login_redirect()
@@ -208,5 +243,6 @@ async def edit_production_notes(request: Request):
         flash(request, "Notes de production mises à jour.", "success")
     except Exception as exc:
         from app.core.exceptions import get_friendly_error_message
+
         flash(request, get_friendly_error_message(exc), "danger")
     return RedirectResponse("/production", status_code=303)

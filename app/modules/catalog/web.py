@@ -29,18 +29,14 @@ router = APIRouter(tags=["catalog"])
 
 
 @router.get("/catalog", name="catalog")
-async def catalog_page(
-    request: Request, db: AsyncSession = Depends(get_async_session)
-):
+async def catalog_page(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "catalog.read")
     if denied:
         return denied
 
     service = CatalogService(db)
     context = await service.catalog_context(request.query_params, request.url.path)
-    return templates.TemplateResponse(
-        "catalog.html", template_context(request, **context)
-    )
+    return templates.TemplateResponse("catalog.html", template_context(request, **context))
 
 
 # ── COMPATIBILITY REDIRECTS ───────────────────────────────────────────────────
@@ -71,15 +67,11 @@ async def new_catalog_item_page(request: Request):
     if denied:
         return denied
     kind = request.query_params.get("kind", "raw")
-    return templates.TemplateResponse(
-        "catalog_new.html", template_context(request, **new_catalog_context(kind))
-    )
+    return templates.TemplateResponse("catalog_new.html", template_context(request, **new_catalog_context(kind)))
 
 
 @router.post("/catalog/new", name="new_catalog_item")
-async def new_catalog_item_submit(
-    request: Request, db: AsyncSession = Depends(get_async_session)
-):
+async def new_catalog_item_submit(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "catalog.write")
     if denied:
         return denied
@@ -105,9 +97,7 @@ async def new_catalog_item_submit(
 
         flash(
             request,
-            "Matière première ajoutée avec succès."
-            if kind == "raw"
-            else "Produit final ajouté avec succès.",
+            "Matière première ajoutée avec succès." if kind == "raw" else "Produit final ajouté avec succès.",
             "success",
         )
         return RedirectResponse("/catalog", status_code=303)
@@ -125,9 +115,7 @@ async def new_catalog_item_submit(
 
 
 @router.get("/raw-materials/{material_id}/edit", name="edit_raw_material")
-async def edit_raw_material_page(
-    request: Request, material_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def edit_raw_material_page(request: Request, material_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "catalog.write")
     if denied:
         return denied
@@ -139,15 +127,11 @@ async def edit_raw_material_page(
         return RedirectResponse("/catalog", status_code=303)
 
     context = raw_material_edit_context(material)
-    return templates.TemplateResponse(
-        "raw_material_edit.html", template_context(request, **context)
-    )
+    return templates.TemplateResponse("raw_material_edit.html", template_context(request, **context))
 
 
 @router.post("/raw-materials/{material_id}/edit", name="edit_raw_material")
-async def edit_raw_material_submit(
-    request: Request, material_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def edit_raw_material_submit(request: Request, material_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "catalog.write")
     if denied:
         return denied
@@ -174,18 +158,14 @@ async def edit_raw_material_submit(
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur de validation : {friendly}", "danger")
         context = raw_material_edit_context(material)
-        return templates.TemplateResponse(
-            "raw_material_edit.html", template_context(request, **context)
-        )
+        return templates.TemplateResponse("raw_material_edit.html", template_context(request, **context))
 
 
 # ── EDIT PRODUCT ──────────────────────────────────────────────────────────────
 
 
 @router.get("/products/{product_id}/edit", name="edit_product")
-async def edit_product_page(
-    request: Request, product_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def edit_product_page(request: Request, product_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "catalog.write")
     if denied:
         return denied
@@ -197,15 +177,11 @@ async def edit_product_page(
         return RedirectResponse("/catalog", status_code=303)
 
     context = product_edit_context(product)
-    return templates.TemplateResponse(
-        "product_edit.html", template_context(request, **context)
-    )
+    return templates.TemplateResponse("product_edit.html", template_context(request, **context))
 
 
 @router.post("/products/{product_id}/edit", name="edit_product")
-async def edit_product_submit(
-    request: Request, product_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def edit_product_submit(request: Request, product_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "catalog.write")
     if denied:
         return denied
@@ -232,18 +208,14 @@ async def edit_product_submit(
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur de validation : {friendly}", "danger")
         context = product_edit_context(product)
-        return templates.TemplateResponse(
-            "product_edit.html", template_context(request, **context)
-        )
+        return templates.TemplateResponse("product_edit.html", template_context(request, **context))
 
 
 # ── DELETE RAW MATERIAL ───────────────────────────────────────────────────────
 
 
 @router.post("/raw-materials/{material_id}/delete", name="delete_raw_material")
-async def delete_raw_material(
-    request: Request, material_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def delete_raw_material(request: Request, material_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "catalog.delete")
     if denied:
         return denied
@@ -266,9 +238,7 @@ async def delete_raw_material(
 
 
 @router.post("/products/{product_id}/delete", name="delete_product")
-async def delete_product(
-    request: Request, product_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def delete_product(request: Request, product_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "catalog.delete")
     if denied:
         return denied

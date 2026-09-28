@@ -1,4 +1,5 @@
 """Module Production — Gestion de la transformation et fabrication de produits."""
+
 from __future__ import annotations
 
 from app.core.registry import register
@@ -37,6 +38,7 @@ class ProductionModule(ModuleBase):
             "manager": ["production.read", "production.write", "production.delete"],
             "operator": ["production.read", "production.write"],
         }
+
 
 # Automatic discovery registration
 register(ProductionModule())

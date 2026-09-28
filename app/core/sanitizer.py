@@ -6,6 +6,7 @@ from typing import Any
 
 MAX_INPUT_LENGTH = int(os.environ.get("FAB_MAX_INPUT_LENGTH", "65536") or "65536")
 
+
 def sanitize_string(val: str) -> str:
     """
     Sanitizes a single string to prevent HTML/XSS injection.
@@ -18,6 +19,7 @@ def sanitize_string(val: str) -> str:
     if len(cleaned) > MAX_INPUT_LENGTH:
         cleaned = cleaned[:MAX_INPUT_LENGTH] + "... [TRUNCATED]"
     return html.escape(cleaned, quote=True)
+
 
 def sanitize_input(data: Any) -> Any:
     """

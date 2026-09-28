@@ -3,6 +3,7 @@
 Shim de compatibilité pour production_pages.
 Le APIRouter est désormais hébergé dans app.modules.production.web.
 """
+
 from __future__ import annotations
 
 from app.modules.production.web import (

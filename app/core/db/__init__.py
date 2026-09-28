@@ -2,6 +2,7 @@
 Point d'entrée unifié pour la couche base de données.
 Réexporte les fonctions publiques depuis db_helpers.py (la source unique de vérité).
 """
+
 from app.core.db_helpers import (  # noqa: F401
     CompatConnection,
     CompatCursor,
@@ -42,8 +43,10 @@ update_setting = set_setting
 def sqlalchemy_database_url(database_url: str) -> str:
     return pool_manager.sqlalchemy_database_url(database_url)
 
+
 def create_database_engine(database_url: str):
     return pool_manager.create_database_engine(database_url)
+
 
 def get_database_engine(database_url: str):
     return pool_manager.get_database_engine(database_url)

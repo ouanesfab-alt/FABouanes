@@ -1,4 +1,5 @@
 """Logique métier du module Dépenses — utilise l'Event Bus."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -33,22 +34,37 @@ async def get_expense(db: AsyncSession, expense_id: int) -> Expense | None:
     return await get_expense_by_id(db, expense_id)
 
 
-async def add_expense(db: AsyncSession, date: Any, category: str, description: str, amount: float, method: str = "cash") -> int:
+async def add_expense(
+    db: AsyncSession, date: Any, category: str, description: str, amount: float, method: str = "cash"
+) -> int:
     expense_id = await _db_create(db, date, category, description, amount, method)
     created = await get_expense_by_id(db, expense_id)
     created_dict = created.model_dump() if created else None
-    emit(DomainEvent("create", "expense", expense_id, f"{category}: {description or '-'} ({amount})", after=created_dict))
+    emit(
+        DomainEvent("create", "expense", expense_id, f"{category}: {description or '-'} ({amount})", after=created_dict)
+    )
     invalidate_cache_domains("dashboard")
     return expense_id
 
 
-async def modify_expense(db: AsyncSession, expense_id: int, date: Any, category: str, description: str, amount: float, method: str = "cash") -> None:
+async def modify_expense(
+    db: AsyncSession, expense_id: int, date: Any, category: str, description: str, amount: float, method: str = "cash"
+) -> None:
     before = await get_expense_by_id(db, expense_id)
     before_dict = before.model_dump() if before else None
     await _db_update(db, expense_id, date, category, description, amount, method)
     after = await get_expense_by_id(db, expense_id)
     after_dict = after.model_dump() if after else None
-    emit(DomainEvent("update", "expense", expense_id, f"{category}: {description or '-'} ({amount})", before=before_dict, after=after_dict))
+    emit(
+        DomainEvent(
+            "update",
+            "expense",
+            expense_id,
+            f"{category}: {description or '-'} ({amount})",
+            before=before_dict,
+            after=after_dict,
+        )
+    )
     invalidate_cache_domains("dashboard")
 
 

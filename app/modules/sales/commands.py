@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from datetime import date
 import inspect
-from typing import Tuple
+from typing import Any, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select, text
@@ -33,7 +33,6 @@ class SalesCommands:
         res = self.session.add(entity)
         if inspect.isawaitable(res):
             await res
-
 
     async def create_sale_record(
         self,
@@ -83,7 +82,7 @@ class SalesCommands:
                 cost_price_snapshot=cost_snapshot,
                 profit_amount=profit_amount,
                 sale_date=sale_date,
-                notes=notes
+                notes=notes,
             )
             await self._safe_add(sale_row)
             await self.session.flush()
@@ -93,7 +92,9 @@ class SalesCommands:
             item.stock_qty = stock_after
             await self._safe_add(item)
 
-            await self.record_stock_movement("finished", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "sale", row_id)
+            await self.record_stock_movement(
+                "finished", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "sale", row_id
+            )
 
             if amount_paid > 0 and client_id:
                 p_row = Payment(
@@ -103,7 +104,7 @@ class SalesCommands:
                     payment_type="versement",
                     amount=amount_paid,
                     payment_date=sale_date,
-                    notes="Paiement initial vente"
+                    notes="Paiement initial vente",
                 )
                 await self._safe_add(p_row)
 
@@ -140,7 +141,7 @@ class SalesCommands:
             profit_amount=profit_amount,
             sale_date=sale_date,
             notes=notes,
-            custom_item_name=custom_item_name
+            custom_item_name=custom_item_name,
         )
         await self._safe_add(raw_sale_row)
         await self.session.flush()
@@ -150,7 +151,9 @@ class SalesCommands:
         item.stock_qty = stock_after
         await self._safe_add(item)
 
-        await self.record_stock_movement("raw", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "raw_sale", row_id)
+        await self.record_stock_movement(
+            "raw", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "raw_sale", row_id
+        )
 
         if amount_paid > 0 and client_id:
             p_row = Payment(
@@ -160,7 +163,7 @@ class SalesCommands:
                 payment_type="versement",
                 amount=amount_paid,
                 payment_date=sale_date,
-                notes="Paiement initial vente"
+                notes="Paiement initial vente",
             )
             await self._safe_add(p_row)
 
@@ -189,15 +192,25 @@ class SalesCommands:
 
             # Delete payments associated with this sale
             await self.session.execute(
-                text("DELETE FROM payments WHERE sale_kind = 'finished' AND sale_id = :sale_id"),
-                {"sale_id": row_id}
+                text("DELETE FROM payments WHERE sale_kind = 'finished' AND sale_id = :sale_id"), {"sale_id": row_id}
             )
 
             # Delete sale row
             await self.session.delete(row)
             await self.session.flush()
 
-            await self.record_stock_movement("finished", int(row.finished_product_id), "in", restore_qty, "kg", stock_before, stock_after, "reverse_sale", "sale", row_id)
+            await self.record_stock_movement(
+                "finished",
+                int(row.finished_product_id),
+                "in",
+                restore_qty,
+                "kg",
+                stock_before,
+                stock_after,
+                "reverse_sale",
+                "sale",
+                row_id,
+            )
             if recalc and row.document_id:
                 await self.recalc_sale_document_totals(int(row.document_id))
             return True
@@ -223,15 +236,25 @@ class SalesCommands:
 
         # Delete payments associated
         await self.session.execute(
-            text("DELETE FROM payments WHERE sale_kind = 'raw' AND raw_sale_id = :raw_sale_id"),
-            {"raw_sale_id": row_id}
+            text("DELETE FROM payments WHERE sale_kind = 'raw' AND raw_sale_id = :raw_sale_id"), {"raw_sale_id": row_id}
         )
 
         # Delete raw sale row
         await self.session.delete(row)
         await self.session.flush()
 
-        await self.record_stock_movement("raw", int(row.raw_material_id), "in", restore_qty, "kg", stock_before, stock_after, "reverse_sale", "raw_sale", row_id)
+        await self.record_stock_movement(
+            "raw",
+            int(row.raw_material_id),
+            "in",
+            restore_qty,
+            "kg",
+            stock_before,
+            stock_after,
+            "reverse_sale",
+            "raw_sale",
+            row_id,
+        )
         if recalc and row.document_id:
             await self.recalc_sale_document_totals(int(row.document_id))
         return True
@@ -251,6 +274,7 @@ class SalesCommands:
     ) -> None:
         try:
             from app.core.request_state import get_state_value
+
             actor = get_state_value("user")
             if isinstance(actor, dict) and "username" in actor:
                 username = str(actor["username"])
@@ -270,7 +294,7 @@ class SalesCommands:
                 reason=reason,
                 reference_type=reference_type,
                 reference_id=reference_id,
-                created_by_username=username
+                created_by_username=username,
             )
             await self._safe_add(movement)
         except Exception:
@@ -288,13 +312,12 @@ class SalesCommands:
                        COALESCE(SUM(amount_paid), 0) AS paid_amount, COALESCE(SUM(balance_due), 0) AS due_amount
                 FROM {safe_table} WHERE document_id = :doc_id
             """),
-            {"doc_id": document_id}
+            {"doc_id": document_id},
         )
         row = res.first()
         if not row:
             return {"line_count": 0, "total_amount": 0, "paid_amount": 0, "due_amount": 0}
         return dict(row._mapping)
-
 
     async def recalc_sale_document_totals(self, document_id: int | None) -> None:
         if not document_id:
@@ -321,13 +344,7 @@ class SalesCommands:
             doc.balance_due = due
             await self._safe_add(doc)
 
-    async def _insert_sale_document(
-        self,
-        client_id: int | None,
-        sale_type: str,
-        sale_date: date,
-        notes: str
-    ) -> int:
+    async def _insert_sale_document(self, client_id: int | None, sale_type: str, sale_date: date, notes: str) -> int:
         year = sale_date.year
         doc_number = await asyncio.to_thread(next_doc_number, "BV", year)
 
@@ -339,7 +356,7 @@ class SalesCommands:
             amount_paid=0.0,
             balance_due=0.0,
             sale_date=sale_date,
-            notes=notes
+            notes=notes,
         )
         await self._safe_add(doc)
         await self.session.flush()
@@ -387,7 +404,7 @@ class SalesCommands:
                     "sale",
                     created_sale_id,
                     f"{item_kind} #{item_id} qty={line.quantity} {line.unit}",
-                    after=created
+                    after=created,
                 )
             )
 
@@ -441,7 +458,7 @@ class SalesCommands:
                 "sale_document",
                 doc_id,
                 f"{len(lines)} ligne(s)",
-                after=created.model_dump() if created else None
+                after=created.model_dump() if created else None,
             )
         )
 
@@ -462,6 +479,7 @@ class SalesCommands:
 
     async def edit_sale_document_from_form(self, document_id: int, schema: SaleFormSchema) -> dict:
         from app.modules.sales.queries import SalesQueries
+
         queries = SalesQueries(self.session)
         context = await queries.get_sale_document_context(document_id)
         if not context:
@@ -521,7 +539,7 @@ class SalesCommands:
                 document_id,
                 f"{len(lines)} ligne(s)",
                 before=dict(before),
-                after=created.model_dump() if created else None
+                after=created.model_dump() if created else None,
             )
         )
 
@@ -594,7 +612,7 @@ class SalesCommands:
                     doc_id,
                     f"{len(lines)} ligne(s)",
                     before=dict(before),
-                    after=created.model_dump() if created else None
+                    after=created.model_dump() if created else None,
                 )
             )
 
@@ -643,10 +661,9 @@ class SalesCommands:
                 row_id,
                 f"{item_kind} #{item_id} qty={line.quantity} {line.unit}",
                 before=dict(before),
-                after=after
+                after=after,
             )
         )
-
 
         return {
             "mode": "line",
@@ -667,14 +684,5 @@ class SalesCommands:
         if ok:
             await self.session.commit()
             invalidate_cache_domains("sales_sellable_items", "sales", "client", "dashboard")
-            emit(
-                DomainEvent(
-                    "delete",
-                    "sale",
-                    row_id,
-                    f"Suppression vente {kind}",
-                    before=dict(before),
-                    after=None
-                )
-            )
+            emit(DomainEvent("delete", "sale", row_id, f"Suppression vente {kind}", before=dict(before), after=None))
         return ok

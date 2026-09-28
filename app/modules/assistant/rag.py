@@ -17,17 +17,16 @@ from app.web.manual_pages import SPECIFIC_CHAPTER_DATA
 _logger = logging.getLogger("fabouanes.rag")
 INDEX_FILE = paths.pdf_reader_dir / "index_rag.json"
 
+
 def normalize_text(text: str) -> str:
     """Normalize text for simple keyword matching: lowercase, strip accents, remove non-alphanumeric."""
     text = text.lower()
     # Normalize accents
-    text = "".join(
-        c for c in unicodedata.normalize("NFD", text)
-        if unicodedata.category(c) != "Mn"
-    )
+    text = "".join(c for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) != "Mn")
     # Only keep letters, digits, and spaces
     text = re.sub(r"[^\w\s]", " ", text)
     return " ".join(text.split())
+
 
 # Domain synonyms mapping for intelligent search matching
 SYNONYM_MAP: dict[str, list[str]] = {
@@ -45,6 +44,7 @@ SYNONYM_MAP: dict[str, list[str]] = {
     "creance": ["client", "debiteur", "impaye", "recouvrement", "solde"],
     "caisse": ["encaisse", "especes", "banque", "fond", "paiement"],
 }
+
 
 def search_manual(query: str, limit: int = 3) -> List[Dict[str, Any]]:
     """Search SPECIFIC_CHAPTER_DATA for chapters matching query terms and synonyms with BM25 term weighting."""
@@ -86,18 +86,19 @@ def search_manual(query: str, limit: int = 3) -> List[Dict[str, Any]]:
 
     scored_chapters.sort(key=lambda x: x[0], reverse=True)
 
-
     results = []
     for score, key, data in scored_chapters[:limit]:
-        results.append({
-            "chapter_id": key,
-            "fr_title": data.get("fr_title"),
-            "ar_title": data.get("ar_title"),
-            "fr_usage": data.get("fr_usage", []),
-            "ar_usage": data.get("ar_usage", []),
-            "fr_example": data.get("fr_example"),
-            "ar_example": data.get("ar_example")
-        })
+        results.append(
+            {
+                "chapter_id": key,
+                "fr_title": data.get("fr_title"),
+                "ar_title": data.get("ar_title"),
+                "fr_usage": data.get("fr_usage", []),
+                "ar_usage": data.get("ar_usage", []),
+                "fr_example": data.get("fr_example"),
+                "ar_example": data.get("ar_example"),
+            }
+        )
     return results
 
 
@@ -108,6 +109,7 @@ async def search_vector_manual(query: str, api_key: str, limit: int = 2) -> List
         return []
 
     from app.core.db_helpers import query_db
+
     has_vector = False
     try:
         row = query_db("SELECT 1 FROM pg_extension WHERE extname = 'vector'", one=True)
@@ -124,7 +126,7 @@ async def search_vector_manual(query: str, api_key: str, limit: int = 2) -> List
                WHERE item_kind = 'manual'
                ORDER BY embedding <=> %s::vector ASC
                LIMIT %s""",
-            (emb_str, emb_str, limit)
+            (emb_str, emb_str, limit),
         )
         if rows:
             for r in rows:
@@ -137,15 +139,17 @@ async def search_vector_manual(query: str, api_key: str, limit: int = 2) -> List
                 key = f"{major}-{minor}"
                 data = SPECIFIC_CHAPTER_DATA.get(key)
                 if data:
-                    results.append({
-                        "chapter_id": key,
-                        "fr_title": data.get("fr_title"),
-                        "ar_title": data.get("ar_title"),
-                        "fr_usage": data.get("fr_usage", []),
-                        "ar_usage": data.get("ar_usage", []),
-                        "fr_example": data.get("fr_example"),
-                        "ar_example": data.get("ar_example")
-                    })
+                    results.append(
+                        {
+                            "chapter_id": key,
+                            "fr_title": data.get("fr_title"),
+                            "ar_title": data.get("ar_title"),
+                            "fr_usage": data.get("fr_usage", []),
+                            "ar_usage": data.get("ar_usage", []),
+                            "fr_example": data.get("fr_example"),
+                            "ar_example": data.get("ar_example"),
+                        }
+                    )
     return results
 
 
@@ -163,14 +167,11 @@ def get_pdf_text_chunks(pdf_path: Path) -> List[Dict[str, Any]]:
             for p_idx, para in enumerate(paragraphs):
                 if len(para) < 20:
                     continue
-                chunks.append({
-                    "text": para,
-                    "page": page_idx + 1,
-                    "para_idx": p_idx
-                })
+                chunks.append({"text": para, "page": page_idx + 1, "para_idx": p_idx})
     except Exception as exc:
         _logger.warning("Failed extracting PDF text from %s: %s", pdf_path, exc)
     return chunks
+
 
 def update_pdf_index() -> Dict[str, Any]:
     """Sync the index_rag.json file with the actual PDFs present in the pdf_reader directory."""
@@ -203,10 +204,7 @@ def update_pdf_index() -> Dict[str, Any]:
 
         if f.name not in index_data or index_data[f.name].get("mtime") != mtime:
             chunks = get_pdf_text_chunks(f)
-            index_data[f.name] = {
-                "mtime": mtime,
-                "chunks": chunks
-            }
+            index_data[f.name] = {"mtime": mtime, "chunks": chunks}
             updated = True
 
     if updated or keys_to_delete:
@@ -217,6 +215,7 @@ def update_pdf_index() -> Dict[str, Any]:
             _logger.warning("Failed writing index file %s: %s", INDEX_FILE, exc)
 
     return index_data
+
 
 def search_user_documents(query: str, limit: int = 3) -> List[Dict[str, Any]]:
     """Search through indexed user documents (PDFs) and return top matches."""
@@ -238,19 +237,14 @@ def search_user_documents(query: str, limit: int = 3) -> List[Dict[str, Any]]:
                 if word in text_norm:
                     score += 1
             if score > 0:
-                scored_chunks.append({
-                    "score": score,
-                    "doc_name": doc_name,
-                    "page": chunk.get("page", 1),
-                    "text": text
-                })
+                scored_chunks.append({"score": score, "doc_name": doc_name, "page": chunk.get("page", 1), "text": text})
 
     scored_chunks.sort(key=lambda x: x["score"], reverse=True)
     return scored_chunks[:limit]
 
+
 _embedding_cache: dict[str, tuple[float, List[float]]] = {}
 CACHE_EXPIRY = 900.0  # 15 minutes
-
 
 
 async def get_embedding(text: str, api_key: str) -> List[float] | None:
@@ -270,6 +264,7 @@ async def get_embedding(text: str, api_key: str) -> List[float] | None:
     import logging
 
     import httpx
+
     logger = logging.getLogger("fabouanes.rag")
 
     models_to_try = ["text-embedding-004", "embedding-001"]
@@ -283,10 +278,7 @@ async def get_embedding(text: str, api_key: str) -> List[float] | None:
             url = base_url
             headers["Authorization"] = f"Bearer {api_key}"
 
-        payload = {
-            "model": f"models/{model_name}",
-            "content": {"parts": [{"text": text}]}
-        }
+        payload = {"model": f"models/{model_name}", "content": {"parts": [{"text": text}]}}
 
         try:
             async with httpx.AsyncClient(timeout=8.0) as client:
@@ -314,6 +306,7 @@ async def search_vector_catalog(query: str, api_key: str, limit: int = 5) -> Lis
         return []
 
     from app.core.db_helpers import query_db
+
     has_vector = False
     try:
         row = query_db("SELECT 1 FROM pg_extension WHERE extname = 'vector'", one=True)
@@ -335,31 +328,25 @@ async def search_vector_catalog(query: str, api_key: str, limit: int = 5) -> Lis
             ORDER BY distance ASC
             LIMIT %s
             """,
-            (emb_str, limit)
+            (emb_str, limit),
         )
         for r in rows or []:
             score = 1.0 - float(r["distance"] or 0)
             # Enforce similarity threshold of 0.5
             if score >= 0.5:
-                results.append({
-                    "kind": r["item_kind"],
-                    "id": r["item_id"],
-                    "text": r["text_content"],
-                    "score": score
-                })
+                results.append({"kind": r["item_kind"], "id": r["item_id"], "text": r["text_content"], "score": score})
     else:
-        rows = query_db(
-            "SELECT item_kind, item_id, text_content, embedding FROM catalog_embeddings"
-        )
+        rows = query_db("SELECT item_kind, item_id, text_content, embedding FROM catalog_embeddings")
         scored = []
         for r in rows or []:
             try:
                 item_emb = json.loads(r["embedding"])
                 if len(item_emb) == len(emb):
                     import math
+
                     dot = sum(x * y for x, y in zip(emb, item_emb))
-                    norm1 = math.sqrt(sum(x*x for x in emb))
-                    norm2 = math.sqrt(sum(y*y for y in item_emb))
+                    norm1 = math.sqrt(sum(x * x for x in emb))
+                    norm2 = math.sqrt(sum(y * y for y in item_emb))
                     sim = dot / (norm1 * norm2) if norm1 and norm2 else 0
                     # Enforce similarity threshold of 0.5
                     if sim >= 0.5:
@@ -368,12 +355,7 @@ async def search_vector_catalog(query: str, api_key: str, limit: int = 5) -> Lis
                 _logger.debug("Failed parsing catalog embedding: %s", exc)
         scored.sort(key=lambda x: x[0], reverse=True)
         for sim, r in scored[:limit]:
-            results.append({
-                "kind": r["item_kind"],
-                "id": r["item_id"],
-                "text": r["text_content"],
-                "score": sim
-            })
+            results.append({"kind": r["item_kind"], "id": r["item_id"], "text": r["text_content"], "score": sim})
 
     return results
 
@@ -389,16 +371,19 @@ def get_rag_context(query: str) -> str:
 
     try:
         from app.modules.assistant.schema_context import get_gemini_api_key
+
         api_key = get_gemini_api_key()
         if api_key:
             import asyncio
             from concurrent.futures import ThreadPoolExecutor
+
             def run_async(coro):
                 loop = asyncio.new_event_loop()
                 try:
                     return loop.run_until_complete(coro)
                 finally:
                     loop.close()
+
             with ThreadPoolExecutor() as executor:
                 # Search manual sémantiquement
                 future_m = executor.submit(run_async, search_vector_manual(query, api_key, limit=2))
@@ -408,12 +393,12 @@ def get_rag_context(query: str) -> str:
                 catalog_matches = future_c.result()
     except Exception as e:
         import logging
+
         logging.getLogger("fabouanes.rag").debug("Semantic RAG search failed: %s", e)
 
     # Fallback to BM25 if vector search returned nothing or was disabled
     if not manual_matches:
         manual_matches = search_manual(query, limit=2)
-
 
     if not manual_matches and not doc_matches and not catalog_matches:
         return ""
@@ -430,7 +415,9 @@ def get_rag_context(query: str) -> str:
 
     if manual_matches:
         context_lines.append("\n=== CONTEXTE MANUEL UTILISATEUR ERP (RAG) ===")
-        context_lines.append("Voici les sections pertinentes du manuel d'utilisation de l'ERP pour guider votre réponse :")
+        context_lines.append(
+            "Voici les sections pertinentes du manuel d'utilisation de l'ERP pour guider votre réponse :"
+        )
         for m in manual_matches:
             context_lines.append(f"\nSection {m['chapter_id']}: {m['fr_title']} / {m['ar_title']}")
             context_lines.append("Instructions d'utilisation (Français) :")

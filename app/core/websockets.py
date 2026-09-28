@@ -77,10 +77,11 @@ class ConnectionManager:
         """Broadcast global (synchrone)."""
         try:
             from app.core.db_helpers import execute_db
+
             payload = json.dumps({"type": "global", "message": message, "sender_id": WORKER_ID})
             execute_db(
                 "INSERT INTO pubsub_events (channel, payload, sender_worker_id) VALUES (%s, %s, %s)",
-                ("fabouanes:ws_broadcast", payload, WORKER_ID)
+                ("fabouanes:ws_broadcast", payload, WORKER_ID),
             )
         except Exception as e:
             logger.warning("DB pubsub websocket publish failed: %s", e)
@@ -92,10 +93,11 @@ class ConnectionManager:
         """Broadcast global (asynchrone non-bloquant)."""
         try:
             from app.core.async_db import execute_sql_async
+
             payload = json.dumps({"type": "global", "message": message, "sender_id": WORKER_ID})
             await execute_sql_async(
                 "INSERT INTO pubsub_events (channel, payload, sender_worker_id) VALUES (:channel, :payload, :sender_worker_id)",
-                {"channel": "fabouanes:ws_broadcast", "payload": payload, "sender_worker_id": WORKER_ID}
+                {"channel": "fabouanes:ws_broadcast", "payload": payload, "sender_worker_id": WORKER_ID},
             )
         except Exception as e:
             logger.warning("DB pubsub websocket publish async failed: %s", e)
@@ -106,10 +108,11 @@ class ConnectionManager:
         """Envoie un message uniquement aux connexions de cet utilisateur (synchrone)."""
         try:
             from app.core.db_helpers import execute_db
+
             payload = json.dumps({"type": "user", "user_id": user_id, "message": message, "sender_id": WORKER_ID})
             execute_db(
                 "INSERT INTO pubsub_events (channel, payload, sender_worker_id) VALUES (%s, %s, %s)",
-                ("fabouanes:ws_broadcast", payload, WORKER_ID)
+                ("fabouanes:ws_broadcast", payload, WORKER_ID),
             )
         except Exception as e:
             logger.warning("DB pubsub websocket user publish failed: %s", e)
@@ -121,10 +124,11 @@ class ConnectionManager:
         """Envoie un message uniquement aux connexions de cet utilisateur (asynchrone)."""
         try:
             from app.core.async_db import execute_sql_async
+
             payload = json.dumps({"type": "user", "user_id": user_id, "message": message, "sender_id": WORKER_ID})
             await execute_sql_async(
                 "INSERT INTO pubsub_events (channel, payload, sender_worker_id) VALUES (:channel, :payload, :sender_worker_id)",
-                {"channel": "fabouanes:ws_broadcast", "payload": payload, "sender_worker_id": WORKER_ID}
+                {"channel": "fabouanes:ws_broadcast", "payload": payload, "sender_worker_id": WORKER_ID},
             )
         except Exception as e:
             logger.warning("DB pubsub websocket user publish async failed: %s", e)

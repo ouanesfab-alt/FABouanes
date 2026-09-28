@@ -1,4 +1,5 @@
 """Module Règlements — Gestion des versements et avances clients."""
+
 from app.core.registry import register
 from app.modules.base import ModuleBase
 from app.modules.payments.web import router as web_router
@@ -35,6 +36,7 @@ class PaymentsModule(ModuleBase):
             "manager": ["operations.read", "operations.write", "operations.delete"],
             "operator": ["operations.read"],
         }
+
 
 # Registration
 register(PaymentsModule())

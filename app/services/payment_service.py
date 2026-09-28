@@ -18,7 +18,6 @@ from app.modules.payments.service import PaymentsService
 logger = logging.getLogger("fabouanes")
 
 
-
 @async_compat
 async def new_payment_context(db: AsyncSession | None = None):
     return await payment_form_context(db=db)
@@ -43,8 +42,9 @@ async def _create_payment_from_form_impl(form, db: AsyncSession):
     payment_date = form.get("payment_date") or date.today().isoformat()
     payment_type = (form.get("payment_type") or "versement").strip() or "versement"
     notes = form.get("notes", "").strip()
-    payment_id = await PaymentsService(db).create_payment_record(client_id, amount, payment_date, notes, sale_link, payment_type)
-
+    payment_id = await PaymentsService(db).create_payment_record(
+        client_id, amount, payment_date, notes, sale_link, payment_type
+    )
 
     created_res = await db.execute(select(Payment).where(Payment.id == payment_id))
     created = created_res.scalar_one_or_none()
@@ -84,10 +84,13 @@ async def _get_edit_payment_context_impl(payment_id: int, db: AsyncSession):
         if payment.get("sale_kind") == "finished" and payment.get("sale_id"):
             stmt = (
                 select(
-                    Sale.id, Sale.client_id, Client.name.label("client_name"),
+                    Sale.id,
+                    Sale.client_id,
+                    Client.name.label("client_name"),
                     FinishedProduct.name.label("item_name"),
                     (Sale.balance_due + payment["amount"]).label("balance_due"),
-                    Sale.sale_date, Sale.total
+                    Sale.sale_date,
+                    Sale.total,
                 )
                 .join(Client, Client.id == Sale.client_id)
                 .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
@@ -96,14 +99,28 @@ async def _get_edit_payment_context_impl(payment_id: int, db: AsyncSession):
             res = await db.execute(stmt)
             sale = res.first()
             if sale:
-                open_sales.append(dict(item_kind="finished", id=sale.id, client_id=sale.client_id, client_name=sale.client_name, item_name=sale.item_name, balance_due=sale.balance_due, sale_date=sale.sale_date, total=sale.total))
+                open_sales.append(
+                    dict(
+                        item_kind="finished",
+                        id=sale.id,
+                        client_id=sale.client_id,
+                        client_name=sale.client_name,
+                        item_name=sale.item_name,
+                        balance_due=sale.balance_due,
+                        sale_date=sale.sale_date,
+                        total=sale.total,
+                    )
+                )
         elif payment.get("sale_kind") == "raw" and payment.get("raw_sale_id"):
             stmt = (
                 select(
-                    RawSale.id, RawSale.client_id, Client.name.label("client_name"),
-                    func.coalesce(func.nullif(RawSale.custom_item_name, ''), RawMaterial.name).label("item_name"),
+                    RawSale.id,
+                    RawSale.client_id,
+                    Client.name.label("client_name"),
+                    func.coalesce(func.nullif(RawSale.custom_item_name, ""), RawMaterial.name).label("item_name"),
                     (RawSale.balance_due + payment["amount"]).label("balance_due"),
-                    RawSale.sale_date, RawSale.total
+                    RawSale.sale_date,
+                    RawSale.total,
                 )
                 .join(Client, Client.id == RawSale.client_id)
                 .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
@@ -112,7 +129,18 @@ async def _get_edit_payment_context_impl(payment_id: int, db: AsyncSession):
             res = await db.execute(stmt)
             sale = res.first()
             if sale:
-                open_sales.append(dict(item_kind="raw", id=sale.id, client_id=sale.client_id, client_name=sale.client_name, item_name=sale.item_name, balance_due=sale.balance_due, sale_date=sale.sale_date, total=sale.total))
+                open_sales.append(
+                    dict(
+                        item_kind="raw",
+                        id=sale.id,
+                        client_id=sale.client_id,
+                        client_name=sale.client_name,
+                        item_name=sale.item_name,
+                        balance_due=sale.balance_due,
+                        sale_date=sale.sale_date,
+                        total=sale.total,
+                    )
+                )
 
     clients_res = await db.execute(select(Client).order_by(Client.name))
     clients = [c.model_dump() for c in clients_res.scalars().all()]
@@ -145,13 +173,20 @@ async def _edit_payment_from_form_impl(payment_id: int, form, db: AsyncSession):
     await PaymentsService(db).reverse_payment_allocations(payment_dict)
     await db.execute(delete(Payment).where(Payment.id == payment_id))
 
-    new_payment_id = await PaymentsService(db).create_payment_record(client_id, amount, payment_date, notes, sale_link, form.get("payment_type", "versement"))
+    new_payment_id = await PaymentsService(db).create_payment_record(
+        client_id, amount, payment_date, notes, sale_link, form.get("payment_type", "versement")
+    )
 
     after_res = await db.execute(select(Payment).where(Payment.id == new_payment_id))
     after_obj = after_res.scalar_one_or_none()
     after = after_obj.model_dump() if after_obj else None
 
-    log_activity("update_payment", "payment", payment_id, f"client #{client_id} {form.get('payment_type', 'versement')} montant={amount}")
+    log_activity(
+        "update_payment",
+        "payment",
+        payment_id,
+        f"client #{client_id} {form.get('payment_type', 'versement')} montant={amount}",
+    )
     audit_event("update_payment", "payment", payment_id, before=before, after=after)
     mark_backup_needed("update_payment")
     return new_payment_id
@@ -224,7 +259,12 @@ async def _create_mobile_payment_impl(
     created = created_res.scalar_one_or_none()
     created_dict = created.model_dump() if created else None
 
-    log_activity("create_mobile_payment", "payment", payment_id, f"Mobile: client #{client_id} montant={amount} par user #{recorded_by}")
+    log_activity(
+        "create_mobile_payment",
+        "payment",
+        payment_id,
+        f"Mobile: client #{client_id} montant={amount} par user #{recorded_by}",
+    )
 
     actor_data = {"id": recorded_by, "username": f"user_{recorded_by}", "role": "operator"}
     if recorded_by:

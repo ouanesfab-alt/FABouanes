@@ -6,6 +6,7 @@ Configurable via ``FAB_REQUEST_TIMEOUT_SECONDS`` environment variable (default: 
 Routes matching ``EXEMPT_PREFIXES`` get a longer timeout (3×) to accommodate
 PDF generation and large report exports.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -66,16 +67,22 @@ class RequestTimeoutMiddleware(BaseHTTPMiddleware):
             accept = request.headers.get("accept", "")
             if "application/json" in accept or path.startswith("/api/"):
                 return JSONResponse(
-                    {"success": False, "error": {"code": "timeout", "message": "La requête a pris trop de temps. Veuillez réessayer."}},
+                    {
+                        "success": False,
+                        "error": {"code": "timeout", "message": "La requête a pris trop de temps. Veuillez réessayer."},
+                    },
                     status_code=504,
                 )
 
             # HTML fallback
             from app.web.deps import template_context, templates
+
             try:
                 return templates.TemplateResponse(
                     "error.html",
-                    template_context(request, status_code=504, error_message="La requête a pris trop de temps. Veuillez réessayer."),
+                    template_context(
+                        request, status_code=504, error_message="La requête a pris trop de temps. Veuillez réessayer."
+                    ),
                     status_code=504,
                 )
             except Exception:

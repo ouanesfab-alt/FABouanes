@@ -1,4 +1,5 @@
 """Modèles SQLModel pour le module Catalog (matières premières, produits finis, stock)."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -48,7 +49,9 @@ class FinishedProduct(SQLModel, table=True):
 
     # Relationships
     sales: list["Sale"] = Relationship(sa_relationship=relationship("Sale", back_populates="finished_product"))
-    purchases: list["Purchase"] = Relationship(sa_relationship=relationship("Purchase", back_populates="finished_product"))
+    purchases: list["Purchase"] = Relationship(
+        sa_relationship=relationship("Purchase", back_populates="finished_product")
+    )
 
 
 class StockMovement(SQLModel, table=True):

@@ -31,9 +31,7 @@ async def sales_page(request: Request):
 
 
 @router.post("/sales", name="sales")
-async def sales_submit(
-    request: Request, db: AsyncSession = Depends(get_async_session)
-):
+async def sales_submit(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
@@ -76,9 +74,7 @@ async def new_sale_page(request: Request):
 
 @router.post("/operations/sales/new", name="new_sale")
 @router.post("/sales/new", name="compat_new_sale_submit")
-async def new_sale_submit(
-    request: Request, db: AsyncSession = Depends(get_async_session)
-):
+async def new_sale_submit(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
@@ -113,9 +109,7 @@ async def compat_edit_sale_document_page(request: Request, document_id: int):
 
 
 @router.get("/operations/sales/document/{document_id}/edit", name="edit_sale_document")
-async def edit_sale_document_page(
-    request: Request, document_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def edit_sale_document_page(request: Request, document_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
@@ -139,9 +133,7 @@ async def edit_sale_document_page(
 
 @router.post("/operations/sales/document/{document_id}/edit", name="edit_sale_document")
 @router.post("/sales/document/{document_id}/edit", name="compat_edit_sale_document_submit")
-async def edit_sale_document_submit(
-    request: Request, document_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def edit_sale_document_submit(request: Request, document_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
@@ -174,9 +166,7 @@ async def compat_edit_sale_page(request: Request, kind: str, row_id: int):
 
 
 @router.get("/operations/sales/{kind}/{row_id}/edit", name="edit_sale")
-async def edit_sale_page(
-    request: Request, kind: str, row_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def edit_sale_page(request: Request, kind: str, row_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
@@ -202,9 +192,7 @@ async def edit_sale_page(
 
 @router.post("/operations/sales/{kind}/{row_id}/edit", name="edit_sale")
 @router.post("/sales/{kind}/{row_id}/edit", name="compat_edit_sale_submit")
-async def edit_sale_submit(
-    request: Request, kind: str, row_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def edit_sale_submit(request: Request, kind: str, row_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
@@ -230,9 +218,7 @@ async def edit_sale_submit(
 
 @router.post("/operations/sales/{kind}/{row_id}/delete", name="delete_sale")
 @router.post("/sales/{kind}/{row_id}/delete", name="compat_delete_sale")
-async def delete_sale(
-    request: Request, kind: str, row_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def delete_sale(request: Request, kind: str, row_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_DELETE)
     if denied:
         return denied

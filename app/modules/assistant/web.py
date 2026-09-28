@@ -2,8 +2,6 @@ import json
 import logging
 import os
 
-_logger = logging.getLogger("fabouanes.assistant.web")
-
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
@@ -13,12 +11,16 @@ from app.modules.assistant.schema_context import get_encryption_key, get_gemini_
 from app.modules.assistant.service import run_assistant_agent_generator, start_ollama
 from app.web.deps import require_permission
 
+_logger = logging.getLogger("fabouanes.assistant.web")
+
 router = APIRouter()
+
 
 @router.get("/assistant", name="assistant_chat_page")
 async def assistant_page(request: Request):
     """Redirect to dashboard — Sabrina is now integrated directly there."""
     return RedirectResponse("/dashboard", status_code=303)
+
 
 @router.get("/assistant/briefing")
 async def assistant_briefing(request: Request):
@@ -28,10 +30,12 @@ async def assistant_briefing(request: Request):
         return JSONResponse({"has_briefing": False}, status_code=403)
     try:
         from app.modules.assistant.briefing import generate_briefing_async
+
         result = await generate_briefing_async()
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"has_briefing": False, "error": str(e)})
+
 
 def _resolve_api_key(req_api_key: str) -> str:
     """Détermine et met à jour si nécessaire la clé d'API Gemini active."""
@@ -41,6 +45,7 @@ def _resolve_api_key(req_api_key: str) -> str:
         try:
             stored_key_encrypted = db_manager.get_setting("gemini_api_key", "").strip()
             from app.core.security import decrypt_val
+
             stored_key_decrypted = decrypt_val(stored_key_encrypted, get_encryption_key()) or ""
             if api_key != stored_key_decrypted:
                 encrypted_key = encrypt_val(api_key, get_encryption_key())
@@ -56,6 +61,7 @@ def _resolve_api_key(req_api_key: str) -> str:
 def _parse_audio_message(message: str) -> tuple[str, dict | None]:
     """Extrait le texte et les données inline base64 d'une note vocale enregistrée."""
     import re
+
     audio_match = re.match(r"^\[AUDIO:([^|]+)\|(.*)\]$", message)
     if not audio_match:
         return message, None
@@ -81,9 +87,8 @@ def _handle_file_attachment(file_obj: dict | None, new_message: dict) -> None:
     data = file_obj.get("data")
     filename = file_obj.get("name", "upload.xlsx")
 
-    is_excel = (
-        filename.lower().endswith((".xlsx", ".xlsm")) or
-        (mime_type and ("sheet" in mime_type.lower() or "excel" in mime_type.lower()))
+    is_excel = filename.lower().endswith((".xlsx", ".xlsm")) or (
+        mime_type and ("sheet" in mime_type.lower() or "excel" in mime_type.lower())
     )
 
     if is_excel and mime_type and data:
@@ -106,20 +111,22 @@ def _handle_file_attachment(file_obj: dict | None, new_message: dict) -> None:
                 f.write(file_bytes)
 
             abs_path_str = os.path.abspath(str(target_path))
-            new_message["parts"][0]["text"] += f"\n\n[INFO SYSTÈME : Fichier Excel joint '{filename}' enregistré temporairement sur le serveur à l'emplacement : {abs_path_str}. Pour l'importer, appelle l'outil approprié comme `import_client_excel` ou `import_client_history_excel` avec cet emplacement exact.]"
+            new_message["parts"][0]["text"] += (
+                f"\n\n[INFO SYSTÈME : Fichier Excel joint '{filename}' enregistré temporairement sur le serveur à l'emplacement : {abs_path_str}. Pour l'importer, appelle l'outil approprié comme `import_client_excel` ou `import_client_history_excel` avec cet emplacement exact.]"
+            )
         except Exception as e:
-            new_message["parts"][0]["text"] += f"\n\n[INFO SYSTÈME : Échec de l'enregistrement du fichier Excel joint '{filename}' : {str(e)}]"
+            new_message["parts"][0]["text"] += (
+                f"\n\n[INFO SYSTÈME : Échec de l'enregistrement du fichier Excel joint '{filename}' : {str(e)}]"
+            )
     elif mime_type and data:
-        new_message["parts"].append({
-            "inlineData": {
-                "mimeType": mime_type,
-                "data": data
-            }
-        })
+        new_message["parts"].append({"inlineData": {"mimeType": mime_type, "data": data}})
 
 
-def _create_chat_stream(history: list, new_message: dict, confirmed_query: str | None, api_key: str, user_role: str) -> StreamingResponse:
+def _create_chat_stream(
+    history: list, new_message: dict, confirmed_query: str | None, api_key: str, user_role: str
+) -> StreamingResponse:
     """Génère le flux StreamingResponse SSE pour le chat assistant."""
+
     async def chat_event_generator():
         try:
             if confirmed_query:
@@ -130,16 +137,14 @@ def _create_chat_stream(history: list, new_message: dict, confirmed_query: str |
                 else:
                     messages_to_send = history + [new_message]
             async for event in run_assistant_agent_generator(
-                messages_to_send,
-                api_key or "",
-                confirmed_query,
-                user_role=user_role
+                messages_to_send, api_key or "", confirmed_query, user_role=user_role
             ):
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'error': str(e)}, ensure_ascii=False)}\n\n"
         finally:
             from app.core.request_state import get_request_state
+
             state = get_request_state()
             if state is not None:
                 db = getattr(state, "db", None)
@@ -178,36 +183,33 @@ async def assistant_chat(request: Request):
         api_key = _resolve_api_key(req_api_key)
 
         if not is_local and not api_key:
-            return JSONResponse({
-                "success": False,
-                "error": "Clé d'API Gemini manquante. Veuillez la configurer dans la barre latérale."
-            })
+            return JSONResponse(
+                {
+                    "success": False,
+                    "error": "Clé d'API Gemini manquante. Veuillez la configurer dans la barre latérale.",
+                }
+            )
 
         if not message:
             return JSONResponse({"success": False, "error": "Message vide."})
 
         message_text_for_llm, audio_inline = _parse_audio_message(message)
 
-        new_message = {
-            "role": "user",
-            "parts": [{"text": message_text_for_llm}]
-        }
+        new_message = {"role": "user", "parts": [{"text": message_text_for_llm}]}
         if audio_inline:
             new_message["parts"].append({"inlineData": audio_inline})
 
         _handle_file_attachment(file_obj, new_message)
 
         from app.web.deps import get_current_user
+
         user = get_current_user(request)
         user_role = getattr(user, "role", "operator")
 
         return _create_chat_stream(history, new_message, confirmed_query, api_key, user_role)
 
     except Exception as e:
-        return JSONResponse({
-            "success": False,
-            "error": f"Une erreur s'est produite : {str(e)}"
-        })
+        return JSONResponse({"success": False, "error": f"Une erreur s'est produite : {str(e)}"})
 
 
 @router.post("/assistant/settings", name="assistant_save_settings")
@@ -240,9 +242,11 @@ async def save_settings(request: Request):
             except Exception as exc:
                 _logger.warning("Failed auto-starting Ollama process: %s", exc)
 
-    is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest" or \
-              "application/json" in request.headers.get("accept", "") or \
-              "application/json" in content_type
+    is_ajax = (
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+        or "application/json" in request.headers.get("accept", "")
+        or "application/json" in content_type
+    )
 
     if is_ajax:
         return JSONResponse({"success": True})
@@ -257,11 +261,13 @@ async def test_api_key_endpoint(request: Request):
         return JSONResponse({"success": False, "error": "Permission refusée."}, status_code=403)
     try:
         from app.modules.assistant.schema_context import get_gemini_api_key
+
         key = get_gemini_api_key()
         if not key:
             return JSONResponse({"success": False, "error": "Aucune clé d'API enregistrée."})
 
         import httpx
+
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={key}"
         payload = {"contents": [{"parts": [{"text": "Say ok"}]}]}
         async with httpx.AsyncClient(timeout=10.0) as client:

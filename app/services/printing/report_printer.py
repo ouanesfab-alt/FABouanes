@@ -73,27 +73,29 @@ async def _build_sale_finished_payload_impl(
 
     row_dict = dict(row._mapping)
     lines = [_sale_line_to_doc_line(row_dict, row_dict["item_name"])]
-    return _print_defaults({
-        "title": "Facture",
-        "subtitle": "Vente produit final",
-        "number": f"VPF-{row_dict['id']:06d}",
-        "date": row_dict["sale_date"],
-        "partner_label": "Client",
-        "partner_name": row_dict["partner_name"],
-        "partner_phone": row_dict["partner_phone"] or "",
-        "partner_address": row_dict["partner_address"] or "",
-        "payment_mode": _payment_mode_label(row_dict["sale_type"]),
-        "item_label": "Article",
-        "item_name": row_dict["item_name"],
-        "quantity": row_dict["quantity"],
-        "unit": row_dict["unit"],
-        "unit_price": row_dict["unit_price"],
-        "total": row_dict["total"],
-        "paid": row_dict["amount_paid"],
-        "due": row_dict["balance_due"],
-        "notes": row_dict["notes"] or "",
-        "lines": lines,
-    })
+    return _print_defaults(
+        {
+            "title": "Facture",
+            "subtitle": "Vente produit final",
+            "number": f"VPF-{row_dict['id']:06d}",
+            "date": row_dict["sale_date"],
+            "partner_label": "Client",
+            "partner_name": row_dict["partner_name"],
+            "partner_phone": row_dict["partner_phone"] or "",
+            "partner_address": row_dict["partner_address"] or "",
+            "payment_mode": _payment_mode_label(row_dict["sale_type"]),
+            "item_label": "Article",
+            "item_name": row_dict["item_name"],
+            "quantity": row_dict["quantity"],
+            "unit": row_dict["unit"],
+            "unit_price": row_dict["unit_price"],
+            "total": row_dict["total"],
+            "paid": row_dict["amount_paid"],
+            "due": row_dict["balance_due"],
+            "notes": row_dict["notes"] or "",
+            "lines": lines,
+        }
+    )
 
 
 async def _build_sale_raw_payload(
@@ -138,27 +140,29 @@ async def _build_sale_raw_payload_impl(
 
     row_dict = dict(row._mapping)
     lines = [_sale_line_to_doc_line(row_dict, row_dict["item_name"])]
-    return _print_defaults({
-        "title": "Facture",
-        "subtitle": "Vente matière première",
-        "number": f"VMP-{row_dict['id']:06d}",
-        "date": row_dict["sale_date"],
-        "partner_label": "Client",
-        "partner_name": row_dict["partner_name"],
-        "partner_phone": row_dict["partner_phone"] or "",
-        "partner_address": row_dict["partner_address"] or "",
-        "payment_mode": _payment_mode_label(row_dict["sale_type"]),
-        "item_label": "Article",
-        "item_name": row_dict["item_name"],
-        "quantity": row_dict["quantity"],
-        "unit": row_dict["unit"],
-        "unit_price": row_dict["unit_price"],
-        "total": row_dict["total"],
-        "paid": row_dict["amount_paid"],
-        "due": row_dict["balance_due"],
-        "notes": row_dict["notes"] or "",
-        "lines": lines,
-    })
+    return _print_defaults(
+        {
+            "title": "Facture",
+            "subtitle": "Vente matière première",
+            "number": f"VMP-{row_dict['id']:06d}",
+            "date": row_dict["sale_date"],
+            "partner_label": "Client",
+            "partner_name": row_dict["partner_name"],
+            "partner_phone": row_dict["partner_phone"] or "",
+            "partner_address": row_dict["partner_address"] or "",
+            "payment_mode": _payment_mode_label(row_dict["sale_type"]),
+            "item_label": "Article",
+            "item_name": row_dict["item_name"],
+            "quantity": row_dict["quantity"],
+            "unit": row_dict["unit"],
+            "unit_price": row_dict["unit_price"],
+            "total": row_dict["total"],
+            "paid": row_dict["amount_paid"],
+            "due": row_dict["balance_due"],
+            "notes": row_dict["notes"] or "",
+            "lines": lines,
+        }
+    )
 
 
 async def _build_sale_document_payload(
@@ -213,27 +217,29 @@ async def _build_sale_document_payload_impl(
     lines = [_sale_line_to_doc_line(dict(row._mapping), row.item_name) | {"kind": row.kind} for row in line_rows]
     subtitle = _sale_document_subtitle(lines)
     clean_lines = [{k: v for k, v in line.items() if k != "kind"} for line in lines]
-    return _print_defaults({
-        "title": "Facture",
-        "subtitle": subtitle,
-        "number": f"FAC-{doc_dict['id']:06d}",
-        "date": doc_dict["sale_date"],
-        "partner_label": "Client",
-        "partner_name": doc_dict["partner_name"],
-        "partner_phone": doc_dict["partner_phone"] or "",
-        "partner_address": doc_dict["partner_address"] or "",
-        "payment_mode": _payment_mode_label(doc_dict["sale_type"]),
-        "item_label": "Article",
-        "item_name": f"{len(clean_lines)} ligne(s)",
-        "quantity": None,
-        "unit": "",
-        "unit_price": None,
-        "total": doc_dict["total"],
-        "paid": doc_dict["amount_paid"],
-        "due": doc_dict["balance_due"],
-        "notes": doc_dict["notes"] or "",
-        "lines": clean_lines,
-    })
+    return _print_defaults(
+        {
+            "title": "Facture",
+            "subtitle": subtitle,
+            "number": f"FAC-{doc_dict['id']:06d}",
+            "date": doc_dict["sale_date"],
+            "partner_label": "Client",
+            "partner_name": doc_dict["partner_name"],
+            "partner_phone": doc_dict["partner_phone"] or "",
+            "partner_address": doc_dict["partner_address"] or "",
+            "payment_mode": _payment_mode_label(doc_dict["sale_type"]),
+            "item_label": "Article",
+            "item_name": f"{len(clean_lines)} ligne(s)",
+            "quantity": None,
+            "unit": "",
+            "unit_price": None,
+            "total": doc_dict["total"],
+            "paid": doc_dict["amount_paid"],
+            "due": doc_dict["balance_due"],
+            "notes": doc_dict["notes"] or "",
+            "lines": clean_lines,
+        }
+    )
 
 
 async def _build_payment_payload(
@@ -274,24 +280,26 @@ async def _build_payment_payload_impl(
             "total": row_dict["amount"],
         }
     ]
-    return _print_defaults({
-        "title": "Re\u00e7u",
-        "subtitle": label,
-        "number": f"PAY-{row_dict['id']:06d}",
-        "date": row_dict["payment_date"],
-        "partner_label": "Client",
-        "partner_name": row_dict["partner_name"],
-        "partner_phone": row_dict["partner_phone"] or "",
-        "partner_address": row_dict["partner_address"] or "",
-        "payment_mode": _payment_mode_label(row_dict["payment_type"]),
-        "item_label": "Reference",
-        "item_name": label,
-        "quantity": None,
-        "unit": "",
-        "unit_price": None,
-        "total": row_dict["amount"],
-        "paid": row_dict["amount"],
-        "due": 0,
-        "notes": row_dict["notes"] or "",
-        "lines": lines,
-    })
+    return _print_defaults(
+        {
+            "title": "Re\u00e7u",
+            "subtitle": label,
+            "number": f"PAY-{row_dict['id']:06d}",
+            "date": row_dict["payment_date"],
+            "partner_label": "Client",
+            "partner_name": row_dict["partner_name"],
+            "partner_phone": row_dict["partner_phone"] or "",
+            "partner_address": row_dict["partner_address"] or "",
+            "payment_mode": _payment_mode_label(row_dict["payment_type"]),
+            "item_label": "Reference",
+            "item_name": label,
+            "quantity": None,
+            "unit": "",
+            "unit_price": None,
+            "total": row_dict["amount"],
+            "paid": row_dict["amount"],
+            "due": 0,
+            "notes": row_dict["notes"] or "",
+            "lines": lines,
+        }
+    )

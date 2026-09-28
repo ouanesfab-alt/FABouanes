@@ -67,16 +67,19 @@ async def api_auth_refresh(request: Request):
         api_error("refresh_token_invalid", "Jeton de renouvellement invalide.", 401)
     access_token = create_access_token(user)
     new_refresh = await create_refresh_token(request, user)
-    await asyncio.to_thread(audit_event, "api_refresh", "user", user["id"], source="api", after={"username": user["username"]})
-    return _response(
-        api_success({
-            "access_token": access_token,
-            "refresh_token": new_refresh,
-            "token_type": "Bearer",
-            "expires_in": ACCESS_TOKEN_TTL_SECONDS
-        })
+    await asyncio.to_thread(
+        audit_event, "api_refresh", "user", user["id"], source="api", after={"username": user["username"]}
     )
-
+    return _response(
+        api_success(
+            {
+                "access_token": access_token,
+                "refresh_token": new_refresh,
+                "token_type": "Bearer",
+                "expires_in": ACCESS_TOKEN_TTL_SECONDS,
+            }
+        )
+    )
 
 
 @router.post("/logout")
@@ -89,7 +92,9 @@ async def api_auth_logout(request: Request):
     else:
         await revoke_all_user_tokens(int(user["id"]))
     await asyncio.to_thread(log_activity, "api_logout", "user", user["id"], f"API logout {user['username']}")
-    await asyncio.to_thread(audit_event, "api_logout", "user", user["id"], source="api", after={"username": user["username"]})
+    await asyncio.to_thread(
+        audit_event, "api_logout", "user", user["id"], source="api", after={"username": user["username"]}
+    )
     return _response(api_success({"revoked": True}))
 
 
@@ -103,8 +108,16 @@ async def api_auth_me(request: Request):
                 "username": user["username"],
                 "role": user["role"],
                 "must_change_password": bool(int(user.get("must_change_password", 0) or 0)),
-                "last_login_at": user.get("last_login_at").isoformat() if hasattr(user.get("last_login_at"), "isoformat") else str(user.get("last_login_at")) if user.get("last_login_at") else None,
-                "last_password_change_at": user.get("last_password_change_at").isoformat() if hasattr(user.get("last_password_change_at"), "isoformat") else str(user.get("last_password_change_at")) if user.get("last_password_change_at") else None,
+                "last_login_at": user.get("last_login_at").isoformat()
+                if hasattr(user.get("last_login_at"), "isoformat")
+                else str(user.get("last_login_at"))
+                if user.get("last_login_at")
+                else None,
+                "last_password_change_at": user.get("last_password_change_at").isoformat()
+                if hasattr(user.get("last_password_change_at"), "isoformat")
+                else str(user.get("last_password_change_at"))
+                if user.get("last_password_change_at")
+                else None,
             }
         )
     )

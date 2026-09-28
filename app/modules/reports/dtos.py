@@ -14,17 +14,20 @@ class ReportsSummaryDTO(BaseModel):
     nb_purchases: int
     nb_payments: int
 
+
 class TopProductDTO(BaseModel):
     name: str
     qty: float
     revenue: Decimal
     profit: Decimal
 
+
 class TopClientDTO(BaseModel):
     name: str
     count: int
     revenue: Decimal
     profit: Decimal
+
 
 class ClientDebtDTO(BaseModel):
     id: int
@@ -39,11 +42,13 @@ class ClientDebtDTO(BaseModel):
     limit_utilized_pct_clamped: float
     limit_exceeded: bool
 
+
 class DebtTotalsDTO(BaseModel):
     under_30: Decimal
     days_30_to_90: Decimal
     over_90: Decimal
     outstanding: Decimal
+
 
 class ReportsContextDTO(BaseModel):
     summary: ReportsSummaryDTO

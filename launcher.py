@@ -79,6 +79,7 @@ if not os.environ.get("FAB_HOST", "").strip():
 
 import json
 import shutil
+import subprocess
 import time
 import socket
 import threading

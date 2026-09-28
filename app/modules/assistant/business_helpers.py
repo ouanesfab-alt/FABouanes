@@ -6,6 +6,7 @@ Fournit des utilitaires déterministes pour :
 - Normaliser des montants et quantités ("45 000 DA", "1,5 kg", "45k"...)
 - Recherche floue de clients/produits dans la base de données
 """
+
 from __future__ import annotations
 
 import logging
@@ -21,23 +22,40 @@ logger = logging.getLogger("fabouanes.assistant.business_helpers")
 # ---------------------------------------------------------------------------
 
 MONTHS_FR = {
-    "janvier": 1, "jan": 1,
-    "février": 2, "fevrier": 2, "fev": 2,
+    "janvier": 1,
+    "jan": 1,
+    "février": 2,
+    "fevrier": 2,
+    "fev": 2,
     "mars": 3,
-    "avril": 4, "avr": 4,
+    "avril": 4,
+    "avr": 4,
     "mai": 5,
     "juin": 6,
-    "juillet": 7, "juil": 7,
-    "août": 8, "aout": 8,
-    "septembre": 9, "sep": 9, "sept": 9,
-    "octobre": 10, "oct": 10,
-    "novembre": 11, "nov": 11,
-    "décembre": 12, "decembre": 12, "dec": 12,
+    "juillet": 7,
+    "juil": 7,
+    "août": 8,
+    "aout": 8,
+    "septembre": 9,
+    "sep": 9,
+    "sept": 9,
+    "octobre": 10,
+    "oct": 10,
+    "novembre": 11,
+    "nov": 11,
+    "décembre": 12,
+    "decembre": 12,
+    "dec": 12,
 }
 
 WEEKDAYS_FR = {
-    "lundi": 0, "mardi": 1, "mercredi": 2, "jeudi": 3,
-    "vendredi": 4, "samedi": 5, "dimanche": 6,
+    "lundi": 0,
+    "mardi": 1,
+    "mercredi": 2,
+    "jeudi": 3,
+    "vendredi": 4,
+    "samedi": 5,
+    "dimanche": 6,
 }
 
 
@@ -184,6 +202,7 @@ def date_range_for_expression(text: str, reference: Optional[date] = None):
 # Montants & quantités — normalisation
 # ---------------------------------------------------------------------------
 
+
 def parse_amount(text: Any) -> float:
     """
     Convertit un texte de montant/quantité en float propre.
@@ -203,11 +222,32 @@ def parse_amount(text: Any) -> float:
 
     # Supprimer les suffixes connus
     suffixes_to_strip = [
-        "da", "dzd", "da.", "dzd.", "dinar", "dinars",
-        "kg", "kgs", "g", "litre", "litres", "l",
-        "sac", "sacs", "q", "quintal", "quintaux",
-        "u", "unité", "unites", "pièce", "pieces",
-        "€", "$", "eur", "usd",
+        "da",
+        "dzd",
+        "da.",
+        "dzd.",
+        "dinar",
+        "dinars",
+        "kg",
+        "kgs",
+        "g",
+        "litre",
+        "litres",
+        "l",
+        "sac",
+        "sacs",
+        "q",
+        "quintal",
+        "quintaux",
+        "u",
+        "unité",
+        "unites",
+        "pièce",
+        "pieces",
+        "€",
+        "$",
+        "eur",
+        "usd",
     ]
     for suf in suffixes_to_strip:
         if s.endswith(suf):
@@ -267,8 +307,16 @@ def parse_amount(text: Any) -> float:
 ENUM_VALUES: Dict[str, Dict[str, List[str]]] = {
     "expenses": {
         "category": [
-            "general", "transport", "fournitures", "loyer", "salaires",
-            "maintenance", "telecom", "energie", "impots", "autre",
+            "general",
+            "transport",
+            "fournitures",
+            "loyer",
+            "salaires",
+            "maintenance",
+            "telecom",
+            "energie",
+            "impots",
+            "autre",
         ],
         "payment_method": ["cash", "cheque", "virement", "autre"],
     },

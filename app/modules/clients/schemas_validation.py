@@ -43,8 +43,10 @@ class ClientBaseSchema(BaseModel):
             raise ValueError("Le crédit initial ne peut pas être négatif.")
         return f_val
 
+
 class ClientCreateSchema(ClientBaseSchema):
     pass
+
 
 class ClientUpdateSchema(ClientBaseSchema):
     pass

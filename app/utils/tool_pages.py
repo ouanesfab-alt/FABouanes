@@ -32,7 +32,7 @@ def list_user_notes() -> list[dict[str, Any]]:
                 "content": content,
                 "color": "yellow",
                 "pinned": False,
-                "updated_at": old_path.stat().st_mtime
+                "updated_at": old_path.stat().st_mtime,
             }
             main_note_path.write_text(json.dumps(main_note, ensure_ascii=False, indent=2), encoding="utf-8")
             # Rename legacy file to avoid migrating again
@@ -70,7 +70,7 @@ def list_user_notes() -> list[dict[str, Any]]:
             "content": "# Bienvenue !\n\nVoici votre nouveau bloc-notes moderne.\n\n### Fonctionnalités :\n- **Multi-notes** : Créez autant de notes que vous le souhaitez dans le panneau latéral.\n- **Épinglage** : Épinglez vos notes importantes en haut de la liste.\n- **Couleurs macOS** : Associez des couleurs à vos notes pour mieux les organiser.\n- **Éditeur Markdown** : Utilisez des balises simples comme `**gras**` ou `*italique*` et visualisez le rendu en temps réel.\n- **Checklists interactives** : Suivez vos tâches avec des cases à cocher `- [ ]` !\n\nProfitez-en !",
             "color": "yellow",
             "pinned": True,
-            "updated_at": time.time()
+            "updated_at": time.time(),
         }
         try:
             main_note_path.write_text(json.dumps(welcome_note, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -95,7 +95,9 @@ def get_user_note(note_id: str) -> dict[str, Any] | None:
     return None
 
 
-def save_user_note(note_id: str, title: str, content: str, color: str = "yellow", pinned: bool = False) -> dict[str, Any]:
+def save_user_note(
+    note_id: str, title: str, content: str, color: str = "yellow", pinned: bool = False
+) -> dict[str, Any]:
     ensure_runtime_dirs()
     safe_id = secure_filename(note_id or "")
     path = paths.notes_dir / f"note_{safe_id}.json"
@@ -106,7 +108,7 @@ def save_user_note(note_id: str, title: str, content: str, color: str = "yellow"
         "content": content or "",
         "color": color or "yellow",
         "pinned": bool(pinned),
-        "updated_at": time.time()
+        "updated_at": time.time(),
     }
 
     # Save a history version (backup) before overwriting
@@ -203,7 +205,6 @@ def read_notes_version(filename: str) -> str:
         except Exception:
             pass
     return ""
-
 
 
 def list_pdf_reader_files() -> list[str]:

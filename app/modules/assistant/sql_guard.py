@@ -72,6 +72,7 @@ def get_allowed_write_tables() -> set[str]:
     tables = set(ALLOWED_WRITE_TABLES_BASE)
     try:
         from sqlmodel import SQLModel
+
         for tbl_name in SQLModel.metadata.tables.keys():
             if tbl_name not in PROTECTED_TABLE_NAMES:
                 tables.add(tbl_name.lower())
@@ -81,7 +82,6 @@ def get_allowed_write_tables() -> set[str]:
 
 
 ALLOWED_WRITE_TABLES = ALLOWED_WRITE_TABLES_BASE
-
 
 
 @dataclass
@@ -157,7 +157,10 @@ def _has_valid_where_clause(statement: Any) -> tuple[bool, str | None]:
 
     where_node = statement.args.get("where")
     if where_node is None:
-        return False, "La clause WHERE est obligatoire pour les opérations de mise à jour (UPDATE) et de suppression (DELETE)."
+        return (
+            False,
+            "La clause WHERE est obligatoire pour les opérations de mise à jour (UPDATE) et de suppression (DELETE).",
+        )
 
     expr = where_node.this
     if expr is None:

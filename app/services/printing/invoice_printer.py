@@ -52,12 +52,12 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
 
     # Premium Color Scheme matching HTML CSS variables
     primary_color = colors.HexColor("#0f172a")  # Deep Charcoal
-    accent_color = colors.HexColor("#0284c7")   # Corporate Ocean Blue
-    text_dark = colors.HexColor("#1e293b")      # Dark Slate Text
-    text_muted = colors.HexColor("#64748b")     # Light Slate Text
-    border_color = colors.HexColor("#cbd5e1")   # Slate Border
-    border_light = colors.HexColor("#e2e8f0")   # Light Slate Divider
-    bg_light = colors.HexColor("#f8fafc")       # Soft Accent Background
+    accent_color = colors.HexColor("#0284c7")  # Corporate Ocean Blue
+    text_dark = colors.HexColor("#1e293b")  # Dark Slate Text
+    text_muted = colors.HexColor("#64748b")  # Light Slate Text
+    border_color = colors.HexColor("#cbd5e1")  # Slate Border
+    border_light = colors.HexColor("#e2e8f0")  # Light Slate Divider
+    bg_light = colors.HexColor("#f8fafc")  # Soft Accent Background
 
     story = []
 
@@ -248,7 +248,9 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
 
     printed_date = str(doc.get("printed_date") or doc.get("date") or "")
     printed_time = str(doc.get("printed_time") or "")
-    show_partner_phone = str(doc.get("partner_label", "")).strip().lower() != "client" and bool(doc.get("partner_phone"))
+    show_partner_phone = str(doc.get("partner_label", "")).strip().lower() != "client" and bool(
+        doc.get("partner_phone")
+    )
 
     # Company Contact Info Block
     brand_logo = _logo_cell(BASE_DIR / "static" / "fab_invoice_logo_clean.png", 12.4, 3.98)
@@ -263,9 +265,7 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
     ]
 
     # Inner title banner with left accent border
-    title_sub_rows = [
-        [Paragraph(str(doc.get("title", "")).upper(), invoice_title_style)]
-    ]
+    title_sub_rows = [[Paragraph(str(doc.get("title", "")).upper(), invoice_title_style)]]
     if doc.get("subtitle"):
         title_sub_rows.append([Paragraph(str(doc.get("subtitle", "")), subtitle_style)])
 
@@ -287,7 +287,9 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
     invoice_rows = [
         [title_wrap_table, ""]  # Spanned over 2 columns
     ]
-    invoice_rows.append([Paragraph("N° DOCUMENT :", invoice_label_style), Paragraph(str(doc.get("number", "")), invoice_value_style)])
+    invoice_rows.append(
+        [Paragraph("N° DOCUMENT :", invoice_label_style), Paragraph(str(doc.get("number", "")), invoice_value_style)]
+    )
     invoice_rows.append([Paragraph("DATE :", invoice_label_style), Paragraph(printed_date, invoice_value_style)])
     if printed_time:
         invoice_rows.append([Paragraph("HEURE :", invoice_label_style), Paragraph(printed_time, invoice_value_style)])
@@ -350,12 +352,16 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
 
     # Indent the tab by 0.4 cm to match HTML layout alignment
     tab_indent = Table([["", tab_table]], colWidths=[0.4 * cm, 2.2 * cm], hAlign="LEFT")
-    tab_indent.setStyle(TableStyle([
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-    ]))
+    tab_indent.setStyle(
+        TableStyle(
+            [
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
 
     client_rows = [
         [
@@ -374,20 +380,14 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
     ]
     if show_partner_phone:
-        client_rows.append([
-            Paragraph(f"<b>Tél :</b> {doc['partner_phone']}", client_box_text_style),
-            "", ""
-        ])
+        client_rows.append([Paragraph(f"<b>Tél :</b> {doc['partner_phone']}", client_box_text_style), "", ""])
         r_idx = len(client_rows) - 1
         client_style_commands.append(("SPAN", (0, r_idx), (2, r_idx)))
         client_style_commands.append(("TOPPADDING", (0, r_idx), (-1, r_idx), 0))
         client_style_commands.append(("BOTTOMPADDING", (0, r_idx), (-1, r_idx), 4))
 
     if doc.get("partner_address"):
-        client_rows.append([
-            Paragraph(f"<b>Adresse :</b> {doc['partner_address']}", client_box_text_style),
-            "", ""
-        ])
+        client_rows.append([Paragraph(f"<b>Adresse :</b> {doc['partner_address']}", client_box_text_style), "", ""])
         r_idx = len(client_rows) - 1
         client_style_commands.append(("SPAN", (0, r_idx), (2, r_idx)))
         client_style_commands.append(("TOPPADDING", (0, r_idx), (-1, r_idx), 0))
@@ -462,10 +462,19 @@ def generate_invoice_pdf(doc: dict[str, Any], printed_by: str) -> BytesIO | None
     # Summary Totals Box
     summary_rows = []
     if doc.get("paid") is not None:
-        summary_rows.append([Paragraph("Payé", summary_label_style), Paragraph(_fmt_money_pdf(doc["paid"]), summary_value_style)])
+        summary_rows.append(
+            [Paragraph("Payé", summary_label_style), Paragraph(_fmt_money_pdf(doc["paid"]), summary_value_style)]
+        )
     if doc.get("due") is not None:
-        summary_rows.append([Paragraph("Reste", summary_label_style), Paragraph(_fmt_money_pdf(doc["due"]), summary_value_style)])
-    summary_rows.append([Paragraph("Total", summary_total_label_style), Paragraph(_fmt_money_pdf(doc.get("total", 0)), summary_total_value_style)])
+        summary_rows.append(
+            [Paragraph("Reste", summary_label_style), Paragraph(_fmt_money_pdf(doc["due"]), summary_value_style)]
+        )
+    summary_rows.append(
+        [
+            Paragraph("Total", summary_total_label_style),
+            Paragraph(_fmt_money_pdf(doc.get("total", 0)), summary_total_value_style),
+        ]
+    )
 
     summary_table = Table(summary_rows, colWidths=[3.0 * cm, 3.4 * cm], hAlign="RIGHT")
     summary_commands = [
@@ -523,19 +532,59 @@ def _generate_invoice_pdf_model(doc: dict[str, Any], printed_by: str) -> BytesIO
     show_partner_phone = str(doc.get("partner_label", "")).strip().lower() != "client"
     story = []
 
-    brand_style = ParagraphStyle("model_brand", parent=styles["Normal"], fontName=pdf_font_bold, fontSize=30, leading=30, textColor=black)
-    subtitle_style = ParagraphStyle("model_company_subtitle", parent=styles["Normal"], fontName=pdf_font_regular, fontSize=14, leading=16, textColor=colors.HexColor("#222222"))
-    contact_style = ParagraphStyle("model_contact", parent=styles["Normal"], fontName=pdf_font_regular, fontSize=10, leading=13, textColor=black)
-    box_title_style = ParagraphStyle("model_box_title", parent=styles["Normal"], fontName=pdf_font_bold, fontSize=28, leading=30, textColor=black, alignment=TA_CENTER)
-    label_style = ParagraphStyle("model_label", parent=styles["Normal"], fontName=pdf_font_bold, fontSize=10, leading=12, textColor=black)
-    value_style = ParagraphStyle("model_value", parent=styles["Normal"], fontName=pdf_font_regular, fontSize=10, leading=12, textColor=colors.HexColor("#222222"))
-    table_head_style = ParagraphStyle("model_table_head", parent=styles["Normal"], fontName=pdf_font_bold, fontSize=10, leading=12, textColor=black, alignment=TA_CENTER)
-    cell_style = ParagraphStyle("model_cell", parent=styles["Normal"], fontName=pdf_font_regular, fontSize=9, leading=11, textColor=black)
+    brand_style = ParagraphStyle(
+        "model_brand", parent=styles["Normal"], fontName=pdf_font_bold, fontSize=30, leading=30, textColor=black
+    )
+    subtitle_style = ParagraphStyle(
+        "model_company_subtitle",
+        parent=styles["Normal"],
+        fontName=pdf_font_regular,
+        fontSize=14,
+        leading=16,
+        textColor=colors.HexColor("#222222"),
+    )
+    contact_style = ParagraphStyle(
+        "model_contact", parent=styles["Normal"], fontName=pdf_font_regular, fontSize=10, leading=13, textColor=black
+    )
+    box_title_style = ParagraphStyle(
+        "model_box_title",
+        parent=styles["Normal"],
+        fontName=pdf_font_bold,
+        fontSize=28,
+        leading=30,
+        textColor=black,
+        alignment=TA_CENTER,
+    )
+    label_style = ParagraphStyle(
+        "model_label", parent=styles["Normal"], fontName=pdf_font_bold, fontSize=10, leading=12, textColor=black
+    )
+    value_style = ParagraphStyle(
+        "model_value",
+        parent=styles["Normal"],
+        fontName=pdf_font_regular,
+        fontSize=10,
+        leading=12,
+        textColor=colors.HexColor("#222222"),
+    )
+    table_head_style = ParagraphStyle(
+        "model_table_head",
+        parent=styles["Normal"],
+        fontName=pdf_font_bold,
+        fontSize=10,
+        leading=12,
+        textColor=black,
+        alignment=TA_CENTER,
+    )
+    cell_style = ParagraphStyle(
+        "model_cell", parent=styles["Normal"], fontName=pdf_font_regular, fontSize=9, leading=11, textColor=black
+    )
     cell_bold_style = ParagraphStyle("model_cell_bold", parent=cell_style, fontName=pdf_font_bold)
     cell_right_style = ParagraphStyle("model_cell_right", parent=cell_style, alignment=TA_RIGHT)
     tab_style = ParagraphStyle("model_tab", parent=label_style, textColor=colors.white, alignment=TA_CENTER)
     total_label_style = ParagraphStyle("model_total_label", parent=label_style, fontSize=14, leading=16)
-    total_value_style = ParagraphStyle("model_total_value", parent=cell_right_style, fontName=pdf_font_bold, fontSize=14, leading=16)
+    total_value_style = ParagraphStyle(
+        "model_total_value", parent=cell_right_style, fontName=pdf_font_bold, fontSize=14, leading=16
+    )
 
     logo_cell = _logo_cell(BASE_DIR / "static" / "fab_logo.png", 2.35, 2.35)
     company_copy = [
@@ -563,7 +612,10 @@ def _generate_invoice_pdf_model(doc: dict[str, Any], printed_by: str) -> BytesIO
         [
             [Paragraph(str(doc.get("title", "")).upper(), box_title_style), ""],
             [Paragraph("N facture :", label_style), Paragraph(str(doc.get("number", "")), value_style)],
-            [Paragraph("Date / Heure :", label_style), Paragraph(f"{printed_date} {printed_time}".strip(), value_style)],
+            [
+                Paragraph("Date / Heure :", label_style),
+                Paragraph(f"{printed_date} {printed_time}".strip(), value_style),
+            ],
         ],
         colWidths=[3.7 * cm, 3.9 * cm],
     )
@@ -658,7 +710,13 @@ def _generate_invoice_pdf_model(doc: dict[str, Any], printed_by: str) -> BytesIO
 
     items_table = Table(
         table_rows,
-        colWidths=[content_width * 0.42, content_width * 0.16, content_width * 0.12, content_width * 0.16, content_width * 0.14],
+        colWidths=[
+            content_width * 0.42,
+            content_width * 0.16,
+            content_width * 0.12,
+            content_width * 0.16,
+            content_width * 0.14,
+        ],
         repeatRows=1,
     )
     items_table.setStyle(
@@ -705,14 +763,19 @@ def _generate_invoice_pdf_model(doc: dict[str, Any], printed_by: str) -> BytesIO
 
     summary_rows = [
         [Paragraph("Sous-total", label_style), Paragraph(_fmt_money_pdf(subtotal), cell_right_style)],
-        [Paragraph("Remise", label_style), Paragraph(_fmt_money_pdf(discount) if discount else "____________", cell_right_style)],
+        [
+            Paragraph("Remise", label_style),
+            Paragraph(_fmt_money_pdf(discount) if discount else "____________", cell_right_style),
+        ],
         [Paragraph("TVA", label_style), Paragraph(_fmt_money_pdf(tax) if tax else "____________", cell_right_style)],
     ]
     if doc.get("paid") is not None:
         summary_rows.append([Paragraph("Paye", label_style), Paragraph(_fmt_money_pdf(doc["paid"]), cell_right_style)])
     if doc.get("due") is not None:
         summary_rows.append([Paragraph("Reste", label_style), Paragraph(_fmt_money_pdf(doc["due"]), cell_right_style)])
-    summary_rows.append([Paragraph("Total TTC", total_label_style), Paragraph(_fmt_money_pdf(grand_total), total_value_style)])
+    summary_rows.append(
+        [Paragraph("Total TTC", total_label_style), Paragraph(_fmt_money_pdf(grand_total), total_value_style)]
+    )
     summary_table = Table(summary_rows, colWidths=[4.1 * cm, 4.1 * cm])
     summary_table.setStyle(
         TableStyle(

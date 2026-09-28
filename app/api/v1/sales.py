@@ -34,7 +34,6 @@ async def api_sellable_items(request: Request):
     return response
 
 
-
 @router.api_route("/sales", methods=["GET", "POST"])
 async def api_sales(request: Request, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_OPERATIONS_WRITE if request.method == "POST" else PERMISSION_OPERATIONS_READ)
@@ -70,20 +69,14 @@ async def api_sales(request: Request, db: AsyncSession = Depends(get_async_sessi
         kind=request.query_params.get("kind"),
         status=request.query_params.get("status"),
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
-    meta = {
-        "page": page,
-        "page_size": page_size,
-        "returned": len(rows),
-        "total": total
-    }
+    meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
     res_data = api_success(rows, meta)
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=30)
     return response
-
 
 
 @router.api_route("/sales/{kind}/{row_id}", methods=["GET", "PUT", "DELETE"])
@@ -163,7 +156,6 @@ async def api_sale_document_detail(request: Request, document_id: int, db: Async
     return response
 
 
-
 @router.get("/recent-operations")
 async def api_recent_operations(request: Request, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_OPERATIONS_READ)
@@ -176,17 +168,11 @@ async def api_recent_operations(request: Request, db: AsyncSession = Depends(get
         kind=request.query_params.get("kind"),
         page=page,
         page_size=page_size,
-        db=db
+        db=db,
     )
 
-    meta = {
-        "page": page,
-        "page_size": page_size,
-        "returned": len(rows),
-        "total": total
-    }
+    meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
     res_data = api_success(rows, meta)
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=30)
     return response
-

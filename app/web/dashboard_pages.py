@@ -120,16 +120,20 @@ async def api_kpi_period(request: Request):
         return JSONResponse({"error": "Période invalide."}, status_code=400)
     try:
         from app.modules.reports.repository import get_kpis_for_period
+
         kpis = await get_kpis_for_period(period)
-        return JSONResponse({
-            "success": True,
-            "sales": kpis["sales"],
-            "cash": kpis["cash"],
-            "profit": kpis["profit"],
-            "receivables": kpis["receivables"]
-        })
+        return JSONResponse(
+            {
+                "success": True,
+                "sales": kpis["sales"],
+                "cash": kpis["cash"],
+                "profit": kpis["profit"],
+                "receivables": kpis["receivables"],
+            }
+        )
     except Exception as exc:
         import logging
+
         logging.getLogger("fabouanes").error("Error fetching KPI for period %s: %s", period, exc)
         return JSONResponse({"success": False, "error": "Erreur interne."}, status_code=500)
 
@@ -150,14 +154,12 @@ async def api_kpi_history(request: Request):
 
     try:
         from app.modules.reports.repository import get_kpi_history_last_30_days
+
         labels, values = await get_kpi_history_last_30_days(metric, days=days_param)
-        return JSONResponse({
-            "success": True,
-            "labels": labels,
-            "values": values
-        })
+        return JSONResponse({"success": True, "labels": labels, "values": values})
     except Exception as exc:
         import logging
+
         logging.getLogger("fabouanes").error("Error fetching KPI history for %s: %s", metric, exc)
         return JSONResponse({"success": False, "error": "Erreur interne."}, status_code=500)
 
@@ -206,17 +208,21 @@ async def api_sabrina_smart_summary(
         if predicted_depletions:
             for item in predicted_depletions:
                 days_left = max(1, int(float(item["stock"]) / float(item["daily_rate"])))
-                alerts.append(f"• {item['name']} : ~{days_left} jour(s) de stock restant ({int(item['stock'])} en réserve)")
+                alerts.append(
+                    f"• {item['name']} : ~{days_left} jour(s) de stock restant ({int(item['stock'])} en réserve)"
+                )
 
-        return JSONResponse({
-            "success": True,
-            "yesterday_sales": yesterday_total,
-            "yesterday_sales_fmt": _money(yesterday_total),
-            "alerts": alerts,
-            "alert_count": len(alerts)
-        })
+        return JSONResponse(
+            {
+                "success": True,
+                "yesterday_sales": yesterday_total,
+                "yesterday_sales_fmt": _money(yesterday_total),
+                "alerts": alerts,
+                "alert_count": len(alerts),
+            }
+        )
     except Exception as exc:
         import logging
+
         logging.getLogger("fabouanes").error("Smart summary error: %s", exc)
         return JSONResponse({"success": False, "alerts": [], "yesterday_sales_fmt": "0 DA"})
-

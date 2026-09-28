@@ -1,6 +1,7 @@
 """
 llm_client.py — Managed HTTP Clients for Gemini and Ollama APIs.
 """
+
 from __future__ import annotations
 
 import logging

@@ -13,7 +13,8 @@ def next_doc_number(doc_type: str, year: int) -> str:
 
     # Acquire PostgreSQL advisory lock to ensure serialization across multiple workers
     import zlib
-    lock_id = zlib.adler32(key.encode('utf-8')) & 0x7FFFFFFF
+
+    lock_id = zlib.adler32(key.encode("utf-8")) & 0x7FFFFFFF
     try:
         db.execute("SELECT pg_advisory_xact_lock(%s)", (lock_id,))
     except Exception:
@@ -21,7 +22,7 @@ def next_doc_number(doc_type: str, year: int) -> str:
 
     # 1. Self-healing : Déterminer la séquence maximale existant réellement dans les tables de documents
     max_seq = 0
-    if doc_type == 'BA':
+    if doc_type == "BA":
         cur = db.execute("SELECT doc_number FROM purchase_documents WHERE doc_number LIKE %s", (f"BA-{year}-%",))
         rows = cur.fetchall()
         cur.close()
@@ -32,7 +33,7 @@ def next_doc_number(doc_type: str, year: int) -> str:
                     max_seq = seq_num
             except Exception:
                 pass
-    elif doc_type == 'BV':
+    elif doc_type == "BV":
         cur = db.execute("SELECT doc_number FROM sale_documents WHERE doc_number LIKE %s", (f"BV-{year}-%",))
         rows = cur.fetchall()
         cur.close()
@@ -50,30 +51,36 @@ def next_doc_number(doc_type: str, year: int) -> str:
         cur_val = cur.fetchone()
         cur.close()
         if not cur_val or int(cur_val["value"]) < max_seq:
-            cur = db.execute("""
+            cur = db.execute(
+                """
                 INSERT INTO app_settings (key, value, updated_at)
                 VALUES (%s, %s, NOW())
                 ON CONFLICT (key) DO UPDATE
                 SET value = %s, updated_at = NOW()
-            """, (key, str(max_seq), str(max_seq)))
+            """,
+                (key, str(max_seq), str(max_seq)),
+            )
             cur.close()
 
     # 3. Récupération, incrément atomique et double vérification anti-collision
     while True:
-        cur = db.execute("""
+        cur = db.execute(
+            """
             INSERT INTO app_settings (key, value, updated_at)
             VALUES (%s, '1', NOW())
             ON CONFLICT (key) DO UPDATE
             SET value = (app_settings.value::int + 1)::text, updated_at = NOW()
             RETURNING value
-        """, (key,))
+        """,
+            (key,),
+        )
         row = cur.fetchone()
         cur.close()
         seq = int(row["value"])
         candidate = f"{doc_type}-{year}-{seq:05d}"
 
         # Double vérification finale anti-collision
-        if doc_type == 'BA':
+        if doc_type == "BA":
             cur = db.execute("SELECT id FROM purchase_documents WHERE doc_number = %s", (candidate,))
             exists = cur.fetchone()
             cur.close()

@@ -2,6 +2,7 @@
 
 DEPRECATED: Utiliser app.modules.payments.service.PaymentsService à la place.
 """
+
 from __future__ import annotations
 
 import warnings
@@ -18,7 +19,7 @@ warnings.warn(
     "app.services.client_account_service est déprécié. "
     "Utilisez app.modules.payments.service.PaymentsService à la place.",
     DeprecationWarning,
-    stacklevel=2
+    stacklevel=2,
 )
 
 
@@ -39,7 +40,9 @@ async def get_open_credit_entries(client_id: int | None = None, db: AsyncSession
 
 
 @async_compat
-async def apply_payment_to_entry(kind: str, row_id: int, amount: float, entry: dict | None = None, db: AsyncSession | None = None) -> float:
+async def apply_payment_to_entry(
+    kind: str, row_id: int, amount: float, entry: dict | None = None, db: AsyncSession | None = None
+) -> float:
     if db is None:
         async with get_async_sessionmaker()() as session:
             async with session.begin():
@@ -91,4 +94,3 @@ async def create_payment_record(
         )
     except ValidationError as ve:
         raise ValueError(str(ve.message)) from ve
-

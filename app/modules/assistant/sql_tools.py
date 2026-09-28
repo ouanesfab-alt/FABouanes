@@ -43,6 +43,7 @@ def dry_run_sql(query: str) -> str:
     query_to_run = validation.sql_to_run or query
     try:
         import sqlglot
+
         stmts = validation.statements or sqlglot.parse(query_to_run, read="postgres")
         if not stmts:
             return "⚠️ Requête SQL invalide."
@@ -82,7 +83,7 @@ def dry_run_sql(query: str) -> str:
                     "inserted_id": inserted_id,
                     "rowcount": rowcount,
                     "balances_before": client_balances_before,
-                    "balances_after": client_balances_after
+                    "balances_after": client_balances_after,
                 }
                 raise DryRunRollback(res_info)
         except DryRunRollback as dr:
@@ -94,7 +95,9 @@ def dry_run_sql(query: str) -> str:
 
             parts = ["📝 **[Simulation] Résumé des modifications de données :**"]
             if inserted_id:
-                parts.append(f"• Création d'un nouvel enregistrement (ID temporaire : `{inserted_id}`) dans la table `{', '.join(table_names)}`.")
+                parts.append(
+                    f"• Création d'un nouvel enregistrement (ID temporaire : `{inserted_id}`) dans la table `{', '.join(table_names)}`."
+                )
             elif rowcount is not None and rowcount > 0:
                 parts.append(f"• Modification de `{rowcount}` ligne(s) dans la table `{', '.join(table_names)}`.")
             else:
@@ -104,7 +107,9 @@ def dry_run_sql(query: str) -> str:
                 bal_before_val = float(bal_before or 0.0)
                 bal_after_val = float(client_balances_after.get(cid) or 0.0)
                 if bal_before_val != bal_after_val:
-                    parts.append(f"   - Le solde de **{name}** passe de `{bal_before_val:,.2f} DA` à `{bal_after_val:,.2f} DA`.")
+                    parts.append(
+                        f"   - Le solde de **{name}** passe de `{bal_before_val:,.2f} DA` à `{bal_after_val:,.2f} DA`."
+                    )
 
             return "\n".join(parts)
     except Exception as e:
@@ -168,15 +173,25 @@ def execute_write_sql(query: str) -> Dict[str, Any]:
                         except Exception:
                             preview_sample.append(list(r))
 
-                    where_clause_str = where_node.sql(dialect="postgres").strip() if where_node else "Aucune restriction (toutes les lignes !)"
-                    auto_eval_reports.append({
-                        "table_name": tbl_expr.sql(dialect="postgres"),
-                        "where_clause": where_clause_str,
-                        "rows_affected_preview": len(eval_rows),
-                        "preview_sample": serialize_for_json(preview_sample)
-                    })
+                    where_clause_str = (
+                        where_node.sql(dialect="postgres").strip()
+                        if where_node
+                        else "Aucune restriction (toutes les lignes !)"
+                    )
+                    auto_eval_reports.append(
+                        {
+                            "table_name": tbl_expr.sql(dialect="postgres"),
+                            "where_clause": where_clause_str,
+                            "rows_affected_preview": len(eval_rows),
+                            "preview_sample": serialize_for_json(preview_sample),
+                        }
+                    )
                     if len(eval_rows) > 0 and not where_node:
-                        logger.warning("ATTENTION : Modification SQL d'écriture sans clause WHERE sur la table %s (%s lignes ciblées)", tbl_expr.sql(dialect="postgres"), len(eval_rows))
+                        logger.warning(
+                            "ATTENTION : Modification SQL d'écriture sans clause WHERE sur la table %s (%s lignes ciblées)",
+                            tbl_expr.sql(dialect="postgres"),
+                            len(eval_rows),
+                        )
             except Exception as eval_err:
                 logger.error("Auto-évaluation SQL échouée : %s", eval_err)
 
@@ -245,4 +260,3 @@ def explain_sql_query(query: str) -> str:
         return f"```sql\n{q}\n```"
     except Exception:
         return f"```sql\n{q}\n```"
-

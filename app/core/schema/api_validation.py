@@ -39,7 +39,6 @@ class PaymentCreateSchema(BaseModel):
             raise ValueError("Montant invalide.")
 
 
-
 class ProductionCreateSchema(BaseModel):
     finished_product_id: int = Field(..., description="ID du produit fini")
     output_quantity: Decimal = Field(..., gt=0, description="Quantité produite")
@@ -47,8 +46,12 @@ class ProductionCreateSchema(BaseModel):
     notes: Optional[str] = Field(default="", description="Notes additionnelles")
     recipe_name: Optional[str] = Field(default="", description="Nom de la recette optionnel")
     save_recipe: Optional[Union[bool, int, str]] = Field(default=0, description="Sauvegarder comme recette")
-    raw_material_ids: Optional[List[int]] = Field(default=None, alias="raw_material_id[]", description="Liste des IDs de matières premières")
-    quantities: Optional[List[Decimal]] = Field(default=None, alias="quantity[]", description="Liste des quantités consommées")
+    raw_material_ids: Optional[List[int]] = Field(
+        default=None, alias="raw_material_id[]", description="Liste des IDs de matières premières"
+    )
+    quantities: Optional[List[Decimal]] = Field(
+        default=None, alias="quantity[]", description="Liste des quantités consommées"
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -62,8 +65,6 @@ class ClientHistoryRowSchema(BaseModel):
     ordre_import: int
     source: str
     type_operation: str
-
-
 
 
 class ClientHistoryResponseSchema(BaseModel):

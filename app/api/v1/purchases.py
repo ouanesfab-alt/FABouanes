@@ -41,20 +41,14 @@ async def api_purchases(request: Request, db: AsyncSession = Depends(get_async_s
         date_from=request.query_params.get("date_from"),
         date_to=request.query_params.get("date_to"),
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
-    meta = {
-        "page": page,
-        "page_size": page_size,
-        "returned": len(rows),
-        "total": total
-    }
+    meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
     res_data = api_success(rows, meta)
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=30)
     return response
-
 
 
 @router.api_route("/purchases/{purchase_id}", methods=["GET", "PUT", "DELETE"])
@@ -106,9 +100,10 @@ async def api_purchase_detail(request: Request, purchase_id: int, db: AsyncSessi
     return response
 
 
-
 @router.api_route("/purchase-documents/{document_id}", methods=["GET", "PUT"])
-async def api_purchase_document_detail(request: Request, document_id: int, db: AsyncSession = Depends(get_async_session)):
+async def api_purchase_document_detail(
+    request: Request, document_id: int, db: AsyncSession = Depends(get_async_session)
+):
     require_api_user(request, PERMISSION_OPERATIONS_WRITE if request.method == "PUT" else PERMISSION_OPERATIONS_READ)
     document = await purchase_document_payload(document_id, db=db)
     if not document:
@@ -127,4 +122,3 @@ async def api_purchase_document_detail(request: Request, document_id: int, db: A
     if request.method == "GET":
         add_cache_headers(request, response, res_data, max_age=30)
     return response
-

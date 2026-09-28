@@ -1,4 +1,5 @@
 """Module de Comptabilité Système Comptable Financier (SCF Algérie)."""
+
 from __future__ import annotations
 
 from app.core.registry import register

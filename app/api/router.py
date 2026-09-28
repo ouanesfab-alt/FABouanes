@@ -32,9 +32,10 @@ router.include_router(expenses_router)
 # Versionnement API : Enregistrement de la version v2 pour évolution future
 router_v2 = APIRouter(prefix="/api/v2", tags=["versioning"])
 
+
 @router_v2.get("/version", summary="Informations sur la version 2 de l'API")
 async def get_v2_version():
     return {"version": "2.0.0-alpha", "status": "experimental", "features": ["advanced-tools"]}
 
-router.include_router(router_v2)
 
+router.include_router(router_v2)

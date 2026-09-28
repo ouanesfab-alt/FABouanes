@@ -10,6 +10,7 @@ Usage:
     from app.core.registry import discover_modules
     discover_modules(Path("app/modules"))
 """
+
 from __future__ import annotations
 
 import importlib
@@ -64,6 +65,7 @@ _modules: dict[str, ModuleDescriptor] = {}
 def register(module: ModuleDescriptor | "ModuleBase") -> None:
     """Enregistre un module dans le registre global."""
     from app.modules.base import ModuleBase
+
     if isinstance(module, ModuleBase):
         descriptor = ModuleDescriptor.from_module(module)
     elif isinstance(module, ModuleDescriptor):
@@ -73,8 +75,6 @@ def register(module: ModuleDescriptor | "ModuleBase") -> None:
 
     _modules[descriptor.name] = descriptor
     logger.info("Module registered: %s (%s)", descriptor.name, descriptor.label)
-
-
 
 
 def get_module(name: str) -> ModuleDescriptor | None:
@@ -112,11 +112,7 @@ def discover_modules(modules_dir: Path) -> None:
 
     # Feature flags : désactivation via env
     disabled_raw = os.getenv("FAB_MODULES_DISABLED", "").strip()
-    disabled_names = {
-        name.strip().lower()
-        for name in disabled_raw.split(",")
-        if name.strip()
-    }
+    disabled_names = {name.strip().lower() for name in disabled_raw.split(",") if name.strip()}
 
     for child in sorted(modules_dir.iterdir()):
         if not child.is_dir():
@@ -148,6 +144,7 @@ def mount_web_routes(parent_router: "APIRouter") -> int:
     from fastapi import Depends
 
     from app.web.deps import verify_csrf_token
+
     count = 0
     for module in get_enabled_modules():
         if module.web_router:

@@ -166,6 +166,7 @@ def normalize_role(role: str | None) -> str:
 _dynamic_permissions_cache: dict[str, set[str]] | None = None
 _dynamic_lock = threading.Lock()
 
+
 def _get_dynamic_permissions(role: str) -> set[str]:
     global _dynamic_permissions_cache
     if _dynamic_permissions_cache is not None:
@@ -178,6 +179,7 @@ def _get_dynamic_permissions(role: str) -> set[str]:
         cache = {}
         try:
             from app.core.registry import get_enabled_modules
+
             for module in get_enabled_modules():
                 if hasattr(module, "role_permissions") and module.role_permissions:
                     for r, perms in module.role_permissions.items():
@@ -204,6 +206,7 @@ def has_permission(user, permission: str | None) -> bool:
         if not custom_perms and "custom_permissions_json" in user:
             try:
                 import json
+
                 custom_perms = json.loads(user["custom_permissions_json"] or "[]")
             except Exception:
                 pass
@@ -213,6 +216,7 @@ def has_permission(user, permission: str | None) -> bool:
             custom_json = getattr(user, "custom_permissions_json", "[]")
             try:
                 import json
+
                 custom_perms = json.loads(custom_json or "[]")
             except Exception:
                 pass
@@ -292,11 +296,17 @@ def permission_denied_response(permission: str | None, login_endpoint: str = "lo
     path = state_request.url.path if state_request is not None else ""
     if get_state_value("user") is None:
         if path.startswith("/api/"):
-            return JSONResponse({"error": {"code": "unauthorized", "message": "Authentification requise.", "details": None}}, status_code=401)
+            return JSONResponse(
+                {"error": {"code": "unauthorized", "message": "Authentification requise.", "details": None}},
+                status_code=401,
+            )
         return RedirectResponse(f"/{login_endpoint}", status_code=303)
     _audit_permission_denied(permission)
     if path.startswith("/api/"):
-        return JSONResponse({"error": {"code": "forbidden", "message": "Permission refusee.", "details": {"permission": permission}}}, status_code=403)
+        return JSONResponse(
+            {"error": {"code": "forbidden", "message": "Permission refusee.", "details": {"permission": permission}}},
+            status_code=403,
+        )
     if state_request is not None:
         from app.web.deps import flash
 

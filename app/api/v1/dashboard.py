@@ -18,4 +18,3 @@ async def api_dashboard_summary(request: Request):
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=30)
     return response
-

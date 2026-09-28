@@ -18,31 +18,31 @@ def split_sql_script(script: str) -> list[str]:
         char = script[i]
 
         if not in_dollar and not in_single_quote and not in_double_quote:
-            if char == '-' and i + 1 < n and script[i+1] == '-':
+            if char == "-" and i + 1 < n and script[i + 1] == "-":
                 i += 2
-                while i < n and script[i] != '\n':
+                while i < n and script[i] != "\n":
                     i += 1
                 continue
-            if char == '/' and i + 1 < n and script[i+1] == '*':
+            if char == "/" and i + 1 < n and script[i + 1] == "*":
                 i += 2
-                while i < n and not (script[i] == '*' and i + 1 < n and script[i+1] == '/'):
+                while i < n and not (script[i] == "*" and i + 1 < n and script[i + 1] == "/"):
                     i += 1
                 i += 2
                 continue
 
-        if char == '$' and i + 1 < n and script[i+1] == '$':
+        if char == "$" and i + 1 < n and script[i + 1] == "$":
             in_dollar = not in_dollar
-            current.append('$$')
+            current.append("$$")
             i += 2
             continue
 
         if not in_dollar:
-            if char == "'" and (i == 0 or script[i-1] != '\\'):
+            if char == "'" and (i == 0 or script[i - 1] != "\\"):
                 in_single_quote = not in_single_quote
-            elif char == '"' and (i == 0 or script[i-1] != '\\'):
+            elif char == '"' and (i == 0 or script[i - 1] != "\\"):
                 in_double_quote = not in_double_quote
 
-        if char == ';' and not in_dollar and not in_single_quote and not in_double_quote:
+        if char == ";" and not in_dollar and not in_single_quote and not in_double_quote:
             stmt = "".join(current).strip()
             if stmt:
                 statements.append(stmt)
@@ -78,6 +78,7 @@ def explain_query_plan(query: str, params: tuple = ()) -> list[dict]:
 
 def query_sa(query, one: bool = False):
     from sqlalchemy.dialects import postgresql
+
     compiled = query.compile(dialect=postgresql.dialect(paramstyle="format"), compile_kwargs={"literal_binds": False})
     sql = str(compiled)
     params = tuple(compiled.params[name] for name in compiled.positiontup)

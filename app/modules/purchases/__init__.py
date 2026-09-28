@@ -1,4 +1,5 @@
 """Module Achats — Gestion des approvisionnements et des bons d'achat."""
+
 from app.core.registry import register
 from app.modules.base import ModuleBase
 from app.modules.purchases.web import router as web_router
@@ -35,6 +36,7 @@ class PurchasesModule(ModuleBase):
             "manager": ["operations.read", "operations.write", "operations.delete"],
             "operator": ["operations.read"],
         }
+
 
 # Registration
 register(PurchasesModule())

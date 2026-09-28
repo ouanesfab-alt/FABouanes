@@ -1,4 +1,5 @@
 """Modèles SQLModel pour le module Users."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -31,6 +32,7 @@ class User(SQLModel, table=True):
     @property
     def custom_permissions_list(self) -> list[str]:
         import json
+
         try:
             return json.loads(self.custom_permissions_json or "[]")
         except Exception:

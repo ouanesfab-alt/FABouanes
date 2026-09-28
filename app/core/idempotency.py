@@ -8,6 +8,7 @@ from app.core.db_helpers import execute_db_async, query_db_async
 
 logger = logging.getLogger("fabouanes.idempotency")
 
+
 async def check_idempotency(key: str | None) -> dict[str, Any] | None:
     """
     Checks if a request with the given idempotency key has already been processed.

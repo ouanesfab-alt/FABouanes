@@ -29,6 +29,7 @@ def _history_not_found_response() -> HTMLResponse:
         status_code=404,
     )
 
+
 CLIENTS_FILTER_URL = "/contacts?type=client"
 NEW_CLIENT_URL = "/contacts/clients/new"
 IMPORT_CLIENTS_URL = "/contacts/clients/import-excel"
@@ -57,7 +58,7 @@ async def clients_submit(request: Request, db: AsyncSession = Depends(get_async_
             phone=validated_schema.phone or "",
             address=validated_schema.address or "",
             notes=validated_schema.notes or "",
-            opening_credit=validated_schema.opening_credit or 0.0
+            opening_credit=validated_schema.opening_credit or 0.0,
         )
         service = ClientService(db)
         await service.create_client(schema)
@@ -65,6 +66,7 @@ async def clients_submit(request: Request, db: AsyncSession = Depends(get_async_
         return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
     except Exception as e:
         from app.core.exceptions import get_friendly_error_message
+
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur de validation : {friendly}", "danger")
         return RedirectResponse(NEW_CLIENT_URL, status_code=303)
@@ -76,8 +78,6 @@ async def compat_new_client_page(request: Request):
     if denied:
         return denied
     return RedirectResponse(NEW_CLIENT_URL, status_code=303)
-
-
 
 
 @router.get("/clients/import-excel", name="compat_import_clients_excel")
@@ -99,6 +99,7 @@ async def import_clients_page(request: Request):
     if token:
         try:
             from app.modules.clients.service import ClientService
+
             service = ClientService(None)
             rows = service._load_client_import_preview(token)
             if rows:
@@ -110,12 +111,7 @@ async def import_clients_page(request: Request):
                         duplicates.append(row["name"])
                     seen.add(name_key)
 
-                preview = {
-                    "rows": rows,
-                    "errors": [],
-                    "duplicates": duplicates,
-                    "token": token
-                }
+                preview = {"rows": rows, "errors": [], "duplicates": duplicates, "token": token}
         except Exception:
             pass
 
@@ -147,7 +143,11 @@ async def import_clients_submit(request: Request, db: AsyncSession = Depends(get
                 "token": "",
             }
             return templates.TemplateResponse("client_import.html", template_context(request, preview=preview))
-        flash(request, f"Import terminé : {result['created']} client(s) créés, {result['updated']} mis à jour avec dernier solde.", "success")
+        flash(
+            request,
+            f"Import terminé : {result['created']} client(s) créés, {result['updated']} mis à jour avec dernier solde.",
+            "success",
+        )
         return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
 
     files = form.getlist("excel_files")
@@ -167,7 +167,11 @@ async def import_clients_submit(request: Request, db: AsyncSession = Depends(get
     for err in result["errors"][:5]:
         flash(request, err, "danger")
     level = "success" if (result["created"] or result["updated"]) else "warning"
-    flash(request, f"Import terminé : {result['created']} client(s) créés, {result['updated']} mis à jour avec dernier solde.", level)
+    flash(
+        request,
+        f"Import terminé : {result['created']} client(s) créés, {result['updated']} mis à jour avec dernier solde.",
+        level,
+    )
     return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
 
 
@@ -183,6 +187,7 @@ async def preview_client_import(request: Request):
 
     try:
         from app.modules.clients.service import ClientService
+
         # On initialise le service sans session puisqu'on ne fait que lire le JSON de preview
         service = ClientService(None)
         rows = service._load_client_import_preview(token)
@@ -208,6 +213,7 @@ async def import_single_client_file(request: Request, db: AsyncSession = Depends
         return JSONResponse({"success": False, "error": "Aucun fichier fourni"}, status_code=400)
 
     from app.modules.clients.service import ClientService
+
     service = ClientService(db)
     result = await service.import_clients_from_files([file_obj])
 
@@ -215,13 +221,15 @@ async def import_single_client_file(request: Request, db: AsyncSession = Depends
         return JSONResponse({"success": False, "errors": result["errors"]})
 
     status_type = "create" if result["created"] > 0 else "update"
-    return JSONResponse({
-        "success": True,
-        "filename": file_obj.filename,
-        "status": status_type,
-        "created": result["created"],
-        "updated": result["updated"]
-    })
+    return JSONResponse(
+        {
+            "success": True,
+            "filename": file_obj.filename,
+            "status": status_type,
+            "created": result["created"],
+            "updated": result["updated"],
+        }
+    )
 
 
 @router.post("/contacts/clients/import/import-preview-single-row")
@@ -239,6 +247,7 @@ async def import_preview_single_row(request: Request, db: AsyncSession = Depends
         return JSONResponse({"success": False, "error": "Paramètres invalides"}, status_code=400)
 
     from app.modules.clients.service import ClientService
+
     service = ClientService(db)
     try:
         rows = service._load_client_import_preview(token)
@@ -251,11 +260,7 @@ async def import_preview_single_row(request: Request, db: AsyncSession = Depends
             return JSONResponse({"success": False, "errors": result["errors"]})
 
         status_type = "create" if result["created"] > 0 else "update"
-        return JSONResponse({
-            "success": True,
-            "client_name": row["name"],
-            "status": status_type
-        })
+        return JSONResponse({"success": True, "client_name": row["name"], "status": status_type})
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
@@ -270,6 +275,7 @@ async def clear_preview_token(request: Request):
     token = body.get("token", "").strip()
     if token:
         from app.modules.clients.service import ClientService
+
         service = ClientService(None)
         service._discard_client_import_preview(token)
     return JSONResponse({"success": True})
@@ -288,6 +294,7 @@ async def preview_single_client_file(request: Request, db: AsyncSession = Depend
         return JSONResponse({"success": False, "error": "Aucun fichier fourni"}, status_code=400)
 
     from app.modules.clients.service import ClientService
+
     service = ClientService(db)
     try:
         result = await service.preview_clients_from_files([file_obj])
@@ -296,10 +303,7 @@ async def preview_single_client_file(request: Request, db: AsyncSession = Depend
         if not result["rows"]:
             return JSONResponse({"success": False, "error": "Fichier vide ou invalide"})
 
-        return JSONResponse({
-            "success": True,
-            "row": result["rows"][0]
-        })
+        return JSONResponse({"success": True, "row": result["rows"][0]})
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
@@ -317,6 +321,7 @@ async def save_preview_token_endpoint(request: Request):
         return JSONResponse({"success": False, "error": "Aucune donnée de prévisualisation"}, status_code=400)
 
     from app.modules.clients.service import ClientService
+
     service = ClientService(None)
     token = service._save_client_import_preview(rows)
     return JSONResponse({"success": True, "token": token})
@@ -330,16 +335,12 @@ async def compat_client_detail(request: Request, client_id: int):
     return RedirectResponse(f"/contacts/clients/{client_id}", status_code=303)
 
 
-
-
 @router.get("/clients/{client_id}/print-history", name="compat_print_client_history")
 async def compat_print_client_history(request: Request, client_id: int):
     denied = require_permission(request, PERMISSION_CONTACTS_READ)
     if denied:
         return denied
     return RedirectResponse(f"/contacts/clients/{client_id}/print-history", status_code=303)
-
-
 
 
 @router.get("/clients/{client_id}/edit", name="compat_edit_client")

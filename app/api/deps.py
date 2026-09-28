@@ -55,10 +55,15 @@ def decode_access_token(raw_token: str) -> dict[str, Any]:
     try:
         payload = serializer().loads(raw_token, max_age=ACCESS_TOKEN_TTL_SECONDS)
     except SignatureExpired as exc:
-        raise HTTPException(status_code=401, detail={"code": "access_token_expired", "message": "Le jeton d'acces a expire."}) from exc
+        raise HTTPException(
+            status_code=401, detail={"code": "access_token_expired", "message": "Le jeton d'acces a expire."}
+        ) from exc
     except BadSignature as exc:
-        raise HTTPException(status_code=401, detail={"code": "access_token_invalid", "message": "Jeton d'acces invalide."}) from exc
+        raise HTTPException(
+            status_code=401, detail={"code": "access_token_invalid", "message": "Jeton d'acces invalide."}
+        ) from exc
     from app.core.db_helpers import query_db
+
     user = query_db("SELECT * FROM users WHERE id = %s", (int(payload.get("sub", 0) or 0),), one=True)
     if not user or not int(user.get("is_active", 1) or 0):
         raise HTTPException(status_code=401, detail={"code": "unauthorized", "message": "Utilisateur indisponible."})
@@ -149,7 +154,6 @@ async def validate_refresh_token(raw_token: str):
     # Mark old token as revoked (used) during rotation!
     await execute_db_async(
         "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP, last_used_at = CURRENT_TIMESTAMP WHERE id = %s",
-        (int(row["id"]),)
+        (int(row["id"]),),
     )
     return user
-

@@ -1,6 +1,7 @@
 """
 Standardized JSON API Response Helper.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -20,6 +21,7 @@ class APIResponse:
             content["message"] = message
         content.update(kwargs)
         from fastapi.encoders import jsonable_encoder
+
         return JSONResponse(jsonable_encoder(content), status_code=status_code)
 
     @staticmethod
@@ -31,5 +33,5 @@ class APIResponse:
             content["errors"] = errors
         content.update(kwargs)
         from fastapi.encoders import jsonable_encoder
-        return JSONResponse(jsonable_encoder(content), status_code=status_code)
 
+        return JSONResponse(jsonable_encoder(content), status_code=status_code)

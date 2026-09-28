@@ -43,11 +43,8 @@ async def websocket_endpoint(websocket: WebSocket):
         _ws_ip_counts[client_ip] = max(0, _ws_ip_counts[client_ip] - 1)
 
 
-
 @router.get("/session/ping")
 async def session_ping(request: Request):
     """Silent keep-alive endpoint for updating session cookies during user activity."""
     user_id = request.session.get("user_id")
     return APIResponse.success(data={"active": bool(user_id)})
-
-

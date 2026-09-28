@@ -56,7 +56,9 @@ async def save_recipe_definition(
     if db is None:
         async with get_async_sessionmaker()() as session:
             async with session.begin():
-                return await _save_recipe_definition_impl(finished_id, recipe_name, notes, recipe_lines, user_id, session)
+                return await _save_recipe_definition_impl(
+                    finished_id, recipe_name, notes, recipe_lines, user_id, session
+                )
     return await _save_recipe_definition_impl(finished_id, recipe_name, notes, recipe_lines, user_id, db)
 
 

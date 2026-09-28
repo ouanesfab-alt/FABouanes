@@ -11,14 +11,16 @@ def get_ollama_tools() -> List[Dict[str, Any]]:
         for decl in gemini_tools[0]["functionDeclarations"]:
             raw_params = decl.get("parameters", {})
             params = json.loads(json.dumps(raw_params).lower())
-            ollama_tools.append({
-                "type": "function",
-                "function": {
-                    "name": decl.get("name"),
-                    "description": decl.get("description"),
-                    "parameters": params
+            ollama_tools.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": decl.get("name"),
+                        "description": decl.get("description"),
+                        "parameters": params,
+                    },
                 }
-            })
+            )
     return ollama_tools
 
 
@@ -32,13 +34,10 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "query": {
-                                "type": "STRING",
-                                "description": "La requête SQL SELECT complète à exécuter."
-                            }
+                            "query": {"type": "STRING", "description": "La requête SQL SELECT complète à exécuter."}
                         },
-                        "required": ["query"]
-                    }
+                        "required": ["query"],
+                    },
                 },
                 {
                     "name": "explain_profit_decrease",
@@ -48,10 +47,10 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "period_days": {
                                 "type": "INTEGER",
-                                "description": "Nombre de jours d'analyse (ex: 30 pour le mois en cours vs précédent)."
+                                "description": "Nombre de jours d'analyse (ex: 30 pour le mois en cours vs précédent).",
                             }
-                        }
-                    }
+                        },
+                    },
                 },
                 {
                     "name": "predict_business_trends",
@@ -61,10 +60,10 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "target": {
                                 "type": "STRING",
-                                "description": "Type de prévision: 'sales' (ventes futures), 'stock' (rupture de stock), 'cashflow' (trésorerie et dettes) ou 'all' (prévision globale)."
+                                "description": "Type de prévision: 'sales' (ventes futures), 'stock' (rupture de stock), 'cashflow' (trésorerie et dettes) ou 'all' (prévision globale).",
                             }
-                        }
-                    }
+                        },
+                    },
                 },
                 {
                     "name": "detect_anomalies",
@@ -74,10 +73,10 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "anomaly_type": {
                                 "type": "STRING",
-                                "description": "Type d'anomalie: 'duplicate_payments', 'abnormal_expenses', 'suspicious_debtors' ou 'all'."
+                                "description": "Type d'anomalie: 'duplicate_payments', 'abnormal_expenses', 'suspicious_debtors' ou 'all'.",
                             }
-                        }
-                    }
+                        },
+                    },
                 },
                 {
                     "name": "execute_write_sql",
@@ -92,11 +91,11 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "query": {
                                 "type": "STRING",
-                                "description": "Une seule requête SQL d'écriture complète à exécuter."
+                                "description": "Une seule requête SQL d'écriture complète à exécuter.",
                             }
                         },
-                        "required": ["query"]
-                    }
+                        "required": ["query"],
+                    },
                 },
                 {
                     "name": "read_app_file",
@@ -106,11 +105,11 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "filepath": {
                                 "type": "STRING",
-                                "description": "Le chemin d'accès relatif ou absolu du fichier (ex: templates/assistant.html)."
+                                "description": "Le chemin d'accès relatif ou absolu du fichier (ex: templates/assistant.html).",
                             }
                         },
-                        "required": ["filepath"]
-                    }
+                        "required": ["filepath"],
+                    },
                 },
                 {
                     "name": "modify_app_file",
@@ -118,21 +117,15 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "filepath": {
-                                "type": "STRING",
-                                "description": "Le chemin du fichier à modifier."
-                            },
-                            "old_content": {
-                                "type": "STRING",
-                                "description": "Le bloc de texte exact à remplacer."
-                            },
+                            "filepath": {"type": "STRING", "description": "Le chemin du fichier à modifier."},
+                            "old_content": {"type": "STRING", "description": "Le bloc de texte exact à remplacer."},
                             "new_content": {
                                 "type": "STRING",
-                                "description": "Le nouveau bloc de texte de remplacement."
-                            }
+                                "description": "Le nouveau bloc de texte de remplacement.",
+                            },
                         },
-                        "required": ["filepath", "old_content", "new_content"]
-                    }
+                        "required": ["filepath", "old_content", "new_content"],
+                    },
                 },
                 {
                     "name": "create_app_backup",
@@ -140,21 +133,15 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "reason": {
-                                "type": "STRING",
-                                "description": "La raison ou description de cette sauvegarde."
-                            }
+                            "reason": {"type": "STRING", "description": "La raison ou description de cette sauvegarde."}
                         },
-                        "required": ["reason"]
-                    }
+                        "required": ["reason"],
+                    },
                 },
                 {
                     "name": "list_app_backups",
                     "description": "Liste toutes les sauvegardes disponibles pour la restauration.",
-                    "parameters": {
-                        "type": "OBJECT",
-                        "properties": {}
-                    }
+                    "parameters": {"type": "OBJECT", "properties": {}},
                 },
                 {
                     "name": "restore_app_backup",
@@ -164,11 +151,11 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "backup_name": {
                                 "type": "STRING",
-                                "description": "Le nom du fichier de sauvegarde à restaurer."
+                                "description": "Le nom du fichier de sauvegarde à restaurer.",
                             }
                         },
-                        "required": ["backup_name"]
-                    }
+                        "required": ["backup_name"],
+                    },
                 },
                 {
                     "name": "create_app_user",
@@ -176,21 +163,15 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "username": {
-                                "type": "STRING",
-                                "description": "Nom d'utilisateur."
-                            },
-                            "password": {
-                                "type": "STRING",
-                                "description": "Mot de passe en clair (sera haché)."
-                            },
+                            "username": {"type": "STRING", "description": "Nom d'utilisateur."},
+                            "password": {"type": "STRING", "description": "Mot de passe en clair (sera haché)."},
                             "role": {
                                 "type": "STRING",
-                                "description": "Rôle de l'utilisateur (admin, manager, operator)."
-                            }
+                                "description": "Rôle de l'utilisateur (admin, manager, operator).",
+                            },
                         },
-                        "required": ["username", "password", "role"]
-                    }
+                        "required": ["username", "password", "role"],
+                    },
                 },
                 {
                     "name": "change_app_user_password",
@@ -198,17 +179,11 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "username": {
-                                "type": "STRING",
-                                "description": "Nom de l'utilisateur."
-                            },
-                            "new_password": {
-                                "type": "STRING",
-                                "description": "Le nouveau mot de passe."
-                            }
+                            "username": {"type": "STRING", "description": "Nom de l'utilisateur."},
+                            "new_password": {"type": "STRING", "description": "Le nouveau mot de passe."},
                         },
-                        "required": ["username", "new_password"]
-                    }
+                        "required": ["username", "new_password"],
+                    },
                 },
                 {
                     "name": "delete_app_user",
@@ -216,13 +191,10 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "username": {
-                                "type": "STRING",
-                                "description": "Nom de l'utilisateur à supprimer."
-                            }
+                            "username": {"type": "STRING", "description": "Nom de l'utilisateur à supprimer."}
                         },
-                        "required": ["username"]
-                    }
+                        "required": ["username"],
+                    },
                 },
                 {
                     "name": "update_setting",
@@ -230,17 +202,11 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "key": {
-                                "type": "STRING",
-                                "description": "Le nom du paramètre (ex: company_name)."
-                            },
-                            "value": {
-                                "type": "STRING",
-                                "description": "La nouvelle valeur."
-                            }
+                            "key": {"type": "STRING", "description": "Le nom du paramètre (ex: company_name)."},
+                            "value": {"type": "STRING", "description": "La nouvelle valeur."},
                         },
-                        "required": ["key", "value"]
-                    }
+                        "required": ["key", "value"],
+                    },
                 },
                 {
                     "name": "add_client",
@@ -248,29 +214,17 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "name": {
-                                "type": "STRING",
-                                "description": "Nom complet du client."
-                            },
-                            "phone": {
-                                "type": "STRING",
-                                "description": "Numéro de téléphone (optionnel)."
-                            },
-                            "address": {
-                                "type": "STRING",
-                                "description": "Adresse (optionnelle)."
-                            },
-                            "notes": {
-                                "type": "STRING",
-                                "description": "Notes ou observations (optionnel)."
-                            },
+                            "name": {"type": "STRING", "description": "Nom complet du client."},
+                            "phone": {"type": "STRING", "description": "Numéro de téléphone (optionnel)."},
+                            "address": {"type": "STRING", "description": "Adresse (optionnelle)."},
+                            "notes": {"type": "STRING", "description": "Notes ou observations (optionnel)."},
                             "opening_credit": {
                                 "type": "NUMBER",
-                                "description": "Dette de départ ou crédit initial (optionnel)."
-                            }
+                                "description": "Dette de départ ou crédit initial (optionnel).",
+                            },
                         },
-                        "required": ["name"]
-                    }
+                        "required": ["name"],
+                    },
                 },
                 {
                     "name": "modify_client",
@@ -278,43 +232,23 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "client_id": {
-                                "type": "INTEGER",
-                                "description": "L'identifiant du client."
-                            },
-                            "name": {
-                                "type": "STRING",
-                                "description": "Nouveau nom complet (optionnel)."
-                            },
-                            "phone": {
-                                "type": "STRING",
-                                "description": "Nouveau numéro de téléphone (optionnel)."
-                            },
-                            "address": {
-                                "type": "STRING",
-                                "description": "Nouvelle adresse (optionnelle)."
-                            },
-                            "notes": {
-                                "type": "STRING",
-                                "description": "Nouvelles notes (optionnel)."
-                            }
+                            "client_id": {"type": "INTEGER", "description": "L'identifiant du client."},
+                            "name": {"type": "STRING", "description": "Nouveau nom complet (optionnel)."},
+                            "phone": {"type": "STRING", "description": "Nouveau numéro de téléphone (optionnel)."},
+                            "address": {"type": "STRING", "description": "Nouvelle adresse (optionnelle)."},
+                            "notes": {"type": "STRING", "description": "Nouvelles notes (optionnel)."},
                         },
-                        "required": ["client_id"]
-                    }
+                        "required": ["client_id"],
+                    },
                 },
                 {
                     "name": "delete_client",
                     "description": "Supprime définitivement un client s'il n'a pas d'opérations associées.",
                     "parameters": {
                         "type": "OBJECT",
-                        "properties": {
-                            "client_id": {
-                                "type": "INTEGER",
-                                "description": "L'identifiant du client."
-                            }
-                        },
-                        "required": ["client_id"]
-                    }
+                        "properties": {"client_id": {"type": "INTEGER", "description": "L'identifiant du client."}},
+                        "required": ["client_id"],
+                    },
                 },
                 {
                     "name": "add_supplier",
@@ -322,25 +256,13 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "name": {
-                                "type": "STRING",
-                                "description": "Nom du fournisseur."
-                            },
-                            "phone": {
-                                "type": "STRING",
-                                "description": "Telephone (optionnel)."
-                            },
-                            "address": {
-                                "type": "STRING",
-                                "description": "Adresse (optionnelle)."
-                            },
-                            "notes": {
-                                "type": "STRING",
-                                "description": "Notes (optionnel)."
-                            }
+                            "name": {"type": "STRING", "description": "Nom du fournisseur."},
+                            "phone": {"type": "STRING", "description": "Telephone (optionnel)."},
+                            "address": {"type": "STRING", "description": "Adresse (optionnelle)."},
+                            "notes": {"type": "STRING", "description": "Notes (optionnel)."},
                         },
-                        "required": ["name"]
-                    }
+                        "required": ["name"],
+                    },
                 },
                 {
                     "name": "modify_supplier",
@@ -348,29 +270,14 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "supplier_id": {
-                                "type": "INTEGER",
-                                "description": "Identifiant du fournisseur."
-                            },
-                            "name": {
-                                "type": "STRING",
-                                "description": "Nouveau nom (optionnel)."
-                            },
-                            "phone": {
-                                "type": "STRING",
-                                "description": "Nouveau telephone (optionnel)."
-                            },
-                            "address": {
-                                "type": "STRING",
-                                "description": "Nouvelle adresse (optionnelle)."
-                            },
-                            "notes": {
-                                "type": "STRING",
-                                "description": "Nouvelles notes (optionnel)."
-                            }
+                            "supplier_id": {"type": "INTEGER", "description": "Identifiant du fournisseur."},
+                            "name": {"type": "STRING", "description": "Nouveau nom (optionnel)."},
+                            "phone": {"type": "STRING", "description": "Nouveau telephone (optionnel)."},
+                            "address": {"type": "STRING", "description": "Nouvelle adresse (optionnelle)."},
+                            "notes": {"type": "STRING", "description": "Nouvelles notes (optionnel)."},
                         },
-                        "required": ["supplier_id"]
-                    }
+                        "required": ["supplier_id"],
+                    },
                 },
                 {
                     "name": "delete_supplier",
@@ -378,13 +285,10 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "supplier_id": {
-                                "type": "INTEGER",
-                                "description": "Identifiant du fournisseur."
-                            }
+                            "supplier_id": {"type": "INTEGER", "description": "Identifiant du fournisseur."}
                         },
-                        "required": ["supplier_id"]
-                    }
+                        "required": ["supplier_id"],
+                    },
                 },
                 {
                     "name": "add_product",
@@ -392,37 +296,28 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "name": {
-                                "type": "STRING",
-                                "description": "Nom du produit."
-                            },
+                            "name": {"type": "STRING", "description": "Nom du produit."},
                             "category": {
                                 "type": "STRING",
-                                "description": "Catégorie : 'finished' pour produit final, 'raw' pour matière première."
+                                "description": "Catégorie : 'finished' pour produit final, 'raw' pour matière première.",
                             },
                             "price": {
                                 "type": "NUMBER",
-                                "description": "Prix de vente (uniquement pour produit final) (optionnel)."
+                                "description": "Prix de vente (uniquement pour produit final) (optionnel).",
                             },
-                            "cost": {
-                                "type": "NUMBER",
-                                "description": "Coût d'achat ou coût moyen (optionnel)."
-                            },
+                            "cost": {"type": "NUMBER", "description": "Coût d'achat ou coût moyen (optionnel)."},
                             "unit": {
                                 "type": "STRING",
-                                "description": "Unité de mesure (ex: kg, sac, Qt) (optionnel, défaut 'kg')."
+                                "description": "Unité de mesure (ex: kg, sac, Qt) (optionnel, défaut 'kg').",
                             },
-                            "stock_qty": {
-                                "type": "NUMBER",
-                                "description": "Stock initial (optionnel)."
-                            },
+                            "stock_qty": {"type": "NUMBER", "description": "Stock initial (optionnel)."},
                             "alert_threshold": {
                                 "type": "NUMBER",
-                                "description": "Seuil d'alerte stock pour les matieres premieres (optionnel)."
-                            }
+                                "description": "Seuil d'alerte stock pour les matieres premieres (optionnel).",
+                            },
                         },
-                        "required": ["name", "category"]
-                    }
+                        "required": ["name", "category"],
+                    },
                 },
                 {
                     "name": "modify_product",
@@ -430,41 +325,23 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "product_id": {
-                                "type": "INTEGER",
-                                "description": "L'identifiant du produit."
-                            },
+                            "product_id": {"type": "INTEGER", "description": "L'identifiant du produit."},
                             "category": {
                                 "type": "STRING",
-                                "description": "Catégorie : 'finished' pour produit final, 'raw' pour matière première."
+                                "description": "Catégorie : 'finished' pour produit final, 'raw' pour matière première.",
                             },
-                            "name": {
-                                "type": "STRING",
-                                "description": "Nouveau nom du produit (optionnel)."
-                            },
-                            "price": {
-                                "type": "NUMBER",
-                                "description": "Nouveau prix de vente (optionnel)."
-                            },
-                            "cost": {
-                                "type": "NUMBER",
-                                "description": "Nouveau coût d'achat (optionnel)."
-                            },
-                            "unit": {
-                                "type": "STRING",
-                                "description": "Nouvelle unite de mesure (optionnel)."
-                            },
-                            "stock_qty": {
-                                "type": "NUMBER",
-                                "description": "Nouveau stock (optionnel)."
-                            },
+                            "name": {"type": "STRING", "description": "Nouveau nom du produit (optionnel)."},
+                            "price": {"type": "NUMBER", "description": "Nouveau prix de vente (optionnel)."},
+                            "cost": {"type": "NUMBER", "description": "Nouveau coût d'achat (optionnel)."},
+                            "unit": {"type": "STRING", "description": "Nouvelle unite de mesure (optionnel)."},
+                            "stock_qty": {"type": "NUMBER", "description": "Nouveau stock (optionnel)."},
                             "alert_threshold": {
                                 "type": "NUMBER",
-                                "description": "Nouveau seuil d'alerte pour les matieres premieres (optionnel)."
-                            }
+                                "description": "Nouveau seuil d'alerte pour les matieres premieres (optionnel).",
+                            },
                         },
-                        "required": ["product_id", "category"]
-                    }
+                        "required": ["product_id", "category"],
+                    },
                 },
                 {
                     "name": "delete_product",
@@ -472,17 +349,14 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "product_id": {
-                                "type": "INTEGER",
-                                "description": "L'identifiant du produit."
-                            },
+                            "product_id": {"type": "INTEGER", "description": "L'identifiant du produit."},
                             "category": {
                                 "type": "STRING",
-                                "description": "Catégorie : 'finished' pour produit final, 'raw' pour matière première."
-                            }
+                                "description": "Catégorie : 'finished' pour produit final, 'raw' pour matière première.",
+                            },
                         },
-                        "required": ["product_id", "category"]
-                    }
+                        "required": ["product_id", "category"],
+                    },
                 },
                 {
                     "name": "add_sale",
@@ -492,39 +366,24 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "client_id": {
                                 "type": "INTEGER",
-                                "description": "L'identifiant du client (laisser vide pour client de passage)."
+                                "description": "L'identifiant du client (laisser vide pour client de passage).",
                             },
                             "item_kind": {
                                 "type": "STRING",
-                                "description": "Type d'article : 'finished' (produit final) ou 'raw' (matière première)."
+                                "description": "Type d'article : 'finished' (produit final) ou 'raw' (matière première).",
                             },
-                            "item_id": {
-                                "type": "INTEGER",
-                                "description": "L'identifiant de l'article."
-                            },
-                            "quantity": {
-                                "type": "NUMBER",
-                                "description": "Quantité vendue."
-                            },
-                            "unit": {
-                                "type": "STRING",
-                                "description": "Unité utilisée (ex: kg, sac, Qt)."
-                            },
-                            "unit_price": {
-                                "type": "NUMBER",
-                                "description": "Prix unitaire de la vente."
-                            },
+                            "item_id": {"type": "INTEGER", "description": "L'identifiant de l'article."},
+                            "quantity": {"type": "NUMBER", "description": "Quantité vendue."},
+                            "unit": {"type": "STRING", "description": "Unité utilisée (ex: kg, sac, Qt)."},
+                            "unit_price": {"type": "NUMBER", "description": "Prix unitaire de la vente."},
                             "amount_paid": {
                                 "type": "NUMBER",
-                                "description": "Montant payé lors de la vente (crée automatiquement un versement) (optionnel)."
+                                "description": "Montant payé lors de la vente (crée automatiquement un versement) (optionnel).",
                             },
-                            "notes": {
-                                "type": "STRING",
-                                "description": "Remarques (optionnel)."
-                            }
+                            "notes": {"type": "STRING", "description": "Remarques (optionnel)."},
                         },
-                        "required": ["item_kind", "item_id", "quantity", "unit", "unit_price"]
-                    }
+                        "required": ["item_kind", "item_id", "quantity", "unit", "unit_price"],
+                    },
                 },
                 {
                     "name": "add_purchase",
@@ -534,35 +393,20 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "supplier_id": {
                                 "type": "INTEGER",
-                                "description": "L'identifiant du fournisseur (optionnel)."
+                                "description": "L'identifiant du fournisseur (optionnel).",
                             },
                             "item_kind": {
                                 "type": "STRING",
-                                "description": "Type d'article : 'raw' (matière première) ou 'finished' (produit)."
+                                "description": "Type d'article : 'raw' (matière première) ou 'finished' (produit).",
                             },
-                            "item_id": {
-                                "type": "INTEGER",
-                                "description": "L'identifiant de l'article."
-                            },
-                            "quantity": {
-                                "type": "NUMBER",
-                                "description": "Quantité achetée."
-                            },
-                            "unit": {
-                                "type": "STRING",
-                                "description": "Unité utilisée."
-                            },
-                            "unit_price": {
-                                "type": "NUMBER",
-                                "description": "Prix unitaire d'achat."
-                            },
-                            "notes": {
-                                "type": "STRING",
-                                "description": "Remarques (optionnel)."
-                            }
+                            "item_id": {"type": "INTEGER", "description": "L'identifiant de l'article."},
+                            "quantity": {"type": "NUMBER", "description": "Quantité achetée."},
+                            "unit": {"type": "STRING", "description": "Unité utilisée."},
+                            "unit_price": {"type": "NUMBER", "description": "Prix unitaire d'achat."},
+                            "notes": {"type": "STRING", "description": "Remarques (optionnel)."},
                         },
-                        "required": ["item_kind", "item_id", "quantity", "unit", "unit_price"]
-                    }
+                        "required": ["item_kind", "item_id", "quantity", "unit", "unit_price"],
+                    },
                 },
                 {
                     "name": "add_payment",
@@ -570,25 +414,16 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "client_id": {
-                                "type": "INTEGER",
-                                "description": "L'identifiant du client."
-                            },
-                            "amount": {
-                                "type": "NUMBER",
-                                "description": "Montant du versement en DA."
-                            },
+                            "client_id": {"type": "INTEGER", "description": "L'identifiant du client."},
+                            "amount": {"type": "NUMBER", "description": "Montant du versement en DA."},
                             "payment_type": {
                                 "type": "STRING",
-                                "description": "Type : 'versement' ou 'avance' (défaut 'versement')."
+                                "description": "Type : 'versement' ou 'avance' (défaut 'versement').",
                             },
-                            "notes": {
-                                "type": "STRING",
-                                "description": "Remarques (optionnel)."
-                            }
+                            "notes": {"type": "STRING", "description": "Remarques (optionnel)."},
                         },
-                        "required": ["client_id", "amount"]
-                    }
+                        "required": ["client_id", "amount"],
+                    },
                 },
                 {
                     "name": "add_supplier_payment",
@@ -596,29 +431,20 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "supplier_id": {
-                                "type": "INTEGER",
-                                "description": "L'identifiant du fournisseur."
-                            },
-                            "amount": {
-                                "type": "NUMBER",
-                                "description": "Montant du versement en DA."
-                            },
+                            "supplier_id": {"type": "INTEGER", "description": "L'identifiant du fournisseur."},
+                            "amount": {"type": "NUMBER", "description": "Montant du versement en DA."},
                             "payment_type": {
                                 "type": "STRING",
-                                "description": "Type : 'versement' ou 'avance' (défaut 'versement')."
+                                "description": "Type : 'versement' ou 'avance' (défaut 'versement').",
                             },
                             "purchase_id": {
                                 "type": "INTEGER",
-                                "description": "Identifiant de l'achat associé (optionnel)."
+                                "description": "Identifiant de l'achat associé (optionnel).",
                             },
-                            "notes": {
-                                "type": "STRING",
-                                "description": "Remarques (optionnel)."
-                            }
+                            "notes": {"type": "STRING", "description": "Remarques (optionnel)."},
                         },
-                        "required": ["supplier_id", "amount"]
-                    }
+                        "required": ["supplier_id", "amount"],
+                    },
                 },
                 {
                     "name": "delete_operation",
@@ -628,15 +454,15 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "tx_kind": {
                                 "type": "STRING",
-                                "description": "Type d'opération : 'sale_finished', 'sale_raw', 'purchase', 'payment'."
+                                "description": "Type d'opération : 'sale_finished', 'sale_raw', 'purchase', 'payment'.",
                             },
                             "tx_id": {
                                 "type": "INTEGER",
-                                "description": "L'identifiant unique de la vente, achat ou paiement."
-                            }
+                                "description": "L'identifiant unique de la vente, achat ou paiement.",
+                            },
                         },
-                        "required": ["tx_kind", "tx_id"]
-                    }
+                        "required": ["tx_kind", "tx_id"],
+                    },
                 },
                 {
                     "name": "add_expense",
@@ -646,23 +472,17 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "category": {
                                 "type": "STRING",
-                                "description": "Catégorie de la dépense (ex: Électricité, Transport, Carburant)."
+                                "description": "Catégorie de la dépense (ex: Électricité, Transport, Carburant).",
                             },
-                            "amount": {
-                                "type": "NUMBER",
-                                "description": "Montant de la dépense en DA."
-                            },
-                            "description": {
-                                "type": "STRING",
-                                "description": "Description (optionnel)."
-                            },
+                            "amount": {"type": "NUMBER", "description": "Montant de la dépense en DA."},
+                            "description": {"type": "STRING", "description": "Description (optionnel)."},
                             "payment_method": {
                                 "type": "STRING",
-                                "description": "Mode de paiement (ex: Espèce, Chèque, CCP) (optionnel)."
-                            }
+                                "description": "Mode de paiement (ex: Espèce, Chèque, CCP) (optionnel).",
+                            },
                         },
-                        "required": ["category", "amount"]
-                    }
+                        "required": ["category", "amount"],
+                    },
                 },
                 {
                     "name": "modify_expense",
@@ -670,25 +490,13 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "expense_id": {
-                                "type": "INTEGER",
-                                "description": "Identifiant de la dépense."
-                            },
-                            "category": {
-                                "type": "STRING",
-                                "description": "Nouvelle catégorie (optionnel)."
-                            },
-                            "amount": {
-                                "type": "NUMBER",
-                                "description": "Nouveau montant (optionnel)."
-                            },
-                            "description": {
-                                "type": "STRING",
-                                "description": "Nouvelle description (optionnel)."
-                            }
+                            "expense_id": {"type": "INTEGER", "description": "Identifiant de la dépense."},
+                            "category": {"type": "STRING", "description": "Nouvelle catégorie (optionnel)."},
+                            "amount": {"type": "NUMBER", "description": "Nouveau montant (optionnel)."},
+                            "description": {"type": "STRING", "description": "Nouvelle description (optionnel)."},
                         },
-                        "required": ["expense_id"]
-                    }
+                        "required": ["expense_id"],
+                    },
                 },
                 {
                     "name": "delete_expense",
@@ -696,13 +504,10 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "expense_id": {
-                                "type": "INTEGER",
-                                "description": "Identifiant de la dépense à supprimer."
-                            }
+                            "expense_id": {"type": "INTEGER", "description": "Identifiant de la dépense à supprimer."}
                         },
-                        "required": ["expense_id"]
-                    }
+                        "required": ["expense_id"],
+                    },
                 },
                 {
                     "name": "add_production_batch",
@@ -712,19 +517,13 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "finished_product_id": {
                                 "type": "INTEGER",
-                                "description": "L'identifiant du produit final fabriqué."
+                                "description": "L'identifiant du produit final fabriqué.",
                             },
-                            "quantity": {
-                                "type": "NUMBER",
-                                "description": "Quantité fabriquée."
-                            },
-                            "notes": {
-                                "type": "STRING",
-                                "description": "Observations (optionnel)."
-                            }
+                            "quantity": {"type": "NUMBER", "description": "Quantité fabriquée."},
+                            "notes": {"type": "STRING", "description": "Observations (optionnel)."},
                         },
-                        "required": ["finished_product_id", "quantity"]
-                    }
+                        "required": ["finished_product_id", "quantity"],
+                    },
                 },
                 {
                     "name": "delete_production",
@@ -732,13 +531,10 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "batch_id": {
-                                "type": "INTEGER",
-                                "description": "L'identifiant unique du lot de production."
-                            }
+                            "batch_id": {"type": "INTEGER", "description": "L'identifiant unique du lot de production."}
                         },
-                        "required": ["batch_id"]
-                    }
+                        "required": ["batch_id"],
+                    },
                 },
                 {
                     "name": "redirect_to",
@@ -748,11 +544,11 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "url": {
                                 "type": "STRING",
-                                "description": "Le chemin d'accès relatif (ex: /operations, /clients, /catalog)."
+                                "description": "Le chemin d'accès relatif (ex: /operations, /clients, /catalog).",
                             }
                         },
-                        "required": ["url"]
-                    }
+                        "required": ["url"],
+                    },
                 },
                 {
                     "name": "change_theme",
@@ -760,13 +556,10 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "theme": {
-                                "type": "STRING",
-                                "description": "Le thème cible : 'dark' ou 'light'."
-                            }
+                            "theme": {"type": "STRING", "description": "Le thème cible : 'dark' ou 'light'."}
                         },
-                        "required": ["theme"]
-                    }
+                        "required": ["theme"],
+                    },
                 },
                 {
                     "name": "get_enum_values",
@@ -774,17 +567,14 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "table": {
-                                "type": "STRING",
-                                "description": "Le nom de la table (ex: expenses, payments)."
-                            },
+                            "table": {"type": "STRING", "description": "Le nom de la table (ex: expenses, payments)."},
                             "column": {
                                 "type": "STRING",
-                                "description": "Le nom de la colonne (ex: category, payment_method)."
-                            }
+                                "description": "Le nom de la colonne (ex: category, payment_method).",
+                            },
                         },
-                        "required": ["table", "column"]
-                    }
+                        "required": ["table", "column"],
+                    },
                 },
                 {
                     "name": "search_clients",
@@ -794,11 +584,11 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "query": {
                                 "type": "STRING",
-                                "description": "Le nom ou partie du nom du client à rechercher."
+                                "description": "Le nom ou partie du nom du client à rechercher.",
                             }
                         },
-                        "required": ["query"]
-                    }
+                        "required": ["query"],
+                    },
                 },
                 {
                     "name": "search_products",
@@ -806,13 +596,10 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "query": {
-                                "type": "STRING",
-                                "description": "Le nom du produit ou composant à rechercher."
-                            }
+                            "query": {"type": "STRING", "description": "Le nom du produit ou composant à rechercher."}
                         },
-                        "required": ["query"]
-                    }
+                        "required": ["query"],
+                    },
                 },
                 {
                     "name": "get_business_insights",
@@ -822,11 +609,11 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "insight_type": {
                                 "type": "STRING",
-                                "description": "Le type d'analyse : 'top_debtors', 'monthly_sales_comparison' ou 'summary'."
+                                "description": "Le type d'analyse : 'top_debtors', 'monthly_sales_comparison' ou 'summary'.",
                             }
                         },
-                        "required": ["insight_type"]
-                    }
+                        "required": ["insight_type"],
+                    },
                 },
                 {
                     "name": "get_print_link",
@@ -836,15 +623,12 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "doc_type": {
                                 "type": "STRING",
-                                "description": "Type de document : 'sale_finished', 'sale_raw', 'purchase', 'payment' ou 'production'."
+                                "description": "Type de document : 'sale_finished', 'sale_raw', 'purchase', 'payment' ou 'production'.",
                             },
-                            "item_id": {
-                                "type": "INTEGER",
-                                "description": "L'identifiant du document."
-                            }
+                            "item_id": {"type": "INTEGER", "description": "L'identifiant du document."},
                         },
-                        "required": ["doc_type", "item_id"]
-                    }
+                        "required": ["doc_type", "item_id"],
+                    },
                 },
                 {
                     "name": "import_client_excel",
@@ -854,11 +638,11 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "filepath": {
                                 "type": "STRING",
-                                "description": "Le chemin d'accès au fichier Excel sur le serveur."
+                                "description": "Le chemin d'accès au fichier Excel sur le serveur.",
                             }
                         },
-                        "required": ["filepath"]
-                    }
+                        "required": ["filepath"],
+                    },
                 },
                 {
                     "name": "import_client_history_excel",
@@ -868,15 +652,15 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "filepath": {
                                 "type": "STRING",
-                                "description": "Le chemin d'accès au fichier Excel sur le serveur."
+                                "description": "Le chemin d'accès au fichier Excel sur le serveur.",
                             },
                             "client_id": {
                                 "type": "INTEGER",
-                                "description": "ID facultatif du client (s'il existe déjà dans l'application)."
-                            }
+                                "description": "ID facultatif du client (s'il existe déjà dans l'application).",
+                            },
                         },
-                        "required": ["filepath"]
-                    }
+                        "required": ["filepath"],
+                    },
                 },
                 {
                     "name": "import_bulk_clients_excel",
@@ -886,11 +670,11 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "filepath": {
                                 "type": "STRING",
-                                "description": "Le chemin d'accès au fichier Excel contenant la liste des clients."
+                                "description": "Le chemin d'accès au fichier Excel contenant la liste des clients.",
                             }
                         },
-                        "required": ["filepath"]
-                    }
+                        "required": ["filepath"],
+                    },
                 },
                 {
                     "name": "import_bulk_products_excel",
@@ -900,15 +684,15 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "filepath": {
                                 "type": "STRING",
-                                "description": "Le chemin d'accès au fichier Excel contenant la liste des produits."
+                                "description": "Le chemin d'accès au fichier Excel contenant la liste des produits.",
                             },
                             "is_raw_material": {
                                 "type": "BOOLEAN",
-                                "description": "Mettre True si ce sont des matières premières, ou False si ce sont des produits finis."
-                            }
+                                "description": "Mettre True si ce sont des matières premières, ou False si ce sont des produits finis.",
+                            },
                         },
-                        "required": ["filepath"]
-                    }
+                        "required": ["filepath"],
+                    },
                 },
                 {
                     "name": "get_current_weather",
@@ -918,11 +702,11 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "location": {
                                 "type": "STRING",
-                                "description": "Le nom de la ville ou région (ex: Paris, Marseille, Alger)."
+                                "description": "Le nom de la ville ou région (ex: Paris, Marseille, Alger).",
                             }
                         },
-                        "required": ["location"]
-                    }
+                        "required": ["location"],
+                    },
                 },
                 {
                     "name": "search_web",
@@ -932,11 +716,11 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "query": {
                                 "type": "STRING",
-                                "description": "La requête de recherche à envoyer au moteur de recherche."
+                                "description": "La requête de recherche à envoyer au moteur de recherche.",
                             }
                         },
-                        "required": ["query"]
-                    }
+                        "required": ["query"],
+                    },
                 },
                 {
                     "name": "remember",
@@ -946,15 +730,15 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "content": {
                                 "type": "STRING",
-                                "description": "L'information à mémoriser (ex: 'Ali préfère payer en espèces', 'Le prix du sac 50kg est toujours 3500 DA')."
+                                "description": "L'information à mémoriser (ex: 'Ali préfère payer en espèces', 'Le prix du sac 50kg est toujours 3500 DA').",
                             },
                             "category": {
                                 "type": "STRING",
-                                "description": "Catégorie du souvenir : 'preference' (préférence utilisateur/client), 'rule' (règle métier), 'context' (contexte important), 'learned' (appris automatiquement), 'correction' (correction d'erreur), 'general' (autre)."
-                            }
+                                "description": "Catégorie du souvenir : 'preference' (préférence utilisateur/client), 'rule' (règle métier), 'context' (contexte important), 'learned' (appris automatiquement), 'correction' (correction d'erreur), 'general' (autre).",
+                            },
                         },
-                        "required": ["content"]
-                    }
+                        "required": ["content"],
+                    },
                 },
                 {
                     "name": "recall",
@@ -964,11 +748,11 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "query": {
                                 "type": "STRING",
-                                "description": "Le terme de recherche pour retrouver des souvenirs pertinents. Laisser vide pour voir les plus récents."
+                                "description": "Le terme de recherche pour retrouver des souvenirs pertinents. Laisser vide pour voir les plus récents.",
                             }
                         },
-                        "required": ["query"]
-                    }
+                        "required": ["query"],
+                    },
                 },
                 {
                     "name": "forget",
@@ -978,19 +762,16 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "memory_id": {
                                 "type": "INTEGER",
-                                "description": "L'identifiant du souvenir à supprimer (obtenu via recall)."
+                                "description": "L'identifiant du souvenir à supprimer (obtenu via recall).",
                             }
                         },
-                        "required": ["memory_id"]
-                    }
+                        "required": ["memory_id"],
+                    },
                 },
                 {
                     "name": "list_user_notes",
                     "description": "Liste toutes les notes enregistrées de l'utilisateur dans son bloc-notes (retourne les IDs, titres, couleurs, épinglages, etc.).",
-                    "parameters": {
-                        "type": "OBJECT",
-                        "properties": {}
-                    }
+                    "parameters": {"type": "OBJECT", "properties": {}},
                 },
                 {
                     "name": "get_user_note",
@@ -998,13 +779,10 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "note_id": {
-                                "type": "STRING",
-                                "description": "L'identifiant de la note (ex: note_123456)."
-                            }
+                            "note_id": {"type": "STRING", "description": "L'identifiant de la note (ex: note_123456)."}
                         },
-                        "required": ["note_id"]
-                    }
+                        "required": ["note_id"],
+                    },
                 },
                 {
                     "name": "create_user_note",
@@ -1012,21 +790,18 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "title": {
-                                "type": "STRING",
-                                "description": "Le titre de la note."
-                            },
+                            "title": {"type": "STRING", "description": "Le titre de la note."},
                             "content": {
                                 "type": "STRING",
-                                "description": "Le contenu textuel de la note (Markdown supporté)."
+                                "description": "Le contenu textuel de la note (Markdown supporté).",
                             },
                             "color": {
                                 "type": "STRING",
-                                "description": "La couleur visuelle de la note (yellow, rose, mint, blue, lavender, black)."
-                            }
+                                "description": "La couleur visuelle de la note (yellow, rose, mint, blue, lavender, black).",
+                            },
                         },
-                        "required": ["title", "content"]
-                    }
+                        "required": ["title", "content"],
+                    },
                 },
                 {
                     "name": "save_user_note",
@@ -1034,29 +809,20 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "note_id": {
-                                "type": "STRING",
-                                "description": "L'identifiant de la note à sauvegarder."
-                            },
-                            "title": {
-                                "type": "STRING",
-                                "description": "Le nouveau titre de la note."
-                            },
-                            "content": {
-                                "type": "STRING",
-                                "description": "Le nouveau contenu textuel de la note."
-                            },
+                            "note_id": {"type": "STRING", "description": "L'identifiant de la note à sauvegarder."},
+                            "title": {"type": "STRING", "description": "Le nouveau titre de la note."},
+                            "content": {"type": "STRING", "description": "Le nouveau contenu textuel de la note."},
                             "color": {
                                 "type": "STRING",
-                                "description": "La couleur de la note (yellow, rose, mint, blue, lavender, black)."
+                                "description": "La couleur de la note (yellow, rose, mint, blue, lavender, black).",
                             },
                             "pinned": {
                                 "type": "BOOLEAN",
-                                "description": "Mettre à True pour épingler la note en haut de la liste."
-                            }
+                                "description": "Mettre à True pour épingler la note en haut de la liste.",
+                            },
                         },
-                        "required": ["note_id", "title", "content"]
-                    }
+                        "required": ["note_id", "title", "content"],
+                    },
                 },
                 {
                     "name": "delete_user_note",
@@ -1064,21 +830,15 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "note_id": {
-                                "type": "STRING",
-                                "description": "L'identifiant de la note à supprimer."
-                            }
+                            "note_id": {"type": "STRING", "description": "L'identifiant de la note à supprimer."}
                         },
-                        "required": ["note_id"]
-                    }
+                        "required": ["note_id"],
+                    },
                 },
                 {
                     "name": "list_recipes",
                     "description": "Liste toutes les recettes de production enregistrées avec leurs composants (matières premières et quantités).",
-                    "parameters": {
-                        "type": "OBJECT",
-                        "properties": {}
-                    }
+                    "parameters": {"type": "OBJECT", "properties": {}},
                 },
                 {
                     "name": "create_recipe",
@@ -1088,36 +848,25 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "finished_product_id": {
                                 "type": "INTEGER",
-                                "description": "L'identifiant du produit fini fabriqué."
+                                "description": "L'identifiant du produit fini fabriqué.",
                             },
-                            "name": {
-                                "type": "STRING",
-                                "description": "Le nom de la recette."
-                            },
-                            "notes": {
-                                "type": "STRING",
-                                "description": "Notes ou remarques facultatives."
-                            },
+                            "name": {"type": "STRING", "description": "Le nom de la recette."},
+                            "notes": {"type": "STRING", "description": "Notes ou remarques facultatives."},
                             "items": {
                                 "type": "ARRAY",
                                 "description": "Liste des ingrédients. Chaque ingrédient doit être un objet contenant 'raw_material_id' et 'quantity'.",
                                 "items": {
                                     "type": "OBJECT",
                                     "properties": {
-                                        "raw_material_id": {
-                                            "type": "INTEGER"
-                                        },
-                                        "quantity": {
-                                            "type": "NUMBER",
-                                            "description": "Quantité nécessaire en kg."
-                                        }
+                                        "raw_material_id": {"type": "INTEGER"},
+                                        "quantity": {"type": "NUMBER", "description": "Quantité nécessaire en kg."},
                                     },
-                                    "required": ["raw_material_id", "quantity"]
-                                }
-                            }
+                                    "required": ["raw_material_id", "quantity"],
+                                },
+                            },
                         },
-                        "required": ["finished_product_id", "name", "items"]
-                    }
+                        "required": ["finished_product_id", "name", "items"],
+                    },
                 },
                 {
                     "name": "delete_recipe",
@@ -1125,13 +874,10 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "recipe_id": {
-                                "type": "INTEGER",
-                                "description": "L'identifiant de la recette à supprimer."
-                            }
+                            "recipe_id": {"type": "INTEGER", "description": "L'identifiant de la recette à supprimer."}
                         },
-                        "required": ["recipe_id"]
-                    }
+                        "required": ["recipe_id"],
+                    },
                 },
                 {
                     "name": "list_bon_space_documents",
@@ -1141,18 +887,15 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "query": {
                                 "type": "STRING",
-                                "description": "Terme de recherche facultatif (nom de client, produit, date)."
+                                "description": "Terme de recherche facultatif (nom de client, produit, date).",
                             },
                             "kind": {
                                 "type": "STRING",
-                                "description": "Filtre facultatif par type de document : 'sale' (vente), 'purchase' (achat), 'payment' (versement), 'production' (production), 'external' (PDF)."
+                                "description": "Filtre facultatif par type de document : 'sale' (vente), 'purchase' (achat), 'payment' (versement), 'production' (production), 'external' (PDF).",
                             },
-                            "limit": {
-                                "type": "INTEGER",
-                                "description": "Nombre maximum de résultats (défaut 80)."
-                            }
-                        }
-                    }
+                            "limit": {"type": "INTEGER", "description": "Nombre maximum de résultats (défaut 80)."},
+                        },
+                    },
                 },
                 {
                     "name": "get_recent_activity_logs",
@@ -1162,26 +905,20 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "limit": {
                                 "type": "INTEGER",
-                                "description": "Nombre maximum de logs à récupérer (défaut 50)."
+                                "description": "Nombre maximum de logs à récupérer (défaut 50).",
                             }
-                        }
-                    }
+                        },
+                    },
                 },
                 {
                     "name": "get_active_alerts",
                     "description": "Récupère toutes les alertes de stock critique actuelles et les clients débiteurs en retard de paiement.",
-                    "parameters": {
-                        "type": "OBJECT",
-                        "properties": {}
-                    }
+                    "parameters": {"type": "OBJECT", "properties": {}},
                 },
                 {
                     "name": "run_system_maintenance",
                     "description": "Déclenche la maintenance de la base de données (optimisation des index, nettoyage des logs et caches). Uniquement disponible pour les administrateurs.",
-                    "parameters": {
-                        "type": "OBJECT",
-                        "properties": {}
-                    }
+                    "parameters": {"type": "OBJECT", "properties": {}},
                 },
                 {
                     "name": "save_backup_settings",
@@ -1191,26 +928,26 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "gdrive_backup_dir": {
                                 "type": "STRING",
-                                "description": "Chemin local du dossier synchronisé par Google Drive Desktop."
+                                "description": "Chemin local du dossier synchronisé par Google Drive Desktop.",
                             },
                             "backup_snapshot_time": {
                                 "type": "STRING",
-                                "description": "Heure du snapshot quotidien au format HH:MM (ex: 02:00)."
+                                "description": "Heure du snapshot quotidien au format HH:MM (ex: 02:00).",
                             },
                             "backup_local_retention": {
                                 "type": "INTEGER",
-                                "description": "Nombre de jours de rétention pour les sauvegardes de nuit locales."
+                                "description": "Nombre de jours de rétention pour les sauvegardes de nuit locales.",
                             },
                             "backup_event_retention": {
                                 "type": "INTEGER",
-                                "description": "Nombre maximal d'événements de sauvegarde à conserver."
+                                "description": "Nombre maximal d'événements de sauvegarde à conserver.",
                             },
                             "pg_dump_path": {
                                 "type": "STRING",
-                                "description": "Chemin absolu vers l'exécutable pg_dump (optionnel)."
-                            }
-                        }
-                    }
+                                "description": "Chemin absolu vers l'exécutable pg_dump (optionnel).",
+                            },
+                        },
+                    },
                 },
                 {
                     "name": "update_app_user",
@@ -1220,23 +957,23 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "user_id": {
                                 "type": "INTEGER",
-                                "description": "L'identifiant unique de l'utilisateur à modifier."
+                                "description": "L'identifiant unique de l'utilisateur à modifier.",
                             },
                             "role": {
                                 "type": "STRING",
-                                "description": "Nouveau rôle de l'utilisateur (admin, manager, operator)."
+                                "description": "Nouveau rôle de l'utilisateur (admin, manager, operator).",
                             },
                             "is_active": {
                                 "type": "BOOLEAN",
-                                "description": "Définir à True pour activer le compte, False pour le désactiver."
+                                "description": "Définir à True pour activer le compte, False pour le désactiver.",
                             },
                             "new_password": {
                                 "type": "STRING",
-                                "description": "Nouveau code PIN de 4 chiffres pour réinitialiser le mot de passe (optionnel)."
-                            }
+                                "description": "Nouveau code PIN de 4 chiffres pour réinitialiser le mot de passe (optionnel).",
+                            },
                         },
-                        "required": ["user_id", "role", "is_active"]
-                    }
+                        "required": ["user_id", "role", "is_active"],
+                    },
                 },
                 {
                     "name": "get_export_link",
@@ -1246,41 +983,32 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "export_type": {
                                 "type": "STRING",
-                                "description": "Type d'export souhaité : 'clients' (tous les clients avec stats), 'reports' (résumé ventes/achats/bénéfices), 'audit' (journaux d'audit), ou 'diagnostic' (état technique système)."
+                                "description": "Type d'export souhaité : 'clients' (tous les clients avec stats), 'reports' (résumé ventes/achats/bénéfices), 'audit' (journaux d'audit), ou 'diagnostic' (état technique système).",
                             },
                             "date_from": {
                                 "type": "STRING",
-                                "description": "Date de début pour filtrer l'export au format YYYY-MM-DD (optionnel, pour 'reports' et 'audit')."
+                                "description": "Date de début pour filtrer l'export au format YYYY-MM-DD (optionnel, pour 'reports' et 'audit').",
                             },
                             "date_to": {
                                 "type": "STRING",
-                                "description": "Date de fin pour filtrer l'export au format YYYY-MM-DD (optionnel, pour 'reports' et 'audit')."
+                                "description": "Date de fin pour filtrer l'export au format YYYY-MM-DD (optionnel, pour 'reports' et 'audit').",
                             },
                             "audit_filters": {
                                 "type": "OBJECT",
                                 "description": "Filtres additionnels pour l'export 'audit' (optionnel).",
                                 "properties": {
-                                    "actor": {
-                                        "type": "STRING",
-                                        "description": "Nom de l'acteur (utilisateur)."
-                                    },
-                                    "action": {
-                                        "type": "STRING",
-                                        "description": "Nom de l'action."
-                                    },
-                                    "entity_type": {
-                                        "type": "STRING",
-                                        "description": "Type de l'entité."
-                                    },
+                                    "actor": {"type": "STRING", "description": "Nom de l'acteur (utilisateur)."},
+                                    "action": {"type": "STRING", "description": "Nom de l'action."},
+                                    "entity_type": {"type": "STRING", "description": "Type de l'entité."},
                                     "status": {
                                         "type": "STRING",
-                                        "description": "Statut de l'action ('success' ou 'failure')."
-                                    }
-                                }
-                            }
+                                        "description": "Statut de l'action ('success' ou 'failure').",
+                                    },
+                                },
+                            },
                         },
-                        "required": ["export_type"]
-                    }
+                        "required": ["export_type"],
+                    },
                 },
                 {
                     "name": "create_invoice_document",
@@ -1288,10 +1016,7 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "client_id": {
-                                "type": "INTEGER",
-                                "description": "L'identifiant du client (optionnel)."
-                            },
+                            "client_id": {"type": "INTEGER", "description": "L'identifiant du client (optionnel)."},
                             "lines": {
                                 "type": "ARRAY",
                                 "description": "La liste des lignes de facture.",
@@ -1300,39 +1025,27 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                                     "properties": {
                                         "item_key": {
                                             "type": "STRING",
-                                            "description": "Clé de l'article au format 'finished:ID' ou 'raw:ID'."
+                                            "description": "Clé de l'article au format 'finished:ID' ou 'raw:ID'.",
                                         },
-                                        "quantity": {
-                                            "type": "NUMBER",
-                                            "description": "Quantité vendue."
-                                        },
-                                        "unit": {
-                                            "type": "STRING",
-                                            "description": "Unité de mesure (ex: kg, sac, Qt)."
-                                        },
-                                        "unit_price": {
-                                            "type": "NUMBER",
-                                            "description": "Prix unitaire."
-                                        },
+                                        "quantity": {"type": "NUMBER", "description": "Quantité vendue."},
+                                        "unit": {"type": "STRING", "description": "Unité de mesure (ex: kg, sac, Qt)."},
+                                        "unit_price": {"type": "NUMBER", "description": "Prix unitaire."},
                                         "custom_item_name": {
                                             "type": "STRING",
-                                            "description": "Précision pour la ligne AUTRE (optionnel)."
-                                        }
+                                            "description": "Précision pour la ligne AUTRE (optionnel).",
+                                        },
                                     },
-                                    "required": ["item_key", "quantity", "unit", "unit_price"]
-                                }
+                                    "required": ["item_key", "quantity", "unit", "unit_price"],
+                                },
                             },
-                            "notes": {
-                                "type": "STRING",
-                                "description": "Remarques (optionnel)."
-                            },
+                            "notes": {"type": "STRING", "description": "Remarques (optionnel)."},
                             "sale_date": {
                                 "type": "STRING",
-                                "description": "Date de la vente au format YYYY-MM-DD (optionnel)."
-                            }
+                                "description": "Date de la vente au format YYYY-MM-DD (optionnel).",
+                            },
                         },
-                        "required": ["lines"]
-                    }
+                        "required": ["lines"],
+                    },
                 },
                 {
                     "name": "generate_quote",
@@ -1342,7 +1055,7 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "client_name": {
                                 "type": "STRING",
-                                "description": "Nom du client destinataire du devis (optionnel)."
+                                "description": "Nom du client destinataire du devis (optionnel).",
                             },
                             "lines": {
                                 "type": "ARRAY",
@@ -1352,31 +1065,19 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                                     "properties": {
                                         "item_name": {
                                             "type": "STRING",
-                                            "description": "Nom du produit ou description de l'article."
+                                            "description": "Nom du produit ou description de l'article.",
                                         },
-                                        "quantity": {
-                                            "type": "NUMBER",
-                                            "description": "Quantité."
-                                        },
-                                        "unit": {
-                                            "type": "STRING",
-                                            "description": "Unité de mesure."
-                                        },
-                                        "unit_price": {
-                                            "type": "NUMBER",
-                                            "description": "Prix unitaire estimé."
-                                        }
+                                        "quantity": {"type": "NUMBER", "description": "Quantité."},
+                                        "unit": {"type": "STRING", "description": "Unité de mesure."},
+                                        "unit_price": {"type": "NUMBER", "description": "Prix unitaire estimé."},
                                     },
-                                    "required": ["item_name", "quantity", "unit", "unit_price"]
-                                }
+                                    "required": ["item_name", "quantity", "unit", "unit_price"],
+                                },
                             },
-                            "notes": {
-                                "type": "STRING",
-                                "description": "Notes ou conditions de validité (optionnel)."
-                            }
+                            "notes": {"type": "STRING", "description": "Notes ou conditions de validité (optionnel)."},
                         },
-                        "required": ["lines"]
-                    }
+                        "required": ["lines"],
+                    },
                 },
                 {
                     "name": "get_stock_status",
@@ -1386,14 +1087,11 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "product_type": {
                                 "type": "STRING",
-                                "description": "Filtre par type de produit : 'finished' (produits finis), 'raw' (matières premières) ou 'all' (tous)."
+                                "description": "Filtre par type de produit : 'finished' (produits finis), 'raw' (matières premières) ou 'all' (tous).",
                             },
-                            "product_name": {
-                                "type": "STRING",
-                                "description": "Recherche par nom partiel (optionnel)."
-                            }
-                        }
-                    }
+                            "product_name": {"type": "STRING", "description": "Recherche par nom partiel (optionnel)."},
+                        },
+                    },
                 },
                 {
                     "name": "get_payment_status",
@@ -1401,16 +1099,13 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     "parameters": {
                         "type": "OBJECT",
                         "properties": {
-                            "client_id": {
-                                "type": "INTEGER",
-                                "description": "L'identifiant du client (optionnel)."
-                            },
+                            "client_id": {"type": "INTEGER", "description": "L'identifiant du client (optionnel)."},
                             "document_id": {
                                 "type": "INTEGER",
-                                "description": "L'identifiant de la facture (optionnel)."
-                            }
-                        }
-                    }
+                                "description": "L'identifiant de la facture (optionnel).",
+                            },
+                        },
+                    },
                 },
                 {
                     "name": "get_financial_report",
@@ -1420,15 +1115,15 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                         "properties": {
                             "start_date": {
                                 "type": "STRING",
-                                "description": "Date de début de la période au format YYYY-MM-DD (optionnel)."
+                                "description": "Date de début de la période au format YYYY-MM-DD (optionnel).",
                             },
                             "end_date": {
                                 "type": "STRING",
-                                "description": "Date de fin de la période au format YYYY-MM-DD (optionnel)."
-                            }
-                        }
-                    }
-                }
+                                "description": "Date de fin de la période au format YYYY-MM-DD (optionnel).",
+                            },
+                        },
+                    },
+                },
             ]
         }
     ]

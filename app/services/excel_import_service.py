@@ -40,6 +40,7 @@ def parse_client_history_excel(file_path: str) -> dict:
       }
     """
     import openpyxl
+
     try:
         wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
         sheet = wb[wb.sheetnames[0]]
@@ -106,9 +107,9 @@ def parse_client_history_excel(file_path: str) -> dict:
 
             montant_achat = _to_float(row_vals[2])
             montant_verse = _to_float(row_vals[3])
-            solde_cumule  = _to_float(row_vals[4])
+            solde_cumule = _to_float(row_vals[4])
 
-            designation   = str(row_vals[1] or "").strip()
+            designation = str(row_vals[1] or "").strip()
             if designation.lower() in ("nan", "none"):
                 designation = ""
 
@@ -117,19 +118,19 @@ def parse_client_history_excel(file_path: str) -> dict:
                 continue
 
             # Déterminer le type d'opération
-            type_op = _classify_operation(
-                designation, montant_achat, montant_verse, ordre
-            )
+            type_op = _classify_operation(designation, montant_achat, montant_verse, ordre)
 
-            rows.append({
-                "ordre_import":  ordre,
-                "date":          date_parsed,
-                "designation":   designation,
-                "montant_achat": montant_achat,
-                "montant_verse": montant_verse,
-                "solde_cumule":  solde_cumule,
-                "type_operation": type_op,
-            })
+            rows.append(
+                {
+                    "ordre_import": ordre,
+                    "date": date_parsed,
+                    "designation": designation,
+                    "montant_achat": montant_achat,
+                    "montant_verse": montant_verse,
+                    "solde_cumule": solde_cumule,
+                    "type_operation": type_op,
+                }
+            )
             ordre += 1
 
         if not rows:
@@ -138,17 +139,17 @@ def parse_client_history_excel(file_path: str) -> dict:
         # Compter les dates hors ordre
         nb_hors_ordre = 0
         for i in range(1, len(rows)):
-            if rows[i]["date"] < rows[i-1]["date"]:
+            if rows[i]["date"] < rows[i - 1]["date"]:
                 nb_hors_ordre += 1
 
         return {
-            "client_name":        client_name,
-            "rows":               rows,
-            "solde_final":        rows[-1]["solde_cumule"],
-            "total_achats":       sum(r["montant_achat"] for r in rows),
-            "total_verses":       sum(r["montant_verse"] for r in rows),
-            "nb_lignes":          len(rows),
-            "history_count":      len(rows),
+            "client_name": client_name,
+            "rows": rows,
+            "solde_final": rows[-1]["solde_cumule"],
+            "total_achats": sum(r["montant_achat"] for r in rows),
+            "total_verses": sum(r["montant_verse"] for r in rows),
+            "nb_lignes": len(rows),
+            "history_count": len(rows),
             "nb_dates_hors_ordre": nb_hors_ordre,
         }
     finally:
@@ -169,12 +170,7 @@ def _to_float(val) -> float:
         return 0.0
 
 
-def _classify_operation(
-    designation: str,
-    montant_achat: float,
-    montant_verse: float,
-    ordre: int
-) -> str:
+def _classify_operation(designation: str, montant_achat: float, montant_verse: float, ordre: int) -> str:
     """
     Classifie le type d'opération pour l'affichage.
 
@@ -199,6 +195,7 @@ def _classify_operation(
 
 
 # === FONCTIONS ORIGINALES RESTAURÉES ===
+
 
 def parse_flexible_date(value, fallback_to_today: bool = True) -> str | None:
     if isinstance(value, datetime):
@@ -237,6 +234,7 @@ def parse_flexible_date(value, fallback_to_today: bool = True) -> str | None:
     try:
         # Tentative via dateutil si disponible (pas de dépendance directe à pandas)
         from dateutil import parser as _du_parser
+
         return _du_parser.parse(text, dayfirst=True).date().isoformat()
     except Exception:
         pass
@@ -255,8 +253,6 @@ def parse_flexible_amount(value) -> float:
     return float(match.group(0)) if match else 0.0
 
 
-
-
 def parse_excel_client_file(file_path) -> dict:
     try:
         import openpyxl
@@ -269,7 +265,10 @@ def parse_excel_client_file(file_path) -> dict:
     def cell_str(value: Any) -> str:
         return str(value).strip() if value is not None else ""
 
-    top_rows = [[cell_str(value) for value in row] for row in sheet.iter_rows(min_row=1, max_row=min(6, sheet.max_row), values_only=True)]
+    top_rows = [
+        [cell_str(value) for value in row]
+        for row in sheet.iter_rows(min_row=1, max_row=min(6, sheet.max_row), values_only=True)
+    ]
     client_name = ""
     phone = ""
     for row in top_rows:
@@ -305,7 +304,9 @@ def parse_excel_client_file(file_path) -> dict:
         for row in sheet.iter_rows(min_row=header_row + 1, values_only=True):
             raw_date, designation, amount, payment, balance = (list(row) + [None] * 5)[:5]
             designation_text = cell_str(designation)
-            if not any(value is not None and str(value).strip() for value in (raw_date, designation, amount, payment, balance)):
+            if not any(
+                value is not None and str(value).strip() for value in (raw_date, designation, amount, payment, balance)
+            ):
                 continue
             history_count += 1
             balance_num = parse_flexible_amount(balance)
@@ -366,13 +367,7 @@ def parse_excel_bulk_clients(file_path: str) -> list[dict]:
 
     if header_row is None:
         header_row = 1
-        headers_map = {
-            "name": 0,
-            "phone": 1,
-            "address": 2,
-            "opening_credit": 3,
-            "notes": 4
-        }
+        headers_map = {"name": 0, "phone": 1, "address": 2, "opening_credit": 3, "notes": 4}
 
     clients = []
     for row in sheet.iter_rows(min_row=header_row + 1, values_only=True):
@@ -398,13 +393,15 @@ def parse_excel_bulk_clients(file_path: str) -> list[dict]:
         notes_idx = headers_map.get("notes")
         notes = cell_str(row_vals[notes_idx]) if notes_idx is not None and notes_idx < len(row_vals) else ""
 
-        clients.append({
-            "name": name,
-            "phone": phone,
-            "address": address,
-            "opening_credit": round(opening_credit, 2),
-            "notes": notes or f"Importé en masse depuis {Path(file_path).name}"
-        })
+        clients.append(
+            {
+                "name": name,
+                "phone": phone,
+                "address": address,
+                "opening_credit": round(opening_credit, 2),
+                "notes": notes or f"Importé en masse depuis {Path(file_path).name}",
+            }
+        )
 
     return clients
 
@@ -426,7 +423,10 @@ def parse_excel_bulk_products(file_path: str) -> list[dict]:
 
     for row_index, row in enumerate(sheet.iter_rows(values_only=True), start=1):
         values = [cell_str(value).lower() for value in row]
-        if any("nom" in val or "designation" in val or "désignation" in val or "produit" in val or "article" in val for val in values):
+        if any(
+            "nom" in val or "designation" in val or "désignation" in val or "produit" in val or "article" in val
+            for val in values
+        ):
             header_row = row_index
             for col_idx, val in enumerate(values):
                 if not val:
@@ -447,14 +447,7 @@ def parse_excel_bulk_products(file_path: str) -> list[dict]:
 
     if header_row is None:
         header_row = 1
-        headers_map = {
-            "name": 0,
-            "unit": 1,
-            "stock_qty": 2,
-            "sale_price": 3,
-            "avg_cost": 4,
-            "alert_threshold": 5
-        }
+        headers_map = {"name": 0, "unit": 1, "stock_qty": 2, "sale_price": 3, "avg_cost": 4, "alert_threshold": 5}
 
     products = []
     for row in sheet.iter_rows(min_row=header_row + 1, values_only=True):
@@ -486,14 +479,15 @@ def parse_excel_bulk_products(file_path: str) -> list[dict]:
         alert_val = row_vals[alert_idx] if alert_idx is not None and alert_idx < len(row_vals) else 0.0
         alert_threshold = parse_flexible_amount(alert_val)
 
-        products.append({
-            "name": name,
-            "unit": unit or "kg",
-            "stock_qty": round(stock_qty, 2),
-            "sale_price": round(sale_price, 2),
-            "avg_cost": round(avg_cost, 2),
-            "alert_threshold": round(alert_threshold, 2)
-        })
+        products.append(
+            {
+                "name": name,
+                "unit": unit or "kg",
+                "stock_qty": round(stock_qty, 2),
+                "sale_price": round(sale_price, 2),
+                "avg_cost": round(avg_cost, 2),
+                "alert_threshold": round(alert_threshold, 2),
+            }
+        )
 
     return products
-

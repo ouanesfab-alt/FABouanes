@@ -1,4 +1,5 @@
 """Routes web du module Dépenses & Charges, avec validation Pydantic."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
@@ -38,11 +39,19 @@ async def expenses_page(request: Request, db: AsyncSession = Depends(get_async_s
     expenses = await list_expenses(db, filters)
     total = sum(e.amount for e in expenses)
     by_category = await expenses_by_category(db, filters.get("date_from"), filters.get("date_to"))
-    return templates.TemplateResponse("expenses.html", template_context(
-        request, expenses=expenses, categories=get_categories(),
-        payment_methods=get_payment_methods(), filters=filters,
-        total=total, by_category=by_category, title="Dépenses & Charges",
-    ))
+    return templates.TemplateResponse(
+        "expenses.html",
+        template_context(
+            request,
+            expenses=expenses,
+            categories=get_categories(),
+            payment_methods=get_payment_methods(),
+            filters=filters,
+            total=total,
+            by_category=by_category,
+            title="Dépenses & Charges",
+        ),
+    )
 
 
 @router.get("/expenses/new", name="new_expense")
@@ -50,10 +59,16 @@ async def new_expense_page(request: Request):
     denied = require_permission(request, "expenses.write")
     if denied:
         return denied
-    return templates.TemplateResponse("expense_form.html", template_context(
-        request, expense=None, categories=get_categories(),
-        payment_methods=get_payment_methods(), title="Nouvelle dépense",
-    ))
+    return templates.TemplateResponse(
+        "expense_form.html",
+        template_context(
+            request,
+            expense=None,
+            categories=get_categories(),
+            payment_methods=get_payment_methods(),
+            title="Nouvelle dépense",
+        ),
+    )
 
 
 @router.post("/expenses/new", name="new_expense")
@@ -76,10 +91,16 @@ async def new_expense_submit(request: Request, db: AsyncSession = Depends(get_as
         for err in e.errors():
             msg = f"Erreur de validation : {err['loc'][0]} - {err['msg']}"
             flash(request, msg, "danger")
-        return templates.TemplateResponse("expense_form.html", template_context(
-            request, expense=form, categories=get_categories(),
-            payment_methods=get_payment_methods(), title="Nouvelle dépense",
-        ))
+        return templates.TemplateResponse(
+            "expense_form.html",
+            template_context(
+                request,
+                expense=form,
+                categories=get_categories(),
+                payment_methods=get_payment_methods(),
+                title="Nouvelle dépense",
+            ),
+        )
 
     try:
         await add_expense(
@@ -95,10 +116,16 @@ async def new_expense_submit(request: Request, db: AsyncSession = Depends(get_as
     except Exception as e:
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur : {friendly}", "danger")
-        return templates.TemplateResponse("expense_form.html", template_context(
-            request, expense=form, categories=get_categories(),
-            payment_methods=get_payment_methods(), title="Nouvelle dépense",
-        ))
+        return templates.TemplateResponse(
+            "expense_form.html",
+            template_context(
+                request,
+                expense=form,
+                categories=get_categories(),
+                payment_methods=get_payment_methods(),
+                title="Nouvelle dépense",
+            ),
+        )
 
 
 @router.get("/expenses/{expense_id}/edit", name="edit_expense")
@@ -110,10 +137,16 @@ async def edit_expense_page(request: Request, expense_id: int, db: AsyncSession 
     if not expense:
         flash(request, "Dépense introuvable.", "danger")
         return RedirectResponse("/expenses", status_code=303)
-    return templates.TemplateResponse("expense_form.html", template_context(
-        request, expense=expense, categories=get_categories(),
-        payment_methods=get_payment_methods(), title="Modifier la dépense",
-    ))
+    return templates.TemplateResponse(
+        "expense_form.html",
+        template_context(
+            request,
+            expense=expense,
+            categories=get_categories(),
+            payment_methods=get_payment_methods(),
+            title="Modifier la dépense",
+        ),
+    )
 
 
 @router.post("/expenses/{expense_id}/edit", name="edit_expense")
@@ -143,10 +176,16 @@ async def edit_expense_submit(request: Request, expense_id: int, db: AsyncSessio
             flash(request, msg, "danger")
         form_dict = dict(form)
         form_dict["id"] = expense_id
-        return templates.TemplateResponse("expense_form.html", template_context(
-            request, expense=form_dict, categories=get_categories(),
-            payment_methods=get_payment_methods(), title="Modifier la dépense",
-        ))
+        return templates.TemplateResponse(
+            "expense_form.html",
+            template_context(
+                request,
+                expense=form_dict,
+                categories=get_categories(),
+                payment_methods=get_payment_methods(),
+                title="Modifier la dépense",
+            ),
+        )
 
     try:
         await modify_expense(
@@ -165,10 +204,16 @@ async def edit_expense_submit(request: Request, expense_id: int, db: AsyncSessio
         flash(request, f"Erreur : {friendly}", "danger")
         form_dict = dict(form)
         form_dict["id"] = expense_id
-        return templates.TemplateResponse("expense_form.html", template_context(
-            request, expense=form_dict, categories=get_categories(),
-            payment_methods=get_payment_methods(), title="Modifier la dépense",
-        ))
+        return templates.TemplateResponse(
+            "expense_form.html",
+            template_context(
+                request,
+                expense=form_dict,
+                categories=get_categories(),
+                payment_methods=get_payment_methods(),
+                title="Modifier la dépense",
+            ),
+        )
 
 
 @router.post("/expenses/{expense_id}/delete", name="delete_expense")

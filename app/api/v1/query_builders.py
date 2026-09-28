@@ -11,7 +11,10 @@ def pagination_meta(request: Request) -> tuple[int, int, int]:
     offset = (page - 1) * page_size
     return page, page_size, offset
 
-async def query_list_async(request: Request, query: str, params: tuple[Any, ...] = ()) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+
+async def query_list_async(
+    request: Request, query: str, params: tuple[Any, ...] = ()
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     page, page_size, offset = pagination_meta(request)
     wrapped = f"SELECT *, COUNT(*) OVER() AS _total_count FROM ({query}) _q LIMIT %s OFFSET %s"
     rows = await query_db_async(wrapped, tuple(params) + (page_size, offset))
@@ -23,8 +26,10 @@ async def query_list_async(request: Request, query: str, params: tuple[Any, ...]
         "total": total,
     }
 
+
 def like_value(request: Request) -> str:
     return f"%{request.query_params.get('q', '').strip()}%"
+
 
 def append_text_search(request: Request, where: list[str], params: list[Any], *fields: str) -> None:
     if not request.query_params.get("q", "").strip():
@@ -33,6 +38,7 @@ def append_text_search(request: Request, where: list[str], params: list[Any], *f
     where.append(f"({clause})")
     like = like_value(request)
     params.extend([like] * len(fields))
+
 
 def append_date_range(request: Request, where: list[str], params: list[Any], field: str) -> None:
     date_from = str(request.query_params.get("date_from", "") or "").strip()

@@ -1,4 +1,5 @@
 """Module Catalogue — Gestion des matières premières, produits finis et recettes."""
+
 from app.core.registry import register
 from app.modules.base import ModuleBase
 from app.modules.catalog.web import router as web_router
@@ -35,6 +36,7 @@ class CatalogModule(ModuleBase):
             "manager": ["catalog.read", "catalog.write", "catalog.delete"],
             "operator": ["catalog.read"],
         }
+
 
 # Registration
 register(CatalogModule())

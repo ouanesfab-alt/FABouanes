@@ -39,6 +39,7 @@ from app.modules.clients.service import ClientService
 
 router = APIRouter(prefix="/api/v1", tags=["contacts"])
 
+
 @router.get("/clients")
 async def api_get_clients(request: Request, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_CONTACTS_READ)
@@ -46,15 +47,14 @@ async def api_get_clients(request: Request, db: AsyncSession = Depends(get_async
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     service = ClientService(db)
     rows, total = await service.list_clients_with_stats(
-        search=request.query_params.get("q"),
-        page=page,
-        page_size=page_size
+        search=request.query_params.get("q"), page=page, page_size=page_size
     )
     meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
     res_data = api_success(rows, meta)
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=300)
     return response
+
 
 @router.post("/clients")
 async def api_create_client(request: Request, db: AsyncSession = Depends(get_async_session)):
@@ -64,6 +64,7 @@ async def api_create_client(request: Request, db: AsyncSession = Depends(get_asy
     service = ClientService(db)
     client = await service.create_client(validated)
     return json_response(api_success(await client_payload(client.id, db=db), status_code=201))
+
 
 @router.get("/clients/export")
 async def export_clients_csv(request: Request, db: AsyncSession = Depends(get_async_session)):
@@ -75,44 +76,60 @@ async def export_clients_csv(request: Request, db: AsyncSession = Depends(get_as
     import csv
     import io
     from datetime import date
+
     async def _build_export():
         sub_sales = select(func.max(Sale.sale_date).label("d")).where(Sale.client_id == Client.id)
         sub_raw_sales = select(func.max(RawSale.sale_date).label("d")).where(RawSale.client_id == Client.id)
         union_sales = union_all(sub_sales, sub_raw_sales).subquery()
         derniere_vente_expr = select(func.max(union_sales.c.d)).scalar_subquery()
 
-        dernier_paiement_expr = select(func.max(Payment.payment_date)).where(Payment.client_id == Client.id).scalar_subquery()
+        dernier_paiement_expr = (
+            select(func.max(Payment.payment_date)).where(Payment.client_id == Client.id).scalar_subquery()
+        )
 
-        stmt = select(
-            literal_column("id"),
-            literal_column("name"),
-            literal_column("current_balance").label("balance"),
-            literal_column("total_sales").label("total_achats"),
-            literal_column("total_payments").label("total_verses"),
-            derniere_vente_expr.label("derniere_vente"),
-            dernier_paiement_expr.label("dernier_paiement")
-        ).select_from(table("clients_with_stats").alias("c")).order_by(literal_column("current_balance").desc())
+        stmt = (
+            select(
+                literal_column("id"),
+                literal_column("name"),
+                literal_column("current_balance").label("balance"),
+                literal_column("total_sales").label("total_achats"),
+                literal_column("total_payments").label("total_verses"),
+                derniere_vente_expr.label("derniere_vente"),
+                dernier_paiement_expr.label("dernier_paiement"),
+            )
+            .select_from(table("clients_with_stats").alias("c"))
+            .order_by(literal_column("current_balance").desc())
+        )
 
         res = await db.execute(stmt)
         rows = [dict(row._mapping) for row in res.fetchall()]
 
         buf = io.StringIO()
-        writer = csv.DictWriter(buf, fieldnames=[
-            "id", "nom", "solde_actuel",
-            "total_achats", "total_versements",
-            "derniere_vente", "dernier_paiement",
-        ])
+        writer = csv.DictWriter(
+            buf,
+            fieldnames=[
+                "id",
+                "nom",
+                "solde_actuel",
+                "total_achats",
+                "total_versements",
+                "derniere_vente",
+                "dernier_paiement",
+            ],
+        )
         writer.writeheader()
         for row in rows:
-            writer.writerow({
-                "id": row["id"],
-                "nom": row["name"],
-                "solde_actuel": row["balance"],
-                "total_achats": row["total_achats"],
-                "total_versements": row["total_verses"],
-                "derniere_vente": row["derniere_vente"] or "",
-                "dernier_paiement": row["dernier_paiement"] or "",
-            })
+            writer.writerow(
+                {
+                    "id": row["id"],
+                    "nom": row["name"],
+                    "solde_actuel": row["balance"],
+                    "total_achats": row["total_achats"],
+                    "total_versements": row["total_verses"],
+                    "derniere_vente": row["derniere_vente"] or "",
+                    "dernier_paiement": row["dernier_paiement"] or "",
+                }
+            )
         return buf.getvalue()
 
     csv_content = await _build_export()
@@ -137,6 +154,7 @@ async def api_get_client_detail(request: Request, client_id: int, db: AsyncSessi
     add_cache_headers(request, response, res_data, max_age=300)
     return response
 
+
 @router.put("/clients/{client_id}")
 async def api_update_client(request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_CONTACTS_WRITE)
@@ -152,6 +170,7 @@ async def api_update_client(request: Request, client_id: int, db: AsyncSession =
     client["summary"] = detail.get("stats", {}) if detail else {}
     return json_response(api_success(client))
 
+
 @router.post("/clients/{client_id}/shred")
 async def api_shred_client(request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_CONTACTS_DELETE)
@@ -165,8 +184,15 @@ async def api_shred_client(request: Request, client_id: int, db: AsyncSession = 
         api_error("bad_request", "Erreur lors de l'anonymisation.", 400)
     after_client = await service.get_client(client_id)
     log_activity("shred_client", "client", client_id, client.name)
-    audit_event("shred_client", "client", client_id, before=before_dump, after=after_client.model_dump() if after_client else None)
+    audit_event(
+        "shred_client",
+        "client",
+        client_id,
+        before=before_dump,
+        after=after_client.model_dump() if after_client else None,
+    )
     return json_response(api_success({"shredded": True}))
+
 
 async def _fetch_client_history(client_id: int, page: int, page_size: int, db: AsyncSession) -> tuple[list, int]:
     # 1. Fetch total count first
@@ -177,12 +203,18 @@ async def _fetch_client_history(client_id: int, page: int, page_size: int, db: A
 
     # 2. Fetch only the paginated slice
     offset = (page - 1) * page_size
-    stmt = select(ClientHistory).where(ClientHistory.client_id == client_id).order_by(
-        case((ClientHistory.source == 'import_excel', 0), else_=1),
-        case((ClientHistory.source == 'import_excel', ClientHistory.ordre_import), else_=None),
-        case((ClientHistory.source == 'app', ClientHistory.operation_date), else_=None),
-        case((ClientHistory.source == 'app', ClientHistory.id), else_=None)
-    ).offset(offset).limit(page_size)
+    stmt = (
+        select(ClientHistory)
+        .where(ClientHistory.client_id == client_id)
+        .order_by(
+            case((ClientHistory.source == "import_excel", 0), else_=1),
+            case((ClientHistory.source == "import_excel", ClientHistory.ordre_import), else_=None),
+            case((ClientHistory.source == "app", ClientHistory.operation_date), else_=None),
+            case((ClientHistory.source == "app", ClientHistory.id), else_=None),
+        )
+        .offset(offset)
+        .limit(page_size)
+    )
 
     res = await db.execute(stmt)
     rows = res.scalars().all()
@@ -211,17 +243,19 @@ async def _fetch_client_history(client_id: int, page: int, page_size: int, db: A
         else:
             type_op = "achat"
 
-        processed_rows.append({
-            "operation_date": str(r.operation_date),
-            "designation": designation,
-            "montant_achat": m_achat,
-            "montant_verse": m_verse,
-            "solde_cumule": round(solde, 2),
-            "ordre_import": int(ordre),
-            "source": r.source,
-            "type_operation": type_op,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
-        })
+        processed_rows.append(
+            {
+                "operation_date": str(r.operation_date),
+                "designation": designation,
+                "montant_achat": m_achat,
+                "montant_verse": m_verse,
+                "solde_cumule": round(solde, 2),
+                "ordre_import": int(ordre),
+                "source": r.source,
+                "type_operation": type_op,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+        )
 
     return processed_rows, total
 
@@ -245,17 +279,17 @@ async def import_client_history(
 
     try:
         from app.core.worker import enqueue_background_task
-        job_id = await enqueue_background_task(
-            "import_excel_task",
-            temp_path,
-            client_id,
-            force_reimport
+
+        job_id = await enqueue_background_task("import_excel_task", temp_path, client_id, force_reimport)
+        return json_response(
+            api_success(
+                {
+                    "task_id": job_id,
+                    "status": "enqueued",
+                    "message": "L'importation de l'historique a été lancée en arrière-plan.",
+                }
+            )
         )
-        return json_response(api_success({
-            "task_id": job_id,
-            "status": "enqueued",
-            "message": "L'importation de l'historique a été lancée en arrière-plan."
-        }))
     except Exception as e:
         try:
             if os.path.exists(temp_path):
@@ -267,11 +301,7 @@ async def import_client_history(
 
 @router.get("/clients/{client_id}/history")
 async def api_client_history(
-    request: Request,
-    client_id: int,
-    page: int = 1,
-    page_size: int = 50,
-    db: AsyncSession = Depends(get_async_session)
+    request: Request, client_id: int, page: int = 1, page_size: int = 50, db: AsyncSession = Depends(get_async_session)
 ):
     require_api_user(request, PERMISSION_CONTACTS_READ)
     client_exists = (await db.execute(select(1).select_from(Client).where(Client.id == client_id))).scalar()
@@ -282,16 +312,19 @@ async def api_client_history(
     page_size = min(max(page_size, 1), 100)
     rows, total = await _fetch_client_history(client_id, page, page_size, db)
     import math
+
     total_pages = math.ceil(total / page_size) if page_size > 0 else 1
 
-    res_data = api_success({
-        "client_id": client_id,
-        "rows": rows,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": total_pages,
-    })
+    res_data = api_success(
+        {
+            "client_id": client_id,
+            "rows": rows,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+        }
+    )
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=30)
     return response
@@ -302,17 +335,13 @@ async def api_get_suppliers(request: Request, db: AsyncSession = Depends(get_asy
     require_api_user(request, PERMISSION_CONTACTS_READ)
     page = max(int(request.query_params.get("page", 1)), 1)
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
-    rows, total = await list_suppliers(
-        search=request.query_params.get("q"),
-        page=page,
-        page_size=page_size,
-        db=db
-    )
+    rows, total = await list_suppliers(search=request.query_params.get("q"), page=page, page_size=page_size, db=db)
     meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
     res_data = api_success(rows, meta)
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=300)
     return response
+
 
 @router.post("/suppliers")
 async def api_create_supplier(request: Request, db: AsyncSession = Depends(get_async_session)):
@@ -333,6 +362,7 @@ async def api_create_supplier(request: Request, db: AsyncSession = Depends(get_a
     log_activity("create_supplier", "supplier", supplier_id, supplier.name)
     return json_response(api_success(supplier_dict, status_code=201))
 
+
 @router.get("/suppliers/{supplier_id}")
 async def api_get_supplier_detail(request: Request, supplier_id: int, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_CONTACTS_READ)
@@ -343,6 +373,7 @@ async def api_get_supplier_detail(request: Request, supplier_id: int, db: AsyncS
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=300)
     return response
+
 
 @router.put("/suppliers/{supplier_id}")
 async def api_update_supplier(request: Request, supplier_id: int, db: AsyncSession = Depends(get_async_session)):
@@ -369,6 +400,7 @@ async def api_update_supplier(request: Request, supplier_id: int, db: AsyncSessi
     audit_event("update_supplier", "supplier", supplier_id, source="api", before=before, after=supplier_dict)
     return json_response(api_success(supplier_dict))
 
+
 @router.delete("/suppliers/{supplier_id}")
 async def api_delete_supplier(request: Request, supplier_id: int, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_CONTACTS_DELETE)
@@ -384,6 +416,7 @@ async def api_delete_supplier(request: Request, supplier_id: int, db: AsyncSessi
     audit_event("delete_supplier", "supplier", supplier_id, source="api", before=before, after=None)
     return json_response(api_success({"deleted": True}))
 
+
 @router.get("/raw-materials")
 async def api_get_raw_materials(request: Request, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_CATALOG_READ)
@@ -394,13 +427,14 @@ async def api_get_raw_materials(request: Request, db: AsyncSession = Depends(get
         status=request.query_params.get("status"),
         page=page,
         page_size=page_size,
-        db=db
+        db=db,
     )
     meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
     res_data = api_success(rows, meta)
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=300)
     return response
+
 
 @router.post("/raw-materials")
 async def api_create_raw_material(request: Request, db: AsyncSession = Depends(get_async_session)):
@@ -411,8 +445,11 @@ async def api_create_raw_material(request: Request, db: AsyncSession = Depends(g
     material = await service.create_raw_material(validated)
     return json_response(api_success(await raw_material_payload(material.id, db=db), status_code=201))
 
+
 @router.get("/raw-materials/{material_id}")
-async def api_get_raw_material_detail(request: Request, material_id: int, db: AsyncSession = Depends(get_async_session)):
+async def api_get_raw_material_detail(
+    request: Request, material_id: int, db: AsyncSession = Depends(get_async_session)
+):
     require_api_user(request, PERMISSION_CATALOG_READ)
     material = await raw_material_payload(material_id, db=db)
     if not material:
@@ -421,6 +458,7 @@ async def api_get_raw_material_detail(request: Request, material_id: int, db: As
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=300)
     return response
+
 
 @router.put("/raw-materials/{material_id}")
 async def api_update_raw_material(request: Request, material_id: int, db: AsyncSession = Depends(get_async_session)):
@@ -435,6 +473,7 @@ async def api_update_raw_material(request: Request, material_id: int, db: AsyncS
     material = await raw_material_payload(material_id, db=db)
     return json_response(api_success(material))
 
+
 @router.delete("/raw-materials/{material_id}")
 async def api_delete_raw_material(request: Request, material_id: int, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_CATALOG_DELETE)
@@ -446,22 +485,21 @@ async def api_delete_raw_material(request: Request, material_id: int, db: AsyncS
         api_error("conflict", "Suppression impossible.", 409)
     return json_response(api_success({"deleted": True}))
 
+
 @router.get("/finished-products")
 async def api_get_finished_products(request: Request, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_CATALOG_READ)
     page = max(int(request.query_params.get("page", 1)), 1)
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     rows, total = await list_finished_products(
-        search=request.query_params.get("q"),
-        page=page,
-        page_size=page_size,
-        db=db
+        search=request.query_params.get("q"), page=page, page_size=page_size, db=db
     )
     meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
     res_data = api_success(rows, meta)
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=300)
     return response
+
 
 @router.post("/finished-products")
 async def api_create_finished_product(request: Request, db: AsyncSession = Depends(get_async_session)):
@@ -472,8 +510,11 @@ async def api_create_finished_product(request: Request, db: AsyncSession = Depen
     product = await service.create_finished_product(validated)
     return json_response(api_success(await finished_product_payload(product.id, db=db), status_code=201))
 
+
 @router.get("/finished-products/{product_id}")
-async def api_get_finished_product_detail(request: Request, product_id: int, db: AsyncSession = Depends(get_async_session)):
+async def api_get_finished_product_detail(
+    request: Request, product_id: int, db: AsyncSession = Depends(get_async_session)
+):
     require_api_user(request, PERMISSION_CATALOG_READ)
     product = await finished_product_payload(product_id, db=db)
     if not product:
@@ -482,6 +523,7 @@ async def api_get_finished_product_detail(request: Request, product_id: int, db:
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=300)
     return response
+
 
 @router.put("/finished-products/{product_id}")
 async def api_update_finished_product(request: Request, product_id: int, db: AsyncSession = Depends(get_async_session)):
@@ -495,6 +537,7 @@ async def api_update_finished_product(request: Request, product_id: int, db: Asy
     await service.update_finished_product(product_id, validated)
     product = await finished_product_payload(product_id, db=db)
     return json_response(api_success(product))
+
 
 @router.delete("/finished-products/{product_id}")
 async def api_delete_finished_product(request: Request, product_id: int, db: AsyncSession = Depends(get_async_session)):
@@ -544,28 +587,20 @@ async def bulk_import_client_history(
         try:
             with zipfile.ZipFile(zip_path, "r") as zf:
                 xlsx_files = [
-                    name for name in zf.namelist()
-                    if name.lower().endswith(".xlsx")
-                    and not name.startswith("__MACOSX")
+                    name for name in zf.namelist() if name.lower().endswith(".xlsx") and not name.startswith("__MACOSX")
                 ]
                 if not xlsx_files:
-                    raise HTTPException(400,
-                        "Aucun fichier .xlsx trouvé dans le ZIP")
+                    raise HTTPException(400, "Aucun fichier .xlsx trouvé dans le ZIP")
 
                 for xlsx_name in xlsx_files:
                     extracted = os.path.join(tmpdir, xlsx_name)
                     zf.extract(xlsx_name, tmpdir)
                     try:
                         service = ClientService(db)
-                        rapport = await service.import_client_history_from_excel(
-                            extracted, None, True
-                        )
+                        rapport = await service.import_client_history_from_excel(extracted, None, True)
                         results.append(rapport)
                     except Exception as e:
-                        errors.append({
-                            "fichier": xlsx_name,
-                            "erreur": str(e)
-                        })
+                        errors.append({"fichier": xlsx_name, "erreur": str(e)})
         except zipfile.BadZipFile:
             raise HTTPException(400, "Fichier ZIP invalide ou corrompu")
 
@@ -576,7 +611,3 @@ async def bulk_import_client_history(
         "detail_succes": results,
         "detail_erreurs": errors,
     }
-
-
-
-

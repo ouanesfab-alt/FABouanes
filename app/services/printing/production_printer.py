@@ -51,9 +51,9 @@ async def _build_production_payload_impl(
         {"item_id": item_id},
     )
     item_rows = [dict(r._mapping) for r in item_rows_res.all()]
-    recipe_text = " + ".join(
-        f"{item['material_name']} {item['quantity']} {item['unit'] or 'kg'}" for item in item_rows
-    ) or "-"
+    recipe_text = (
+        " + ".join(f"{item['material_name']} {item['quantity']} {item['unit'] or 'kg'}" for item in item_rows) or "-"
+    )
     lines = [
         {
             "item_name": item["material_name"],
@@ -74,21 +74,23 @@ async def _build_production_payload_impl(
                 "total": row_dict["production_cost"],
             }
         ]
-    return _print_defaults({
-        "title": "Fiche de production",
-        "subtitle": "Production enregistree",
-        "number": f"PROD-{row_dict['id']:06d}",
-        "date": row_dict["production_date"],
-        "partner_label": "Produit final",
-        "partner_name": row_dict["item_name"],
-        "item_label": "Recette",
-        "item_name": recipe_text,
-        "quantity": row_dict["output_quantity"],
-        "unit": "kg",
-        "unit_price": row_dict["unit_cost"],
-        "total": row_dict["production_cost"],
-        "paid": None,
-        "due": None,
-        "notes": row_dict["notes"] or "",
-        "lines": lines,
-    })
+    return _print_defaults(
+        {
+            "title": "Fiche de production",
+            "subtitle": "Production enregistree",
+            "number": f"PROD-{row_dict['id']:06d}",
+            "date": row_dict["production_date"],
+            "partner_label": "Produit final",
+            "partner_name": row_dict["item_name"],
+            "item_label": "Recette",
+            "item_name": recipe_text,
+            "quantity": row_dict["output_quantity"],
+            "unit": "kg",
+            "unit_price": row_dict["unit_cost"],
+            "total": row_dict["production_cost"],
+            "paid": None,
+            "due": None,
+            "notes": row_dict["notes"] or "",
+            "lines": lines,
+        }
+    )

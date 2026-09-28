@@ -25,5 +25,3 @@ router.include_router(admin_api_router, dependencies=[Depends(verify_csrf_token)
 router.include_router(report_router, dependencies=[Depends(verify_csrf_token)])
 router.include_router(search_router)
 router.include_router(manual_router)
-
-

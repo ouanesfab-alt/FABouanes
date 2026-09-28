@@ -19,16 +19,18 @@ class PaymentRepository(AsyncRepository[Payment]):
 
     async def get_by_id(self, payment_id: int) -> Optional[Dict[str, Any]]:
         sale_ref_expr = case(
-            (and_(Payment.sale_kind == 'finished', Payment.sale_id.is_not(None)), func.concat('Produit #', Payment.sale_id)),
-            (and_(Payment.sale_kind == 'raw', Payment.raw_sale_id.is_not(None)), func.concat('Matière #', Payment.raw_sale_id)),
-            else_='-'
+            (
+                and_(Payment.sale_kind == "finished", Payment.sale_id.is_not(None)),
+                func.concat("Produit #", Payment.sale_id),
+            ),
+            (
+                and_(Payment.sale_kind == "raw", Payment.raw_sale_id.is_not(None)),
+                func.concat("Matière #", Payment.raw_sale_id),
+            ),
+            else_="-",
         )
         stmt = (
-            select(
-                *Payment.__table__.columns,
-                Client.name.label("client_name"),
-                sale_ref_expr.label("sale_ref")
-            )
+            select(*Payment.__table__.columns, Client.name.label("client_name"), sale_ref_expr.label("sale_ref"))
             .select_from(Payment)
             .join(Client, Client.id == Payment.client_id)
             .where(Payment.id == payment_id)
@@ -47,17 +49,19 @@ class PaymentRepository(AsyncRepository[Payment]):
         page_size: int = 25,
     ) -> Tuple[List[Dict[str, Any]], int]:
         sale_ref_expr = case(
-            (and_(Payment.sale_kind == 'finished', Payment.sale_id.is_not(None)), func.concat('Produit #', Payment.sale_id)),
-            (and_(Payment.sale_kind == 'raw', Payment.raw_sale_id.is_not(None)), func.concat('Matière #', Payment.raw_sale_id)),
-            else_='-'
+            (
+                and_(Payment.sale_kind == "finished", Payment.sale_id.is_not(None)),
+                func.concat("Produit #", Payment.sale_id),
+            ),
+            (
+                and_(Payment.sale_kind == "raw", Payment.raw_sale_id.is_not(None)),
+                func.concat("Matière #", Payment.raw_sale_id),
+            ),
+            else_="-",
         )
 
         stmt = (
-            select(
-                *Payment.__table__.columns,
-                Client.name.label("client_name"),
-                sale_ref_expr.label("sale_ref")
-            )
+            select(*Payment.__table__.columns, Client.name.label("client_name"), sale_ref_expr.label("sale_ref"))
             .select_from(Payment)
             .join(Client, Client.id == Payment.client_id)
         )
@@ -65,10 +69,7 @@ class PaymentRepository(AsyncRepository[Payment]):
         if search:
             search_pattern = f"%{search}%"
             stmt = stmt.where(
-                or_(
-                    Client.name.ilike(search_pattern),
-                    func.coalesce(Payment.notes, '').ilike(search_pattern)
-                )
+                or_(Client.name.ilike(search_pattern), func.coalesce(Payment.notes, "").ilike(search_pattern))
             )
 
         if date_from:
@@ -96,6 +97,7 @@ class PaymentRepository(AsyncRepository[Payment]):
 
 
 # --- Legacy compatibility wrappers ---
+
 
 @async_compat
 async def payment_form_context(db: AsyncSession | None = None) -> dict:
@@ -142,10 +144,5 @@ async def list_payments(
     async with get_async_sessionmaker()() as session:
         repo = PaymentRepository(session)
         return await repo.list_payments_paginated(
-            search=search,
-            date_from=date_from,
-            date_to=date_to,
-            kind=kind,
-            page=page,
-            page_size=page_size
+            search=search, date_from=date_from, date_to=date_to, kind=kind, page=page, page_size=page_size
         )

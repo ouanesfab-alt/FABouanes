@@ -71,6 +71,7 @@ templates = _FATemplates(directory=str(paths.templates_dir))
 def preload_templates() -> int:
     """Pre-compiles and loads all Jinja2 HTML templates into RAM memory at startup."""
     from pathlib import Path
+
     template_dir = Path(paths.templates_dir)
     if not template_dir.exists():
         return 0
@@ -183,7 +184,6 @@ async def csrf_protect(request: Request) -> None:
     await verify_csrf_token(request)
 
 
-
 async def verify_csrf_token(request: Request):
     """CSRF protection dependency for write endpoints.
 
@@ -200,7 +200,9 @@ async def verify_csrf_token(request: Request):
         return
 
     expected = ensure_csrf_token(request)
-    supplied = request.headers.get("X-CSRF-Token") or request.headers.get("X-CSRFToken") or request.headers.get("X-Csrf-Token")
+    supplied = (
+        request.headers.get("X-CSRF-Token") or request.headers.get("X-CSRFToken") or request.headers.get("X-Csrf-Token")
+    )
     if not supplied:
         content_type = request.headers.get("content-type", "")
         if "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
@@ -223,6 +225,7 @@ async def verify_csrf_token(request: Request):
         return
 
     from fastapi import HTTPException
+
     raise HTTPException(status_code=403, detail="CSRF token invalid")
 
 
@@ -244,6 +247,7 @@ def get_db():
     Note: This is part of the new dependency injection way. The ContextVar approach is legacy.
     """
     from app.core.request_state import get_state_value
+
     db = get_state_value("db")
     if db is None:
         raise RuntimeError("No active database connection found in request context.")
@@ -280,8 +284,13 @@ def load_user_from_session(request: Request):
     if not user_id:
         return None
     from app.core.db_helpers import query_db
+
     try:
-        user_row = query_db("SELECT id, username, password_hash, role, must_change_password, is_active, custom_permissions_json FROM users WHERE id = %s", (int(user_id),), one=True)
+        user_row = query_db(
+            "SELECT id, username, password_hash, role, must_change_password, is_active, custom_permissions_json FROM users WHERE id = %s",
+            (int(user_id),),
+            one=True,
+        )
         user = dict(user_row) if user_row else None
     except Exception:
         user = None
@@ -318,6 +327,7 @@ def template_context(request: Request, **context: Any) -> dict[str, Any]:
     user = current_user_ns(request)
     from app.core.config import settings
     from app.core.request_state import get_state_value
+
     csp_nonce = get_state_value("csp_nonce") or ""
     return {
         "request": proxy,
@@ -334,6 +344,7 @@ def _dt_filter(value: Any, length: int = 16) -> str:
     if value is None:
         return ""
     from app.core.model_utils import to_gmt1
+
     value = to_gmt1(value)
     if hasattr(value, "strftime"):
         if length <= 10:
@@ -347,6 +358,7 @@ def _dt_filter(value: Any, length: int = 16) -> str:
 def _custom_tojson_filter(value: Any, *args: Any, **kwargs: Any) -> Any:
     import decimal
     import json
+
     try:
         from markupsafe import Markup
     except ImportError:
@@ -365,10 +377,7 @@ def _custom_tojson_filter(value: Any, *args: Any, **kwargs: Any) -> Any:
 
     rendered = json.dumps(value, cls=SafeEncoder, ensure_ascii=False)
     safe_rendered = (
-        rendered.replace("<", "\\u003c")
-        .replace(">", "\\u003e")
-        .replace("&", "\\u0026")
-        .replace("'", "\\u0027")
+        rendered.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026").replace("'", "\\u0027")
     )
     return Markup(safe_rendered)
 

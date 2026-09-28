@@ -16,30 +16,35 @@ class PurchaseRepository(AsyncRepository[Purchase]):
         super().__init__(session, Purchase)
 
     async def get_by_id(self, purchase_id: int) -> Optional[Dict[str, Any]]:
-        unit_expr = func.coalesce(Purchase.unit, FinishedProduct.default_unit, RawMaterial.unit, 'kg')
+        unit_expr = func.coalesce(Purchase.unit, FinishedProduct.default_unit, RawMaterial.unit, "kg")
 
         material_name_expr = case(
             (Purchase.finished_product_id.is_not(None), FinishedProduct.name),
-            else_=func.coalesce(func.nullif(Purchase.custom_item_name, ''), RawMaterial.name)
+            else_=func.coalesce(func.nullif(Purchase.custom_item_name, ""), RawMaterial.name),
         )
 
         display_unit_expr = case(
-            (Purchase.finished_product_id.is_not(None), func.coalesce(Purchase.unit, FinishedProduct.default_unit, 'kg')),
-            else_=func.coalesce(Purchase.unit, RawMaterial.unit, 'kg')
+            (
+                Purchase.finished_product_id.is_not(None),
+                func.coalesce(Purchase.unit, FinishedProduct.default_unit, "kg"),
+            ),
+            else_=func.coalesce(Purchase.unit, RawMaterial.unit, "kg"),
         )
 
-        sac_capacity_num = cast(func.coalesce(func.nullif(func.regexp_replace(unit_expr, '[^0-9.]', '', 'g'), ''), '50'), Numeric)
+        sac_capacity_num = cast(
+            func.coalesce(func.nullif(func.regexp_replace(unit_expr, "[^0-9.]", "", "g"), ""), "50"), Numeric
+        )
 
         display_quantity_expr = case(
-            (func.lower(unit_expr).like('sac%'), Purchase.quantity / sac_capacity_num),
-            (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.quantity / 100.0),
-            else_=Purchase.quantity
+            (func.lower(unit_expr).like("sac%"), Purchase.quantity / sac_capacity_num),
+            (func.lower(unit_expr).in_(["qt", "quintal"]), Purchase.quantity / 100.0),
+            else_=Purchase.quantity,
         )
 
         display_unit_price_expr = case(
-            (func.lower(unit_expr).like('sac%'), Purchase.unit_price * sac_capacity_num),
-            (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.unit_price * 100.0),
-            else_=Purchase.unit_price
+            (func.lower(unit_expr).like("sac%"), Purchase.unit_price * sac_capacity_num),
+            (func.lower(unit_expr).in_(["qt", "quintal"]), Purchase.unit_price * 100.0),
+            else_=Purchase.unit_price,
         )
 
         stmt = (
@@ -49,7 +54,7 @@ class PurchaseRepository(AsyncRepository[Purchase]):
                 material_name_expr.label("material_name"),
                 display_unit_expr.label("display_unit"),
                 display_quantity_expr.label("display_quantity"),
-                display_unit_price_expr.label("display_unit_price")
+                display_unit_price_expr.label("display_unit_price"),
             )
             .select_from(Purchase)
             .join(Supplier, Supplier.id == Purchase.supplier_id, isouter=True)
@@ -69,30 +74,35 @@ class PurchaseRepository(AsyncRepository[Purchase]):
         page: int = 1,
         page_size: int = 25,
     ) -> Tuple[List[Dict[str, Any]], int]:
-        unit_expr = func.coalesce(Purchase.unit, FinishedProduct.default_unit, RawMaterial.unit, 'kg')
+        unit_expr = func.coalesce(Purchase.unit, FinishedProduct.default_unit, RawMaterial.unit, "kg")
 
         material_name_expr = case(
             (Purchase.finished_product_id.is_not(None), FinishedProduct.name),
-            else_=func.coalesce(func.nullif(Purchase.custom_item_name, ''), RawMaterial.name)
+            else_=func.coalesce(func.nullif(Purchase.custom_item_name, ""), RawMaterial.name),
         )
 
         material_unit_expr = case(
-            (Purchase.finished_product_id.is_not(None), func.coalesce(Purchase.unit, FinishedProduct.default_unit, 'kg')),
-            else_=func.coalesce(Purchase.unit, RawMaterial.unit, 'kg')
+            (
+                Purchase.finished_product_id.is_not(None),
+                func.coalesce(Purchase.unit, FinishedProduct.default_unit, "kg"),
+            ),
+            else_=func.coalesce(Purchase.unit, RawMaterial.unit, "kg"),
         )
 
-        sac_capacity_num = cast(func.coalesce(func.nullif(func.regexp_replace(unit_expr, '[^0-9.]', '', 'g'), ''), '50'), Numeric)
+        sac_capacity_num = cast(
+            func.coalesce(func.nullif(func.regexp_replace(unit_expr, "[^0-9.]", "", "g"), ""), "50"), Numeric
+        )
 
         display_quantity_expr = case(
-            (func.lower(unit_expr).like('sac%'), Purchase.quantity / sac_capacity_num),
-            (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.quantity / 100.0),
-            else_=Purchase.quantity
+            (func.lower(unit_expr).like("sac%"), Purchase.quantity / sac_capacity_num),
+            (func.lower(unit_expr).in_(["qt", "quintal"]), Purchase.quantity / 100.0),
+            else_=Purchase.quantity,
         )
 
         display_unit_price_expr = case(
-            (func.lower(unit_expr).like('sac%'), Purchase.unit_price * sac_capacity_num),
-            (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.unit_price * 100.0),
-            else_=Purchase.unit_price
+            (func.lower(unit_expr).like("sac%"), Purchase.unit_price * sac_capacity_num),
+            (func.lower(unit_expr).in_(["qt", "quintal"]), Purchase.unit_price * 100.0),
+            else_=Purchase.unit_price,
         )
 
         subquery_cols = [
@@ -114,7 +124,7 @@ class PurchaseRepository(AsyncRepository[Purchase]):
             material_name_expr.label("material_name"),
             material_unit_expr.label("material_unit"),
             display_quantity_expr.label("display_quantity"),
-            display_unit_price_expr.label("display_unit_price")
+            display_unit_price_expr.label("display_unit_price"),
         ]
 
         subq = (
@@ -131,9 +141,9 @@ class PurchaseRepository(AsyncRepository[Purchase]):
             search_pattern = f"%{search}%"
             stmt = stmt.where(
                 or_(
-                    func.coalesce(subq.c.supplier_name, '').ilike(search_pattern),
-                    func.coalesce(subq.c.material_name, '').ilike(search_pattern),
-                    func.coalesce(subq.c.notes, '').ilike(search_pattern)
+                    func.coalesce(subq.c.supplier_name, "").ilike(search_pattern),
+                    func.coalesce(subq.c.material_name, "").ilike(search_pattern),
+                    func.coalesce(subq.c.notes, "").ilike(search_pattern),
                 )
             )
 
@@ -147,9 +157,7 @@ class PurchaseRepository(AsyncRepository[Purchase]):
 
         # Order and paginate
         stmt = (
-            stmt.order_by(subq.c.purchase_date.desc(), subq.c.id.desc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
+            stmt.order_by(subq.c.purchase_date.desc(), subq.c.id.desc()).offset((page - 1) * page_size).limit(page_size)
         )
 
         result = await self.session.execute(stmt)
@@ -166,7 +174,7 @@ class PurchaseRepository(AsyncRepository[Purchase]):
                 RawMaterial.unit,
                 RawMaterial.stock_qty,
                 RawMaterial.avg_cost,
-                RawMaterial.sale_price
+                RawMaterial.sale_price,
             )
         )
         raws = res_raw.fetchall()
@@ -179,7 +187,7 @@ class PurchaseRepository(AsyncRepository[Purchase]):
                 FinishedProduct.default_unit.label("unit"),
                 FinishedProduct.stock_qty,
                 FinishedProduct.avg_cost,
-                FinishedProduct.sale_price
+                FinishedProduct.sale_price,
             )
         )
         finished = res_finished.fetchall()
@@ -187,29 +195,33 @@ class PurchaseRepository(AsyncRepository[Purchase]):
         choices = []
         for r in raws:
             is_autre = str(r.name or "").strip().casefold() == "autre"
-            choices.append({
-                "id": f"raw:{r.id}",
-                "name": str(r.name),
-                "unit": str(r.unit),
-                "stock_qty": float(r.stock_qty),
-                "avg_cost": float(r.avg_cost),
-                "sale_price": float(r.sale_price),
-                "option_label": f"{r.name} - autre produit" if is_autre else str(r.name),
-                "force_unit": "unite" if is_autre else "",
-                "custom_name_required": "1" if is_autre else ""
-            })
+            choices.append(
+                {
+                    "id": f"raw:{r.id}",
+                    "name": str(r.name),
+                    "unit": str(r.unit),
+                    "stock_qty": float(r.stock_qty),
+                    "avg_cost": float(r.avg_cost),
+                    "sale_price": float(r.sale_price),
+                    "option_label": f"{r.name} - autre produit" if is_autre else str(r.name),
+                    "force_unit": "unite" if is_autre else "",
+                    "custom_name_required": "1" if is_autre else "",
+                }
+            )
         for f in finished:
-            choices.append({
-                "id": f"finished:{f.id}",
-                "name": str(f.name),
-                "unit": str(f.unit),
-                "stock_qty": float(f.stock_qty),
-                "avg_cost": float(f.avg_cost),
-                "sale_price": float(f.sale_price),
-                "option_label": f"{f.name} (Produit fini)",
-                "force_unit": "",
-                "custom_name_required": ""
-            })
+            choices.append(
+                {
+                    "id": f"finished:{f.id}",
+                    "name": str(f.name),
+                    "unit": str(f.unit),
+                    "stock_qty": float(f.stock_qty),
+                    "avg_cost": float(f.avg_cost),
+                    "sale_price": float(f.sale_price),
+                    "option_label": f"{f.name} (Produit fini)",
+                    "force_unit": "",
+                    "custom_name_required": "",
+                }
+            )
 
         def sort_key(x):
             is_autre = x["name"].upper().strip() == "AUTRE"
@@ -229,7 +241,7 @@ class PurchaseDocumentRepository(AsyncRepository[PurchaseDocument]):
         stmt = (
             select(
                 *PurchaseDocument.__table__.columns,
-                func.coalesce(Supplier.name, 'Sans fournisseur').label("supplier_name")
+                func.coalesce(Supplier.name, "Sans fournisseur").label("supplier_name"),
             )
             .select_from(PurchaseDocument)
             .join(Supplier, Supplier.id == PurchaseDocument.supplier_id, isouter=True)
@@ -240,30 +252,35 @@ class PurchaseDocumentRepository(AsyncRepository[PurchaseDocument]):
         return dict(row._mapping) if row else None
 
     async def list_lines(self, doc_id: int) -> List[Dict[str, Any]]:
-        unit_expr = func.coalesce(Purchase.unit, FinishedProduct.default_unit, RawMaterial.unit, 'kg')
+        unit_expr = func.coalesce(Purchase.unit, FinishedProduct.default_unit, RawMaterial.unit, "kg")
 
         material_name_expr = case(
             (Purchase.finished_product_id.is_not(None), FinishedProduct.name),
-            else_=func.coalesce(func.nullif(Purchase.custom_item_name, ''), RawMaterial.name)
+            else_=func.coalesce(func.nullif(Purchase.custom_item_name, ""), RawMaterial.name),
         )
 
         display_unit_expr = case(
-            (Purchase.finished_product_id.is_not(None), func.coalesce(Purchase.unit, FinishedProduct.default_unit, 'kg')),
-            else_=func.coalesce(Purchase.unit, RawMaterial.unit, 'kg')
+            (
+                Purchase.finished_product_id.is_not(None),
+                func.coalesce(Purchase.unit, FinishedProduct.default_unit, "kg"),
+            ),
+            else_=func.coalesce(Purchase.unit, RawMaterial.unit, "kg"),
         )
 
-        sac_capacity_num = cast(func.coalesce(func.nullif(func.regexp_replace(unit_expr, '[^0-9.]', '', 'g'), ''), '50'), Numeric)
+        sac_capacity_num = cast(
+            func.coalesce(func.nullif(func.regexp_replace(unit_expr, "[^0-9.]", "", "g"), ""), "50"), Numeric
+        )
 
         display_quantity_expr = case(
-            (func.lower(unit_expr).like('sac%'), Purchase.quantity / sac_capacity_num),
-            (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.quantity / 100.0),
-            else_=Purchase.quantity
+            (func.lower(unit_expr).like("sac%"), Purchase.quantity / sac_capacity_num),
+            (func.lower(unit_expr).in_(["qt", "quintal"]), Purchase.quantity / 100.0),
+            else_=Purchase.quantity,
         )
 
         display_unit_price_expr = case(
-            (func.lower(unit_expr).like('sac%'), Purchase.unit_price * sac_capacity_num),
-            (func.lower(unit_expr).in_(['qt', 'quintal']), Purchase.unit_price * 100.0),
-            else_=Purchase.unit_price
+            (func.lower(unit_expr).like("sac%"), Purchase.unit_price * sac_capacity_num),
+            (func.lower(unit_expr).in_(["qt", "quintal"]), Purchase.unit_price * 100.0),
+            else_=Purchase.unit_price,
         )
 
         stmt = (
@@ -280,7 +297,7 @@ class PurchaseDocumentRepository(AsyncRepository[PurchaseDocument]):
                 display_unit_expr.label("display_unit"),
                 display_quantity_expr.label("display_quantity"),
                 display_unit_price_expr.label("display_unit_price"),
-                Purchase.total
+                Purchase.total,
             )
             .select_from(Purchase)
             .join(RawMaterial, RawMaterial.id == Purchase.raw_material_id, isouter=True)

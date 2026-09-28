@@ -1,4 +1,5 @@
 """Module Assistant IA — Assistant agentique connecté à l'API Gemini."""
+
 from app.core.registry import register
 from app.modules.assistant.web import router as web_router
 from app.modules.base import ModuleBase
@@ -36,6 +37,7 @@ class AssistantModule(ModuleBase):
             "manager": ["assistant.read", "assistant.write"],
             "operator": ["assistant.read", "assistant.write"],
         }
+
 
 # Registration
 register(AssistantModule())

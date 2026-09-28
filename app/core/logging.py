@@ -15,11 +15,10 @@ class JSONFormatter(logging.Formatter):
     Structured JSON formatter for production logging and centralized ingestion.
     Includes request_id for request-level correlation.
     """
+
     def format(self, record: logging.LogRecord) -> str:
         log_data = {
-            "timestamp": datetime.datetime.fromtimestamp(
-                record.created, tz=datetime.timezone.utc
-            ).isoformat(),
+            "timestamp": datetime.datetime.fromtimestamp(record.created, tz=datetime.timezone.utc).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -32,6 +31,7 @@ class JSONFormatter(logging.Formatter):
         if not request_id:
             try:
                 from app.core.request_state import get_state_value
+
                 request_id = get_state_value("request_id")
             except Exception:
                 pass
@@ -42,10 +42,28 @@ class JSONFormatter(logging.Formatter):
 
         # Add custom extra fields to the JSON log dict
         standard_attrs = {
-            "args", "asctime", "created", "exc_info", "exc_text", "filename",
-            "funcName", "levelname", "levelno", "lineno", "message", "module",
-            "msecs", "msg", "name", "pathname", "process", "processName",
-            "relativeCreated", "stack_info", "thread", "threadName"
+            "args",
+            "asctime",
+            "created",
+            "exc_info",
+            "exc_text",
+            "filename",
+            "funcName",
+            "levelname",
+            "levelno",
+            "lineno",
+            "message",
+            "module",
+            "msecs",
+            "msg",
+            "name",
+            "pathname",
+            "process",
+            "processName",
+            "relativeCreated",
+            "stack_info",
+            "thread",
+            "threadName",
         }
         for key, value in record.__dict__.items():
             if key not in standard_attrs and not key.startswith("_"):
@@ -63,7 +81,10 @@ def configure_logging() -> logging.Logger:
         return logger
 
     # Check if structured JSON logging is enabled via environment variable or production env
-    if os.environ.get("FAB_LOG_JSON", "0").strip() == "1" or os.environ.get("FASTAPI_ENV", "development").lower() == "production":
+    if (
+        os.environ.get("FAB_LOG_JSON", "0").strip() == "1"
+        or os.environ.get("FASTAPI_ENV", "development").lower() == "production"
+    ):
         formatter = JSONFormatter()
     else:
         formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s - %(message)s")

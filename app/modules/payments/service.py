@@ -42,7 +42,7 @@ class PaymentsService:
                 FinishedProduct.name.label("item_name"),
                 Sale.balance_due,
                 Sale.sale_date,
-                Sale.total
+                Sale.total,
             )
             .select_from(Sale)
             .join(Client, Client.id == Sale.client_id)
@@ -58,10 +58,10 @@ class PaymentsService:
                 RawSale.id,
                 RawSale.client_id,
                 Client.name.label("client_name"),
-                func.coalesce(func.nullif(RawSale.custom_item_name, ''), RawMaterial.name).label("item_name"),
+                func.coalesce(func.nullif(RawSale.custom_item_name, ""), RawMaterial.name).label("item_name"),
                 RawSale.balance_due,
                 RawSale.sale_date,
-                RawSale.total
+                RawSale.total,
             )
             .select_from(RawSale)
             .join(Client, Client.id == RawSale.client_id)
@@ -72,10 +72,7 @@ class PaymentsService:
             stmt_raw = stmt_raw.where(RawSale.client_id == client_id)
 
         union_stmt = union_all(stmt_finished, stmt_raw).subquery("x")
-        stmt = (
-            select(union_stmt)
-            .order_by(union_stmt.c.sale_date.asc(), union_stmt.c.id.asc())
-        )
+        stmt = select(union_stmt).order_by(union_stmt.c.sale_date.asc(), union_stmt.c.id.asc())
         res = await self.session.execute(stmt)
         return [dict(row._mapping) for row in res.fetchall()]
 
@@ -83,6 +80,7 @@ class PaymentsService:
         if amount <= 0:
             return 0.0
         from app.modules.sales.service import SalesService
+
         sales_service = SalesService(self.session)
         if kind == "finished":
             stmt = select(Sale).where(Sale.id == row_id).with_for_update()
@@ -115,6 +113,7 @@ class PaymentsService:
 
     async def reverse_payment_allocations(self, payment_row: dict) -> None:
         from app.modules.sales.service import SalesService
+
         sales_service = SalesService(self.session)
         meta_raw = payment_row.get("allocation_meta")
         if meta_raw:
@@ -189,9 +188,10 @@ class PaymentsService:
         payment_date: date | str,
         notes: str,
         sale_link: str = "",
-        payment_type: str = "versement"
+        payment_type: str = "versement",
     ) -> int:
         from datetime import date
+
         if isinstance(payment_date, str):
             payment_date = date.fromisoformat(payment_date.strip())
 
@@ -200,29 +200,37 @@ class PaymentsService:
             raise ValidationError("Le montant doit être supérieur à zéro.")
 
         # Verify client
-        res_client = await self.session.execute(
-            select(Client.id).where(Client.id == client_id).with_for_update()
-        )
+        res_client = await self.session.execute(select(Client.id).where(Client.id == client_id).with_for_update())
 
         if not res_client.first():
             raise ValidationError("Client introuvable.")
 
         # ── Idempotency guard: reject duplicate within 60s window ──
         import os
+
         if not os.getenv("PYTEST_CURRENT_TEST"):
             from datetime import datetime, timedelta
+
             cutoff = datetime.utcnow() - timedelta(seconds=60)
             dup_check = await self.session.execute(
-                select(Payment.id).where(
+                select(Payment.id)
+                .where(
                     Payment.client_id == client_id,
                     Payment.amount == amount,
-                    Payment.payment_date == (payment_date if isinstance(payment_date, date) else date.fromisoformat(str(payment_date).strip())),
-                    Payment.created_at >= cutoff
-                ).limit(1)
+                    Payment.payment_date
+                    == (
+                        payment_date
+                        if isinstance(payment_date, date)
+                        else date.fromisoformat(str(payment_date).strip())
+                    ),
+                    Payment.created_at >= cutoff,
+                )
+                .limit(1)
             )
             if dup_check.first():
-                raise ValidationError("Un paiement identique vient d'être enregistré. Veuillez patienter avant de réessayer.")
-
+                raise ValidationError(
+                    "Un paiement identique vient d'être enregistré. Veuillez patienter avant de réessayer."
+                )
 
         if payment_type == "avance":
             p_row = Payment(
@@ -234,7 +242,7 @@ class PaymentsService:
                 allocation_meta=None,
                 amount=amount,
                 payment_date=payment_date,
-                notes=notes or "Avance client"
+                notes=notes or "Avance client",
             )
             self.session.add(p_row)
             await self.session.flush()
@@ -291,7 +299,7 @@ class PaymentsService:
             allocation_meta=json.dumps(allocations) if allocations else None,
             amount=amount,
             payment_date=payment_date,
-            notes=notes or "Versement client"
+            notes=notes or "Versement client",
         )
         self.session.add(p_row)
         await self.session.flush()
@@ -305,25 +313,14 @@ class PaymentsService:
         payment_type = schema.payment_type
         notes = schema.notes
 
-        payment_id = await self.create_payment_record(
-            client_id,
-            amount,
-            payment_date,
-            notes,
-            sale_link,
-            payment_type
-        )
+        payment_id = await self.create_payment_record(client_id, amount, payment_date, notes, sale_link, payment_type)
         await self.session.commit()
 
         created = await self.payment_repo.get_by_id(payment_id)
         invalidate_cache_domains("sales", "client", "dashboard")
         emit(
             DomainEvent(
-                "create",
-                "payment",
-                payment_id,
-                f"client #{client_id} {payment_type} montant={amount}",
-                after=created
+                "create", "payment", payment_id, f"client #{client_id} {payment_type} montant={amount}", after=created
             )
         )
 
@@ -351,7 +348,7 @@ class PaymentsService:
                         FinishedProduct.name.label("item_name"),
                         (Sale.balance_due + payment["amount"]).label("balance_due"),
                         Sale.sale_date,
-                        Sale.total
+                        Sale.total,
                     )
                     .select_from(Sale)
                     .join(Client, Client.id == Sale.client_id)
@@ -368,10 +365,10 @@ class PaymentsService:
                         RawSale.id,
                         RawSale.client_id,
                         Client.name.label("client_name"),
-                        func.coalesce(func.nullif(RawSale.custom_item_name, ''), RawMaterial.name).label("item_name"),
+                        func.coalesce(func.nullif(RawSale.custom_item_name, ""), RawMaterial.name).label("item_name"),
                         (RawSale.balance_due + payment["amount"]).label("balance_due"),
                         RawSale.sale_date,
-                        RawSale.total
+                        RawSale.total,
                     )
                     .select_from(RawSale)
                     .join(Client, Client.id == RawSale.client_id)
@@ -384,17 +381,10 @@ class PaymentsService:
                     open_sales.append(dict(sale._mapping))
 
         # Fetch clients
-        res_clients = await self.session.execute(
-            select(*Client.__table__.columns).order_by(Client.name)
-        )
+        res_clients = await self.session.execute(select(*Client.__table__.columns).order_by(Client.name))
         clients = [dict(c._mapping) for c in res_clients.fetchall()]
 
-        return {
-            "payment": payment,
-            "current_link": current_link,
-            "clients": clients,
-            "open_sales": open_sales
-        }
+        return {"payment": payment, "current_link": current_link, "clients": clients, "open_sales": open_sales}
 
     async def edit_payment_from_form(self, payment_id: int, schema: PaymentFormSchema) -> int:
         payment = await self.payment_repo.get(payment_id)
@@ -419,12 +409,7 @@ class PaymentsService:
         await self.session.flush()
 
         new_payment_id = await self.create_payment_record(
-            client_id,
-            amount,
-            payment_date,
-            notes,
-            sale_link,
-            payment_type
+            client_id, amount, payment_date, notes, sale_link, payment_type
         )
         await self.session.commit()
 
@@ -437,7 +422,7 @@ class PaymentsService:
                 new_payment_id,
                 f"client #{client_id} {payment_type} montant={amount}",
                 before=before_dict,
-                after=after
+                after=after,
             )
         )
         return new_payment_id
@@ -459,12 +444,7 @@ class PaymentsService:
         invalidate_cache_domains("sales", "client", "dashboard")
         emit(
             DomainEvent(
-                "delete",
-                "payment",
-                payment_id,
-                "Suppression transaction client",
-                before=before_dict,
-                after=None
+                "delete", "payment", payment_id, "Suppression transaction client", before=before_dict, after=None
             )
         )
         return True
@@ -502,9 +482,7 @@ class PaymentsService:
         actor_data = {"id": recorded_by, "username": f"user_{recorded_by}", "role": "operator"}
         if recorded_by:
             try:
-                res_user = await self.session.execute(
-                    select(User.username, User.role).where(User.id == recorded_by)
-                )
+                res_user = await self.session.execute(select(User.username, User.role).where(User.id == recorded_by))
                 user_info = res_user.first()
                 if user_info:
                     actor_data["username"] = user_info.username
@@ -521,7 +499,7 @@ class PaymentsService:
                 f"Mobile: client #{client_id} montant={amount} par user #{recorded_by}",
                 after=created,
                 extra={"actor": actor_data},
-                source="mobile_api"
+                source="mobile_api",
             )
         )
         return {"ok": True, "payment_id": payment_id, "payment": created}

@@ -26,7 +26,6 @@ from app.services.excel_import_service import parse_client_history_excel
 _IMPORT_PREVIEW_TTL_SECONDS = 30 * 60
 
 
-
 class ClientService:
     """Asynchronous business service layer for Clients."""
 
@@ -71,9 +70,7 @@ class ClientService:
             return False
 
         # Delete key
-        await self.repo.session.execute(
-            delete(ClientKey).where(ClientKey.client_id == client_id)
-        )
+        await self.repo.session.execute(delete(ClientKey).where(ClientKey.client_id == client_id))
 
         # Set phone & address to "[SHREDDED]"
         client.phone = "[SHREDDED]"
@@ -110,24 +107,21 @@ class ClientService:
     ) -> Tuple[List[dict], int]:
         """Lists clients with calculated statistics and balance from the database view."""
         from sqlalchemy import table
+
         stmt = select(
             *Client.__table__.columns,
             literal_column("current_balance"),
             literal_column("total_sales"),
-            literal_column("total_payments")
+            literal_column("total_payments"),
         ).select_from(table("clients_with_stats"))
 
         if search:
-            stmt = stmt.where(literal_column("search_vector").op("@@")(func.plainto_tsquery('french', search)))
+            stmt = stmt.where(literal_column("search_vector").op("@@")(func.plainto_tsquery("french", search)))
 
         stmt = stmt.add_columns(func.count().over().label("_total_count"))
 
         offset = (page - 1) * page_size
-        stmt = (
-            stmt.order_by(literal_column("name"))
-            .offset(offset)
-            .limit(page_size)
-        )
+        stmt = stmt.order_by(literal_column("name")).offset(offset).limit(page_size)
 
         res = await self.repo.session.execute(stmt)
         rows = [dict(row._mapping) for row in res.fetchall()]
@@ -139,7 +133,9 @@ class ClientService:
 
                 from app.core.security import decrypt_val
 
-                stmt_keys = select(ClientKey.client_id, ClientKey.encryption_key).where(ClientKey.client_id.in_(client_ids))
+                stmt_keys = select(ClientKey.client_id, ClientKey.encryption_key).where(
+                    ClientKey.client_id.in_(client_ids)
+                )
                 res_keys = await self.repo.session.execute(stmt_keys)
                 keys_map = {}
                 for row in res_keys.all():
@@ -170,6 +166,7 @@ class ClientService:
 
         import base64
         import os
+
         key = os.urandom(32)
         b64_key = base64.b64encode(key).decode("utf-8")
 
@@ -179,6 +176,7 @@ class ClientService:
 
         from app.core.security import encrypt_val
         from app.utils.phone_normalize import normalize_phone_number
+
         normalized_phone = normalize_phone_number(schema.phone)
         created.phone = encrypt_val(normalized_phone, key)
         created.address = encrypt_val(schema.address, key)
@@ -198,9 +196,7 @@ class ClientService:
         )
         return decrypted
 
-    async def update_client(
-        self, client_id: int, schema: ClientUpdateSchema
-    ) -> Optional[Client]:
+    async def update_client(self, client_id: int, schema: ClientUpdateSchema) -> Optional[Client]:
         """Update properties of an existing client."""
         client = await self.repo.get_by_id(client_id)
         if not client:
@@ -208,12 +204,14 @@ class ClientService:
 
         # Fetch key
         import base64
+
         stmt_key = select(ClientKey.client_id, ClientKey.encryption_key).where(ClientKey.client_id == client.id)
         res = await self.repo.session.execute(stmt_key)
         row = res.mappings().first()
         key = base64.b64decode(row["encryption_key"]) if row and row.get("encryption_key") else None
         if not key:
             import os
+
             key = os.urandom(32)
             b64_key = base64.b64encode(key).decode("utf-8")
             ck = ClientKey(client_id=client.id, encryption_key=b64_key)
@@ -221,6 +219,7 @@ class ClientService:
             await self.repo.session.commit()
 
         from app.core.security import decrypt_val, encrypt_val
+
         decrypted_before = Client(
             id=client.id,
             name=client.name,
@@ -229,18 +228,18 @@ class ClientService:
             notes=client.notes,
             opening_credit=client.opening_credit,
             created_at=client.created_at,
-            updated_at=client.updated_at
+            updated_at=client.updated_at,
         )
         before_dump = decrypted_before.model_dump()
 
         from app.utils.phone_normalize import normalize_phone_number
+
         client.name = schema.name
         normalized_phone = normalize_phone_number(schema.phone)
         client.phone = encrypt_val(normalized_phone, key)
         client.address = encrypt_val(schema.address, key)
         client.notes = schema.notes
         client.opening_credit = schema.opening_credit
-
 
         updated = await self.repo.update(client)
 
@@ -273,10 +272,13 @@ class ClientService:
         from sqlalchemy.exc import IntegrityError
 
         from app.core.exceptions import ValidationError
+
         try:
             success = await self.repo.delete(client_id)
         except IntegrityError:
-            raise ValidationError("Impossible de supprimer ce client car il possède des opérations historiques (ventes ou règlements) associées.")
+            raise ValidationError(
+                "Impossible de supprimer ce client car il possède des opérations historiques (ventes ou règlements) associées."
+            )
 
         if success:
             invalidate_client_cache(client_id)
@@ -339,14 +341,10 @@ class ClientService:
                     item["event_date"] = str(dt_val or "")[:10]
 
                 if item["event_type"] in ("sale_finished", "sale_raw"):
-                    suffix = (
-                        " (matière première)" if item["event_type"] == "sale_raw" else ""
-                    )
+                    suffix = " (matière première)" if item["event_type"] == "sale_raw" else ""
                     qty = _format_quantity(item["quantity"])
                     unit = item["unit"] or ""
-                    item["designation"] = (
-                        f"{item['item_name']}{suffix} - {qty} {unit}".strip()
-                    )
+                    item["designation"] = f"{item['item_name']}{suffix} - {qty} {unit}".strip()
                 timeline.append(item)
 
             timeline.sort(
@@ -368,16 +366,8 @@ class ClientService:
                 for item in timeline
                 if item["event_type"] in ("sale_finished", "sale_raw")
             )
-            total_advance = sum(
-                float(item["purchase_amount"])
-                for item in timeline
-                if item["event_type"] == "advance"
-            )
-            total_paid = sum(
-                float(item["payment_amount"])
-                for item in timeline
-                if item["event_type"] == "payment"
-            )
+            total_advance = sum(float(item["purchase_amount"]) for item in timeline if item["event_type"] == "advance")
+            total_paid = sum(float(item["payment_amount"]) for item in timeline if item["event_type"] == "payment")
 
             stats = {
                 "opening_credit": float(client.opening_credit),
@@ -605,6 +595,7 @@ class ClientService:
                 clients_by_name[key] = c
 
             from datetime import date
+
             for row in rows:
                 name_key = str(row["name"]).strip().casefold()
                 existing = clients_by_name.get(name_key)
@@ -617,7 +608,7 @@ class ClientService:
                         phone=phone_to_set,
                         address=address_to_set,
                         notes=existing.notes or "",
-                        opening_credit=row["opening_credit"]
+                        opening_credit=row["opening_credit"],
                     )
                     await self.update_client(existing_id, schema)
                     updated += 1
@@ -628,7 +619,7 @@ class ClientService:
                         phone=row["phone"] or "",
                         address=row["address"] or "",
                         notes="",
-                        opening_credit=row["opening_credit"]
+                        opening_credit=row["opening_credit"],
                     )
                     created_client = await self.create_client(schema)
                     created += 1
@@ -639,8 +630,7 @@ class ClientService:
                     # Supprimer l'ancien historique Excel importé
                     await self.repo.session.execute(
                         delete(ClientHistory).where(
-                            ClientHistory.client_id == client_id,
-                            ClientHistory.source == 'import_excel'
+                            ClientHistory.client_id == client_id, ClientHistory.source == "import_excel"
                         )
                     )
                     history_objs = []
@@ -660,7 +650,7 @@ class ClientService:
                                 montant_verse=r["montant_verse"],
                                 solde_cumule=r["solde_cumule"],
                                 ordre_import=r["ordre_import"],
-                                source='import_excel'
+                                source="import_excel",
                             )
                         )
                     self.repo.session.add_all(history_objs)
@@ -672,6 +662,7 @@ class ClientService:
 
         if not errors:
             from app.core.storage import mark_backup_needed
+
             mark_backup_needed("import_excel")
         return {"created": created, "updated": updated, "errors": errors, "preview": rows}
 
@@ -696,10 +687,7 @@ class ClientService:
     # --- CLIENT HISTORY EXCEL IMPORT ---
 
     async def import_client_history_from_excel(
-        self,
-        file_path: str,
-        client_id: int | None = None,
-        force_reimport: bool = True
+        self, file_path: str, client_id: int | None = None, force_reimport: bool = True
     ) -> dict:
         """
         Importe l'historique complet d'un client à partir de son fichier Excel.
@@ -727,11 +715,7 @@ class ClientService:
             else:
                 # Créer le client avec le solde de départ comme opening_credit
                 schema = ClientCreateSchema(
-                    name=client_name,
-                    phone="",
-                    address="",
-                    notes="",
-                    opening_credit=opening_credit
+                    name=client_name, phone="", address="", notes="", opening_credit=opening_credit
                 )
                 created = await self.create_client(schema)
                 client_id = created.id
@@ -740,7 +724,7 @@ class ClientService:
         stmt_hist = (
             select(literal(1))
             .where(ClientHistory.client_id == client_id)
-            .where(ClientHistory.source == 'import_excel')
+            .where(ClientHistory.source == "import_excel")
             .limit(1)
         )
         res_hist = await self.repo.session.execute(stmt_hist)
@@ -754,8 +738,7 @@ class ClientService:
                 )
             # Supprimer l'ancien historique Excel importé
             stmt_del = delete(ClientHistory).where(
-                ClientHistory.client_id == client_id,
-                ClientHistory.source == 'import_excel'
+                ClientHistory.client_id == client_id, ClientHistory.source == "import_excel"
             )
             await self.repo.session.execute(stmt_del)
 
@@ -768,6 +751,7 @@ class ClientService:
         # 5. Insérer en lot les nouvelles lignes dans client_history (batch INSERT)
         if rows:
             from datetime import date, datetime
+
             history_objs = []
             for r in rows:
                 dt_val = r["date"]
@@ -795,7 +779,7 @@ class ClientService:
                         montant_verse=r["montant_verse"],
                         solde_cumule=r["solde_cumule"],
                         ordre_import=r["ordre_import"],
-                        source='import_excel'
+                        source="import_excel",
                     )
                 )
             self.repo.session.add_all(history_objs)
@@ -810,7 +794,6 @@ class ClientService:
             "nb_lignes": len(rows),
             "solde_final": solde_final,
         }
-
 
 
 def _format_quantity(value) -> str:

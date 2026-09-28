@@ -9,6 +9,7 @@ from app.core.request_state import get_state_value
 
 def consume_rate_limit(key: str, limit: int, window: float) -> bool:
     from app.core.rate_limit_store import RateLimitStore
+
     return RateLimitStore.consume(key, limit, window)
 
 
@@ -57,8 +58,21 @@ def validate_password_strength(password: str, mode: str | None = None) -> tuple[
 
     # Default: PIN mode
     _TRIVIAL_PINS = {
-        "0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999",
-        "1234", "4321", "1230", "0123", "9876",
+        "0000",
+        "1111",
+        "2222",
+        "3333",
+        "4444",
+        "5555",
+        "6666",
+        "7777",
+        "8888",
+        "9999",
+        "1234",
+        "4321",
+        "1230",
+        "0123",
+        "9876",
     }
     if not p.isdigit() or len(p) != 4:
         return False, "Le code PIN doit être composé d'exactement 4 chiffres."
@@ -69,9 +83,11 @@ def validate_password_strength(password: str, mode: str | None = None) -> tuple[
 
 def security_headers(response):
     from app.core.config import settings
+
     # Only expose version in desktop/dev mode to prevent fingerprinting in production
     if settings.desktop_mode or settings.env == "development":
         from app.version import APP_VERSION
+
         response.headers.setdefault("X-App-Version", APP_VERSION)
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
@@ -126,16 +142,19 @@ LOCKOUT_DURATION_SECONDS = 900
 
 def is_locked_out(ip: str) -> bool:
     from app.core.rate_limit_store import RateLimitStore
+
     return RateLimitStore.is_locked_out(ip, LOCKOUT_MAX_ATTEMPTS, LOCKOUT_WINDOW_SECONDS, LOCKOUT_DURATION_SECONDS)
 
 
 def record_login_failure(ip: str) -> None:
     from app.core.rate_limit_store import RateLimitStore
+
     RateLimitStore.record_failure(ip)
 
 
 def clear_login_failures(ip: str) -> None:
     from app.core.rate_limit_store import RateLimitStore
+
     RateLimitStore.clear(ip)
 
 
@@ -151,8 +170,10 @@ def encrypt_val(val: str | None, key: bytes) -> str | None:
         return None
     import base64
     import os
+
     try:
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
         val_bytes = val.encode("utf-8")
         aesgcm = AESGCM(key)
         nonce = os.urandom(12)
@@ -175,6 +196,7 @@ def decrypt_val(enc_val: str | None, key: bytes | None) -> str | None:
             import base64
 
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
             combined = base64.b64decode(enc_val[4:])
             if len(combined) < 12:
                 return "[DONNÉES SUPPRIMÉES]"
@@ -190,9 +212,11 @@ def decrypt_val(enc_val: str | None, key: bytes | None) -> str | None:
 
 def get_client_key_sync(client_id: int) -> bytes | None:
     from app.core.db_helpers import query_db
+
     res = query_db("SELECT encryption_key FROM client_keys WHERE client_id = %s", (client_id,), one=True)
     if res and res["encryption_key"]:
         import base64
+
         return base64.b64decode(res["encryption_key"])
     return None
 
@@ -202,15 +226,17 @@ def create_client_key_sync(client_id: int) -> bytes:
     import os
 
     from app.core.db_helpers import execute_db
+
     key = os.urandom(32)
     b64_key = base64.b64encode(key).decode("utf-8")
     execute_db(
         "INSERT INTO client_keys (client_id, encryption_key) VALUES (%s, %s) ON CONFLICT (client_id) DO UPDATE SET encryption_key = EXCLUDED.encryption_key",
-        (client_id, b64_key)
+        (client_id, b64_key),
     )
     return key
 
 
 def delete_client_key_sync(client_id: int) -> None:
     from app.core.db_helpers import execute_db
+
     execute_db("DELETE FROM client_keys WHERE client_id = %s", (client_id,))

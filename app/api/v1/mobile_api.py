@@ -95,8 +95,7 @@ async def mobile_login(request: Request):
         "access_token": create_access_token(user["id"], user["role"]),
         "refresh_token": create_refresh_token(user["id"]),
         "token_type": "bearer",
-        "user": {"id": user["id"], "username": user["username"],
-                 "role": user["role"]},
+        "user": {"id": user["id"], "username": user["username"], "role": user["role"]},
     }
 
 
@@ -161,8 +160,7 @@ async def mobile_list_clients(
     page_size = min(max(page_size, 1), 100)
     service = ClientService(db)
     clients, total = await service.list_clients_with_stats(q, page, page_size)
-    res_data = {"clients": clients, "total": total,
-            "page": page, "page_size": page_size}
+    res_data = {"clients": clients, "total": total, "page": page, "page_size": page_size}
     add_cache_headers(request, response, res_data, max_age=300)
     return res_data
 

@@ -185,7 +185,9 @@ async def _delete_supplier_by_id_impl(supplier_id: int, db: AsyncSession) -> Non
 
 
 @async_compat
-async def get_supplier_detail_context(supplier_id: int, args=None, path: str | None = None, db: AsyncSession | None = None) -> dict | None:
+async def get_supplier_detail_context(
+    supplier_id: int, args=None, path: str | None = None, db: AsyncSession | None = None
+) -> dict | None:
     async def load():
         if db is None:
             async with get_async_sessionmaker()() as session:
@@ -195,7 +197,9 @@ async def get_supplier_detail_context(supplier_id: int, args=None, path: str | N
     base = await async_cached_result(("supplier_detail_context", int(supplier_id)), load, ttl_seconds=6.0)
     if not base:
         return None
-    purchases, pagination = paginate_sequence(list(base["purchases"]), args or {}, path or f"/contacts/suppliers/{supplier_id}")
+    purchases, pagination = paginate_sequence(
+        list(base["purchases"]), args or {}, path or f"/contacts/suppliers/{supplier_id}"
+    )
     return {
         **base,
         "purchases": purchases,

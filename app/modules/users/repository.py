@@ -251,6 +251,7 @@ async def _record_account_login_failure_impl(
     from datetime import datetime, timedelta
 
     from sqlalchemy import func
+
     stmt = (
         update(User)
         .where(User.id == user_id)
@@ -264,9 +265,7 @@ async def _record_account_login_failure_impl(
     is_locked = False
     if new_count >= max_attempts:
         lock_until = datetime.now() + timedelta(minutes=lockout_minutes)
-        await db.execute(
-            update(User).where(User.id == user_id).values(locked_until=lock_until)
-        )
+        await db.execute(update(User).where(User.id == user_id).values(locked_until=lock_until))
         is_locked = True
 
     return new_count, is_locked
@@ -303,6 +302,7 @@ async def _unlock_user_account_impl(user_id: int, db: AsyncSession) -> bool:
     uname = res.scalar_one_or_none()
     if uname:
         from app.core.rate_limit_store import RateLimitStore
+
         RateLimitStore.clear_user(uname)
     stmt = update(User).where(User.id == user_id).values(failed_login_count=0, locked_until=None)
     res_up = await db.execute(stmt)

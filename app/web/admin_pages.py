@@ -74,7 +74,9 @@ async def admin_system_status(request: Request):
     denied = require_permission(request, PERMISSION_SETTINGS_MANAGE)
     if denied:
         return denied
-    return templates.TemplateResponse("system_status.html", template_context(request, system_status=await get_system_status()))
+    return templates.TemplateResponse(
+        "system_status.html", template_context(request, system_status=await get_system_status())
+    )
 
 
 @router.get("/admin/system-status/export", name="admin_system_status_export")
@@ -88,7 +90,3 @@ async def admin_system_status_export(request: Request):
         media_type="application/json; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=diagnostic_report.json"},
     )
-
-
-
-

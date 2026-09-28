@@ -16,12 +16,14 @@ from app.services.payment_service import create_payment_from_form, delete_paymen
 
 router = APIRouter(prefix="/api/v1", tags=["payments"])
 
+
 @router.get("/payments")
 async def api_get_payments(request: Request, db: AsyncSession = Depends(get_async_session)):
     await asyncio.to_thread(require_api_user, request, PERMISSION_OPERATIONS_READ)
     page = max(int(request.query_params.get("page", 1)), 1)
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     from app.modules.payments.repository import PaymentRepository
+
     repo = PaymentRepository(db)
     rows, total = await repo.list_payments_paginated(
         search=request.query_params.get("q"),
@@ -29,22 +31,20 @@ async def api_get_payments(request: Request, db: AsyncSession = Depends(get_asyn
         date_to=request.query_params.get("date_to"),
         kind=request.query_params.get("kind"),
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
-    meta = {
-        "page": page,
-        "page_size": page_size,
-        "returned": len(rows),
-        "total": total
-    }
+    meta = {"page": page, "page_size": page_size, "returned": len(rows), "total": total}
     res_data = api_success(rows, meta)
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=30)
     return response
 
+
 @router.post("/payments", status_code=201)
-async def api_create_payment(request: Request, payload: PaymentCreateSchema, db: AsyncSession = Depends(get_async_session)):
+async def api_create_payment(
+    request: Request, payload: PaymentCreateSchema, db: AsyncSession = Depends(get_async_session)
+):
     await asyncio.to_thread(require_api_user, request, PERMISSION_OPERATIONS_WRITE)
     form_data = payload_to_form_data(payload.model_dump())
     try:
@@ -54,6 +54,7 @@ async def api_create_payment(request: Request, payload: PaymentCreateSchema, db:
 
     payment = await payment_payload(payment_id, db=db)
     return json_response(api_success({"payment_type": payment_type, "payment": payment}, status_code=201))
+
 
 @router.get("/payments/{payment_id}")
 async def api_get_payment_detail(request: Request, payment_id: int, db: AsyncSession = Depends(get_async_session)):
@@ -66,8 +67,11 @@ async def api_get_payment_detail(request: Request, payment_id: int, db: AsyncSes
     add_cache_headers(request, response, res_data, max_age=30)
     return response
 
+
 @router.put("/payments/{payment_id}")
-async def api_update_payment(request: Request, payment_id: int, payload: PaymentCreateSchema, db: AsyncSession = Depends(get_async_session)):
+async def api_update_payment(
+    request: Request, payment_id: int, payload: PaymentCreateSchema, db: AsyncSession = Depends(get_async_session)
+):
     await asyncio.to_thread(require_api_user, request, PERMISSION_OPERATIONS_WRITE)
     payment = await payment_payload(payment_id, db=db)
     if not payment:
@@ -84,6 +88,7 @@ async def api_update_payment(request: Request, payment_id: int, payload: Payment
     latest_id = res.scalar()
     updated_payment = await payment_payload(latest_id, db=db) if latest_id else None
     return json_response(api_success(updated_payment))
+
 
 @router.delete("/payments/{payment_id}")
 async def api_delete_payment(request: Request, payment_id: int, db: AsyncSession = Depends(get_async_session)):

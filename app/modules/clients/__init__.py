@@ -1,4 +1,5 @@
 """Module Clients — Gestion des partenaires clients."""
+
 from app.core.registry import register
 from app.modules.base import ModuleBase
 from app.modules.clients.schema import TABLES
@@ -40,6 +41,7 @@ class ClientsModule(ModuleBase):
             "manager": ["contacts.read", "contacts.write", "contacts.delete"],
             "operator": ["contacts.read"],
         }
+
 
 # Registration
 register(ClientsModule())

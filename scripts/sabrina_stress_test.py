@@ -5,14 +5,11 @@ Simulates natural language tasks by specifying ALL fields (notes, address, date,
 multiple times to verify database integration, API serialization, and type checking.
 """
 
-import os
 import sys
 import json
-import time
 import asyncio
 import logging
 import argparse
-from typing import List, Dict, Any
 
 # Setup UTF-8 streams for Windows console compatibility
 if hasattr(sys.stdout, "reconfigure"):
@@ -154,7 +151,7 @@ async def execute_task_with_retry(prompt_info: dict, api_key: str, iteration: in
             logger.error(f"  [CRASH] : Exception rencontrée : {e}")
             return False
             
-    logger.error(f"  [ÉCHEC] : Nombre maximum d'essais atteint suite à un blocage de quota API.")
+    logger.error("  [ÉCHEC] : Nombre maximum d'essais atteint suite à un blocage de quota API.")
     return False
 
 async def main():

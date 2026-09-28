@@ -60,6 +60,7 @@ class BaseRepository(Generic[T]):
     async def count(self) -> int:
         """Count the total number of records in this table."""
         from sqlalchemy import func
+
         statement = select(func.count()).select_from(self.model_cls)
         results = await self.session.execute(statement)
         return results.scalar() or 0
@@ -99,5 +100,3 @@ class BaseRepository(Generic[T]):
 
 AsyncRepository = BaseRepository
 __all__ = ["BaseRepository", "AsyncRepository"]
-
-

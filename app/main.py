@@ -30,12 +30,15 @@ from starlette.middleware.sessions import SessionMiddleware
 if sys.platform == "win32":
     try:
         from asyncio.proactor_events import _ProactorBasePipeTransport
+
         _old_call_connection_lost = _ProactorBasePipeTransport._call_connection_lost
+
         def _call_connection_lost_patched(self, exc):
             try:
                 _old_call_connection_lost(self, exc)
             except (ConnectionResetError, AttributeError, OSError):
                 pass
+
         _ProactorBasePipeTransport._call_connection_lost = _call_connection_lost_patched
     except Exception:
         pass
@@ -68,6 +71,7 @@ def _verify_metrics_access(request: Request):
     try:
         from app.core.permissions import PERMISSION_AUDIT_READ, has_permission
         from app.core.request_state import get_state_value
+
         user = get_state_value("user")
         if user and has_permission(user, PERMISSION_AUDIT_READ):
             return
@@ -78,18 +82,20 @@ def _verify_metrics_access(request: Request):
 
 if Instrumentator is not None:
     try:
-        Instrumentator().instrument(app).expose(app, include_in_schema=False, dependencies=[Depends(_verify_metrics_access)])
+        Instrumentator().instrument(app).expose(
+            app, include_in_schema=False, dependencies=[Depends(_verify_metrics_access)]
+        )
     except Exception as exc:
         logger.warning("Skipped Prometheus instrumentation: %s", exc)
 
 
 # CORS : en mode desktop/local, aucune origine externe n'est autorisée.
 # En mode serveur réseau, définir FAB_CORS_ORIGINS=http://ip:port,https://domaine.com
-_CORS_ORIGINS: list[str] = [
-    o.strip()
-    for o in os.environ.get("FAB_CORS_ORIGINS", "").split(",")
-    if o.strip()
-] or ["http://localhost", "http://127.0.0.1", f"http://127.0.0.1:{settings.port}"]
+_CORS_ORIGINS: list[str] = [o.strip() for o in os.environ.get("FAB_CORS_ORIGINS", "").split(",") if o.strip()] or [
+    "http://localhost",
+    "http://127.0.0.1",
+    f"http://127.0.0.1:{settings.port}",
+]
 if "*" in _CORS_ORIGINS:
     logger.warning("[SECURITY] CORS origins contain '*' wildcard! Avoid wildcard origins in production environments.")
 app.add_middleware(
@@ -123,6 +129,7 @@ async def health_check():
     # Database connectivity (native async check)
     try:
         from app.core.async_db import async_healthcheck
+
         is_ok = await asyncio.wait_for(async_healthcheck(), timeout=3.0)
         checks["db"] = "ok" if is_ok else "error"
     except asyncio.TimeoutError:
@@ -136,7 +143,7 @@ async def health_check():
 
     if not BACKGROUND_STATE.get("started"):
         checks["scheduler"] = "stopped"
-    elif last_run > 0 and (now - last_run) > 300: # 5 minutes threshold
+    elif last_run > 0 and (now - last_run) > 300:  # 5 minutes threshold
         checks["scheduler"] = "stalled"
 
     if last_run > 0:
@@ -157,12 +164,14 @@ async def health_check():
     # Cache and Performance queue stats
     try:
         from app.core.perf_cache import cache_entry_count
+
         checks["cache_entries"] = str(cache_entry_count())
     except Exception:
         checks["cache_entries"] = "unknown"
 
     try:
         from app.core.db_helpers import db_manager
+
         checks["perf_queue_size"] = str(db_manager.pending_performance_event_count())
     except Exception:
         checks["perf_queue_size"] = "unknown"
@@ -170,6 +179,7 @@ async def health_check():
     # Audit queue health
     try:
         from app.core.audit import get_audit_stats
+
         audit_stats = get_audit_stats()
         checks["audit_queue_size"] = str(audit_stats["audit_queue_size"])
         checks["audit_dropped"] = str(audit_stats["audit_dropped"])
@@ -177,7 +187,16 @@ async def health_check():
         checks["audit_queue_size"] = "unknown"
         checks["audit_dropped"] = "unknown"
 
-    _info_keys = {"disk_free_mb", "last_run_age_s", "last_backup_age_h", "version", "cache_entries", "perf_queue_size", "audit_queue_size", "audit_dropped"}
+    _info_keys = {
+        "disk_free_mb",
+        "last_run_age_s",
+        "last_backup_age_h",
+        "version",
+        "cache_entries",
+        "perf_queue_size",
+        "audit_queue_size",
+        "audit_dropped",
+    }
     status = "ok" if all(v == "ok" for k, v in checks.items() if k not in _info_keys) else "degraded"
     code = 200 if status == "ok" else 503
     return JSONResponse({"status": status, **checks}, status_code=code)
@@ -198,6 +217,7 @@ except Exception as e:
 async def get_version():
     from app.core.registry import get_enabled_modules
     from app.version import APP_VERSION
+
     return {
         "version": APP_VERSION,
         "app": "FABOuanes",

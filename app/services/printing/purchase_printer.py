@@ -93,26 +93,28 @@ async def _build_purchase_payload_impl(
 
     row_dict = dict(row._mapping)
     lines = [_purchase_line_to_doc_line(row_dict)]
-    return _print_defaults({
-        "title": "Bon d'achat",
-        "subtitle": "Achat matière première",
-        "number": f"ACH-{row_dict['id']:06d}",
-        "date": row_dict["purchase_date"],
-        "partner_label": "Fournisseur",
-        "partner_name": row_dict["partner_name"] or "Non renseigné",
-        "partner_phone": row_dict["partner_phone"] or "",
-        "partner_address": row_dict["partner_address"] or "",
-        "item_label": "Matière",
-        "item_name": row_dict["item_name"],
-        "quantity": row_dict["display_quantity"],
-        "unit": row_dict["display_unit"],
-        "unit_price": row_dict["display_unit_price"],
-        "total": row_dict["total"],
-        "paid": None,
-        "due": None,
-        "notes": row_dict["notes"] or "",
-        "lines": lines,
-    })
+    return _print_defaults(
+        {
+            "title": "Bon d'achat",
+            "subtitle": "Achat matière première",
+            "number": f"ACH-{row_dict['id']:06d}",
+            "date": row_dict["purchase_date"],
+            "partner_label": "Fournisseur",
+            "partner_name": row_dict["partner_name"] or "Non renseigné",
+            "partner_phone": row_dict["partner_phone"] or "",
+            "partner_address": row_dict["partner_address"] or "",
+            "item_label": "Matière",
+            "item_name": row_dict["item_name"],
+            "quantity": row_dict["display_quantity"],
+            "unit": row_dict["display_unit"],
+            "unit_price": row_dict["display_unit_price"],
+            "total": row_dict["total"],
+            "paid": None,
+            "due": None,
+            "notes": row_dict["notes"] or "",
+            "lines": lines,
+        }
+    )
 
 
 async def _build_purchase_document_payload(
@@ -181,23 +183,25 @@ async def _build_purchase_document_payload_impl(
     if not line_rows:
         return None
     lines = [_purchase_line_to_doc_line(dict(row._mapping)) for row in line_rows]
-    return _print_defaults({
-        "title": "Bon d'achat",
-        "subtitle": "Achat multi-produits",
-        "number": f"ACH-{doc_dict['id']:06d}",
-        "date": doc_dict["purchase_date"],
-        "partner_label": "Fournisseur",
-        "partner_name": doc_dict["partner_name"] or "Non renseigné",
-        "partner_phone": doc_dict["partner_phone"] or "",
-        "partner_address": doc_dict["partner_address"] or "",
-        "item_label": "Matière",
-        "item_name": f"{len(lines)} ligne(s)",
-        "quantity": None,
-        "unit": "",
-        "unit_price": None,
-        "total": doc_dict["total"],
-        "paid": None,
-        "due": None,
-        "notes": doc_dict["notes"] or "",
-        "lines": lines,
-    })
+    return _print_defaults(
+        {
+            "title": "Bon d'achat",
+            "subtitle": "Achat multi-produits",
+            "number": f"ACH-{doc_dict['id']:06d}",
+            "date": doc_dict["purchase_date"],
+            "partner_label": "Fournisseur",
+            "partner_name": doc_dict["partner_name"] or "Non renseigné",
+            "partner_phone": doc_dict["partner_phone"] or "",
+            "partner_address": doc_dict["partner_address"] or "",
+            "item_label": "Matière",
+            "item_name": f"{len(lines)} ligne(s)",
+            "quantity": None,
+            "unit": "",
+            "unit_price": None,
+            "total": doc_dict["total"],
+            "paid": None,
+            "due": None,
+            "notes": doc_dict["notes"] or "",
+            "lines": lines,
+        }
+    )

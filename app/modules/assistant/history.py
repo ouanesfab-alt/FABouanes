@@ -1,6 +1,7 @@
 """
 history.py — Helpers for conversation transcript parsing and dangling call pruning.
 """
+
 from __future__ import annotations
 
 import logging
@@ -49,7 +50,9 @@ def clean_unconfirmed_tool_calls(messages: List[Dict[str, Any]]) -> List[Dict[st
                     has_response = True
 
             if not has_response:
-                logger.info("Assistant: Suppression de l'appel de fonction non confirmé dans l'historique pour éviter les doublons et les erreurs API")
+                logger.info(
+                    "Assistant: Suppression de l'appel de fonction non confirmé dans l'historique pour éviter les doublons et les erreurs API"
+                )
                 new_msg = dict(msg)
                 if "parts" in new_msg and isinstance(new_msg["parts"], list):
                     new_parts = [p for p in new_msg["parts"] if isinstance(p, dict) and "text" in p]

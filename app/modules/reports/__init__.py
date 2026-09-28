@@ -1,4 +1,5 @@
 """Module Rapports & Statistiques — Tableaux de bord analytiques."""
+
 from app.core.registry import register
 from app.modules.base import ModuleBase
 from app.modules.reports.web import router as web_router
@@ -35,6 +36,7 @@ class ReportsModule(ModuleBase):
             "manager": ["reports.read"],
             "operator": ["reports.read"],
         }
+
 
 # Registration
 register(ReportsModule())

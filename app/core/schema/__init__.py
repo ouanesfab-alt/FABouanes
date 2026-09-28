@@ -1,6 +1,7 @@
 """
 Responsibility: Seed functions, configuration parameters, and backward-compatible init_db interface for schema.
 """
+
 from __future__ import annotations
 
 import os
@@ -60,7 +61,12 @@ def _seed_default_settings(conn) -> None:
 
 def _seed_default_admin(conn) -> None:
     from app.core.config import settings
-    if str(DEFAULT_ADMIN_PASSWORD or "").strip().lower() == "admin" and settings.env == "production" and not settings.desktop_mode:
+
+    if (
+        str(DEFAULT_ADMIN_PASSWORD or "").strip().lower() == "admin"
+        and settings.env == "production"
+        and not settings.desktop_mode
+    ):
         raise RuntimeError(
             "DEFAULT_ADMIN_PASSWORD cannot be 'admin' in production server mode. Set a strong password in your .env file."
         )
@@ -70,9 +76,9 @@ def _seed_default_admin(conn) -> None:
         # Detect if column type is boolean or integer (PostgreSQL strict type safety)
         res = _exec(
             conn,
-            "SELECT data_type FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'must_change_password'"
+            "SELECT data_type FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'must_change_password'",
         ).fetchone()
-        is_boolean = res and res[0].upper() == 'BOOLEAN'
+        is_boolean = res and res[0].upper() == "BOOLEAN"
 
         val_must_change = False if is_boolean else 0
         val_is_active = True if is_boolean else 1
@@ -120,4 +126,5 @@ def _seed_other_operation(conn) -> None:
 def init_db() -> None:
     """Delegates to schema bootstrap."""
     from app.core.schema_bootstrap import bootstrap_schema
+
     bootstrap_schema()

@@ -1,6 +1,7 @@
 """
 intent.py — Intent classification and model routing logic for Sabrina.
 """
+
 from __future__ import annotations
 
 import logging
@@ -9,13 +10,47 @@ import re
 logger = logging.getLogger("fabouanes.assistant.intent")
 
 COMPLEX_KEYWORDS = {
-    "modifier", "importer", "audit", "backup", "sql", "excel", "analyse",
-    "production", "sauvegarde", "restaurer", "supprimer", "update",
-    "delete", "créer", "creer", "crée", "cree", "vente", "achat", "versement",
-    "payer", "dette", "solde", "rapport", "bénéfice", "benefice", "recette", "stock",
-    "alerte", "alert", "mouvement", "facture", "bon", "pdf", "client", "fournisseur",
-    "produit", "matière", "matiere"
+    "modifier",
+    "importer",
+    "audit",
+    "backup",
+    "sql",
+    "excel",
+    "analyse",
+    "production",
+    "sauvegarde",
+    "restaurer",
+    "supprimer",
+    "update",
+    "delete",
+    "créer",
+    "creer",
+    "crée",
+    "cree",
+    "vente",
+    "achat",
+    "versement",
+    "payer",
+    "dette",
+    "solde",
+    "rapport",
+    "bénéfice",
+    "benefice",
+    "recette",
+    "stock",
+    "alerte",
+    "alert",
+    "mouvement",
+    "facture",
+    "bon",
+    "pdf",
+    "client",
+    "fournisseur",
+    "produit",
+    "matière",
+    "matiere",
 }
+
 
 def classify_intent(user_query: str) -> str:
     """
@@ -29,7 +64,7 @@ def classify_intent(user_query: str) -> str:
         return "lite"
 
     query_lower = user_query.lower()
-    words = set(re.findall(r'\w+', query_lower))
+    words = set(re.findall(r"\w+", query_lower))
 
     # Check if any complex keyword matches a full word in the query
     if words & COMPLEX_KEYWORDS:
@@ -56,4 +91,3 @@ def detect_multi_step_intents(user_query: str) -> list[str]:
     if len(parts) >= 2:
         return parts
     return [user_query.strip()]
-

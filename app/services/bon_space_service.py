@@ -37,6 +37,7 @@ def _doc(
     delete_filename: str = "",
 ) -> dict:
     from datetime import date, datetime
+
     formatted_date = ""
     if doc_date:
         if isinstance(doc_date, (date, datetime)):
@@ -59,8 +60,7 @@ def _doc(
         "source_url": source_url,
         "delete_filename": delete_filename,
         "search_text": " ".join(
-            str(part or "")
-            for part in (category, title, number, formatted_date, partner_name, detail)
+            str(part or "") for part in (category, title, number, formatted_date, partner_name, detail)
         ).lower(),
     }
 
@@ -310,7 +310,11 @@ async def _append_client_history_documents(documents: list[dict], limit: int, db
         imported_rows = int(row.imported_rows or 0)
         detail = row.phone or row.address or ""
         if imported_rows:
-            detail = f"{detail} - {imported_rows} ligne(s) importee(s)" if detail else f"{imported_rows} ligne(s) importee(s)"
+            detail = (
+                f"{detail} - {imported_rows} ligne(s) importee(s)"
+                if detail
+                else f"{imported_rows} ligne(s) importee(s)"
+            )
         documents.append(
             _doc(
                 key=f"client_history:{client_id}",
@@ -396,11 +400,7 @@ async def _list_bon_space_documents_impl(
 
     terms = [part.lower() for part in search_query.split() if part.strip()]
     if terms:
-        documents = [
-            item
-            for item in documents
-            if all(term in item["search_text"] for term in terms)
-        ]
+        documents = [item for item in documents if all(term in item["search_text"] for term in terms)]
 
     def sort_key(item: dict) -> tuple[str, str]:
         return (str(item.get("doc_date") or ""), str(item.get("number") or ""))

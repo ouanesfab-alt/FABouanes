@@ -80,16 +80,21 @@ async def _broadcast_overdue_alerts_impl(db: AsyncSession) -> int:
 
     overdue = await _check_overdue_clients_impl(DEFAULT_OVERDUE_DAYS, db)
     if overdue:
-        payload = json.dumps({
-            "type": "overdue_alert",
-            "count": len(overdue),
-            "clients": [
-                {"id": r["id"], "name": r["name"],
-                 "balance": float(r["balance"]),
-                 "jours": int(r["jours_inactif"] or 0)}
-                for r in overdue
-            ],
-        })
+        payload = json.dumps(
+            {
+                "type": "overdue_alert",
+                "count": len(overdue),
+                "clients": [
+                    {
+                        "id": r["id"],
+                        "name": r["name"],
+                        "balance": float(r["balance"]),
+                        "jours": int(r["jours_inactif"] or 0),
+                    }
+                    for r in overdue
+                ],
+            }
+        )
         manager.broadcast_sync(payload)
         logger.info("Alerte : clients en retard.", extra={"count": len(overdue)})
     return len(overdue)
@@ -110,31 +115,33 @@ async def _check_stock_alerts_impl(db: AsyncSession) -> None:
     # Pre-fetch all active (unacknowledged) alerts from the last 24h in one query
     # to avoid N individual SELECT queries inside the loop.
     active_rows_res = await db.execute(
-        select(StockAlert.product_type, StockAlert.product_id)
-        .where(
-            StockAlert.acknowledged_at.is_(None),
-            StockAlert.triggered_at > func.now() - text("INTERVAL '24 hours'")
+        select(StockAlert.product_type, StockAlert.product_id).where(
+            StockAlert.acknowledged_at.is_(None), StockAlert.triggered_at > func.now() - text("INTERVAL '24 hours'")
         )
     )
-    active_alerts: set[tuple[str, int]] = {
-        (row.product_type, int(row.product_id)) for row in active_rows_res.all()
-    }
+    active_alerts: set[tuple[str, int]] = {(row.product_type, int(row.product_id)) for row in active_rows_res.all()}
 
     # Matières premières
     raws_res = await db.execute(
-        select(RawMaterial.id, RawMaterial.name, RawMaterial.stock_qty, RawMaterial.alert_threshold)
-        .where(RawMaterial.stock_qty <= RawMaterial.alert_threshold, RawMaterial.alert_threshold > 0)
+        select(RawMaterial.id, RawMaterial.name, RawMaterial.stock_qty, RawMaterial.alert_threshold).where(
+            RawMaterial.stock_qty <= RawMaterial.alert_threshold, RawMaterial.alert_threshold > 0
+        )
     )
     for row in raws_res.all():
-        await _trigger_alert("raw_material", int(row.id), row.name, row.stock_qty, row.alert_threshold, active_alerts, db=db)
+        await _trigger_alert(
+            "raw_material", int(row.id), row.name, row.stock_qty, row.alert_threshold, active_alerts, db=db
+        )
 
     # Produits finis
     products_res = await db.execute(
-        select(FinishedProduct.id, FinishedProduct.name, FinishedProduct.stock_qty, FinishedProduct.alert_threshold)
-        .where(FinishedProduct.stock_qty <= FinishedProduct.alert_threshold, FinishedProduct.alert_threshold > 0)
+        select(
+            FinishedProduct.id, FinishedProduct.name, FinishedProduct.stock_qty, FinishedProduct.alert_threshold
+        ).where(FinishedProduct.stock_qty <= FinishedProduct.alert_threshold, FinishedProduct.alert_threshold > 0)
     )
     for row in products_res.all():
-        await _trigger_alert("finished_product", int(row.id), row.name, row.stock_qty, row.alert_threshold, active_alerts, db=db)
+        await _trigger_alert(
+            "finished_product", int(row.id), row.name, row.stock_qty, row.alert_threshold, active_alerts, db=db
+        )
 
 
 async def _trigger_alert(
@@ -159,7 +166,7 @@ async def _trigger_alert(
                 StockAlert.product_type == product_type,
                 StockAlert.product_id == product_id,
                 StockAlert.acknowledged_at.is_(None),
-                StockAlert.triggered_at > func.now() - text("INTERVAL '24 hours'")
+                StockAlert.triggered_at > func.now() - text("INTERVAL '24 hours'"),
             )
             .limit(1)
         )

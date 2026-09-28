@@ -4,6 +4,7 @@ Sabrina Morning Briefing — Résumé proactif au login.
 Génère un briefing matinal automatique avec les KPIs clés de l'entreprise :
 alertes stock, ventes de la veille, versements reçus, clients endettés.
 """
+
 from __future__ import annotations
 
 import logging
@@ -50,11 +51,7 @@ def generate_briefing() -> Dict[str, Any]:
                     f"Stock: {row.get('stock_qty', 0)} {row.get('default_unit') or row.get('unit', '')} "
                     f"(seuil: {row.get('alert_threshold', 0)})"
                 )
-            sections.append({
-                "title": "⚠️ Alertes de Stock",
-                "items": alerts_md,
-                "priority": "high"
-            })
+            sections.append({"title": "⚠️ Alertes de Stock", "items": alerts_md, "priority": "high"})
     except Exception as e:
         logger.error("Briefing stock error: %s", e)
 
@@ -93,11 +90,7 @@ def generate_briefing() -> Dict[str, Any]:
                 if depenses > 0:
                     items.append(f"📊 Dépenses : **{format_dzd(depenses)}**")
 
-                sections.append({
-                    "title": "📋 Bilan d'hier",
-                    "items": items,
-                    "priority": "medium"
-                })
+                sections.append({"title": "📋 Bilan d'hier", "items": items, "priority": "medium"})
     except Exception as e:
         logger.error("Briefing yesterday error: %s", e)
 
@@ -122,14 +115,16 @@ def generate_briefing() -> Dict[str, Any]:
             benefice = float(row.get("benefice_mois", 0))
 
             if ca > 0:
-                sections.append({
-                    "title": "📈 Ce mois-ci",
-                    "items": [
-                        f"Chiffre d'affaires : **{format_dzd(ca)}**",
-                        f"Bénéfice : **{format_dzd(benefice)}**"
-                    ],
-                    "priority": "medium"
-                })
+                sections.append(
+                    {
+                        "title": "📈 Ce mois-ci",
+                        "items": [
+                            f"Chiffre d'affaires : **{format_dzd(ca)}**",
+                            f"Bénéfice : **{format_dzd(benefice)}**",
+                        ],
+                        "priority": "medium",
+                    }
+                )
     except Exception as e:
         logger.error("Briefing month error: %s", e)
 
@@ -145,6 +140,7 @@ def generate_briefing() -> Dict[str, Any]:
 
         if top_debtors:
             from app.core.helpers import format_dzd
+
             items = []
             for r in top_debtors:
                 try:
@@ -153,20 +149,13 @@ def generate_briefing() -> Dict[str, Any]:
                     row = {"name": r[0], "current_balance": r[1]}
                 items.append(f"👤 {row['name']} — **{format_dzd(row['current_balance'])}**")
 
-            sections.append({
-                "title": "💳 Principaux débiteurs",
-                "items": items,
-                "priority": "low"
-            })
+            sections.append({"title": "💳 Principaux débiteurs", "items": items, "priority": "low"})
     except Exception as e:
         logger.error("Briefing debtors error: %s", e)
 
     # Construire le message Markdown final
     if not sections:
-        return {
-            "has_briefing": False,
-            "markdown": ""
-        }
+        return {"has_briefing": False, "markdown": ""}
 
     md_parts = ["☀️ **Bonjour ! Voici votre résumé :**\n"]
     for section in sections:
@@ -181,12 +170,12 @@ def generate_briefing() -> Dict[str, Any]:
         "has_briefing": True,
         "markdown": "\n".join(md_parts),
         "sections_count": len(sections),
-        "alert_count": sum(len(s["items"]) for s in sections if s["priority"] == "high")
+        "alert_count": sum(len(s["items"]) for s in sections if s["priority"] == "high"),
     }
 
 
 async def generate_briefing_async() -> Dict[str, Any]:
     """Exécute generate_briefing de manière non-bloquante dans un thread dédié."""
     import asyncio
-    return await asyncio.to_thread(generate_briefing)
 
+    return await asyncio.to_thread(generate_briefing)

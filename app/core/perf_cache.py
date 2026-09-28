@@ -10,10 +10,10 @@ from typing import Any, Callable, Hashable
 logger = logging.getLogger("fabouanes.cache")
 
 # TTL Constants (seconds)
-TTL_STABLE = 3600.0       # 1 hour
-TTL_SEMI_STABLE = 300.0   # 5 minutes
-TTL_FREQUENT = 30.0       # 30 seconds
-TTL_REALTIME = 2.0        # 2 seconds
+TTL_STABLE = 3600.0  # 1 hour
+TTL_SEMI_STABLE = 300.0  # 5 minutes
+TTL_FREQUENT = 30.0  # 30 seconds
+TTL_REALTIME = 2.0  # 2 seconds
 
 try:
     _MAX_ENTRIES = max(32, min(10000, int(os.environ.get("FAB_CACHE_MAX_ENTRIES", "512") or "512")))
@@ -37,6 +37,7 @@ class CacheBackend:
 
 
 # --- InMemoryCache Implementation ---
+
 
 class InMemoryCache(CacheBackend):
     def __init__(self):
@@ -88,6 +89,7 @@ class InMemoryCache(CacheBackend):
             target_fingerprint = f"v:{version}"
 
         import inspect
+
         if inspect.iscoroutine(value) or inspect.isawaitable(value):
             logger.warning("Refusing to store un-awaited coroutine in cache for key %s", key)
             return
@@ -111,8 +113,7 @@ class InMemoryCache(CacheBackend):
                     continue
                 self._domain_versions[prefix] = self._domain_versions.get(prefix, 0) + 1
                 keys_to_remove = [
-                    k for k in self._cache
-                    if k and (str(k[0]) == prefix or str(k[0]).startswith(prefix + ":"))
+                    k for k in self._cache if k and (str(k[0]) == prefix or str(k[0]).startswith(prefix + ":"))
                 ]
                 for key in keys_to_remove:
                     self._cache.pop(key, None)
@@ -130,9 +131,11 @@ class InMemoryCache(CacheBackend):
 
 # --- RedisCache and HybridCache for test/mock compatibility ---
 
+
 class RedisCache(CacheBackend):
     def __init__(self, redis_url: str):
         import redis
+
         self.client = redis.from_url(redis_url)
         self.prefix = "fabouanes:cache:"
         self.gen_key = "fabouanes:cache_generation"
@@ -167,6 +170,7 @@ class RedisCache(CacheBackend):
     def get(self, key: tuple[Hashable, ...]) -> Any:
         try:
             import json
+
             r_key = self._redis_key(key)
             data = self.client.get(r_key)
             if data:
@@ -183,6 +187,7 @@ class RedisCache(CacheBackend):
     def set(self, key: tuple[Hashable, ...], value: Any, ttl: float, fingerprint: str) -> None:
         try:
             import json
+
             r_key = self._redis_key(key)
             domain = str(key[0]) if key else ""
             vg = self.cache_generation()
@@ -292,6 +297,7 @@ class HybridCache(CacheBackend):
 
 def _initialize_backend() -> CacheBackend:
     from app.core.config import settings
+
     url = settings.redis_url
     if url:
         try:
@@ -301,15 +307,18 @@ def _initialize_backend() -> CacheBackend:
             logger.warning("Failed to initialize HybridCache: %s. Falling back to InMemoryCache.", e)
     return InMemoryCache()
 
+
 _BACKEND = _initialize_backend()
 
 
 # --- Public API ---
 
+
 def bump_cache_generation() -> int:
     gen = _BACKEND.bump_cache_generation()
     try:
         from app.core.events import DomainEvent, emit
+
         emit(DomainEvent("invalidate", "all_cache", source="cache"))
     except Exception:
         pass
@@ -350,6 +359,7 @@ async def async_cached_result(
 ) -> Any:
     cache_key = tuple(key_parts)
     import inspect
+
     val = _BACKEND.get(cache_key)
     if val is not None and not inspect.iscoroutine(val) and not inspect.isawaitable(val):
         return val
@@ -371,6 +381,7 @@ def invalidate_cache_domain(domain: str) -> int:
     removed = _BACKEND.invalidate_domains(domain)
     try:
         from app.core.events import DomainEvent, emit
+
         emit(DomainEvent("invalidate", "cache", extra={"domains": [domain]}, source="cache"))
     except Exception:
         pass
@@ -381,6 +392,7 @@ def invalidate_cache_domains(*domains: str) -> int:
     removed = _BACKEND.invalidate_domains(*domains)
     try:
         from app.core.events import DomainEvent, emit
+
         emit(DomainEvent("invalidate", "cache", extra={"domains": list(domains)}, source="cache"))
     except Exception:
         pass
@@ -431,7 +443,10 @@ async def warm_cache() -> None:
         await list_activity_actions()
         await list_activity_entity_types()
         await get_system_status()
-        logger.info("RAM Cache warming completed — dashboard, activity & system metrics pre-loaded in memory (%d entries)", cache_entry_count())
+        logger.info(
+            "RAM Cache warming completed — dashboard, activity & system metrics pre-loaded in memory (%d entries)",
+            cache_entry_count(),
+        )
     except Exception:
         logger.warning("Cache warming failed (non-critical, app will still work)", exc_info=True)
 
@@ -454,6 +469,7 @@ def invalidate_client_cache(client_id: int) -> None:
 
     try:
         from app.core.events import DomainEvent, emit
+
         emit(DomainEvent("invalidate", "client_cache", extra={"client_id": client_id}, source="cache"))
     except Exception:
         pass
@@ -462,8 +478,7 @@ def invalidate_client_cache(client_id: int) -> None:
 def cache_remember(domain: str, key_str: str, builder: Callable[[], Any], ttl: float = 30.0) -> Any:
     """Convenience alias for memoizing results in the in-memory cache."""
     import inspect
+
     if inspect.iscoroutinefunction(builder):
         raise ValueError("Use async_cached_result or await builder() for coroutines.")
     return cached_result((domain, key_str), builder, ttl_seconds=ttl)
-
-

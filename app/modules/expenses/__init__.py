@@ -1,4 +1,5 @@
 """Module Dépenses & Charges — Suivi des frais de l'entreprise."""
+
 from app.core.registry import register
 from app.modules.base import ModuleBase
 from app.modules.expenses.schema import TABLES
@@ -40,6 +41,7 @@ class ExpensesModule(ModuleBase):
             "manager": ["expenses.read", "expenses.write", "expenses.delete"],
             "operator": ["expenses.read"],
         }
+
 
 # Registration
 register(ExpensesModule())

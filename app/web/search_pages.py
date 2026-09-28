@@ -1,4 +1,5 @@
 """Endpoint de recherche globale - authentifié par session web (cookie)."""
+
 from __future__ import annotations
 
 import logging
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
 
 def _parse_date_query(q: str) -> str | None:
     """
@@ -95,6 +97,7 @@ def _partial_date_like(q: str) -> str | None:
 
 # ── Recherche par Catégorie ──────────────────────────────────────────────────
 
+
 async def _search_numeric_matches(db: AsyncSession, q: str, results: list) -> None:
     try:
         cleaned = q.replace(" ", "").replace(",", ".")
@@ -106,27 +109,49 @@ async def _search_numeric_matches(db: AsyncSession, q: str, results: list) -> No
     hi = amount_val * 1.05
 
     # 1. Ventes (finies et matières brutes)
-    subq_sales = select(
-        func.coalesce(Client.name, "Comptoir").label("client_name"),
-        FinishedProduct.name.label("item_name"),
-        Sale.total,
-        Sale.sale_date,
-    ).select_from(Sale).outerjoin(Client, Client.id == Sale.client_id).join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id).where(Sale.total.between(lo, hi))
+    subq_sales = (
+        select(
+            func.coalesce(Client.name, "Comptoir").label("client_name"),
+            FinishedProduct.name.label("item_name"),
+            Sale.total,
+            Sale.sale_date,
+        )
+        .select_from(Sale)
+        .outerjoin(Client, Client.id == Sale.client_id)
+        .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
+        .where(Sale.total.between(lo, hi))
+    )
 
-    subq_raw_sales = select(
-        func.coalesce(Client.name, "Comptoir").label("client_name"),
-        RawMaterial.name.label("item_name"),
-        RawSale.total,
-        RawSale.sale_date,
-    ).select_from(RawSale).outerjoin(Client, Client.id == RawSale.client_id).join(RawMaterial, RawMaterial.id == RawSale.raw_material_id).where(RawSale.total.between(lo, hi))
+    subq_raw_sales = (
+        select(
+            func.coalesce(Client.name, "Comptoir").label("client_name"),
+            RawMaterial.name.label("item_name"),
+            RawSale.total,
+            RawSale.sale_date,
+        )
+        .select_from(RawSale)
+        .outerjoin(Client, Client.id == RawSale.client_id)
+        .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
+        .where(RawSale.total.between(lo, hi))
+    )
 
     u = union_all(subq_sales, subq_raw_sales).subquery()
-    stmt_sales = select(u.c.client_name, u.c.item_name, u.c.total, u.c.sale_date).order_by(u.c.sale_date.desc()).limit(5)
+    stmt_sales = (
+        select(u.c.client_name, u.c.item_name, u.c.total, u.c.sale_date).order_by(u.c.sale_date.desc()).limit(5)
+    )
     try:
         res = await db.execute(stmt_sales)
         for row in res.mappings().all():
             fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-            results.append({"title": f"Vente — {row['client_name']}", "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}", "icon": "bi-receipt", "type": "Vente", "href": "/sales"})
+            results.append(
+                {
+                    "title": f"Vente — {row['client_name']}",
+                    "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}",
+                    "icon": "bi-receipt",
+                    "type": "Vente",
+                    "href": "/sales",
+                }
+            )
     except Exception as exc:
         logger.warning("Numeric sales search failed: %s", exc)
 
@@ -149,7 +174,15 @@ async def _search_numeric_matches(db: AsyncSession, q: str, results: list) -> No
         res = await db.execute(stmt_purchases)
         for row in res.mappings().all():
             fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-            results.append({"title": f"Achat — {row['supplier_name']}", "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}", "icon": "bi-cart", "type": "Achat", "href": "/purchases"})
+            results.append(
+                {
+                    "title": f"Achat — {row['supplier_name']}",
+                    "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}",
+                    "icon": "bi-cart",
+                    "type": "Achat",
+                    "href": "/purchases",
+                }
+            )
     except Exception as exc:
         logger.warning("Numeric purchases search failed: %s", exc)
 
@@ -166,13 +199,23 @@ async def _search_numeric_matches(db: AsyncSession, q: str, results: list) -> No
         res = await db.execute(stmt_payments)
         for row in res.mappings().all():
             fmt = f"{float(row['amount'] or 0):,.0f} DA".replace(",", " ")
-            results.append({"title": f"Versement — {row['client_name']}", "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}", "icon": "bi-cash-stack", "type": "Paiement", "href": "/payments"})
+            results.append(
+                {
+                    "title": f"Versement — {row['client_name']}",
+                    "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}",
+                    "icon": "bi-cash-stack",
+                    "type": "Paiement",
+                    "href": "/payments",
+                }
+            )
     except Exception as exc:
         logger.warning("Numeric payments search failed: %s", exc)
 
     # 4. Production
     stmt_prod = (
-        select(FinishedProduct.name.label("product_name"), ProductionBatch.output_quantity, ProductionBatch.production_date)
+        select(
+            FinishedProduct.name.label("product_name"), ProductionBatch.output_quantity, ProductionBatch.production_date
+        )
         .select_from(ProductionBatch)
         .join(FinishedProduct, FinishedProduct.id == ProductionBatch.finished_product_id)
         .where(ProductionBatch.output_quantity.between(lo, hi))
@@ -182,7 +225,15 @@ async def _search_numeric_matches(db: AsyncSession, q: str, results: list) -> No
     try:
         res = await db.execute(stmt_prod)
         for row in res.mappings().all():
-            results.append({"title": f"Production — {row['product_name']}", "sub": f"{int(row['output_quantity'] or 0)} unités · {row['production_date']}", "icon": "bi-gear", "type": "Production", "href": "/production"})
+            results.append(
+                {
+                    "title": f"Production — {row['product_name']}",
+                    "sub": f"{int(row['output_quantity'] or 0)} unités · {row['production_date']}",
+                    "icon": "bi-gear",
+                    "type": "Production",
+                    "href": "/production",
+                }
+            )
     except Exception as exc:
         logger.warning("Numeric production search failed: %s", exc)
 
@@ -196,37 +247,59 @@ async def _search_date_matches(db: AsyncSession, q: str, results: list) -> None:
 
     # Ventes
     if exact_date:
-        cond_sale = (cast(Sale.sale_date, String) == exact_date)
-        cond_raw = (cast(RawSale.sale_date, String) == exact_date)
-        cond_pur = (cast(Purchase.purchase_date, String) == exact_date)
-        cond_pay = (cast(Payment.payment_date, String) == exact_date)
+        cond_sale = cast(Sale.sale_date, String) == exact_date
+        cond_raw = cast(RawSale.sale_date, String) == exact_date
+        cond_pur = cast(Purchase.purchase_date, String) == exact_date
+        cond_pay = cast(Payment.payment_date, String) == exact_date
     else:
         cond_sale = cast(Sale.sale_date, String).like(partial_date_like)
         cond_raw = cast(RawSale.sale_date, String).like(partial_date_like)
         cond_pur = cast(Purchase.purchase_date, String).like(partial_date_like)
         cond_pay = cast(Payment.payment_date, String).like(partial_date_like)
 
-    s1 = select(
-        func.coalesce(Client.name, "Comptoir").label("client_name"),
-        FinishedProduct.name.label("item_name"),
-        Sale.total,
-        Sale.sale_date,
-    ).select_from(Sale).outerjoin(Client, Client.id == Sale.client_id).join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id).where(cond_sale)
+    s1 = (
+        select(
+            func.coalesce(Client.name, "Comptoir").label("client_name"),
+            FinishedProduct.name.label("item_name"),
+            Sale.total,
+            Sale.sale_date,
+        )
+        .select_from(Sale)
+        .outerjoin(Client, Client.id == Sale.client_id)
+        .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
+        .where(cond_sale)
+    )
 
-    s2 = select(
-        func.coalesce(Client.name, "Comptoir").label("client_name"),
-        RawMaterial.name.label("item_name"),
-        RawSale.total,
-        RawSale.sale_date,
-    ).select_from(RawSale).outerjoin(Client, Client.id == RawSale.client_id).join(RawMaterial, RawMaterial.id == RawSale.raw_material_id).where(cond_raw)
+    s2 = (
+        select(
+            func.coalesce(Client.name, "Comptoir").label("client_name"),
+            RawMaterial.name.label("item_name"),
+            RawSale.total,
+            RawSale.sale_date,
+        )
+        .select_from(RawSale)
+        .outerjoin(Client, Client.id == RawSale.client_id)
+        .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
+        .where(cond_raw)
+    )
 
     u = union_all(s1, s2).subquery()
-    stmt_sales = select(u.c.client_name, u.c.item_name, u.c.total, u.c.sale_date).order_by(u.c.sale_date.desc()).limit(5)
+    stmt_sales = (
+        select(u.c.client_name, u.c.item_name, u.c.total, u.c.sale_date).order_by(u.c.sale_date.desc()).limit(5)
+    )
     try:
         res = await db.execute(stmt_sales)
         for row in res.mappings().all():
             fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-            results.append({"title": f"Vente — {row['client_name']}", "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}", "icon": "bi-receipt", "type": "Vente", "href": "/sales"})
+            results.append(
+                {
+                    "title": f"Vente — {row['client_name']}",
+                    "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}",
+                    "icon": "bi-receipt",
+                    "type": "Vente",
+                    "href": "/sales",
+                }
+            )
     except Exception as exc:
         logger.warning("Date sales search failed: %s", exc)
 
@@ -248,7 +321,15 @@ async def _search_date_matches(db: AsyncSession, q: str, results: list) -> None:
         res = await db.execute(stmt_pur)
         for row in res.mappings().all():
             fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-            results.append({"title": f"Achat — {row['supplier_name']}", "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}", "icon": "bi-cart", "type": "Achat", "href": "/purchases"})
+            results.append(
+                {
+                    "title": f"Achat — {row['supplier_name']}",
+                    "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}",
+                    "icon": "bi-cart",
+                    "type": "Achat",
+                    "href": "/purchases",
+                }
+            )
     except Exception as exc:
         logger.warning("Date purchases search failed: %s", exc)
 
@@ -264,7 +345,15 @@ async def _search_date_matches(db: AsyncSession, q: str, results: list) -> None:
         res = await db.execute(stmt_pay)
         for row in res.mappings().all():
             fmt = f"{float(row['amount'] or 0):,.0f} DA".replace(",", " ")
-            results.append({"title": f"Versement — {row['client_name']}", "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}", "icon": "bi-cash-stack", "type": "Paiement", "href": "/payments"})
+            results.append(
+                {
+                    "title": f"Versement — {row['client_name']}",
+                    "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}",
+                    "icon": "bi-cash-stack",
+                    "type": "Paiement",
+                    "href": "/payments",
+                }
+            )
     except Exception as exc:
         logger.warning("Date payments search failed: %s", exc)
 
@@ -278,7 +367,15 @@ async def _search_text_matches(db: AsyncSession, needle: str, results: list) -> 
             .limit(5)
         )
         for row in res_clients.mappings().all():
-            results.append({"title": row["name"], "sub": row["phone"] or row["address"] or "", "icon": "bi-person", "type": "Client", "href": f"/contacts/clients/{row['id']}"})
+            results.append(
+                {
+                    "title": row["name"],
+                    "sub": row["phone"] or row["address"] or "",
+                    "icon": "bi-person",
+                    "type": "Client",
+                    "href": f"/contacts/clients/{row['id']}",
+                }
+            )
     except Exception as exc:
         logger.warning("Text clients search failed: %s", exc)
 
@@ -290,7 +387,15 @@ async def _search_text_matches(db: AsyncSession, needle: str, results: list) -> 
             .limit(3)
         )
         for row in res_suppliers.mappings().all():
-            results.append({"title": row["name"], "sub": row["phone"] or "", "icon": "bi-truck", "type": "Fournisseur", "href": f"/contacts/suppliers/{row['id']}"})
+            results.append(
+                {
+                    "title": row["name"],
+                    "sub": row["phone"] or "",
+                    "icon": "bi-truck",
+                    "type": "Fournisseur",
+                    "href": f"/contacts/suppliers/{row['id']}",
+                }
+            )
     except Exception as exc:
         logger.warning("Text suppliers search failed: %s", exc)
 
@@ -302,7 +407,15 @@ async def _search_text_matches(db: AsyncSession, needle: str, results: list) -> 
             .limit(4)
         )
         for row in res_raw.mappings().all():
-            results.append({"title": row["name"], "sub": row["unit"] or "", "icon": "bi-box", "type": "Matière", "href": "/catalog"})
+            results.append(
+                {
+                    "title": row["name"],
+                    "sub": row["unit"] or "",
+                    "icon": "bi-box",
+                    "type": "Matière",
+                    "href": "/catalog",
+                }
+            )
     except Exception as exc:
         logger.warning("Text raw materials search failed: %s", exc)
 
@@ -314,32 +427,60 @@ async def _search_text_matches(db: AsyncSession, needle: str, results: list) -> 
             .limit(4)
         )
         for row in res_finished.mappings().all():
-            results.append({"title": row["name"], "sub": row["unit"] or "", "icon": "bi-box-seam", "type": "Produit", "href": "/catalog"})
+            results.append(
+                {
+                    "title": row["name"],
+                    "sub": row["unit"] or "",
+                    "icon": "bi-box-seam",
+                    "type": "Produit",
+                    "href": "/catalog",
+                }
+            )
     except Exception as exc:
         logger.warning("Text finished products search failed: %s", exc)
 
     try:
-        s1 = select(
-            func.coalesce(Client.name, "Comptoir").label("client_name"),
-            FinishedProduct.name.label("item_name"),
-            Sale.total,
-            Sale.sale_date,
-        ).select_from(Sale).outerjoin(Client, Client.id == Sale.client_id).join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id).where(
-            func.lower(func.coalesce(Client.name, "")).like(needle) | func.lower(FinishedProduct.name).like(needle)
+        s1 = (
+            select(
+                func.coalesce(Client.name, "Comptoir").label("client_name"),
+                FinishedProduct.name.label("item_name"),
+                Sale.total,
+                Sale.sale_date,
+            )
+            .select_from(Sale)
+            .outerjoin(Client, Client.id == Sale.client_id)
+            .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
+            .where(
+                func.lower(func.coalesce(Client.name, "")).like(needle) | func.lower(FinishedProduct.name).like(needle)
+            )
         )
-        s2 = select(
-            func.coalesce(Client.name, "Comptoir").label("client_name"),
-            RawMaterial.name.label("item_name"),
-            RawSale.total,
-            RawSale.sale_date,
-        ).select_from(RawSale).outerjoin(Client, Client.id == RawSale.client_id).join(RawMaterial, RawMaterial.id == RawSale.raw_material_id).where(
-            func.lower(func.coalesce(Client.name, "")).like(needle) | func.lower(RawMaterial.name).like(needle)
+        s2 = (
+            select(
+                func.coalesce(Client.name, "Comptoir").label("client_name"),
+                RawMaterial.name.label("item_name"),
+                RawSale.total,
+                RawSale.sale_date,
+            )
+            .select_from(RawSale)
+            .outerjoin(Client, Client.id == RawSale.client_id)
+            .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
+            .where(func.lower(func.coalesce(Client.name, "")).like(needle) | func.lower(RawMaterial.name).like(needle))
         )
         u = union_all(s1, s2).subquery()
-        res_sales = await db.execute(select(u.c.client_name, u.c.item_name, u.c.total, u.c.sale_date).order_by(u.c.sale_date.desc()).limit(5))
+        res_sales = await db.execute(
+            select(u.c.client_name, u.c.item_name, u.c.total, u.c.sale_date).order_by(u.c.sale_date.desc()).limit(5)
+        )
         for row in res_sales.mappings().all():
             fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-            results.append({"title": f"Vente — {row['client_name']}", "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}", "icon": "bi-receipt", "type": "Vente", "href": "/sales"})
+            results.append(
+                {
+                    "title": f"Vente — {row['client_name']}",
+                    "sub": f"{row['item_name']} · {fmt} · {row['sale_date']}",
+                    "icon": "bi-receipt",
+                    "type": "Vente",
+                    "href": "/sales",
+                }
+            )
     except Exception as exc:
         logger.warning("Text sales search failed: %s", exc)
 
@@ -364,13 +505,25 @@ async def _search_text_matches(db: AsyncSession, needle: str, results: list) -> 
         )
         for row in res_purchases.mappings().all():
             fmt = f"{float(row['total'] or 0):,.0f} DA".replace(",", " ")
-            results.append({"title": f"Achat — {row['supplier_name']}", "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}", "icon": "bi-cart", "type": "Achat", "href": "/purchases"})
+            results.append(
+                {
+                    "title": f"Achat — {row['supplier_name']}",
+                    "sub": f"{row['material_name']} · {fmt} · {row['purchase_date']}",
+                    "icon": "bi-cart",
+                    "type": "Achat",
+                    "href": "/purchases",
+                }
+            )
     except Exception as exc:
         logger.warning("Text purchases search failed: %s", exc)
 
     try:
         res_prod = await db.execute(
-            select(FinishedProduct.name.label("product_name"), ProductionBatch.output_quantity, ProductionBatch.production_date)
+            select(
+                FinishedProduct.name.label("product_name"),
+                ProductionBatch.output_quantity,
+                ProductionBatch.production_date,
+            )
             .select_from(ProductionBatch)
             .join(FinishedProduct, FinishedProduct.id == ProductionBatch.finished_product_id)
             .where(func.lower(FinishedProduct.name).like(needle))
@@ -378,7 +531,15 @@ async def _search_text_matches(db: AsyncSession, needle: str, results: list) -> 
             .limit(4)
         )
         for row in res_prod.mappings().all():
-            results.append({"title": f"Production — {row['product_name']}", "sub": f"{int(row['output_quantity'] or 0)} unités · {row['production_date']}", "icon": "bi-gear", "type": "Production", "href": "/production"})
+            results.append(
+                {
+                    "title": f"Production — {row['product_name']}",
+                    "sub": f"{int(row['output_quantity'] or 0)} unités · {row['production_date']}",
+                    "icon": "bi-gear",
+                    "type": "Production",
+                    "href": "/production",
+                }
+            )
     except Exception as exc:
         logger.warning("Text production search failed: %s", exc)
 
@@ -393,12 +554,21 @@ async def _search_text_matches(db: AsyncSession, needle: str, results: list) -> 
         )
         for row in res_payments.mappings().all():
             fmt = f"{float(row['amount'] or 0):,.0f} DA".replace(",", " ")
-            results.append({"title": f"Versement — {row['client_name']}", "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}", "icon": "bi-cash-stack", "type": "Paiement", "href": "/payments"})
+            results.append(
+                {
+                    "title": f"Versement — {row['client_name']}",
+                    "sub": f"{fmt} · {row['payment_type']} · {row['payment_date']}",
+                    "icon": "bi-cash-stack",
+                    "type": "Paiement",
+                    "href": "/payments",
+                }
+            )
     except Exception as exc:
         logger.warning("Text payments search failed: %s", exc)
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
+
 
 @router.get("/api/search", name="global_search")
 async def global_search(

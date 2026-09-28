@@ -5,6 +5,7 @@ Les modèles sont définis dans app/core/models_pkg/ (un fichier par domaine mé
 Ce fichier les re-exporte pour la compatibilité descendante :
     from app.core.models import User, Client, Sale  # ← continue de fonctionner
 """
+
 from __future__ import annotations
 
 from app.core.model_utils import _now  # noqa: F401 — re-export pour compatibilité
@@ -27,19 +28,33 @@ from app.core.models_pkg.users import User, UserBadge  # noqa: E402, F401
 __all__ = [
     "_now",
     # Users
-    "User", "UserBadge",
+    "User",
+    "UserBadge",
     # Clients
-    "Client", "ImportedClientHistory", "ClientHistory", "ClientKey",
+    "Client",
+    "ImportedClientHistory",
+    "ClientHistory",
+    "ClientKey",
     # Catalog
-    "RawMaterial", "FinishedProduct", "StockMovement", "StockAlert",
+    "RawMaterial",
+    "FinishedProduct",
+    "StockMovement",
+    "StockAlert",
     # Sales
-    "Sale", "RawSale", "SaleDocument",
+    "Sale",
+    "RawSale",
+    "SaleDocument",
     # Purchases
-    "Supplier", "Purchase", "PurchaseDocument",
+    "Supplier",
+    "Purchase",
+    "PurchaseDocument",
     # Payments
     "Payment",
     # Expenses
     "Expense",
     # Production
-    "ProductionBatch", "ProductionBatchItem", "SavedRecipe", "SavedRecipeItem",
+    "ProductionBatch",
+    "ProductionBatchItem",
+    "SavedRecipe",
+    "SavedRecipeItem",
 ]

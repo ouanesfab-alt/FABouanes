@@ -29,7 +29,9 @@ async def transactions_context(
 ) -> dict:
     if db is None:
         async with get_async_sessionmaker()() as session:
-            return await _transactions_context_impl(filter_type, filter_name, filter_date, filter_operation, args, path, session)
+            return await _transactions_context_impl(
+                filter_type, filter_name, filter_date, filter_operation, args, path, session
+            )
     return await _transactions_context_impl(filter_type, filter_name, filter_date, filter_operation, args, path, db)
 
 
@@ -52,6 +54,7 @@ async def _transactions_context_impl(
     db_date_filter = None
     if date_filter:
         from datetime import datetime as dt_class
+
         try:
             db_date_filter = dt_class.strptime(date_filter.strip(), "%Y-%m-%d").date()
         except ValueError:
@@ -64,7 +67,9 @@ async def _transactions_context_impl(
             p_where.append("p.purchase_date = :date_filter")
             params["date_filter"] = db_date_filter
         if name_filter:
-            p_where.append("(lower(COALESCE(s.name, '')) LIKE :name_filter OR lower(COALESCE(r.name, '')) LIKE :name_filter OR lower(COALESCE(fp.name, '')) LIKE :name_filter)")
+            p_where.append(
+                "(lower(COALESCE(s.name, '')) LIKE :name_filter OR lower(COALESCE(r.name, '')) LIKE :name_filter OR lower(COALESCE(fp.name, '')) LIKE :name_filter)"
+            )
             params["name_filter"] = f"%{name_filter}%"
         if operation_filter:
             p_where.append("lower('Achat') LIKE :operation_filter")
@@ -107,7 +112,9 @@ async def _transactions_context_impl(
             s_where.append("x.sale_date = :date_filter")
             params["date_filter"] = db_date_filter
         if name_filter:
-            s_where.append("(lower(COALESCE(x.client_name, '')) LIKE :name_filter OR lower(x.item_name) LIKE :name_filter)")
+            s_where.append(
+                "(lower(COALESCE(x.client_name, '')) LIKE :name_filter OR lower(x.item_name) LIKE :name_filter)"
+            )
             params["name_filter"] = f"%{name_filter}%"
         if operation_filter:
             s_where.append("lower('Vente') LIKE :operation_filter")
@@ -139,10 +146,14 @@ async def _transactions_context_impl(
             pay_where.append("p.payment_date = :date_filter")
             params["date_filter"] = db_date_filter
         if name_filter:
-            pay_where.append("(lower(COALESCE(c.name, '')) LIKE :name_filter OR lower(CASE WHEN p.payment_type='avance' THEN 'Avance client' ELSE 'Versement client' END) LIKE :name_filter)")
+            pay_where.append(
+                "(lower(COALESCE(c.name, '')) LIKE :name_filter OR lower(CASE WHEN p.payment_type='avance' THEN 'Avance client' ELSE 'Versement client' END) LIKE :name_filter)"
+            )
             params["name_filter"] = f"%{name_filter}%"
         if operation_filter:
-            pay_where.append("lower(CASE WHEN p.payment_type='avance' THEN 'Avance' ELSE 'Versement' END) LIKE :operation_filter")
+            pay_where.append(
+                "lower(CASE WHEN p.payment_type='avance' THEN 'Avance' ELSE 'Versement' END) LIKE :operation_filter"
+            )
             params["operation_filter"] = f"%{operation_filter}%"
 
         pay_where_str = " AND ".join(pay_where)
@@ -191,6 +202,7 @@ async def _transactions_context_impl(
     for row in rows:
         row_dict = dict(row._mapping)
         from app.core.model_utils import to_gmt1
+
         tx_created = to_gmt1(row_dict.get("tx_created_at"))
         if hasattr(tx_created, "strftime"):
             row_dict["tx_time"] = tx_created.strftime("%H:%M")

@@ -11,6 +11,7 @@ Usage:
     from app.core.events import on
     on("create.raw_material", my_handler)
 """
+
 from __future__ import annotations
 
 import datetime
@@ -148,18 +149,17 @@ def _trigger_local_handlers(event: DomainEvent, skip_default: bool = False) -> N
 def emit(event: DomainEvent) -> None:
     """Publie un événement à tous les listeners concernés (via Outbox si configuré, sinon inline)."""
     is_testing = bool(
-        os.getenv("PYTEST_CURRENT_TEST")
-        or os.getenv("FAB_TESTING") == "1"
-        or os.getenv("FASTAPI_ENV") == "test"
+        os.getenv("PYTEST_CURRENT_TEST") or os.getenv("FAB_TESTING") == "1" or os.getenv("FASTAPI_ENV") == "test"
     )
     force_outbox = os.getenv("FAB_FORCE_OUTBOX") == "1"
     if force_outbox:
         try:
             from app.core.db_helpers import execute_db
+
             payload = _serialize_event(event, WORKER_ID)
             execute_db(
                 "INSERT INTO outbox_events (event_type, payload) VALUES (%s, %s)",
-                (f"{event.action}.{event.entity_type}", payload)
+                (f"{event.action}.{event.entity_type}", payload),
             )
             logger.debug("Event written to outbox table: %s.%s", event.action, event.entity_type)
             return
@@ -174,10 +174,11 @@ def emit(event: DomainEvent) -> None:
     if not is_testing:
         try:
             from app.core.db_helpers import execute_db
+
             payload = _serialize_event(event, WORKER_ID)
             execute_db(
                 "INSERT INTO pubsub_events (channel, payload, sender_worker_id) VALUES (%s, %s, %s)",
-                ("fabouanes:events", payload, WORKER_ID)
+                ("fabouanes:events", payload, WORKER_ID),
             )
             # Notifier les autres workers via PostgreSQL LISTEN/NOTIFY
             try:
@@ -221,7 +222,6 @@ def _auto_activity(event: DomainEvent) -> None:
     )
 
 
-
 def _auto_backup(event: DomainEvent) -> None:
     """Déclenche un backup après les mutations (create/update/delete)."""
     from app.core.storage import backup_database
@@ -234,6 +234,7 @@ def _auto_websocket(event: DomainEvent) -> None:
     # Seuls certains types d'entités doivent déclencher un rafraîchissement
     if event.entity_type in ("sale", "purchase", "payment", "sale_document", "purchase_document"):
         from app.core.websockets import manager
+
         manager.broadcast_sync("refresh_operations")
 
 
@@ -244,6 +245,7 @@ def _auto_refresh_balances(event: DomainEvent) -> None:
             import asyncio
 
             from app.modules.reports.repository import refresh_client_balances_view
+
             try:
                 loop = asyncio.get_running_loop()
             except RuntimeError:
@@ -263,6 +265,7 @@ def _auto_invalidate_cache(event: DomainEvent) -> None:
         if domains:
             try:
                 from app.core.perf_cache import _BACKEND
+
                 _BACKEND.invalidate_domains(*domains)
             except Exception as e:
                 logger.debug("Failed to handle remote cache invalidation: %s", e)
@@ -274,6 +277,7 @@ def _auto_invalidate_client_cache(event: DomainEvent) -> None:
         if client_id is not None:
             try:
                 from app.core.perf_cache import _BACKEND
+
                 keys_to_delete = [
                     ("client_detail", client_id),
                     ("client_history", client_id),
@@ -292,6 +296,7 @@ def _auto_invalidate_all_cache(event: DomainEvent) -> None:
     if event.action == "invalidate" and event.entity_type == "all_cache":
         try:
             from app.core.perf_cache import _BACKEND
+
             _BACKEND.clear()
         except Exception as e:
             logger.debug("Failed to clear remote cache: %s", e)
@@ -305,6 +310,7 @@ def _auto_check_stock_alert(event: DomainEvent) -> None:
         import asyncio
 
         from app.services.alert_service import check_stock_alerts
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -314,6 +320,7 @@ def _auto_check_stock_alert(event: DomainEvent) -> None:
         else:
             try:
                 from app.core.helpers import async_compat
+
                 async_compat(check_stock_alerts)()
             except Exception:
                 logger.debug("Stock alert check fallback failed (non-critical)")
@@ -327,6 +334,7 @@ def _auto_rebuild_catalog_embeddings(event: DomainEvent) -> None:
         import asyncio
 
         from app.core.worker import enqueue_background_task
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -336,6 +344,7 @@ def _auto_rebuild_catalog_embeddings(event: DomainEvent) -> None:
         else:
             try:
                 from app.core.helpers import async_compat
+
                 async_compat(enqueue_background_task)("rebuild_catalog_embeddings_task")
             except Exception:
                 logger.debug("Catalog embedding enqueue fallback failed (non-critical)")
@@ -369,13 +378,13 @@ on("*.raw_material", _auto_rebuild_catalog_embeddings)
 on("*.finished_product", _auto_rebuild_catalog_embeddings)
 
 
-
 # Choix importants :
 # 1. Utilisation de BackgroundScheduler pour exécuter des tâches récurrentes de façon asynchrone sans bloquer l'application.
 # 2. Enregistrement de la tâche daily_overdue_alerts à 8h chaque jour avec replace_existing=True pour éviter les doublons au redémarrage.
 
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
+
     scheduler = BackgroundScheduler()
 except ImportError:
     scheduler = None
@@ -407,12 +416,13 @@ def _db_event_listener_loop():
     try:
         from app.core.config import DATABASE_URL
         from app.core.db_helpers import pool_manager
+
         listen_conn = pool_manager.connect_database(DATABASE_URL)
         listen_conn.execute("LISTEN fabouanes_events")
         listen_conn.commit()
         # pg8000 CompatConnection wraps a pg8000 connection; get the raw socket fd
-        raw = getattr(listen_conn, '_conn', listen_conn)
-        sock = getattr(raw, '_sock', None) or getattr(raw, 'sock', None)
+        raw = getattr(listen_conn, "_conn", listen_conn)
+        sock = getattr(raw, "_sock", None) or getattr(raw, "sock", None)
         if sock:
             listen_fileno = sock.fileno()
             logger.info("LISTEN/NOTIFY active on fabouanes_events (fd=%d)", listen_fileno)
@@ -457,6 +467,7 @@ def _db_event_listener_loop():
                 if row["channel"] == "fabouanes:ws_broadcast":
                     try:
                         from app.core.websockets import manager
+
                         data = json.loads(row["payload"])
                         msg_type = data.get("type")
                         msg = data.get("message")
@@ -475,9 +486,7 @@ def _db_event_listener_loop():
                         _trigger_local_handlers(event, skip_default=True)
 
             # Prune events older than 10 minutes
-            execute_db(
-                "DELETE FROM pubsub_events WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'"
-            )
+            execute_db("DELETE FROM pubsub_events WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'")
         except Exception as e:
             logger.debug("Failed to poll/prune pubsub_events: %s", e)
             time.sleep(5.0)  # Rate-limit en cas d'erreur
@@ -490,7 +499,6 @@ def _db_event_listener_loop():
             pass
 
 
-
 def startup():
     """Démarre le planificateur de tâches en arrière-plan et le listener de base de données Pub/Sub."""
     global _db_listener_thread, _db_listener_running
@@ -501,6 +509,7 @@ def startup():
         # Nettoyer les anciens événements au démarrage pour garder la table légère
         try:
             from app.core.db_helpers import execute_db
+
             execute_db("DELETE FROM pubsub_events WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'")
         except Exception:
             logger.debug("Startup pubsub cleanup failed (non-critical)")
@@ -514,9 +523,12 @@ def startup():
             if not scheduler.running:
                 scheduler.start()
             from app.services.alert_service import broadcast_overdue_alerts
+
             scheduler.add_job(
                 broadcast_overdue_alerts,
-                "cron", hour=8, minute=0,  # Chaque jour à 8h
+                "cron",
+                hour=8,
+                minute=0,  # Chaque jour à 8h
                 id="daily_overdue_alerts",
                 replace_existing=True,
             )
@@ -538,4 +550,3 @@ def shutdown():
     if _db_listener_running:
         _db_listener_running = False
         logger.info("DB Pub/Sub Event Bus listener arrêté.")
-

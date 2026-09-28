@@ -131,6 +131,7 @@ class CompatConnection:
 
                 if not retried:
                     from sqlalchemy.exc import DBAPIError, OperationalError
+
                     if isinstance(exc, (OperationalError, DBAPIError)) or "connection" in exc_msg:
                         self._reset_postgres_connection()
                         retried = True
@@ -139,6 +140,7 @@ class CompatConnection:
 
     def executescript(self, script: str):
         from app.core.db_helpers.query import split_sql_script
+
         for statement in split_sql_script(script):
             if statement.strip():
                 self.execute(statement)
@@ -175,6 +177,7 @@ class DatabaseManager:
         self._slow_sql_threshold_ms = float(os.environ.get("FAB_SLOW_SQL_MS", "100") or "100")
         self._perf_queue_maxlen = int(os.environ.get("FAB_PERF_QUEUE_MAXLEN", "1000") or "1000")
         from collections import deque
+
         self._perf_queue = deque(maxlen=max(100, self._perf_queue_maxlen))
         self._perf_lock = threading.Lock()
         self._perf_event = threading.Event()
@@ -221,6 +224,7 @@ class DatabaseManager:
         )
 
         from sqlalchemy import event
+
         @event.listens_for(engine, "connect")
         def set_connection_timezone(dbapi_connection, connection_record):
             cursor = dbapi_connection.cursor()
@@ -233,6 +237,7 @@ class DatabaseManager:
 
         try:
             from app.core.observability import instrument_sqlalchemy
+
             instrument_sqlalchemy(engine)
         except Exception:
             pass
@@ -279,10 +284,25 @@ class DatabaseManager:
                         if attempt == 0:
                             # Attempt auto-restart/repair of PostgreSQL if running locally or on Termux
                             try:
-                                is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux")
+                                is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists(
+                                    "/data/data/com.termux"
+                                )
                                 if is_termux:
                                     import subprocess
-                                    subprocess.run(["pg_ctl", "-D", f"{os.environ.get('PREFIX', '')}/var/lib/postgresql", "-o", "-c listen_addresses='*' -c port=5432", "start"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+
+                                    subprocess.run(
+                                        [
+                                            "pg_ctl",
+                                            "-D",
+                                            f"{os.environ.get('PREFIX', '')}/var/lib/postgresql",
+                                            "-o",
+                                            "-c listen_addresses='*' -c port=5432",
+                                            "start",
+                                        ],
+                                        stdout=subprocess.DEVNULL,
+                                        stderr=subprocess.DEVNULL,
+                                        check=False,
+                                    )
                             except Exception:
                                 pass
                             continue
@@ -309,7 +329,9 @@ class DatabaseManager:
                         self._engines.pop(raw_url, None)
                     return self.get_database_engine(raw_url).raw_connection()
                 elif "authentification" in err_msg or "password authentication failed" in err_msg or "28p01" in err_msg:
-                    raise RuntimeError("Erreur critique d'authentification PostgreSQL. Verifie le mot de passe dans .env") from e
+                    raise RuntimeError(
+                        "Erreur critique d'authentification PostgreSQL. Verifie le mot de passe dans .env"
+                    ) from e
                 elif attempt == 1:
                     raise RuntimeError(f"Impossible de se connecter a la base de donnees PostgreSQL: {e}") from e
 
@@ -420,7 +442,10 @@ class DatabaseManager:
             domains.update({"productions", "dashboard", "sales", "catalog"})
         if " expenses" in q:
             domains.update({"dashboard"})
-        if any(table in q for table in (" users", " backup_jobs", " audit_logs", " activity_logs", " system_logs", " error_logs")):
+        if any(
+            table in q
+            for table in (" users", " backup_jobs", " audit_logs", " activity_logs", " system_logs", " error_logs")
+        ):
             domains.add("admin")
         if domains:
             invalidate_cache_domains(*domains)
@@ -436,6 +461,7 @@ class DatabaseManager:
         try:
             import sqlglot
             from sqlglot import exp
+
             parsed = sqlglot.parse_one(query, read="postgres")
             if isinstance(parsed, (exp.Select, exp.Union)):
                 if not parsed.args.get("limit"):
@@ -466,12 +492,7 @@ class DatabaseManager:
                 return result
             except Exception as exc:
                 exc_msg = str(exc).lower()
-                is_transient = (
-                    "connection" in exc_msg
-                    or "57p01" in exc_msg
-                    or "08006" in exc_msg
-                    or "08001" in exc_msg
-                )
+                is_transient = "connection" in exc_msg or "57p01" in exc_msg or "08006" in exc_msg or "08001" in exc_msg
                 if self._tx_depth() == 0:
                     try:
                         db.rollback()
@@ -491,10 +512,12 @@ class DatabaseManager:
 
     async def query_db_async(self, query: str, params: tuple = (), one: bool = False):
         import asyncio
+
         return await asyncio.to_thread(self.query_db, query, params, one)
 
     def execute_db(self, query: str, params: tuple = ()) -> int:
         import re
+
         for attempt in range(2):
             db = self.get_write_db()
             started = monotonic()
@@ -515,12 +538,7 @@ class DatabaseManager:
                 cur.close()
             except Exception as exc:
                 exc_msg = str(exc).lower()
-                is_transient = (
-                    "connection" in exc_msg
-                    or "57p01" in exc_msg
-                    or "08006" in exc_msg
-                    or "08001" in exc_msg
-                )
+                is_transient = "connection" in exc_msg or "57p01" in exc_msg or "08006" in exc_msg or "08001" in exc_msg
                 if self._tx_depth() == 0:
                     try:
                         db.rollback()
@@ -547,10 +565,12 @@ class DatabaseManager:
 
     async def execute_db_async(self, query: str, params: tuple = ()) -> int:
         import asyncio
+
         return await asyncio.to_thread(self.execute_db, query, params)
 
     def _postgres_last_insert_id(self, db, query: str) -> int:
         import re
+
         match = re.match(r"\s*INSERT\s+INTO\s+([a-zA-Z_][a-zA-Z0-9_]*)\b", str(query or ""), flags=re.I)
         if not match:
             return 0
@@ -612,18 +632,18 @@ class DatabaseManager:
         finally:
             self._set_tx_depth(previous_depth)
 
-    def get_setting(self, key: str, default: str = '') -> str:
+    def get_setting(self, key: str, default: str = "") -> str:
         try:
-            row = self.query_db('SELECT value FROM app_settings WHERE key = %s', (key,), one=True)
-            return row['value'] if row and row['value'] is not None else default
+            row = self.query_db("SELECT value FROM app_settings WHERE key = %s", (key,), one=True)
+            return row["value"] if row and row["value"] is not None else default
         except Exception as e:
             logger.debug("Ignored error: %s", e, exc_info=False)
             return default
 
     def set_setting(self, key: str, value: str) -> None:
         self.execute_db(
-            'INSERT INTO app_settings (key, value, updated_at) VALUES (%s, %s, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP',
-            (key, value)
+            "INSERT INTO app_settings (key, value, updated_at) VALUES (%s, %s, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP",
+            (key, value),
         )
 
     def list_columns(self, conn: CompatConnection, table: str) -> set[str]:
@@ -791,7 +811,7 @@ def db_transaction():
         yield tx
 
 
-def get_setting(key: str, default: str = '') -> str:
+def get_setting(key: str, default: str = "") -> str:
     return db_manager.get_setting(key, default)
 
 

@@ -1,4 +1,5 @@
 """Routes web du module Rapports & Statistiques."""
+
 from __future__ import annotations
 
 import csv
@@ -17,16 +18,14 @@ from app.web.deps import require_permission, template_context, templates
 
 router = APIRouter()
 
+
 def get_reports_service(db: AsyncSession = Depends(get_async_session)) -> ReportsService:
     return ReportsService(db)
 
 
 @router.get("/reports", name="reports_dashboard")
 @limiter.limit("20/minute")
-async def reports_page(
-    request: Request,
-    reports_service: ReportsService = Depends(get_reports_service)
-):
+async def reports_page(request: Request, reports_service: ReportsService = Depends(get_reports_service)):
     denied = require_permission(request, "reports.read")
     if denied:
         return denied
@@ -60,7 +59,9 @@ async def reports_page(
         writer.writerow(["=== BALANCES CLIENTS / RETARDS ==="])
         writer.writerow(["Client", "Total Dû", "Dépassement", "Dernier Versement", "Retard (jours)"])
         for c in ctx.get("client_debts", []):
-            writer.writerow([c["name"], c["debt"], c["over_threshold"], c["last_payment_date"] or "-", c["overdue_days"]])
+            writer.writerow(
+                [c["name"], c["debt"], c["over_threshold"], c["last_payment_date"] or "-", c["overdue_days"]]
+            )
         writer.writerow([])
 
         writer.writerow(["=== TOP PRODUITS ==="])
@@ -85,6 +86,7 @@ async def reports_page(
     elif fmt == "xlsx":
         import openpyxl
         from openpyxl.styles import Font
+
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Rapport"
@@ -123,7 +125,13 @@ async def reports_page(
 
         bold_font = Font(bold=True)
         # Bold on major headings/sections
-        sections = [1, 3, 12, 12 + len(ctx.get("client_debts", [])) + 2, 12 + len(ctx.get("client_debts", [])) + 2 + len(ctx["top_products"]) + 2]
+        sections = [
+            1,
+            3,
+            12,
+            12 + len(ctx.get("client_debts", [])) + 2,
+            12 + len(ctx.get("client_debts", [])) + 2 + len(ctx["top_products"]) + 2,
+        ]
         for idx in sections:
             try:
                 for cell in ws[idx]:
@@ -132,7 +140,7 @@ async def reports_page(
                 pass
 
         for col in ws.columns:
-            max_len = max(len(str(cell.value or '')) for cell in col)
+            max_len = max(len(str(cell.value or "")) for cell in col)
             col_letter = openpyxl.utils.get_column_letter(col[0].column)
             ws.column_dimensions[col_letter].width = max(max_len + 3, 10)
 
@@ -146,17 +154,19 @@ async def reports_page(
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
-    return templates.TemplateResponse("reports_dashboard.html", template_context(
-        request, title="Rapports & Statistiques", **ctx,
-    ))
+    return templates.TemplateResponse(
+        "reports_dashboard.html",
+        template_context(
+            request,
+            title="Rapports & Statistiques",
+            **ctx,
+        ),
+    )
 
 
 @router.get("/reports/export-csv", name="reports_export_csv")
 @limiter.limit("10/minute")
-async def export_csv(
-    request: Request,
-    reports_service: ReportsService = Depends(get_reports_service)
-):
+async def export_csv(request: Request, reports_service: ReportsService = Depends(get_reports_service)):
     denied = require_permission(request, "reports.read")
     if denied:
         return denied
@@ -232,13 +242,7 @@ async def export_livre_journal(
         label = str(row.get("label", "") or "")
         debit_val = float(row.get("debit") or 0.0)
         credit_val = float(row.get("credit") or 0.0)
-        writer.writerow([
-            tx_date,
-            tx_ref,
-            label,
-            f"{debit_val:.2f}",
-            f"{credit_val:.2f}"
-        ])
+        writer.writerow([tx_date, tx_ref, label, f"{debit_val:.2f}", f"{credit_val:.2f}"])
 
     output.seek(0)
     bom = "\ufeff"
@@ -262,7 +266,17 @@ async def export_marge_brute(
 
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
-    writer.writerow(["Produit Fini", "Quantité Vendue", "Chiffre d'Affaires (DA)", "Coût Moyen (CMP DA)", "Coût Total (DA)", "Marge Brute (DA)", "Taux de Marge (%)"])
+    writer.writerow(
+        [
+            "Produit Fini",
+            "Quantité Vendue",
+            "Chiffre d'Affaires (DA)",
+            "Coût Moyen (CMP DA)",
+            "Coût Total (DA)",
+            "Marge Brute (DA)",
+            "Taux de Marge (%)",
+        ]
+    )
 
     rows = await service.get_marge_brute_data()
 
@@ -274,15 +288,17 @@ async def export_marge_brute(
         margin = rev - cogs
         margin_pct = (margin / rev * 100.0) if rev > 0 else 0.0
 
-        writer.writerow([
-            r["name"],
-            f"{qty:.2f}",
-            f"{rev:.2f}",
-            f"{unit_cost:.2f}",
-            f"{cogs:.2f}",
-            f"{margin:.2f}",
-            f"{margin_pct:.1f}%"
-        ])
+        writer.writerow(
+            [
+                r["name"],
+                f"{qty:.2f}",
+                f"{rev:.2f}",
+                f"{unit_cost:.2f}",
+                f"{cogs:.2f}",
+                f"{margin:.2f}",
+                f"{margin_pct:.1f}%",
+            ]
+        )
 
     output.seek(0)
     bom = "\ufeff"
@@ -291,4 +307,3 @@ async def export_marge_brute(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename=marge_brute_{date.today().isoformat()}.csv"},
     )
-

@@ -51,27 +51,21 @@ class RawMaterialRepository(AsyncRepository[RawMaterial]):
     async def get_30d_velocities(self, cutoff_date_str: str) -> Dict[int, float]:
         """Calculate 30-day consumption velocity for raw materials."""
         from datetime import date
+
         cutoff_date = date.fromisoformat(cutoff_date_str) if isinstance(cutoff_date_str, str) else cutoff_date_str
-        sac_capacity_num = cast(func.coalesce(func.nullif(func.regexp_replace(RawSale.unit, '[^0-9.]', '', 'g'), ''), '50'), Numeric)
+        sac_capacity_num = cast(
+            func.coalesce(func.nullif(func.regexp_replace(RawSale.unit, "[^0-9.]", "", "g"), ""), "50"), Numeric
+        )
         qty_expr = case(
-            (func.lower(RawSale.unit).like('sac%'), RawSale.quantity * sac_capacity_num),
-            (func.lower(RawSale.unit).in_(['qt', 'quintal']), RawSale.quantity * 100),
-            else_=RawSale.quantity
+            (func.lower(RawSale.unit).like("sac%"), RawSale.quantity * sac_capacity_num),
+            (func.lower(RawSale.unit).in_(["qt", "quintal"]), RawSale.quantity * 100),
+            else_=RawSale.quantity,
         )
 
-        stmt_sales = (
-            select(
-                RawSale.raw_material_id,
-                qty_expr.label("qty")
-            )
-            .where(RawSale.sale_date >= cutoff_date)
-        )
+        stmt_sales = select(RawSale.raw_material_id, qty_expr.label("qty")).where(RawSale.sale_date >= cutoff_date)
 
         stmt_prod = (
-            select(
-                ProductionBatchItem.raw_material_id,
-                ProductionBatchItem.quantity.label("qty")
-            )
+            select(ProductionBatchItem.raw_material_id, ProductionBatchItem.quantity.label("qty"))
             .select_from(ProductionBatchItem)
             .join(ProductionBatch, ProductionBatch.id == ProductionBatchItem.batch_id)
             .where(ProductionBatch.production_date >= cutoff_date_str)
@@ -80,18 +74,13 @@ class RawMaterialRepository(AsyncRepository[RawMaterial]):
         source_q = union_all(stmt_sales, stmt_prod).subquery("source")
 
         consumed_q = (
-            select(
-                source_q.c.raw_material_id,
-                func.sum(source_q.c.qty).label("consumed_30d")
+            select(source_q.c.raw_material_id, func.sum(source_q.c.qty).label("consumed_30d")).group_by(
+                source_q.c.raw_material_id
             )
-            .group_by(source_q.c.raw_material_id)
         ).subquery("c")
 
         stmt = (
-            select(
-                RawMaterial.id,
-                func.coalesce(consumed_q.c.consumed_30d, 0).label("consumed_30d")
-            )
+            select(RawMaterial.id, func.coalesce(consumed_q.c.consumed_30d, 0).label("consumed_30d"))
             .select_from(RawMaterial)
             .join(consumed_q, consumed_q.c.raw_material_id == RawMaterial.id, isouter=True)
         )
@@ -125,21 +114,16 @@ class FinishedProductRepository(AsyncRepository[FinishedProduct]):
     async def get_30d_velocities(self, cutoff_date_str: str) -> Dict[int, float]:
         """Calculate 30-day sales velocity for finished products."""
         from datetime import date
+
         cutoff_date = date.fromisoformat(cutoff_date_str) if isinstance(cutoff_date_str, str) else cutoff_date_str
         sold_q = (
-            select(
-                Sale.finished_product_id,
-                func.sum(Sale.quantity).label("sold_30d")
-            )
+            select(Sale.finished_product_id, func.sum(Sale.quantity).label("sold_30d"))
             .where(Sale.sale_date >= cutoff_date)
             .group_by(Sale.finished_product_id)
         ).subquery("s")
 
         stmt = (
-            select(
-                FinishedProduct.id,
-                func.coalesce(sold_q.c.sold_30d, 0).label("sold_30d")
-            )
+            select(FinishedProduct.id, func.coalesce(sold_q.c.sold_30d, 0).label("sold_30d"))
             .select_from(FinishedProduct)
             .join(sold_q, sold_q.c.finished_product_id == FinishedProduct.id, isouter=True)
         )
@@ -160,9 +144,9 @@ class SavedRecipeRepository(AsyncRepository[SavedRecipe]):
                 SavedRecipe.id,
                 SavedRecipe.finished_product_id,
                 SavedRecipe.name,
-                func.coalesce(SavedRecipe.notes, '').label("notes"),
+                func.coalesce(SavedRecipe.notes, "").label("notes"),
                 SavedRecipe.created_at,
-                FinishedProduct.name.label("finished_name")
+                FinishedProduct.name.label("finished_name"),
             )
             .select_from(SavedRecipe)
             .join(FinishedProduct, FinishedProduct.id == SavedRecipe.finished_product_id)
@@ -181,7 +165,7 @@ class SavedRecipeRepository(AsyncRepository[SavedRecipe]):
                 SavedRecipeItem.position,
                 RawMaterial.name.label("material_name"),
                 RawMaterial.stock_qty,
-                RawMaterial.unit
+                RawMaterial.unit,
             )
             .select_from(SavedRecipeItem)
             .join(RawMaterial, RawMaterial.id == SavedRecipeItem.raw_material_id)
@@ -192,8 +176,7 @@ class SavedRecipeRepository(AsyncRepository[SavedRecipe]):
 
     async def find_by_product_and_name(self, product_id: int, name: str) -> Optional[SavedRecipe]:
         statement = select(SavedRecipe).where(
-            SavedRecipe.finished_product_id == product_id,
-            func.lower(SavedRecipe.name) == name.strip().lower()
+            SavedRecipe.finished_product_id == product_id, func.lower(SavedRecipe.name) == name.strip().lower()
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
@@ -208,6 +191,7 @@ class SavedRecipeRepository(AsyncRepository[SavedRecipe]):
 
 
 # --- Stock Movement and List Queries (migrated from stock_repository) ---
+
 
 @async_compat
 async def insert_stock_movement(
@@ -227,17 +211,36 @@ async def insert_stock_movement(
     if db is None:
         async with get_async_sessionmaker()() as session:
             await _insert_stock_movement_impl(
-                item_kind, item_id, direction, quantity, unit,
-                stock_before, stock_after, reason, reference_type,
-                reference_id, username, session
+                item_kind,
+                item_id,
+                direction,
+                quantity,
+                unit,
+                stock_before,
+                stock_after,
+                reason,
+                reference_type,
+                reference_id,
+                username,
+                session,
             )
             await session.commit()
     else:
         await _insert_stock_movement_impl(
-            item_kind, item_id, direction, quantity, unit,
-            stock_before, stock_after, reason, reference_type,
-            reference_id, username, db
+            item_kind,
+            item_id,
+            direction,
+            quantity,
+            unit,
+            stock_before,
+            stock_after,
+            reason,
+            reference_type,
+            reference_id,
+            username,
+            db,
         )
+
 
 async def _insert_stock_movement_impl(
     item_kind: str,
@@ -281,6 +284,7 @@ async def list_raw_materials(
             return await _list_raw_materials_impl(search, status, page, page_size, sess)
     return await _list_raw_materials_impl(search, status, page, page_size, db)
 
+
 async def _list_raw_materials_impl(
     search: str | None,
     status: str | None,
@@ -291,22 +295,22 @@ async def _list_raw_materials_impl(
     stmt = select(
         *RawMaterial.__table__.columns,
         case(
-            (RawMaterial.stock_qty <= func.coalesce(func.nullif(RawMaterial.threshold_qty, 0), RawMaterial.alert_threshold), 1),
-            else_=0
+            (
+                RawMaterial.stock_qty
+                <= func.coalesce(func.nullif(RawMaterial.threshold_qty, 0), RawMaterial.alert_threshold),
+                1,
+            ),
+            else_=0,
         ).label("is_low_stock"),
-        literal("'raw'").label("item_type")
+        literal("'raw'").label("item_type"),
     )
     if search:
         search_filter = f"%{search}%"
-        stmt = stmt.where(
-            or_(
-                RawMaterial.name.ilike(search_filter),
-                RawMaterial.unit.ilike(search_filter)
-            )
-        )
+        stmt = stmt.where(or_(RawMaterial.name.ilike(search_filter), RawMaterial.unit.ilike(search_filter)))
     if status == "low":
         stmt = stmt.where(
-            RawMaterial.stock_qty <= func.coalesce(func.nullif(RawMaterial.threshold_qty, 0), RawMaterial.alert_threshold)
+            RawMaterial.stock_qty
+            <= func.coalesce(func.nullif(RawMaterial.threshold_qty, 0), RawMaterial.alert_threshold)
         )
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
@@ -330,23 +334,18 @@ async def list_finished_products(
             return await _list_finished_products_impl(search, page, page_size, sess)
     return await _list_finished_products_impl(search, page, page_size, db)
 
+
 async def _list_finished_products_impl(
     search: str | None,
     page: int,
     page_size: int,
     db: AsyncSession,
 ) -> tuple[list[dict], int]:
-    stmt = select(
-        *FinishedProduct.__table__.columns,
-        literal("'finished'").label("item_type")
-    )
+    stmt = select(*FinishedProduct.__table__.columns, literal("'finished'").label("item_type"))
     if search:
         search_filter = f"%{search}%"
         stmt = stmt.where(
-            or_(
-                FinishedProduct.name.ilike(search_filter),
-                FinishedProduct.default_unit.ilike(search_filter)
-            )
+            or_(FinishedProduct.name.ilike(search_filter), FinishedProduct.default_unit.ilike(search_filter))
         )
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
@@ -390,12 +389,11 @@ async def _list_production_batches_impl(
     db: AsyncSession,
 ) -> tuple[list[dict], int]:
     from datetime import date
+
     date_from_obj = date.fromisoformat(date_from) if date_from else None
     date_to_obj = date.fromisoformat(date_to) if date_to else None
     stmt = select(
-        ProductionBatch,
-        FinishedProduct.name.label("product_name"),
-        FinishedProduct.default_unit.label("product_unit")
+        ProductionBatch, FinishedProduct.name.label("product_name"), FinishedProduct.default_unit.label("product_unit")
     ).join(FinishedProduct, FinishedProduct.id == ProductionBatch.finished_product_id)
 
     if search:
@@ -403,7 +401,7 @@ async def _list_production_batches_impl(
         stmt = stmt.where(
             or_(
                 FinishedProduct.name.ilike(search_pattern),
-                func.coalesce(ProductionBatch.notes, '').ilike(search_pattern)
+                func.coalesce(ProductionBatch.notes, "").ilike(search_pattern),
             )
         )
     if date_from_obj:
@@ -412,7 +410,11 @@ async def _list_production_batches_impl(
         stmt = stmt.where(ProductionBatch.production_date <= date_to_obj)
 
     stmt = stmt.add_columns(func.count().over().label("_total_count"))
-    stmt = stmt.order_by(ProductionBatch.production_date.desc(), ProductionBatch.id.desc()).offset((page - 1) * page_size).limit(page_size)
+    stmt = (
+        stmt.order_by(ProductionBatch.production_date.desc(), ProductionBatch.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
 
     res = await db.execute(stmt)
     rows = []
@@ -444,10 +446,9 @@ async def _list_recipes_impl(
     page_size: int,
     db: AsyncSession,
 ) -> tuple[list[dict], int]:
-    stmt = select(
-        SavedRecipe,
-        FinishedProduct.name.label("finished_product_name")
-    ).join(FinishedProduct, FinishedProduct.id == SavedRecipe.finished_product_id)
+    stmt = select(SavedRecipe, FinishedProduct.name.label("finished_product_name")).join(
+        FinishedProduct, FinishedProduct.id == SavedRecipe.finished_product_id
+    )
 
     stmt = stmt.add_columns(func.count().over().label("_total_count"))
     stmt = stmt.order_by(SavedRecipe.id.desc()).offset((page - 1) * page_size).limit(page_size)
@@ -466,6 +467,7 @@ async def _list_recipes_impl(
 
 # --- Supplier Queries (migrated from supplier_repository) ---
 
+
 async def list_suppliers(
     search: str | None = None,
     page: int = 1,
@@ -476,6 +478,7 @@ async def list_suppliers(
         async with get_async_sessionmaker()() as session:
             return await _list_suppliers_impl(search, page, page_size, session)
     return await _list_suppliers_impl(search, page, page_size, db)
+
 
 async def _list_suppliers_impl(
     search: str | None,
@@ -503,4 +506,3 @@ async def _list_suppliers_impl(
     result = await db.execute(stmt)
     suppliers = [s.model_dump() for s in result.scalars().all()]
     return suppliers, total
-

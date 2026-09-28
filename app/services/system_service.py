@@ -32,7 +32,6 @@ async def get_system_status(db: AsyncSession | None = None) -> dict:
     return await async_cached_result("system_status_cache", load, ttl_seconds=15.0)
 
 
-
 async def _get_system_status_impl(db: AsyncSession) -> dict:
     db_ok = False
     db_message = ""
@@ -75,8 +74,11 @@ async def _get_system_status_impl(db: AsyncSession) -> dict:
     data_dir = Path(APP_DATA_DIR)
     backup_dir = Path(LOCAL_BACKUP_DIR)
     log_dir = Path(LOG_DIR)
-    latest_backup_file = next(iter(sorted(backup_dir.glob("*.sql"), reverse=True)), None) if backup_dir.exists() else None
+    latest_backup_file = (
+        next(iter(sorted(backup_dir.glob("*.sql"), reverse=True)), None) if backup_dir.exists() else None
+    )
     from app.services.backup_service import BACKGROUND_STATE
+
     write_status = await _probe_db_write(db)
     backup_write_status = _probe_dir_write(backup_dir)
     reconciliation = await reconcile_client_balances(db)
@@ -85,8 +87,12 @@ async def _get_system_status_impl(db: AsyncSession) -> dict:
         "version": VERSION_LABEL,
         "background_jobs": {
             "started": BACKGROUND_STATE.get("started", False),
-            "last_run_at": datetime.fromtimestamp(BACKGROUND_STATE.get("last_run_ts", 0)).isoformat() if BACKGROUND_STATE.get("last_run_ts") else None,
-            "last_backup_at": datetime.fromtimestamp(BACKGROUND_STATE.get("last_backup_ts", 0)).isoformat() if BACKGROUND_STATE.get("last_backup_ts") else None,
+            "last_run_at": datetime.fromtimestamp(BACKGROUND_STATE.get("last_run_ts", 0)).isoformat()
+            if BACKGROUND_STATE.get("last_run_ts")
+            else None,
+            "last_backup_at": datetime.fromtimestamp(BACKGROUND_STATE.get("last_backup_ts", 0)).isoformat()
+            if BACKGROUND_STATE.get("last_backup_ts")
+            else None,
         },
         "database": {
             "ok": db_ok,
@@ -106,7 +112,9 @@ async def _get_system_status_impl(db: AsyncSession) -> dict:
             "local_dir": str(backup_dir),
             "write_status": backup_write_status,
             "latest_file": latest_backup_file.name if latest_backup_file else "",
-            "latest_file_at": datetime.fromtimestamp(latest_backup_file.stat().st_mtime).isoformat(timespec="seconds") if latest_backup_file else "",
+            "latest_file_at": datetime.fromtimestamp(latest_backup_file.stat().st_mtime).isoformat(timespec="seconds")
+            if latest_backup_file
+            else "",
             "latest_job_status": str(latest_job["status"]) if latest_job else "aucun job",
             "latest_job_reason": str(latest_job["reason"]) if latest_job else "",
             "pending_reason": str(pending_marker.get("reason", "")),
@@ -156,6 +164,7 @@ async def _probe_db_write(db: AsyncSession) -> dict:
 
 async def reconcile_client_balances(db: AsyncSession) -> dict:
     import logging
+
     logger = logging.getLogger("fabouanes.system")
     stmt = text("""
         WITH calculated AS (
@@ -195,13 +204,15 @@ async def reconcile_client_balances(db: AsyncSession) -> dict:
         rows = res.fetchall()
         discrepancies = []
         for row in rows:
-            discrepancies.append({
-                "client_id": int(row[0]) if row[0] is not None else 0,
-                "name": str(row[1]) if row[1] is not None else "Inconnu",
-                "calculated": float(row[2]),
-                "view": float(row[3]),
-                "materialized_view": float(row[4])
-            })
+            discrepancies.append(
+                {
+                    "client_id": int(row[0]) if row[0] is not None else 0,
+                    "name": str(row[1]) if row[1] is not None else "Inconnu",
+                    "calculated": float(row[2]),
+                    "view": float(row[3]),
+                    "materialized_view": float(row[4]),
+                }
+            )
 
         # Self-healing refresh if discrepancies in mv exist
         if any(abs(d["calculated"] - d["materialized_view"]) > 0.01 for d in discrepancies):
@@ -213,13 +224,15 @@ async def reconcile_client_balances(db: AsyncSession) -> dict:
                 rows = res.fetchall()
                 discrepancies = []
                 for row in rows:
-                    discrepancies.append({
-                        "client_id": int(row[0]) if row[0] is not None else 0,
-                        "name": str(row[1]) if row[1] is not None else "Inconnu",
-                        "calculated": float(row[2]),
-                        "view": float(row[3]),
-                        "materialized_view": float(row[4])
-                    })
+                    discrepancies.append(
+                        {
+                            "client_id": int(row[0]) if row[0] is not None else 0,
+                            "name": str(row[1]) if row[1] is not None else "Inconnu",
+                            "calculated": float(row[2]),
+                            "view": float(row[3]),
+                            "materialized_view": float(row[4]),
+                        }
+                    )
             except Exception as inner_exc:
                 logger.warning("Could not refresh mv_client_balances during reconciliation check: %s", inner_exc)
 
@@ -228,18 +241,11 @@ async def reconcile_client_balances(db: AsyncSession) -> dict:
             "ok": not discrepancies,
             "status": status_label,
             "count": len(discrepancies),
-            "discrepancies": discrepancies
+            "discrepancies": discrepancies,
         }
     except Exception as exc:
         logger.error("Error executing financial reconciliation: %s", exc)
-        return {
-            "ok": False,
-            "status": "Erreur de verification",
-            "count": 0,
-            "discrepancies": [],
-            "error": str(exc)
-        }
-
+        return {"ok": False, "status": "Erreur de verification", "count": 0, "discrepancies": [], "error": str(exc)}
 
 
 @async_compat

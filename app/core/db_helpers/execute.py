@@ -13,6 +13,7 @@ async def execute_db_async(query: str, params: tuple = ()) -> int:
 
 def execute_sa(query) -> int:
     from sqlalchemy.dialects import postgresql
+
     compiled = query.compile(dialect=postgresql.dialect(paramstyle="format"), compile_kwargs={"literal_binds": False})
     sql = str(compiled)
     params = tuple(compiled.params[name] for name in compiled.positiontup)

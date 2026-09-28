@@ -4,6 +4,7 @@ Sabrina Memory — Mémoire persistante de l'assistante IA.
 Fournit des fonctions CRUD pour stocker et retrouver des souvenirs (préférences,
 contextes, corrections) dans une table PostgreSQL avec recherche full-text.
 """
+
 from __future__ import annotations
 
 import logging
@@ -22,23 +23,23 @@ def remember(content: str, category: str = "general", source: str = "user_explic
             return {"error": "Contenu vide — impossible de mémoriser."}
 
         # Vérifier les doublons exacts
-        existing = db_manager.query_db(
-            "SELECT id FROM sabrina_memory WHERE content = %s LIMIT 1",
-            (content,)
-        )
+        existing = db_manager.query_db("SELECT id FROM sabrina_memory WHERE content = %s LIMIT 1", (content,))
         if existing:
-            return {"status": "already_known", "message": f"Je connais déjà cette information (mémoire #{existing[0][0]})."}
+            return {
+                "status": "already_known",
+                "message": f"Je connais déjà cette information (mémoire #{existing[0][0]}).",
+            }
 
         mem_id = db_manager.execute_db(
             """INSERT INTO sabrina_memory (content, category, source)
                VALUES (%s, %s, %s) RETURNING id""",
-            (content, category, source)
+            (content, category, source),
         )
         logger.info("Sabrina memory created: id=%s category=%s source=%s", mem_id, category, source)
         return {
             "success": True,
             "memory_id": mem_id,
-            "message": f"Mémorisé avec succès (mémoire #{mem_id}, catégorie: {category})."
+            "message": f"Mémorisé avec succès (mémoire #{mem_id}, catégorie: {category}).",
         }
     except Exception as e:
         logger.error("Error saving memory: %s", e, exc_info=True)
@@ -57,7 +58,7 @@ def recall(query: str, limit: int = 10) -> Dict[str, Any]:
                    WHERE expires_at IS NULL OR expires_at > NOW()
                    ORDER BY relevance_score DESC, created_at DESC
                    LIMIT %s""",
-                (limit,)
+                (limit,),
             )
         else:
             # Recherche full-text en français + fallback LIKE
@@ -73,7 +74,7 @@ def recall(query: str, limit: int = 10) -> Dict[str, Any]:
                      ts_rank(search_vector, plainto_tsquery('french', %s)) DESC,
                      relevance_score DESC
                    LIMIT %s""",
-                (query, query, query, limit)
+                (query, query, query, limit),
             )
 
         memories = []
@@ -82,15 +83,19 @@ def recall(query: str, limit: int = 10) -> Dict[str, Any]:
                 row_dict = dict(r)
             except Exception:
                 row_dict = {
-                    "id": r[0], "category": r[1], "content": r[2],
-                    "source": r[3], "relevance_score": r[4], "created_at": str(r[5])
+                    "id": r[0],
+                    "category": r[1],
+                    "content": r[2],
+                    "source": r[3],
+                    "relevance_score": r[4],
+                    "created_at": str(r[5]),
                 }
             memories.append(row_dict)
 
         return {
             "count": len(memories),
             "memories": memories,
-            "message": f"{len(memories)} souvenir(s) trouvé(s)." if memories else "Aucun souvenir trouvé."
+            "message": f"{len(memories)} souvenir(s) trouvé(s)." if memories else "Aucun souvenir trouvé.",
         }
     except Exception as e:
         logger.error("Error recalling memories: %s", e, exc_info=True)
@@ -100,9 +105,7 @@ def recall(query: str, limit: int = 10) -> Dict[str, Any]:
 def forget(memory_id: int) -> Dict[str, Any]:
     """Supprime un souvenir spécifique de la mémoire de Sabrina."""
     try:
-        deleted_id = db_manager.execute_db(
-            "DELETE FROM sabrina_memory WHERE id = %s RETURNING id", (memory_id,)
-        )
+        deleted_id = db_manager.execute_db("DELETE FROM sabrina_memory WHERE id = %s RETURNING id", (memory_id,))
         if deleted_id:
             logger.info("Sabrina memory deleted: id=%s", memory_id)
             return {"success": True, "message": f"Souvenir #{memory_id} supprimé."}
@@ -123,7 +126,7 @@ def get_context_memories(limit: int = 10) -> str:
                WHERE (expires_at IS NULL OR expires_at > NOW())
                ORDER BY relevance_score DESC, created_at DESC
                LIMIT %s""",
-            (limit,)
+            (limit,),
         )
         if not rows:
             return ""
@@ -134,14 +137,12 @@ def get_context_memories(limit: int = 10) -> str:
                 cat, content = r["category"], r["content"]
             except (TypeError, KeyError):
                 cat, content = r[0], r[1]
-            icon = {"preference": "⭐", "rule": "📌", "context": "📋", "learned": "🧠", "correction": "⚠️"}.get(cat, "💡")
+            icon = {"preference": "⭐", "rule": "📌", "context": "📋", "learned": "🧠", "correction": "⚠️"}.get(
+                cat, "💡"
+            )
             lines.append(f"  {icon} [{cat}] {content}")
 
-        return (
-            "\n🧠 MÉMOIRE PERSISTANTE DE SABRINA (souvenirs importants) :\n"
-            + "\n".join(lines)
-            + "\n"
-        )
+        return "\n🧠 MÉMOIRE PERSISTANTE DE SABRINA (souvenirs importants) :\n" + "\n".join(lines) + "\n"
     except Exception as e:
         logger.error("Error loading context memories: %s", e, exc_info=True)
         return ""
@@ -149,20 +150,23 @@ def get_context_memories(limit: int = 10) -> str:
 
 async def async_remember(content: str, category: str = "general", source: str = "user_explicit") -> Dict[str, Any]:
     import asyncio
+
     return await asyncio.to_thread(remember, content, category, source)
 
 
 async def async_recall(query: str, limit: int = 10) -> Dict[str, Any]:
     import asyncio
+
     return await asyncio.to_thread(recall, query, limit)
 
 
 async def async_forget(memory_id: int) -> Dict[str, Any]:
     import asyncio
+
     return await asyncio.to_thread(forget, memory_id)
 
 
 async def async_get_context_memories(limit: int = 10) -> str:
     import asyncio
-    return await asyncio.to_thread(get_context_memories, limit)
 
+    return await asyncio.to_thread(get_context_memories, limit)

@@ -11,7 +11,7 @@ import os
 import sys
 import shutil
 import subprocess
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 
 REQUIRED_COMMANDS = {

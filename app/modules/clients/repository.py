@@ -77,7 +77,7 @@ class ClientRepository(AsyncRepository[Client]):
                 Sale.unit.label("unit"),
                 Sale.total.label("purchase_amount"),
                 literal(0.0).label("payment_amount"),
-                literal("sale_finished").label("event_type")
+                literal("sale_finished").label("event_type"),
             )
             .select_from(Sale)
             .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
@@ -91,12 +91,12 @@ class ClientRepository(AsyncRepository[Client]):
                 func.coalesce(RawSale.document_id, RawSale.id).label("sort_sequence"),
                 RawSale.sale_date.label("event_date"),
                 literal(None).label("designation"),
-                func.coalesce(func.nullif(RawSale.custom_item_name, ''), RawMaterial.name).label("item_name"),
+                func.coalesce(func.nullif(RawSale.custom_item_name, ""), RawMaterial.name).label("item_name"),
                 RawSale.quantity.label("quantity"),
                 RawSale.unit.label("unit"),
                 RawSale.total.label("purchase_amount"),
                 literal(0.0).label("payment_amount"),
-                literal("sale_raw").label("event_type")
+                literal("sale_raw").label("event_type"),
             )
             .select_from(RawSale)
             .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
@@ -104,15 +104,12 @@ class ClientRepository(AsyncRepository[Client]):
         )
 
         p_designation_expr = case(
-            (Payment.sale_kind == 'raw', 'Versement lié à la vente matière'),
-            (Payment.sale_kind == 'finished', 'Versement lié à la vente produit'),
+            (Payment.sale_kind == "raw", "Versement lié à la vente matière"),
+            (Payment.sale_kind == "finished", "Versement lié à la vente produit"),
             else_=func.coalesce(
-                func.nullif(Payment.notes, ''),
-                case(
-                    (Payment.payment_type == 'avance', 'Avance client'),
-                    else_='Versement client'
-                )
-            )
+                func.nullif(Payment.notes, ""),
+                case((Payment.payment_type == "avance", "Avance client"), else_="Versement client"),
+            ),
         )
 
         stmt_payments = (
@@ -125,9 +122,9 @@ class ClientRepository(AsyncRepository[Client]):
                 literal(None).label("item_name"),
                 literal(None).label("quantity"),
                 literal(None).label("unit"),
-                case((Payment.payment_type == 'avance', Payment.amount), else_=0.0).label("purchase_amount"),
-                case((Payment.payment_type == 'versement', Payment.amount), else_=0.0).label("payment_amount"),
-                case((Payment.payment_type == 'avance', 'advance'), else_='payment').label("event_type")
+                case((Payment.payment_type == "avance", Payment.amount), else_=0.0).label("purchase_amount"),
+                case((Payment.payment_type == "versement", Payment.amount), else_=0.0).label("payment_amount"),
+                case((Payment.payment_type == "avance", "advance"), else_="payment").label("event_type"),
             )
             .select_from(Payment)
             .where(Payment.client_id == client_id)
@@ -135,28 +132,22 @@ class ClientRepository(AsyncRepository[Client]):
 
         union_stmt = union_all(stmt_finished, stmt_raw, stmt_payments).subquery("events")
 
-        stmt = (
-            select(
-                union_stmt.c.row_id,
-                union_stmt.c.document_id,
-                union_stmt.c.sort_sequence,
-                union_stmt.c.event_date,
-                union_stmt.c.designation,
-                union_stmt.c.item_name,
-                union_stmt.c.quantity,
-                union_stmt.c.unit,
-                union_stmt.c.purchase_amount,
-                union_stmt.c.payment_amount,
-                union_stmt.c.event_type
-            )
-            .order_by(
-                union_stmt.c.event_date,
-                case(
-                    (union_stmt.c.event_type.in_(['sale_finished', 'sale_raw']), 0),
-                    else_=1
-                ),
-                union_stmt.c.row_id
-            )
+        stmt = select(
+            union_stmt.c.row_id,
+            union_stmt.c.document_id,
+            union_stmt.c.sort_sequence,
+            union_stmt.c.event_date,
+            union_stmt.c.designation,
+            union_stmt.c.item_name,
+            union_stmt.c.quantity,
+            union_stmt.c.unit,
+            union_stmt.c.purchase_amount,
+            union_stmt.c.payment_amount,
+            union_stmt.c.event_type,
+        ).order_by(
+            union_stmt.c.event_date,
+            case((union_stmt.c.event_type.in_(["sale_finished", "sale_raw"]), 0), else_=1),
+            union_stmt.c.row_id,
         )
         result = await self.session.execute(stmt)
         return [dict(row._mapping) for row in result.fetchall()]
@@ -197,15 +188,12 @@ class ClientRepository(AsyncRepository[Client]):
 
     async def get_history_stats(self, client_id: int) -> Dict[str, Any]:
         """Get aggregated stats from client_history."""
-        stmt = (
-            select(
-                func.count(case((ClientHistory.source == 'import_excel', 1))).label("nb_excel"),
-                func.count(case((ClientHistory.source == 'app', 1))).label("nb_app"),
-                func.coalesce(func.sum(ClientHistory.montant_achat), 0.0).label("total_achats"),
-                func.coalesce(func.sum(ClientHistory.montant_verse), 0.0).label("total_versements")
-            )
-            .where(ClientHistory.client_id == client_id)
-        )
+        stmt = select(
+            func.count(case((ClientHistory.source == "import_excel", 1))).label("nb_excel"),
+            func.count(case((ClientHistory.source == "app", 1))).label("nb_app"),
+            func.coalesce(func.sum(ClientHistory.montant_achat), 0.0).label("total_achats"),
+            func.coalesce(func.sum(ClientHistory.montant_verse), 0.0).label("total_versements"),
+        ).where(ClientHistory.client_id == client_id)
         result = await self.session.execute(stmt)
         row = result.first()
         if row:

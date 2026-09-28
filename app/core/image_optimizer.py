@@ -8,9 +8,7 @@ from PIL import Image, ImageOps
 logger = logging.getLogger("fabouanes.image")
 
 
-def optimize_uploaded_image(
-    input_bytes: bytes, max_dim: int = 1200, quality: int = 82
-) -> tuple[bytes, str]:
+def optimize_uploaded_image(input_bytes: bytes, max_dim: int = 1200, quality: int = 82) -> tuple[bytes, str]:
     """
     Auto-resizes and compresses uploaded images for ultra-fast mobile loading.
     Converts large photos to compressed JPEG/WebP (max 1200px dimension).
@@ -40,7 +38,12 @@ def optimize_uploaded_image(
 
         compressed = out.getvalue()
         if len(compressed) < len(input_bytes):
-            logger.info("Compressed image from %d to %d bytes (%d%% reduction)", len(input_bytes), len(compressed), int(100 - (len(compressed) / len(input_bytes) * 100)))
+            logger.info(
+                "Compressed image from %d to %d bytes (%d%% reduction)",
+                len(input_bytes),
+                len(compressed),
+                int(100 - (len(compressed) / len(input_bytes) * 100)),
+            )
             return compressed, ext
         return input_bytes, ext
     except Exception as exc:

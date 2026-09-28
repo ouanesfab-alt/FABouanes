@@ -1,6 +1,7 @@
 """
 Responsibility: High-level database orchestration (migrations, health checks, request connections).
 """
+
 from __future__ import annotations
 
 import importlib
@@ -18,9 +19,11 @@ from app.core.schema_bootstrap import bootstrap_schema
 _BOOTSTRAP_LOCK = RLock()
 _BOOTSTRAPPED = False
 
+
 def create_request_connection():
     """Create a new database connection for the current request context."""
     return connect_database(settings.database_url)
+
 
 def _load_alembic():
     if getattr(sys, "frozen", False):
@@ -38,11 +41,13 @@ def _load_alembic():
     finally:
         sys.path = original_sys_path
 
+
 def _alembic_script_location() -> Path:
     bundled_location = settings.base_dir / "migration_scripts" / "alembic"
     if bundled_location.exists():
         return bundled_location
     return settings.base_dir / "alembic"
+
 
 def _alembic_config():
     _, Config = _load_alembic()
@@ -51,13 +56,16 @@ def _alembic_config():
     cfg.set_main_option("sqlalchemy.url", sqlalchemy_database_url(settings.database_url))
     return cfg
 
+
 def _alembic_version_exists() -> bool:
     from app.core.db import get_database_engine
+
     engine = get_database_engine(settings.database_url)
     try:
         return inspect(engine).has_table("alembic_version")
     except Exception:
         return False
+
 
 def run_alembic_upgrade() -> None:
     if not (settings.base_dir / "alembic.ini").exists():
@@ -71,7 +79,9 @@ def run_alembic_upgrade() -> None:
             command.upgrade(cfg, "head")
     except Exception as exc:
         import logging
+
         logging.getLogger("fabouanes").warning("Alembic migration warning: %s", exc)
+
 
 def bootstrap_and_migrate() -> None:
     """Initialize schema and run migrations if necessary."""
@@ -84,16 +94,18 @@ def bootstrap_and_migrate() -> None:
         run_alembic_upgrade()
         _BOOTSTRAPPED = True
 
+
 def healthcheck() -> bool:
     """Perform a basic connectivity check to the database."""
     try:
         from app.core.db import get_database_engine
+
         engine = get_database_engine(settings.database_url)
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         return True
     except Exception as e:
         import logging
+
         logging.getLogger("fabouanes").error("Database healthcheck failed: %s", e)
         return False
-

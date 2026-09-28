@@ -31,6 +31,7 @@ def _default_data_dir() -> Path:
 APP_DATA_DIR = _default_data_dir()
 APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+
 def _ensure_env_file_exists() -> None:
     env_path = BASE_DIR / ".env"
     if not env_path.exists():
@@ -51,10 +52,10 @@ def _ensure_env_file_exists() -> None:
             except Exception as _e:  # noqa: S110
                 warnings.warn(f"[config] Impossible de créer .env : {_e}", stacklevel=2)
 
+
 _ensure_env_file_exists()
 load_dotenv(BASE_DIR / ".env")
 load_dotenv(APP_DATA_DIR / ".env", override=False)
-
 
 
 @dataclass(slots=True)
@@ -97,11 +98,15 @@ class Settings:
             if not testing:
                 raise RuntimeError(
                     "SECRET_KEY est obligatoire en production. "
-                    "Generez-en un avec: python -c \"import secrets; print(secrets.token_hex(32))\""
+                    'Generez-en un avec: python -c "import secrets; print(secrets.token_hex(32))"'
                 )
             self.secret_key = _secrets.token_hex(32)
 
-        if self.default_admin_password.strip().lower() == "admin" and self.env == "production" and not self.desktop_mode:
+        if (
+            self.default_admin_password.strip().lower() == "admin"
+            and self.env == "production"
+            and not self.desktop_mode
+        ):
             raise RuntimeError(
                 "DEFAULT_ADMIN_PASSWORD cannot be 'admin' in production server mode. Set a strong password in your .env file."
             )
@@ -123,7 +128,9 @@ class Settings:
         if not configured:
             raise RuntimeError("DATABASE_URL doit etre specifie. PostgreSQL est obligatoire.")
         if not configured.lower().startswith(("postgres://", "postgresql://")):
-            raise RuntimeError("Seul PostgreSQL est supporte. DATABASE_URL doit commencer par postgres:// ou postgresql://.")
+            raise RuntimeError(
+                "Seul PostgreSQL est supporte. DATABASE_URL doit commencer par postgres:// ou postgresql://."
+            )
         return configured
 
     @property
@@ -150,6 +157,7 @@ def validate_single_worker_runtime() -> None:
     allow = os.getenv("FAB_ALLOW_MULTI_WORKER", "0").strip().lower() in {"1", "true", "yes", "on"}
     if allow:
         import logging
+
         logging.getLogger("fabouanes").warning(
             "[MULTI-WORKER] FAB_ALLOW_MULTI_WORKER=1 activé avec %d workers. "
             "Le cache in-process est local à chaque worker — cohérence limitée. "
@@ -165,25 +173,33 @@ def validate_single_worker_runtime() -> None:
 
 def validate_security_runtime() -> None:
     import sys
+
     if "pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST"):
         return
 
     host = settings.host.strip()
     is_external = host not in ("127.0.0.1", "localhost", "::1")
     password_mode = os.environ.get("FAB_PASSWORD_MODE", "pin").strip().lower()
-    is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux") or "com.termux" in sys.prefix
+    is_termux = (
+        "com.termux" in os.environ.get("PREFIX", "")
+        or os.path.exists("/data/data/com.termux")
+        or "com.termux" in sys.prefix
+    )
     is_standalone_app = settings.desktop_mode or os.environ.get("FAB_DESKTOP") == "1" or is_termux
 
     if is_external and password_mode == "pin" and not is_standalone_app:
-        allow_insecure = os.environ.get("FAB_ALLOW_INSECURE_NETWORK_PIN", "0").strip().lower() in {"1", "true", "yes", "on"}
+        allow_insecure = os.environ.get("FAB_ALLOW_INSECURE_NETWORK_PIN", "0").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
         if not allow_insecure:
             raise RuntimeError(
                 f"[SÉCURITÉ] FAB_HOST={host} (exposition réseau) combiné avec FAB_PASSWORD_MODE=pin (code à 4 chiffres) "
                 "est hautement vulnérable au bruteforce. Configurez FAB_PASSWORD_MODE=password dans votre .env, "
                 "ou écoutez sur 127.0.0.1, ou définissez FAB_ALLOW_INSECURE_NETWORK_PIN=1 pour outrepasser au besoin."
             )
-
-
 
 
 settings = Settings()

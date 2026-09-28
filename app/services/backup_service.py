@@ -70,7 +70,7 @@ async def _set_setting_db(key: str, value: str, db: AsyncSession) -> None:
         VALUES (:key, :value, CURRENT_TIMESTAMP)
         ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP
         """),
-        {"key": key, "value": value}
+        {"key": key, "value": value},
     )
 
 
@@ -133,7 +133,9 @@ async def enqueue_backup_upload(
 ) -> int:
     if db is None:
         async with get_async_sessionmaker()() as session:
-            res = await _enqueue_backup_upload_impl(reason, backup_type, local_path, requested_by_user_id, meta, session)
+            res = await _enqueue_backup_upload_impl(
+                reason, backup_type, local_path, requested_by_user_id, meta, session
+            )
             await session.commit()
             return res
     return await _enqueue_backup_upload_impl(reason, backup_type, local_path, requested_by_user_id, meta, db)
@@ -214,7 +216,9 @@ async def _list_backup_jobs_impl(limit: int, db: AsyncSession):
     return [dict(row._mapping) for row in res.all()]
 
 
-async def _record_backup_run(job_id: int, status: str, *, cloud_file_name: str = "", details: str = "", db: AsyncSession) -> None:
+async def _record_backup_run(
+    job_id: int, status: str, *, cloud_file_name: str = "", details: str = "", db: AsyncSession
+) -> None:
     await db.execute(
         text("""
         INSERT INTO backup_runs (job_id, status, cloud_file_id, cloud_file_name, details_json, started_at, finished_at)
@@ -267,6 +271,7 @@ async def _mirror_backup_to_sync_folder(local_path: Path, db: AsyncSession) -> t
         target_dir = Path(sync_folder_raw)
     else:
         from app.core.storage import get_google_drive_sync_dir
+
         target_dir = get_google_drive_sync_dir()
 
     if not target_dir:
@@ -277,9 +282,8 @@ async def _mirror_backup_to_sync_folder(local_path: Path, db: AsyncSession) -> t
         # Copie atomique : écriture dans un fichier temporaire puis renommage
         import shutil
         import tempfile
-        with tempfile.NamedTemporaryFile(
-            dir=target_dir, delete=False, suffix=".tmp"
-        ) as tmp:
+
+        with tempfile.NamedTemporaryFile(dir=target_dir, delete=False, suffix=".tmp") as tmp:
             tmp_path = Path(tmp.name)
         try:
             await asyncio.to_thread(shutil.copy2, local_path, tmp_path)
@@ -323,7 +327,7 @@ async def run_pending_backup_jobs(limit: int = 3) -> int:
             processed += 1
             await session.execute(
                 text("UPDATE backup_jobs SET status = 'running', started_at = CURRENT_TIMESTAMP WHERE id = :id"),
-                {"id": job["id"]}
+                {"id": job["id"]},
             )
             await session.commit()
 
@@ -337,7 +341,7 @@ async def run_pending_backup_jobs(limit: int = 3) -> int:
                     local_path = await asyncio.to_thread(capture_local_backup_snapshot, str(job["reason"] or "manual"))
                     await session.execute(
                         text("UPDATE backup_jobs SET local_path = :local_path WHERE id = :id"),
-                        {"local_path": str(local_path), "id": job["id"]}
+                        {"local_path": str(local_path), "id": job["id"]},
                     )
                 if not local_path.exists():
                     raise FileNotFoundError(f"Sauvegarde locale introuvable: {local_path}")
@@ -348,7 +352,7 @@ async def run_pending_backup_jobs(limit: int = 3) -> int:
                     "sync_details": details,
                     "sha256": checksum,
                     "file_size": local_path.stat().st_size,
-                    "backup_type": str(job["backup_type"] or "event")
+                    "backup_type": str(job["backup_type"] or "event"),
                 }
 
                 await session.execute(
@@ -368,7 +372,9 @@ async def run_pending_backup_jobs(limit: int = 3) -> int:
                         "id": job["id"],
                     },
                 )
-                await _record_backup_run(job["id"], "success", cloud_file_name=sync_file_name, details=json.dumps(job_details), db=session)
+                await _record_backup_run(
+                    job["id"], "success", cloud_file_name=sync_file_name, details=json.dumps(job_details), db=session
+                )
                 await session.commit()
 
                 with BACKGROUND_LOCK:
@@ -482,7 +488,9 @@ async def trigger_nightly_snapshot_if_due() -> bool:
         from app.core.storage import capture_local_backup_snapshot
 
         backup_path = await asyncio.to_thread(capture_local_backup_snapshot, "nightly_snapshot")
-        await _enqueue_backup_upload_impl("nightly_snapshot", "nightly", backup_path, None, {"scheduled": True}, db=session)
+        await _enqueue_backup_upload_impl(
+            "nightly_snapshot", "nightly", backup_path, None, {"scheduled": True}, db=session
+        )
         from app.core.storage import clear_backup_needed
 
         await asyncio.to_thread(clear_backup_needed)
@@ -510,7 +518,11 @@ async def _purge_old_logs() -> None:
                 await session.execute(text(f"DELETE FROM {table} WHERE created_at < NOW() - INTERVAL '7 days'"))
             # Purge pubsub_events and processed outbox_events older than 7 days
             await session.execute(text("DELETE FROM pubsub_events WHERE created_at < NOW() - INTERVAL '7 days'"))
-            await session.execute(text("DELETE FROM outbox_events WHERE processed_at IS NOT NULL AND processed_at < NOW() - INTERVAL '7 days'"))
+            await session.execute(
+                text(
+                    "DELETE FROM outbox_events WHERE processed_at IS NOT NULL AND processed_at < NOW() - INTERVAL '7 days'"
+                )
+            )
             # Purge rate limit events older than 1 day
             await session.execute(text("DELETE FROM rate_limit_events WHERE hit_at < NOW() - INTERVAL '1 day'"))
             await session.commit()
@@ -520,6 +532,7 @@ async def _purge_old_logs() -> None:
     # Nettoyer les clés d'idempotence expirées (> 7 jours) pour éviter la croissance illimitée
     try:
         from app.core.idempotency import cleanup_expired_idempotency_keys
+
         await cleanup_expired_idempotency_keys(max_age_days=7)
     except Exception:
         logger.debug("Idempotency cleanup skipped (table may not exist yet)")
@@ -535,7 +548,7 @@ async def _weekly_vacuum() -> None:
         last_vacuum = await _get_setting_db("last_vacuum_date", "", session)
     if last_vacuum == today:
         return
-    if now.hour < 3: # Run after 3 AM
+    if now.hour < 3:  # Run after 3 AM
         return
 
     try:
@@ -546,9 +559,9 @@ async def _weekly_vacuum() -> None:
         # VACUUM cannot run inside a transaction block, we need autocommit
         url = DATABASE_URL
         if url.startswith("postgresql://"):
-            url = "postgresql+pg8000://" + url[len("postgresql://"):]
+            url = "postgresql+pg8000://" + url[len("postgresql://") :]
         elif url.startswith("postgres://"):
-            url = "postgresql+pg8000://" + url[len("postgres://"):]
+            url = "postgresql+pg8000://" + url[len("postgres://") :]
 
         def run_vacuum():
             engine = create_engine(url, isolation_level="AUTOCOMMIT")
@@ -581,6 +594,7 @@ def _background_loop(app) -> None:
 
     async def main_loop():
         import secrets
+
         consecutive_failures = 0
         rand = secrets.SystemRandom()
         while True:
@@ -596,6 +610,7 @@ def _background_loop(app) -> None:
 
             # Dispatch outbox events to ensure transactional events are processed
             from app.core.worker import dispatch_outbox_events_task
+
             success &= await _safe_run_async("dispatch_outbox_events", dispatch_outbox_events_task, ctx={})
 
             # Log pool stats every ~15 minutes (20 loops of 45s)
@@ -604,12 +619,14 @@ def _background_loop(app) -> None:
                 BACKGROUND_STATE["loop_counter"] = loop_counter
             if loop_counter % 20 == 0:
                 from app.core.db_helpers import postgres_pool_status
+
                 stats = postgres_pool_status(DATABASE_URL)
                 logger.debug("PG Pool status: %s", stats)
 
             # Call check_stock_alerts every 30 minutes (40 loops of 45s)
             if loop_counter == 1 or loop_counter % 40 == 0:
                 from app.services.alert_service import check_stock_alerts
+
                 await _safe_run_async("check_stock_alerts", check_stock_alerts)
 
             with BACKGROUND_LOCK:
@@ -617,7 +634,7 @@ def _background_loop(app) -> None:
 
             if not success:
                 consecutive_failures += 1
-                sleep_time = min(300.0, 45.0 * (1.5 ** consecutive_failures) + rand.uniform(0.0, 10.0))
+                sleep_time = min(300.0, 45.0 * (1.5**consecutive_failures) + rand.uniform(0.0, 10.0))
             else:
                 consecutive_failures = 0
                 sleep_time = 45.0

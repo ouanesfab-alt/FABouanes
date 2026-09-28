@@ -48,11 +48,7 @@ class PurchaseService:
         stmt = select(Supplier).order_by(Supplier.name)
         res = await self.session.execute(stmt)
         suppliers = [dict(s._mapping) for s in res.fetchall()]
-        return {
-            "suppliers": suppliers,
-            "raw_materials": raw_choices,
-            "units": unit_choices()
-        }
+        return {"suppliers": suppliers, "raw_materials": raw_choices, "units": unit_choices()}
 
     async def get_purchase_document_context(self, document_id: int) -> Optional[dict]:
         document = await self.doc_repo.get_by_id(document_id)
@@ -133,7 +129,7 @@ class PurchaseService:
                 total=total,
                 purchase_date=purchase_date,
                 notes=notes,
-                custom_item_name=custom_item_name
+                custom_item_name=custom_item_name,
             )
             self.session.add(purchase_row)
             await self.session.flush()
@@ -151,7 +147,18 @@ class PurchaseService:
             item.sale_price = sale_price
             self.session.add(item)
 
-            await self.record_stock_movement("raw", item_id, "in", qty_kg, "kg", stock_before, stock_after, "create_purchase", "purchase", purchase_id)
+            await self.record_stock_movement(
+                "raw",
+                item_id,
+                "in",
+                qty_kg,
+                "kg",
+                stock_before,
+                stock_after,
+                "create_purchase",
+                "purchase",
+                purchase_id,
+            )
         else:
             stmt = select(FinishedProduct).where(FinishedProduct.id == item_id).with_for_update()
             res = await self.session.execute(stmt)
@@ -170,7 +177,7 @@ class PurchaseService:
                 total=total,
                 purchase_date=purchase_date,
                 notes=notes,
-                custom_item_name=custom_item_name
+                custom_item_name=custom_item_name,
             )
             self.session.add(purchase_row)
             await self.session.flush()
@@ -188,7 +195,18 @@ class PurchaseService:
             item.sale_price = sale_price
             self.session.add(item)
 
-            await self.record_stock_movement("finished", item_id, "in", qty_kg, "kg", stock_before, stock_after, "create_purchase", "purchase", purchase_id)
+            await self.record_stock_movement(
+                "finished",
+                item_id,
+                "in",
+                qty_kg,
+                "kg",
+                stock_before,
+                stock_after,
+                "create_purchase",
+                "purchase",
+                purchase_id,
+            )
 
         await self.recalc_purchase_document_totals(document_id)
         return purchase_id
@@ -221,7 +239,18 @@ class PurchaseService:
             await self.session.delete(row)
             await self.session.flush()
 
-            await self.record_stock_movement("finished", int(row.finished_product_id), "out", float(row.quantity), "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id)
+            await self.record_stock_movement(
+                "finished",
+                int(row.finished_product_id),
+                "out",
+                float(row.quantity),
+                "kg",
+                stock_before,
+                stock_after,
+                "reverse_purchase",
+                "purchase",
+                purchase_id,
+            )
         else:
             stmt_mat = select(RawMaterial).where(RawMaterial.id == row.raw_material_id).with_for_update()
             res_mat = await self.session.execute(stmt_mat)
@@ -243,7 +272,18 @@ class PurchaseService:
             await self.session.delete(row)
             await self.session.flush()
 
-            await self.record_stock_movement("raw", int(row.raw_material_id), "out", float(row.quantity), "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id)
+            await self.record_stock_movement(
+                "raw",
+                int(row.raw_material_id),
+                "out",
+                float(row.quantity),
+                "kg",
+                stock_before,
+                stock_after,
+                "reverse_purchase",
+                "purchase",
+                purchase_id,
+            )
 
         if recalc and row.document_id:
             await self.recalc_purchase_document_totals(int(row.document_id))
@@ -264,6 +304,7 @@ class PurchaseService:
     ) -> None:
         try:
             from app.core.request_state import get_state_value
+
             actor = get_state_value("user")
             username = actor["username"] if actor else "system"
 
@@ -278,7 +319,7 @@ class PurchaseService:
                 reason=reason,
                 reference_type=reference_type,
                 reference_id=reference_id,
-                created_by_username=username
+                created_by_username=username,
             )
             self.session.add(movement)
         except Exception:
@@ -293,7 +334,7 @@ class PurchaseService:
                 SELECT COUNT(*) AS line_count, COALESCE(SUM(total), 0) AS total_amount
                 FROM purchases WHERE document_id = :doc_id
             """),
-            {"doc_id": document_id}
+            {"doc_id": document_id},
         )
         first_row = res.first()
         stats = dict(first_row._mapping) if first_row else {"line_count": 0, "total_amount": 0}
@@ -312,21 +353,12 @@ class PurchaseService:
             doc.total = total
             self.session.add(doc)
 
-    async def _insert_purchase_document(
-        self,
-        supplier_id: int | None,
-        purchase_date: date,
-        notes: str
-    ) -> int:
+    async def _insert_purchase_document(self, supplier_id: int | None, purchase_date: date, notes: str) -> int:
         year = purchase_date.year
         doc_number = await asyncio.to_thread(next_doc_number, "BA", year)
 
         doc = PurchaseDocument(
-            doc_number=doc_number,
-            supplier_id=supplier_id,
-            total=0.0,
-            purchase_date=purchase_date,
-            notes=notes
+            doc_number=doc_number, supplier_id=supplier_id, total=0.0, purchase_date=purchase_date, notes=notes
         )
         self.session.add(doc)
         await self.session.flush()
@@ -367,7 +399,7 @@ class PurchaseService:
                     "purchase",
                     created_purchase_id,
                     f"{item_kind} #{item_id} qty={line.quantity} {line.unit}",
-                    after=created
+                    after=created,
                 )
             )
 
@@ -407,15 +439,7 @@ class PurchaseService:
 
         created = await self.doc_repo.get_by_id(doc_id)
         invalidate_cache_domains("purchases", "catalog", "supplier", "dashboard")
-        emit(
-            DomainEvent(
-                "create",
-                "purchase_document",
-                doc_id,
-                f"{len(lines)} ligne(s)",
-                after=created
-            )
-        )
+        emit(DomainEvent("create", "purchase_document", doc_id, f"{len(lines)} ligne(s)", after=created))
 
         return {
             "mode": "document",
@@ -493,12 +517,7 @@ class PurchaseService:
         invalidate_cache_domains("purchases", "catalog", "supplier", "dashboard")
         emit(
             DomainEvent(
-                "update",
-                "purchase_document",
-                document_id,
-                f"{len(lines)} ligne(s)",
-                before=before,
-                after=after_context
+                "update", "purchase_document", document_id, f"{len(lines)} ligne(s)", before=before, after=after_context
             )
         )
 
@@ -556,12 +575,7 @@ class PurchaseService:
             invalidate_cache_domains("purchases", "catalog", "supplier", "dashboard")
             emit(
                 DomainEvent(
-                    "update",
-                    "purchase_document",
-                    document_id,
-                    f"{len(lines)} ligne(s)",
-                    before=before,
-                    after=created
+                    "update", "purchase_document", document_id, f"{len(lines)} ligne(s)", before=before, after=created
                 )
             )
 
@@ -606,7 +620,7 @@ class PurchaseService:
                 purchase_id,
                 f"{line.raw_material_id} #{item_id} qty={line.quantity} {line.unit}",
                 before=before,
-                after=latest
+                after=latest,
             )
         )
 
@@ -628,14 +642,5 @@ class PurchaseService:
         if ok:
             await self.session.commit()
             invalidate_cache_domains("purchases", "catalog", "supplier", "dashboard")
-            emit(
-                DomainEvent(
-                    "delete",
-                    "purchase",
-                    purchase_id,
-                    "Suppression achat",
-                    before=before,
-                    after=None
-                )
-            )
+            emit(DomainEvent("delete", "purchase", purchase_id, "Suppression achat", before=before, after=None))
         return ok

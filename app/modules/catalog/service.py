@@ -34,7 +34,7 @@ RAW_MATERIAL_PRESETS = [
     "Sel",
     "Carbonate",
     "Sac vide (50kg)",
-    "Sac vide (25kg)"
+    "Sac vide (25kg)",
 ]
 
 FINISHED_PRODUCT_PRESETS = [
@@ -53,7 +53,7 @@ FINISHED_PRODUCT_PRESETS = [
     "Poussin d'un jour",
     "Poussin Chair",
     "Poussin Pondeuse",
-    "Oeufs (Plateau 30)"
+    "Oeufs (Plateau 30)",
 ]
 
 
@@ -79,11 +79,7 @@ class CatalogService:
             kind_filter = "all"
 
         # Cache the slow database queries (velocity computations)
-        base = await async_cached_result(
-            ("catalog_context",),
-            self._build_catalog_context,
-            ttl_seconds=6.0
-        )
+        base = await async_cached_result(("catalog_context",), self._build_catalog_context, ttl_seconds=6.0)
 
         products = list(base["all_products"])
         if kind_filter == "raw":
@@ -93,10 +89,7 @@ class CatalogService:
 
         if search:
             needle = search.lower()
-            products = [
-                row for row in products
-                if needle in f"{row['name']} {row['unit']} {row['kind']}".lower()
-            ]
+            products = [row for row in products if needle in f"{row['name']} {row['unit']} {row['kind']}".lower()]
 
         page_products, pagination = paginate_sequence(products, args or {}, path)
 
@@ -131,7 +124,7 @@ class CatalogService:
                 "alert_threshold": rm.alert_threshold,
                 "threshold_qty": rm.threshold_qty,
                 "kind": "Matière première",
-                "row_kind": "raw"
+                "row_kind": "raw",
             }
             # Calculate days left
             v = raw_velocities.get(rm.id, 0.0)
@@ -161,7 +154,7 @@ class CatalogService:
                 "avg_cost": fp.avg_cost,
                 "sale_price": fp.sale_price,
                 "kind": "Produit fini",
-                "row_kind": "finished"
+                "row_kind": "finished",
             }
             # Calculate days left
             v = finished_velocities.get(fp.id, 0.0)
@@ -252,13 +245,7 @@ class CatalogService:
         invalidate_cache_domains("catalog")
 
         # Refresh profit snapshots asynchronously in a background thread
-        await asyncio.to_thread(
-            refresh_sale_profits_for_item,
-            "raw",
-            material_id,
-            schema.avg_cost,
-            schema.sale_price
-        )
+        await asyncio.to_thread(refresh_sale_profits_for_item, "raw", material_id, schema.avg_cost, schema.sale_price)
 
         emit(
             DomainEvent(
@@ -272,7 +259,9 @@ class CatalogService:
         )
         return updated
 
-    async def update_finished_product(self, product_id: int, schema: FinishedProductUpdateSchema) -> Optional[FinishedProduct]:
+    async def update_finished_product(
+        self, product_id: int, schema: FinishedProductUpdateSchema
+    ) -> Optional[FinishedProduct]:
         fp = await self.finished_repo.get_by_id(product_id)
         if not fp:
             return None
@@ -289,11 +278,7 @@ class CatalogService:
 
         # Refresh profit snapshots asynchronously
         await asyncio.to_thread(
-            refresh_sale_profits_for_item,
-            "finished",
-            product_id,
-            schema.avg_cost,
-            schema.sale_price
+            refresh_sale_profits_for_item, "finished", product_id, schema.avg_cost, schema.sale_price
         )
 
         emit(
@@ -315,17 +300,23 @@ class CatalogService:
 
         if await self.raw_repo.is_linked(material_id):
             from app.core.exceptions import ValidationError
-            raise ValidationError("Impossible de supprimer cette matière première car elle possède des opérations historiques associées.")
+
+            raise ValidationError(
+                "Impossible de supprimer cette matière première car elle possède des opérations historiques associées."
+            )
 
         before_dump = rm.model_dump()
 
         from sqlalchemy.exc import IntegrityError
 
         from app.core.exceptions import ValidationError
+
         try:
             success = await self.raw_repo.delete(material_id)
         except IntegrityError:
-            raise ValidationError("Impossible de supprimer cette matière première car elle possède des opérations historiques associées.")
+            raise ValidationError(
+                "Impossible de supprimer cette matière première car elle possède des opérations historiques associées."
+            )
 
         if success:
             invalidate_cache_domains("catalog")
@@ -347,20 +338,25 @@ class CatalogService:
 
         if await self.finished_repo.is_linked(product_id):
             from app.core.exceptions import ValidationError
-            raise ValidationError("Impossible de supprimer ce produit fini car il possède des opérations historiques associées.")
+
+            raise ValidationError(
+                "Impossible de supprimer ce produit fini car il possède des opérations historiques associées."
+            )
 
         before_dump = fp.model_dump()
 
         from sqlalchemy.exc import IntegrityError
 
         from app.core.exceptions import ValidationError
+
         try:
             success = await self.finished_repo.delete(product_id)
         except IntegrityError:
-            raise ValidationError("Impossible de supprimer ce produit fini car il possède des opérations historiques associées.")
+            raise ValidationError(
+                "Impossible de supprimer ce produit fini car il possède des opérations historiques associées."
+            )
 
         if success:
-
             invalidate_cache_domains("catalog")
             emit(
                 DomainEvent(
@@ -443,6 +439,7 @@ class CatalogService:
 
 # Helper methods for controller/route templates mapping
 
+
 def quick_add_context(default_target: str = "client") -> dict:
     return {
         "default_target": default_target,
@@ -467,7 +464,7 @@ def new_catalog_context(kind: str = "raw") -> dict:
         "raw_presets": RAW_MATERIAL_PRESETS,
         "finished_presets": FINISHED_PRODUCT_PRESETS,
         "other_category_value": "__other__",
-        "custom_name_value": ""
+        "custom_name_value": "",
     }
 
 
@@ -514,7 +511,7 @@ def raw_material_edit_context(material: RawMaterial) -> dict:
         },
         "units": unit_choices(),
         "name_presets": RAW_MATERIAL_PRESETS,
-        "custom_name_value": custom_val
+        "custom_name_value": custom_val,
     }
 
 
@@ -542,5 +539,5 @@ def product_edit_context(product: FinishedProduct) -> dict:
         },
         "units": unit_choices(),
         "name_presets": FINISHED_PRODUCT_PRESETS,
-        "custom_name_value": custom_val
+        "custom_name_value": custom_val,
     }

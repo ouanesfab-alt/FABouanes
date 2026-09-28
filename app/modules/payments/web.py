@@ -33,9 +33,7 @@ async def payments_page(request: Request):
 
 
 @router.post("/payments", name="payments")
-async def payments_submit(
-    request: Request, db: AsyncSession = Depends(get_async_session)
-):
+async def payments_submit(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
@@ -77,9 +75,7 @@ async def new_payment_page(request: Request):
 
 @router.post("/operations/payments/new", name="new_payment")
 @router.post("/payments/new", name="compat_new_payment_submit")
-async def new_payment_submit(
-    request: Request, db: AsyncSession = Depends(get_async_session)
-):
+async def new_payment_submit(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
@@ -115,9 +111,7 @@ async def compat_edit_payment_page(request: Request, payment_id: int):
 
 
 @router.get("/operations/payments/{payment_id}/edit", name="edit_payment")
-async def edit_payment_page(
-    request: Request, payment_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def edit_payment_page(request: Request, payment_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
@@ -132,9 +126,7 @@ async def edit_payment_page(
 
 @router.post("/operations/payments/{payment_id}/edit", name="edit_payment")
 @router.post("/payments/{payment_id}/edit", name="compat_edit_payment_submit")
-async def edit_payment_submit(
-    request: Request, payment_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def edit_payment_submit(request: Request, payment_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
@@ -160,9 +152,7 @@ async def edit_payment_submit(
 
 @router.post("/operations/payments/{payment_id}/delete", name="delete_payment")
 @router.post("/payments/{payment_id}/delete", name="compat_delete_payment")
-async def delete_payment(
-    request: Request, payment_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def delete_payment(request: Request, payment_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_DELETE)
     if denied:
         return denied

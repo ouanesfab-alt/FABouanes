@@ -52,9 +52,7 @@ async def new_client_page(request: Request):
 
 
 @router.post("/new", name="new_client")
-async def new_client_submit(
-    request: Request, db: AsyncSession = Depends(get_async_session)
-):
+async def new_client_submit(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "contacts.write")
     if denied:
         return denied
@@ -80,9 +78,7 @@ async def new_client_submit(
 
 
 @router.get("/{client_id}", name="client_detail")
-async def client_detail(
-    request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def client_detail(request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "contacts.read")
     if denied:
         return denied
@@ -92,18 +88,14 @@ async def client_detail(
     if not context:
         flash(request, "Client introuvable.", "danger")
         return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
-    return templates.TemplateResponse(
-        "client_detail.html", template_context(request, **context)
-    )
+    return templates.TemplateResponse("client_detail.html", template_context(request, **context))
 
 
 # ── EDIT ──────────────────────────────────────────────────────────────────────
 
 
 @router.get("/{client_id}/edit", name="edit_client")
-async def edit_client_page(
-    request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def edit_client_page(request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "contacts.write")
     if denied:
         return denied
@@ -123,15 +115,11 @@ async def edit_client_page(
         "notes": client.notes,
         "opening_credit": client.opening_credit,
     }
-    return templates.TemplateResponse(
-        "client_edit.html", template_context(request, client=client_dict)
-    )
+    return templates.TemplateResponse("client_edit.html", template_context(request, client=client_dict))
 
 
 @router.post("/{client_id}/edit", name="edit_client_submit")
-async def edit_client_submit(
-    request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def edit_client_submit(request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "contacts.write")
     if denied:
         return denied
@@ -149,9 +137,7 @@ async def edit_client_submit(
         validated = ClientUpdateSchema(**data)
         await service.update_client(client_id, validated)
         flash(request, "Client modifié avec succès.", "success")
-        return RedirectResponse(
-            f"/contacts/clients/{client_id}", status_code=303
-        )
+        return RedirectResponse(f"/contacts/clients/{client_id}", status_code=303)
     except Exception as e:
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur de validation : {friendly}", "danger")
@@ -167,9 +153,7 @@ async def edit_client_submit(
 
 
 @router.post("/{client_id}/delete", name="delete_client")
-async def delete_client(
-    request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def delete_client(request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "contacts.delete")
     if denied:
         return denied
@@ -193,9 +177,7 @@ async def delete_client(
 
 
 @router.get("/{client_id}/history", name="client_history_page")
-async def client_history_page(
-    request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def client_history_page(request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "contacts.read")
     if denied:
         return denied
@@ -213,18 +195,14 @@ async def client_history_page(
         flash(request, "Client introuvable.", "danger")
         return RedirectResponse(CLIENTS_FILTER_URL, status_code=303)
 
-    return templates.TemplateResponse(
-        "clients/history.html", template_context(request, **context)
-    )
+    return templates.TemplateResponse("clients/history.html", template_context(request, **context))
 
 
 # ── PRINT HISTORY ─────────────────────────────────────────────────────────────
 
 
 @router.get("/{client_id}/print-history", name="print_client_history")
-async def print_client_history(
-    request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def print_client_history(request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "contacts.read")
     if denied:
         return denied
@@ -262,9 +240,7 @@ async def print_client_history(
 
 
 @router.post("/{client_id}/shred", name="shred_client")
-async def shred_client_route(
-    request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)
-):
+async def shred_client_route(request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, "contacts.delete")
     if denied:
         return denied

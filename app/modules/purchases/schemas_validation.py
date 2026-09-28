@@ -45,7 +45,13 @@ class PurchaseFormSchema(BaseModel):
                 if hasattr(data, "getlist"):
                     new_data = {}
                     for k in data.keys():
-                        if k.endswith("[]") or k in {"raw_material_id", "quantity", "unit", "unit_price", "custom_item_name"}:
+                        if k.endswith("[]") or k in {
+                            "raw_material_id",
+                            "quantity",
+                            "unit",
+                            "unit_price",
+                            "custom_item_name",
+                        }:
                             new_data[k] = data.getlist(k)
                         else:
                             new_data[k] = data.get(k)
@@ -87,7 +93,9 @@ class PurchaseFormSchema(BaseModel):
                     custom_names = [custom_names] if custom_names else []
 
                 lines = []
-                line_count = max(len(raw_material_ids), len(quantities), len(units), len(unit_prices), len(custom_names))
+                line_count = max(
+                    len(raw_material_ids), len(quantities), len(units), len(unit_prices), len(custom_names)
+                )
                 for idx in range(line_count):
                     ik = raw_material_ids[idx] if idx < len(raw_material_ids) else None
                     q = quantities[idx] if idx < len(quantities) else None
@@ -96,13 +104,9 @@ class PurchaseFormSchema(BaseModel):
                     cn = custom_names[idx] if idx < len(custom_names) else ""
 
                     if ik or q or up:
-                        lines.append({
-                            "raw_material_id": ik,
-                            "quantity": q,
-                            "unit": u,
-                            "unit_price": up,
-                            "custom_item_name": cn
-                        })
+                        lines.append(
+                            {"raw_material_id": ik, "quantity": q, "unit": u, "unit_price": up, "custom_item_name": cn}
+                        )
                 data["lines"] = lines
         return data
 

@@ -42,9 +42,10 @@ class SaleRepository(AsyncRepository[Sale]):
         super().__init__(session, Sale)
 
     async def get_by_id(self, sale_id: int) -> Optional[Sale]:
-        stmt = select(Sale).where(Sale.id == sale_id).options(
-            selectinload(Sale.client),
-            selectinload(Sale.finished_product)
+        stmt = (
+            select(Sale)
+            .where(Sale.id == sale_id)
+            .options(selectinload(Sale.client), selectinload(Sale.finished_product))
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
@@ -54,11 +55,11 @@ class SaleRepository(AsyncRepository[Sale]):
             stmt = (
                 select(
                     *Sale.__table__.columns,
-                    func.coalesce(Client.name, 'Comptoir').label("client_name"),
+                    func.coalesce(Client.name, "Comptoir").label("client_name"),
                     FinishedProduct.name.label("item_name"),
                     literal("").label("custom_item_name"),
                     literal("finished").label("row_kind"),
-                    func.concat("finished:", Sale.finished_product_id).label("item_key")
+                    func.concat("finished:", Sale.finished_product_id).label("item_key"),
                 )
                 .select_from(Sale)
                 .join(Client, Client.id == Sale.client_id, isouter=True)
@@ -69,11 +70,11 @@ class SaleRepository(AsyncRepository[Sale]):
             stmt = (
                 select(
                     *RawSale.__table__.columns,
-                    func.coalesce(Client.name, 'Comptoir').label("client_name"),
-                    func.coalesce(func.nullif(RawSale.custom_item_name, ''), RawMaterial.name).label("item_name"),
+                    func.coalesce(Client.name, "Comptoir").label("client_name"),
+                    func.coalesce(func.nullif(RawSale.custom_item_name, ""), RawMaterial.name).label("item_name"),
                     RawSale.custom_item_name,
                     literal("raw").label("row_kind"),
-                    func.concat("raw:", RawSale.raw_material_id).label("item_key")
+                    func.concat("raw:", RawSale.raw_material_id).label("item_key"),
                 )
                 .select_from(RawSale)
                 .join(Client, Client.id == RawSale.client_id, isouter=True)
@@ -99,7 +100,7 @@ class SaleRepository(AsyncRepository[Sale]):
             select(
                 Sale.id,
                 Sale.sale_date,
-                func.coalesce(Client.name, 'Comptoir').label("client_name"),
+                func.coalesce(Client.name, "Comptoir").label("client_name"),
                 FinishedProduct.name.label("item_name"),
                 Sale.document_id,
                 Sale.quantity,
@@ -113,7 +114,7 @@ class SaleRepository(AsyncRepository[Sale]):
                 Sale.notes,
                 Sale.created_at,
                 literal("Produit fini").label("item_kind"),
-                literal("finished").label("row_kind")
+                literal("finished").label("row_kind"),
             )
             .select_from(Sale)
             .join(Client, Client.id == Sale.client_id, isouter=True)
@@ -124,7 +125,7 @@ class SaleRepository(AsyncRepository[Sale]):
             select(
                 RawSale.id,
                 RawSale.sale_date,
-                func.coalesce(Client.name, 'Comptoir').label("client_name"),
+                func.coalesce(Client.name, "Comptoir").label("client_name"),
                 RawMaterial.name.label("item_name"),
                 RawSale.document_id,
                 RawSale.quantity,
@@ -138,7 +139,7 @@ class SaleRepository(AsyncRepository[Sale]):
                 RawSale.notes,
                 RawSale.created_at,
                 literal("Matiere premiere").label("item_kind"),
-                literal("raw").label("row_kind")
+                literal("raw").label("row_kind"),
             )
             .select_from(RawSale)
             .join(Client, Client.id == RawSale.client_id, isouter=True)
@@ -152,9 +153,9 @@ class SaleRepository(AsyncRepository[Sale]):
             search_pattern = f"%{search}%"
             stmt = stmt.where(
                 or_(
-                    func.coalesce(union_stmt.c.client_name, '').ilike(search_pattern),
-                    func.coalesce(union_stmt.c.item_name, '').ilike(search_pattern),
-                    func.coalesce(union_stmt.c.notes, '').ilike(search_pattern)
+                    func.coalesce(union_stmt.c.client_name, "").ilike(search_pattern),
+                    func.coalesce(union_stmt.c.item_name, "").ilike(search_pattern),
+                    func.coalesce(union_stmt.c.notes, "").ilike(search_pattern),
                 )
             )
 
@@ -197,7 +198,7 @@ class SaleRepository(AsyncRepository[Sale]):
                 FinishedProduct.default_unit,
                 FinishedProduct.stock_qty,
                 FinishedProduct.sale_price,
-                FinishedProduct.avg_cost
+                FinishedProduct.avg_cost,
             ).order_by(FinishedProduct.name)
         )
         products = res_prod.fetchall()
@@ -210,54 +211,47 @@ class SaleRepository(AsyncRepository[Sale]):
                 RawMaterial.unit,
                 RawMaterial.stock_qty,
                 RawMaterial.sale_price,
-                RawMaterial.avg_cost
-            ).order_by(
-                case(
-                    (func.upper(func.trim(RawMaterial.name)) == 'AUTRE', 1),
-                    else_=0
-                ),
-                RawMaterial.name
-            )
+                RawMaterial.avg_cost,
+            ).order_by(case((func.upper(func.trim(RawMaterial.name)) == "AUTRE", 1), else_=0), RawMaterial.name)
         )
         raw_materials = res_raw.fetchall()
 
         items = []
         for p in products:
-            items.append({
-                "key": f"finished:{p.id}",
-                "label": f"{p.name} - produit final",
-                "unit": p.default_unit,
-                "stock_qty": float(p.stock_qty),
-                "sale_price": float(p.sale_price),
-                "avg_cost": float(p.avg_cost),
-                "force_unit": "",
-                "custom_name_required": "",
-            })
+            items.append(
+                {
+                    "key": f"finished:{p.id}",
+                    "label": f"{p.name} - produit final",
+                    "unit": p.default_unit,
+                    "stock_qty": float(p.stock_qty),
+                    "sale_price": float(p.sale_price),
+                    "avg_cost": float(p.avg_cost),
+                    "force_unit": "",
+                    "custom_name_required": "",
+                }
+            )
 
         for rm in raw_materials:
             is_other = str(rm.name or "").strip().casefold() == "autre"
-            items.append({
-                "key": f"raw:{rm.id}",
-                "label": f"{rm.name} - {'autre produit' if is_other else 'matière première'}",
-                "unit": rm.unit,
-                "stock_qty": float(rm.stock_qty),
-                "sale_price": float(rm.sale_price),
-                "avg_cost": float(rm.avg_cost),
-                "force_unit": "unite" if is_other else "",
-                "custom_name_required": "1" if is_other else "",
-            })
+            items.append(
+                {
+                    "key": f"raw:{rm.id}",
+                    "label": f"{rm.name} - {'autre produit' if is_other else 'matière première'}",
+                    "unit": rm.unit,
+                    "stock_qty": float(rm.stock_qty),
+                    "sale_price": float(rm.sale_price),
+                    "avg_cost": float(rm.avg_cost),
+                    "force_unit": "unite" if is_other else "",
+                    "custom_name_required": "1" if is_other else "",
+                }
+            )
         return items
 
     async def line_has_linked_payments(self, kind: str, row_id: int, client_id: int) -> bool:
         stmt = (
-            select(
-                Payment.id,
-                Payment.sale_id,
-                Payment.raw_sale_id,
-                Payment.allocation_meta
-            )
+            select(Payment.id, Payment.sale_id, Payment.raw_sale_id, Payment.allocation_meta)
             .where(Payment.client_id == client_id)
-            .where(Payment.payment_type == 'versement')
+            .where(Payment.payment_type == "versement")
         )
         result = await self.session.execute(stmt)
         payments = [dict(row._mapping) for row in result.fetchall()]
@@ -275,9 +269,10 @@ class RawSaleRepository(AsyncRepository[RawSale]):
         super().__init__(session, RawSale)
 
     async def get_by_id(self, sale_id: int) -> Optional[RawSale]:
-        stmt = select(RawSale).where(RawSale.id == sale_id).options(
-            selectinload(RawSale.client),
-            selectinload(RawSale.raw_material)
+        stmt = (
+            select(RawSale)
+            .where(RawSale.id == sale_id)
+            .options(selectinload(RawSale.client), selectinload(RawSale.raw_material))
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
@@ -290,9 +285,7 @@ class SaleDocumentRepository(AsyncRepository[SaleDocument]):
         super().__init__(session, SaleDocument)
 
     async def get_by_id(self, doc_id: int) -> Optional[SaleDocument]:
-        stmt = select(SaleDocument).where(SaleDocument.id == doc_id).options(
-            selectinload(SaleDocument.client)
-        )
+        stmt = select(SaleDocument).where(SaleDocument.id == doc_id).options(selectinload(SaleDocument.client))
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -312,7 +305,7 @@ class SaleDocumentRepository(AsyncRepository[SaleDocument]):
                 literal("finished").label("row_kind"),
                 func.concat("finished:", Sale.finished_product_id).label("item_key"),
                 literal("Produit fini").label("item_kind"),
-                literal("").label("custom_item_name")
+                literal("").label("custom_item_name"),
             )
             .select_from(Sale)
             .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
@@ -334,7 +327,7 @@ class SaleDocumentRepository(AsyncRepository[SaleDocument]):
                 literal("raw").label("row_kind"),
                 func.concat("raw:", RawSale.raw_material_id).label("item_key"),
                 literal("Matiere premiere").label("item_kind"),
-                RawSale.custom_item_name
+                RawSale.custom_item_name,
             )
             .select_from(RawSale)
             .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
@@ -343,23 +336,15 @@ class SaleDocumentRepository(AsyncRepository[SaleDocument]):
 
         union_stmt = union_all(stmt_finished, stmt_raw).subquery("x")
 
-        stmt = (
-            select(union_stmt)
-            .order_by(union_stmt.c.row_id.asc())
-        )
+        stmt = select(union_stmt).order_by(union_stmt.c.row_id.asc())
         result = await self.session.execute(stmt)
         return [dict(row._mapping) for row in result.fetchall()]
 
     async def document_has_linked_payments(self, doc_id: int, client_id: int, refs: Set[Tuple[str, int]]) -> bool:
         stmt = (
-            select(
-                Payment.id,
-                Payment.sale_id,
-                Payment.raw_sale_id,
-                Payment.allocation_meta
-            )
+            select(Payment.id, Payment.sale_id, Payment.raw_sale_id, Payment.allocation_meta)
             .where(Payment.client_id == client_id)
-            .where(Payment.payment_type == 'versement')
+            .where(Payment.payment_type == "versement")
         )
         result = await self.session.execute(stmt)
         payments = [dict(row._mapping) for row in result.fetchall()]
@@ -371,10 +356,13 @@ class SaleDocumentRepository(AsyncRepository[SaleDocument]):
 
 # --- Legacy compatibility wrappers ---
 
+
 def invalidate_sellable_items_cache() -> None:
     from app.core.perf_cache import invalidate_cache_domain
+
     invalidate_cache_domain("sales_sellable_items")
     from app.core.perf_cache import invalidate_cache_domains
+
     invalidate_cache_domains("dashboard", "sales", "client")
 
 
@@ -391,5 +379,5 @@ async def build_sellable_items(db: AsyncSession | None = None):
         return await repo.list_sellable_items()
 
     from app.core.perf_cache import async_cached_result
-    return await async_cached_result(("sales_sellable_items",), load, ttl_seconds=TTL_SEMI_STABLE)
 
+    return await async_cached_result(("sales_sellable_items",), load, ttl_seconds=TTL_SEMI_STABLE)

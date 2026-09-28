@@ -91,13 +91,25 @@ async def record_stock_movement(
 ) -> None:
     try:
         from app.modules.catalog.repository import insert_stock_movement
+
         await insert_stock_movement(
-            item_kind, item_id, direction, quantity, unit,
-            stock_before, stock_after, reason, reference_type,
-            reference_id, _actor_username(), db=db
+            item_kind,
+            item_id,
+            direction,
+            quantity,
+            unit,
+            stock_before,
+            stock_after,
+            reason,
+            reference_type,
+            reference_id,
+            _actor_username(),
+            db=db,
         )
     except Exception:
-        logging.getLogger("fabouanes").warning("Failed to record stock movement for %s #%s", item_kind, item_id, exc_info=True)
+        logging.getLogger("fabouanes").warning(
+            "Failed to record stock movement for %s #%s", item_kind, item_id, exc_info=True
+        )
 
 
 @async_compat
@@ -120,22 +132,24 @@ async def _recalc_raw_material_avg_cost_impl(material_id: int, db: AsyncSession)
 
     unit_lower = func.lower(func.trim(Purchase.unit))
     factor = case(
-        (unit_lower.like("sac%"),
-         case(
-             (unit_lower.like("%50%"), 50.0),
-             (unit_lower.like("%40%"), 40.0),
-             (unit_lower.like("%25%"), 25.0),
-             else_=50.0
-         )),
+        (
+            unit_lower.like("sac%"),
+            case(
+                (unit_lower.like("%50%"), 50.0),
+                (unit_lower.like("%40%"), 40.0),
+                (unit_lower.like("%25%"), 25.0),
+                else_=50.0,
+            ),
+        ),
         (unit_lower.in_(["qt", "quintal"]), 100.0),
-        else_=1.0
+        else_=1.0,
     )
     qty_in_kg = Purchase.quantity * factor
 
     res = await db.execute(
         select(
             func.coalesce(func.sum(qty_in_kg), 0).label("total_qty_kg"),
-            func.coalesce(func.sum(Purchase.total), 0).label("total_value")
+            func.coalesce(func.sum(Purchase.total), 0).label("total_value"),
         ).where(Purchase.raw_material_id == material_id)
     )
     row = res.first()
@@ -174,7 +188,7 @@ async def _recalc_finished_product_avg_cost_impl(product_id: int, db: AsyncSessi
     res = await db.execute(
         select(
             func.coalesce(func.sum(ProductionBatch.output_quantity), 0).label("total_qty"),
-            func.coalesce(func.sum(ProductionBatch.production_cost), 0).label("total_cost")
+            func.coalesce(func.sum(ProductionBatch.production_cost), 0).label("total_cost"),
         ).where(ProductionBatch.finished_product_id == product_id)
     )
     row = res.first()
@@ -209,10 +223,8 @@ async def _recalc_purchase_document_totals_impl(document_id: int, db: AsyncSessi
 
     totals_res = await db.execute(
         select(
-            func.count().label("line_count"),
-            func.coalesce(func.sum(Purchase.total), 0).label("total_amount")
-        )
-        .where(Purchase.document_id == document_id)
+            func.count().label("line_count"), func.coalesce(func.sum(Purchase.total), 0).label("total_amount")
+        ).where(Purchase.document_id == document_id)
     )
     totals = totals_res.first()
 
@@ -220,9 +232,7 @@ async def _recalc_purchase_document_totals_impl(document_id: int, db: AsyncSessi
         await db.execute(delete(PurchaseDocument).where(PurchaseDocument.id == document_id))
         return
     await db.execute(
-        update(PurchaseDocument)
-        .where(PurchaseDocument.id == document_id)
-        .values(total=float(totals.total_amount or 0))
+        update(PurchaseDocument).where(PurchaseDocument.id == document_id).values(total=float(totals.total_amount or 0))
     )
 
 
@@ -246,9 +256,8 @@ async def _recalc_sale_document_totals_impl(document_id: int, db: AsyncSession) 
             func.count().label("line_count"),
             func.coalesce(func.sum(Sale.total), 0).label("total_amount"),
             func.coalesce(func.sum(Sale.amount_paid), 0).label("paid_amount"),
-            func.coalesce(func.sum(Sale.balance_due), 0).label("due_amount")
-        )
-        .where(Sale.document_id == document_id)
+            func.coalesce(func.sum(Sale.balance_due), 0).label("due_amount"),
+        ).where(Sale.document_id == document_id)
     )
     finished = finished_res.first()
 
@@ -257,9 +266,8 @@ async def _recalc_sale_document_totals_impl(document_id: int, db: AsyncSession) 
             func.count().label("line_count"),
             func.coalesce(func.sum(RawSale.total), 0).label("total_amount"),
             func.coalesce(func.sum(RawSale.amount_paid), 0).label("paid_amount"),
-            func.coalesce(func.sum(RawSale.balance_due), 0).label("due_amount")
-        )
-        .where(RawSale.document_id == document_id)
+            func.coalesce(func.sum(RawSale.balance_due), 0).label("due_amount"),
+        ).where(RawSale.document_id == document_id)
     )
     raw = raw_res.first()
 
@@ -280,7 +288,9 @@ async def _recalc_sale_document_totals_impl(document_id: int, db: AsyncSession) 
 
 
 @async_compat
-async def refresh_sale_profits_for_item(item_kind: str, item_id: int, avg_cost: float, sale_price: float | None = None, db: AsyncSession | None = None) -> None:
+async def refresh_sale_profits_for_item(
+    item_kind: str, item_id: int, avg_cost: float, sale_price: float | None = None, db: AsyncSession | None = None
+) -> None:
     if db is None:
         async with get_async_sessionmaker()() as session:
             async with session.begin():
@@ -289,21 +299,25 @@ async def refresh_sale_profits_for_item(item_kind: str, item_id: int, avg_cost: 
         await _refresh_sale_profits_for_item_impl(item_kind, item_id, avg_cost, sale_price, db)
 
 
-async def _refresh_sale_profits_for_item_impl(item_kind: str, item_id: int, avg_cost: float, sale_price: float | None, db: AsyncSession) -> None:
+async def _refresh_sale_profits_for_item_impl(
+    item_kind: str, item_id: int, avg_cost: float, sale_price: float | None, db: AsyncSession
+) -> None:
     from app.core.models import RawSale, Sale
 
     if item_kind == "raw":
         unit_lower = func.lower(func.trim(RawSale.unit))
         factor = case(
-            (unit_lower.like("sac%"),
-             case(
-                 (unit_lower.like("%50%"), 50.0),
-                 (unit_lower.like("%40%"), 40.0),
-                 (unit_lower.like("%25%"), 25.0),
-                 else_=50.0
-             )),
+            (
+                unit_lower.like("sac%"),
+                case(
+                    (unit_lower.like("%50%"), 50.0),
+                    (unit_lower.like("%40%"), 40.0),
+                    (unit_lower.like("%25%"), 25.0),
+                    else_=50.0,
+                ),
+            ),
             (unit_lower.in_(["qt", "quintal"]), 100.0),
-            else_=1.0
+            else_=1.0,
         )
         qty_kg = RawSale.quantity * factor
         total = RawSale.quantity * RawSale.unit_price
@@ -318,15 +332,17 @@ async def _refresh_sale_profits_for_item_impl(item_kind: str, item_id: int, avg_
 
     unit_lower = func.lower(func.trim(Sale.unit))
     factor = case(
-        (unit_lower.like("sac%"),
-         case(
-             (unit_lower.like("%50%"), 50.0),
-             (unit_lower.like("%40%"), 40.0),
-             (unit_lower.like("%25%"), 25.0),
-             else_=50.0
-         )),
+        (
+            unit_lower.like("sac%"),
+            case(
+                (unit_lower.like("%50%"), 50.0),
+                (unit_lower.like("%40%"), 40.0),
+                (unit_lower.like("%25%"), 25.0),
+                else_=50.0,
+            ),
+        ),
         (unit_lower.in_(["qt", "quintal"]), 100.0),
-        else_=1.0
+        else_=1.0,
     )
     qty_kg = Sale.quantity * factor
     total = Sale.quantity * Sale.unit_price
@@ -357,12 +373,30 @@ async def create_purchase_record(
         async with get_async_sessionmaker()() as session:
             async with session.begin():
                 return await _create_purchase_record_impl(
-                    supplier_id, item_kind_or_raw_id, qty, unit_price,
-                    purchase_date, notes, unit, document_id, custom_item_name, item_id, session
+                    supplier_id,
+                    item_kind_or_raw_id,
+                    qty,
+                    unit_price,
+                    purchase_date,
+                    notes,
+                    unit,
+                    document_id,
+                    custom_item_name,
+                    item_id,
+                    session,
                 )
     return await _create_purchase_record_impl(
-        supplier_id, item_kind_or_raw_id, qty, unit_price,
-        purchase_date, notes, unit, document_id, custom_item_name, item_id, db
+        supplier_id,
+        item_kind_or_raw_id,
+        qty,
+        unit_price,
+        purchase_date,
+        notes,
+        unit,
+        document_id,
+        custom_item_name,
+        item_id,
+        db,
     )
 
 
@@ -381,7 +415,9 @@ async def _create_purchase_record_impl(
 ) -> int:
     from app.core.models import FinishedProduct, Purchase, RawMaterial
 
-    if isinstance(item_kind_or_raw_id, (int, float)) or (isinstance(item_kind_or_raw_id, str) and item_kind_or_raw_id.isdigit()):
+    if isinstance(item_kind_or_raw_id, (int, float)) or (
+        isinstance(item_kind_or_raw_id, str) and item_kind_or_raw_id.isdigit()
+    ):
         item_kind = "raw"
         real_item_id = int(item_kind_or_raw_id)
     else:
@@ -419,7 +455,7 @@ async def _create_purchase_record_impl(
             total=Decimal(str(total)),
             purchase_date=purchase_date,
             notes=notes,
-            custom_item_name=custom_item_name
+            custom_item_name=custom_item_name,
         )
         db.add(p)
         await db.flush()
@@ -436,9 +472,23 @@ async def _create_purchase_record_impl(
         material.avg_cost = Decimal(str(avg_cost))
         material.sale_price = Decimal(str(sale_price))
         await db.flush()
-        await record_stock_movement("raw", real_item_id, "in", qty_kg, "kg", stock_before, stock_after, "create_purchase", "purchase", purchase_id, db=db)
+        await record_stock_movement(
+            "raw",
+            real_item_id,
+            "in",
+            qty_kg,
+            "kg",
+            stock_before,
+            stock_after,
+            "create_purchase",
+            "purchase",
+            purchase_id,
+            db=db,
+        )
     else:
-        product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == real_item_id).with_for_update())
+        product_res = await db.execute(
+            select(FinishedProduct).where(FinishedProduct.id == real_item_id).with_for_update()
+        )
         product = product_res.scalar_one_or_none()
         if not product:
             raise NotFoundError("Produit fini", real_item_id)
@@ -454,7 +504,7 @@ async def _create_purchase_record_impl(
             total=Decimal(str(total)),
             purchase_date=purchase_date,
             notes=notes,
-            custom_item_name=custom_item_name
+            custom_item_name=custom_item_name,
         )
         db.add(p)
         await db.flush()
@@ -471,7 +521,19 @@ async def _create_purchase_record_impl(
         product.avg_cost = Decimal(str(avg_cost))
         product.sale_price = Decimal(str(sale_price))
         await db.flush()
-        await record_stock_movement("finished", real_item_id, "in", qty_kg, "kg", stock_before, stock_after, "create_purchase", "purchase", purchase_id, db=db)
+        await record_stock_movement(
+            "finished",
+            real_item_id,
+            "in",
+            qty_kg,
+            "kg",
+            stock_before,
+            stock_after,
+            "create_purchase",
+            "purchase",
+            purchase_id,
+            db=db,
+        )
 
     await _recalc_purchase_document_totals_impl(document_id, db)
     return purchase_id
@@ -497,12 +559,34 @@ async def create_sale_record(
         async with get_async_sessionmaker()() as session:
             async with session.begin():
                 return await _create_sale_record_impl(
-                    client_id, item_kind, item_id, qty, unit, unit_price,
-                    sale_type, sale_date, notes, amount_paid_input, document_id, custom_item_name, session
+                    client_id,
+                    item_kind,
+                    item_id,
+                    qty,
+                    unit,
+                    unit_price,
+                    sale_type,
+                    sale_date,
+                    notes,
+                    amount_paid_input,
+                    document_id,
+                    custom_item_name,
+                    session,
                 )
     return await _create_sale_record_impl(
-        client_id, item_kind, item_id, qty, unit, unit_price,
-        sale_type, sale_date, notes, amount_paid_input, document_id, custom_item_name, db
+        client_id,
+        item_kind,
+        item_id,
+        qty,
+        unit,
+        unit_price,
+        sale_type,
+        sale_date,
+        notes,
+        amount_paid_input,
+        document_id,
+        custom_item_name,
+        db,
     )
 
 
@@ -529,7 +613,9 @@ async def _create_sale_record_impl(
         requested_sale_type = "credit" if client_id else "cash"
     if requested_sale_type == "credit" and not client_id:
         raise ValidationError("Une vente à crédit nécessite un client.", field="client_id")
-    amount_paid = round(total if requested_sale_type == "cash" else max(0.0, min(float(amount_paid_input or 0), total)), 2)
+    amount_paid = round(
+        total if requested_sale_type == "cash" else max(0.0, min(float(amount_paid_input or 0), total)), 2
+    )
     balance_due = round(max(0.0, total - amount_paid), 2)
     if qty <= 0:
         raise ValidationError("La quantité doit être supérieure à zéro.", field="quantity")
@@ -546,7 +632,10 @@ async def _create_sale_record_impl(
 
         stock_before = float(item.stock_qty)
         if qty_kg > stock_before:
-            raise ValidationError(f"Stock produit insuffisant (disponible: {stock_before:.2f} kg, requis: {qty_kg:.2f} kg).", field="quantity")
+            raise ValidationError(
+                f"Stock produit insuffisant (disponible: {stock_before:.2f} kg, requis: {qty_kg:.2f} kg).",
+                field="quantity",
+            )
 
         cost_snapshot = float(item.avg_cost)
         profit_amount = round(total - qty_kg * cost_snapshot, 2)
@@ -565,7 +654,7 @@ async def _create_sale_record_impl(
             cost_price_snapshot=Decimal(str(cost_snapshot)),
             profit_amount=Decimal(str(profit_amount)),
             sale_date=sale_date,
-            notes=notes
+            notes=notes,
         )
         db.add(s)
         await db.flush()
@@ -574,7 +663,9 @@ async def _create_sale_record_impl(
         stock_after = stock_before - qty_kg
         item.stock_qty = Decimal(str(stock_after))
         await db.flush()
-        await record_stock_movement("finished", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "sale", row_id, db=db)
+        await record_stock_movement(
+            "finished", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "sale", row_id, db=db
+        )
 
         if amount_paid > 0 and client_id:
             p = Payment(
@@ -584,7 +675,7 @@ async def _create_sale_record_impl(
                 payment_type="versement",
                 amount=Decimal(str(amount_paid)),
                 payment_date=sale_date,
-                notes="Paiement initial vente"
+                notes="Paiement initial vente",
             )
             db.add(p)
             await db.flush()
@@ -611,7 +702,9 @@ async def _create_sale_record_impl(
     unit_price_kg = unit_price_to_kg(unit_price, unit)
     stock_before = float(item.stock_qty)
     if qty_kg > stock_before:
-        raise ValidationError(f"Stock matière insuffisant (disponible: {stock_before:.2f} kg, requis: {qty_kg:.2f} kg).", field="quantity")
+        raise ValidationError(
+            f"Stock matière insuffisant (disponible: {stock_before:.2f} kg, requis: {qty_kg:.2f} kg).", field="quantity"
+        )
 
     cost_snapshot = float(item.avg_cost)
     profit_amount = round(total - qty_kg * cost_snapshot, 2)
@@ -631,7 +724,7 @@ async def _create_sale_record_impl(
         profit_amount=Decimal(str(profit_amount)),
         sale_date=sale_date,
         notes=notes,
-        custom_item_name=custom_item_name
+        custom_item_name=custom_item_name,
     )
     db.add(rs)
     await db.flush()
@@ -640,7 +733,9 @@ async def _create_sale_record_impl(
     stock_after = stock_before - qty_kg
     item.stock_qty = Decimal(str(stock_after))
     await db.flush()
-    await record_stock_movement("raw", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "raw_sale", row_id, db=db)
+    await record_stock_movement(
+        "raw", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "raw_sale", row_id, db=db
+    )
 
     if amount_paid > 0 and client_id:
         p = Payment(
@@ -650,7 +745,7 @@ async def _create_sale_record_impl(
             payment_type="versement",
             amount=Decimal(str(amount_paid)),
             payment_date=sale_date,
-            notes="Paiement initial vente"
+            notes="Paiement initial vente",
         )
         db.add(p)
         await db.flush()
@@ -679,7 +774,9 @@ async def _reverse_purchase_impl(purchase_id: int, db: AsyncSession) -> bool:
         return False
 
     if row.finished_product_id:
-        product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == row.finished_product_id).with_for_update())
+        product_res = await db.execute(
+            select(FinishedProduct).where(FinishedProduct.id == row.finished_product_id).with_for_update()
+        )
         product = product_res.scalar_one_or_none()
         if not product or float(product.stock_qty) < float(row.quantity):
             return False
@@ -695,9 +792,23 @@ async def _reverse_purchase_impl(purchase_id: int, db: AsyncSession) -> bool:
         product.avg_cost = Decimal(str(avg_cost_restored))
         await db.delete(row)
         await db.flush()
-        await record_stock_movement("finished", int(row.finished_product_id), "out", float(row.quantity), "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id, db=db)
+        await record_stock_movement(
+            "finished",
+            int(row.finished_product_id),
+            "out",
+            float(row.quantity),
+            "kg",
+            stock_before,
+            stock_after,
+            "reverse_purchase",
+            "purchase",
+            purchase_id,
+            db=db,
+        )
     else:
-        material_res = await db.execute(select(RawMaterial).where(RawMaterial.id == row.raw_material_id).with_for_update())
+        material_res = await db.execute(
+            select(RawMaterial).where(RawMaterial.id == row.raw_material_id).with_for_update()
+        )
         material = material_res.scalar_one_or_none()
         qty_kg = qty_to_kg(float(row.quantity), row.unit)
         if not material or float(material.stock_qty) < qty_kg:
@@ -714,7 +825,19 @@ async def _reverse_purchase_impl(purchase_id: int, db: AsyncSession) -> bool:
         material.avg_cost = Decimal(str(avg_cost_restored))
         await db.delete(row)
         await db.flush()
-        await record_stock_movement("raw", int(row.raw_material_id), "out", qty_kg, "kg", stock_before, stock_after, "reverse_purchase", "purchase", purchase_id, db=db)
+        await record_stock_movement(
+            "raw",
+            int(row.raw_material_id),
+            "out",
+            qty_kg,
+            "kg",
+            stock_before,
+            stock_after,
+            "reverse_purchase",
+            "purchase",
+            purchase_id,
+            db=db,
+        )
 
     if row.document_id:
         await _recalc_purchase_document_totals_impl(int(row.document_id), db)
@@ -738,7 +861,9 @@ async def _reverse_sale_impl(kind: str, row_id: int, db: AsyncSession) -> bool:
         row = row_res.scalar_one_or_none()
         if not row:
             return False
-        product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == row.finished_product_id).with_for_update())
+        product_res = await db.execute(
+            select(FinishedProduct).where(FinishedProduct.id == row.finished_product_id).with_for_update()
+        )
         product = product_res.scalar_one_or_none()
         stock_before = float(product.stock_qty if product else 0)
         restore_qty = qty_to_kg(float(row.quantity), row.unit)
@@ -748,7 +873,19 @@ async def _reverse_sale_impl(kind: str, row_id: int, db: AsyncSession) -> bool:
         await db.execute(delete(Payment).where(Payment.sale_kind == "finished", Payment.sale_id == row_id))
         await db.delete(row)
         await db.flush()
-        await record_stock_movement("finished", int(row.finished_product_id), "in", restore_qty, "kg", stock_before, stock_after, "reverse_sale", "sale", row_id, db=db)
+        await record_stock_movement(
+            "finished",
+            int(row.finished_product_id),
+            "in",
+            restore_qty,
+            "kg",
+            stock_before,
+            stock_after,
+            "reverse_sale",
+            "sale",
+            row_id,
+            db=db,
+        )
         if row.document_id:
             await _recalc_sale_document_totals_impl(int(row.document_id), db)
         return True
@@ -767,14 +904,33 @@ async def _reverse_sale_impl(kind: str, row_id: int, db: AsyncSession) -> bool:
     await db.execute(delete(Payment).where(Payment.sale_kind == "raw", Payment.raw_sale_id == row_id))
     await db.delete(row)
     await db.flush()
-    await record_stock_movement("raw", int(row.raw_material_id), "in", restore_qty, "kg", stock_before, stock_after, "reverse_sale", "raw_sale", row_id, db=db)
+    await record_stock_movement(
+        "raw",
+        int(row.raw_material_id),
+        "in",
+        restore_qty,
+        "kg",
+        stock_before,
+        stock_after,
+        "reverse_sale",
+        "raw_sale",
+        row_id,
+        db=db,
+    )
     if row.document_id:
         await _recalc_sale_document_totals_impl(int(row.document_id), db)
     return True
 
 
 @async_compat
-async def apply_raw_material_consumption(material, qty: float, reference_type: str, reference_id: int, reason: str = "production", db: AsyncSession | None = None) -> None:
+async def apply_raw_material_consumption(
+    material,
+    qty: float,
+    reference_type: str,
+    reference_id: int,
+    reason: str = "production",
+    db: AsyncSession | None = None,
+) -> None:
     if db is None:
         async with get_async_sessionmaker()() as session:
             async with session.begin():
@@ -783,7 +939,9 @@ async def apply_raw_material_consumption(material, qty: float, reference_type: s
         await _apply_raw_material_consumption_impl(material, qty, reference_type, reference_id, reason, db)
 
 
-async def _apply_raw_material_consumption_impl(material, qty: float, reference_type: str, reference_id: int, reason: str, db: AsyncSession) -> None:
+async def _apply_raw_material_consumption_impl(
+    material, qty: float, reference_type: str, reference_id: int, reason: str, db: AsyncSession
+) -> None:
     from app.core.models import RawMaterial
 
     material_id = int(material["id"])
@@ -797,11 +955,25 @@ async def _apply_raw_material_consumption_impl(material, qty: float, reference_t
         raise ValueError(f"Stock insuffisant pour {db_material.name}.")
     db_material.stock_qty = Decimal(str(stock_after))
     await db.flush()
-    await record_stock_movement("raw", material_id, "out", float(qty), "kg", stock_before, stock_after, reason, reference_type, reference_id, db=db)
+    await record_stock_movement(
+        "raw",
+        material_id,
+        "out",
+        float(qty),
+        "kg",
+        stock_before,
+        stock_after,
+        reason,
+        reference_type,
+        reference_id,
+        db=db,
+    )
 
 
 @async_compat
-async def apply_finished_production(product, output_qty: float, total_cost: float, reference_id: int, db: AsyncSession | None = None) -> None:
+async def apply_finished_production(
+    product, output_qty: float, total_cost: float, reference_id: int, db: AsyncSession | None = None
+) -> None:
     if db is None:
         async with get_async_sessionmaker()() as session:
             async with session.begin():
@@ -810,7 +982,9 @@ async def apply_finished_production(product, output_qty: float, total_cost: floa
         await _apply_finished_production_impl(product, output_qty, total_cost, reference_id, db)
 
 
-async def _apply_finished_production_impl(product, output_qty: float, total_cost: float, reference_id: int, db: AsyncSession) -> None:
+async def _apply_finished_production_impl(
+    product, output_qty: float, total_cost: float, reference_id: int, db: AsyncSession
+) -> None:
     from app.core.models import FinishedProduct
 
     product_id = int(product["id"])
@@ -829,7 +1003,19 @@ async def _apply_finished_production_impl(product, output_qty: float, total_cost
     db_product.avg_cost = Decimal(str(new_avg))
     db_product.sale_price = Decimal(str(sale_price))
     await db.flush()
-    await record_stock_movement("finished", product_id, "in", float(output_qty), "kg", stock_before, stock_after, "create_production", "production", reference_id, db=db)
+    await record_stock_movement(
+        "finished",
+        product_id,
+        "in",
+        float(output_qty),
+        "kg",
+        stock_before,
+        stock_after,
+        "create_production",
+        "production",
+        reference_id,
+        db=db,
+    )
 
 
 @async_compat
@@ -848,21 +1034,37 @@ async def _reverse_production_impl(batch_id: int, db: AsyncSession) -> bool:
     batch = batch_res.scalar_one_or_none()
     if not batch:
         return False
-    product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == batch.finished_product_id).with_for_update())
+    product_res = await db.execute(
+        select(FinishedProduct).where(FinishedProduct.id == batch.finished_product_id).with_for_update()
+    )
     product = product_res.scalar_one_or_none()
     if not product or float(product.stock_qty) < float(batch.output_quantity):
         return False
     items_res = await db.execute(select(ProductionBatchItem).where(ProductionBatchItem.batch_id == batch_id))
     items = items_res.scalars().all()
     for item in items:
-        material_res = await db.execute(select(RawMaterial).where(RawMaterial.id == item.raw_material_id).with_for_update())
+        material_res = await db.execute(
+            select(RawMaterial).where(RawMaterial.id == item.raw_material_id).with_for_update()
+        )
         material = material_res.scalar_one_or_none()
         stock_before = float(material.stock_qty if material else 0)
         stock_after = stock_before + float(item.quantity)
         if material:
             material.stock_qty = Decimal(str(stock_after))
         await db.flush()
-        await record_stock_movement("raw", int(item.raw_material_id), "in", float(item.quantity), "kg", stock_before, stock_after, "reverse_production", "production", batch_id, db=db)
+        await record_stock_movement(
+            "raw",
+            int(item.raw_material_id),
+            "in",
+            float(item.quantity),
+            "kg",
+            stock_before,
+            stock_after,
+            "reverse_production",
+            "production",
+            batch_id,
+            db=db,
+        )
         await _recalc_raw_material_avg_cost_impl(int(item.raw_material_id), db)
     stock_before = float(product.stock_qty)
     stock_after = stock_before - float(batch.output_quantity)
@@ -875,7 +1077,19 @@ async def _reverse_production_impl(batch_id: int, db: AsyncSession) -> bool:
     product.stock_qty = Decimal(str(stock_after))
     product.avg_cost = Decimal(str(avg_cost_restored))
     await db.flush()
-    await record_stock_movement("finished", int(batch.finished_product_id), "out", float(batch.output_quantity), "kg", stock_before, stock_after, "reverse_production", "production", batch_id, db=db)
+    await record_stock_movement(
+        "finished",
+        int(batch.finished_product_id),
+        "out",
+        float(batch.output_quantity),
+        "kg",
+        stock_before,
+        stock_after,
+        "reverse_production",
+        "production",
+        batch_id,
+        db=db,
+    )
     await db.delete(batch)
     await db.flush()
     return True

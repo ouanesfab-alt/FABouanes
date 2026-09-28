@@ -77,6 +77,7 @@ def setup_observability(service_name: str = "fabouanes") -> None:
     else:
         # User-friendly console logs for development
         from structlog.dev import ConsoleRenderer
+
         processors.append(ConsoleRenderer(colors=True))
 
     structlog.configure(
@@ -91,6 +92,7 @@ def instrument_app(app: Any) -> None:
     """Instrument the FastAPI application with OpenTelemetry."""
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
         FastAPIInstrumentor.instrument_app(app)
     except Exception as exc:
         logging.getLogger("observability").warning("Failed to instrument FastAPI application: %s", exc)
@@ -100,6 +102,7 @@ def instrument_sqlalchemy(engine: Any) -> None:
     """Instrument SQLAlchemy engine to record all SQL queries in spans."""
     try:
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
         SQLAlchemyInstrumentor().instrument(engine=engine)
     except Exception as exc:
         logging.getLogger("observability").warning("Failed to instrument SQLAlchemy engine: %s", exc)

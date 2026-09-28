@@ -26,6 +26,7 @@ _AUDIT_TASK: asyncio.Task | None = None
 _AUDIT_DROPPED = 0
 _last_warned_ts = 0.0
 
+
 def _get_audit_queue() -> asyncio.Queue:
     global _AUDIT_QUEUE
     if _AUDIT_QUEUE is None:
@@ -45,6 +46,7 @@ def get_audit_stats() -> dict[str, int]:
         "audit_dropped": _AUDIT_DROPPED,
     }
 
+
 def start_audit_worker() -> None:
     global _AUDIT_TASK
     if _AUDIT_TASK is not None:
@@ -54,6 +56,7 @@ def start_audit_worker() -> None:
         _AUDIT_TASK = loop.create_task(_audit_flusher_task())
     except RuntimeError:
         pass
+
 
 async def stop_audit_worker() -> None:
     global _AUDIT_TASK
@@ -101,10 +104,10 @@ async def stop_audit_worker() -> None:
                                     "before_json": row[11],
                                     "after_json": row[12],
                                     "meta_json": row[13],
-                                }
+                                },
                             )
                         except Exception:  # noqa: S110
-                                _logger.warning("Audit: échec écriture d'un événement, ignoré", exc_info=True)
+                            _logger.warning("Audit: échec écriture d'un événement, ignoré", exc_info=True)
                     await session.commit()
             except Exception:
                 _logger.warning("Audit: échec du flush de shutdown, %d événements perdus", len(batch), exc_info=True)
@@ -115,6 +118,7 @@ async def stop_audit_worker() -> None:
     except asyncio.CancelledError:
         pass
     _AUDIT_TASK = None
+
 
 async def _audit_flusher_task() -> None:
     queue = _get_audit_queue()
@@ -159,7 +163,7 @@ async def _audit_flusher_task() -> None:
                                     "before_json": row[11],
                                     "after_json": row[12],
                                     "meta_json": row[13],
-                                }
+                                },
                             )
                         except Exception:
                             _logger.exception("Unable to execute audit log row statement")
@@ -262,6 +266,7 @@ def _json_dump(value: Any) -> str | None:
 
 _ACTOR_CACHE: dict[int, tuple[str, str]] = {}
 
+
 def _resolve_actor(actor: Mapping[str, Any] | None = None, user_id: int | None = None) -> tuple[int | None, str, str]:
     resolved_id = user_id
     resolved_username = None
@@ -298,6 +303,7 @@ def _resolve_actor(actor: Mapping[str, Any] | None = None, user_id: int | None =
         else:
             try:
                 from app.core.db_helpers import query_db
+
                 user_row = query_db("SELECT username, role FROM users WHERE id = %s", (uid_key,), one=True)
                 if user_row:
                     resolved_username = resolved_username or user_row.get("username")
@@ -306,6 +312,7 @@ def _resolve_actor(actor: Mapping[str, Any] | None = None, user_id: int | None =
                         _ACTOR_CACHE[uid_key] = (resolved_username, resolved_role)
             except Exception as e:
                 import logging
+
                 logging.getLogger("fabouanes.audit").warning("Impossible de charger l'utilisateur pour l'audit: %s", e)
 
     return resolved_id, resolved_username or "anonymous", resolved_role or "anonymous"
@@ -332,7 +339,9 @@ def audit_event(
     if state_request is not None:
         request_source = request_source or ("api" if state_request.url.path.startswith("/api/") else "web")
         forwarded = state_request.headers.get("X-Forwarded-For", "")
-        remote_addr = (forwarded.split(",", 1)[0].strip() if forwarded else "") or (getattr(getattr(state_request, "client", None), "host", "") or "")
+        remote_addr = (forwarded.split(",", 1)[0].strip() if forwarded else "") or (
+            getattr(getattr(state_request, "client", None), "host", "") or ""
+        )
         user_agent = state_request.headers.get("User-Agent", "")[:500]
     else:
         request_source = request_source or "system"
@@ -357,6 +366,7 @@ def audit_event(
     if queue.full():
         _AUDIT_DROPPED += 1
         import logging
+
         logging.getLogger("fabouanes.audit").error(
             "Audit log queue is full! Dropped event. Total dropped = %d", _AUDIT_DROPPED
         )
@@ -370,6 +380,7 @@ def audit_event(
         except (asyncio.QueueFull, Exception) as exc:
             _AUDIT_DROPPED += 1
             import logging
+
             logging.getLogger("fabouanes.audit").error(
                 "Failed to queue audit event: %s. Total dropped = %d", exc, _AUDIT_DROPPED
             )
@@ -380,9 +391,10 @@ def audit_event(
             if now - _last_warned_ts > 60.0:
                 _last_warned_ts = now
                 import logging
+
                 logging.getLogger("fabouanes.audit").warning(
                     "Audit queue high-watermark exceeded: current size is %d. The database writer is falling behind.",
-                    q_len
+                    q_len,
                 )
 
 

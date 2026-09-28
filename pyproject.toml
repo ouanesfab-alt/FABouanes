@@ -128,4 +128,11 @@ line-length = 120
 select = ["E", "F", "T201"]
 ignore = ["E501"]
 
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["T201", "E402", "F401", "F841"]
+"tests/*" = ["T201", "E402", "F841", "E701", "E702", "E741"]
+"launcher.py" = ["T201", "E402"]
+"create_offline_bundle.py" = ["T201"]
+
+
 

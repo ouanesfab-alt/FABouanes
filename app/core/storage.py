@@ -41,6 +41,7 @@ def _get_encryption_key() -> bytes:
     salt = hashlib.sha256(b"FABOuanes-backup-encryption-v1").digest()[:16]
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
     kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=600_000)
     return kdf.derive(settings.secret_key.encode("utf-8"))
 
@@ -102,6 +103,7 @@ def mark_backup_needed(reason: str = "event") -> None:
     # Broadcast to connected clients for real-time operations refresh
     try:
         from app.core.websockets import manager
+
         manager.broadcast_sync("refresh_operations")
     except Exception:
         pass
@@ -217,10 +219,17 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
         pg_dump_bin = validate_pg_dump_binary_path(raw_pg_dump)
         cmd = [
             pg_dump_bin,
-            "-h", host, "-p", str(port), "-U", username,
-            "-F", "p",          # format texte (plain SQL)
+            "-h",
+            host,
+            "-p",
+            str(port),
+            "-U",
+            username,
+            "-F",
+            "p",  # format texte (plain SQL)
             "--no-password",
-            "-f", str(tmp_sql),
+            "-f",
+            str(tmp_sql),
             database,
         ]
         sub_kwargs = {"env": env, "check": True, "stdout": subprocess.PIPE, "stderr": subprocess.PIPE}
@@ -477,6 +486,7 @@ def _query_backup_sha256(filename: str):
     """Cherche le job de sauvegarde correspondant au nom de fichier."""
     try:
         from app.core.db_helpers import query_db
+
         # La colonne local_path contient le chemin complet
         rows = query_db(
             "SELECT context_json FROM backup_jobs WHERE local_path LIKE %s ORDER BY id DESC LIMIT 1",

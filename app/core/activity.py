@@ -10,13 +10,13 @@ from app.core.db_helpers import execute_db
 from app.core.request_state import get_state_value
 
 logger = logging.getLogger("fabouanes.activity")
-LOG_DIR = APP_DATA_DIR / 'logs'
+LOG_DIR = APP_DATA_DIR / "logs"
 
 
 def write_text_log(filename: str, message: str) -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    with (LOG_DIR / filename).open('a', encoding='utf-8') as f:
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with (LOG_DIR / filename).open("a", encoding="utf-8") as f:
         f.write(f"[{ts}] {message}\n")
 
 
@@ -31,7 +31,7 @@ def safe_username() -> str:
             return user["username"]
     except Exception:
         pass
-    return 'system'
+    return "system"
 
 
 def _request_ip() -> str:
