@@ -37,14 +37,21 @@
     <div class="card entity-form-card sale-edit-card">
       <form method="post" class="entity-form-grid" id="saleDocumentEditForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <div class="span-6">
+        <div class="span-4">
           <label class="form-label">Client</label>
-          <select name="client_id" class="form-select" {% if edit_locked %}disabled{% endif %}>
+          <select name="client_id" class="form-select" id="saleEditClientSelect" {% if edit_locked %}disabled{% endif %}>
             <option value="">Comptoir (cash)</option>
             {% for c in clients %}<option value="{{ c.id }}" {% if sale_document.client_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
           </select>
         </div>
-        <div class="span-6">
+        <div class="span-4">
+          <label class="form-label">Règlement</label>
+          <select name="sale_type" class="form-select" id="saleEditTypeSelect" {% if edit_locked %}disabled{% endif %}>
+            <option value="cash" id="optSaleEditCash" {% if sale_document.sale_type == 'cash' %}selected{% endif %}>Au comptant (payé)</option>
+            <option value="credit" id="optSaleEditCredit" {% if sale_document.sale_type != 'cash' %}selected{% endif %}>À crédit (dette)</option>
+          </select>
+        </div>
+        <div class="span-4">
           <label class="form-label">Date de vente</label>
           <input name="sale_date" type="date" class="form-control" id="saleDate" value="{{ sale_document.sale_date }}" {% if edit_locked %}disabled{% endif %}>
         </div>
@@ -332,6 +339,21 @@
     initialLines.forEach((line) => addLine(line));
   } else {
     addLine();
+  }
+  const clientSelect = document.getElementById('saleEditClientSelect');
+  const saleTypeSelect = document.getElementById('saleEditTypeSelect');
+  const optSaleCredit = document.getElementById('optSaleEditCredit');
+  if (clientSelect && saleTypeSelect) {
+    function syncSaleType() {
+      if (!clientSelect.value) {
+        saleTypeSelect.value = 'cash';
+        if (optSaleCredit) optSaleCredit.disabled = true;
+      } else {
+        if (optSaleCredit) optSaleCredit.disabled = false;
+      }
+    }
+    clientSelect.addEventListener('change', syncSaleType);
+    syncSaleType();
   }
 })();
 </script>

@@ -9,8 +9,10 @@ from sqlalchemy import case, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_sessionmaker
+from app.core.events import DomainEvent, emit
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.helpers import async_compat
+from app.core.perf_cache import invalidate_cache_domains, invalidate_client_cache
 from app.core.request_state import get_state_value
 
 logger = logging.getLogger("fabouanes")
@@ -20,7 +22,7 @@ OTHER_OPERATION_UNIT = "unite"
 
 
 def _extract_weight_from_unit(unit: str | None) -> float:
-    if not unit:
+    if not unit or not isinstance(unit, str):
         return 50.0
     match = re.search(r"(\d+(?:\.\d+)?)\s*(?:kg)?", unit.lower())
     if match:
@@ -29,7 +31,9 @@ def _extract_weight_from_unit(unit: str | None) -> float:
 
 
 def qty_to_kg(quantity: float, unit: str | None) -> float:
-    unit_name = (unit or "kg").strip().lower()
+    if not isinstance(unit, str):
+        return float(quantity or 0)
+    unit_name = unit.strip().lower()
     if unit_name.startswith("sac"):
         return quantity * _extract_weight_from_unit(unit)
     if unit_name in {"qt", "quintal"}:
@@ -38,7 +42,9 @@ def qty_to_kg(quantity: float, unit: str | None) -> float:
 
 
 def unit_price_to_kg(unit_price: float, unit: str | None) -> float:
-    unit_name = (unit or "kg").strip().lower()
+    if not isinstance(unit, str):
+        return float(unit_price or 0)
+    unit_name = unit.strip().lower()
     if unit_name.startswith("sac"):
         return unit_price / _extract_weight_from_unit(unit)
     if unit_name in {"qt", "quintal"}:
@@ -498,9 +504,9 @@ async def _create_purchase_record_impl(
             document_id=document_id,
             raw_material_id=None,
             finished_product_id=real_item_id,
-            quantity=Decimal(str(qty_kg)),
+            quantity=Decimal(str(qty)),
             unit=unit,
-            unit_price=Decimal(str(unit_price_kg)),
+            unit_price=Decimal(str(unit_price)),
             total=Decimal(str(total)),
             purchase_date=purchase_date,
             notes=notes,
@@ -536,6 +542,8 @@ async def _create_purchase_record_impl(
         )
 
     await _recalc_purchase_document_totals_impl(document_id, db)
+    invalidate_cache_domains("purchases", "catalog", "dashboard")
+    emit(DomainEvent("create", "purchase", purchase_id, f"Achat #{purchase_id}", after=None))
     return purchase_id
 
 
@@ -681,6 +689,10 @@ async def _create_sale_record_impl(
             await db.flush()
 
         await _recalc_sale_document_totals_impl(document_id, db)
+        invalidate_cache_domains("sales", "client", "dashboard")
+        if client_id:
+            invalidate_client_cache(client_id)
+        emit(DomainEvent("create", "sale", row_id, f"Vente finished {requested_sale_type}", after=None))
         if unit_price_kg < cost_snapshot * 0.97 and cost_snapshot > 0:
             _flash_warning(f"Vente sous coût : {unit_price_kg:.2f} DA/kg < coût de revient {cost_snapshot:.2f} DA/kg.")
         return "finished", row_id
@@ -751,6 +763,10 @@ async def _create_sale_record_impl(
         await db.flush()
 
     await _recalc_sale_document_totals_impl(document_id, db)
+    invalidate_cache_domains("sales", "client", "dashboard")
+    if client_id:
+        invalidate_client_cache(client_id)
+    emit(DomainEvent("create", "sale", row_id, f"Vente raw {requested_sale_type}", after=None))
     if unit_price_kg < cost_snapshot * 0.97 and cost_snapshot > 0:
         _flash_warning(f"Vente sous coût : {unit_price_kg:.2f} DA/kg < coût de revient {cost_snapshot:.2f} DA/kg.")
     return "raw", row_id
@@ -778,14 +794,15 @@ async def _reverse_purchase_impl(purchase_id: int, db: AsyncSession) -> bool:
             select(FinishedProduct).where(FinishedProduct.id == row.finished_product_id).with_for_update()
         )
         product = product_res.scalar_one_or_none()
-        if not product or float(product.stock_qty) < float(row.quantity):
+        qty_kg = qty_to_kg(float(row.quantity), row.unit)
+        if not product or float(product.stock_qty) < qty_kg:
             return False
         stock_before = float(product.stock_qty)
-        stock_after = stock_before - float(row.quantity)
+        stock_after = stock_before - qty_kg
 
         current_value = stock_before * float(product.avg_cost)
-        removed_value = float(row.quantity) * float(row.unit_price)
-        restored_value = current_value - removed_value
+        removed_value = float(row.total or (float(row.quantity) * float(row.unit_price)))
+        restored_value = max(0.0, current_value - removed_value)
         avg_cost_restored = round(restored_value / stock_after, 4) if stock_after > 0 else float(product.avg_cost)
 
         product.stock_qty = Decimal(str(stock_after))
@@ -796,7 +813,7 @@ async def _reverse_purchase_impl(purchase_id: int, db: AsyncSession) -> bool:
             "finished",
             int(row.finished_product_id),
             "out",
-            float(row.quantity),
+            qty_kg,
             "kg",
             stock_before,
             stock_after,
@@ -817,8 +834,8 @@ async def _reverse_purchase_impl(purchase_id: int, db: AsyncSession) -> bool:
         stock_after = stock_before - qty_kg
 
         current_value = stock_before * float(material.avg_cost)
-        removed_value = float(row.quantity) * float(row.unit_price)
-        restored_value = current_value - removed_value
+        removed_value = float(row.total or (float(row.quantity) * float(row.unit_price)))
+        restored_value = max(0.0, current_value - removed_value)
         avg_cost_restored = round(restored_value / stock_after, 4) if stock_after > 0 else float(material.avg_cost)
 
         material.stock_qty = Decimal(str(stock_after))
@@ -841,6 +858,8 @@ async def _reverse_purchase_impl(purchase_id: int, db: AsyncSession) -> bool:
 
     if row.document_id:
         await _recalc_purchase_document_totals_impl(int(row.document_id), db)
+    invalidate_cache_domains("purchases", "catalog", "dashboard")
+    emit(DomainEvent("delete", "purchase", purchase_id, f"Suppression achat #{purchase_id}", after=None))
     return True
 
 
@@ -888,6 +907,10 @@ async def _reverse_sale_impl(kind: str, row_id: int, db: AsyncSession) -> bool:
         )
         if row.document_id:
             await _recalc_sale_document_totals_impl(int(row.document_id), db)
+        invalidate_cache_domains("sales", "client", "dashboard")
+        if row.client_id:
+            invalidate_client_cache(row.client_id)
+        emit(DomainEvent("delete", "sale", row_id, "Suppression vente finished", after=None))
         return True
 
     row_res = await db.execute(select(RawSale).where(RawSale.id == row_id))
@@ -919,6 +942,10 @@ async def _reverse_sale_impl(kind: str, row_id: int, db: AsyncSession) -> bool:
     )
     if row.document_id:
         await _recalc_sale_document_totals_impl(int(row.document_id), db)
+    invalidate_cache_domains("sales", "client", "dashboard")
+    if row.client_id:
+        invalidate_client_cache(row.client_id)
+    emit(DomainEvent("delete", "sale", row_id, "Suppression vente raw", after=None))
     return True
 
 
@@ -1021,6 +1048,7 @@ async def _apply_finished_production_impl(
         reference_id,
         db=db,
     )
+    invalidate_cache_domains("finished", "raw", "dashboard", "stock")
 
 
 @async_compat
@@ -1045,6 +1073,10 @@ async def _reverse_production_impl(batch_id: int, db: AsyncSession) -> bool:
     product = product_res.scalar_one_or_none()
     if not product or float(product.stock_qty) < float(batch.output_quantity):
         return False
+
+    prod_stock_before = float(product.stock_qty)
+    prod_output_qty = float(batch.output_quantity)
+
     items_res = await db.execute(select(ProductionBatchItem).where(ProductionBatchItem.batch_id == batch_id))
     items = items_res.scalars().all()
     for item in items:
@@ -1052,10 +1084,10 @@ async def _reverse_production_impl(batch_id: int, db: AsyncSession) -> bool:
             select(RawMaterial).where(RawMaterial.id == item.raw_material_id).with_for_update()
         )
         material = material_res.scalar_one_or_none()
-        stock_before = float(material.stock_qty if material else 0)
-        stock_after = stock_before + float(item.quantity)
+        mat_stock_before = float(material.stock_qty if material else 0)
+        mat_stock_after = mat_stock_before + float(item.quantity)
         if material:
-            material.stock_qty = Decimal(str(stock_after))
+            material.stock_qty = Decimal(str(mat_stock_after))
         await db.flush()
         await record_stock_movement(
             "raw",
@@ -1063,8 +1095,8 @@ async def _reverse_production_impl(batch_id: int, db: AsyncSession) -> bool:
             "in",
             float(item.quantity),
             "kg",
-            stock_before,
-            stock_after,
+            mat_stock_before,
+            mat_stock_after,
             "reverse_production",
             "production",
             batch_id,
@@ -1073,24 +1105,24 @@ async def _reverse_production_impl(batch_id: int, db: AsyncSession) -> bool:
         await _recalc_raw_material_avg_cost_impl(int(item.raw_material_id), db)
         await db.delete(item)
     await db.flush()
-    stock_after = stock_before - float(batch.output_quantity)
 
-    current_value = stock_before * float(product.avg_cost)
+    prod_stock_after = max(0.0, round(prod_stock_before - prod_output_qty, 4))
+    current_value = prod_stock_before * float(product.avg_cost)
     removed_value = float(batch.production_cost)
-    restored_value = current_value - removed_value
-    avg_cost_restored = round(restored_value / stock_after, 4) if stock_after > 0 else float(product.avg_cost)
+    restored_value = max(0.0, current_value - removed_value)
+    avg_cost_restored = round(restored_value / prod_stock_after, 4) if prod_stock_after > 0 else float(product.avg_cost)
 
-    product.stock_qty = Decimal(str(stock_after))
+    product.stock_qty = Decimal(str(prod_stock_after))
     product.avg_cost = Decimal(str(avg_cost_restored))
     await db.flush()
     await record_stock_movement(
         "finished",
         int(batch.finished_product_id),
         "out",
-        float(batch.output_quantity),
+        prod_output_qty,
         "kg",
-        stock_before,
-        stock_after,
+        prod_stock_before,
+        prod_stock_after,
         "reverse_production",
         "production",
         batch_id,
@@ -1098,4 +1130,14 @@ async def _reverse_production_impl(batch_id: int, db: AsyncSession) -> bool:
     )
     await db.delete(batch)
     await db.flush()
+
+    invalidate_cache_domains("finished", "raw", "dashboard", "stock")
+    emit(
+        DomainEvent(
+            "delete",
+            "production",
+            batch_id,
+            f"Annulation production #{batch_id} - produit #{batch.finished_product_id} (-{prod_output_qty}kg)",
+        )
+    )
     return True

@@ -33,6 +33,7 @@ class SaleLineSchema(BaseModel):
 
 class SaleFormSchema(BaseModel):
     client_id: Optional[int] = Field(default=None)
+    sale_type: Optional[str] = Field(default=None)
     sale_date: date = Field(default_factory=date.today)
     notes: Optional[str] = Field(default="")
     lines: List[SaleLineSchema] = Field(default_factory=list)
@@ -62,6 +63,13 @@ class SaleFormSchema(BaseModel):
                     data["client_id"] = int(c_id)
                 except ValueError:
                     data["client_id"] = None
+
+            # Parse sale_type
+            s_type = data.get("sale_type")
+            if s_type and str(s_type).strip().lower() in {"cash", "credit"}:
+                data["sale_type"] = str(s_type).strip().lower()
+            else:
+                data["sale_type"] = None
 
             # Parse date
             s_date = data.get("sale_date")

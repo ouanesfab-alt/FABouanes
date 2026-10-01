@@ -375,3 +375,58 @@ class TestSalesCommandsAsync:
             )
         # session.add doit avoir ete appele avec un StockMovement
         session.add.assert_called_once()
+
+    async def test_create_sale_from_form_cash_with_client(self):
+        from app.modules.sales.commands import SalesCommands
+        from app.modules.sales.schemas_validation import SaleFormSchema
+        from unittest.mock import AsyncMock, patch
+
+        session = self._session()
+        cmd = SalesCommands(session)
+
+        form_data = {
+            "client_id": 5,
+            "sale_type": "cash",
+            "sale_date": "2026-10-01",
+            "item_key": "finished:1",
+            "quantity": "2.0",
+            "unit": "kg",
+            "unit_price": "500.0",
+        }
+        schema = SaleFormSchema.model_validate(form_data)
+
+        with patch("app.modules.sales.validation.SalesValidator.validate_client", new_callable=AsyncMock), \
+             patch.object(cmd, "create_sale_record", new_callable=AsyncMock) as mock_create_rec, \
+             patch.object(cmd.sale_repo, "get_sale_detail", new_callable=AsyncMock, return_value={"id": 100}), \
+             patch("app.modules.sales.commands.invalidate_cache_domains"), \
+             patch("app.modules.sales.commands.emit"):
+            mock_create_rec.return_value = ("finished", 100)
+            res = await cmd.create_sale_from_form(schema)
+
+            assert res["first_line_id"] == 100
+            args, _ = mock_create_rec.call_args
+            assert args[0] == 5  # client_id
+            assert args[6] == "cash"  # sale_type
+            assert args[9] == 1000.0  # amount_paid
+
+    async def test_create_sale_from_form_credit_no_client_raises(self):
+        from app.modules.sales.commands import SalesCommands
+        from app.modules.sales.schemas_validation import SaleFormSchema
+        from app.core.exceptions import ValidationError
+
+        session = self._session()
+        cmd = SalesCommands(session)
+
+        form_data = {
+            "client_id": None,
+            "sale_type": "credit",
+            "sale_date": "2026-10-01",
+            "item_key": "finished:1",
+            "quantity": "2.0",
+            "unit": "kg",
+            "unit_price": "500.0",
+        }
+        schema = SaleFormSchema.model_validate(form_data)
+
+        with pytest.raises(ValidationError, match="Une vente à crédit nécessite un client."):
+            await cmd.create_sale_from_form(schema)

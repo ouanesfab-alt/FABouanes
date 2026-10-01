@@ -106,14 +106,21 @@
     <div class="card entity-form-card" id="section-sale" style="display: none;">
       <form method="post" class="entity-form-grid" id="sale-form" action="/operations/sales/new">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <div class="span-6">
+        <div class="span-4">
           <label for="clientSelect" class="form-label mb-1">Client</label>
           <select name="client_id" class="form-select" id="clientSelect">
             <option value="">Comptoir (cash)</option>
             {% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
           </select>
         </div>
-        <div class="span-6">
+        <div class="span-4">
+          <label for="saleTypeSelect" class="form-label mb-1">Règlement</label>
+          <select name="sale_type" class="form-select" id="saleTypeSelect">
+            <option value="cash" id="optSaleCash">Au comptant (payé)</option>
+            <option value="credit" id="optSaleCredit">À crédit (dette)</option>
+          </select>
+        </div>
+        <div class="span-4">
           <label for="saleDate" class="form-label mb-1">Date de vente</label>
           <input name="sale_date" type="date" class="form-control" id="saleDate">
         </div>
@@ -551,6 +558,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const _localToday = window.getLocalDateISO ? window.getLocalDateISO() : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
     saleDateInput.max = _localToday;
     saleDateInput.value = _localToday;
+  }
+
+  const clientSelect = document.getElementById('clientSelect');
+  const saleTypeSelect = document.getElementById('saleTypeSelect');
+  const optSaleCredit = document.getElementById('optSaleCredit');
+  if (clientSelect && saleTypeSelect) {
+    function syncSaleType() {
+      if (!clientSelect.value) {
+        saleTypeSelect.value = 'cash';
+        if (optSaleCredit) optSaleCredit.disabled = true;
+      } else {
+        if (optSaleCredit) optSaleCredit.disabled = false;
+        if (saleTypeSelect.dataset.touched !== '1') {
+          saleTypeSelect.value = 'credit';
+        }
+      }
+    }
+    clientSelect.addEventListener('change', () => {
+      delete saleTypeSelect.dataset.touched;
+      syncSaleType();
+    });
+    saleTypeSelect.addEventListener('change', () => {
+      saleTypeSelect.dataset.touched = '1';
+    });
+    syncSaleType();
   }
 
  

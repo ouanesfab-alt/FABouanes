@@ -369,7 +369,12 @@ class SalesCommands:
 
         sale_date = schema.sale_date
         notes = schema.notes
-        sale_type = "credit" if client_id else "cash"
+        if schema.sale_type and schema.sale_type.strip().lower() in {"cash", "credit"}:
+            sale_type = schema.sale_type.strip().lower()
+            if sale_type == "credit" and not client_id:
+                raise ValidationError("Une vente à crédit nécessite un client.")
+        else:
+            sale_type = "credit" if client_id else "cash"
         lines = schema.lines
 
         use_document = len(lines) > 1
@@ -381,6 +386,8 @@ class SalesCommands:
             item_kind = parts[0]
             item_id = int(parts[1])
 
+            paid_amount = line.quantity * line.unit_price if sale_type == "cash" else 0.0
+
             created_kind, created_sale_id = await self.create_sale_record(
                 client_id,
                 item_kind,
@@ -391,7 +398,7 @@ class SalesCommands:
                 sale_type,
                 sale_date,
                 notes,
-                0.0 if client_id else line.quantity * line.unit_price,
+                paid_amount,
                 custom_item_name=line.custom_item_name,
             )
 
@@ -432,6 +439,7 @@ class SalesCommands:
             item_kind = parts[0]
             item_id = int(parts[1])
 
+            paid_amount = line.quantity * line.unit_price if sale_type == "cash" else 0.0
             created_lines.append(
                 await self.create_sale_record(
                     client_id,
@@ -443,7 +451,7 @@ class SalesCommands:
                     sale_type,
                     sale_date,
                     notes,
-                    0.0 if client_id else line.quantity * line.unit_price,
+                    paid_amount,
                     document_id=doc_id,
                     custom_item_name=line.custom_item_name,
                 )
@@ -492,7 +500,12 @@ class SalesCommands:
         await SalesValidator.validate_client(client_id, self.session)
         sale_date = schema.sale_date
         notes = schema.notes
-        sale_type = "credit" if client_id else "cash"
+        if schema.sale_type and schema.sale_type.strip().lower() in {"cash", "credit"}:
+            sale_type = schema.sale_type.strip().lower()
+            if sale_type == "credit" and not client_id:
+                raise ValidationError("Une vente à crédit nécessite un client.")
+        else:
+            sale_type = (context["sale_document"].get("sale_type") if context.get("sale_document") else None) or ("credit" if client_id else "cash")
         lines = schema.lines
 
         before = {
@@ -512,6 +525,8 @@ class SalesCommands:
             item_kind = parts[0]
             item_id = int(parts[1])
 
+            paid_amount = line.quantity * line.unit_price if sale_type == "cash" else 0.0
+
             created_lines.append(
                 await self.create_sale_record(
                     client_id,
@@ -523,7 +538,7 @@ class SalesCommands:
                     sale_type,
                     sale_date,
                     notes,
-                    0.0 if client_id else line.quantity * line.unit_price,
+                    paid_amount,
                     document_id=document_id,
                     custom_item_name=line.custom_item_name,
                 )
@@ -563,7 +578,12 @@ class SalesCommands:
         await SalesValidator.validate_client(client_id, self.session)
         sale_date = schema.sale_date
         notes = schema.notes
-        sale_type = "credit" if client_id else "cash"
+        if schema.sale_type and schema.sale_type.strip().lower() in {"cash", "credit"}:
+            sale_type = schema.sale_type.strip().lower()
+            if sale_type == "credit" and not client_id:
+                raise ValidationError("Une vente à crédit nécessite un client.")
+        else:
+            sale_type = before.get("sale_type") or ("credit" if client_id else "cash")
         lines = schema.lines
 
         if not lines:
@@ -585,6 +605,8 @@ class SalesCommands:
                 item_kind = parts[0]
                 item_id = int(parts[1])
 
+                paid_amount = line.quantity * line.unit_price if sale_type == "cash" else 0.0
+
                 created_lines.append(
                     await self.create_sale_record(
                         client_id,
@@ -596,7 +618,7 @@ class SalesCommands:
                         sale_type,
                         sale_date,
                         notes,
-                        0.0 if client_id else line.quantity * line.unit_price,
+                        paid_amount,
                         document_id=doc_id,
                         custom_item_name=line.custom_item_name,
                     )
@@ -637,6 +659,8 @@ class SalesCommands:
         if not await self.reverse_sale(kind, row_id):
             raise ValueError("Impossible de modifier cette vente.")
 
+        paid_amount = line.quantity * line.unit_price if sale_type == "cash" else 0.0
+
         new_kind, new_sale_id = await self.create_sale_record(
             client_id,
             item_kind,
@@ -647,7 +671,7 @@ class SalesCommands:
             sale_type,
             sale_date,
             notes,
-            0.0 if client_id else line.quantity * line.unit_price,
+            paid_amount,
             custom_item_name=line.custom_item_name,
         )
 

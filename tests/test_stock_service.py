@@ -220,3 +220,84 @@ async def test_create_purchase_record_validation():
             item_id=1
         )
     assert "date d'achat" in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_reverse_production_stock_and_cump_restoration():
+    from unittest.mock import AsyncMock
+    from app.services.stock_service import reverse_production
+    from app.core.models import FinishedProduct, ProductionBatch, ProductionBatchItem, RawMaterial
+    from decimal import Decimal
+
+    db = MagicMock(spec=AsyncSession)
+
+    # 1 batch of 100 kg finished product (id=10), cost = 5000 DA
+    batch = ProductionBatch(
+        id=1,
+        finished_product_id=10,
+        output_quantity=100.0,
+        production_cost=5000.0,
+        unit_cost=50.0,
+    )
+    # Finished product has 150 kg stock, avg_cost = 50.0
+    product = FinishedProduct(
+        id=10,
+        name="Produit Test",
+        stock_qty=Decimal("150.0"),
+        avg_cost=Decimal("50.0"),
+        sale_price=Decimal("60.0"),
+    )
+    # 1 raw material item: 90 kg consumed from raw material (id=20) whose current stock is 10 kg
+    item1 = ProductionBatchItem(
+        id=101,
+        batch_id=1,
+        raw_material_id=20,
+        quantity=90.0,
+        unit_cost_snapshot=40.0,
+        line_cost=3600.0,
+    )
+    material1 = RawMaterial(
+        id=20,
+        name="Matière 1",
+        stock_qty=Decimal("10.0"),
+        avg_cost=Decimal("40.0"),
+    )
+
+    # Set up execute returns
+    mock_batch_res = MagicMock()
+    mock_batch_res.scalar_one_or_none.return_value = batch
+
+    mock_prod_res = MagicMock()
+    mock_prod_res.scalar_one_or_none.return_value = product
+
+    mock_items_res = MagicMock()
+    mock_items_res.scalars.return_value.all.return_value = [item1]
+
+    mock_mat_res = MagicMock()
+    mock_mat_res.scalar_one_or_none.return_value = material1
+
+    db.execute.side_effect = [
+        mock_batch_res,  # batch
+        mock_prod_res,   # product
+        mock_items_res,  # items
+        mock_mat_res,    # material1
+    ]
+
+    with patch("app.services.stock_service.record_stock_movement", new_callable=AsyncMock) as mock_mov, \
+         patch("app.services.stock_service._recalc_raw_material_avg_cost_impl", new_callable=AsyncMock), \
+         patch("app.services.stock_service.invalidate_cache_domains"), \
+         patch("app.services.stock_service.emit"):
+
+        ok = await reverse_production(1, db=db)
+        assert ok is True
+
+        # Vérifier que la matière première a été restituée (+90 kg -> 100 kg)
+        assert float(material1.stock_qty) == 100.0
+
+        # Vérifier que le produit fini a été réduit de batch.output_quantity (150 - 100 = 50 kg)
+        # Surtout PAS écrasé par le stock de la matière première (qui était 10.0)
+        assert float(product.stock_qty) == 50.0
+
+        # Vérifier que le CUMP du produit est recalculé sainement
+        assert float(product.avg_cost) == pytest.approx(50.0)
+
