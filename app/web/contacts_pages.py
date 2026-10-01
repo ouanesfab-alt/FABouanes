@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.async_db import get_async_session
 from app.core.permissions import (
     PERMISSION_CONTACTS_DELETE,
     PERMISSION_CONTACTS_READ,
@@ -25,7 +27,7 @@ NEW_SUPPLIER_URL = "/contacts/suppliers/new"
 
 
 @router.get("/contacts", name="contacts")
-async def contacts_page(request: Request):
+async def contacts_page(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_CONTACTS_READ)
     if denied:
         return denied
@@ -34,7 +36,7 @@ async def contacts_page(request: Request):
     return templates.TemplateResponse(
         "contacts.html",
         template_context(
-            request, **await contacts_context(filter_type, filter_name, request.query_params, request.url.path)
+            request, **await contacts_context(filter_type, filter_name, request.query_params, request.url.path, db=db)
         ),
     )
 
@@ -48,7 +50,7 @@ async def suppliers_page(request: Request):
 
 
 @router.post("/suppliers", name="suppliers")
-async def suppliers_submit(request: Request):
+async def suppliers_submit(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
     if denied:
         return denied
@@ -59,7 +61,7 @@ async def suppliers_submit(request: Request):
 
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
-        await create_supplier_from_form(validated.model_dump())
+        await create_supplier_from_form(validated.model_dump(), db=db)
         flash(request, "Fournisseur ajouté avec succès.", "success")
     except Exception as e:
         from app.core.exceptions import get_friendly_error_message
@@ -97,7 +99,7 @@ async def new_supplier_page(request: Request):
 
 @router.post("/contacts/suppliers/new", name="new_supplier")
 @router.post("/suppliers/new", name="compat_new_supplier_submit")
-async def new_supplier_submit(request: Request):
+async def new_supplier_submit(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
     if denied:
         return denied
@@ -108,7 +110,7 @@ async def new_supplier_submit(request: Request):
 
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
-        await create_supplier_from_form(validated.model_dump())
+        await create_supplier_from_form(validated.model_dump(), db=db)
         flash(request, "Fournisseur ajouté avec succès.", "success")
     except Exception as e:
         from app.core.exceptions import get_friendly_error_message
@@ -128,11 +130,11 @@ async def compat_supplier_detail(request: Request, supplier_id: int):
 
 
 @router.get("/contacts/suppliers/{supplier_id}", name="supplier_detail")
-async def supplier_detail(request: Request, supplier_id: int):
+async def supplier_detail(request: Request, supplier_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_CONTACTS_READ)
     if denied:
         return denied
-    context = await get_supplier_detail_context(supplier_id, request.query_params, request.url.path)
+    context = await get_supplier_detail_context(supplier_id, request.query_params, request.url.path, db=db)
     if not context:
         flash(request, "Fournisseur introuvable.", "danger")
         return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
@@ -148,11 +150,11 @@ async def compat_edit_supplier_page(request: Request, supplier_id: int):
 
 
 @router.get("/contacts/suppliers/{supplier_id}/edit", name="edit_supplier")
-async def edit_supplier_page(request: Request, supplier_id: int):
+async def edit_supplier_page(request: Request, supplier_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
     if denied:
         return denied
-    supplier = await get_supplier(supplier_id)
+    supplier = await get_supplier(supplier_id, db=db)
     if not supplier:
         flash(request, "Fournisseur introuvable.", "danger")
         return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
@@ -161,12 +163,12 @@ async def edit_supplier_page(request: Request, supplier_id: int):
 
 @router.post("/contacts/suppliers/{supplier_id}/edit", name="edit_supplier")
 @router.post("/suppliers/{supplier_id}/edit", name="compat_edit_supplier_submit")
-async def edit_supplier_submit(request: Request, supplier_id: int):
+async def edit_supplier_submit(request: Request, supplier_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_CONTACTS_WRITE)
     if denied:
         return denied
     await csrf_protect(request)
-    supplier = await get_supplier(supplier_id)
+    supplier = await get_supplier(supplier_id, db=db)
     if not supplier:
         flash(request, "Fournisseur introuvable.", "danger")
         return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
@@ -176,7 +178,7 @@ async def edit_supplier_submit(request: Request, supplier_id: int):
 
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
-        await update_supplier_from_form(supplier_id, validated.model_dump())
+        await update_supplier_from_form(supplier_id, validated.model_dump(), db=db)
         flash(request, "Fournisseur modifié.", "success")
     except Exception as e:
         from app.core.exceptions import get_friendly_error_message
@@ -189,15 +191,15 @@ async def edit_supplier_submit(request: Request, supplier_id: int):
 
 @router.post("/contacts/suppliers/{supplier_id}/delete", name="delete_supplier")
 @router.post("/suppliers/{supplier_id}/delete", name="compat_delete_supplier")
-async def delete_supplier(request: Request, supplier_id: int):
+async def delete_supplier(request: Request, supplier_id: int, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_CONTACTS_DELETE)
     if denied:
         return denied
     await csrf_protect(request)
-    supplier = await get_supplier(supplier_id)
+    supplier = await get_supplier(supplier_id, db=db)
     if not supplier:
         flash(request, "Fournisseur introuvable.", "danger")
         return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
-    await delete_supplier_by_id(supplier_id)
+    await delete_supplier_by_id(supplier_id, db=db)
     flash(request, "Fournisseur supprimé.", "success")
     return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)

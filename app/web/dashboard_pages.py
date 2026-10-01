@@ -38,20 +38,20 @@ def _assistant_context():
 
 
 @router.get("/", name="index")
-async def index(request: Request):
+async def index(request: Request, db: AsyncSession = Depends(get_async_session)):
     if not get_current_user(request):
         return RedirectResponse("/login", status_code=303)
-    context = await get_dashboard_snapshot()
+    context = await get_dashboard_snapshot(db=db)
     context.update(build_mobile_connect_context(request))
     context.update(_assistant_context())
     return templates.TemplateResponse("dashboard.html", template_context(request, **context))
 
 
 @router.get("/dashboard", name="dashboard")
-async def dashboard(request: Request):
+async def dashboard(request: Request, db: AsyncSession = Depends(get_async_session)):
     if not get_current_user(request):
         return RedirectResponse("/login", status_code=303)
-    context = await get_dashboard_snapshot()
+    context = await get_dashboard_snapshot(db=db)
     context.update(build_mobile_connect_context(request))
     context.update(_assistant_context())
     return templates.TemplateResponse("dashboard.html", template_context(request, **context))
@@ -67,12 +67,12 @@ async def mobile_connect(request: Request):
 
 
 @router.get("/api/kpi-date", name="api_kpi_date")
-async def api_kpi_date(request: Request):
+async def api_kpi_date(request: Request, db: AsyncSession = Depends(get_async_session)):
     if not get_current_user(request):
         return JSONResponse({"error": "Authentification requise."}, status_code=401)
     target_date = request.query_params.get("date", date.today().isoformat())
     try:
-        return JSONResponse(await get_kpis_for_date(target_date))
+        return JSONResponse(await get_kpis_for_date(target_date, db=db))
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception:
@@ -80,7 +80,7 @@ async def api_kpi_date(request: Request):
 
 
 @router.get("/api/kpi-at-date", name="api_kpi_at_date")
-async def api_kpi_at_date(request: Request):
+async def api_kpi_at_date(request: Request, db: AsyncSession = Depends(get_async_session)):
     if not get_current_user(request):
         return JSONResponse({"error": "Authentification requise."}, status_code=401)
     target_date = request.query_params.get("date", date.today().isoformat())
@@ -92,7 +92,7 @@ async def api_kpi_at_date(request: Request):
         "receivables": "Créances",
     }
     try:
-        values = await get_kpis_for_date(target_date)
+        values = await get_kpis_for_date(target_date, db=db)
         value = values.get(metric)
         if value is None:
             return JSONResponse({"error": "Indicateur inconnu"}, status_code=400)
@@ -112,7 +112,7 @@ async def api_kpi_at_date(request: Request):
 
 
 @router.get("/api/kpi-period", name="api_kpi_period")
-async def api_kpi_period(request: Request):
+async def api_kpi_period(request: Request, db: AsyncSession = Depends(get_async_session)):
     if not get_current_user(request):
         return JSONResponse({"error": "Authentification requise."}, status_code=401)
     period = request.query_params.get("period", "today").strip().lower()
@@ -121,7 +121,7 @@ async def api_kpi_period(request: Request):
     try:
         from app.modules.reports.repository import get_kpis_for_period
 
-        kpis = await get_kpis_for_period(period)
+        kpis = await get_kpis_for_period(period, db=db)
         return JSONResponse(
             {
                 "success": True,

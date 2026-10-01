@@ -35,10 +35,20 @@
   .expense-breakdown-val{font-weight:900;color:#dc2626;}
   [data-theme="dark"] .expense-breakdown-val, [data-theme="windows-dark"] .expense-breakdown-val{color:#f87171;}
   @media(max-width:767px){
-    .expenses-table-card{padding:14px;}
+    .expenses-table-card{padding:12px 10px;}
     .expenses-actions{flex-direction:column;}
     .expenses-actions > *{width:100%;flex:1 1 auto;}
-    .expense-breakdown{grid-template-columns:1fr;}
+    .expense-breakdown{
+      display: flex !important;
+      overflow-x: auto !important;
+      gap: 8px !important;
+      flex-wrap: nowrap !important;
+      scrollbar-width: none !important;
+      -webkit-overflow-scrolling: touch !important;
+      padding-bottom: 4px;
+    }
+    .expense-breakdown::-webkit-scrollbar { display: none; }
+    .expense-breakdown-item{ flex: 0 0 auto !important; white-space: nowrap !important; padding: 8px 12px; }
   }
 </style>
 
@@ -91,8 +101,8 @@
         <input type="date" name="date_to" value="{{ filters.date_to }}" class="form-control" title="Date de fin">
       </div>
       <div class="col-md-3 d-flex gap-2">
-        <button class="btn btn-dark w-100">Filtrer</button>
-        <a href="{{ url_for('expenses') }}" class="btn btn-outline-secondary" aria-label="Réinitialiser"><i class="bi bi-x-lg"></i></a>
+        <button class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i>Filtrer</button>
+        <a href="{{ url_for('expenses') }}" class="btn btn-page-action-secondary" aria-label="Réinitialiser" title="Réinitialiser"><i class="bi bi-x-lg"></i></a>
       </div>
     </form>
 
@@ -100,8 +110,8 @@
       <table class="table js-datagrid align-middle table-row-hover">
         <thead>
           <tr>
-            <th style="width:10%">Date</th>
-            <th style="width:15%">Catégorie</th>
+            <th class="hide-mobile" style="width:10%">Date</th>
+            <th class="hide-mobile" style="width:15%">Catégorie</th>
             <th>Description</th>
             <th class="text-end" style="width:14%">Montant</th>
             <th class="hide-mobile" style="width:10%">Méthode</th>
@@ -115,9 +125,12 @@
               data-delete-url="{{ url_for('delete_expense', expense_id=e.id) }}"
               data-delete-label="cette dépense"
               data-label="{{ e.description or e.category }}">
-            <td class="text-muted small">{{ e.date }}</td>
-            <td><span class="expense-cat-badge {{ e.category }}">{{ e.category|capitalize }}</span></td>
-            <td>{{ e.description or '—' }}</td>
+            <td class="text-muted small hide-mobile">{{ e.date }}</td>
+            <td class="hide-mobile"><span class="expense-cat-badge {{ e.category }}">{{ e.category|capitalize }}</span></td>
+            <td>
+              <div class="d-md-none text-muted mb-1" style="font-size:0.72rem;">{{ e.date }} · <span class="expense-cat-badge {{ e.category }}" style="font-size:0.68rem;padding:2px 6px;">{{ e.category|capitalize }}</span></div>
+              <div class="fw-semibold">{{ e.description or '—' }}</div>
+            </td>
             <td class="text-end fw-bold text-danger">{{ e.amount|money }}</td>
             <td class="hide-mobile"><span class="expense-method">{{ e.payment_method|capitalize }}</span></td>
             <td class="text-end text-nowrap">

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity import log_activity
@@ -15,7 +15,7 @@ from app.core.helpers import async_compat, to_float
 from app.core.models import FinishedProduct, ProductionBatch, ProductionBatchItem, RawMaterial, SavedRecipe
 from app.core.perf_cache import async_cached_result
 from app.core.request_state import get_state_value
-from app.core.storage import mark_backup_needed
+from app.core.storage import backup_database, mark_backup_needed
 from app.modules.production.repository import (
     ProductionBatchItemRepository,
     ProductionBatchRepository,
@@ -46,6 +46,9 @@ class ProductionService:
 
     async def delete_production(self, batch_id: int) -> bool:
         return await _delete_production_by_id_impl(batch_id, self.session)
+
+    async def update_notes(self, batch_id: int, production_date: str, notes: str) -> None:
+        await _update_production_notes_impl(batch_id, production_date, notes, self.session)
 
 
 @async_compat
@@ -132,12 +135,20 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
         materials_rows = [m.model_dump() for m in materials_res.scalars().all()]
         materials_map = {m["id"]: m for m in materials_rows}
 
+        from collections import defaultdict
+        needed_by_raw = defaultdict(float)
         for raw_id, qty in valid_inputs:
+            needed_by_raw[raw_id] += qty
+
+        for raw_id, total_needed in needed_by_raw.items():
             material = materials_map.get(raw_id)
             if not material:
                 raise ValueError("Une matière première selectionnee est introuvable.")
-            if qty > float(material["stock_qty"]):
+            if total_needed > float(material["stock_qty"]):
                 raise ValueError(f"Stock insuffisant pour {material['name']}.")
+
+        for raw_id, qty in valid_inputs:
+            material = materials_map.get(raw_id)
             line_cost = qty * float(material["avg_cost"])
             recipe_lines.append(
                 {"material": material, "qty": qty, "unit_cost": float(material["avg_cost"]), "line_cost": line_cost}
@@ -237,3 +248,65 @@ async def _delete_production_by_id_impl(batch_id: int, db: AsyncSession) -> bool
         invalidate_sellable_items_cache()
         mark_backup_needed("delete_production")
     return ok
+
+
+@async_compat
+async def update_production_notes(
+    batch_id: int,
+    production_date: str,
+    notes: str,
+    db: AsyncSession | None = None,
+) -> None:
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            await _update_production_notes_impl(batch_id, production_date, notes, session)
+            await session.commit()
+            return
+    await _update_production_notes_impl(batch_id, production_date, notes, db)
+
+
+async def _update_production_notes_impl(
+    batch_id: int,
+    production_date: str,
+    notes: str,
+    db: AsyncSession,
+) -> None:
+    if not batch_id:
+        raise ValueError("Identifiant manquant.")
+
+    before_res = await db.execute(
+        text("SELECT * FROM production_batches WHERE id = :batch_id"),
+        {"batch_id": batch_id},
+    )
+    before_row = before_res.first()
+    if not before_row:
+        raise ValueError("Production introuvable.")
+    before = dict(before_row._mapping)
+
+    updates = {}
+    if production_date:
+        updates["production_date"] = production_date
+    updates["notes"] = notes
+
+    ALLOWED_KEYS = {"production_date", "notes"}
+    for key in updates:
+        if key not in ALLOWED_KEYS:
+            raise ValueError(f"Key {key} is not allowed for update")
+
+    if not updates:
+        return
+
+    sets = ", ".join(f"{key}=:{key}" for key in updates)
+    values = {**updates, "batch_id": batch_id}
+    await db.execute(text(f"UPDATE production_batches SET {sets} WHERE id = :batch_id"), values)
+
+    after_res = await db.execute(
+        text("SELECT * FROM production_batches WHERE id = :batch_id"),
+        {"batch_id": batch_id},
+    )
+    after_row = after_res.first()
+    after = dict(after_row._mapping) if after_row else before
+
+    log_activity("edit_production_notes", "production", batch_id, f"date={production_date}")
+    audit_event("edit_production_notes", "production", batch_id, before=before, after=after)
+    backup_database("edit_production_notes")

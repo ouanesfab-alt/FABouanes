@@ -29,6 +29,28 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
         {
             "functionDeclarations": [
                 {
+                    "name": "batch_execute_actions",
+                    "description": "Exécute une série ordonnée d'actions métier en une seule fois (ex: créer un client puis ajouter une vente). Permet de valider un plan d'actions multi-étapes en un seul clic.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "actions": {
+                                "type": "ARRAY",
+                                "description": "Liste ordonnée d'actions à exécuter séquentiellement.",
+                                "items": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "name": {"type": "STRING", "description": "Nom de la fonction métier"},
+                                        "args": {"type": "OBJECT", "description": "Arguments de la fonction"}
+                                    },
+                                    "required": ["name", "args"]
+                                }
+                            }
+                        },
+                        "required": ["actions"],
+                    },
+                },
+                {
                     "name": "execute_readonly_sql",
                     "description": "Exécute une requête SQL SELECT en lecture seule et retourne le résultat sous forme de lignes JSON.",
                     "parameters": {

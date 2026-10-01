@@ -438,7 +438,6 @@ class CatalogService:
         return recipe_id
 
 
-
 # Helper methods for controller/route templates mapping
 
 

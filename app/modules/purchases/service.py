@@ -123,9 +123,9 @@ class PurchaseService:
                 document_id=document_id,
                 raw_material_id=item_id,
                 finished_product_id=None,
-                quantity=qty_kg,
+                quantity=qty,
                 unit=unit,
-                unit_price=unit_price_kg,
+                unit_price=unit_price,
                 total=total,
                 purchase_date=purchase_date,
                 notes=notes,
@@ -171,9 +171,9 @@ class PurchaseService:
                 document_id=document_id,
                 raw_material_id=None,
                 finished_product_id=item_id,
-                quantity=qty_kg,
+                quantity=qty,
                 unit=unit,
-                unit_price=unit_price_kg,
+                unit_price=unit_price,
                 total=total,
                 purchase_date=purchase_date,
                 notes=notes,
@@ -222,16 +222,17 @@ class PurchaseService:
             stmt_prod = select(FinishedProduct).where(FinishedProduct.id == row.finished_product_id).with_for_update()
             res_prod = await self.session.execute(stmt_prod)
             product = res_prod.scalar_one_or_none()
-            if not product or float(product.stock_qty) < float(row.quantity):
+            qty_kg = qty_to_kg(float(row.quantity), row.unit)
+            if not product or float(product.stock_qty) < qty_kg:
                 return False
 
             stock_before = float(product.stock_qty)
-            stock_after = stock_before - float(row.quantity)
+            stock_after = stock_before - qty_kg
 
             current_value = stock_before * float(product.avg_cost)
-            removed_value = float(row.quantity) * float(row.unit_price)
+            removed_value = float(row.total)
             restored_value = current_value - removed_value
-            avg_cost_restored = restored_value / stock_after if stock_after > 0 else float(product.avg_cost)
+            avg_cost_restored = max(0.0, restored_value / stock_after) if stock_after > 0 else float(product.avg_cost)
 
             product.stock_qty = stock_after
             product.avg_cost = avg_cost_restored
@@ -243,7 +244,7 @@ class PurchaseService:
                 "finished",
                 int(row.finished_product_id),
                 "out",
-                float(row.quantity),
+                qty_kg,
                 "kg",
                 stock_before,
                 stock_after,
@@ -255,16 +256,17 @@ class PurchaseService:
             stmt_mat = select(RawMaterial).where(RawMaterial.id == row.raw_material_id).with_for_update()
             res_mat = await self.session.execute(stmt_mat)
             material = res_mat.scalar_one_or_none()
-            if not material or float(material.stock_qty) < float(row.quantity):
+            qty_kg = qty_to_kg(float(row.quantity), row.unit)
+            if not material or float(material.stock_qty) < qty_kg:
                 return False
 
             stock_before = float(material.stock_qty)
-            stock_after = stock_before - float(row.quantity)
+            stock_after = stock_before - qty_kg
 
             current_value = stock_before * float(material.avg_cost)
-            removed_value = float(row.quantity) * float(row.unit_price)
+            removed_value = float(row.total)
             restored_value = current_value - removed_value
-            avg_cost_restored = restored_value / stock_after if stock_after > 0 else float(material.avg_cost)
+            avg_cost_restored = max(0.0, restored_value / stock_after) if stock_after > 0 else float(material.avg_cost)
 
             material.stock_qty = stock_after
             material.avg_cost = avg_cost_restored
@@ -276,7 +278,7 @@ class PurchaseService:
                 "raw",
                 int(row.raw_material_id),
                 "out",
-                float(row.quantity),
+                qty_kg,
                 "kg",
                 stock_before,
                 stock_after,

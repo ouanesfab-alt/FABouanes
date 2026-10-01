@@ -80,13 +80,16 @@
 
   @media(max-width:991px) { .detail-stats { grid-template-columns: repeat(2,1fr); } }
   @media(max-width:767px) {
-    .detail-header { padding: 18px 18px 14px; }
-    .detail-stats { grid-template-columns: 1fr; padding: 14px 18px 0; }
-    .detail-table-section { padding: 14px 18px 18px; }
+    .detail-header { padding: 16px 14px 12px; }
+    .detail-stats { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; padding: 10px 14px 0 !important; }
+    .detail-stat { padding: 10px 12px !important; border-radius: 10px !important; }
+    .detail-stat-label { font-size: .62rem !important; }
+    .detail-stat-value { font-size: .95rem !important; }
+    .detail-table-section { padding: 12px 14px 16px; }
     .detail-name { font-size: 1.3rem; }
-    .detail-ref { flex-basis: 100%; }
-    .detail-actions { flex-direction: column; }
-    .detail-actions .btn { width: 100%; }
+    .detail-ref { flex-basis: 100%; padding: 10px 12px; }
+    .detail-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .detail-actions .btn { flex: 1 1 calc(50% - 6px); }
   }
 </style>
 
@@ -162,10 +165,10 @@
           <a href="{{ url_for('print_client_history', client_id=client.id) }}" class="btn btn-outline-primary btn-sm" target="_blank">
             <i class="bi bi-printer me-1"></i>Imprimer
           </a>
-          <a href="{{ url_for('edit_client', client_id=client.id) }}" class="btn btn-outline-secondary btn-sm">
+          <a href="{{ url_for('edit_client', client_id=client.id) }}" class="btn btn-page-action-secondary btn-sm">
             <i class="bi bi-pencil me-1"></i>Éditer
           </a>
-          <a href="{{ url_for('contacts', type='client') }}" class="btn btn-dark btn-sm">
+          <a href="{{ url_for('contacts', type='client') }}" class="btn btn-page-action-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Retour
           </a>
         </div>

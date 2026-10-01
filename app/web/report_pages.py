@@ -3,10 +3,12 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.db import postgres_pool_status
+from app.core.async_db import get_async_session
+
 from app.core.runtime_paths import paths
 from app.services.bon_space_service import find_bon_space_document, list_bon_space_documents
 from app.utils.tool_pages import (
@@ -19,7 +21,6 @@ from app.utils.tool_pages import (
     save_pdf_reader_upload,
     save_user_note,
 )
-from app.version import VERSION_LABEL
 from app.web.deps import csrf_protect, flash, get_current_user, template_context, templates
 
 logger = logging.getLogger("fabouanes.web.report_pages")
@@ -129,7 +130,7 @@ async def service_worker():
 
 @router.get("/pdf-reader", name="pdf_reader")
 @router.get("/bons", name="bons_space")
-async def pdf_reader(request: Request):
+async def pdf_reader(request: Request, db: AsyncSession = Depends(get_async_session)):
     if not get_current_user(request):
         return RedirectResponse("/login", status_code=303)
     q = str(request.query_params.get("q", "") or "").strip()
@@ -138,7 +139,7 @@ async def pdf_reader(request: Request):
     legacy_file = str(request.query_params.get("file", "") or "").strip()
     if legacy_file and not selected_key:
         selected_key = f"pdf:{legacy_file}"
-    documents = await list_bon_space_documents(q=q, kind=kind)
+    documents = await list_bon_space_documents(q=q, kind=kind, db=db)
     selected = find_bon_space_document(documents, selected_key)
     missing_doc_key = selected_key if selected_key and selected is None else ""
     return templates.TemplateResponse(
@@ -192,7 +193,3 @@ async def pdf_reader_file(request: Request, filename: str):
         return JSONResponse({"error": "Not found"}, status_code=404)
     return FileResponse(path, media_type="application/pdf")
 
-
-@router.get("/health", name="health")
-async def health():
-    return JSONResponse({"ok": True, "service": "FABOuanes", "version": VERSION_LABEL, "pool": postgres_pool_status()})

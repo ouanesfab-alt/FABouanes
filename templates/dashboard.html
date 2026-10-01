@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
-	@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;900&display=swap');
+	/* Outfit font loaded via design tokens (css/tokens.css + fonts/fonts.css) */
 
 	.dashboard-shell {
 		display: flex;
@@ -1055,6 +1055,15 @@
 				</button>
 			</div>
 		</div>
+
+		<!-- Sabrina Proactive Quick Suggestion Chips -->
+		<div class="fab-quick-chips" id="fabQuickChips">
+			<button type="button" class="fab-chip-btn" data-prompt="Donne-moi le bilan financier d'aujourd'hui (ventes, achats, versements, dépenses)"><i class="bi bi-lightning-charge text-warning"></i> Bilan du jour</button>
+			<button type="button" class="fab-chip-btn" data-prompt="Quels sont les produits ou matières premières sous le seuil d'alerte de stock ?"><i class="bi bi-exclamation-triangle text-danger"></i> Alertes stocks</button>
+			<button type="button" class="fab-chip-btn" data-prompt="Donne-moi la liste des 5 clients avec les plus grands crédits débiteurs"><i class="bi bi-people text-info"></i> Soldes clients</button>
+			<button type="button" class="fab-chip-btn" data-prompt="Quels sont les derniers lots de production enregistrés ?"><i class="bi bi-gear-wide-connected text-primary"></i> Production</button>
+			<button type="button" class="fab-chip-btn" data-prompt="Sauvegarde la base de données maintenant"><i class="bi bi-shield-check text-success"></i> Sauvegarde</button>
+		</div>
 	</section>
 
 	<!-- ═══ KPIs ═══ -->
@@ -1285,7 +1294,7 @@
 				<i class="bi bi-inbox empty-state-icon"></i>
 				<div class="empty-state-title">Aucune vente pour le moment</div>
 				<div class="empty-state-sub">Créez votre première vente pour commencer à suivre votre activité.</div>
-				<a href="{{ url_for('new_sale') }}" class="btn btn-dark btn-sm mt-3">
+				<a href="{{ url_for('new_sale') }}" class="btn btn-primary btn-sm mt-3">
 					<i class="bi bi-plus-lg me-1"></i> Nouvelle vente
 				</a>
 			</div>

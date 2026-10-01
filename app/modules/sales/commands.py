@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from datetime import date
 import inspect
+import logging
 from typing import Any, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +19,8 @@ from app.modules.sales.repository import RawSaleRepository, SaleDocumentReposito
 from app.modules.sales.schemas_validation import SaleFormSchema
 from app.modules.sales.validation import SalesValidator
 from app.services.stock_service import qty_to_kg
+
+logger = logging.getLogger(__name__)
 
 
 class SalesCommands:
@@ -96,7 +99,7 @@ class SalesCommands:
                 "finished", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "sale", row_id
             )
 
-            if amount_paid > 0 and client_id:
+            if requested_sale_type == "credit" and amount_paid > 0 and client_id:
                 p_row = Payment(
                     client_id=client_id,
                     sale_id=row_id,
@@ -104,7 +107,7 @@ class SalesCommands:
                     payment_type="versement",
                     amount=amount_paid,
                     payment_date=sale_date,
-                    notes="Paiement initial vente",
+                    notes="Paiement initial vente à crédit",
                 )
                 await self._safe_add(p_row)
 
@@ -155,7 +158,7 @@ class SalesCommands:
             "raw", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "raw_sale", row_id
         )
 
-        if amount_paid > 0 and client_id:
+        if requested_sale_type == "credit" and amount_paid > 0 and client_id:
             p_row = Payment(
                 client_id=client_id,
                 raw_sale_id=row_id,
@@ -163,7 +166,7 @@ class SalesCommands:
                 payment_type="versement",
                 amount=amount_paid,
                 payment_date=sale_date,
-                notes="Paiement initial vente",
+                notes="Paiement initial vente à crédit",
             )
             await self._safe_add(p_row)
 
@@ -273,8 +276,6 @@ class SalesCommands:
         reference_id: int | None,
     ) -> None:
         try:
-            from app.core.request_state import get_state_value
-
             actor = get_state_value("user")
             if isinstance(actor, dict) and "username" in actor:
                 username = str(actor["username"])
@@ -297,8 +298,8 @@ class SalesCommands:
                 created_by_username=username,
             )
             await self._safe_add(movement)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Échec d'enregistrement du mouvement de stock : %s", exc)
 
     _DOCUMENT_LINE_TABLES = {"sales": "sales", "raw_sales": "raw_sales"}
 

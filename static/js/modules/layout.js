@@ -110,6 +110,45 @@ export function initLayoutModule() {
     toggle.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
   });
 
+  // ── 0c. Mobile Virtual Keyboard & Viewport Collision Guard ──
+  if (window.visualViewport) {
+    const handleViewportChange = () => {
+      const isMobile = window.innerWidth <= 767;
+      if (!isMobile) {
+        document.body.classList.remove('keyboard-visible');
+        return;
+      }
+      const keyboardOpen = window.visualViewport.height < (window.innerHeight * 0.78);
+      document.body.classList.toggle('keyboard-visible', keyboardOpen);
+      if (keyboardOpen) {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) {
+          setTimeout(() => {
+            active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+        }
+      }
+    };
+    window.visualViewport.addEventListener('resize', handleViewportChange);
+  }
+
+  document.addEventListener('focusin', function (e) {
+    if (window.innerWidth <= 767 && e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) {
+      if (e.target.type !== 'checkbox' && e.target.type !== 'radio') {
+        document.body.classList.add('keyboard-visible');
+      }
+    }
+  });
+  document.addEventListener('focusout', function () {
+    if (window.innerWidth <= 767) {
+      setTimeout(() => {
+        if (!document.activeElement || !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+          document.body.classList.remove('keyboard-visible');
+        }
+      }, 150);
+    }
+  });
+
   // ── 0b. Robust Navbar Dropdown Click Handler (Conflict-free Bootstrap 5 & Fallback) ──
   document.addEventListener('click', function (e) {
     const trigger = e.target.closest('[data-bs-toggle="dropdown"], .nav-link-menu');
@@ -153,16 +192,6 @@ export function initLayoutModule() {
 
 
 
-
-  // ── 1. Global Keyboard Shortcuts (Alt+N -> New Operation) ──
-  document.addEventListener('keydown', function (e) {
-    // Alt+N: Quick New Sale / Operation
-    if (e.altKey && e.key.toLowerCase() === 'n') {
-      e.preventDefault();
-      const newOpBtn = document.querySelector('a[href*="/operations/new"], a[href*="/sales/new"]');
-      if (newOpBtn) newOpBtn.click();
-    }
-  });
 
   // ── 2. Form Auto-Draft UX Protection (Anti-Data Loss) ──
   document.querySelectorAll('form[data-auto-save-draft]').forEach(function(form) {

@@ -5,15 +5,15 @@ import io
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
-from app.core.permissions import PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE, PERMISSION_PRODUCTION_WRITE
+from app.core.permissions import PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
+from app.modules.production.web import edit_production_notes  # noqa: F401 (compat)
 from app.services.print_service import COMPANY_INFO, PRINT_LAYOUT, build_print_payload, generate_invoice_pdf
-from app.services.transactions_service import transactions_context, update_production_notes
+from app.services.transactions_service import transactions_context
 from app.web.deps import (
-    csrf_protect,
     flash,
     get_current_user,
     login_redirect,
@@ -43,7 +43,7 @@ def _print_not_found_response(message: str = "Bon introuvable.") -> HTMLResponse
 
 @router.get("/operations", name="operations")
 @router.get("/transactions", name="transactions")
-async def operations_page(request: Request):
+async def operations_page(request: Request, db: AsyncSession = Depends(get_async_session)):
     denied = require_permission(request, PERMISSION_OPERATIONS_READ)
     if denied:
         return denied
@@ -59,6 +59,7 @@ async def operations_page(request: Request):
             filter_operation=str(request.query_params.get("operation", "") or ""),
             args=large_args,
             path=request.url.path,
+            db=db,
         )
         data = context["transactions"]
 
@@ -152,6 +153,7 @@ async def operations_page(request: Request):
         filter_operation=str(request.query_params.get("operation", "") or ""),
         args=request.query_params,
         path=request.url.path,
+        db=db,
     )
     return templates.TemplateResponse("transactions.html", template_context(request, **context))
 
@@ -222,27 +224,3 @@ async def print_document_page(
     )
 
 
-@router.post("/production/edit-notes", name="edit_production_notes")
-@router.post("/production/notes")
-async def edit_production_notes(request: Request):
-    denied = require_permission(request, PERMISSION_PRODUCTION_WRITE)
-    if denied:
-        return denied
-    await csrf_protect(request)
-    form = await request.form()
-    try:
-        batch_id = int(str(form.get("batch_id", "") or "0"))
-    except ValueError:
-        batch_id = 0
-    try:
-        await update_production_notes(
-            batch_id=batch_id,
-            production_date=str(form.get("production_date", "") or "").strip(),
-            notes=str(form.get("notes", "") or "").strip(),
-        )
-        flash(request, "Notes de production mises à jour.", "success")
-    except Exception as exc:
-        from app.core.exceptions import get_friendly_error_message
-
-        flash(request, get_friendly_error_message(exc), "danger")
-    return RedirectResponse("/production", status_code=303)

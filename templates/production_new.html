@@ -1,253 +1,498 @@
 {% extends 'base.html' %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
-  .production-form-page{display:flex;flex-direction:column;gap:16px;}
-  .production-form-summary{color:var(--muted);font-size:.92rem;}
-  .production-form-shell{max-width:1100px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:16px;}
-  .production-form-card{padding:20px;}
-  .production-form-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;}
-  .production-form-grid .span-12{grid-column:span 12;}
-  .production-form-grid .span-6{grid-column:span 6;}
-  .production-form-grid .span-4{grid-column:span 4;}
-  .production-form-grid .span-3{grid-column:span 3;}
-  .production-form-inline{display:flex;align-items:flex-end;}
-  .production-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
-  .production-metric{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);}
-  .production-metric strong{display:block;font-size:.78rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
-  .production-metric span{font-weight:700;color:var(--text);}
-  .production-form-note{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);
-    color:var(--muted);font-size:.9rem;line-height:1.55;}
-    .production-form-actions{display:flex;gap:10px;flex-wrap:wrap;}
-    .production-form-actions > *{flex:1 1 220px;}
-    .ingredient-row .btn{width:100%;}
-    @media(max-width:991px){
-      .production-metrics{grid-template-columns:repeat(2,minmax(0,1fr));}
-    }
-    @media(max-width:767px){
-      .production-form-card{padding:16px;}
-      .production-form-grid .span-6,.production-form-grid .span-4,.production-form-grid .span-3{grid-column:span 12;}
-      .production-form-inline{align-items:flex-start;}
-      .production-metrics{grid-template-columns:1fr;}
-      .production-form-actions{flex-direction:column;}
-      .production-form-actions > *{width:100%;flex:1 1 auto;}
-    }
-  
-  /* Operations Glass Tab Bar */
-  .operations-tabs {
+  .production-form-page {
     display: flex;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 4px;
-    width: 100%;
-    margin-bottom: 20px;
-    backdrop-filter: blur(10px);
-    overflow: hidden;
+    flex-direction: column;
+    gap: 20px;
   }
-  .operations-tabs .tab-item {
-    flex: 1;
-    text-align: center;
-    padding: 10px 16px;
-    cursor: pointer;
-    font-weight: 600;
-    color: var(--muted);
-    transition: all 0.3s ease;
+  .production-form-shell {
+    max-width: 1100px;
+    margin: 0 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .production-form-card {
+    padding: 24px;
+  }
+  .production-section-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 12px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    border-radius: 8px;
-    font-size: 0.95rem;
+    gap: 8px;
   }
-  .operations-tabs .tab-item:hover {
-    color: var(--text);
-    background: rgba(255, 255, 255, 0.02);
+  .production-section-divider {
+    height: 1px;
+    background: var(--separator);
+    margin: 20px 0;
   }
-  .operations-tabs .tab-item.active {
-    color: #fff;
-    background: linear-gradient(135deg, #10b981, #059669); /* Green emerald for Operations theme */
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+
+  /* Liquid Glass KPI Tiles */
+  .production-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin: 12px 0 20px;
   }
-  @media(max-width:767px){
-    .operations-tabs {
-      flex-wrap: wrap;
-      gap: 4px;
-    }
-    .operations-tabs .tab-item {
-      flex: 1 1 45%;
-      font-size: 0.85rem;
-      padding: 8px 12px;
-    }
+  .prod-kpi-card {
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: transform 0.2s var(--ease-spring), box-shadow 0.2s ease;
+    box-shadow: var(--shadow-sm);
+  }
+  [data-theme="dark"] .prod-kpi-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .prod-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .prod-kpi-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .prod-kpi-value {
+    font-size: 1.35rem;
+    font-weight: 800;
+    font-family: var(--font-title);
+    color: var(--text-primary);
+    line-height: 1.2;
+  }
+  .prod-kpi-sub {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  /* Dynamic progress bar */
+  .prod-progress-wrap {
+    height: 6px;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  [data-theme="dark"] .prod-progress-wrap {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .prod-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #007aff, #34c759);
+    border-radius: 3px;
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Ingredient Rows */
+  .ingredient-row {
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--separator);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  [data-theme="dark"] .ingredient-row {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  .ingredient-row:hover {
+    border-color: var(--glass-border-light);
+  }
+  .ingredient-row .form-control[readonly] {
+    background: transparent !important;
+    border-color: transparent !important;
+    font-size: 0.86rem;
+    box-shadow: none !important;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .production-form-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 8px;
+  }
+
+  @media(max-width: 991px) {
+    .production-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media(max-width: 767px) {
+    .production-form-card { padding: 16px; }
+    .production-kpi-grid { grid-template-columns: 1fr; }
+    .production-form-actions { flex-direction: column; }
+    .production-form-actions > * { width: 100%; }
   }
 </style>
 
 <div class="production-form-page">
   <div class="page-hero mb-0">
     <div>
-      <h2 class="section-title mb-1">Nouvelle production</h2>
-      <p class="production-form-summary mb-0">Définissez le produit final, la recette utilisée et les quantités consommées.</p>
+      <h2 class="section-title mb-1">
+        <i class="bi bi-gear-wide-connected me-2 text-primary"></i>Nouvelle production
+      </h2>
+      <p class="entity-form-summary mb-0">Définissez le produit fini, ajustez le dosage de votre mélange et déduisez automatiquement les stocks de matières premières.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('production') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Historique des lots
+      </a>
     </div>
   </div>
 
   <div class="production-form-shell">
-
-
-    <div class="card production-form-card">
-
-      <form method="post" class="production-form-grid" id="productionForm">
+    <div class="card entity-form-card production-form-card">
+      <form method="post" id="productionForm" class="row g-3">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <div class="span-6">
-          <label for="finishedProduct" class="form-label mb-1">Produit final</label>
+
+        <!-- 1. OBJECTIF DU LOT -->
+        <div class="col-12">
+          <div class="production-section-title">
+            <i class="bi bi-bullseye text-primary"></i>1. Objectif du lot de fabrication
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <label for="finishedProduct" class="form-label mb-1">Produit fini à fabriquer</label>
           <select name="finished_product_id" id="finishedProduct" class="form-select" required>
-            {% for p in products %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+            {% for p in products %}
+            <option value="{{ p.id }}">{{ p.name }}</option>
+            {% endfor %}
           </select>
         </div>
-        <div class="span-3">
-          <label for="outputQty" class="form-label mb-1">Quantité produite</label>
-          <input name="output_quantity" id="outputQty" type="number" inputmode="decimal" step="1" min="0" class="form-control" required>
+
+        <div class="col-md-3 col-6">
+          <label for="outputQty" class="form-label mb-1">Quantité à produire (kg)</label>
+          <input name="output_quantity" id="outputQty" type="number" inputmode="decimal" step="1" min="0" class="form-control" placeholder="Ex: 1000" required>
         </div>
-        <div class="span-3">
-          <label for="productionDate" class="form-label mb-1">Date</label>
+
+        <div class="col-md-3 col-6">
+          <label for="productionDate" class="form-label mb-1">Date de fabrication</label>
           <input name="production_date" id="productionDate" type="date" class="form-control" value="{{ now().strftime('%Y-%m-%d') if now is defined else '' }}" max="{{ now().strftime('%Y-%m-%d') if now is defined else '' }}" required>
         </div>
 
-        <div class="span-6">
-          <label for="savedRecipe" class="form-label mb-1">Recette enregistrée</label>
-          <select id="savedRecipe" class="form-select">
-            <option value="">— Choisir une recette —</option>
-            {% for r in recipes %}<option value="{{ r.id }}" data-product="{{ r.finished_product_id }}">{{ r.finished_name }} — {{ r.name }}</option>{% endfor %}
-          </select>
-          <div class="form-text">Choisissez une recette existante pour préremplir le mélange.</div>
-        </div>
-        <div class="span-4">
-          <label for="recipeName" class="form-label mb-1">Nom de recette à enregistrer</label>
-          <input name="recipe_name" id="recipeName" class="form-control" placeholder="Ex: Demarrage volaille">
-        </div>
-        <div class="span-4 production-form-inline">
-          <div class="form-check mb-2">
-            <input class="form-check-input" type="checkbox" id="saveRecipe" name="save_recipe" value="1" checked>
-            <label class="form-check-label" for="saveRecipe">Sauvegarder cette recette</label>
+        <!-- SÉPARATEUR -->
+        <div class="col-12"><div class="production-section-divider"></div></div>
+
+        <!-- 2. CHOIX DE RECETTE -->
+        <div class="col-12">
+          <div class="production-section-title">
+            <i class="bi bi-journal-bookmark text-primary"></i>2. Formule & Recette
           </div>
         </div>
 
-        <div class="span-12">
-          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-            <label class="form-label mb-0">Recette / mélange</label>
-            <button type="button" id="addIngredient" class="btn btn-outline-secondary btn-sm">Ajouter une matière</button>
+        <div class="col-md-6">
+          <label for="savedRecipe" class="form-label mb-1">Préremplir depuis une recette existante</label>
+          <select id="savedRecipe" class="form-select">
+            <option value="">— Choisir une recette sauvegardée —</option>
+            {% for r in recipes %}
+            <option value="{{ r.id }}" data-product="{{ r.finished_product_id }}">{{ r.finished_name }} — {{ r.name }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text text-muted">Sélectionnez une recette pour charger instantanément les proportions idéales.</div>
+        </div>
+
+        <div class="col-md-4">
+          <label for="recipeName" class="form-label mb-1">Nom de la recette (si sauvegarde)</label>
+          <input name="recipe_name" id="recipeName" class="form-control" placeholder="Ex: Démarrage été 2026">
+        </div>
+
+        <div class="col-md-2 d-flex align-items-center pt-md-4">
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="saveRecipe" name="save_recipe" value="1" checked>
+            <label class="form-check-label small fw-semibold" for="saveRecipe">Sauvegarder</label>
           </div>
+        </div>
+
+        <!-- 3. KPI TILES DU MÉLANGE -->
+        <div class="col-12">
+          <div class="production-kpi-grid">
+            <div class="prod-kpi-card">
+              <div class="prod-kpi-label"><i class="bi bi-layers text-primary"></i>Total incorporé</div>
+              <div class="prod-kpi-value"><span id="recipeUsed">0</span> <small class="text-muted" style="font-size:0.9rem;">kg</small></div>
+              <div class="prod-kpi-sub">Somme des matières</div>
+            </div>
+
+            <div class="prod-kpi-card">
+              <div class="prod-kpi-label"><i class="bi bi-hourglass-split text-warning"></i>Reste à doser</div>
+              <div class="prod-kpi-value"><span id="recipeRemaining">0</span> <small class="text-muted" style="font-size:0.9rem;">kg</small></div>
+              <div class="prod-kpi-sub">Écart restant / cible</div>
+            </div>
+
+            <div class="prod-kpi-card">
+              <div class="prod-kpi-label"><i class="bi bi-pie-chart text-info"></i>Progression</div>
+              <div class="prod-kpi-value" id="recipeProgress">0%</div>
+              <div class="prod-progress-wrap">
+                <div class="prod-progress-bar" id="progressBar"></div>
+              </div>
+            </div>
+
+            <div class="prod-kpi-card">
+              <div class="prod-kpi-label"><i class="bi bi-patch-check text-success"></i>État du mélange</div>
+              <div class="prod-kpi-value" style="font-size: 1.05rem;" id="recipeStatus">Saisissez la quantité</div>
+              <div class="prod-kpi-sub" id="recipeStatusSub">En attente de saisie</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. COMPOSITION EN MATIÈRES PREMIÈRES -->
+        <div class="col-12">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <div class="production-section-title mb-0">
+              <i class="bi bi-boxes text-primary"></i>3. Matières premières consommées
+            </div>
+            <button type="button" id="addIngredient" class="btn btn-outline-primary btn-sm">
+              <i class="bi bi-plus-lg me-1"></i>Ajouter une matière
+            </button>
+          </div>
+        </div>
+
+        <div class="col-12">
           <div id="ingredientRows"></div>
         </div>
 
-        <div class="span-12">
-          <div class="production-metrics">
-            <div class="production-metric"><strong>Total recette</strong><span id="recipeUsed">0.00</span> kg</div>
-            <div class="production-metric"><strong>Reste à ajouter</strong><span id="recipeRemaining">0.00</span> kg</div>
-            <div class="production-metric"><strong>Progression</strong><span id="recipeProgress">0%</span></div>
-            <div class="production-metric"><strong>État</strong><span id="recipeStatus">Saisissez la quantité produite</span></div>
+        <!-- SÉPARATEUR -->
+        <div class="col-12"><div class="production-section-divider"></div></div>
+
+        <!-- 5. REMARQUES & IMPRESSION -->
+        <div class="col-md-6">
+          <label for="productionNotes" class="form-label mb-1">Notes & Observations (optionnel)</label>
+          <textarea name="notes" id="productionNotes" class="form-control" rows="3" placeholder="Numéro de cuve, technicien responsable, spécificités du mélange..."></textarea>
+        </div>
+
+        <div class="col-md-6 d-flex flex-column justify-content-center gap-3">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="prodPrint" name="print_after" value="1" checked>
+            <label class="form-check-label fw-semibold" for="prodPrint">Ouvrir le bon de production après enregistrement</label>
+          </div>
+          <div class="alert alert-info py-2 px-3 mb-0 small" style="background: rgba(0, 122, 255, 0.08); border-color: rgba(0, 122, 255, 0.2); color: var(--text);">
+            <i class="bi bi-info-circle me-1 text-primary"></i>Les stocks des matières premières sélectionnées seront automatiquement déduits et le stock du produit fini sera incrémenté.
           </div>
         </div>
 
-        <div class="span-6 production-form-inline">
-          <div class="form-check mb-2">
-            <input class="form-check-input" type="checkbox" id="prodPrint" name="print_after" value="1" checked>
-            <label class="form-check-label" for="prodPrint">Ouvrir la fiche après enregistrement</label>
-          </div>
-        </div>
-        <div class="span-12">
-          <label for="productionNotes" class="form-label mb-1">Notes</label>
-          <textarea name="notes" id="productionNotes" class="form-control" rows="3" placeholder="Optionnel"></textarea>
-        </div>
-        <div class="span-12">
-          <div class="production-form-note">
-            La recette doit couvrir la quantité produite. L'indicateur d'état et la progression vous montrent immédiatement si le mélange est équilibré.
-          </div>
-        </div>
-        <div class="span-12 production-form-actions">
-          <button class="btn btn-brown"><i class="bi bi-check2-circle me-1"></i>Enregistrer la production</button>
-          <a href="{{ url_for('production') }}" class="btn btn-outline-secondary">Retour</a>
+        <!-- 6. BOUTONS D'ACTION -->
+        <div class="col-12 production-form-actions pt-2">
+          <button type="submit" class="btn btn-primary" id="btnSubmit">
+            <i class="bi bi-gear-wide-connected me-2"></i>Enregistrer la production
+          </button>
+          <a href="{{ url_for('production') }}" class="btn btn-outline-secondary">Annuler</a>
         </div>
       </form>
     </div>
   </div>
 </div>
 {% endblock %}
-{% block scripts %}<script nonce="{{ csp_nonce }}">
-const RAW_MATERIALS={{ raw_materials_json|tojson }};
-const SAVED_RECIPES={{ recipes|tojson }};
-const ingredientRows=document.getElementById('ingredientRows');
-const outputQty=document.getElementById('outputQty');
-const finishedProduct=document.getElementById('finishedProduct');
-const savedRecipe=document.getElementById('savedRecipe');
-const recipeName=document.getElementById('recipeName');
-const recipeUsed=document.getElementById('recipeUsed');
-const recipeRemaining=document.getElementById('recipeRemaining');
-const recipeProgress=document.getElementById('recipeProgress');
-const recipeStatus=document.getElementById('recipeStatus');
-function fmt(n){return (Number(n)||0).toFixed(0);}
-function getMaterial(id){ return RAW_MATERIALS.find(r=>String(r.id)===String(id)); }
-function materialOptions(selectedId=''){return RAW_MATERIALS.map(r=>`<option value="${r.id}" ${String(r.id)===String(selectedId)?'selected':''}>${r.name} (${fmt(r.stock_qty)} ${r.unit})</option>`).join('');}
-function addRow(item={}){
-  const row=document.createElement('div'); row.className='row g-2 ingredient-row mb-2 context-target';
-  row.innerHTML=`<div class="col-md-4"><select name="raw_material_id[]" class="form-select material-select">${materialOptions(item.raw_material_id||'')}</select></div>
-  <div class="col-md-2"><input name="quantity[]" type="number" inputmode="decimal" step="1" min="0" class="form-control qty-input" placeholder="Qté" value="${item.quantity||''}"></div>
-  <div class="col-md-2"><input type="text" class="form-control stock-now" readonly tabindex="-1" placeholder="Stock actuel"></div>
-  <div class="col-md-2"><input type="text" class="form-control stock-left" readonly tabindex="-1" placeholder="Stock restant"></div>
-  <div class="col-md-1"><input type="text" class="form-control recipe-share" readonly tabindex="-1" placeholder="%"></div>
-  <div class="col-md-1 d-flex align-items-center"><button type="button" class="btn btn-outline-danger btn-sm remove-row">×</button></div>`;
-  ingredientRows.appendChild(row); syncRow(row); return row;
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+const RAW_MATERIALS = {{ raw_materials_json|tojson }};
+const SAVED_RECIPES = {{ recipes|tojson }};
+const ingredientRows = document.getElementById('ingredientRows');
+const outputQty = document.getElementById('outputQty');
+const finishedProduct = document.getElementById('finishedProduct');
+const savedRecipe = document.getElementById('savedRecipe');
+const recipeName = document.getElementById('recipeName');
+const recipeUsed = document.getElementById('recipeUsed');
+const recipeRemaining = document.getElementById('recipeRemaining');
+const recipeProgress = document.getElementById('recipeProgress');
+const progressBar = document.getElementById('progressBar');
+const recipeStatus = document.getElementById('recipeStatus');
+const recipeStatusSub = document.getElementById('recipeStatusSub');
+
+function fmt(n) { return (Number(n) || 0).toFixed(0); }
+
+function getMaterial(id) {
+  return RAW_MATERIALS.find(r => String(r.id) === String(id));
 }
-function syncRow(row){
-  const select=row.querySelector('.material-select');
-  const qtyInput=row.querySelector('.qty-input');
-  const stockNow=row.querySelector('.stock-now');
-  const stockLeft=row.querySelector('.stock-left');
-  const recipeShare=row.querySelector('.recipe-share');
-  const mat=getMaterial(select.value);
-  const qty=Number(qtyInput.value||0);
-  const stock=Number(mat?.stock_qty||0);
-  const out=Number(outputQty.value||0);
-  stockNow.value=`${fmt(stock)} ${mat?.unit||'kg'}`;
-  const left=stock-qty;
-  stockLeft.value=`${fmt(left)} ${mat?.unit||'kg'}`;
-  stockLeft.classList.toggle('text-danger', left < 0);
-  recipeShare.value = out>0 ? `${((qty/out)*100).toFixed(1)}%` : '0%';
+
+function materialOptions(selectedId = '') {
+  return RAW_MATERIALS.map(r => {
+    const isSel = String(r.id) === String(selectedId) ? 'selected' : '';
+    return `<option value="${r.id}" ${isSel}>${r.name} (Stock: ${fmt(r.stock_qty)} ${r.unit})</option>`;
+  }).join('');
+}
+
+function addRow(item = {}) {
+  const row = document.createElement('div');
+  row.className = 'ingredient-row context-target';
+  row.innerHTML = `
+    <div class="row g-2 align-items-center">
+      <div class="col-md-4 col-12">
+        <label class="form-label small text-muted mb-1 d-md-none">Matière première</label>
+        <select name="raw_material_id[]" class="form-select material-select">
+          ${materialOptions(item.raw_material_id || '')}
+        </select>
+      </div>
+      <div class="col-md-2 col-6">
+        <label class="form-label small text-muted mb-1 d-md-none">Quantité</label>
+        <input name="quantity[]" type="number" inputmode="decimal" step="1" min="0" class="form-control qty-input" placeholder="Qté" value="${item.quantity || ''}" required>
+      </div>
+      <div class="col-md-2 col-6">
+        <label class="form-label small text-muted mb-1 d-md-none">Stock restant prévu</label>
+        <input type="text" class="form-control stock-left text-center" readonly tabindex="-1" placeholder="Stock restant">
+      </div>
+      <div class="col-md-2 col-6">
+        <label class="form-label small text-muted mb-1 d-md-none">Part %</label>
+        <input type="text" class="form-control recipe-share text-center" readonly tabindex="-1" placeholder="Part %">
+      </div>
+      <div class="col-md-2 col-6 d-flex justify-content-end align-items-center">
+        <button type="button" class="btn btn-outline-danger btn-sm remove-row" title="Supprimer cette ligne">
+          <i class="bi bi-trash3 me-1"></i>Retirer
+        </button>
+      </div>
+    </div>
+  `;
+  ingredientRows.appendChild(row);
+  syncRow(row);
+  return row;
+}
+
+function syncRow(row) {
+  const select = row.querySelector('.material-select');
+  const qtyInput = row.querySelector('.qty-input');
+  const stockLeft = row.querySelector('.stock-left');
+  const recipeShare = row.querySelector('.recipe-share');
+  const mat = getMaterial(select.value);
+  const qty = Number(qtyInput.value || 0);
+  const stock = Number(mat?.stock_qty || 0);
+  const out = Number(outputQty.value || 0);
+
+  const left = stock - qty;
+  stockLeft.value = `${fmt(left)} ${mat?.unit || 'kg'}`;
+  if (left < 0) {
+    stockLeft.style.color = 'var(--system-red)';
+    stockLeft.style.fontWeight = '700';
+  } else {
+    stockLeft.style.color = 'var(--system-green)';
+    stockLeft.style.fontWeight = '600';
+  }
+
+  const sharePct = out > 0 ? ((qty / out) * 100).toFixed(1) : '0';
+  recipeShare.value = `${sharePct}%`;
+
   updateRecipeSummary();
 }
-function updateRecipeSummary(){
-  const total=[...document.querySelectorAll('.qty-input')].reduce((s,i)=>s+(Number(i.value||0)),0);
-  const out=Number(outputQty.value||0);
-  const remain=out-total;
-  recipeUsed.textContent=fmt(total);
-  recipeRemaining.textContent=fmt(remain);
-  recipeProgress.textContent = out>0 ? `${Math.max(0, Math.min(100, (total/out)*100)).toFixed(1)}%` : '0%';
-  if(!out){ recipeStatus.textContent='Saisissez la quantité produite'; recipeStatus.className=''; return; }
-  if(remain>0){ recipeStatus.textContent=`Il reste ${fmt(remain)} kg à ajouter`; recipeStatus.className='text-warning'; }
-  else if(remain<0){ recipeStatus.textContent=`La recette dépasse de ${fmt(Math.abs(remain))} kg`; recipeStatus.className='text-danger'; }
-  else { recipeStatus.textContent='Recette équilibrée'; recipeStatus.className='text-success'; }
+
+function updateRecipeSummary() {
+  const total = [...document.querySelectorAll('.qty-input')].reduce((s, i) => s + (Number(i.value || 0)), 0);
+  const out = Number(outputQty.value || 0);
+  const remain = out - total;
+
+  recipeUsed.textContent = fmt(total);
+  recipeRemaining.textContent = fmt(remain);
+
+  const pct = out > 0 ? Math.max(0, Math.min(100, (total / out) * 100)) : 0;
+  recipeProgress.textContent = `${pct.toFixed(0)}%`;
+  if (progressBar) progressBar.style.width = `${pct}%`;
+
+  if (!out) {
+    recipeStatus.textContent = 'En attente de saisie';
+    recipeStatus.style.color = 'var(--text-secondary)';
+    recipeStatusSub.textContent = 'Saisissez la quantité à produire';
+    return;
+  }
+  if (remain > 0) {
+    recipeStatus.textContent = `Incomplet (${fmt(remain)} kg)`;
+    recipeStatus.style.color = 'var(--system-orange)';
+    recipeStatusSub.textContent = 'Ajoutez des matières pour combler';
+  } else if (remain < 0) {
+    recipeStatus.textContent = `Dépassement (+${fmt(Math.abs(remain))} kg)`;
+    recipeStatus.style.color = 'var(--system-red)';
+    recipeStatusSub.textContent = 'La recette dépasse la quantité';
+  } else {
+    recipeStatus.textContent = 'Recette équilibrée';
+    recipeStatus.style.color = 'var(--system-green)';
+    recipeStatusSub.textContent = 'Mélange 100% conforme';
+  }
 }
-async function loadRecipe(recipeId){
-  ingredientRows.innerHTML='';
-  if(!recipeId){ addRow(); updateRecipeSummary(); return; }
-  let recipe=SAVED_RECIPES.find(r=>String(r.id)===String(recipeId));
-  try{
+
+async function loadRecipe(recipeId) {
+  ingredientRows.innerHTML = '';
+  if (!recipeId) {
+    addRow();
+    updateRecipeSummary();
+    return;
+  }
+  let recipe = SAVED_RECIPES.find(r => String(r.id) === String(recipeId));
+  try {
     const res = await fetch(`/api/recipe/${recipeId}`);
     const data = await res.json();
-    if(data.ok) recipe = data.recipe;
-  }catch(e){}
-  if(!recipe){ addRow(); updateRecipeSummary(); return; }
-  if(String(recipe.finished_product_id)!==String(finishedProduct.value)) finishedProduct.value=String(recipe.finished_product_id);
-  recipeName.value=recipe.name || '';
-  (recipe.items||[]).forEach(item=>addRow(item));
-  if(!(recipe.items||[]).length) addRow();
+    if (data.ok) recipe = data.recipe;
+  } catch (e) {}
+
+  if (!recipe) {
+    addRow();
+    updateRecipeSummary();
+    return;
+  }
+  if (String(recipe.finished_product_id) !== String(finishedProduct.value)) {
+    finishedProduct.value = String(recipe.finished_product_id);
+  }
+  recipeName.value = recipe.name || '';
+  (recipe.items || []).forEach(item => addRow(item));
+  if (!(recipe.items || []).length) addRow();
 }
-function filterRecipes(){
-  const pid=String(finishedProduct.value||'');
-  [...savedRecipe.options].forEach((opt, idx)=>{ if(!idx) return; opt.hidden = opt.dataset.product!==pid; });
-  if(savedRecipe.selectedOptions[0]?.hidden) savedRecipe.value='';
+
+function filterRecipes() {
+  const pid = String(finishedProduct.value || '');
+  [...savedRecipe.options].forEach((opt, idx) => {
+    if (!idx) return;
+    opt.hidden = opt.dataset.product !== pid;
+  });
+  if (savedRecipe.selectedOptions[0]?.hidden) savedRecipe.value = '';
 }
-document.getElementById('addIngredient').addEventListener('click',()=>addRow());
-document.addEventListener('click',e=>{ if(e.target.classList.contains('remove-row')){ const rows=document.querySelectorAll('.ingredient-row'); if(rows.length>1) e.target.closest('.ingredient-row').remove(); updateRecipeSummary(); }});
-document.addEventListener('input',e=>{ if(e.target.classList.contains('qty-input')) syncRow(e.target.closest('.ingredient-row')); if(e.target===outputQty){ document.querySelectorAll('.ingredient-row').forEach(syncRow); updateRecipeSummary(); } });
-document.addEventListener('change',e=>{ if(e.target.classList.contains('material-select')) syncRow(e.target.closest('.ingredient-row')); if(e.target===savedRecipe) loadRecipe(e.target.value); if(e.target===finishedProduct) filterRecipes(); });
-filterRecipes(); addRow();
-</script>{% endblock %}
+
+document.getElementById('addIngredient').addEventListener('click', () => addRow());
+document.addEventListener('click', e => {
+  const removeBtn = e.target.closest('.remove-row');
+  if (removeBtn) {
+    const rows = document.querySelectorAll('.ingredient-row');
+    if (rows.length > 1) {
+      removeBtn.closest('.ingredient-row').remove();
+    }
+    updateRecipeSummary();
+  }
+});
+document.addEventListener('input', e => {
+  if (e.target.classList.contains('qty-input')) {
+    syncRow(e.target.closest('.ingredient-row'));
+  }
+  if (e.target === outputQty) {
+    document.querySelectorAll('.ingredient-row').forEach(syncRow);
+    updateRecipeSummary();
+  }
+});
+document.addEventListener('change', e => {
+  if (e.target.classList.contains('material-select')) {
+    syncRow(e.target.closest('.ingredient-row'));
+  }
+  if (e.target === savedRecipe) loadRecipe(e.target.value);
+  if (e.target === finishedProduct) filterRecipes();
+});
+
+filterRecipes();
+addRow();
+</script>
+{% endblock %}

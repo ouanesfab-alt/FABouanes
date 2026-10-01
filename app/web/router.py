@@ -9,7 +9,6 @@ from app.web.dashboard_pages import router as dashboard_router
 from app.web.deps import verify_csrf_token
 from app.web.manual_pages import router as manual_router
 from app.web.operations_pages import router as operations_router
-from app.web.production_pages import router as production_router
 from app.web.report_pages import router as report_router
 from app.web.search_pages import router as search_router
 
@@ -19,7 +18,6 @@ router.include_router(dashboard_router)
 router.include_router(client_router, dependencies=[Depends(verify_csrf_token)])
 router.include_router(contacts_router, dependencies=[Depends(verify_csrf_token)])
 router.include_router(operations_router, dependencies=[Depends(verify_csrf_token)])
-router.include_router(production_router, dependencies=[Depends(verify_csrf_token)])
 router.include_router(admin_router, dependencies=[Depends(verify_csrf_token)])
 router.include_router(admin_api_router, dependencies=[Depends(verify_csrf_token)])
 router.include_router(report_router, dependencies=[Depends(verify_csrf_token)])

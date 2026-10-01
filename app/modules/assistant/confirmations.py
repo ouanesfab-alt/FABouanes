@@ -40,7 +40,16 @@ def tool_requires_confirmation(tool_name: str) -> bool:
 
 
 def get_tool_confirmation_message(name: str, args: dict) -> str:
-    if name == "execute_write_sql":
+    if name == "batch_execute_actions":
+        actions = args.get("actions", [])
+        msg_parts = [f"Exécuter un plan d'actions groupé de **{len(actions)} opération(s)** :"]
+        for idx, act in enumerate(actions, 1):
+            act_name = act.get("name", "action")
+            act_args = act.get("args", {})
+            sub_msg = get_tool_confirmation_message(act_name, act_args)
+            msg_parts.append(f"**{idx}.** {sub_msg}")
+        return "\n\n".join(msg_parts)
+    elif name == "execute_write_sql":
         query = args.get("query", "")
         dry_summary = dry_run_sql(query)
         return (

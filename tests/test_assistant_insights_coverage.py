@@ -62,7 +62,6 @@ async def test_handle_insights_weather():
         assert "Sunny" in res["weather"]
 
 
-
 @pytest.mark.asyncio
 async def test_handle_insights_explain_profit_decrease():
     mock_session = AsyncMock()

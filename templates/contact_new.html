@@ -35,7 +35,7 @@
         </div>
         <div class="span-6">
           <label for="inputPhone" class="form-label mb-1">Téléphone</label>
-          <input name="phone" class="form-control" value="{{ client.phone if client else '' }}" id="inputPhone">
+          <input name="phone" type="tel" inputmode="tel" class="form-control" value="{{ client.phone if client else '' }}" id="inputPhone">
         </div>
         <div class="span-12">
           <label for="inputAddress" class="form-label mb-1">Adresse</label>

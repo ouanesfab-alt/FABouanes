@@ -50,7 +50,7 @@
   <div class="card catalog-table-card">
     <form method="get" class="row g-2 mb-3 catalog-filter-row">
       <div class="col-md-4">
-        <input type="text" name="q" value="{{ catalog_filters.q }}" class="form-control" placeholder="Nom, type ou unite">
+        <input type="text" name="q" value="{{ catalog_filters.q }}" class="form-control" placeholder="Nom, type ou unité..." id="catalogSearchInput">
       </div>
       <div class="col-md-3">
         <select name="kind" class="form-select">
@@ -67,8 +67,8 @@
         </select>
       </div>
       <div class="col-md-3 d-flex gap-2">
-        <button class="btn btn-dark w-100">Filtrer</button>
-        <a href="{{ url_for('catalog') }}" class="btn btn-outline-secondary" aria-label="Réinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
+        <button class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i>Filtrer</button>
+        <a href="{{ url_for('catalog') }}" class="btn btn-page-action-secondary" aria-label="Réinitialiser les filtres" title="Réinitialiser"><i class="bi bi-x-lg"></i></a>
       </div>
     </form>
     <div class="table-responsive catalog-table-wrap">
@@ -77,7 +77,7 @@
           <tr>
             <th class="col-type hide-mobile">Type</th>
             <th class="col-name">Nom</th>
-            <th class="col-unit">Unité</th>
+            <th class="col-unit hide-mobile">Unité</th>
             <th class="col-stock">Stock</th>
             <th class="col-money hide-mobile text-end" style="width: 1%; white-space: nowrap;">Autonomie</th>
             <th class="col-money hide-mobile">Coût</th>
@@ -92,10 +92,14 @@
               data-delete-url="{{ url_for('delete_raw_material', material_id=i.id) if i.kind == 'Matière première' else url_for('delete_product', product_id=i.id) }}"
               data-label="{{ i.name }}">
             <td class="cell-text col-type hide-mobile"><span class="product-type">{{ i.kind }}</span></td>
-            <td class="cell-text col-name"><span class="product-name">{{ i.name }}</span></td>
-            <td class="cell-text col-unit">{{ i.unit }}</td>
+            <td class="cell-text col-name">
+              <span class="product-name">{{ i.name }}</span>
+              <div class="d-md-none text-muted" style="font-size:0.75rem;">{{ i.kind }}</div>
+            </td>
+            <td class="cell-text col-unit hide-mobile">{{ i.unit }}</td>
             <td class="cell-num col-stock">
               {{ "%.2f"|format(i.stock_qty|float) }}
+              <span class="d-md-none text-muted small">{{ i.unit }}</span>
               {% if i.is_low %}
                 <span class="badge bg-danger ms-1" style="font-size: 0.7rem; padding: 2px 4px;" title="Alerte stock bas !">Alerte</span>
               {% elif i.autonomy_status == 'WARNING' %}

@@ -25,7 +25,6 @@ from app.core.models import (
 from app.core.perf_cache import TTL_FREQUENT, TTL_SEMI_STABLE, async_cached_result
 
 
-
 # --- Dashboard Queries (migrated from dashboard_repository) ---
 
 
@@ -480,7 +479,22 @@ async def _dashboard_daily_summary(today: str, week_iso: str, db: AsyncSession) 
         .scalar_subquery()
     )
     tp_cash = (
-        select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.payment_date == today_date).scalar_subquery()
+        select(
+            func.coalesce(select(func.sum(Sale.amount_paid)).where(Sale.sale_date == today_date).scalar_subquery(), 0)
+            + func.coalesce(
+                select(func.sum(RawSale.amount_paid)).where(RawSale.sale_date == today_date).scalar_subquery(), 0
+            )
+            + func.coalesce(
+                select(func.sum(Payment.amount))
+                .where(
+                    Payment.payment_date == today_date,
+                    Payment.sale_id.is_(None),
+                    Payment.raw_sale_id.is_(None),
+                )
+                .scalar_subquery(),
+                0,
+            )
+        ).scalar_subquery()
     )
     ws_sales = select(func.coalesce(func.sum(Sale.total), 0)).where(Sale.sale_date == week_iso_date).scalar_subquery()
     wrs_sales = (
@@ -576,6 +590,7 @@ async def _build_kpis_for_date(target_date: str, db: AsyncSession) -> dict[str, 
         select(
             func.coalesce(func.sum(Sale.total), 0).label("sales_total"),
             func.coalesce(func.sum(Sale.profit_amount), 0).label("profit"),
+            func.coalesce(func.sum(Sale.amount_paid), 0).label("paid"),
         )
         .where(Sale.sale_date == target_date_obj)
         .cte("s")
@@ -584,13 +599,18 @@ async def _build_kpis_for_date(target_date: str, db: AsyncSession) -> dict[str, 
         select(
             func.coalesce(func.sum(RawSale.total), 0).label("sales_total"),
             func.coalesce(func.sum(RawSale.profit_amount), 0).label("profit"),
+            func.coalesce(func.sum(RawSale.amount_paid), 0).label("paid"),
         )
         .where(RawSale.sale_date == target_date_obj)
         .cte("rs")
     )
     p_cte = (
         select(func.coalesce(func.sum(Payment.amount), 0).label("cash"))
-        .where(Payment.payment_date == target_date_obj)
+        .where(
+            Payment.payment_date == target_date_obj,
+            Payment.sale_id.is_(None),
+            Payment.raw_sale_id.is_(None),
+        )
         .cte("p")
     )
 
@@ -612,7 +632,7 @@ async def _build_kpis_for_date(target_date: str, db: AsyncSession) -> dict[str, 
 
     kpi_query = select(
         (s_cte.c.sales_total + rs_cte.c.sales_total).label("sales"),
-        p_cte.c.cash.label("cash"),
+        (s_cte.c.paid + rs_cte.c.paid + p_cte.c.cash).label("cash"),
         (s_cte.c.profit + rs_cte.c.profit).label("profit"),
         receivables_val.label("receivables"),
     ).select_from(s_cte.join(rs_cte, true()).join(p_cte, true()))
@@ -823,9 +843,25 @@ async def _build_kpis_for_period(period: str, db: AsyncSession) -> dict[str, flo
         .scalar_subquery()
     )
 
+    s_paid = (
+        select(func.coalesce(func.sum(Sale.amount_paid), 0))
+        .where(Sale.sale_date >= start_date, Sale.sale_date <= today_obj)
+        .scalar_subquery()
+    )
+    rs_paid = (
+        select(func.coalesce(func.sum(RawSale.amount_paid), 0))
+        .where(RawSale.sale_date >= start_date, RawSale.sale_date <= today_obj)
+        .scalar_subquery()
+    )
+
     p_cash = (
         select(func.coalesce(func.sum(Payment.amount), 0))
-        .where(Payment.payment_date >= start_date, Payment.payment_date <= today_obj)
+        .where(
+            Payment.payment_date >= start_date,
+            Payment.payment_date <= today_obj,
+            Payment.sale_id.is_(None),
+            Payment.raw_sale_id.is_(None),
+        )
         .scalar_subquery()
     )
 
@@ -848,7 +884,7 @@ async def _build_kpis_for_period(period: str, db: AsyncSession) -> dict[str, flo
 
     query = select(
         (s_sales + rs_sales).label("sales"),
-        p_cash.label("cash"),
+        (s_paid + rs_paid + p_cash).label("cash"),
         (s_profit + rs_profit).label("profit"),
         total_receivables_sub.label("receivables"),
     )
@@ -919,15 +955,39 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
             values[d] = running
 
     elif metric == "cash":
-        q = (
+        q1 = (
+            select(Sale.sale_date, func.sum(Sale.amount_paid))
+            .where(Sale.sale_date >= start_date)
+            .group_by(Sale.sale_date)
+        )
+        res1 = await db.execute(q1)
+        for d, tot in res1.all():
+            if d in values:
+                values[d] += float(tot or 0)
+
+        q2 = (
+            select(RawSale.sale_date, func.sum(RawSale.amount_paid))
+            .where(RawSale.sale_date >= start_date)
+            .group_by(RawSale.sale_date)
+        )
+        res2 = await db.execute(q2)
+        for d, tot in res2.all():
+            if d in values:
+                values[d] += float(tot or 0)
+
+        q3 = (
             select(Payment.payment_date, func.sum(Payment.amount))
-            .where(Payment.payment_date >= start_date)
+            .where(
+                Payment.payment_date >= start_date,
+                Payment.sale_id.is_(None),
+                Payment.raw_sale_id.is_(None),
+            )
             .group_by(Payment.payment_date)
         )
-        res = await db.execute(q)
-        for d, tot in res.all():
+        res3 = await db.execute(q3)
+        for d, tot in res3.all():
             if d in values:
-                values[d] = float(tot or 0)
+                values[d] += float(tot or 0)
 
         # Rendre cumulatif
         running = 0.0

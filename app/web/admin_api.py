@@ -6,9 +6,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_sessionmaker
+from app.core.async_db import get_async_session
 from app.core.db_helpers import db_manager
 from app.core.permissions import (
     PERMISSION_AUDIT_READ,
@@ -51,15 +52,14 @@ def enforce_permission(request: Request, permission: str) -> dict[str, Any]:
 
 
 @router.get("/users")
-async def api_get_users(request: Request):
+async def api_get_users(request: Request, db: AsyncSession = Depends(get_async_session)):
     enforce_permission(request, PERMISSION_USERS_MANAGE)
-    async with get_async_sessionmaker()() as session:
-        users = await list_users(db=session)
+    users = await list_users(db=db)
     return APIResponse.success(data=[dict(u) for u in users])
 
 
 @router.post("/users")
-async def api_create_user(request: Request):
+async def api_create_user(request: Request, db: AsyncSession = Depends(get_async_session)):
     enforce_permission(request, PERMISSION_USERS_MANAGE)
     try:
         data = await request.json()
@@ -73,16 +73,15 @@ async def api_create_user(request: Request):
     if not username or not password:
         return APIResponse.error(message="Nom d'utilisateur et mot de passe requis.")
 
-    async with get_async_sessionmaker()() as session:
-        result = await create_user_account(username, password, role, db=session)
-        if result.get("ok"):
-            await session.commit()
-            return APIResponse.success(message="Utilisateur créé avec succès.")
+    result = await create_user_account(username, password, role, db=db)
+    if result.get("ok"):
+        await db.commit()
+        return APIResponse.success(message="Utilisateur créé avec succès.")
     return APIResponse.error(message=result.get("message", "Erreur lors de la création."))
 
 
 @router.put("/users/{user_id}")
-async def api_update_user(request: Request, user_id: int):
+async def api_update_user(request: Request, user_id: int, db: AsyncSession = Depends(get_async_session)):
     enforce_permission(request, PERMISSION_USERS_MANAGE)
     try:
         data = await request.json()
@@ -93,25 +92,23 @@ async def api_update_user(request: Request, user_id: int):
     is_active = bool(data.get("is_active", True))
     new_password = data.get("new_password", "").strip()
 
-    async with get_async_sessionmaker()() as session:
-        result = await update_user_account(user_id, role, is_active, new_password, db=session)
-        if result.get("ok"):
-            await session.commit()
+    result = await update_user_account(user_id, role, is_active, new_password, db=db)
+    if result.get("ok"):
+        await db.commit()
     return result
 
 
 @router.delete("/users/{user_id}")
-async def api_delete_user(request: Request, user_id: int):
+async def api_delete_user(request: Request, user_id: int, db: AsyncSession = Depends(get_async_session)):
     current_user = enforce_permission(request, PERMISSION_USERS_MANAGE)
 
     # Empêcher la suppression de son propre compte
     if current_user.get("id") == user_id:
         return {"ok": False, "message": "Vous ne pouvez pas supprimer votre propre compte en cours d'utilisation."}
 
-    async with get_async_sessionmaker()() as session:
-        result = await delete_user_account(user_id, db=session)
-        if result.get("ok"):
-            await session.commit()
+    result = await delete_user_account(user_id, db=db)
+    if result.get("ok"):
+        await db.commit()
     return result
 
 
@@ -121,18 +118,17 @@ async def api_delete_user(request: Request, user_id: int):
 
 
 @router.get("/backups")
-async def api_get_backups(request: Request):
+async def api_get_backups(request: Request, db: AsyncSession = Depends(get_async_session)):
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
 
     # Récupérer les sauvegardes locales
     backups = await asyncio.to_thread(list_restore_backups)
 
     # Récupérer l'historique des jobs
-    async with get_async_sessionmaker()() as session:
-        jobs = await list_backup_jobs(limit=30, db=session)
-        from app.services.backup_service import get_backup_settings
+    jobs = await list_backup_jobs(limit=30, db=db)
+    from app.services.backup_service import get_backup_settings
 
-        settings = await get_backup_settings(db=session)
+    settings = await get_backup_settings(db=db)
 
     return {
         "ok": True,
@@ -203,12 +199,11 @@ async def api_upload_and_restore_backup(request: Request, file: UploadFile = Fil
 
 
 @router.post("/backups")
-async def api_trigger_backup(request: Request):
+async def api_trigger_backup(request: Request, db: AsyncSession = Depends(get_async_session)):
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
-    async with get_async_sessionmaker()() as session:
-        result = await create_manual_backup(db=session)
-        if result.get("ok"):
-            await session.commit()
+    result = await create_manual_backup(db=db)
+    if result.get("ok"):
+        await db.commit()
     return result
 
 
@@ -229,17 +224,16 @@ async def api_restore_backup(request: Request):
 
 
 @router.patch("/backups/settings")
-async def api_save_backup_settings(request: Request):
+async def api_save_backup_settings(request: Request, db: AsyncSession = Depends(get_async_session)):
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
     try:
         data = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="Corps de requête JSON invalide.")
 
-    async with get_async_sessionmaker()() as session:
-        result = await save_backup_settings_from_form(data, db=session)
-        if result.get("ok"):
-            await session.commit()
+    result = await save_backup_settings_from_form(data, db=db)
+    if result.get("ok"):
+        await db.commit()
     return result
 
 
@@ -249,13 +243,12 @@ async def api_save_backup_settings(request: Request):
 
 
 @router.get("/audit")
-async def api_get_audit_logs(request: Request):
+async def api_get_audit_logs(request: Request, db: AsyncSession = Depends(get_async_session)):
     enforce_permission(request, PERMISSION_AUDIT_READ)
     query_params = dict(request.query_params)
 
     # Récupérer les données avec filtrage
-    async with get_async_sessionmaker()() as session:
-        data = await _get_filtered_audit_data(query_params, session)
+    data = await _get_filtered_audit_data(query_params, db)
 
     return {
         "ok": True,
@@ -309,22 +302,20 @@ async def api_save_sabrina_settings(request: Request):
 
 
 @router.get("/system")
-async def api_get_system_status(request: Request):
+async def api_get_system_status(request: Request, db: AsyncSession = Depends(get_async_session)):
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
 
-    async with get_async_sessionmaker()() as session:
-        status_info = await get_system_status(db=session)
-        # Récupérer aussi les logs d'erreurs et de performance
-        from sqlalchemy import text
+    status_info = await get_system_status(db=db)
+    from sqlalchemy import text
 
-        error_res = await session.execute(text("SELECT * FROM error_logs ORDER BY id DESC LIMIT 30"))
-        error_logs = [dict(row._mapping) for row in error_res.all()]
+    error_res = await db.execute(text("SELECT * FROM error_logs ORDER BY id DESC LIMIT 30"))
+    error_logs = [dict(row._mapping) for row in error_res.all()]
 
-        perf_res = await session.execute(text("SELECT * FROM performance_logs ORDER BY id DESC LIMIT 40"))
-        perf_logs = [dict(row._mapping) for row in perf_res.all()]
+    perf_res = await db.execute(text("SELECT * FROM performance_logs ORDER BY id DESC LIMIT 40"))
+    perf_logs = [dict(row._mapping) for row in perf_res.all()]
 
-        sys_res = await session.execute(text("SELECT * FROM system_logs ORDER BY id DESC LIMIT 20"))
-        sys_logs = [dict(row._mapping) for row in sys_res.all()]
+    sys_res = await db.execute(text("SELECT * FROM system_logs ORDER BY id DESC LIMIT 20"))
+    sys_logs = [dict(row._mapping) for row in sys_res.all()]
 
     return {
         "ok": True,

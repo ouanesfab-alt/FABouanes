@@ -358,9 +358,6 @@ async def _list_finished_products_impl(
     return rows, total
 
 
-
-
-
 @async_compat
 async def list_production_batches(
     search: str | None = None,

@@ -230,6 +230,9 @@
   <div class="print-doc-actions no-print">
     <button class="btn btn-outline-secondary" id="btnBack"><i class="bi bi-arrow-left me-1"></i>Retour</button>
     <div class="d-flex gap-2 flex-wrap">
+      <button class="btn btn-success d-inline-flex align-items-center" type="button" id="btnShareNative" style="background:#25D366;border-color:#25D366;color:#fff;">
+        <i class="bi bi-whatsapp me-2"></i>Partager
+      </button>
       <button class="btn btn-outline-dark" type="button" onclick="window.print()"><i class="bi bi-printer me-2"></i>Imprimer la page</button>
       <a href="?format=pdf" class="btn btn-dark" id="btnPrint" target="_blank"><i class="bi bi-file-earmark-pdf me-2"></i>Télécharger PDF</a>
     </div>
@@ -240,19 +243,43 @@
 <script nonce="{{ csp_nonce }}">
 (function(){
   const btn = document.getElementById('btnBack');
-  if (!btn) return;
-  btn.addEventListener('click', function(){
-    const ref = document.referrer || '';
-    if (ref && ref !== window.location.href) {
-      window.location.href = ref;
-      return;
-    }
-    if (history.length > 1) {
-      history.back();
-      return;
-    }
-    window.location.href = '{{ url_for('transactions') }}';
-  });
+  if (btn) {
+    btn.addEventListener('click', function(){
+      const ref = document.referrer || '';
+      if (ref && ref !== window.location.href) {
+        window.location.href = ref;
+        return;
+      }
+      if (history.length > 1) {
+        history.back();
+        return;
+      }
+      window.location.href = '{{ url_for('transactions') }}';
+    });
+  }
+
+  const shareBtn = document.getElementById('btnShareNative');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', async function(){
+      const docTitle = document.title || 'Document commercial';
+      const shareUrl = window.location.href;
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: docTitle,
+            text: 'Bonjour, voici le document commercial FABOuanes :',
+            url: shareUrl
+          });
+        } catch(err) {
+          if (err.name !== 'AbortError') {
+            window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent('Document FABOuanes : ' + shareUrl), '_blank');
+          }
+        }
+      } else {
+        window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent('Document FABOuanes : ' + shareUrl), '_blank');
+      }
+    });
+  }
 })();
 </script>
 {% endblock %}

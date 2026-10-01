@@ -72,3 +72,54 @@ def clean_unconfirmed_tool_calls(messages: List[Dict[str, Any]]) -> List[Dict[st
         i += 1
 
     return cleaned
+
+
+def list_persisted_threads(limit: int = 15) -> List[Dict[str, Any]]:
+    """Récupère les fils de discussion sauvegardés en base de données."""
+    try:
+        from app.core.db_helpers import db_manager
+
+        rows = db_manager.query_db(
+            "SELECT id, title, history, updated_at FROM sabrina_threads ORDER BY updated_at DESC LIMIT %s",
+            (limit,),
+        )
+        threads = []
+        for r in rows:
+            try:
+                hist = r["history"]
+            except Exception:
+                hist = r[2]
+            threads.append(
+                {
+                    "id": r["id"] if isinstance(r, dict) else r[0],
+                    "title": r["title"] if isinstance(r, dict) else r[1],
+                    "history": hist if isinstance(hist, list) else [],
+                    "updated_at": str(r["updated_at"] if isinstance(r, dict) else r[3]),
+                }
+            )
+        return threads
+    except Exception as exc:
+        logger.warning("Could not list persisted threads: %s", exc)
+        return []
+
+
+def persist_thread(thread_id: str, title: str, history: List[Dict[str, Any]]) -> bool:
+    """Sauvegarde ou met à jour un fil de discussion dans PostgreSQL."""
+    try:
+        import json
+        from app.core.db_helpers import db_manager
+
+        history_json = json.dumps(history, ensure_ascii=False)
+        db_manager.execute_db(
+            """INSERT INTO sabrina_threads (id, title, history, updated_at)
+               VALUES (%s, %s, %s::jsonb, CURRENT_TIMESTAMP)
+               ON CONFLICT (id) DO UPDATE SET
+                   title = EXCLUDED.title,
+                   history = EXCLUDED.history,
+                   updated_at = CURRENT_TIMESTAMP""",
+            (thread_id, title[:250], history_json),
+        )
+        return True
+    except Exception as exc:
+        logger.warning("Could not persist thread %s: %s", thread_id, exc)
+        return False

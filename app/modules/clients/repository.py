@@ -76,8 +76,9 @@ class ClientRepository(AsyncRepository[Client]):
                 Sale.quantity.label("quantity"),
                 Sale.unit.label("unit"),
                 Sale.total.label("purchase_amount"),
-                literal(0.0).label("payment_amount"),
+                case((Sale.sale_type == "cash", Sale.total), else_=0.0).label("payment_amount"),
                 literal("sale_finished").label("event_type"),
+                Sale.sale_type.label("sale_type"),
             )
             .select_from(Sale)
             .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
@@ -95,8 +96,9 @@ class ClientRepository(AsyncRepository[Client]):
                 RawSale.quantity.label("quantity"),
                 RawSale.unit.label("unit"),
                 RawSale.total.label("purchase_amount"),
-                literal(0.0).label("payment_amount"),
+                case((RawSale.sale_type == "cash", RawSale.total), else_=0.0).label("payment_amount"),
                 literal("sale_raw").label("event_type"),
+                RawSale.sale_type.label("sale_type"),
             )
             .select_from(RawSale)
             .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
@@ -125,6 +127,7 @@ class ClientRepository(AsyncRepository[Client]):
                 case((Payment.payment_type == "avance", Payment.amount), else_=0.0).label("purchase_amount"),
                 case((Payment.payment_type == "versement", Payment.amount), else_=0.0).label("payment_amount"),
                 case((Payment.payment_type == "avance", "advance"), else_="payment").label("event_type"),
+                literal(None).label("sale_type"),
             )
             .select_from(Payment)
             .where(Payment.client_id == client_id)
@@ -144,6 +147,7 @@ class ClientRepository(AsyncRepository[Client]):
             union_stmt.c.purchase_amount,
             union_stmt.c.payment_amount,
             union_stmt.c.event_type,
+            union_stmt.c.sale_type,
         ).order_by(
             union_stmt.c.event_date,
             case((union_stmt.c.event_type.in_(["sale_finished", "sale_raw"]), 0), else_=1),

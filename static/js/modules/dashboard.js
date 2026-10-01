@@ -335,6 +335,47 @@
 			scrollToBottom(false);
 		}
 
+		function renderMarkdownTables(text) {
+			const tableRegex = /((?:^[ \t]*\|.+?\|[ \t]*\r?\n)(?:^[ \t]*\|(?:[ \t]*:?-+:?[ \t]*\|)+[ \t]*\r?\n)(?:^[ \t]*\|.+?\|[ \t]*(?:\r?\n|$))+)/gm;
+			return text.replace(tableRegex, (match) => {
+				const lines = match.trim().split(/\r?\n/).map(l => l.trim());
+				if (lines.length < 2) return match;
+				
+				const parseRow = (line) => {
+					const clean = line.replace(/^\|/, '').replace(/\|$/, '');
+					return clean.split('|').map(c => c.trim());
+				};
+				
+				const headers = parseRow(lines[0]);
+				const alignments = parseRow(lines[1]).map(col => {
+					if (col.startsWith(':') && col.endsWith(':')) return 'center';
+					if (col.endsWith(':')) return 'right';
+					if (col.startsWith(':')) return 'left';
+					return '';
+				});
+				
+				let html = '<div class="fab-chat-table-wrap my-2"><table class="fab-chat-table">';
+				html += '<thead><tr>';
+				headers.forEach((h, i) => {
+					const align = alignments[i] ? ` style="text-align:${alignments[i]}"` : '';
+					html += `<th${align}>${h}</th>`;
+				});
+				html += '</tr></thead><tbody>';
+				
+				for (let r = 2; r < lines.length; r++) {
+					const cols = parseRow(lines[r]);
+					html += '<tr>';
+					cols.forEach((col, i) => {
+						const align = alignments[i] ? ` style="text-align:${alignments[i]}"` : '';
+						html += `<td${align}>${col}</td>`;
+					});
+					html += '</tr>';
+				}
+				html += '</tbody></table></div>';
+				return html;
+			});
+		}
+
 		function parseMarkdown(md) {
 			if (!md) return "";
 			let c = md.replace(/\[REDIRECT:[^\]]+\]/gi, '').replace(/\[THEME:[^\]]+\]/gi, '').trim();
@@ -347,6 +388,8 @@
 			h = h.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-secondary bg-opacity-25">$1</code>');
 			h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 			h = h.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+			// Render Markdown tables BEFORE converting newlines to <br>
+			h = renderMarkdownTables(h);
 			h = h.replace(/\n/g, '<br>');
 			return h;
 		}
@@ -354,16 +397,39 @@
 		// ── Confirmation Bubble ──
 		function appendConfirmationBubble(query, messageText) {
 			const bubble = document.createElement('div');
-			bubble.className = 'fab-chat-bubble system p-3 border-warning';
-			bubble.style.cssText = 'background: rgba(255, 193, 7, 0.08); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 12px; margin: 10px 0; width: 100%; box-sizing: border-box;';
+			bubble.className = 'fab-chat-bubble system p-3';
+			bubble.style.cssText = 'background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 14px; margin: 12px 0; width: 100%; box-sizing: border-box; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 4px 16px rgba(245, 158, 11, 0.08);';
+
+			let detailsHtml = '';
+			try {
+				const parsed = JSON.parse(query);
+				if (parsed && parsed.name) {
+					if (parsed.name === 'batch_execute_actions' && parsed.args && parsed.args.actions) {
+						detailsHtml = '<div class="d-flex flex-column gap-2 mb-3">';
+						parsed.args.actions.forEach((act, idx) => {
+							detailsHtml += `<div class="p-2 rounded bg-dark bg-opacity-50 text-light small d-flex align-items-center gap-2" style="font-size:0.78rem; border:1px solid rgba(255,255,255,0.1);"><span class="badge bg-warning text-dark">${idx+1}</span><strong>${act.name}</strong> <code>${JSON.stringify(act.args || {})}</code></div>`;
+						});
+						detailsHtml += '</div>';
+					} else {
+						detailsHtml = `<pre class="p-2 bg-dark text-light rounded mb-3" style="font-size:0.75rem; overflow-x:auto; font-family: monospace; border:1px solid rgba(255,255,255,0.1);"><code>${query}</code></pre>`;
+					}
+				} else {
+					detailsHtml = `<pre class="p-2 bg-dark text-light rounded mb-3" style="font-size:0.75rem; overflow-x:auto; font-family: monospace; border:1px solid rgba(255,255,255,0.1);"><code>${query}</code></pre>`;
+				}
+			} catch {
+				detailsHtml = `<pre class="p-2 bg-dark text-light rounded mb-3" style="font-size:0.75rem; overflow-x:auto; font-family: monospace; border:1px solid rgba(255,255,255,0.1);"><code>${query}</code></pre>`;
+			}
 
 			bubble.innerHTML = `
-				<div class="fw-bold text-warning mb-2" style="font-size:0.9rem;"><i class="bi bi-shield-lock-fill"></i> Confirmation requise</div>
-				<p class="small mb-2" style="color:var(--text-primary); font-size:0.82rem;">${messageText}</p>
-				<pre class="p-2 bg-dark text-light rounded mb-3" style="font-size:0.75rem; overflow-x:auto; font-family: monospace; border:1px solid rgba(255,255,255,0.1);"><code>${query}</code></pre>
+				<div class="fw-bold text-warning mb-2 d-flex align-items-center gap-2" style="font-size:0.9rem;">
+					<i class="bi bi-shield-lock-fill"></i>
+					<span>Validation d'action requise</span>
+				</div>
+				<p class="small mb-2" style="color:var(--text-primary); font-size:0.84rem; line-height: 1.4;">${parseMarkdown(messageText)}</p>
+				${detailsHtml}
 				<div class="d-flex gap-2">
-					<button class="btn btn-warning btn-sm fw-bold btn-confirm-write" style="font-size:0.78rem; padding: 6px 12px; border-radius: 6px; color: #212529 !important;"><i class="bi bi-check2"></i> Confirmer</button>
-					<button class="btn btn-outline-secondary btn-sm btn-cancel-write" style="font-size:0.78rem; padding: 6px 12px; border-radius: 6px;">Annuler</button>
+					<button class="btn btn-warning btn-sm fw-bold btn-confirm-write" style="font-size:0.8rem; padding: 6px 14px; border-radius: 8px; color: #1e293b !important; box-shadow: 0 2px 6px rgba(245,158,11,0.2);"><i class="bi bi-check2"></i> Confirmer</button>
+					<button class="btn btn-outline-secondary btn-sm btn-cancel-write" style="font-size:0.8rem; padding: 6px 14px; border-radius: 8px;">Annuler</button>
 				</div>
 			`;
 			chatArea.appendChild(bubble);
@@ -893,4 +959,61 @@
 				}
 			}
 		});
+
+		// Quick Chips prompt execution
+		document.addEventListener('click', function (e) {
+			const chip = e.target.closest('.fab-chip-btn');
+			if (chip) {
+				e.preventDefault();
+				const prompt = chip.getAttribute('data-prompt');
+				if (prompt) {
+					input.value = prompt;
+					sendMessage(prompt);
+				}
+			}
+		});
+
+		// Cloud sync for threads
+		async function syncThreadsFromServer() {
+			try {
+				const res = await fetch('/api/assistant/threads', {
+					headers: { 'X-Requested-With': 'XMLHttpRequest' }
+				});
+				if (res.ok) {
+					const data = await res.json();
+					if (data.threads && data.threads.length > 0) {
+						threads = data.threads;
+						localStorage.setItem('fab_assistant_threads', JSON.stringify(threads));
+						loadActiveThread();
+					}
+				}
+			} catch (e) { }
+		}
+
+		async function syncThreadToServer(thread) {
+			if (!thread || !thread.id) return;
+			try {
+				const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || "";
+				await fetch('/api/assistant/threads/save', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrfToken },
+					body: JSON.stringify({
+						thread_id: thread.id,
+						title: thread.title || "Discussion",
+						history: thread.history || []
+					})
+				});
+			} catch (e) { }
+		}
+
+		// Initial sync
+		syncThreadsFromServer();
+
+		// Trigger background sync on saveActiveThread
+		const originalSaveActiveThread = saveActiveThread;
+		saveActiveThread = function () {
+			originalSaveActiveThread();
+			const thread = threads.find(t => t.id === activeThreadId);
+			if (thread) syncThreadToServer(thread);
+		};
 	})();

@@ -336,7 +336,6 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
     from app.core.idempotency import check_idempotency, save_idempotency
     from app.modules.sales.schemas_validation import SaleFormSchema
     from app.modules.sales.service import SalesService
-    from app.services.payment_service import create_payment_from_form
 
     pending_sales = (
         query_db(
@@ -379,6 +378,7 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
                     )
                     processed_count += 1
                 except Exception as exc:
+                    await session.rollback()
                     execute_db(
                         "UPDATE offline_sales_staging SET status = 'failed', error_message = %s, processed_at = CURRENT_TIMESTAMP WHERE id = %s",
                         (str(exc), staging_id),
@@ -391,40 +391,45 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
         or []
     )
     if pending_payments:
-        for r in pending_payments:
-            staging_id = r["id"]
-            idempotency_key = r["idempotency_key"]
-            payload_str = r["payload"]
+        async_sessionmaker = get_async_sessionmaker()
+        async with async_sessionmaker() as session:
+            from app.modules.payments.service import PaymentsService
+            payments_service = PaymentsService(session)
+            for r in pending_payments:
+                staging_id = r["id"]
+                idempotency_key = r["idempotency_key"]
+                payload_str = r["payload"]
 
-            if idempotency_key:
-                cached_res = await check_idempotency(idempotency_key)
-                if cached_res is not None:
+                if idempotency_key:
+                    cached_res = await check_idempotency(idempotency_key)
+                    if cached_res is not None:
+                        execute_db(
+                            "UPDATE offline_payments_staging SET status = 'processed', processed_at = CURRENT_TIMESTAMP WHERE id = %s",
+                            (staging_id,),
+                        )
+                        continue
+
+                try:
+                    payload = json.loads(payload_str)
+                    from app.modules.payments.schemas_validation import PaymentFormSchema
+                    validated_payment = PaymentFormSchema.model_validate(payload)
+                    await payments_service.create_payment_from_form(validated_payment)
+                    await session.commit()
+
+                    if idempotency_key:
+                        await save_idempotency(idempotency_key, {"content": {"ok": True}, "status_code": 200})
+
                     execute_db(
                         "UPDATE offline_payments_staging SET status = 'processed', processed_at = CURRENT_TIMESTAMP WHERE id = %s",
                         (staging_id,),
                     )
-                    continue
-
-            try:
-                payload = json.loads(payload_str)
-                from app.core.db_helpers import db_transaction
-
-                with db_transaction():
-                    await create_payment_from_form(payload)
-
-                if idempotency_key:
-                    await save_idempotency(idempotency_key, {"content": {"ok": True}, "status_code": 200})
-
-                execute_db(
-                    "UPDATE offline_payments_staging SET status = 'processed', processed_at = CURRENT_TIMESTAMP WHERE id = %s",
-                    (staging_id,),
-                )
-                processed_count += 1
-            except Exception as exc:
-                execute_db(
-                    "UPDATE offline_payments_staging SET status = 'failed', error_message = %s, processed_at = CURRENT_TIMESTAMP WHERE id = %s",
-                    (str(exc), staging_id),
-                )
+                    processed_count += 1
+                except Exception as exc:
+                    await session.rollback()
+                    execute_db(
+                        "UPDATE offline_payments_staging SET status = 'failed', error_message = %s, processed_at = CURRENT_TIMESTAMP WHERE id = %s",
+                        (str(exc), staging_id),
+                    )
 
     await update_task_progress(
         job_id, 100, f"Synchronisation hors-ligne terminée. {processed_count} opérations synchronisées."

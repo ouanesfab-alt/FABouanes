@@ -8,9 +8,11 @@ import csv
 import io
 from datetime import date
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.async_db import get_async_session
 from app.core.rate_limit import limiter
 from app.modules.accounting.scf_service import SCFService
 from app.web.deps import get_current_user, template_context, templates
@@ -20,16 +22,19 @@ router = APIRouter()
 
 @router.get("/accounting/scf", name="accounting_scf_dashboard")
 @limiter.limit("20/minute")
-async def accounting_dashboard(request: Request):
+async def accounting_dashboard(
+    request: Request,
+    db: AsyncSession = Depends(get_async_session),
+):
     user = get_current_user(request)
     if not user:
         from fastapi.responses import RedirectResponse
 
         return RedirectResponse("/login", status_code=303)
 
-    balance = await SCFService.get_balance_generale()
-    tcr = await SCFService.get_tcr()
-    bilan = await SCFService.get_bilan()
+    balance = await SCFService.get_balance_generale(db=db)
+    tcr = await SCFService.get_tcr(balance=balance, db=db)
+    bilan = await SCFService.get_bilan(balance=balance, db=db)
 
     return templates.TemplateResponse(
         "accounting_scf.html",
@@ -39,14 +44,17 @@ async def accounting_dashboard(request: Request):
 
 @router.get("/accounting/balance/export", name="accounting_balance_export")
 @limiter.limit("10/minute")
-async def export_balance(request: Request):
+async def export_balance(
+    request: Request,
+    db: AsyncSession = Depends(get_async_session),
+):
     user = get_current_user(request)
     if not user:
         from fastapi.responses import RedirectResponse
 
         return RedirectResponse("/login", status_code=303)
 
-    balance = await SCFService.get_balance_generale()
+    balance = await SCFService.get_balance_generale(db=db)
 
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
@@ -106,7 +114,10 @@ async def export_balance(request: Request):
 @router.get("/accounting/scf/export-excel", name="accounting_scf_export_excel")
 @router.get("/accounting/export-excel", name="accounting_export_excel")
 @limiter.limit("10/minute")
-async def export_scf_excel(request: Request):
+async def export_scf_excel(
+    request: Request,
+    db: AsyncSession = Depends(get_async_session),
+):
     user = get_current_user(request)
     if not user:
         from fastapi.responses import RedirectResponse
@@ -116,9 +127,9 @@ async def export_scf_excel(request: Request):
     import openpyxl
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
-    balance = await SCFService.get_balance_generale()
-    tcr = await SCFService.get_tcr(balance=balance)
-    bilan = await SCFService.get_bilan(balance=balance)
+    balance = await SCFService.get_balance_generale(db=db)
+    tcr = await SCFService.get_tcr(balance=balance, db=db)
+    bilan = await SCFService.get_bilan(balance=balance, db=db)
 
     wb = openpyxl.Workbook()
 
@@ -285,4 +296,3 @@ async def export_scf_excel(request: Request):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
-

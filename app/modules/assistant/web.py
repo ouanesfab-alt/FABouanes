@@ -295,3 +295,38 @@ async def test_api_key_endpoint(request: Request):
                 return JSONResponse({"success": False, "error": friendly_err})
     except Exception as e:
         return JSONResponse({"success": False, "error": f"Erreur de communication : {str(e)}"})
+
+
+@router.get("/api/assistant/threads")
+async def get_assistant_threads(request: Request):
+    """Récupère l'historique des discussions sauvegardé en base de données."""
+    denied = require_permission(request, "assistant.read")
+    if denied:
+        return JSONResponse({"threads": []}, status_code=403)
+    from app.modules.assistant.history import list_persisted_threads
+
+    threads = list_persisted_threads(limit=20)
+    return JSONResponse({"threads": threads})
+
+
+@router.post("/api/assistant/threads/save")
+async def save_assistant_thread(request: Request):
+    """Enregistre ou met à jour un fil de discussion dans la base de données."""
+    denied = require_permission(request, "assistant.write")
+    if denied:
+        return JSONResponse({"success": False, "error": "Non autorisé"}, status_code=403)
+    try:
+        data = await request.json()
+        thread_id = str(data.get("thread_id", "")).strip()
+        title = str(data.get("title", "Discussion")).strip()
+        history = data.get("history", [])
+
+        if not thread_id:
+            return JSONResponse({"success": False, "error": "thread_id manquant"}, status_code=400)
+
+        from app.modules.assistant.history import persist_thread
+
+        ok = persist_thread(thread_id, title, history)
+        return JSONResponse({"success": ok})
+    except Exception as exc:
+        return JSONResponse({"success": False, "error": str(exc)}, status_code=500)

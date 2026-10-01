@@ -18,7 +18,7 @@
         class="{{ 'active' if request.endpoint in ['catalog','catalog_new','raw_materials'] else '' }}"><i
           class="bi bi-box-seam me-1"></i>Produits</a>
       <a href="{{ url_for('operations') }}" class="{{ 'active' if operations_nav_active else '' }}"><i
-          class="bi bi-arrow-left-right me-1"></i>Opérations<span id="offline-pending-badge" class="badge bg-warning text-dark ms-1" hidden title="Opérations en attente de synchronisation"></span><span id="network-status-icon" class="ms-1" title="Statut réseau"><i class="bi bi-wifi" id="icon-online" style="color:#4ade80;font-size:.75rem"></i><i class="bi bi-wifi-off d-none" id="icon-offline" style="color:#fb923c;font-size:.75rem"></i></span></a>
+          class="bi bi-arrow-left-right me-1"></i>Opérations<span id="offline-pending-badge" class="badge bg-warning text-dark ms-1 offline-pending-badge" hidden title="Opérations en attente de synchronisation"></span></a>
 
 
       <div class="dropdown">
@@ -57,8 +57,15 @@
     <div class="nav-spacer d-none d-md-flex" style="align-items:center; justify-content:center;">
       <span id="navClock" class="nav-clock d-none d-md-inline-block">00:00:00</span>
     </div>
-    <!-- Desktop actions -->
+    <!-- Desktop & Mobile actions -->
     <div class="nav-actions">
+      <!-- Interactive Network & Sync Status Pill -->
+      <button type="button" class="network-pill me-2 border-0" id="navNetworkStatus"
+              aria-label="Statut réseau et synchronisation" title="Statut réseau : En ligne">
+        <span class="network-pill-dot" id="networkPillDot"></span>
+        <i class="bi bi-arrow-repeat network-pill-icon d-none" id="networkPillIcon"></i>
+        <span class="network-pill-label d-none d-sm-inline" id="networkPillLabel">En ligne</span>
+      </button>
       <button type="button" class="nav-btn d-flex" id="globalSearchBtn"
               aria-label="Recherche rapide" title="Recherche rapide (Ctrl+K)">
          <i class="bi bi-search"></i>

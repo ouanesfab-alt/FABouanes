@@ -10,13 +10,66 @@ import {
 
 const SYNC_ENDPOINT = '/api/mobile/v1/offline/sync';
 
-/** Met à jour le badge dans la navbar */
+/** Met à jour le badge dans la navbar (desktop et mobile) */
 async function updatePendingBadge() {
   const count = await countPending();
-  const badge = document.getElementById('offline-pending-badge');
-  if (!badge) return;
-  badge.textContent = count > 0 ? String(count) : '';
-  badge.hidden      = count === 0;
+  const badges = document.querySelectorAll('#offline-pending-badge, .offline-pending-badge, #mobile-offline-pending-badge');
+  badges.forEach(badge => {
+    badge.textContent = count > 0 ? String(count) : '';
+    badge.hidden = count === 0;
+  });
+  await updateNetworkPillUI();
+}
+
+/** Met à jour la pilule réseau interactive dans la navbar */
+export async function updateNetworkPillUI() {
+  const pill = document.getElementById('navNetworkStatus');
+  if (!pill) return;
+  const dot = document.getElementById('networkPillDot');
+  const icon = document.getElementById('networkPillIcon');
+  const label = document.getElementById('networkPillLabel');
+
+  const online = navigator.onLine;
+  let count = 0;
+  try {
+    count = await countPending();
+  } catch (e) {}
+
+  // Ne pas écraser l'affichage si une synchronisation manuelle est active
+  if (pill.classList.contains('is-syncing')) return;
+
+  pill.classList.remove('is-offline', 'is-pending', 'is-online', 'is-success');
+
+  if (!online) {
+    pill.classList.add('is-offline');
+    if (dot) dot.classList.add('d-none');
+    if (icon) {
+      icon.className = 'bi bi-wifi-off network-pill-icon';
+      icon.classList.remove('d-none', 'spinning');
+    }
+    if (label) label.textContent = count > 0 ? `${count} (Hors-ligne)` : 'Hors-ligne';
+    pill.setAttribute('title', `Mode hors-ligne${count > 0 ? ` — ${count} opération(s) en attente locale` : ''}`);
+    return;
+  }
+
+  if (count > 0) {
+    pill.classList.add('is-pending');
+    if (dot) dot.classList.add('d-none');
+    if (icon) {
+      icon.className = 'bi bi-arrow-repeat network-pill-icon';
+      icon.classList.remove('d-none', 'spinning');
+    }
+    if (label) label.textContent = `${count} en attente`;
+    pill.setAttribute('title', `${count} opération(s) en attente — Cliquer pour synchroniser`);
+    return;
+  }
+
+  // En ligne et synchronisé
+  pill.classList.add('is-online');
+  if (dot) dot.classList.remove('d-none');
+  if (icon) icon.classList.add('d-none');
+  if (label) label.textContent = 'En ligne';
+  pill.setAttribute('title', 'Connecté au réseau — Données synchronisées');
 }
 
 /** Synchronise toutes les opérations en attente */
@@ -117,16 +170,77 @@ function showSyncToast(message, type = 'success') {
 /** Initialise la synchronisation et les listeners réseau */
 export function initOfflineSync() {
   updatePendingBadge();
+  updateNetworkPillUI();
   cacheReferenceData();
 
+  window.syncPendingOperations = syncPendingOperations;
+  window.updateNetworkPillUI = updateNetworkPillUI;
+
+  // Clic interactif sur la pilule de statut
+  const pill = document.getElementById('navNetworkStatus');
+  if (pill && !pill.dataset.bound) {
+    pill.dataset.bound = '1';
+    pill.addEventListener('click', async (e) => {
+      e.preventDefault();
+      if (pill.classList.contains('is-syncing')) return;
+
+      if (!navigator.onLine) {
+        showSyncToast('Connexion internet requise pour synchroniser.', 'warning');
+        if (navigator.vibrate) navigator.vibrate(30);
+        return;
+      }
+
+      const dot = document.getElementById('networkPillDot');
+      const icon = document.getElementById('networkPillIcon');
+      const label = document.getElementById('networkPillLabel');
+
+      pill.classList.add('is-syncing');
+      if (dot) dot.classList.add('d-none');
+      if (icon) {
+        icon.className = 'bi bi-arrow-repeat network-pill-icon spinning';
+        icon.classList.remove('d-none');
+      }
+      if (label) label.textContent = 'Synchronisation…';
+      pill.setAttribute('title', 'Synchronisation en cours…');
+
+      const res = await syncPendingOperations();
+
+      pill.classList.remove('is-syncing');
+      if (res.failed === 0) {
+        pill.classList.add('is-success');
+        if (icon) {
+          icon.className = 'bi bi-check2 network-pill-icon';
+          icon.classList.remove('d-none', 'spinning');
+        }
+        if (label) label.textContent = res.synced > 0 ? 'Synchronisé !' : 'À jour ✓';
+        pill.setAttribute('title', 'Toutes les données sont synchronisées');
+        setTimeout(() => {
+          updateNetworkPillUI();
+        }, 2200);
+      } else {
+        await updateNetworkPillUI();
+      }
+    });
+  }
+
   window.addEventListener('online', async () => {
+    updateNetworkPillUI();
     showSyncToast('Connexion rétablie — synchronisation en cours…', 'info');
     await syncPendingOperations();
     await cacheReferenceData();
+    updateNetworkPillUI();
+  });
+
+  window.addEventListener('offline', () => {
+    updateNetworkPillUI();
   });
 
   // Sync périodique toutes les 2 minutes si en ligne
   setInterval(async () => {
-    if (navigator.onLine) await syncPendingOperations();
+    if (navigator.onLine) {
+      await syncPendingOperations();
+      updateNetworkPillUI();
+    }
   }, 120_000);
 }
+

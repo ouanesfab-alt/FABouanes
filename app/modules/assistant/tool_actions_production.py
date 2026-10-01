@@ -55,12 +55,30 @@ async def handle_production(
                 )
                 recipe_items = items_res.scalars().all()
 
+                from collections import defaultdict
+                needed_stock = defaultdict(float)
                 for item in recipe_items:
-                    mat_res = await session.execute(select(RawMaterial).where(RawMaterial.id == item.raw_material_id))
+                    needed_stock[item.raw_material_id] += float(item.quantity) * quantity
+
+                materials_cache = {}
+                for raw_id, total_needed in needed_stock.items():
+                    mat_res = await session.execute(select(RawMaterial).where(RawMaterial.id == raw_id))
                     material = mat_res.scalar_one_or_none()
                     if not material:
-                        return {"error": f"Matière première ID {item.raw_material_id} introuvable dans la recette."}
+                        return {"error": f"Matière première ID {raw_id} introuvable dans la recette."}
+                    current_stock = getattr(material, "stock_qty", None)
+                    if current_stock is not None and float(current_stock) < total_needed:
+                        return {
+                            "error": (
+                                f"Stock insuffisant pour {material.name} : "
+                                f"{float(current_stock):.2f} kg disponibles, "
+                                f"{total_needed:.2f} kg requis pour produire {quantity} unités."
+                            )
+                        }
+                    materials_cache[raw_id] = material
 
+                for item in recipe_items:
+                    material = materials_cache[item.raw_material_id]
                     req_qty = float(item.quantity) * quantity
                     line_cost = req_qty * float(material.avg_cost)
                     recipe_lines.append(

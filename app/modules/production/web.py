@@ -18,6 +18,7 @@ from app.modules.production.service import (
     delete_production_by_id,
     new_production_context,
     productions_context,
+    update_production_notes,
 )
 from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
 
@@ -150,4 +151,31 @@ async def delete_production(request: Request, batch_id: int, db: AsyncSession = 
         flash(request, "Production supprimée et stock corrigé.", "success")
     else:
         flash(request, "Impossible de supprimer cette production.", "danger")
+    return RedirectResponse("/production", status_code=303)
+
+
+@router.post("/production/edit-notes", name="edit_production_notes")
+@router.post("/production/notes")
+async def edit_production_notes(request: Request, db: AsyncSession = Depends(get_async_session)):
+    denied = require_permission(request, PERMISSION_PRODUCTION_WRITE)
+    if denied:
+        return denied
+    await csrf_protect(request)
+    form = await request.form()
+    try:
+        batch_id = int(str(form.get("batch_id", "") or "0"))
+    except ValueError:
+        batch_id = 0
+    try:
+        await update_production_notes(
+            batch_id=batch_id,
+            production_date=str(form.get("production_date", "") or "").strip(),
+            notes=str(form.get("notes", "") or "").strip(),
+            db=db,
+        )
+        flash(request, "Notes de production mises à jour.", "success")
+    except Exception as exc:
+        from app.core.exceptions import get_friendly_error_message
+
+        flash(request, get_friendly_error_message(exc), "danger")
     return RedirectResponse("/production", status_code=303)

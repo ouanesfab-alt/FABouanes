@@ -214,10 +214,11 @@ async def _build_supplier_detail_context(supplier_id: int, db: AsyncSession) -> 
     res = await db.execute(
         text("""
         SELECT p.id, p.document_id, p.purchase_date AS event_date,
-               COALESCE(NULLIF(p.custom_item_name, ''), r.name) AS designation,
-               p.quantity, COALESCE(p.unit, r.unit, 'kg') AS unit, p.unit_price, p.total, p.notes
+               COALESCE(NULLIF(p.custom_item_name, ''), fp.name, r.name, 'Article') AS designation,
+               p.quantity, COALESCE(p.unit, fp.default_unit, r.unit, 'kg') AS unit, p.unit_price, p.total, p.notes
         FROM purchases p
-        JOIN raw_materials r ON r.id = p.raw_material_id
+        LEFT JOIN raw_materials r ON r.id = p.raw_material_id
+        LEFT JOIN finished_products fp ON fp.id = p.finished_product_id
         WHERE p.supplier_id = :supplier_id
         ORDER BY p.purchase_date DESC, p.id DESC
         """),

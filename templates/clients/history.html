@@ -4,6 +4,15 @@
   /* ── macOS-style History Page ── */
   .hist-shell { max-width: 1080px; margin: 0 auto; }
 
+  .mac-surface {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.04); overflow: hidden;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  }
+  [data-theme="dark"] .mac-surface {
+    background: rgba(13,20,38,.55); border-color: rgba(255,255,255,.08);
+    box-shadow: 0 8px 32px rgba(0,0,0,.3);
+  }
 
   /* Header */
   .hist-header {
@@ -84,18 +93,21 @@
 
   @media(max-width:991px) { .hist-stats { grid-template-columns: repeat(2,1fr); } }
   @media(max-width:767px) {
-    .hist-header { padding: 16px 18px; }
-    .hist-stats { grid-template-columns: 1fr; padding: 14px 18px 0; }
-    .hist-table-section { padding: 14px 18px 18px; }
+    .hist-header { padding: 14px 14px 12px; }
+    .hist-stats { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; padding: 10px 14px 0 !important; }
+    .hist-stat { padding: 10px 12px !important; border-radius: 10px !important; }
+    .hist-stat-label { font-size: .62rem !important; }
+    .hist-stat-value { font-size: .95rem !important; }
+    .hist-table-section { padding: 12px 14px 16px; }
     .hist-name { font-size: 1.2rem; }
-    .hist-balance-box { min-width: unset; flex: 1; }
-    .hist-actions { flex-direction: column; }
-    .hist-actions .btn { width: 100%; }
+    .hist-balance-box { min-width: unset; flex: 1; padding: 8px 12px; }
+    .hist-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .hist-actions .btn { flex: 1 1 calc(50% - 6px); }
   }
 </style>
 
 <div class="hist-shell">
-  <section class="card">
+  <section class="mac-surface">
     <!-- Compact Header -->
     <header class="hist-header">
       <div style="min-width:0;">
@@ -141,8 +153,8 @@
           <h2 class="hist-section-title">Grand Livre des Mouvements</h2>
         </div>
         <div class="hist-actions">
-          <a href="{{ url_for('client_detail', client_id=client.id) }}" class="btn btn-outline-secondary btn-sm">Fiche Client</a>
-          <a href="{{ url_for('contacts', type='client') }}" class="btn btn-dark btn-sm">Liste des Clients</a>
+          <a href="{{ url_for('client_detail', client_id=client.id) }}" class="btn btn-page-action-secondary btn-sm"><i class="bi bi-person me-1"></i>Fiche Client</a>
+          <a href="{{ url_for('contacts', type='client') }}" class="btn btn-page-action-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Liste des Clients</a>
         </div>
       </div>
 

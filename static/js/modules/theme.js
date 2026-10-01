@@ -112,6 +112,16 @@ export function initThemeModule() {
   applyNavLayout(readStorage('fab_nav_layout', 'horizontal'));
 
   document.addEventListener('click', function (event) {
+    const navToggle = event.target.closest('#themeToggleBtnNavbar');
+    if (navToggle) {
+      event.preventDefault();
+      const current = document.documentElement.getAttribute('data-theme') || readStorage('fab_theme', 'light');
+      const next = current.includes('dark') ? 'light' : 'dark';
+      applyTheme(next, { animate: true });
+      writeStorage('fab_theme', next);
+      return;
+    }
+
     const themeButton = event.target.closest('.js-theme');
     if (themeButton) {
       event.preventDefault();

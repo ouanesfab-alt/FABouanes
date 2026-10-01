@@ -12,7 +12,7 @@
     <a href="{{ url_for('operations') }}" class="bot-tab {{ 'active' if operations_nav_active else '' }}">
       <i class="bi bi-arrow-left-right"></i><span>Opérations</span>
     </a>
-    <a href="{{ url_for('quick_add') }}" class="bot-tab-add" title="Ajouter">
+    <a href="{{ url_for('quick_add') }}" class="bot-tab-add" id="botTabAddBtn" title="Actions rapides" onclick="if(window.openMobileActions){openMobileActions(event);return false;}">
       <i class="bi bi-plus-lg"></i>
     </a>
     <a href="{{ url_for('contacts') }}" class="bot-tab {{ 'active' if contacts_nav_active else '' }}">

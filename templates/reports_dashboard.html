@@ -4,8 +4,27 @@
   /* Page specific overrides */
   .reports-page{display:flex;flex-direction:column;gap:20px;}
   .reports-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
-  .reports-filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-  .reports-filter-bar input[type="date"]{max-width:170px;}
+  .reports-filter-bar{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    flex-wrap:wrap;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:10px 16px;
+    box-shadow:0 2px 12px rgba(0,0,0,0.03);
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+  }
+  .reports-filter-bar input[type="date"]{
+    max-width:170px;
+    background:var(--surface);
+    color:var(--text);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:5px 10px;
+  }
   @media(max-width:991px){
     .rpt-chart-grid,.rpt-top-grid{grid-template-columns:1fr;}
   }
@@ -28,11 +47,12 @@
 
   <!-- ── Filtres ── -->
   <form method="get" class="reports-filter-bar">
-    <label for="dateFromInput" class="fw-bold small">Période :</label>
+    <label for="dateFromInput" class="fw-bold small text-muted"><i class="bi bi-calendar-event me-1 text-primary"></i>Période :</label>
     <input type="date" name="date_from" id="dateFromInput" value="{{ date_from }}" class="form-control" title="Du">
+    <span class="text-muted small">à</span>
     <input type="date" name="date_to" id="dateToInput" value="{{ date_to }}" class="form-control" title="Au">
-    <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-funnel me-1"></i>Filtrer</button>
-    <a href="{{ url_for('reports_dashboard') }}" class="btn btn-outline-secondary btn-sm">Tout afficher</a>
+    <button class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1"><i class="bi bi-funnel"></i>Filtrer</button>
+    <a href="{{ url_for('reports_dashboard') }}" class="btn btn-sm btn-page-action-secondary">Tout afficher</a>
   </form>
 
   <div class="rpt-kpis">

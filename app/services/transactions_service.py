@@ -5,11 +5,9 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.activity import log_activity
 from app.core.async_db import get_async_sessionmaker
-from app.core.audit import audit_event
 from app.core.helpers import async_compat
-from app.core.storage import backup_database
+from app.modules.production.service import update_production_notes  # noqa: F401
 from app.utils.pagination import (
     MAX_PAGE_SIZE,
     pagination_context,
@@ -222,65 +220,3 @@ async def _transactions_context_impl(
         "filter_operation": filter_operation,
         "pagination": pagination,
     }
-
-
-@async_compat
-async def update_production_notes(
-    batch_id: int,
-    production_date: str,
-    notes: str,
-    db: AsyncSession | None = None,
-) -> None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            await _update_production_notes_impl(batch_id, production_date, notes, session)
-            await session.commit()
-            return
-    await _update_production_notes_impl(batch_id, production_date, notes, db)
-
-
-async def _update_production_notes_impl(
-    batch_id: int,
-    production_date: str,
-    notes: str,
-    db: AsyncSession,
-) -> None:
-    if not batch_id:
-        raise ValueError("Identifiant manquant.")
-
-    before_res = await db.execute(
-        text("SELECT * FROM production_batches WHERE id = :batch_id"),
-        {"batch_id": batch_id},
-    )
-    before_row = before_res.first()
-    if not before_row:
-        raise ValueError("Production introuvable.")
-    before = dict(before_row._mapping)
-
-    updates = {}
-    if production_date:
-        updates["production_date"] = production_date
-    updates["notes"] = notes
-
-    ALLOWED_KEYS = {"production_date", "notes"}
-    for key in updates:
-        if key not in ALLOWED_KEYS:
-            raise ValueError(f"Key {key} is not allowed for update")
-
-    if not updates:
-        return
-
-    sets = ", ".join(f"{key}=:{key}" for key in updates)
-    values = {**updates, "batch_id": batch_id}
-    await db.execute(text(f"UPDATE production_batches SET {sets} WHERE id = :batch_id"), values)
-
-    after_res = await db.execute(
-        text("SELECT * FROM production_batches WHERE id = :batch_id"),
-        {"batch_id": batch_id},
-    )
-    after_row = after_res.first()
-    after = dict(after_row._mapping) if after_row else before
-
-    log_activity("edit_production_notes", "production", batch_id, f"date={production_date}")
-    audit_event("edit_production_notes", "production", batch_id, before=before, after=after)
-    backup_database("edit_production_notes")

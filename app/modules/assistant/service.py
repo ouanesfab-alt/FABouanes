@@ -85,7 +85,10 @@ async def compress_history_if_needed(
             logger.warning("Ollama history summarization failed: %s", e)
             return messages
     else:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        active_model = db_manager.get_setting("gemini_model", "gemini-3.1-flash-lite").strip() or "gemini-3.1-flash-lite"
+        if active_model.lower() in ("local", "ollama"):
+            active_model = "gemini-3.1-flash-lite"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{active_model}:generateContent?key={api_key}"
         headers = {"Content-Type": "application/json"}
         payload = {
             "contents": [
@@ -865,7 +868,7 @@ async def run_assistant_agent_generator(
 
             complexity = classify_intent(last_user_text)
             if complexity == "full":
-                user_model = "gemini-3.5-flash"
+                user_model = "gemini-2.5-pro"
             else:
                 user_model = "gemini-3.1-flash-lite"
         # else: keep user_model as-is (user explicitly chose it)
@@ -994,7 +997,7 @@ async def run_assistant_agent_generator(
         last_exception = None
 
         candidate_models = [user_model]
-        fallbacks = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-3.5-flash"]
+        fallbacks = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-pro"]
         for m in fallbacks:
             if m != user_model and m not in candidate_models:
                 candidate_models.append(m)

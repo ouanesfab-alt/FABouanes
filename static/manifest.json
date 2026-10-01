@@ -20,7 +20,10 @@
   "start_url": "/",
   "background_color": "#16253F",
   "theme_color": "#16253F",
+  "id": "/",
+  "categories": ["business", "finance", "productivity"],
   "display": "standalone",
+  "display_override": ["standalone", "window-controls-overlay"],
   "orientation": "any",
   "shortcuts": [
     {

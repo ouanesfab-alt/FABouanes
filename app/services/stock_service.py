@@ -667,7 +667,7 @@ async def _create_sale_record_impl(
             "finished", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "sale", row_id, db=db
         )
 
-        if amount_paid > 0 and client_id:
+        if requested_sale_type == "credit" and amount_paid > 0 and client_id:
             p = Payment(
                 client_id=client_id,
                 sale_id=row_id,
@@ -675,7 +675,7 @@ async def _create_sale_record_impl(
                 payment_type="versement",
                 amount=Decimal(str(amount_paid)),
                 payment_date=sale_date,
-                notes="Paiement initial vente",
+                notes="Paiement initial vente à crédit",
             )
             db.add(p)
             await db.flush()
@@ -737,7 +737,7 @@ async def _create_sale_record_impl(
         "raw", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "raw_sale", row_id, db=db
     )
 
-    if amount_paid > 0 and client_id:
+    if requested_sale_type == "credit" and amount_paid > 0 and client_id:
         p = Payment(
             client_id=client_id,
             raw_sale_id=row_id,
@@ -745,7 +745,7 @@ async def _create_sale_record_impl(
             payment_type="versement",
             amount=Decimal(str(amount_paid)),
             payment_date=sale_date,
-            notes="Paiement initial vente",
+            notes="Paiement initial vente à crédit",
         )
         db.add(p)
         await db.flush()
@@ -950,9 +950,10 @@ async def _apply_raw_material_consumption_impl(
     if not db_material:
         raise ValueError(f"Matière première introuvable: {material_id}")
     stock_before = float(db_material.stock_qty)
-    stock_after = stock_before - float(qty)
-    if stock_after < -1e-9:
+    stock_diff = stock_before - float(qty)
+    if stock_diff < -1e-9:
         raise ValueError(f"Stock insuffisant pour {db_material.name}.")
+    stock_after = max(0.0, round(stock_diff, 4))
     db_material.stock_qty = Decimal(str(stock_after))
     await db.flush()
     await record_stock_movement(
@@ -993,10 +994,14 @@ async def _apply_finished_production_impl(
     if not db_product:
         raise ValueError(f"Produit fini introuvable: {product_id}")
     stock_before = float(db_product.stock_qty)
-    current_value = stock_before * float(db_product.avg_cost)
-    new_value = current_value + float(total_cost)
     stock_after = round(stock_before + float(output_qty), 4)
-    new_avg = round(new_value / stock_after, 4) if stock_after > 0 else 0.0
+    batch_unit_cost = float(total_cost) / float(output_qty) if float(output_qty) > 0 else 0.0
+    if stock_before <= 0:
+        new_avg = round(batch_unit_cost, 4)
+    else:
+        current_value = stock_before * float(db_product.avg_cost)
+        new_value = current_value + float(total_cost)
+        new_avg = round(new_value / stock_after, 4) if stock_after > 0 else batch_unit_cost
     sale_price = round(float(db_product.sale_price) if float(db_product.sale_price) > 0 else new_avg * 1.15, 2)
 
     db_product.stock_qty = Decimal(str(stock_after))
@@ -1066,7 +1071,8 @@ async def _reverse_production_impl(batch_id: int, db: AsyncSession) -> bool:
             db=db,
         )
         await _recalc_raw_material_avg_cost_impl(int(item.raw_material_id), db)
-    stock_before = float(product.stock_qty)
+        await db.delete(item)
+    await db.flush()
     stock_after = stock_before - float(batch.output_quantity)
 
     current_value = stock_before * float(product.avg_cost)

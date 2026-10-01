@@ -24,10 +24,25 @@
     .transactions-actions > *{flex:1 1 220px;}
   }
   @media(max-width:767px){
-    .transactions-table-card{padding:14px;}
-    .transactions-actions{flex-direction:column;}
-    .transactions-actions > *{width:100%;flex:1 1 auto;}
+    .transactions-table-card{padding:12px 10px;}
+    .transactions-actions{
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      gap: 6px;
+      padding-bottom: 6px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .transactions-actions::-webkit-scrollbar { display: none; }
+    .transactions-actions > * { flex: 0 0 auto; }
+    .transactions-actions .btn { font-size: 0.82rem; padding: 6px 12px; border-radius: 20px; white-space: nowrap; }
     .transactions-filter-row > *{width:100%;}
+    .transactions-table .col-partner { width: 55%; min-width: 140px; }
+    .transactions-table .col-total { width: 35%; text-align: right; white-space: nowrap; }
+    .transactions-table .col-actions { width: 10%; text-align: right; }
+    .transactions-table .partner-text { font-size: 0.9rem; }
   }
 </style>
 
@@ -90,8 +105,8 @@
         </select>
       </div>
       <div class="col-md-2 d-flex gap-2">
-        <button class="btn btn-dark w-100">Filtrer</button>
-        <a href="{{ url_for('operations', type=filter_type) }}" class="btn btn-outline-secondary" aria-label="Réinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
+        <button class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i>Filtrer</button>
+        <a href="{{ url_for('operations', type=filter_type) }}" class="btn btn-page-action-secondary" aria-label="Réinitialiser les filtres" title="Réinitialiser"><i class="bi bi-x-lg"></i></a>
       </div>
     </form>
 
@@ -99,15 +114,15 @@
       <table class="table js-datagrid align-middle table-row-hover transactions-table">
         <thead>
           <tr>
-            <th class="col-date">Date</th>
-            <th class="col-type">Type</th>
-            <th class="col-partner">Client / fournisseur</th>
-            <th class="col-designation">Désignation</th>
-            <th class="col-qty">Qté</th>
-            <th class="col-money">PU</th>
-            <th class="col-money">Total</th>
-            <th class="col-money">Payé</th>
-            <th class="col-money">Reste</th>
+            <th class="col-date hide-mobile">Date</th>
+            <th class="col-type hide-mobile">Type</th>
+            <th class="col-partner">Opération & Partenaire</th>
+            <th class="col-designation hide-mobile">Désignation</th>
+            <th class="col-qty hide-mobile">Qté</th>
+            <th class="col-money hide-mobile">PU</th>
+            <th class="col-money col-total">Total</th>
+            <th class="col-money hide-mobile">Payé</th>
+            <th class="col-money hide-mobile">Reste</th>
             <th class="col-actions">Actions</th>
           </tr>
         </thead>
@@ -123,7 +138,7 @@
                 data-edit-url="{% if row.tx_kind == 'purchase' %}{{ url_for('edit_purchase_document', document_id=row.document_id) if row.document_id else url_for('edit_purchase', purchase_id=row.id) }}{% elif row.tx_kind == 'sale_finished' %}{{ url_for('edit_sale_document', document_id=row.document_id) if row.document_id else url_for('edit_sale', kind='finished', row_id=row.id) }}{% elif row.tx_kind == 'sale_raw' %}{{ url_for('edit_sale_document', document_id=row.document_id) if row.document_id else url_for('edit_sale', kind='raw', row_id=row.id) }}{% elif row.tx_kind == 'payment' %}{{ url_for('edit_payment', payment_id=row.id) }}{% endif %}"
                 data-delete-url="{% if row.tx_kind == 'purchase' %}{{ url_for('delete_purchase', purchase_id=row.id) }}{% elif row.tx_kind == 'sale_finished' %}{{ url_for('delete_sale', kind='finished', row_id=row.id) }}{% elif row.tx_kind == 'sale_raw' %}{{ url_for('delete_sale', kind='raw', row_id=row.id) }}{% elif row.tx_kind == 'payment' %}{{ url_for('delete_payment', payment_id=row.id) }}{% endif %}"
                 data-label="{{ row.tx_type }} - {{ row.partner_name }}">
-              <td class="cell-num col-date text-muted text-start">
+              <td class="cell-num col-date text-muted text-start hide-mobile">
                 <div>{{ row.tx_date }}</div>
                 {% if row.tx_time %}
                   <small class="text-secondary d-block mt-1" style="font-size: 0.75rem; opacity: 0.85;">
@@ -131,16 +146,35 @@
                   </small>
                 {% endif %}
               </td>
-              <td class="cell-text col-type">
+              <td class="cell-text col-type hide-mobile">
                 <span class="tx-type {% if row.tx_kind == 'payment' %}payment{% elif row.tx_kind == 'purchase' %}purchase{% endif %}">{{ row.tx_type }}</span>
               </td>
-              <td class="cell-text col-partner"><span class="partner-text">{{ row.partner_name }}</span></td>
-              <td class="cell-text col-designation"><span class="designation-text">{{ row.designation }}</span></td>
-              <td class="cell-num col-qty">{% if row.quantity is not none %}{{ row.quantity|qty }} {{ row.unit }}{% else %}-{% endif %}</td>
-              <td class="cell-num col-money">{% if row.unit_price is not none %}{{ row.unit_price|money }}{% else %}-{% endif %}</td>
-              <td class="cell-num col-money">{{ row.total|money }}</td>
-              <td class="cell-num col-money">{% if row.paid is not none %}{{ row.paid|money }}{% else %}-{% endif %}</td>
-              <td class="cell-num col-money">{% if row.due is not none %}{{ row.due|money }}{% else %}-{% endif %}</td>
+              <td class="cell-text col-partner">
+                <div class="d-md-none d-flex align-items-center gap-1 mb-1">
+                  <span class="tx-type {% if row.tx_kind == 'payment' %}payment{% elif row.tx_kind == 'purchase' %}purchase{% endif %}" style="font-size:0.68rem;padding:2px 6px;">{{ row.tx_type }}</span>
+                  <span class="text-muted" style="font-size:0.72rem;">{{ row.tx_date }}</span>
+                </div>
+                <span class="partner-text">{{ row.partner_name }}</span>
+                <div class="d-md-none text-muted" style="font-size:0.74rem;line-height:1.2;margin-top:2px;">
+                  {% if row.designation %}{{ row.designation }}{% endif %}
+                  {% if row.quantity is not none %} · <span class="fw-semibold">{{ row.quantity|qty }} {{ row.unit }}</span>{% endif %}
+                </div>
+              </td>
+              <td class="cell-text col-designation hide-mobile"><span class="designation-text">{{ row.designation }}</span></td>
+              <td class="cell-num col-qty hide-mobile">{% if row.quantity is not none %}{{ row.quantity|qty }} {{ row.unit }}{% else %}-{% endif %}</td>
+              <td class="cell-num col-money hide-mobile">{% if row.unit_price is not none %}{{ row.unit_price|money }}{% else %}-{% endif %}</td>
+              <td class="cell-num col-money col-total">
+                <div class="fw-bold">{{ row.total|money }}</div>
+                <div class="d-md-none text-nowrap" style="font-size:0.72rem;margin-top:2px;">
+                  {% if row.get('due') is not none and row.get('due') > 0 %}
+                    <span class="text-danger fw-bold">Reste: {{ row.get('due')|money }}</span>
+                  {% elif row.get('due') is not none %}
+                    <span class="text-success fw-semibold">Réglé</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="cell-num col-money hide-mobile">{% if row.get('paid') is not none %}{{ row.get('paid')|money }}{% else %}-{% endif %}</td>
+              <td class="cell-num col-money hide-mobile">{% if row.get('due') is not none %}{{ row.get('due')|money }}{% else %}-{% endif %}</td>
               <td class="col-actions text-nowrap">
                 <a href="{{ print_url }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Imprimer" onclick="openInvoice(event,this.closest('a').href)"><i class="bi bi-printer"></i></a>
               </td>

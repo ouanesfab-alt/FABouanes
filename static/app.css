@@ -1,26 +1,24 @@
-/* ── Variables ── */
+/* ── Variables ──
+   Core design tokens (colors, typography, glass, spacing) → css/tokens.css
+   Only app-specific layout & component tokens live here. */
 :root {
-  --mac-spring: cubic-bezier(0.23, 1, 0.32, 1);
-  --mac-bezier: cubic-bezier(0.16, 1, 0.3, 1);
-  --mac-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --bg: #f4f7fb;
-  --card: #ffffff;
-  --surface: #f8fafc;
-  --text: #0f172a;
-  --muted: #64748b;
+  /* Easing aliases (backward-compat) */
+  --mac-spring: var(--ease-spring);
+  --mac-bezier: var(--ease-out);
+  --mac-bounce: var(--ease-bounce);
+  /* Brand */
   --brand: #0f172a;
-  --accent: #2563eb;
-  --line: #e2e8f0;
+  /* App-level shadow (used by tables, KPIs, PWA banner) */
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
-  --radius: 12px;
+  /* Layout aliases */
+  --radius: var(--radius-md);
+  --side-nav-w: var(--sidebar-w);
+  /* Select popup (app-specific component) */
   --select-popup-bg: #ffffff;
-  --select-popup-text: #0f172a;
+  --select-popup-text: var(--text-primary);
   --select-active-bg: #eff6ff;
   --select-active-text: #1d4ed8;
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='10' viewBox='0 0 14 10'%3E%3Cpath d='M2 2.25 7 7.25l5-5' fill='none' stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.8'/%3E%3C/svg%3E");
-  --font-main: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --side-nav-w: 240px;
 }
 
 html, body {
@@ -111,13 +109,8 @@ html[data-font="system"] {
 }
 
 [data-theme="dark"] {
-  --bg: #07090e;
-  --card: rgba(13, 20, 38, 0.45);
-  --surface: rgba(15, 23, 42, 0.35);
-  --text: #f1f5f9;
-  --muted: #94a3b8;
-  --line: rgba(255, 255, 255, 0.06);
-  --accent: #3b82f6;
+  /* App-specific dark overrides — core dark tokens in css/tokens.css */
+  --brand: #f1f5f9;
   --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
   --select-popup-bg: #0d1117;
   --select-popup-text: #e6edf3;
@@ -322,12 +315,12 @@ html[data-font="system"] {
   font-weight: 700 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.04em !important;
-  color: #334155 !important;
-  background: rgba(248, 250, 252, 0.96) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border-bottom: 2px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+  color: var(--text) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(24px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+  border-bottom: 1px solid var(--separator) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03), inset 0 -1px 0 rgba(255, 255, 255, 0.4) !important;
   white-space: nowrap;
 }
 
@@ -341,10 +334,10 @@ html[data-font="system"] {
 [data-theme="windows-dark"] .excel-sheet-table thead th,
 [data-theme="windows-dark"] .bons-table thead th,
 [data-theme="windows-dark"] .table-responsive thead th {
-  background: rgba(22, 27, 34, 0.96) !important;
-  color: #CBD5E1 !important;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+  background: rgba(20, 24, 34, 0.72) !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), inset 0 -1px 0 rgba(255, 255, 255, 0.06) !important;
 }
 
 .table tbody tr,
@@ -1103,7 +1096,7 @@ iframe {
 .transactions-page>*,
 .contacts-page>*,
 .production-page>* {
-  animation: pageFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: pageFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .app-content>*:nth-child(1),
@@ -1112,7 +1105,6 @@ iframe {
 .contacts-page>*:nth-child(1),
 .production-page>*:nth-child(1) {
   animation-delay: 0.05s;
-  opacity: 0;
 }
 
 .app-content>*:nth-child(2),
@@ -1121,7 +1113,6 @@ iframe {
 .contacts-page>*:nth-child(2),
 .production-page>*:nth-child(2) {
   animation-delay: 0.1s;
-  opacity: 0;
 }
 
 .app-content>*:nth-child(3),
@@ -1130,7 +1121,6 @@ iframe {
 .contacts-page>*:nth-child(3),
 .production-page>*:nth-child(3) {
   animation-delay: 0.15s;
-  opacity: 0;
 }
 
 .app-content>*:nth-child(4),
@@ -1139,21 +1129,22 @@ iframe {
 .contacts-page>*:nth-child(4),
 .production-page>*:nth-child(4) {
   animation-delay: 0.2s;
-  opacity: 0;
 }
 
-/* ── Enhanced Cards ── */
-.card {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  background: var(--card);
-  transition: box-shadow 0.25s ease, transform 0.25s ease;
+/* Reduced motion: skip stagger animations entirely */
+@media (prefers-reduced-motion: reduce) {
+  .app-content>*,
+  .catalog-page>*,
+  .transactions-page>*,
+  .contacts-page>*,
+  .production-page>* {
+    animation: none !important;
+    opacity: 1 !important;
+  }
 }
 
-.card:hover {
-  box-shadow: var(--shadow-lg);
-}
+/* ── Enhanced Cards ──
+   Base card styles (glass panel) defined in css/tokens.css */
 
 /* ── Top Navbar ── */
 .app-navbar {
@@ -1162,6 +1153,23 @@ iframe {
   left: 0;
   right: 0;
   z-index: 1030;
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Light navbar — frosted glass */
+:root .app-navbar,
+[data-theme="light"] .app-navbar,
+[data-theme="windows"] .app-navbar {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.10);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+/* Dark navbar */
+[data-theme="dark"] .app-navbar,
+[data-theme="windows-dark"] .app-navbar {
   background: rgba(26, 34, 53, .94);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, .08);
@@ -1462,6 +1470,7 @@ iframe {
 .nav-hamburger:hover {
   background: rgba(0, 122, 255, 0.08);
   color: #007AFF;
+  transform: translateY(-1px);
 }
 
 [data-theme="dark"] .nav-hamburger,
@@ -1474,7 +1483,6 @@ iframe {
 [data-theme="dark"] .nav-hamburger:hover,
 [data-theme="windows-dark"] .nav-hamburger:hover {
   background: rgba(255, 255, 255, .18);
-}
   transform: translateY(-1px);
 }
 
@@ -1768,12 +1776,15 @@ iframe {
   right: -100%;
   bottom: 0;
   width: min(320px, 88vw);
-  background: #1a2235;
+  background: var(--glass-sidebar, rgba(255, 255, 255, 0.72)) !important;
+  backdrop-filter: blur(32px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(200%) !important;
+  border-left: 1px solid var(--glass-border) !important;
   z-index: 2000;
   transition: right .28s cubic-bezier(.4, 0, .2, 1);
   display: flex;
   flex-direction: column;
-  box-shadow: -8px 0 40px rgba(0, 0, 0, .5);
+  box-shadow: -10px 0 40px rgba(0, 0, 0, .25);
 }
 
 .nav-drawer.open {
@@ -1940,11 +1951,29 @@ iframe {
   left: 0;
   right: 0;
   z-index: 1800;
-  background: rgba(26, 34, 53, .96);
-  backdrop-filter: blur(12px);
-  border-top: 1px solid rgba(255, 255, 255, .08);
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  box-shadow: 0 -10px 26px rgba(15, 23, 42, .24);
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Light bottom nav — liquid glass */
+:root .bot-nav,
+[data-theme="light"] .bot-nav,
+[data-theme="windows"] .bot-nav {
+  background: rgba(255, 255, 255, 0.68) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-top: 1px solid var(--glass-border) !important;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Dark bottom nav */
+[data-theme="dark"] .bot-nav,
+[data-theme="windows-dark"] .bot-nav {
+  background: rgba(16, 20, 30, 0.70) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 -8px 26px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
 
 .bot-nav-inner {
@@ -2021,6 +2050,27 @@ iframe {
 .bot-tab.active::after {
   display: none !important;
   content: none !important;
+}
+
+/* Light bottom nav tabs */
+:root .bot-tab,
+[data-theme="light"] .bot-tab,
+[data-theme="windows"] .bot-tab {
+  color: rgba(0, 0, 0, 0.42);
+}
+
+:root .bot-tab.active,
+[data-theme="light"] .bot-tab.active,
+[data-theme="windows"] .bot-tab.active {
+  color: var(--system-blue);
+  background: rgba(0, 122, 255, 0.10);
+}
+
+:root .bot-tab-add,
+[data-theme="light"] .bot-tab-add,
+[data-theme="windows"] .bot-tab-add {
+  background: linear-gradient(135deg, #007AFF, #0056b3);
+  box-shadow: 0 6px 18px rgba(0, 122, 255, 0.28);
 }
 
 .bot-tab-add {
@@ -2208,13 +2258,7 @@ html[data-nav="vertical"] body.desktop-app .production-table-wrap {
   }
 }
 
-/* ── Cards ── */
-.card {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  background: var(--card);
-}
+/* Cards — base styles defined in css/tokens.css (glass panel system) */
 
 .card-header-row {
   display: flex;

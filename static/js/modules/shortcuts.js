@@ -54,7 +54,7 @@ export function initShortcutsModule() {
     // Ctrl + N: Shortcut to New Sale
     if (isCmdOrCtrl && e.key.toLowerCase() === 'n') {
       e.preventDefault();
-      window.location.href = '/sales/new';
+      window.location.href = '/operations/sales/new';
       return;
     }
 

@@ -1,0 +1,188 @@
+<!-- -- Mobile Quick Actions Sheet -- -->
+<style>
+  /* ── Mobile Action Sheet Modal ── */
+  .mobile-sheet-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 2100;
+    display: flex;
+    align-items: flex-end;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .mobile-sheet-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .mobile-sheet {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(24px) saturate(190%);
+    -webkit-backdrop-filter: blur(24px) saturate(190%);
+    border-top: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 24px 24px 0 0;
+    padding: 16px 20px max(env(safe-area-inset-bottom, 0px) + 24px, 28px);
+    box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.15);
+    transform: translateY(100%);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .mobile-sheet-overlay.open .mobile-sheet {
+    transform: translateY(0);
+  }
+  [data-theme="dark"] .mobile-sheet,
+  [data-theme="windows-dark"] .mobile-sheet {
+    background: rgba(22, 27, 34, 0.94);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.5);
+  }
+
+  .mobile-sheet-handle {
+    width: 40px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.2);
+    margin: 0 auto 16px;
+    cursor: pointer;
+  }
+  [data-theme="dark"] .mobile-sheet-handle,
+  [data-theme="windows-dark"] .mobile-sheet-handle {
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  .mobile-sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  .mobile-sheet-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0;
+    color: var(--text-main, #1e293b);
+  }
+  [data-theme="dark"] .mobile-sheet-title,
+  [data-theme="windows-dark"] .mobile-sheet-title {
+    color: #f1f5f9;
+  }
+
+  .mobile-sheet-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px 10px;
+  }
+  .mobile-sheet-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    background: transparent;
+    padding: 10px 4px;
+    border-radius: 14px;
+    transition: background 0.15s ease, transform 0.12s ease;
+  }
+  .mobile-sheet-btn:active {
+    transform: scale(0.94);
+    background: rgba(0, 0, 0, 0.05);
+  }
+  [data-theme="dark"] .mobile-sheet-btn:active {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .mobile-sheet-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.45rem;
+    margin-bottom: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
+  .mobile-sheet-btn span {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-main, #334155);
+  }
+  [data-theme="dark"] .mobile-sheet-btn span {
+    color: #e2e8f0;
+  }
+
+  .mobile-sheet-icon.green  { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+  .mobile-sheet-icon.blue   { background: rgba(59, 130, 246, 0.15); color: #2563eb; }
+  .mobile-sheet-icon.purple { background: rgba(168, 85, 247, 0.15); color: #9333ea; }
+  .mobile-sheet-icon.amber  { background: rgba(245, 158, 11, 0.15); color: #d97706; }
+  .mobile-sheet-icon.cyan   { background: rgba(6, 182, 212, 0.15); color: #0891b2; }
+  .mobile-sheet-icon.gray   { background: rgba(100, 116, 139, 0.15); color: #64748b; }
+
+  [data-theme="dark"] .mobile-sheet-icon.green  { background: rgba(74, 222, 128, 0.2); color: #4ade80; }
+  [data-theme="dark"] .mobile-sheet-icon.blue   { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+  [data-theme="dark"] .mobile-sheet-icon.purple { background: rgba(167, 139, 250, 0.2); color: #a78bfa; }
+  [data-theme="dark"] .mobile-sheet-icon.amber  { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+  [data-theme="dark"] .mobile-sheet-icon.cyan   { background: rgba(34, 211, 238, 0.2); color: #22d3ee; }
+</style>
+
+<div class="mobile-sheet-overlay" id="mobileActionsSheet" role="dialog" aria-modal="true" aria-label="Actions rapides">
+  <div class="mobile-sheet">
+    <div class="mobile-sheet-handle" onclick="closeMobileActions()"></div>
+    <div class="mobile-sheet-header">
+      <h3 class="mobile-sheet-title"><i class="bi bi-grid-fill me-2 text-primary"></i>Actions rapides</h3>
+      <button type="button" class="btn-close" onclick="closeMobileActions()" aria-label="Fermer"></button>
+    </div>
+    <div class="mobile-sheet-grid">
+      <a href="{{ url_for('new_operation') }}?mode=vente" class="mobile-sheet-btn">
+        <div class="mobile-sheet-icon green"><i class="bi bi-cart-plus-fill"></i></div>
+        <span>Vente</span>
+      </a>
+      <a href="{{ url_for('new_operation') }}?mode=achat" class="mobile-sheet-btn">
+        <div class="mobile-sheet-icon blue"><i class="bi bi-bag-plus-fill"></i></div>
+        <span>Achat</span>
+      </a>
+      <a href="{{ url_for('new_operation') }}?mode=versement" class="mobile-sheet-btn">
+        <div class="mobile-sheet-icon purple"><i class="bi bi-cash-coin"></i></div>
+        <span>Versement</span>
+      </a>
+      <a href="{{ url_for('new_contact') }}" class="mobile-sheet-btn">
+        <div class="mobile-sheet-icon amber"><i class="bi bi-person-plus-fill"></i></div>
+        <span>Contact</span>
+      </a>
+      <a href="{{ url_for('new_catalog_item') }}" class="mobile-sheet-btn">
+        <div class="mobile-sheet-icon cyan"><i class="bi bi-box-seam-fill"></i></div>
+        <span>Produit</span>
+      </a>
+      <a href="{{ url_for('quick_add') }}" class="mobile-sheet-btn">
+        <div class="mobile-sheet-icon gray"><i class="bi bi-lightning-charge-fill"></i></div>
+        <span>Ajout rapide</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function(){
+  const sheet = document.getElementById('mobileActionsSheet');
+
+  window.openMobileActions = function(e) {
+    if (e) e.preventDefault();
+    if (navigator.vibrate) navigator.vibrate(15);
+    sheet?.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  };
+
+  window.closeMobileActions = function() {
+    sheet?.classList.remove('open');
+    document.body.style.overflow = '';
+  };
+
+  sheet?.addEventListener('click', function(e) {
+    if (e.target === sheet) closeMobileActions();
+  });
+})();
+</script>

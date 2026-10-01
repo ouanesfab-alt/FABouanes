@@ -4,6 +4,7 @@ import asyncio
 import logging
 
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.security import generate_password_hash
 
@@ -23,6 +24,7 @@ from app.core.storage import (
 )
 from app.modules.users.repository import (
     create_user,
+    delete_user,
     get_user_by_id,
     list_users,
     update_password,
@@ -111,11 +113,6 @@ async def delete_user_account(user_id: int, db: AsyncSession | None = None):
 
     if str(user["username"]) == DEFAULT_ADMIN_USERNAME:
         return {"ok": False, "message": "Le compte administrateur par défaut ne peut pas être supprimé."}
-
-    from sqlalchemy.exc import IntegrityError
-
-    from app.modules.users.repository import delete_user
-
     try:
         before = dict(user)
         # Tenter la suppression dans le repository

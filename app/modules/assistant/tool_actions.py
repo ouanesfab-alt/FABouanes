@@ -153,6 +153,21 @@ async def _execute_tool_action_inner(
     from app.modules.assistant.tool_actions_production import handle_production
     from app.modules.assistant.tool_actions_tools import handle_tools
 
+    if func_name == "batch_execute_actions":
+        actions = func_args.get("actions", [])
+        results = []
+        for idx, act in enumerate(actions):
+            sub_name = act.get("name")
+            sub_args = act.get("args", {})
+            sub_res = await _execute_tool_action_inner(sub_name, sub_args, session_maker, user_role)
+            results.append({"action": sub_name, "result": sub_res})
+            if isinstance(sub_res, dict) and "error" in sub_res:
+                return {
+                    "error": f"Échec à l'étape {idx + 1} ({sub_name}) : {sub_res['error']}",
+                    "partial_results": results,
+                }
+        return {"success": True, "results": results, "message": f"{len(results)} actions exécutées avec succès."}
+
     res = await handle_admin(func_name, func_args, session_maker, user_role)
     if res is not None:
         return res

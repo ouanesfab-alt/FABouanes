@@ -342,6 +342,8 @@ class ClientService:
 
                 if item["event_type"] in ("sale_finished", "sale_raw"):
                     suffix = " (matière première)" if item["event_type"] == "sale_raw" else ""
+                    if str(item.get("sale_type") or "").lower() == "cash":
+                        suffix += " (comptant)"
                     qty = _format_quantity(item["quantity"])
                     unit = item["unit"] or ""
                     item["designation"] = f"{item['item_name']}{suffix} - {qty} {unit}".strip()
@@ -366,13 +368,19 @@ class ClientService:
                 for item in timeline
                 if item["event_type"] in ("sale_finished", "sale_raw")
             )
+            total_credit_sales = sum(
+                float(item["purchase_amount"])
+                for item in timeline
+                if item["event_type"] in ("sale_finished", "sale_raw")
+                and str(item.get("sale_type") or "").lower() == "credit"
+            )
             total_advance = sum(float(item["purchase_amount"]) for item in timeline if item["event_type"] == "advance")
             total_paid = sum(float(item["payment_amount"]) for item in timeline if item["event_type"] == "payment")
 
             stats = {
                 "opening_credit": float(client.opening_credit),
                 "total_sales": total_sales,
-                "credit_sales_total": float(client.opening_credit) + total_sales,
+                "credit_sales_total": float(client.opening_credit) + total_credit_sales,
                 "total_paid": total_paid,
                 "total_advance": total_advance,
                 "current_balance": running,

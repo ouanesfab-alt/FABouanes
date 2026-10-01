@@ -215,6 +215,25 @@
     padding-right: 42px !important;
   }
 
+  /* Masquer le bouton d'œil natif de Microsoft Edge / Windows / Chromium */
+  input[type="password"]::-ms-reveal,
+  input[type="password"]::-ms-clear {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  input[type="password"]::-webkit-contacts-auto-fill-button,
+  input[type="password"]::-webkit-credentials-auto-fill-button {
+    visibility: hidden !important;
+    display: none !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    right: 0 !important;
+  }
+
   html[data-theme="light"] .login-input {
     border-color: rgba(0, 0, 0, 0.15);
     background: rgba(255, 255, 255, 0.8);

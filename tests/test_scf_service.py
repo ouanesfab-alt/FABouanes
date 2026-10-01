@@ -1,4 +1,5 @@
 """Tests unitaires pour app/modules/accounting/scf_service.py (Phase 3.1)."""
+
 from __future__ import annotations
 
 import pytest
@@ -112,21 +113,129 @@ async def test_export_scf_excel():
 
     mock_request = MagicMock(spec=Request)
     mock_balance = [
-        {"code": "300", "label": "Stocks MP", "debit": 1000.0, "credit": 0.0, "solde_debiteur": 1000.0, "solde_crediteur": 0.0},
-        {"code": "355", "label": "Stocks PF", "debit": 2000.0, "credit": 0.0, "solde_debiteur": 2000.0, "solde_crediteur": 0.0},
-        {"code": "411", "label": "Clients", "debit": 1500.0, "credit": 0.0, "solde_debiteur": 1500.0, "solde_crediteur": 0.0},
-        {"code": "401", "label": "Fournisseurs", "debit": 0.0, "credit": 500.0, "solde_debiteur": 0.0, "solde_crediteur": 500.0},
-        {"code": "530", "label": "Caisse", "debit": 3000.0, "credit": 0.0, "solde_debiteur": 3000.0, "solde_crediteur": 0.0},
-        {"code": "600", "label": "Achats", "debit": 4000.0, "credit": 0.0, "solde_debiteur": 4000.0, "solde_crediteur": 0.0},
-        {"code": "629", "label": "Charges", "debit": 500.0, "credit": 0.0, "solde_debiteur": 500.0, "solde_crediteur": 0.0},
-        {"code": "700", "label": "Ventes", "debit": 0.0, "credit": 8000.0, "solde_debiteur": 0.0, "solde_crediteur": 8000.0},
+        {
+            "code": "300",
+            "label": "Stocks MP",
+            "debit": 1000.0,
+            "credit": 0.0,
+            "solde_debiteur": 1000.0,
+            "solde_crediteur": 0.0,
+        },
+        {
+            "code": "355",
+            "label": "Stocks PF",
+            "debit": 2000.0,
+            "credit": 0.0,
+            "solde_debiteur": 2000.0,
+            "solde_crediteur": 0.0,
+        },
+        {
+            "code": "411",
+            "label": "Clients",
+            "debit": 1500.0,
+            "credit": 0.0,
+            "solde_debiteur": 1500.0,
+            "solde_crediteur": 0.0,
+        },
+        {
+            "code": "401",
+            "label": "Fournisseurs",
+            "debit": 0.0,
+            "credit": 500.0,
+            "solde_debiteur": 0.0,
+            "solde_crediteur": 500.0,
+        },
+        {
+            "code": "530",
+            "label": "Caisse",
+            "debit": 3000.0,
+            "credit": 0.0,
+            "solde_debiteur": 3000.0,
+            "solde_crediteur": 0.0,
+        },
+        {
+            "code": "600",
+            "label": "Achats",
+            "debit": 4000.0,
+            "credit": 0.0,
+            "solde_debiteur": 4000.0,
+            "solde_crediteur": 0.0,
+        },
+        {
+            "code": "629",
+            "label": "Charges",
+            "debit": 500.0,
+            "credit": 0.0,
+            "solde_debiteur": 500.0,
+            "solde_crediteur": 0.0,
+        },
+        {
+            "code": "700",
+            "label": "Ventes",
+            "debit": 0.0,
+            "credit": 8000.0,
+            "solde_debiteur": 0.0,
+            "solde_crediteur": 8000.0,
+        },
     ]
 
-    with patch("app.modules.accounting.web.get_current_user", return_value={"id": 1, "username": "admin"}), \
-         patch.object(SCFService, "get_balance_generale", new_callable=AsyncMock, return_value=mock_balance):
+    with (
+        patch("app.modules.accounting.web.get_current_user", return_value={"id": 1, "username": "admin"}),
+        patch.object(SCFService, "get_balance_generale", new_callable=AsyncMock, return_value=mock_balance),
+    ):
         response = await export_scf_excel(mock_request)
         assert response.status_code == 200
         assert "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" in response.media_type
         assert "etats_financiers_scf_" in response.headers["Content-Disposition"]
 
+    # Test unauthenticated redirect
+    with patch("app.modules.accounting.web.get_current_user", return_value=None):
+        redirect = await export_scf_excel(mock_request)
+        assert redirect.status_code == 303
+        assert redirect.headers["location"] == "/login"
+
+
+@pytest.mark.asyncio
+async def test_accounting_dashboard_web():
+    from unittest.mock import AsyncMock, MagicMock
+    from fastapi import Request
+    from app.modules.accounting.web import accounting_dashboard
+
+    mock_request = MagicMock(spec=Request)
+    mock_request.scope = {"type": "http", "route": None, "session": {}}
+    mock_request.state = MagicMock()
+    mock_request.state.csrf_token = "test"
+    mock_balance = [{"code": "700", "label": "Ventes", "debit": 0.0, "credit": 5000.0, "solde_debiteur": 0.0, "solde_crediteur": 5000.0}]
+
+    with (
+        patch("app.modules.accounting.web.get_current_user", return_value={"id": 1, "username": "admin"}),
+        patch.object(SCFService, "get_balance_generale", new_callable=AsyncMock, return_value=mock_balance),
+        patch("app.modules.accounting.web.templates.TemplateResponse") as mock_tmpl,
+    ):
+        mock_tmpl.return_value = MagicMock(status_code=200)
+        res = await accounting_dashboard(mock_request)
+        assert res.status_code == 200
+        mock_tmpl.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_export_balance_web():
+    from unittest.mock import AsyncMock, MagicMock
+    from fastapi import Request
+    from app.modules.accounting.web import export_balance
+
+    mock_request = MagicMock(spec=Request)
+    mock_balance = [
+        {"code": "300", "label": "Stocks MP", "debit": 100.0, "credit": 0.0, "solde_debiteur": 100.0, "solde_crediteur": 0.0},
+        {"code": "700", "label": "Ventes", "debit": 0.0, "credit": 100.0, "solde_debiteur": 0.0, "solde_crediteur": 100.0},
+    ]
+
+    with (
+        patch("app.modules.accounting.web.get_current_user", return_value={"id": 1, "username": "admin"}),
+        patch.object(SCFService, "get_balance_generale", new_callable=AsyncMock, return_value=mock_balance),
+    ):
+        res = await export_balance(mock_request)
+        assert res.status_code == 200
+        assert res.media_type == "text/csv; charset=utf-8"
+        assert "balance_generale_scf_" in res.headers["Content-Disposition"]
 

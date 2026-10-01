@@ -444,6 +444,13 @@ class ReportsRepository:
             func.coalesce(Sale.total, 0.0).label("debit"),
             literal_column("0.0").label("credit"),
         )
+        stmt_raw_sales = select(
+            RawSale.sale_date.label("tx_date"),
+            func.concat("Vente matière #", cast(RawSale.id, String)).label("tx_ref"),
+            func.concat("Vente matière client ID ", cast(RawSale.client_id, String)).label("label"),
+            func.coalesce(RawSale.total, 0.0).label("debit"),
+            literal_column("0.0").label("credit"),
+        )
         stmt_purchases = select(
             Purchase.purchase_date.label("tx_date"),
             func.concat("Achat #", cast(Purchase.id, String)).label("tx_ref"),
@@ -467,7 +474,7 @@ class ReportsRepository:
             literal_column("0.0").label("debit"),
             func.coalesce(Expense.amount, 0.0).label("credit"),
         )
-        u = union_all(stmt_sales, stmt_purchases, stmt_payments, stmt_expenses).subquery()
+        u = union_all(stmt_sales, stmt_raw_sales, stmt_purchases, stmt_payments, stmt_expenses).subquery()
         stmt = (
             select(u.c.tx_date, u.c.tx_ref, u.c.label, u.c.debit, u.c.credit)
             .order_by(u.c.tx_date.desc(), u.c.tx_ref.desc())
@@ -492,8 +499,6 @@ class ReportsRepository:
         )
         res = await self.session.execute(stmt)
         return [dict(row) for row in res.mappings().all()]
-
-
 
 
 __all__ = [

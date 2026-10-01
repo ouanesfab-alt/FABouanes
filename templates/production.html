@@ -1,73 +1,205 @@
 {% extends 'base.html' %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
-  .production-page{display:flex;flex-direction:column;gap:16px;}
-  .production-actions{display:flex;gap:10px;flex-wrap:wrap;}
-  .production-summary{color:var(--muted);font-size:.92rem;}
-  .production-filter-row{align-items:stretch;}
-  .production-table-card{padding:18px;}
-  .production-table-wrap{overflow-x:visible;}
-  .production-table-wrap .table-shell{max-width:1160px;margin:0 auto;width:100%;}
-  .production-table-wrap .table-search{justify-content:flex-start;}
-  .production-table-wrap .table-search input{max-width:320px;}
-  .production-table-wrap .table-scroll{width:100%;margin:0 auto;}
-  .production-table{margin:0 auto;}
-  .production-table th,.production-table td{vertical-align:top;}
-  .production-table .col-date{width:11%;white-space:nowrap;}
-  .production-table .col-product{width:20%;min-width:180px;}
-  .production-table .col-recipe{width:34%;min-width:240px;}
-  .production-table .col-qty{width:1%;text-align:right;white-space:nowrap;}
-  .production-table .col-money{width:1%;text-align:right;white-space:nowrap;}
-  .production-table .col-actions{width:1%;white-space:nowrap;text-align:right;}
-  .production-table .product-text,.production-table .recipe-text{display:inline-block;color:var(--text);line-height:1.35;
-    white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
-  .production-table .product-text{font-weight:700;max-width:26ch;}
-  .production-table .recipe-text{max-width:36ch;color:var(--muted);}
-  @media(max-width:991px){
-    .production-actions{width:100%;}
-    .production-actions > *{flex:1 1 240px;}
+  .production-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
-  @media(max-width:767px){
-    .production-table-card{padding:14px;}
-    .production-actions{flex-direction:column;}
-    .production-actions > *{width:100%;flex:1 1 auto;}
-    .production-table-wrap .table-search input{max-width:none;width:100%;}
-    .production-table .col-product{min-width:160px;}
-    .production-table .col-recipe{min-width:200px;}
+  .production-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .production-summary {
+    color: var(--muted);
+    font-size: .92rem;
+  }
+  .production-filter-row {
+    align-items: stretch;
+  }
+  .production-table-card {
+    padding: 20px;
+  }
+  .production-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .production-table {
+    margin: 0 auto;
+    width: 100%;
+  }
+  .production-table th, .production-table td {
+    vertical-align: middle;
+  }
+  .production-table .col-date {
+    width: 12%;
+    white-space: nowrap;
+  }
+  .production-table .col-product {
+    width: 22%;
+    min-width: 180px;
+  }
+  .production-table .col-recipe {
+    width: 32%;
+    min-width: 240px;
+  }
+  .production-table .col-qty {
+    width: 12%;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .production-table .col-money {
+    width: 10%;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .production-table .col-actions {
+    width: 1%;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .production-table .product-text {
+    font-weight: 700;
+    color: var(--text);
+    display: inline-block;
+  }
+  .production-table .recipe-text {
+    color: var(--muted);
+    font-size: 0.88rem;
+    display: inline-block;
+    max-width: 38ch;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .prod-qty-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.86rem;
+    background: rgba(0, 122, 255, 0.10);
+    color: var(--system-blue);
+    border: 1px solid rgba(0, 122, 255, 0.20);
+  }
+  [data-theme="dark"] .prod-qty-badge {
+    background: rgba(10, 132, 255, 0.16);
+    color: #64D2FF;
+    border-color: rgba(10, 132, 255, 0.30);
   }
 
-  .fab-sheet-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;backdrop-filter:blur(2px);align-items:flex-end;}
-  .fab-sheet-overlay.open{display:flex;}
-  .fab-sheet{background:var(--card);width:100%;border-radius:20px 20px 0 0;max-height:90vh;display:flex;flex-direction:column;animation:sheetUp .28s cubic-bezier(.4,0,.2,1);}
-  @media(min-width:768px){
-    .fab-sheet-overlay{align-items:center;justify-content:center;}
-    .fab-sheet{width:500px;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,0.25);animation:sheetPop .25s cubic-bezier(.34,1.56,.64,1);}
+  @media(max-width: 991px) {
+    .production-actions { width: 100%; }
+    .production-actions > * { flex: 1 1 240px; }
   }
-  @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-  @keyframes sheetPop{from{transform:scale(0.9) translateY(20px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
-  .fab-sheet-handle{width:40px;height:4px;background:var(--line);border-radius:2px;margin:12px auto 0;flex-shrink:0;}
-  .fab-sheet-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px 10px;border-bottom:1px solid var(--line);flex-shrink:0;}
-  .fab-sheet-header h5{margin:0;font-weight:800;}
-  .fab-sheet-close{background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;padding:4px 8px;border-radius:8px;}
-  .fab-sheet-body{overflow-y:auto;padding:16px 20px;flex:1;}
-  .fab-sheet-footer{padding:12px 20px 20px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;flex-shrink:0;}
+  @media(max-width: 767px) {
+    .production-table-card { padding: 14px; }
+    .production-actions { flex-direction: column; }
+    .production-actions > * { width: 100%; flex: 1 1 auto; }
+    .production-table .col-product { min-width: 160px; }
+    .production-table .col-recipe { min-width: 200px; }
+  }
+
+  /* macOS Liquid Glass Modal Sheet */
+  .fab-sheet-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.60);
+    z-index: 3000;
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: overlayFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .fab-sheet-overlay.open {
+    display: flex;
+  }
+  .fab-sheet {
+    background: var(--card) !important;
+    backdrop-filter: blur(34px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(34px) saturate(200%) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: 20px;
+    width: min(100%, 540px);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25), inset 0 1px 1px var(--glass-border-light);
+    animation: sheetPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+  }
+  @keyframes sheetPop {
+    from { transform: scale(0.95) translateY(16px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  .fab-sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--separator);
+    flex-shrink: 0;
+  }
+  .fab-sheet-header h5 {
+    margin: 0;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+  }
+  .fab-sheet-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+  }
+  .fab-sheet-close:hover {
+    color: var(--text);
+    background: rgba(0, 0, 0, 0.06);
+  }
+  .fab-sheet-body {
+    overflow-y: auto;
+    padding: 20px;
+    flex: 1;
+  }
+  .fab-sheet-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--separator);
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-shrink: 0;
+  }
 </style>
 
 <div class="production-page">
   <div class="page-hero mb-0">
     <div>
-      <h2 class="section-title mb-1">Production</h2>
-      <p class="production-summary mb-0">{{ pagination.total }} lot(s) enregistré(s).</p>
+      <h2 class="section-title mb-1">
+        <i class="bi bi-gear-wide-connected me-2 text-primary"></i>Production
+      </h2>
+      <p class="production-summary mb-0">{{ pagination.total }} lot(s) de fabrication enregistré(s).</p>
     </div>
     <div class="production-actions">
-      <a href="{{ url_for('new_production') }}" class="btn btn-brown"><i class="bi bi-plus-lg me-2"></i>Ajouter une production</a>
+      <a href="{{ url_for('new_production') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-2"></i>Lancer une production
+      </a>
     </div>
   </div>
 
   <div class="card production-table-card">
     <form method="get" class="row g-2 mb-3 production-filter-row">
       <div class="col-md-5">
-        <input type="text" name="q" value="{{ filters.q }}" class="form-control" placeholder="Produit ou note">
+        <input type="text" name="q" value="{{ filters.q }}" class="form-control" placeholder="Rechercher par produit ou note...">
       </div>
       <div class="col-md-3">
         <input type="date" name="date" value="{{ filters.date }}" class="form-control">
@@ -80,20 +212,21 @@
         </select>
       </div>
       <div class="col-md-2 d-flex gap-2">
-        <button class="btn btn-dark w-100">Filtrer</button>
-        <a href="{{ url_for('production') }}" class="btn btn-outline-secondary" aria-label="Réinitialiser les filtres"><i class="bi bi-x-lg"></i></a>
+        <button class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i>Filtrer</button>
+        <a href="{{ url_for('production') }}" class="btn btn-page-action-secondary" aria-label="Réinitialiser les filtres" title="Réinitialiser"><i class="bi bi-x-lg"></i></a>
       </div>
     </form>
+
     <div class="table-responsive production-table-wrap">
       <table class="table js-datagrid align-middle production-table">
         <thead>
           <tr>
-            <th class="col-date">Date</th>
+            <th class="col-date hide-mobile">Date</th>
             <th class="col-product">Produit final</th>
-            <th class="col-recipe hide-mobile">Recette</th>
+            <th class="col-recipe hide-mobile">Recette utilisée</th>
             <th class="col-qty">Qt produite</th>
             <th class="col-money hide-mobile">Coût total</th>
-            <th class="col-money">Coût/kg</th>
+            <th class="col-money hide-mobile">Coût / kg</th>
             <th class="col-actions">Actions</th>
           </tr>
         </thead>
@@ -110,18 +243,48 @@
               data-delete-url="{{ url_for('delete_production', batch_id=p.id) }}"
               data-delete-label="{{ p.finished_name }} du {{ p.production_date }}"
               data-label="{{ p.finished_name }} — {{ p.production_date }}">
-            <td class="cell-num col-date text-muted">{{ p.production_date }}</td>
-            <td class="cell-text col-product"><span class="product-text">{{ p.finished_name }}</span></td>
-            <td class="cell-text col-recipe hide-mobile"><span class="recipe-text">{{ p.recipe_text or '-' }}</span></td>
-            <td class="cell-num col-qty">{{ p.output_quantity }} kg</td>
-            <td class="cell-num col-money hide-mobile">{{ p.production_cost|money }}</td>
-            <td class="cell-num col-money">{{ p.unit_cost|money }}</td>
+            <td class="cell-num col-date hide-mobile">
+              <span class="text-muted"><i class="bi bi-calendar3 me-1"></i>{{ p.production_date }}</span>
+            </td>
+            <td class="cell-text col-product">
+              <span class="product-text">{{ p.finished_name }}</span>
+              <div class="d-md-none text-muted" style="font-size:0.75rem;"><i class="bi bi-calendar3 me-1"></i>{{ p.production_date }}</div>
+            </td>
+            <td class="cell-text col-recipe hide-mobile">
+              <span class="recipe-text">
+                <i class="bi bi-journals me-1 text-muted"></i>{{ p.recipe_text or 'Production directe' }}
+              </span>
+            </td>
+            <td class="cell-num col-qty">
+              <span class="prod-qty-badge">{{ p.output_quantity }} kg</span>
+            </td>
+            <td class="cell-num col-money hide-mobile fw-semibold">
+              {{ p.production_cost|money }}
+            </td>
+            <td class="cell-num col-money text-muted hide-mobile">
+              {{ p.unit_cost|money }}
+            </td>
             <td class="col-actions text-nowrap">
-              <a href="{{ print_url }}" class="btn btn-sm btn-outline-primary" title="Imprimer" onclick="openInvoice(event,this.closest('a').href)"><i class="bi bi-printer"></i></a>
+              <div class="d-flex gap-1 justify-content-end">
+                <a href="{{ print_url }}" class="btn btn-sm btn-outline-primary" title="Imprimer le bon" onclick="openInvoice(event,this.closest('a').href)">
+                  <i class="bi bi-printer"></i>
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-secondary" title="Modifier la date/note" onclick="editProductionNotes('{{ p.id }}', '{{ p.production_date }}', '{{ p.finished_name|escape }}', '{{ (p.notes or '')|escape }}')">
+                  <i class="bi bi-pencil"></i>
+                </button>
+              </div>
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="7" class="text-muted text-center py-4">Aucune production enregistrée.</td></tr>
+          <tr>
+            <td colspan="7" class="text-muted text-center py-5">
+              <div class="py-3">
+                <i class="bi bi-box-seam text-muted" style="font-size: 2.2rem; opacity: 0.5;"></i>
+                <div class="mt-2 fw-medium">Aucun lot de production enregistré.</div>
+                <div class="small text-muted mt-1">Cliquez sur « Lancer une production » pour enregistrer votre premier lot.</div>
+              </div>
+            </td>
+          </tr>
           {% endfor %}
         </tbody>
       </table>
@@ -130,12 +293,12 @@
   </div>
 </div>
 
+<!-- Modal macOS Liquid Glass d'édition -->
 <div id="editProdSheet" class="fab-sheet-overlay" onclick="if(event.target===this)closeProdSheet()">
   <div class="fab-sheet">
-    <div class="fab-sheet-handle"></div>
     <div class="fab-sheet-header">
-      <h5 id="editProdTitle">Modifier la production</h5>
-      <button class="fab-sheet-close" onclick="closeProdSheet()"><i class="bi bi-x-lg"></i></button>
+      <h5 id="editProdTitle"><i class="bi bi-sliders me-2 text-primary"></i>Modifier la production</h5>
+      <button class="fab-sheet-close" onclick="closeProdSheet()" aria-label="Fermer"><i class="bi bi-x-lg"></i></button>
     </div>
     <form method="post" action="{{ url_for('edit_production_notes') }}">
       <div class="fab-sheet-body">
@@ -143,16 +306,16 @@
         <input type="hidden" name="batch_id" id="editProdId">
         <div class="mb-3">
           <label for="editProdDate" class="form-label mb-1">Date de production</label>
-          <input type="date" name="production_date" id="editProdDate" class="form-control">
+          <input type="date" name="production_date" id="editProdDate" class="form-control" required>
         </div>
-        <div class="mb-3">
-          <label for="editProdNotes" class="form-label mb-1">Notes</label>
-          <textarea name="notes" id="editProdNotes" class="form-control" rows="4" placeholder="Observations..."></textarea>
+        <div class="mb-2">
+          <label for="editProdNotes" class="form-label mb-1">Notes & Observations</label>
+          <textarea name="notes" id="editProdNotes" class="form-control" rows="4" placeholder="Précisez un détail de fabrication, lot, opérateur..."></textarea>
         </div>
       </div>
       <div class="fab-sheet-footer">
         <button type="button" class="btn btn-outline-secondary" onclick="closeProdSheet()">Annuler</button>
-        <button type="submit" class="btn btn-premium">Enregistrer</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check2 me-1"></i>Enregistrer</button>
       </div>
     </form>
   </div>
@@ -169,7 +332,7 @@ function editProductionNotes(id, date, name, notes) {
   document.getElementById('editProdId').value    = id;
   document.getElementById('editProdDate').value  = date;
   document.getElementById('editProdNotes').value = notes;
-  document.getElementById('editProdTitle').textContent = 'Modifier - ' + name;
+  document.getElementById('editProdTitle').innerHTML = '<i class="bi bi-sliders me-2 text-primary"></i>Modifier — ' + name;
   sheet.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -182,5 +345,8 @@ function closeProdSheet() {
   sheet.classList.remove('open');
   document.body.style.overflow = '';
 }
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeProdSheet();
+});
 </script>
 {% endblock %}

@@ -166,8 +166,40 @@
   {% if request.query_params.get('embed') != '1' %}
   <div class="print-doc-actions no-print">
     <a href="{{ url_for('client_detail', client_id=client.id) }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Retour</a>
-    <button class="btn btn-dark" type="button" onclick="window.print()"><i class="bi bi-printer me-2"></i>Imprimer la page</button>
+    <div class="d-flex gap-2 flex-wrap">
+      <button class="btn btn-success d-inline-flex align-items-center" type="button" id="btnShareHistory" style="background:#25D366;border-color:#25D366;color:#fff;">
+        <i class="bi bi-whatsapp me-2"></i>Partager
+      </button>
+      <button class="btn btn-dark" type="button" onclick="window.print()"><i class="bi bi-printer me-2"></i>Imprimer la page</button>
+    </div>
   </div>
   {% endif %}
 </div>
+
+<script nonce="{{ csp_nonce }}">
+(function(){
+  const shareBtn = document.getElementById('btnShareHistory');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', async function(){
+      const docTitle = "Historique Client — {{ client.name }}";
+      const shareUrl = window.location.href;
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: docTitle,
+            text: 'Bonjour {{ client.name }}, voici votre relevé de compte FABOuanes (Solde : {{ client_balance|money }}) :',
+            url: shareUrl
+          });
+        } catch(err) {
+          if (err.name !== 'AbortError') {
+            window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent('Relevé FABOuanes {{ client.name }} : ' + shareUrl), '_blank');
+          }
+        }
+      } else {
+        window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent('Relevé FABOuanes {{ client.name }} : ' + shareUrl), '_blank');
+      }
+    });
+  }
+})();
+</script>
 {% endblock %}

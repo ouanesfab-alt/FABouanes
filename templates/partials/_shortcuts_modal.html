@@ -1,36 +1,81 @@
-<!-- Raccourcis Clavier Modal -->
+<!-- Raccourcis Clavier Modal (Desktop & Web) -->
 <div class="modal fade" id="shortcutsModal" tabindex="-1" aria-labelledby="shortcutsModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
-      <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title fw-bold" id="shortcutsModalLabel">
-          <i class="bi bi-keyboard me-2 text-primary"></i>Raccourcis Clavier FABOuanes
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; background: var(--glass-card, rgba(255,255,255,0.92)); backdrop-filter: blur(20px);">
+      <div class="modal-header border-bottom border-light-subtle pb-3">
+        <h5 class="modal-title fw-bold d-flex align-items-center" id="shortcutsModalLabel">
+          <i class="bi bi-keyboard-fill me-2 text-primary fs-4"></i>Raccourcis Clavier FABOuanes
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
       </div>
-      <div class="modal-body">
-        <div class="list-group list-group-flush">
-          <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-0 border-0">
-            <span><i class="bi bi-cart-plus me-2 text-success"></i>Nouvelle Vente</span>
-            <kbd class="bg-dark text-white px-2 py-1 rounded">Ctrl + N</kbd>
+      <div class="modal-body p-4">
+        <div class="row g-4">
+          <!-- Colonne 1: Contrôles Systèmes -->
+          <div class="col-md-6">
+            <h6 class="text-uppercase text-muted fw-bold small mb-3 letter-spacing-1">
+              <i class="bi bi-command me-1"></i> Actions Principales
+            </h6>
+            <div class="d-flex flex-column gap-2">
+              <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background: rgba(0,0,0,0.03);">
+                <span><i class="bi bi-search me-2 text-info"></i>Recherche rapide</span>
+                <kbd class="search-kbd">Ctrl + K</kbd>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background: rgba(0,0,0,0.03);">
+                <span><i class="bi bi-chat-dots-fill me-2 text-warning"></i>Assistant Sabrina AI</span>
+                <kbd class="search-kbd">Ctrl + J</kbd>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background: rgba(0,0,0,0.03);">
+                <span><i class="bi bi-check-circle-fill me-2 text-success"></i>Valider / Enregistrer</span>
+                <kbd class="search-kbd">Ctrl + S</kbd>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background: rgba(0,0,0,0.03);">
+                <span><i class="bi bi-search me-2 text-muted"></i>Focus recherche</span>
+                <kbd class="search-kbd">Ctrl + F</kbd>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background: rgba(0,0,0,0.03);">
+                <span><i class="bi bi-question-circle me-2 text-muted"></i>Aide raccourcis</span>
+                <kbd class="search-kbd">F1 ou Shift + ?</kbd>
+              </div>
+            </div>
           </div>
-          <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-0 border-0">
-            <span><i class="bi bi-search me-2 text-info"></i>Recherche Rapide</span>
-            <kbd class="bg-dark text-white px-2 py-1 rounded">Ctrl + K</kbd>
-          </div>
-          <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-0 border-0">
-            <span><i class="bi bi-chat-dots me-2 text-warning"></i>Assistant Sabrina</span>
-            <kbd class="bg-dark text-white px-2 py-1 rounded">Ctrl + J</kbd>
-          </div>
-          <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-0 border-0">
-            <span><i class="bi bi-box-seam me-2 text-primary"></i>Espace Bons & Achats</span>
-            <kbd class="bg-dark text-white px-2 py-1 rounded">Ctrl + B</kbd>
-          </div>
-          <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-0 border-0">
-            <span><i class="bi bi-question-circle me-2 text-muted"></i>Aide Raccourcis</span>
-            <kbd class="bg-dark text-white px-2 py-1 rounded">F1</kbd>
+
+          <!-- Colonne 2: Accès Rapides Opérations (Alt + Touche) -->
+          <div class="col-md-6">
+            <h6 class="text-uppercase text-muted fw-bold small mb-3 letter-spacing-1">
+              <i class="bi bi-lightning-charge-fill me-1 text-warning"></i> Accès Direct (Alt + ...)
+            </h6>
+            <div class="d-flex flex-column gap-2">
+              <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background: rgba(0,0,0,0.03);">
+                <span><i class="bi bi-cart-plus me-2 text-success"></i>Nouvelle vente</span>
+                <kbd class="search-kbd">Alt + S</kbd>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background: rgba(0,0,0,0.03);">
+                <span><i class="bi bi-bag-plus me-2 text-primary"></i>Nouvel achat</span>
+                <kbd class="search-kbd">Alt + B</kbd>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background: rgba(0,0,0,0.03);">
+                <span><i class="bi bi-cash-coin me-2 text-warning"></i>Nouveau paiement</span>
+                <kbd class="search-kbd">Alt + P</kbd>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background: rgba(0,0,0,0.03);">
+                <span><i class="bi bi-wallet2 me-2 text-danger"></i>Nouvelle dépense</span>
+                <kbd class="search-kbd">Alt + D</kbd>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background: rgba(0,0,0,0.03);">
+                <span><i class="bi bi-gear-fill me-2 text-secondary"></i>Nouvelle production</span>
+                <kbd class="search-kbd">Alt + R</kbd>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background: rgba(0,0,0,0.03);">
+                <span><i class="bi bi-journal-text me-2 text-info"></i>Bloc-note</span>
+                <kbd class="search-kbd">Alt + N</kbd>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
+      <div class="modal-footer border-top border-light-subtle py-2 px-4 justify-content-between">
+        <span class="small text-muted">Astuce: Les touches rapides Alt sont actives hors des zones de saisie texte.</span>
+        <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Fermer</button>
       </div>
     </div>
   </div>

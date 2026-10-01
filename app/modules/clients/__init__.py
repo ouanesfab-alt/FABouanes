@@ -2,7 +2,6 @@
 
 from app.core.registry import register
 from app.modules.base import ModuleBase
-from app.modules.clients.schema import TABLES
 from app.modules.clients.web import router as web_router
 
 
@@ -27,9 +26,6 @@ class ClientsModule(ModuleBase):
     def web_router(self):
         return web_router
 
-    @property
-    def schema_sql(self) -> list[str]:
-        return TABLES
 
     @property
     def permissions(self) -> list[str]:
