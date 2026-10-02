@@ -390,7 +390,7 @@ async def _build_debt_by_client(db: AsyncSession) -> list:
         + func.coalesce(finished_totals.c.credit_total, 0)
         + func.coalesce(raw_totals.c.credit_total, 0)
         - func.coalesce(payment_totals.c.versements, 0)
-        + func.coalesce(payment_totals.c.avances, 0)
+        - func.coalesce(payment_totals.c.avances, 0)
     )
 
     fallback_query = (

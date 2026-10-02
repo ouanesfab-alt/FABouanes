@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import secrets as _secrets
-import shutil
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,23 +33,33 @@ APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 def _ensure_env_file_exists() -> None:
     env_path = BASE_DIR / ".env"
+    example_path = BASE_DIR / ".env.example"
     if not env_path.exists():
-        example_path = BASE_DIR / ".env.example"
-        if example_path.exists():
-            try:
-                shutil.copy(example_path, env_path)
-            except Exception as _e:  # noqa: S110
-                warnings.warn(f"[config] Impossible de copier .env.example : {_e}", stacklevel=2)
-        else:
-            try:
+        try:
+            generated_secret = _secrets.token_hex(32)
+            if example_path.exists():
+                content = example_path.read_text(encoding="utf-8")
+                if "SECRET_KEY=" in content:
+                    lines = []
+                    for line in content.splitlines():
+                        if line.startswith("SECRET_KEY="):
+                            lines.append(f"SECRET_KEY={generated_secret}")
+                        else:
+                            lines.append(line)
+                    content = "\n".join(lines) + "\n"
+                else:
+                    content += f"\nSECRET_KEY={generated_secret}\n"
+                env_path.write_text(content, encoding="utf-8")
+            else:
                 env_path.write_text(
                     "DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/fabouanes\n"
+                    f"SECRET_KEY={generated_secret}\n"
                     "FAB_HOST=0.0.0.0\n"
                     "FAB_PORT=5000\n",
                     encoding="utf-8",
                 )
-            except Exception as _e:  # noqa: S110
-                warnings.warn(f"[config] Impossible de créer .env : {_e}", stacklevel=2)
+        except Exception as _e:  # noqa: S110
+            warnings.warn(f"[config] Impossible de créer .env : {_e}", stacklevel=2)
 
 
 _ensure_env_file_exists()
@@ -76,6 +85,23 @@ class Settings:
     redis_url: str | None = os.getenv("REDIS_URL", "").strip() or None
 
     def __post_init__(self) -> None:
+        testing = os.getenv("PYTEST_CURRENT_TEST") or os.getenv("FAB_TESTING", "") == "1"
+
+        # Rejeter formellement les placeholders d'exemples connus
+        insecure_placeholders = {
+            "change-this-to-a-secure-secret-key",
+            "change-this-to-a-secure-key",
+            "secret",
+            "secret-key",
+        }
+        if self.secret_key in insecure_placeholders or self.secret_key.startswith("change-this"):
+            if not testing and self.env == "production" and not self.desktop_mode:
+                raise RuntimeError(
+                    "SECRET_KEY utilise une valeur d'exemple non sécurisée. "
+                    'Définissez une clé sécurisée dans .env avec: python -c "import secrets; print(secrets.token_hex(32))"'
+                )
+            self.secret_key = ""
+
         if not self.secret_key:
             key_file = self.app_data_dir / "secret.key"
             if key_file.exists():
@@ -93,7 +119,6 @@ class Settings:
                 except Exception as _e:  # noqa: S110
                     warnings.warn(f"[config] Impossible d'écrire secret.key : {_e}", stacklevel=2)
 
-        testing = os.getenv("PYTEST_CURRENT_TEST") or os.getenv("FAB_TESTING", "") == "1"
         if not self.secret_key:
             if not testing:
                 raise RuntimeError(

@@ -35,9 +35,12 @@ def create_access_token(user_id: int, role: str) -> str:
 
 
 def create_refresh_token(user_id: int) -> str:
+    import uuid
+
     expires = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    jti = uuid.uuid4().hex
     token = pyjwt.encode(
-        {"sub": str(user_id), "exp": expires, "type": "refresh"},
+        {"sub": str(user_id), "exp": expires, "type": "refresh", "jti": jti},
         settings.secret_key,
         ALGORITHM,
     )
@@ -98,14 +101,19 @@ def validate_mobile_refresh_token(token: str) -> dict[str, Any]:
     if not all_row:
         raise HTTPException(401, "Jeton inconnu ou invalide")
 
+    user_id = int(all_row["user_id"])
+
     if all_row.get("revoked_at") is not None:
         # Replay attack detected! Revoke all tokens for this user immediately!
-        user_id = int(all_row["user_id"])
         execute_db(
             "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = %s AND revoked_at IS NULL",
             (user_id,),
         )
         raise HTTPException(401, "Tentative de rejeu de jeton détectée, toutes les sessions ont été invalidées")
+
+    user_row = query_db("SELECT id, is_active FROM users WHERE id = %s", (user_id,), one=True)
+    if user_row is not None and not bool(user_row.get("is_active", 1)):
+        raise HTTPException(401, "Compte utilisateur inactif ou désactivé")
 
     # Mark old token as revoked/used (since we will return a rotated one!)
     execute_db(
@@ -124,4 +132,11 @@ def get_current_user_id(
     payload = decode_token(credentials.credentials)
     if payload.get("type") != "access":
         raise HTTPException(401, "Token d'accès requis")
-    return int(payload["sub"])
+
+    user_id = int(payload["sub"])
+    from app.core.db_helpers import query_db
+
+    user_row = query_db("SELECT id, is_active FROM users WHERE id = %s", (user_id,), one=True)
+    if not user_row or not user_row.get("is_active"):
+        raise HTTPException(401, "Compte utilisateur inactif ou désactivé")
+    return user_id

@@ -28,7 +28,7 @@ def upgrade() -> None:
             + COALESCE(s_finished.total, 0)
             + COALESCE(s_raw.total, 0)
             - COALESCE(p_versement.total, 0)
-            + COALESCE(p_avance.total, 0) AS balance
+            - COALESCE(p_avance.total, 0) AS balance
     FROM clients c
     LEFT JOIN (SELECT client_id, SUM(total) AS total FROM sales WHERE sale_type='credit' GROUP BY client_id) s_finished ON s_finished.client_id = c.id
     LEFT JOIN (SELECT client_id, SUM(total) AS total FROM raw_sales WHERE sale_type='credit' GROUP BY client_id) s_raw ON s_raw.client_id = c.id
@@ -67,12 +67,12 @@ def upgrade() -> None:
            + COALESCE(ft.credit_total, 0)
            + COALESCE(rt.credit_total, 0)
            - COALESCE(pt.versements, 0)
-           + COALESCE(pt.avances, 0) AS current_debt,
+           - COALESCE(pt.avances, 0) AS current_debt,
            c.opening_credit
            + COALESCE(ft.credit_total, 0)
            + COALESCE(rt.credit_total, 0)
            - COALESCE(pt.versements, 0)
-           + COALESCE(pt.avances, 0) AS current_balance,
+           - COALESCE(pt.avances, 0) AS current_balance,
            COALESCE(ft.total_sales, 0) + COALESCE(rt.total_sales, 0) AS total_sales,
            COALESCE(pt.versements, 0) AS total_payments
     FROM clients c

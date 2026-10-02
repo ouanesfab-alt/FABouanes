@@ -193,9 +193,10 @@ class SalesCommands:
                 product.stock_qty = stock_after
                 await self._safe_add(product)
 
-            # Delete payments associated with this sale
+            # Delete only initial payment created automatically at credit sale creation
             await self.session.execute(
-                text("DELETE FROM payments WHERE sale_kind = 'finished' AND sale_id = :sale_id"), {"sale_id": row_id}
+                text("DELETE FROM payments WHERE sale_kind = 'finished' AND sale_id = :sale_id AND notes LIKE '%Paiement initial%'"),
+                {"sale_id": row_id},
             )
 
             # Delete sale row
@@ -237,9 +238,10 @@ class SalesCommands:
             material.stock_qty = stock_after
             await self._safe_add(material)
 
-        # Delete payments associated
+        # Delete only initial payment created automatically at credit sale creation
         await self.session.execute(
-            text("DELETE FROM payments WHERE sale_kind = 'raw' AND raw_sale_id = :raw_sale_id"), {"raw_sale_id": row_id}
+            text("DELETE FROM payments WHERE sale_kind = 'raw' AND raw_sale_id = :raw_sale_id AND notes LIKE '%Paiement initial%'"),
+            {"raw_sale_id": row_id},
         )
 
         # Delete raw sale row
@@ -574,6 +576,11 @@ class SalesCommands:
         if not before:
             raise NotFoundError("Vente", row_id)
 
+        if before.get("client_id"):
+            refs = {(kind, row_id)}
+            if await self.doc_repo.document_has_linked_payments(0, int(before["client_id"]), refs):
+                raise ConflictError("Cette vente est déjà liée à des versements. Retirez ou annulez d'abord les versements.")
+
         client_id = schema.client_id
         await SalesValidator.validate_client(client_id, self.session)
         sale_date = schema.sale_date
@@ -704,6 +711,11 @@ class SalesCommands:
         before = await self.sale_repo.get_sale_detail(kind, row_id)
         if not before:
             return False
+
+        if before.get("client_id"):
+            refs = {(kind, row_id)}
+            if await self.doc_repo.document_has_linked_payments(0, int(before["client_id"]), refs):
+                raise ConflictError("Cette vente est liée à des versements. Retirez ou annulez d'abord les versements avant de la supprimer.")
 
         ok = await self.reverse_sale(kind, row_id)
         if ok:

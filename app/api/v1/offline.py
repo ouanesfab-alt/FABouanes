@@ -51,6 +51,7 @@ async def sync_operation(request: Request, db: AsyncSession = Depends(get_async_
             result = await service.create_sale_from_form(validated)
             res_payload = {"ok": True, "mode": result.get("mode")}
         elif op_type == "create_purchase":
+            require_api_user(request, "admin")
             validated = PurchaseFormSchema(**payload)
             service = PurchaseService(db)
             result = await service.create_purchase_from_form(validated)
@@ -124,7 +125,7 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
             idempotency_key = op.get("idempotency_key") or op.get("key")
 
             try:
-                if op_type in ("create_sale", "create_purchase"):
+                if op_type == "create_sale":
                     table_name = "offline_sales_staging"
                 elif op_type == "create_payment":
                     table_name = "offline_payments_staging"
@@ -180,6 +181,7 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
                 result = await service.create_sale_from_form(validated)
                 res_payload = {"ok": True, "mode": result.get("mode")}
             elif op_type == "create_purchase":
+                require_api_user(request, "admin")
                 validated = PurchaseFormSchema(**payload)
                 service = PurchaseService(db)
                 result = await service.create_purchase_from_form(validated)

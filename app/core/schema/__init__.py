@@ -91,12 +91,6 @@ def _seed_default_admin(conn) -> None:
             """,
             (DEFAULT_ADMIN_USERNAME, generate_password_hash(init_pwd), val_must_change, val_is_active),
         )
-    elif str(DEFAULT_ADMIN_PASSWORD or "").strip():
-        _exec(
-            conn,
-            "UPDATE users SET password_hash = %s WHERE username = %s",
-            (generate_password_hash(init_pwd), DEFAULT_ADMIN_USERNAME),
-        )
 
 
 def _seed_other_operation(conn) -> None:

@@ -5,7 +5,10 @@ from typing import Any, List, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
-def parse_numeric(val: any) -> float:
+import math
+
+
+def parse_numeric(val: Any) -> float:
     if val is None or val == "":
         return 0.0
     if isinstance(val, (int, float)):
@@ -16,8 +19,12 @@ def parse_numeric(val: any) -> float:
             f_val = float(cleaned)
         except (ValueError, TypeError) as e:
             raise ValueError("La valeur doit être un nombre valide.") from e
+    if math.isnan(f_val) or math.isinf(f_val):
+        raise ValueError("La valeur doit être un nombre fini.")
     if f_val < 0:
         raise ValueError("La valeur ne peut pas être négative.")
+    if f_val > 1e12:
+        raise ValueError("La valeur dépasse la limite autorisée.")
     return f_val
 
 

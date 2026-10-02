@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -347,7 +348,21 @@ class SaleDocumentRepository(AsyncRepository[SaleDocument]):
             .where(Payment.payment_type == "versement")
         )
         result = await self.session.execute(stmt)
-        payments = [dict(row._mapping) for row in result.fetchall()]
+        if inspect.isawaitable(result):
+            result = await result
+        raw_rows = getattr(result, "fetchall", None)
+        if callable(raw_rows):
+            raw_rows = raw_rows()
+            if inspect.isawaitable(raw_rows):
+                raw_rows = await raw_rows
+        if not isinstance(raw_rows, (list, tuple)):
+            return False
+        payments = []
+        for row in raw_rows:
+            if hasattr(row, "_mapping"):
+                payments.append(dict(row._mapping))
+            elif isinstance(row, dict):
+                payments.append(row)
         for p in payments:
             if _payment_references_sale(p, refs):
                 return True

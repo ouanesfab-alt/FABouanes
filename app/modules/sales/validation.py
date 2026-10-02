@@ -25,8 +25,12 @@ class SalesValidator:
 
     @staticmethod
     def validate_quantity(qty: float) -> None:
-        if qty <= 0:
-            raise ValidationError("La quantité doit être supérieure à zéro.")
+        import math
+
+        if math.isnan(qty) or math.isinf(qty) or qty <= 0:
+            raise ValidationError("La quantité doit être un nombre strictement positif et fini.")
+        if qty > 1e9:
+            raise ValidationError("La quantité dépasse la limite autorisée.")
 
     @staticmethod
     async def validate_stock_availability(

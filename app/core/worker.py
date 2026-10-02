@@ -332,17 +332,27 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
     await update_task_progress(job_id, 10, "Démarrage du traitement de la synchronisation hors-ligne...")
 
     from app.core.async_db import get_async_sessionmaker
-    from app.core.db_helpers import execute_db, query_db
+    from app.core.db_helpers import db_manager, execute_db
     from app.core.idempotency import check_idempotency, save_idempotency
     from app.modules.sales.schemas_validation import SaleFormSchema
     from app.modules.sales.service import SalesService
 
-    pending_sales = (
-        query_db(
-            "SELECT id, idempotency_key, payload FROM offline_sales_staging WHERE status = 'pending' ORDER BY id ASC"
+    with db_manager.db_transaction() as conn:
+        res = conn.execute(
+            """
+            UPDATE offline_sales_staging
+            SET status = 'processing'
+            WHERE id IN (
+                SELECT id FROM offline_sales_staging
+                WHERE status = 'pending'
+                ORDER BY id ASC
+                LIMIT 50
+                FOR UPDATE SKIP LOCKED
+            )
+            RETURNING id, idempotency_key, payload
+            """
         )
-        or []
-    )
+        pending_sales = [dict(r) for r in res.fetchall()]
     processed_count = 0
 
     if pending_sales:
@@ -384,12 +394,22 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
                         (str(exc), staging_id),
                     )
 
-    pending_payments = (
-        query_db(
-            "SELECT id, idempotency_key, payload FROM offline_payments_staging WHERE status = 'pending' ORDER BY id ASC"
+    with db_manager.db_transaction() as conn:
+        res = conn.execute(
+            """
+            UPDATE offline_payments_staging
+            SET status = 'processing'
+            WHERE id IN (
+                SELECT id FROM offline_payments_staging
+                WHERE status = 'pending'
+                ORDER BY id ASC
+                LIMIT 50
+                FOR UPDATE SKIP LOCKED
+            )
+            RETURNING id, idempotency_key, payload
+            """
         )
-        or []
-    )
+        pending_payments = [dict(r) for r in res.fetchall()]
     if pending_payments:
         async_sessionmaker = get_async_sessionmaker()
         async with async_sessionmaker() as session:

@@ -16,6 +16,8 @@ READONLY_FORBIDDEN_NODE_PARTS = {
     "command",
     "grant",
     "revoke",
+    "into",
+    "lock",
 }
 
 WRITE_FORBIDDEN_NODE_PARTS = {
@@ -26,6 +28,7 @@ WRITE_FORBIDDEN_NODE_PARTS = {
     "command",
     "grant",
     "revoke",
+    "into",
 }
 
 WRITE_STATEMENT_NAMES = {"insert", "update", "delete"}
@@ -36,8 +39,38 @@ PROTECTED_TABLE_NAMES = {
     "pg_shadow",
     "pg_user",
     "users",
+    "client_keys",
+    "api_refresh_tokens",
+    "audit_logs",
 }
 PROTECTED_SCHEMA_NAMES = {"information_schema", "pg_catalog"}
+
+FORBIDDEN_FUNCTION_NAMES = {
+    "table_to_xml",
+    "query_to_xml",
+    "cursor_to_xml",
+    "table_to_xml_and_xmlschema",
+    "query_to_xml_and_xmlschema",
+    "schema_to_xml",
+    "schema_to_xml_and_xmlschema",
+    "database_to_xml",
+    "database_to_xml_and_xmlschema",
+    "pg_sleep",
+    "pg_sleep_for",
+    "pg_sleep_until",
+    "pg_read_file",
+    "pg_read_binary_file",
+    "pg_stat_file",
+    "pg_ls_dir",
+    "lo_import",
+    "lo_export",
+    "pg_terminate_backend",
+    "pg_cancel_backend",
+    "setval",
+    "nextval",
+    "set_config",
+    "current_setting",
+}
 
 ALLOWED_WRITE_TABLES_BASE = {
     "contacts",
@@ -113,6 +146,18 @@ def _contains_forbidden_node(statement: Any, forbidden_parts: set[str]) -> str |
     return None
 
 
+def _contains_forbidden_function(statement: Any) -> str | None:
+    for node in statement.find_all(sqlglot.exp.Expression):
+        func_name = None
+        if isinstance(node, sqlglot.exp.Anonymous):
+            func_name = str(node.this).lower()
+        elif isinstance(node, sqlglot.exp.Func):
+            func_name = node.sql_name().lower() if hasattr(node, "sql_name") else node.__class__.__name__.lower()
+        if func_name and func_name in FORBIDDEN_FUNCTION_NAMES:
+            return func_name
+    return None
+
+
 def _contains_protected_table(statement: Any) -> bool:
     for table_node in statement.find_all(sqlglot.exp.Table):
         table_name = table_node.name.lower()
@@ -121,6 +166,13 @@ def _contains_protected_table(statement: Any) -> bool:
         table_parts = {part for part in (catalog_name, db_name, table_name) if part}
         if table_name in PROTECTED_TABLE_NAMES or table_parts & PROTECTED_SCHEMA_NAMES:
             return True
+
+    # Block literals referencing protected tables or schemas (e.g. table_to_xml('users', ...))
+    for lit in statement.find_all(sqlglot.exp.Literal):
+        if lit.is_string:
+            val = str(lit.this).strip().lower()
+            if val in PROTECTED_TABLE_NAMES or val in PROTECTED_SCHEMA_NAMES:
+                return True
     return False
 
 
@@ -129,25 +181,21 @@ def _has_limit(statement: Any) -> bool:
 
 
 def _get_write_target_tables(statement: Any) -> set[str]:
-    """Extract the primary target table(s) of an INSERT/UPDATE/DELETE statement."""
+    """Extract all target table(s) of any INSERT/UPDATE/DELETE statement or CTEs."""
     tables: set[str] = set()
-    # INSERT INTO <table>
-    if isinstance(statement, sqlglot.exp.Insert):
-        # sqlglot wraps the target in a Table node inside statement.this
-        tbl = statement.find(sqlglot.exp.Table)
+    for insert_node in statement.find_all(sqlglot.exp.Insert):
+        tbl = insert_node.find(sqlglot.exp.Table)
         if tbl and tbl.name:
             tables.add(tbl.name.lower())
-    # UPDATE <table>
-    elif isinstance(statement, sqlglot.exp.Update):
-        tbl = statement.find(sqlglot.exp.Table)
+    for update_node in statement.find_all(sqlglot.exp.Update):
+        tbl = update_node.find(sqlglot.exp.Table)
         if tbl and tbl.name:
             tables.add(tbl.name.lower())
-    # DELETE FROM <table>
-    elif isinstance(statement, sqlglot.exp.Delete):
-        for tbl in statement.find_all(sqlglot.exp.Table):
+    for delete_node in statement.find_all(sqlglot.exp.Delete):
+        for tbl in delete_node.find_all(sqlglot.exp.Table):
             if tbl.name:
                 tables.add(tbl.name.lower())
-            break  # only the first (target) table
+            break
     return tables
 
 
@@ -218,6 +266,15 @@ def validate_readonly_sql(query: str, default_limit: int = 100) -> SqlValidation
             statement=statement,
         )
 
+    forbidden_func = _contains_forbidden_function(statement)
+    if forbidden_func:
+        return SqlValidationResult(
+            False,
+            f"Appel à la fonction interdite '{forbidden_func}'.",
+            statements=parsed.statements,
+            statement=statement,
+        )
+
     if _contains_protected_table(statement):
         return SqlValidationResult(
             False,
@@ -263,6 +320,15 @@ def validate_write_sql(query: str) -> SqlValidationResult:
             statement=statement,
         )
 
+    forbidden_func = _contains_forbidden_function(statement)
+    if forbidden_func:
+        return SqlValidationResult(
+            False,
+            f"Appel à la fonction interdite '{forbidden_func}'.",
+            statements=parsed.statements,
+            statement=statement,
+        )
+
     if _contains_protected_table(statement):
         return SqlValidationResult(
             False,
@@ -285,14 +351,15 @@ def validate_write_sql(query: str) -> SqlValidationResult:
             statement=statement,
         )
 
-    # Mandatory WHERE clause check for UPDATE / DELETE
-    ok, err_msg = _has_valid_where_clause(statement)
-    if not ok:
-        return SqlValidationResult(
-            False,
-            err_msg,
-            statements=parsed.statements,
-            statement=statement,
-        )
+    # Mandatory WHERE clause check for all UPDATE / DELETE statements in the tree (including CTEs)
+    for op in statement.find_all((sqlglot.exp.Update, sqlglot.exp.Delete)):
+        ok, err_msg = _has_valid_where_clause(op)
+        if not ok:
+            return SqlValidationResult(
+                False,
+                err_msg,
+                statements=parsed.statements,
+                statement=statement,
+            )
 
     return SqlValidationResult(True, statements=parsed.statements, statement=statement, sql_to_run=query)

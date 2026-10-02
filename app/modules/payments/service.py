@@ -205,18 +205,20 @@ class PaymentsService:
         if not res_client.first():
             raise ValidationError("Client introuvable.")
 
-        # ── Idempotency guard: reject duplicate within 60s window ──
+        # ── Double-submit guard: reject identical click within 5s window ──
         import os
 
         if not os.getenv("PYTEST_CURRENT_TEST"):
             from datetime import datetime, timedelta
 
-            cutoff = datetime.utcnow() - timedelta(seconds=60)
+            cutoff = datetime.utcnow() - timedelta(seconds=5)
+            clean_notes = notes or ("Avance client" if payment_type == "avance" else "Versement client")
             dup_check = await self.session.execute(
                 select(Payment.id)
                 .where(
                     Payment.client_id == client_id,
                     Payment.amount == amount,
+                    Payment.notes == clean_notes,
                     Payment.payment_date
                     == (
                         payment_date
@@ -229,7 +231,7 @@ class PaymentsService:
             )
             if dup_check.first():
                 raise ValidationError(
-                    "Un paiement identique vient d'être enregistré. Veuillez patienter avant de réessayer."
+                    "Un paiement identique vient d'être soumis. Veuillez patienter avant de réessayer."
                 )
 
         if payment_type == "avance":

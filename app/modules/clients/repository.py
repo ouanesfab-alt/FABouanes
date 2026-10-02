@@ -124,8 +124,8 @@ class ClientRepository(AsyncRepository[Client]):
                 literal(None).label("item_name"),
                 literal(None).label("quantity"),
                 literal(None).label("unit"),
-                case((Payment.payment_type == "avance", Payment.amount), else_=0.0).label("purchase_amount"),
-                case((Payment.payment_type == "versement", Payment.amount), else_=0.0).label("payment_amount"),
+                literal(0.0).label("purchase_amount"),
+                Payment.amount.label("payment_amount"),
                 case((Payment.payment_type == "avance", "advance"), else_="payment").label("event_type"),
                 literal(None).label("sale_type"),
             )

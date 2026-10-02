@@ -5,7 +5,7 @@ import re
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import case, delete, func, select, update
+from sqlalchemy import case, delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_sessionmaker
@@ -873,7 +873,7 @@ async def reverse_sale(kind: str, row_id: int, db: AsyncSession | None = None) -
 
 
 async def _reverse_sale_impl(kind: str, row_id: int, db: AsyncSession) -> bool:
-    from app.core.models import FinishedProduct, Payment, RawMaterial, RawSale, Sale
+    from app.core.models import FinishedProduct, RawMaterial, RawSale, Sale
 
     if kind == "finished":
         row_res = await db.execute(select(Sale).where(Sale.id == row_id))
@@ -889,7 +889,10 @@ async def _reverse_sale_impl(kind: str, row_id: int, db: AsyncSession) -> bool:
         stock_after = stock_before + restore_qty
         if product:
             product.stock_qty = Decimal(str(stock_after))
-        await db.execute(delete(Payment).where(Payment.sale_kind == "finished", Payment.sale_id == row_id))
+        await db.execute(
+            text("DELETE FROM payments WHERE sale_kind = 'finished' AND sale_id = :sale_id AND notes LIKE '%Paiement initial%'"),
+            {"sale_id": row_id},
+        )
         await db.delete(row)
         await db.flush()
         await record_stock_movement(
@@ -924,7 +927,10 @@ async def _reverse_sale_impl(kind: str, row_id: int, db: AsyncSession) -> bool:
     stock_after = stock_before + restore_qty
     if material:
         material.stock_qty = Decimal(str(stock_after))
-    await db.execute(delete(Payment).where(Payment.sale_kind == "raw", Payment.raw_sale_id == row_id))
+    await db.execute(
+        text("DELETE FROM payments WHERE sale_kind = 'raw' AND raw_sale_id = :raw_sale_id AND notes LIKE '%Paiement initial%'"),
+        {"raw_sale_id": row_id},
+    )
     await db.delete(row)
     await db.flush()
     await record_stock_movement(

@@ -128,6 +128,7 @@ def execute_readonly_sql(query: str) -> Dict[str, Any]:
         # SET LOCAL must run inside the same transaction as the query to have effect
         with db_manager.db_transaction() as conn:
             conn.execute("SET LOCAL statement_timeout = '10000'")
+            conn.execute("SET TRANSACTION READ ONLY")
             rows = conn.execute(sql_to_run).fetchall()
         return {"rows": serialize_for_json([dict(r) for r in rows])}
     except Exception as e:

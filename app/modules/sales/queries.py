@@ -66,6 +66,11 @@ class SalesQueries:
                 context["redirect_document_id"] = int(sale["document_id"])
             return context
 
+        has_linked = False
+        if sale.get("client_id"):
+            refs = {(str(sale["row_kind"]), int(sale["id"]))}
+            has_linked = await self.doc_repo.document_has_linked_payments(0, int(sale["client_id"]), refs)
+
         return {
             "sale_document": {
                 "id": None,
@@ -91,5 +96,5 @@ class SalesQueries:
                     "custom_item_name": str(sale["custom_item_name"] or ""),
                 }
             ],
-            "has_linked_payments": False,
+            "has_linked_payments": has_linked,
         }

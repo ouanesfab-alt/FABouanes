@@ -175,7 +175,7 @@ async def reconcile_client_balances(db: AsyncSession) -> dict:
                      + COALESCE(s_finished.total, 0)
                      + COALESCE(s_raw.total, 0)
                      - COALESCE(p_versement.total, 0)
-                     + COALESCE(p_avance.total, 0) AS calculated_balance
+                     - COALESCE(p_avance.total, 0) AS calculated_balance
             FROM clients c
             LEFT JOIN (SELECT client_id, SUM(total) AS total FROM sales WHERE sale_type='credit' GROUP BY client_id) s_finished ON s_finished.client_id = c.id
             LEFT JOIN (SELECT client_id, SUM(total) AS total FROM raw_sales WHERE sale_type='credit' GROUP BY client_id) s_raw ON s_raw.client_id = c.id

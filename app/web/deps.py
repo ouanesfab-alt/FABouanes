@@ -7,7 +7,7 @@ import secrets
 import time
 from types import SimpleNamespace
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 from fastapi import Request
 from fastapi.responses import RedirectResponse
@@ -220,8 +220,19 @@ async def verify_csrf_token(request: Request):
 
     if supplied and hmac.compare_digest(str(supplied), str(expected)):
         return
-    # Auto-fallback: if request is from local desktop environment
-    if os.environ.get("FAB_DESKTOP") == "1" and request.client and request.client.host in ("127.0.0.1", "localhost"):
+    # Auto-fallback: if request is from local desktop environment (e.g. PyWebView),
+    # ensure it is NOT a cross-site request originating from an external browser webpage.
+    if os.environ.get("FAB_DESKTOP") == "1" and request.client and request.client.host in ("127.0.0.1", "localhost", "::1"):
+        sec_fetch_site = request.headers.get("sec-fetch-site")
+        if sec_fetch_site == "cross-site":
+            from fastapi import HTTPException
+            raise HTTPException(status_code=403, detail="Cross-site request blocked")
+        origin = request.headers.get("origin")
+        if origin:
+            parsed_origin = urlparse(origin)
+            if parsed_origin.hostname not in ("127.0.0.1", "localhost", "::1"):
+                from fastapi import HTTPException
+                raise HTTPException(status_code=403, detail="Cross-origin request blocked")
         return
 
     from fastapi import HTTPException

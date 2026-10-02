@@ -97,7 +97,7 @@ class ReportsService:
             )
             total_paid_avances = sum(Decimal(str(p["amount"])) for p in c_payments if p["payment_type"] == "avance")
 
-            current_debt = total_credit - total_paid_versements + total_paid_avances
+            current_debt = total_credit - total_paid_versements - total_paid_avances
 
             if current_debt > Decimal("0.01"):
                 # Brackets
