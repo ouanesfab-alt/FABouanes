@@ -2152,6 +2152,16 @@ body.print-route .app-content {
   animation: none !important;
 }
 
+body.print-route .app-content > *,
+body.print-route .print-doc-shell,
+body.print-route .print-doc-paper,
+body.print-route * {
+  animation: none !important;
+  transition: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
 body.print-route .alert {
   display: none !important;
 }

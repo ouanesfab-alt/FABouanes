@@ -57,12 +57,68 @@
   .print-doc-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
   @page{size:A4 portrait;margin:10mm;}
   @media print{
-    html,body{margin:0!important;padding:0!important;}
-    .no-print,.app-navbar,.page-hero,.table-toolbar,.context-menu,.btn,.dropdown,.alert{display:none!important;}
-    body{padding-top:0!important;background:#fff!important;}
-    .app-content{padding:0!important;}
-    .print-doc-shell{width:190mm!important;max-width:none!important;gap:0!important;}
-    .print-doc-paper{box-shadow:none!important;border:0!important;border-radius:0!important;min-height:auto!important;padding:0!important;}
+    *, *::before, *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #ffffff !important;
+      color: #000000 !important;
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+    }
+    .no-print, .app-navbar, .page-hero, .table-toolbar, .context-menu, .btn, .dropdown, .alert, .print-doc-actions {
+      display: none !important;
+    }
+    body {
+      padding-top: 0 !important;
+      background: #ffffff !important;
+    }
+    .app-content {
+      padding: 0 !important;
+      margin: 0 !important;
+      max-width: none !important;
+      height: auto !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      overflow: visible !important;
+      animation: none !important;
+      transform: none !important;
+      opacity: 1 !important;
+    }
+    .app-content > * {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+      visibility: visible !important;
+    }
+    .print-doc-shell {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      gap: 0 !important;
+      zoom: 1 !important;
+      display: block !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      transform: none !important;
+    }
+    .print-doc-paper {
+      width: 100% !important;
+      box-shadow: none !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      min-height: auto !important;
+      overflow: visible !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      padding: 0 !important;
+    }
   }
 </style>
 

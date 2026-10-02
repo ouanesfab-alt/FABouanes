@@ -1133,6 +1133,11 @@ html, body {
 
 /* ── 10. Optimized Print Styles ── */
 @media print {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
   .app-navbar,
   .app-sidebar,
   .app-drawer,
@@ -1146,12 +1151,23 @@ html, body {
     display: none !important;
   }
 
-  body, .app-content, main {
+  html, body, .app-content, main {
     background: #ffffff !important;
     color: #000000 !important;
     padding: 0 !important;
     margin: 0 !important;
     box-shadow: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .app-content > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    visibility: visible !important;
   }
 
   table {

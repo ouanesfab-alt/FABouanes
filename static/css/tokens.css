@@ -597,6 +597,14 @@ h1, h2, h3, h4, h5, h6, .section-title {
   animation: mac-page-enter 0.5s var(--ease-spring) both;
 }
 
+@media print {
+  .app-content > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 /* Elevate hover effect on glass panels and cards */
 .card:hover, .glass-panel:hover, .table-card:hover, .dashboard-card:hover {
   transform: translateY(-2px) !important;

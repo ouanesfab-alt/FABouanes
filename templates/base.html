@@ -1,3 +1,5 @@
+{% set current_url_path = request.url.path if request and request.url else (request.path if request and hasattr(request, 'path') else '') %}
+{% set is_print_view = current_url_path.startswith('/print/') or current_url_path.endswith('/print-history') or '/print' in current_url_path or request.endpoint in ['print_client_history', 'print_document'] %}
 <!doctype html>
 <html lang="fr" class="{% if is_print_view %}print-route-html{% endif %}">
 
@@ -15,7 +17,6 @@
     }
   </style>
 </head>
-{% set is_print_view = request.path.startswith('/print/') or request.endpoint in ['print_client_history'] %}
 
 <body class="{% if is_desktop_app %}desktop-app {% endif %}{% if is_print_view %}print-route{% endif %}">
   {% if not is_print_view %}
@@ -23,6 +24,15 @@
   <div class="sequoia-backdrop" aria-hidden="true"></div>
   {% endif %}
   <script nonce="{{ csp_nonce }}">
+    window.openInvoice = function(event, url) {
+      if (event) {
+        try { event.preventDefault(); } catch (e) {}
+      }
+      var dest = url || (event && (event.currentTarget || event.target) && ((event.currentTarget && event.currentTarget.href) || (event.target && event.target.closest('a') && event.target.closest('a').href)));
+      if (!dest || dest === '#' || dest.indexOf('javascript:') === 0) return;
+      if (dest.indexOf('/') === 0) dest = window.location.protocol + '//' + window.location.host + dest;
+      window.location.href = dest;
+    };
     {% if not g.user and not is_print_view %}
     document.body.classList.add('auth-page');
     {% endif %}

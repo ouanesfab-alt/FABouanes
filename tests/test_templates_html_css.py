@@ -142,3 +142,21 @@ def test_build_css_bundle():
     dist_dir = STATIC_DIR / "dist"
     bundles = list(dist_dir.glob("bundle.*.min.css"))
     assert len(bundles) >= 1, "Aucun bundle CSS généré dans static/dist"
+
+
+def test_print_document_classes_and_media_print_safety():
+    """Vérifie que la vue d'impression contient les classes appropriées et que le CSS d'impression désactive les animations."""
+    print_doc_path = TEMPLATES_DIR / "print_document.html"
+    assert print_doc_path.exists()
+    content = print_doc_path.read_text(encoding="utf-8")
+    assert "@media print" in content
+    assert "animation: none !important" in content
+    assert "overflow: visible !important" in content
+
+    base_path = TEMPLATES_DIR / "base.html"
+    base_content = base_path.read_text(encoding="utf-8")
+    assert "is_print_view" in base_content
+    set_idx = base_content.find("{% set is_print_view")
+    html_idx = base_content.find("<html")
+    assert set_idx != -1 and html_idx != -1 and set_idx < html_idx, "is_print_view doit être défini avant la balise <html>"
+

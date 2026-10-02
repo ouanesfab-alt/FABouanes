@@ -109,21 +109,108 @@
     .print-doc-shell{zoom:var(--print-screen-scale);}
   }
   @media print{
-    html,body{margin:0!important;padding:0!important;}
-    .no-print,.app-navbar,.page-hero,.table-toolbar,.context-menu,.btn,.dropdown,.alert{display:none !important;}
-    body{padding-top:0 !important;background:#fff !important;}
-    .app-content{padding:0 !important;}
-    .print-doc-paper{box-shadow:none !important;border:0 !important;border-radius:0 !important;min-height:auto !important;}
-    .print-doc-shell{width:var(--print-content-width) !important;max-width:none !important;gap:0 !important;zoom:1 !important;}
-    .print-doc-header,.print-doc-top-grid,.print-doc-client-box,.print-doc-summary,.print-doc-footer{break-inside:avoid-page;page-break-inside:avoid;}
-    .print-doc-table{page-break-inside:auto;}
-    .print-doc-table thead{display:table-header-group;}
-    .print-doc-table tfoot{display:table-footer-group;}
-    .print-doc-table tr{break-inside:avoid-page;page-break-inside:avoid;}
-    .print-doc-invoice-title-wrap{background:#000 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-    .print-doc-invoice-title{color:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-    .print-doc-table thead th{background:#111 !important;color:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-    .print-doc-client-tab{background:#000 !important;color:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    *, *::before, *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #ffffff !important;
+      color: #000000 !important;
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+    }
+    .no-print, .app-navbar, .page-hero, .table-toolbar, .context-menu, .btn, .dropdown, .alert, .print-doc-actions {
+      display: none !important;
+    }
+    body {
+      padding-top: 0 !important;
+      background: #ffffff !important;
+    }
+    .app-content {
+      padding: 0 !important;
+      margin: 0 !important;
+      max-width: none !important;
+      height: auto !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      overflow: visible !important;
+      animation: none !important;
+      transform: none !important;
+      opacity: 1 !important;
+    }
+    .app-content > * {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+      visibility: visible !important;
+    }
+    .print-doc-shell {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      gap: 0 !important;
+      zoom: 1 !important;
+      display: block !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      transform: none !important;
+    }
+    .print-doc-paper {
+      width: 100% !important;
+      box-shadow: none !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      min-height: auto !important;
+      overflow: visible !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      padding: 0 !important;
+    }
+    .print-doc-header, .print-doc-top-grid, .print-doc-client-box, .print-doc-summary, .print-doc-footer {
+      break-inside: avoid-page;
+      page-break-inside: avoid;
+    }
+    .print-doc-table {
+      page-break-inside: auto;
+      width: 100% !important;
+    }
+    .print-doc-table thead {
+      display: table-header-group;
+    }
+    .print-doc-table tfoot {
+      display: table-footer-group;
+    }
+    .print-doc-table tr {
+      break-inside: avoid-page;
+      page-break-inside: avoid;
+    }
+    .print-doc-invoice-title-wrap {
+      background: #000 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .print-doc-invoice-title {
+      color: #fff !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .print-doc-table thead th {
+      background: #111 !important;
+      color: #fff !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .print-doc-client-tab {
+      background: #000 !important;
+      color: #fff !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
   }
 </style>
 
