@@ -117,12 +117,25 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
         import json
 
         from app.core.db_helpers import execute_db
+        from app.core.idempotency import check_idempotency
         from app.core.worker import enqueue_background_task
 
         for op in operations:
             op_type = op.get("type")
             payload = op.get("payload", {})
             idempotency_key = op.get("idempotency_key") or op.get("key")
+
+            if idempotency_key:
+                cached_res = await check_idempotency(idempotency_key)
+                if cached_res is not None:
+                    results.append(
+                        {
+                            "idempotency_key": idempotency_key,
+                            "status_code": cached_res.get("status_code", 200),
+                            "response": cached_res.get("content", cached_res),
+                        }
+                    )
+                    continue
 
             try:
                 if op_type == "create_sale":

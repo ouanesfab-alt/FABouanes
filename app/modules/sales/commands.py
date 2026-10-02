@@ -385,6 +385,8 @@ class SalesCommands:
         if sale_type == "credit" and not client_id:
             raise ValidationError("Une vente à crédit nécessite un client.")
         lines = schema.lines
+        if not lines:
+            raise ValidationError("La vente doit contenir au moins une ligne d'article.")
 
         use_document = len(lines) > 1
         newly_unlocked = []
@@ -517,6 +519,8 @@ class SalesCommands:
             prev_st = context["sale_document"].get("sale_type") if context.get("sale_document") else None
             sale_type = normalize_sale_type(prev_st, client_id)
         lines = schema.lines
+        if not lines:
+            raise ValidationError("La facture doit contenir au moins une ligne d'article.")
 
         before = {
             "document": context["sale_document"],

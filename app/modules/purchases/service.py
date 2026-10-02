@@ -371,6 +371,8 @@ class PurchaseService:
         purchase_date = schema.purchase_date
         notes = schema.notes
         lines = schema.lines
+        if not lines:
+            raise ValidationError("Le bon d'achat doit contenir au moins une ligne d'article.")
 
         use_document = len(lines) > 1
 
@@ -461,6 +463,8 @@ class PurchaseService:
         purchase_date = schema.purchase_date
         notes = schema.notes
         lines = schema.lines
+        if not lines:
+            raise ValidationError("Le bon d'achat doit contenir au moins une ligne d'article.")
 
         before = {
             "document": context["purchase_document"],

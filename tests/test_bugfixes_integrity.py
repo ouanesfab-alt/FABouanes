@@ -176,3 +176,60 @@ async def test_apply_finished_production_accepts_model_and_int():
         await apply_finished_production(8, 5.0, 500.0, 1, db=session)
 
 
+def test_tonne_unit_conversion():
+    """Verify qty_to_kg and unit_price_to_kg properly handle tonne/t units."""
+    from app.services.stock_service import qty_to_kg, unit_price_to_kg
+
+    assert qty_to_kg(2.5, "tonne") == 2500.0
+    assert qty_to_kg(1.0, "tonnes") == 1000.0
+    assert qty_to_kg(0.5, "t") == 500.0
+
+    assert unit_price_to_kg(50000.0, "tonne") == 50.0
+    assert unit_price_to_kg(30000.0, "t") == 30.0
+
+
+@pytest.mark.asyncio
+async def test_sale_commands_empty_lines_validation():
+    """SalesCommands raises ValidationError when sale has no lines."""
+    from app.modules.sales.commands import SalesCommands
+    from app.modules.sales.schemas_validation import SaleFormSchema
+
+    session = AsyncMock()
+    commands = SalesCommands(session)
+    commands.sale_repo.client_exists = AsyncMock(return_value=True)
+
+    # 1. create_sale_from_form
+    schema_empty = SaleFormSchema(client_id=1, lines=[])
+    with pytest.raises(ValidationError) as exc:
+        await commands.create_sale_from_form(schema_empty)
+    assert "La vente doit contenir au moins une ligne d'article" in str(exc.value)
+
+    # 2. edit_sale_document_from_form
+    commands.session.execute = AsyncMock()
+    with patch("app.modules.sales.queries.SalesQueries.get_sale_document_context", return_value={"has_linked_payments": False, "sale_document": {}, "sale_lines": []}):
+        with pytest.raises(ValidationError) as exc:
+            await commands.edit_sale_document_from_form(1, schema_empty)
+        assert "La facture doit contenir au moins une ligne d'article" in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_purchase_service_empty_lines_validation():
+    """PurchaseService raises ValidationError when purchase document has no lines."""
+    from app.modules.purchases.schemas_validation import PurchaseFormSchema
+    from app.modules.purchases.service import PurchaseService
+
+    session = AsyncMock()
+    service = PurchaseService(session)
+
+    schema_empty = PurchaseFormSchema(supplier_id=1, lines=[])
+    with pytest.raises(ValidationError) as exc:
+        await service.create_purchase_from_form(schema_empty)
+    assert "Le bon d'achat doit contenir au moins une ligne d'article" in str(exc.value)
+
+    with patch.object(service, "get_purchase_document_context", return_value={"purchase_document": {}, "purchase_lines": []}):
+        with pytest.raises(ValidationError) as exc:
+            await service.edit_purchase_document_from_form(1, schema_empty)
+        assert "Le bon d'achat doit contenir au moins une ligne d'article" in str(exc.value)
+
+
+

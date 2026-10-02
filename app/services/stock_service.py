@@ -38,6 +38,8 @@ def qty_to_kg(quantity: float, unit: str | None) -> float:
         return quantity * _extract_weight_from_unit(unit)
     if unit_name in {"qt", "quintal"}:
         return quantity * 100
+    if unit_name in {"tonne", "tonnes", "t"}:
+        return quantity * 1000
     return quantity
 
 
@@ -49,11 +51,13 @@ def unit_price_to_kg(unit_price: float, unit: str | None) -> float:
         return unit_price / _extract_weight_from_unit(unit)
     if unit_name in {"qt", "quintal"}:
         return unit_price / 100
+    if unit_name in {"tonne", "tonnes", "t"}:
+        return unit_price / 1000
     return unit_price
 
 
 def unit_choices() -> list[str]:
-    return ["kg", "sac (50kg)", "sac (40kg)", "sac (25kg)", "Qt", "unite"]
+    return ["kg", "sac (50kg)", "sac (40kg)", "sac (25kg)", "Qt", "tonne", "unite"]
 
 
 def is_other_operation_name(name: str | None) -> bool:
