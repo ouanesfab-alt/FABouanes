@@ -29,6 +29,14 @@
     .page-hero .d-flex.gap-2::-webkit-scrollbar { display: none; }
     .page-hero .d-flex.gap-2 > * { flex: 0 0 auto; }
   }
+  @media print {
+    .page-hero { margin-bottom: 12px !important; }
+    .rpt-kpi { border: 1px solid #ddd !important; box-shadow: none !important; background: #fff !important; }
+    .rpt-kpi-interactive { cursor: default !important; }
+    .glass-segmented-control { display: none !important; }
+    .table { width: 100% !important; font-size: 8.5pt !important; }
+    .table th, .table td { padding: 4px 6px !important; }
+  }
 </style>
 <div class="container-fluid py-3">
   <div class="page-hero mb-4">
@@ -36,7 +44,7 @@
       <h2 class="section-title mb-1"><i class="bi bi-journal-bookmark-fill me-2 text-primary"></i>Comptabilité SCF Algérie</h2>
       <p class="text-muted small mb-0">Balance Générale, Bilan Synthétique et Tableau des Comptes de Résultat (TCR)</p>
     </div>
-    <div class="d-flex gap-2 flex-wrap align-items-center">
+    <div class="d-flex gap-2 flex-wrap align-items-center no-print">
       <a href="{{ url_for('accounting_scf_export_excel') }}" class="btn btn-sm btn-page-action btn-primary shadow-sm d-inline-flex align-items-center gap-1">
         <i class="bi bi-file-earmark-spreadsheet"></i> <span>Liasse Complète SCF (.xlsx)</span>
       </a>
@@ -85,7 +93,7 @@
   </div>
 
   <!-- Tabs Navigation (Segmented Glass Control) -->
-  <div class="d-flex justify-content-center mb-4">
+  <div class="d-flex justify-content-center mb-4 no-print">
     <div class="glass-segmented-control scf-switcher" style="max-width: 680px; width: 100%;" role="tablist">
       <button class="active glass-tab-btn" id="balance-tab" data-bs-toggle="tab" data-bs-target="#balancePane" type="button" role="tab" aria-selected="true">
         <i class="bi bi-table me-1"></i> Balance Générale

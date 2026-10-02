@@ -113,7 +113,7 @@
             </td>
             <td class="col-actions text-nowrap">
               {% if row.contact_type == 'Client' %}
-              <a href="{{ url_for('print_client_history', client_id=row.id) }}" class="btn btn-sm btn-outline-primary" title="Imprimer l'historique client" target="_blank">
+              <a href="{{ url_for('print_client_history', client_id=row.id) }}" class="btn btn-sm btn-outline-primary" title="Imprimer l'historique client" target="_blank" onclick="openInvoice(event, this.closest('a').href)">
                 <i class="bi bi-printer"></i>
               </a>
               {% else %}
