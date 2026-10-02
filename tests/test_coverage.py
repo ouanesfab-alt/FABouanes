@@ -441,10 +441,11 @@ class TestJwtAuth:
 
     def test_create_and_decode_refresh_token(self):
         from app.core.jwt_auth import create_refresh_token, decode_token
-        token = create_refresh_token(user_id=5)
-        payload = decode_token(token)
-        assert payload["sub"] == "5"
-        assert payload["type"] == "refresh"
+        with patch("app.core.db_helpers.execute_db"):
+            token = create_refresh_token(user_id=5)
+            payload = decode_token(token)
+            assert payload["sub"] == "5"
+            assert payload["type"] == "refresh"
 
     def test_decode_invalid_token_raises(self):
         from app.core.jwt_auth import decode_token
@@ -476,16 +477,18 @@ class TestJwtAuth:
         from app.core.jwt_auth import get_current_user_id, create_refresh_token
         from fastapi import HTTPException
         from fastapi.security import HTTPAuthorizationCredentials
-        creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=create_refresh_token(99))
-        with pytest.raises(HTTPException) as exc:
-            get_current_user_id(credentials=creds)
-        assert exc.value.status_code == 401
+        with patch("app.core.db_helpers.execute_db"):
+            creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=create_refresh_token(99))
+            with pytest.raises(HTTPException) as exc:
+                get_current_user_id(credentials=creds)
+            assert exc.value.status_code == 401
 
     def test_get_current_user_id_valid(self):
         from app.core.jwt_auth import get_current_user_id, create_access_token
         from fastapi.security import HTTPAuthorizationCredentials
-        creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=create_access_token(user_id=7, role="operator"))
-        assert get_current_user_id(credentials=creds) == 7
+        with patch("app.core.db_helpers.query_db", return_value={"id": 7, "is_active": True}):
+            creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=create_access_token(user_id=7, role="operator"))
+            assert get_current_user_id(credentials=creds) == 7
 
 
 # =============================================================================
