@@ -612,44 +612,90 @@
   <!-- ========================================================================= -->
   <!-- PRÉFÉRENCES UI - PRESERVE -->
   <!-- ========================================================================= -->
-  <section id="adminUIPrefs" class="card p-3 fab-switch-panel" hidden>
-    <div class="card-header-row">
-      <div>
-        <h5 class="section-title">Préférences UI</h5>
-        <div class="small text-muted mt-1">Personnalisez le thème, la police et la disposition de la navigation. Les préférences sont sauvegardées localement dans le navigateur.</div>
-      </div>
-    </div>
-
-    <div class="row g-4 mt-1">
-      <div class="col-12">
-        <div class="small text-muted text-uppercase fw-semibold mb-2" style="letter-spacing:.06em;"><i class="bi bi-palette me-1"></i>Thème</div>
-        <div class="d-flex flex-wrap gap-2">
-          <button class="btn btn-outline-secondary js-theme d-flex align-items-center gap-2" type="button" data-theme-value="light" style="min-width:120px;"><i class="bi bi-sun-fill text-warning"></i> Clair</button>
-          <button class="btn btn-outline-secondary js-theme d-flex align-items-center gap-2" type="button" data-theme-value="dark" style="min-width:120px;"><i class="bi bi-moon-stars-fill"></i> Nuit</button>
+  <!-- ========================================================================= -->
+  <!-- PRÉFÉRENCES UI - CARTES SÉPARÉES -->
+  <!-- ========================================================================= -->
+  <section id="adminUIPrefs" class="fab-switch-panel" hidden>
+    <div class="row g-3">
+      <!-- 1. Thème d'affichage -->
+      <div class="col-lg-4 col-md-6">
+        <div class="card p-3 shadow-sm border h-100">
+          <div class="card-header-row mb-3">
+            <div>
+              <h5 class="section-title fw-bold text-primary"><i class="bi bi-palette me-1"></i> Thème visuel</h5>
+              <div class="small text-muted mt-1">Apparence globale de l'interface.</div>
+            </div>
+          </div>
+          <div class="d-flex flex-column gap-2 mt-auto">
+            <button class="btn btn-outline-secondary js-theme d-flex align-items-center justify-content-between p-2 px-3" type="button" data-theme-value="light">
+              <span class="d-flex align-items-center gap-2"><i class="bi bi-sun-fill text-warning fs-5"></i> Mode Clair</span>
+            </button>
+            <button class="btn btn-outline-secondary js-theme d-flex align-items-center justify-content-between p-2 px-3" type="button" data-theme-value="dark">
+              <span class="d-flex align-items-center gap-2"><i class="bi bi-moon-stars-fill text-info fs-5"></i> Mode Nuit</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div class="col-12">
-        <div class="small text-muted text-uppercase fw-semibold mb-2" style="letter-spacing:.06em;"><i class="bi bi-type me-1"></i>Police</div>
-        <div class="d-flex flex-wrap gap-2">
-          <button class="btn btn-outline-secondary js-font d-flex align-items-center gap-2" type="button" data-font="jakarta" style="min-width:140px;"><i class="bi bi-type"></i> Plus Jakarta</button>
-          <button class="btn btn-outline-secondary js-font d-flex align-items-center gap-2" type="button" data-font="arial" style="min-width:140px;"><i class="bi bi-type"></i> Arial</button>
-          <button class="btn btn-outline-secondary js-font d-flex align-items-center gap-2" type="button" data-font="segoe" style="min-width:140px;"><i class="bi bi-type"></i> Segoe UI</button>
-          <button class="btn btn-outline-secondary js-font d-flex align-items-center gap-2" type="button" data-font="system" style="min-width:140px;"><i class="bi bi-type"></i> Système</button>
+      <!-- 2. Police de caractères -->
+      <div class="col-lg-4 col-md-6">
+        <div class="card p-3 shadow-sm border h-100">
+          <div class="card-header-row mb-3">
+            <div>
+              <h5 class="section-title fw-bold text-primary"><i class="bi bi-type me-1"></i> Typographie</h5>
+              <div class="small text-muted mt-1">Police pour les textes et chiffres.</div>
+            </div>
+          </div>
+          <div class="d-flex flex-column gap-2 mt-auto">
+            <button class="btn btn-outline-secondary js-font d-flex align-items-center justify-content-between p-2 px-3" type="button" data-font="jakarta">
+              <span>Plus Jakarta Sans</span>
+              <span class="badge bg-light text-dark border">Défaut</span>
+            </button>
+            <button class="btn btn-outline-secondary js-font d-flex align-items-center justify-content-between p-2 px-3" type="button" data-font="arial">
+              <span style="font-family: Arial, sans-serif;">Arial</span>
+              <span class="small text-muted">Standard</span>
+            </button>
+            <button class="btn btn-outline-secondary js-font d-flex align-items-center justify-content-between p-2 px-3" type="button" data-font="segoe">
+              <span style="font-family: 'Segoe UI', sans-serif;">Segoe UI</span>
+              <span class="small text-muted">Windows</span>
+            </button>
+            <button class="btn btn-outline-secondary js-font d-flex align-items-center justify-content-between p-2 px-3" type="button" data-font="system">
+              <span>Système OS</span>
+              <span class="small text-muted">Natif</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div class="col-12">
-        <div class="small text-muted text-uppercase fw-semibold mb-2" style="letter-spacing:.06em;"><i class="bi bi-layout-text-window me-1"></i>Disposition de la navigation</div>
-        <div class="d-flex flex-wrap gap-2">
-          <button class="btn btn-outline-secondary js-nav-layout d-flex align-items-center gap-2" type="button" data-nav-layout="horizontal" style="min-width:180px;"><i class="bi bi-layout-text-window"></i> Barre horizontale</button>
-          <button class="btn btn-outline-secondary js-nav-layout d-flex align-items-center gap-2" type="button" data-nav-layout="vertical" style="min-width:180px;"><i class="bi bi-layout-sidebar"></i> Barre verticale</button>
+      <!-- 3. Navigation -->
+      <div class="col-lg-4 col-md-12">
+        <div class="card p-3 shadow-sm border h-100">
+          <div class="card-header-row mb-3">
+            <div>
+              <h5 class="section-title fw-bold text-primary"><i class="bi bi-layout-text-window me-1"></i> Disposition Menu</h5>
+              <div class="small text-muted mt-1">Positionnement de la barre de navigation.</div>
+            </div>
+          </div>
+          <div class="d-flex flex-column gap-2 mt-auto">
+            <button class="btn btn-outline-secondary js-nav-layout d-flex align-items-center justify-content-between p-2 px-3" type="button" data-nav-layout="horizontal">
+              <span class="d-flex align-items-center gap-2"><i class="bi bi-layout-text-window fs-5"></i> Barre horizontale</span>
+              <span class="badge bg-light text-dark border">Haut</span>
+            </button>
+            <button class="btn btn-outline-secondary js-nav-layout d-flex align-items-center justify-content-between p-2 px-3" type="button" data-nav-layout="vertical">
+              <span class="d-flex align-items-center gap-2"><i class="bi bi-layout-sidebar fs-5"></i> Barre latérale</span>
+              <span class="badge bg-light text-dark border">Gauche</span>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="alert alert-info mt-4 mb-0 small" role="alert">
-      <i class="bi bi-info-circle me-1"></i> Ces préférences sont stockées dans <code>localStorage</code> de ce navigateur et s'appliquent uniquement à cet appareil.
+      <!-- 4. Notice d'information -->
+      <div class="col-12">
+        <div class="alert alert-info d-flex align-items-center gap-2 mb-0 shadow-sm border" role="alert">
+          <i class="bi bi-info-circle-fill fs-5 text-info"></i>
+          <div>Ces préférences d'affichage sont enregistrées localement dans votre navigateur (<code>localStorage</code>) et s'appliquent immédiatement à cet appareil.</div>
+        </div>
+      </div>
     </div>
   </section>
 
