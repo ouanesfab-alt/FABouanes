@@ -326,11 +326,14 @@
 
   // Handle browser Back/Forward navigation
   window.addEventListener('popstate', function() {
-    loadTransactions(window.location.href, false);
+    if (window.location.pathname.startsWith('/operations')) {
+      loadTransactions(window.location.href, false);
+    }
   });
 
   // Intercept click on tabs, pagination, and reset filters
   document.addEventListener('click', function(e) {
+    if (!window.location.pathname.startsWith('/operations')) return;
     const tab = e.target.closest('.js-filter-tab');
     if (tab) {
       e.preventDefault();
@@ -368,6 +371,7 @@
 
   // Intercept form filter submission to load dynamically
   document.addEventListener('submit', function(e) {
+    if (!window.location.pathname.startsWith('/operations')) return;
     const form = e.target.closest('.transactions-filter-row');
     if (form) {
       e.preventDefault();
