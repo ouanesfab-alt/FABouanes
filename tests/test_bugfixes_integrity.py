@@ -128,3 +128,51 @@ async def test_legacy_delete_payment_emits_event_and_invalidates_cache():
     assert payment_events[0].entity_id == 123
     mock_inval.assert_called_once_with("sales", "client", "dashboard")
 
+
+@pytest.mark.asyncio
+async def test_apply_raw_material_consumption_accepts_model_and_int():
+    """Verify apply_raw_material_consumption resolves ID from int, dict, or object."""
+    from app.services.stock_service import apply_raw_material_consumption
+
+    session = AsyncMock()
+    mock_db_mat = MagicMock()
+    mock_db_mat.stock_qty = 50.0
+    mock_db_mat.name = "Farine"
+    mock_res = MagicMock()
+    mock_res.scalar_one_or_none.return_value = mock_db_mat
+    session.execute.return_value = mock_res
+
+    # 1. As an ORM-like object with .id attribute (not subscriptable)
+    class FakeModel:
+        def __init__(self, id):
+            self.id = id
+
+    with patch("app.services.stock_service.record_stock_movement", new=AsyncMock()):
+        await apply_raw_material_consumption(FakeModel(5), 10.0, "production", 1, db=session)
+        # 2. As an integer directly
+        await apply_raw_material_consumption(5, 5.0, "production", 1, db=session)
+
+
+@pytest.mark.asyncio
+async def test_apply_finished_production_accepts_model_and_int():
+    """Verify apply_finished_production resolves ID from int, dict, or object."""
+    from app.services.stock_service import apply_finished_production
+
+    session = AsyncMock()
+    mock_db_prod = MagicMock()
+    mock_db_prod.stock_qty = 20.0
+    mock_db_prod.avg_cost = 100.0
+    mock_db_prod.sale_price = 150.0
+    mock_res = MagicMock()
+    mock_res.scalar_one_or_none.return_value = mock_db_prod
+    session.execute.return_value = mock_res
+
+    class FakeModel:
+        def __init__(self, id):
+            self.id = id
+
+    with patch("app.services.stock_service.record_stock_movement", new=AsyncMock()):
+        await apply_finished_production(FakeModel(8), 5.0, 500.0, 1, db=session)
+        await apply_finished_production(8, 5.0, 500.0, 1, db=session)
+
+

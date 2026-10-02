@@ -977,7 +977,7 @@ async def _apply_raw_material_consumption_impl(
 ) -> None:
     from app.core.models import RawMaterial
 
-    material_id = int(material["id"])
+    material_id = int(material["id"] if isinstance(material, dict) else getattr(material, "id", material))
     db_material_res = await db.execute(select(RawMaterial).where(RawMaterial.id == material_id).with_for_update())
     db_material = db_material_res.scalar_one_or_none()
     if not db_material:
@@ -1021,7 +1021,7 @@ async def _apply_finished_production_impl(
 ) -> None:
     from app.core.models import FinishedProduct
 
-    product_id = int(product["id"])
+    product_id = int(product["id"] if isinstance(product, dict) else getattr(product, "id", product))
     db_product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == product_id).with_for_update())
     db_product = db_product_res.scalar_one_or_none()
     if not db_product:
