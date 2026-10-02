@@ -32,6 +32,14 @@
     .reports-filter-bar{flex-direction:column;align-items:stretch;}
     .reports-filter-bar input[type="date"]{max-width:none;}
   }
+  @media print {
+    .page-hero { margin-bottom: 12px !important; }
+    .reports-actions, .reports-filter-bar { display: none !important; }
+    .rpt-kpi { border: 1px solid #ddd !important; box-shadow: none !important; background: #fff !important; }
+    .card { border: 1px solid #ddd !important; box-shadow: none !important; break-inside: avoid; }
+    .table { width: 100% !important; font-size: 8.5pt !important; }
+    .table th, .table td { padding: 4px 6px !important; }
+  }
 </style>
 
 <div class="reports-page">
@@ -40,13 +48,15 @@
       <h2 class="section-title mb-1"><i class="bi bi-bar-chart-line me-2"></i>Rapports & Statistiques</h2>
       <p class="text-muted mb-0">Vue d'ensemble de l'activité commerciale.</p>
     </div>
-    <div class="reports-actions">
+    <div class="reports-actions no-print">
+      <a href="?format=xlsx{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="btn btn-page-action-secondary"><i class="bi bi-file-earmark-excel me-2"></i>Exporter Excel</a>
       <a href="{{ url_for('reports_export_csv', date_from=date_from, date_to=date_to) }}" class="btn btn-page-action-secondary"><i class="bi bi-download me-2"></i>Exporter CSV</a>
+      <button type="button" onclick="window.print()" class="btn btn-page-action-secondary"><i class="bi bi-printer me-2"></i>Imprimer</button>
     </div>
   </div>
 
   <!-- ── Filtres ── -->
-  <form method="get" class="reports-filter-bar">
+  <form method="get" class="reports-filter-bar no-print">
     <label for="dateFromInput" class="fw-bold small text-muted"><i class="bi bi-calendar-event me-1 text-primary"></i>Période :</label>
     <input type="date" name="date_from" id="dateFromInput" value="{{ date_from }}" class="form-control" title="Du">
     <span class="text-muted small">à</span>
