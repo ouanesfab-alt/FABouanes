@@ -152,8 +152,10 @@
           </thead>
           <tbody>
             {% for item in purchases %}
+            {% set purchase_print_url = url_for('print_document', doc_type='purchase_document', item_id=item.document_id) if item.document_id else url_for('print_document', doc_type='purchase', item_id=item.id) %}
             <tr class="context-target"
                   data-delete-label="cet achat"
+                  data-print-url="{{ purchase_print_url }}"
                   data-edit-url="{{ url_for('edit_purchase_document', document_id=item.document_id) if item.document_id else url_for('edit_purchase', purchase_id=item.id) }}"
                   data-delete-url="{{ url_for('delete_purchase', purchase_id=item.id) }}">
               <td class="col-date">{{ item.event_date }}</td>

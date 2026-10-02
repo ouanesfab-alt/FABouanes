@@ -1,9 +1,11 @@
 import { absoluteUrl } from './api.js';
 
 export function openInvoice(event, url) {
-  if (event) event.preventDefault();
-  let dest = url || (event && event.currentTarget && event.currentTarget.href);
-  if (!dest || dest === '#' || dest === window.location.href + '#') return;
+  if (event) {
+    try { event.preventDefault(); } catch (e) {}
+  }
+  let dest = url || (event && (event.currentTarget || event.target) && ((event.currentTarget && event.currentTarget.href) || (event.target && event.target.closest('a') && event.target.closest('a').href)));
+  if (!dest || dest === '#' || dest === window.location.href + '#' || dest.indexOf('javascript:') === 0) return;
   if (dest.indexOf('/') === 0) dest = window.location.protocol + '//' + window.location.host + dest;
   window.location.href = dest;
 }

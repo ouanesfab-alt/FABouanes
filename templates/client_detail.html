@@ -186,8 +186,12 @@
           </thead>
           <tbody>
             {% for item in timeline %}
+            {% set item_print_doc_type = 'sale_document' if item.document_id and item.event_type in ['sale_finished', 'sale_raw'] else ('sale_finished' if item.event_type == 'sale_finished' else ('sale_raw' if item.event_type == 'sale_raw' else ('payment' if item.event_type in ['payment', 'advance'] else ''))) %}
+            {% set item_print_id = item.document_id if item.document_id else item.row_id %}
+            {% set item_print_url = url_for('print_document', doc_type=item_print_doc_type, item_id=item_print_id) if item_print_doc_type and item_print_id else '' %}
             <tr class="context-target"
                   data-sort-sequence="{{ item.sort_sequence or item.row_id or 0 }}"
+                  data-print-url="{{ item_print_url }}"
                   data-delete-label="{% if item.event_type in ['sale_finished','sale_raw'] %}cette vente{% elif item.event_type in ['payment','advance'] %}cette transaction{% else %}cet élément{% endif %}"
                   data-edit-url="{% if item.event_type == 'sale_finished' %}{{ url_for('edit_sale_document', document_id=item.document_id) if item.document_id else url_for('edit_sale', kind='finished', row_id=item.row_id) }}{% elif item.event_type == 'sale_raw' %}{{ url_for('edit_sale_document', document_id=item.document_id) if item.document_id else url_for('edit_sale', kind='raw', row_id=item.row_id) }}{% elif item.event_type in ['payment','advance'] %}{{ url_for('edit_payment', payment_id=item.row_id) }}{% endif %}"
                   data-delete-url="{% if item.event_type == 'sale_finished' %}{{ url_for('delete_sale', kind='finished', row_id=item.row_id) }}{% elif item.event_type == 'sale_raw' %}{{ url_for('delete_sale', kind='raw', row_id=item.row_id) }}{% elif item.event_type in ['payment','advance'] %}{{ url_for('delete_payment', payment_id=item.row_id) }}{% endif %}">

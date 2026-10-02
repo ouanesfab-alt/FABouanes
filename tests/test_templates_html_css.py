@@ -160,3 +160,28 @@ def test_print_document_classes_and_media_print_safety():
     html_idx = base_content.find("<html")
     assert set_idx != -1 and html_idx != -1 and set_idx < html_idx, "is_print_view doit être défini avant la balise <html>"
 
+
+def test_context_menu_print_urls_in_templates():
+    """Vérifie que les tableaux interactifs (transactions, production, contacts, client_detail, supplier_detail) ont bien data-print-url."""
+    templates_to_check = [
+        "transactions.html",
+        "production.html",
+        "contacts.html",
+        "client_detail.html",
+        "supplier_detail.html",
+    ]
+    for tmpl_name in templates_to_check:
+        path = TEMPLATES_DIR / tmpl_name
+        assert path.exists(), f"Template {tmpl_name} introuvable"
+        content = path.read_text(encoding="utf-8")
+        assert "data-print-url" in content, f"Le template {tmpl_name} n'a pas d'attribut data-print-url sur ses lignes de contexte"
+
+    # Vérification que openInvoice est défini proprement dans layout.js et base.html
+    layout_js = (STATIC_DIR / "js" / "modules" / "layout.js").read_text(encoding="utf-8")
+    assert "function openInvoice" in layout_js
+    assert "event.preventDefault" in layout_js
+
+    base_html = (TEMPLATES_DIR / "base.html").read_text(encoding="utf-8")
+    assert "window.openInvoice =" in base_html
+
+
