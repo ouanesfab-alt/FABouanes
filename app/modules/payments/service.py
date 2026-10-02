@@ -121,10 +121,20 @@ class PaymentsService:
                 allocations = json.loads(meta_raw)
             except Exception:
                 allocations = []
-            for allocation in allocations:
+            for allocation in allocations or []:
+                if not isinstance(allocation, dict):
+                    continue
                 kind = allocation.get("kind")
-                row_id = int(allocation.get("id"))
-                amount = float(allocation.get("amount", 0) or 0)
+                try:
+                    row_id = int(allocation.get("id") or 0)
+                except (ValueError, TypeError):
+                    continue
+                if not row_id:
+                    continue
+                try:
+                    amount = float(allocation.get("amount", 0) or 0)
+                except (ValueError, TypeError):
+                    continue
                 if amount <= 0:
                     continue
                 if kind == "finished":

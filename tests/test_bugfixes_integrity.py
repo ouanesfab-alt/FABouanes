@@ -339,6 +339,31 @@ async def test_payment_double_submit_guard_uses_local_time():
             os.environ["PYTEST_CURRENT_TEST"] = old_env
 
 
+@pytest.mark.asyncio
+async def test_reverse_payment_allocations_handles_malformed_json_and_none_ids():
+    """reverse_payment_allocations should safely ignore invalid or None ids in allocation_meta."""
+    import json
+    from app.modules.payments.service import PaymentsService
+
+    session = AsyncMock()
+    service = PaymentsService(session)
+
+    # 1. Invalid JSON string
+    await service.reverse_payment_allocations({"allocation_meta": "invalid-json{"})
+
+    # 2. Malformed objects (missing/null id, non-dict, non-numeric amount)
+    malformed_meta = json.dumps([
+        "not-a-dict",
+        {"kind": "finished", "id": None, "amount": 100},
+        {"kind": "finished", "id": "invalid", "amount": 100},
+        {"kind": "raw", "id": 0, "amount": 100},
+        {"kind": "finished", "id": 1, "amount": "invalid-amount"},
+        {"kind": "finished", "id": 2, "amount": -50},
+    ])
+    await service.reverse_payment_allocations({"allocation_meta": malformed_meta})
+
+
+
 
 
 
