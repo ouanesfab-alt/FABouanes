@@ -23,6 +23,18 @@ from app.services.stock_service import qty_to_kg
 logger = logging.getLogger(__name__)
 
 
+def normalize_sale_type(sale_type: str | None, client_id: int | None = None) -> str:
+    """Normalize sale_type string across French and English representations."""
+    if not sale_type:
+        return "credit" if client_id else "cash"
+    st = str(sale_type).strip().lower()
+    if st in {"cash", "comptant", "espece", "especes"}:
+        return "cash"
+    if st in {"credit", "crédit", "dette", "dettes", "terme"}:
+        return "credit"
+    return "credit" if client_id else "cash"
+
+
 class SalesCommands:
     """Gestion des commandes (Commands / écritures) du module Sales."""
 
@@ -53,9 +65,7 @@ class SalesCommands:
         custom_item_name: str = "",
     ) -> Tuple[str, int]:
         total = round(qty * unit_price, 2)
-        requested_sale_type = sale_type.strip().lower()
-        if requested_sale_type not in {"cash", "credit"}:
-            requested_sale_type = "credit" if client_id else "cash"
+        requested_sale_type = normalize_sale_type(sale_type, client_id)
 
         SalesValidator.validate_sale_type(client_id, requested_sale_type)
         SalesValidator.validate_quantity(qty)
@@ -371,12 +381,9 @@ class SalesCommands:
 
         sale_date = schema.sale_date
         notes = schema.notes
-        if schema.sale_type and schema.sale_type.strip().lower() in {"cash", "credit"}:
-            sale_type = schema.sale_type.strip().lower()
-            if sale_type == "credit" and not client_id:
-                raise ValidationError("Une vente à crédit nécessite un client.")
-        else:
-            sale_type = "credit" if client_id else "cash"
+        sale_type = normalize_sale_type(schema.sale_type, client_id)
+        if sale_type == "credit" and not client_id:
+            raise ValidationError("Une vente à crédit nécessite un client.")
         lines = schema.lines
 
         use_document = len(lines) > 1
@@ -502,12 +509,13 @@ class SalesCommands:
         await SalesValidator.validate_client(client_id, self.session)
         sale_date = schema.sale_date
         notes = schema.notes
-        if schema.sale_type and schema.sale_type.strip().lower() in {"cash", "credit"}:
-            sale_type = schema.sale_type.strip().lower()
+        if schema.sale_type:
+            sale_type = normalize_sale_type(schema.sale_type, client_id)
             if sale_type == "credit" and not client_id:
                 raise ValidationError("Une vente à crédit nécessite un client.")
         else:
-            sale_type = (context["sale_document"].get("sale_type") if context.get("sale_document") else None) or ("credit" if client_id else "cash")
+            prev_st = context["sale_document"].get("sale_type") if context.get("sale_document") else None
+            sale_type = normalize_sale_type(prev_st, client_id)
         lines = schema.lines
 
         before = {
@@ -519,6 +527,15 @@ class SalesCommands:
         for line in context["sale_lines"]:
             if not await self.reverse_sale(str(line["row_kind"]), int(line["row_id"]), recalc=False):
                 raise ValueError("Impossible de modifier cette facture.")
+
+        # Update parent document header attributes
+        doc = await self.doc_repo.get(document_id)
+        if doc:
+            doc.client_id = client_id
+            doc.sale_type = sale_type
+            doc.sale_date = sale_date
+            doc.notes = notes
+            await self._safe_add(doc)
 
         # Insert new lines
         created_lines: list[tuple[str, int]] = []
@@ -585,12 +602,12 @@ class SalesCommands:
         await SalesValidator.validate_client(client_id, self.session)
         sale_date = schema.sale_date
         notes = schema.notes
-        if schema.sale_type and schema.sale_type.strip().lower() in {"cash", "credit"}:
-            sale_type = schema.sale_type.strip().lower()
+        if schema.sale_type:
+            sale_type = normalize_sale_type(schema.sale_type, client_id)
             if sale_type == "credit" and not client_id:
                 raise ValidationError("Une vente à crédit nécessite un client.")
         else:
-            sale_type = before.get("sale_type") or ("credit" if client_id else "cash")
+            sale_type = normalize_sale_type(before.get("sale_type"), client_id)
         lines = schema.lines
 
         if not lines:
@@ -602,6 +619,14 @@ class SalesCommands:
             doc_id = before.get("document_id")
             if not doc_id:
                 doc_id = await self._insert_sale_document(client_id, sale_type, sale_date, notes)
+            else:
+                doc = await self.doc_repo.get(doc_id)
+                if doc:
+                    doc.client_id = client_id
+                    doc.sale_type = sale_type
+                    doc.sale_date = sale_date
+                    doc.notes = notes
+                    await self._safe_add(doc)
 
             if not await self.reverse_sale(kind, row_id, recalc=False):
                 raise ValueError("Impossible de modifier cette vente.")

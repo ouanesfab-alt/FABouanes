@@ -66,8 +66,14 @@ class SaleFormSchema(BaseModel):
 
             # Parse sale_type
             s_type = data.get("sale_type")
-            if s_type and str(s_type).strip().lower() in {"cash", "credit"}:
-                data["sale_type"] = str(s_type).strip().lower()
+            if s_type:
+                st = str(s_type).strip().lower()
+                if st in {"cash", "comptant", "espece", "especes"}:
+                    data["sale_type"] = "cash"
+                elif st in {"credit", "crédit", "dette", "dettes", "terme"}:
+                    data["sale_type"] = "credit"
+                else:
+                    data["sale_type"] = None
             else:
                 data["sale_type"] = None
 

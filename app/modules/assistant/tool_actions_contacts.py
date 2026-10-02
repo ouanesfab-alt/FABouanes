@@ -66,14 +66,18 @@ async def handle_contacts(
 
     elif func_name == "delete_client":
         client_id = int(func_args.get("client_id"))
+        from app.core.exceptions import ValidationError
         from app.modules.clients.service import ClientService
 
         success = False
-        async with session_maker() as session:
-            service = ClientService(session)
-            success = await service.delete_client(client_id)
-            if success:
-                await session.commit()
+        try:
+            async with session_maker() as session:
+                service = ClientService(session)
+                success = await service.delete_client(client_id)
+                if success:
+                    await session.commit()
+        except ValidationError as e:
+            return {"error": str(e)}
         if not success:
             return {"error": f"Client {client_id} introuvable ou lié à des opérations."}
         return {"success": True, "message": f"Client {client_id} supprimé."}

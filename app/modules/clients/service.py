@@ -268,6 +268,13 @@ class ClientService:
         if not client:
             return False
 
+        if await self.has_operations(client_id):
+            from app.core.exceptions import ValidationError
+
+            raise ValidationError(
+                "Impossible de supprimer ce client car il possède des opérations historiques (ventes ou règlements) associées."
+            )
+
         before_dump = client.model_dump()
 
         from sqlalchemy.exc import IntegrityError

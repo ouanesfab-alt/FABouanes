@@ -410,6 +410,12 @@ async def api_delete_supplier(request: Request, supplier_id: int, db: AsyncSessi
     supplier = await db.get(Supplier, supplier_id)
     if not supplier:
         api_error("not_found", "Fournisseur introuvable.", 404)
+
+    from app.services.contact_directory_service import has_supplier_operations
+
+    if await has_supplier_operations(supplier_id, db=db):
+        api_error("conflict", "Impossible de supprimer ce fournisseur car il possède des achats associés.", 409)
+
     before = dict(supplier_dict)
     await db.delete(supplier)
     await db.commit()

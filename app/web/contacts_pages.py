@@ -200,6 +200,9 @@ async def delete_supplier(request: Request, supplier_id: int, db: AsyncSession =
     if not supplier:
         flash(request, "Fournisseur introuvable.", "danger")
         return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
-    await delete_supplier_by_id(supplier_id, db=db)
-    flash(request, "Fournisseur supprimé.", "success")
+    try:
+        await delete_supplier_by_id(supplier_id, db=db)
+        flash(request, "Fournisseur supprimé.", "success")
+    except Exception as e:
+        flash(request, str(e), "danger")
     return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
