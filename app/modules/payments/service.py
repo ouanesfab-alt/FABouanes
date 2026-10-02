@@ -209,9 +209,10 @@ class PaymentsService:
         import os
 
         if not os.getenv("PYTEST_CURRENT_TEST"):
-            from datetime import datetime, timedelta
+            from datetime import timedelta
+            from app.core.model_utils import _now
 
-            cutoff = datetime.utcnow() - timedelta(seconds=5)
+            cutoff = _now() - timedelta(seconds=5)
             clean_notes = notes or ("Avance client" if payment_type == "avance" else "Versement client")
             dup_check = await self.session.execute(
                 select(Payment.id)

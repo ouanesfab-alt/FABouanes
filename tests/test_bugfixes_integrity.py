@@ -302,5 +302,43 @@ async def test_expense_repository_date_parsing_resilience():
         await update_expense(session, 99, "", "loyer", "Loyer mois", 50000.0)
 
 
+@pytest.mark.asyncio
+async def test_payment_double_submit_guard_uses_local_time():
+    """Verify PaymentsService double submit guard checks recent submissions correctly."""
+    import os
+    from datetime import date
+    from app.modules.payments.service import PaymentsService
+
+    session = AsyncMock()
+    service = PaymentsService(session)
+
+    # Mock client exists
+    mock_client_res = MagicMock()
+    mock_client_res.first.return_value = (10,)
+
+    # Mock recent duplicate found in DB
+    mock_dup_res = MagicMock()
+    mock_dup_res.first.return_value = (123,)
+
+    session.execute.side_effect = [mock_client_res, mock_dup_res]
+
+    # Temporarily unset PYTEST_CURRENT_TEST to test the production guard branch
+    old_env = os.environ.pop("PYTEST_CURRENT_TEST", None)
+    try:
+        with pytest.raises(ValidationError) as exc:
+            await service.create_payment_record(
+                client_id=10,
+                amount=500.0,
+                payment_date=date.today(),
+                notes="Versement client",
+                payment_type="versement",
+            )
+        assert "vient d'être soumis" in str(exc.value)
+    finally:
+        if old_env is not None:
+            os.environ["PYTEST_CURRENT_TEST"] = old_env
+
+
+
 
 
