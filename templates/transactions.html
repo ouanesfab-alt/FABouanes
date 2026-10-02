@@ -349,7 +349,7 @@
       return;
     }
 
-    const pageLink = e.target.closest('.transactions-table-card [role="aria-label"] a, .transactions-table-card .btn-group a');
+    const pageLink = e.target.closest('.transactions-table-card .pagination-container a, .transactions-table-card [role="navigation"] a, .transactions-table-card .btn-group a');
     if (pageLink && !pageLink.classList.contains('disabled')) {
       const href = pageLink.getAttribute('href');
       if (href && href !== '#') {

@@ -208,7 +208,7 @@
       return;
     }
 
-    const pageLink = e.target.closest('.contacts-table-card [role="aria-label"] a, .contacts-table-card .btn-group a');
+    const pageLink = e.target.closest('.contacts-table-card .pagination-container a, .contacts-table-card [role="navigation"] a, .contacts-table-card .btn-group a');
     if (pageLink && !pageLink.classList.contains('disabled') && window.location.pathname.startsWith('/contacts')) {
       const href = pageLink.getAttribute('href');
       if (href && href !== '#') {

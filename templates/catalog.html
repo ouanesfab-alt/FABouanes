@@ -187,7 +187,7 @@
 
   // Intercept click on pagination, and reset filters
   document.addEventListener('click', function(e) {
-    const pageLink = e.target.closest('.catalog-table-card [role="aria-label"] a, .catalog-table-card .btn-group a');
+    const pageLink = e.target.closest('.catalog-table-card .pagination-container a, .catalog-table-card [role="navigation"] a, .catalog-table-card .btn-group a');
     if (pageLink && !pageLink.classList.contains('disabled') && window.location.pathname.startsWith('/catalog')) {
       const href = pageLink.getAttribute('href');
       if (href && href !== '#') {
