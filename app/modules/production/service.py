@@ -98,11 +98,36 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
     else:
         production_date_obj = date.fromisoformat(str(production_date_val))
 
-    notes = form.get("notes", "").strip()
+    notes = (form.get("notes") or "").strip()
     recipe_name = (form.get("recipe_name") or "").strip()
-    save_recipe_flag = (form.get("save_recipe") or "1").strip() not in ("0", "false", "off")
-    raw_ids = form.getlist("raw_material_id[]")
-    quantities = form.getlist("quantity[]")
+    save_recipe_val = form.get("save_recipe")
+    save_recipe_flag = (
+        str(save_recipe_val if save_recipe_val is not None else "1").strip().lower() not in ("0", "false", "off")
+    )
+
+    if hasattr(form, "getlist"):
+        raw_ids = form.getlist("raw_material_id[]") or form.getlist("raw_material_ids")
+        quantities = form.getlist("quantity[]") or form.getlist("quantities")
+    elif isinstance(form, dict):
+        if "items" in form and isinstance(form["items"], list):
+            raw_ids = [
+                item.get("raw_material_id") if isinstance(item, dict) else getattr(item, "raw_material_id", None)
+                for item in form["items"]
+            ]
+            quantities = [
+                item.get("quantity") if isinstance(item, dict) else getattr(item, "quantity", 0)
+                for item in form["items"]
+            ]
+        else:
+            raw_ids = form.get("raw_material_id[]") or form.get("raw_material_ids") or []
+            quantities = form.get("quantity[]") or form.get("quantities") or []
+            if not isinstance(raw_ids, list):
+                raw_ids = [raw_ids] if raw_ids else []
+            if not isinstance(quantities, list):
+                quantities = [quantities] if quantities else []
+    else:
+        raw_ids = []
+        quantities = []
 
     if production_date_obj > date.today():
         raise ValueError("La date de production ne peut pas etre dans le futur.")

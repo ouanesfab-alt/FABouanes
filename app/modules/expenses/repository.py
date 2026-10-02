@@ -72,9 +72,13 @@ async def create_expense(
     db: AsyncSession, date: Any, category: str, description: str, amount: float, method: str = "cash"
 ) -> int:
     if isinstance(date, str):
-        parsed_date = d_cls.fromisoformat(date)
-    else:
+        parsed_date = d_cls.fromisoformat(date.strip()) if date.strip() else d_cls.today()
+    elif isinstance(date, datetime):
+        parsed_date = date.date()
+    elif isinstance(date, d_cls):
         parsed_date = date
+    else:
+        parsed_date = d_cls.today()
     from decimal import Decimal
 
     entity = Expense(
@@ -92,8 +96,10 @@ async def update_expense(
     entity = await repo.get(expense_id)
     if entity:
         if isinstance(date, str):
-            entity.date = d_cls.fromisoformat(date)
-        else:
+            entity.date = d_cls.fromisoformat(date.strip()) if date.strip() else entity.date
+        elif isinstance(date, datetime):
+            entity.date = date.date()
+        elif isinstance(date, d_cls):
             entity.date = date
         entity.category = category
         entity.description = description

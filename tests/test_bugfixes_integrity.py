@@ -232,4 +232,75 @@ async def test_purchase_service_empty_lines_validation():
         assert "Le bon d'achat doit contenir au moins une ligne d'article" in str(exc.value)
 
 
+@pytest.mark.asyncio
+async def test_create_production_accepts_dict_with_items():
+    """Verify ProductionService.create_production handles dict with items (schema format)."""
+    from datetime import date
+    from app.modules.production.service import ProductionService
+
+    session = AsyncMock()
+    service = ProductionService(session)
+
+    mock_prod = MagicMock()
+    mock_prod.model_dump.return_value = {"id": 1, "name": "Aliment Bovin", "stock_qty": 100.0, "avg_cost": 20.0}
+    mock_mat = MagicMock()
+    mock_mat.model_dump.return_value = {"id": 10, "name": "Mais", "stock_qty": 500.0, "avg_cost": 15.0}
+
+    async def mock_execute(stmt):
+        m = MagicMock()
+        sql_str = str(stmt)
+        if "finished_products" in sql_str:
+            m.scalar_one_or_none.return_value = mock_prod
+        elif "raw_materials" in sql_str:
+            m.scalars.return_value.all.return_value = [mock_mat]
+        return m
+
+    session.execute = mock_execute
+    session.add = MagicMock()
+    session.flush = AsyncMock()
+
+    payload = {
+        "finished_product_id": 1,
+        "output_quantity": 50.0,
+        "production_date": date.today().isoformat(),
+        "notes": "Test batch",
+        "save_recipe": False,
+        "items": [{"raw_material_id": 10, "quantity": 40.0}],
+    }
+
+    with patch("app.modules.production.service.apply_raw_material_consumption", new=AsyncMock()), \
+         patch("app.modules.production.service.apply_finished_production", new=AsyncMock()), \
+         patch("app.modules.production.service.log_activity"), \
+         patch("app.modules.production.service.audit_event"), \
+         patch("app.modules.production.service.mark_backup_needed"), \
+         patch("app.modules.production.service.invalidate_sellable_items_cache"):
+        res = await service.create_production(payload)
+
+    assert "batch_id" in res
+    assert res["remainder"] == 10.0
+
+
+@pytest.mark.asyncio
+async def test_expense_repository_date_parsing_resilience():
+    """ExpenseRepository handles datetime objects and empty strings gracefully."""
+    from datetime import datetime
+    from app.modules.expenses.repository import create_expense, update_expense
+
+    session = AsyncMock()
+    mock_expense = MagicMock()
+    mock_expense.id = 99
+    session.flush = AsyncMock()
+
+    with patch("app.modules.expenses.repository.ExpenseRepository.create", return_value=mock_expense), \
+         patch("app.modules.expenses.repository.ExpenseRepository.get", return_value=mock_expense), \
+         patch("app.modules.expenses.repository.ExpenseRepository.update", return_value=mock_expense):
+        # 1. Datetime object
+        eid = await create_expense(session, datetime.now(), "transport", "Carburant", 2500.0)
+        assert eid == 99
+
+        # 2. Empty string fallback to today
+        await update_expense(session, 99, "", "loyer", "Loyer mois", 50000.0)
+
+
+
 
