@@ -106,14 +106,15 @@ class ClientService:
         self, search: Optional[str] = None, page: int = 1, page_size: int = 25
     ) -> Tuple[List[dict], int]:
         """Lists clients with calculated statistics and balance from the database view."""
-        from sqlalchemy import table
+        from sqlalchemy import column, table
 
-        stmt = select(
-            *Client.__table__.columns,
-            literal_column("current_balance"),
-            literal_column("total_sales"),
-            literal_column("total_payments"),
-        ).select_from(table("clients_with_stats"))
+        cws_cols = [column(c.name) for c in Client.__table__.columns] + [
+            column("current_balance"),
+            column("total_sales"),
+            column("total_payments"),
+        ]
+        cws = table("clients_with_stats", *cws_cols)
+        stmt = select(*cws_cols).select_from(cws)
 
         if search:
             stmt = stmt.where(literal_column("search_vector").op("@@")(func.plainto_tsquery("french", search)))

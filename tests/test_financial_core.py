@@ -496,7 +496,7 @@ class TestJwtAuth:
 
     def test_create_refresh_token(self):
         from app.core.jwt_auth import create_refresh_token
-        token = create_refresh_token(user_id=99)
+        token = create_refresh_token(user_id=1)
         assert isinstance(token, str)
         assert len(token) > 20
 
@@ -511,9 +511,9 @@ class TestJwtAuth:
 
     def test_decode_valid_refresh_token(self):
         from app.core.jwt_auth import create_refresh_token, decode_token
-        token = create_refresh_token(user_id=5)
+        token = create_refresh_token(user_id=1)
         decoded = decode_token(token)
-        assert decoded["sub"] == "5"
+        assert decoded["sub"] == "1"
         assert decoded["type"] == "refresh"
 
     def test_decode_invalid_token_raises_http_exception(self):

@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from sqlalchemy import case, func, literal_column, select, table
+from sqlalchemy import case, column, func, literal_column, select, table
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_success
@@ -29,15 +29,16 @@ def json_response(payload: dict[str, Any]) -> JSONResponse:
 
 
 async def client_payload(client_id: int, db: AsyncSession):
+    cws_cols = [column(c.name) for c in Client.__table__.columns] + [
+        column("current_balance"),
+        column("total_sales"),
+        column("total_payments"),
+    ]
+    cws = table("clients_with_stats", *cws_cols)
     stmt = (
-        select(
-            *Client.__table__.columns,
-            literal_column("current_balance"),
-            literal_column("total_sales"),
-            literal_column("total_payments"),
-        )
-        .select_from(table("clients_with_stats"))
-        .where(Client.id == client_id)
+        select(*cws_cols)
+        .select_from(cws)
+        .where(column("id") == client_id)
     )
     res = await db.execute(stmt)
     row = res.first()

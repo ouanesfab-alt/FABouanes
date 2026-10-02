@@ -62,7 +62,7 @@ def upgrade() -> None:
         FROM payments
         GROUP BY client_id
     )
-    SELECT c.id, c.name, c.phone, c.address, c.notes, c.opening_credit, c.created_at, c.search_vector,
+    SELECT c.id, c.name, c.phone, c.address, c.notes, c.opening_credit, c.created_at, c.updated_at, c.search_vector,
            c.opening_credit
            + COALESCE(ft.credit_total, 0)
            + COALESCE(rt.credit_total, 0)
