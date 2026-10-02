@@ -467,21 +467,18 @@ class PurchaseService:
             "lines": context["purchase_lines"],
         }
 
-        # Reverse previous lines
+        # Reverse previous lines without deleting parent document
         for line in context["purchase_lines"]:
-            if not await self.reverse_purchase(int(line["row_id"])):
+            if not await self.reverse_purchase(int(line["row_id"]), recalc=False):
                 raise ValueError("Impossible de modifier cet achat car le stock ne permet pas de l'annuler.")
 
-        # Re-insert document if deleted during reverse
+        # Update document header attributes
         doc = await self.doc_repo.get(document_id)
-        if not doc:
-            await self._insert_purchase_document(supplier_id, purchase_date, notes)
-            # Ensure we reuse the original ID if possible, but flush will auto-assign.
-            # In our case doc should not be deleted if lines are just reversed in same transaction before committing,
-            # but recalc deletes it if line count is 0. So we bypass document delete on line count 0 inside recalc during a transaction:
-            # wait, we can just edit totals. Let's make sure doc doesn't get deleted by recalc if we edit document.
-            # Actually, to prevent doc deletion on temporary line count 0, we can add a check or just recreate doc.
-            pass
+        if doc:
+            doc.supplier_id = supplier_id
+            doc.purchase_date = purchase_date
+            doc.notes = notes
+            self.session.add(doc)
 
         # Insert new lines
         created_ids: list[int] = []
@@ -504,14 +501,6 @@ class PurchaseService:
                     custom_item_name=line.custom_item_name,
                 )
             )
-
-        # Update document header
-        doc = await self.doc_repo.get(document_id)
-        if doc:
-            doc.supplier_id = supplier_id
-            doc.purchase_date = purchase_date
-            doc.notes = notes
-            self.session.add(doc)
 
         await self.session.commit()
 

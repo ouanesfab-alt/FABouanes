@@ -59,7 +59,7 @@ async def test_handle_operations_delete_expense_not_found():
     """Line 202: delete_expense when expense_id does not exist."""
     from app.modules.assistant.tool_actions_operations import handle_operations
 
-    with patch("app.modules.expenses.service.get_expense", new=AsyncMock(return_value=None)), \
+    with patch("app.modules.expenses.service.remove_expense", new=AsyncMock(return_value=False)), \
          patch("app.core.storage.backup_database"), \
          patch("app.core.storage.mark_backup_needed"):
         mock_session = AsyncMock()

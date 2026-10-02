@@ -214,6 +214,16 @@ async def _delete_payment_by_id_impl(payment_id: int, db: AsyncSession) -> bool:
     await PaymentsService(db).reverse_payment_allocations(payment_dict)
     await db.execute(delete(Payment).where(Payment.id == payment_id))
 
+    from app.core.events import DomainEvent, emit
+    from app.core.perf_cache import invalidate_cache_domains
+
+    invalidate_cache_domains("sales", "client", "dashboard")
+    emit(
+        DomainEvent(
+            "delete", "payment", payment_id, "Suppression transaction client", before=before, after=None
+        )
+    )
+
     log_activity("delete_payment", "payment", payment_id, "Suppression transaction client")
     audit_event("delete_payment", "payment", payment_id, before=before, after=None)
     mark_backup_needed("delete_payment")

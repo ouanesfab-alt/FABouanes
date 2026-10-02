@@ -152,23 +152,24 @@ async def test_sales_commands_create_sale_record_invalid_type():
     mock_session = AsyncMock()
     commands = SalesCommands(mock_session)
 
-    with patch.object(commands.sale_repo, "get_by_id", new=AsyncMock(return_value=None)), \
-         patch("app.modules.sales.commands.next_doc_number", return_value="FAC-001"), \
-         patch.object(commands.sale_repo, "create", new=AsyncMock(return_value=MagicMock(id=1))):
-        try:
-            await commands.create_sale_record(
-                client_id=1,
-                item_kind="finished",
-                item_id=1,
-                qty=10.0,
-                unit="kg",
-                unit_price=100.0,
-                sale_type="invalid_type",
-                sale_date="2024-01-01",
-                notes="test",
-            )
-        except Exception:
-            pass  # We test that invalid_type doesn't raise UnboundLocalError
+    mock_item = MagicMock(stock_qty=100.0, avg_cost=50.0)
+    with patch("app.modules.sales.commands.SalesValidator.validate_stock_availability", new=AsyncMock(return_value=(mock_item, 10.0))), \
+         patch("app.modules.sales.commands.SalesValidator.validate_sale_type"), \
+         patch("app.modules.sales.commands.SalesValidator.validate_quantity"), \
+         patch.object(commands, "record_stock_movement", new=AsyncMock()), \
+         patch.object(commands, "recalc_sale_document_totals", new=AsyncMock()):
+        kind, _ = await commands.create_sale_record(
+            client_id=1,
+            item_kind="finished",
+            item_id=1,
+            qty=10.0,
+            unit="kg",
+            unit_price=100.0,
+            sale_type="invalid_type",
+            sale_date="2024-01-01",
+            notes="test",
+        )
+        assert kind == "finished"
 
 
 # ============================================================

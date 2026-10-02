@@ -1,13 +1,12 @@
-from datetime import date
-from decimal import Decimal
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from app.core.exceptions import ValidationError
 from app.modules.clients.service import ClientService
-from app.modules.sales.schemas_validation import SaleFormSchema
 from app.modules.sales.commands import normalize_sale_type
-from app.services.contact_directory_service import delete_supplier_by_id, has_supplier_operations
+from app.modules.sales.schemas_validation import SaleFormSchema
+from app.services.contact_directory_service import delete_supplier_by_id
 
 
 def test_normalize_sale_type():
@@ -102,3 +101,30 @@ async def test_assistant_tool_actions_contacts_handles_delete_client_validation_
         res = await handle_contacts("delete_client", {"client_id": 10}, session_maker)
 
     assert res == {"error": "Client a des opérations"}
+
+
+@pytest.mark.asyncio
+async def test_legacy_delete_payment_emits_event_and_invalidates_cache():
+    """Legacy delete_payment_by_id in payment_service.py emits DomainEvent and invalidates cache."""
+    from app.services.payment_service import delete_payment_by_id
+
+    session = AsyncMock()
+    mock_payment = MagicMock()
+    mock_payment.model_dump.return_value = {"id": 123, "client_id": 10, "amount": 500.0}
+    mock_res = MagicMock()
+    mock_res.scalar_one_or_none.return_value = mock_payment
+    session.execute.return_value = mock_res
+
+    with patch("app.modules.payments.service.PaymentsService.reverse_payment_allocations", new=AsyncMock()), \
+         patch("app.core.events.emit") as mock_emit, \
+         patch("app.core.perf_cache.invalidate_cache_domains") as mock_inval, \
+         patch("app.core.storage.mark_backup_needed"):
+        ok = await delete_payment_by_id(123, db=session)
+
+    assert ok is True
+    payment_events = [c[0][0] for c in mock_emit.call_args_list if getattr(c[0][0], "entity_type", None) == "payment"]
+    assert len(payment_events) == 1
+    assert payment_events[0].action == "delete"
+    assert payment_events[0].entity_id == 123
+    mock_inval.assert_called_once_with("sales", "client", "dashboard")
+
