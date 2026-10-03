@@ -73,10 +73,7 @@ def run_alembic_upgrade() -> None:
     command, _ = _load_alembic()
     cfg = _alembic_config()
     try:
-        if not _alembic_version_exists():
-            command.stamp(cfg, "head")
-        else:
-            command.upgrade(cfg, "head")
+        command.upgrade(cfg, "head")
     except Exception as exc:
         import logging
 

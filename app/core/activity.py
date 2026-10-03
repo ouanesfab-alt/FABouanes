@@ -38,10 +38,9 @@ def _request_ip() -> str:
     state_request = get_state_value("request")
     if state_request is None:
         return ""
-    forwarded = state_request.headers.get("X-Forwarded-For", "")
-    return (forwarded.split(",", 1)[0].strip() if forwarded else "") or (
-        getattr(getattr(state_request, "client", None), "host", "") or ""
-    )
+    from app.core.security import client_ip
+
+    return client_ip(state_request)
 
 
 def _json_or_text(value) -> str:

@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from jinja2 import pass_context
 from starlette.routing import NoMatchFound
 
-from app.core.auth_cookie import AUTH_COOKIE_NAME, read_auth_cookie_value
+from app.core.auth_cookie import AUTH_COOKIE_NAME, read_auth_cookie_payload
 from app.core.permissions import has_permission
 from app.core.runtime_paths import paths
 from app.web.compat import COMPAT_ROUTE_MAP
@@ -278,6 +278,7 @@ def load_user_from_session(request: Request):
     current_fingerprint = get_client_fingerprint(request)
     user_id = request.session.get("user_id")
 
+    auth_time = request.session.get("auth_time")
     if user_id:
         expected_fingerprint = request.session.get("fingerprint")
         if expected_fingerprint:
@@ -287,10 +288,14 @@ def load_user_from_session(request: Request):
         else:
             request.session["fingerprint"] = current_fingerprint
     else:
-        user_id = read_auth_cookie_value(request.cookies.get(AUTH_COOKIE_NAME), current_fingerprint)
-        if user_id:
-            request.session["user_id"] = int(user_id)
+        payload = read_auth_cookie_payload(request.cookies.get(AUTH_COOKIE_NAME), current_fingerprint)
+        if payload:
+            user_id = int(payload["user_id"])
+            auth_time = payload.get("auth_time")
+            request.session["user_id"] = user_id
             request.session["fingerprint"] = current_fingerprint
+            if auth_time:
+                request.session["auth_time"] = auth_time
 
     if not user_id:
         return None
@@ -298,7 +303,7 @@ def load_user_from_session(request: Request):
 
     try:
         user_row = query_db(
-            "SELECT id, username, password_hash, role, must_change_password, is_active, custom_permissions_json FROM users WHERE id = %s",
+            "SELECT id, username, password_hash, role, must_change_password, is_active, custom_permissions_json, last_password_change_at FROM users WHERE id = %s",
             (int(user_id),),
             one=True,
         )
@@ -308,6 +313,25 @@ def load_user_from_session(request: Request):
     if not user or not bool(user.get("is_active", 1)):
         request.session.clear()
         return None
+
+    # Revoke session if password was changed after this session/cookie was created
+    last_change = user.get("last_password_change_at")
+    if last_change is not None:
+        try:
+            from datetime import datetime
+
+            if isinstance(last_change, str):
+                last_change_dt = datetime.fromisoformat(last_change)
+            else:
+                last_change_dt = last_change
+            last_change_ts = last_change_dt.timestamp()
+            # If session was authenticated before password change (with 5s buffer), revoke
+            if auth_time is None or float(auth_time) < (last_change_ts - 5):
+                request.session.clear()
+                return None
+        except Exception:
+            pass
+
     return user
 
 

@@ -92,19 +92,16 @@ def validate_mobile_refresh_token(token: str) -> dict[str, Any]:
 
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
 
-    # Reuse detection check: check if it exists in db, even if revoked
     all_row = query_db(
         "SELECT id, user_id, revoked_at FROM api_refresh_tokens WHERE token_hash = %s", (token_hash,), one=True
     )
 
-    # If not found in DB, it is not a valid token (was never created or was deleted)
     if not all_row:
         raise HTTPException(401, "Jeton inconnu ou invalide")
 
     user_id = int(all_row["user_id"])
 
     if all_row.get("revoked_at") is not None:
-        # Replay attack detected! Revoke all tokens for this user immediately!
         execute_db(
             "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = %s AND revoked_at IS NULL",
             (user_id,),
@@ -115,7 +112,6 @@ def validate_mobile_refresh_token(token: str) -> dict[str, Any]:
     if user_row is not None and not bool(user_row.get("is_active", 1)):
         raise HTTPException(401, "Compte utilisateur inactif ou désactivé")
 
-    # Mark old token as revoked/used (since we will return a rotated one!)
     execute_db(
         "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP, last_used_at = CURRENT_TIMESTAMP WHERE id = %s",
         (int(all_row["id"]),),
@@ -123,10 +119,27 @@ def validate_mobile_refresh_token(token: str) -> dict[str, Any]:
     return payload
 
 
+def rotate_mobile_refresh_token(token: str) -> tuple[dict[str, Any], str]:
+    """Atomically validate the existing refresh token, mark it revoked, and issue a new refresh token.
+
+    Returns (user_dict, new_refresh_token).
+    Executes in a single database transaction.
+    """
+    from app.core.db_helpers import db_manager, query_db
+
+    with db_manager.db_transaction():
+        payload = validate_mobile_refresh_token(token)
+        user_id = int(payload["sub"])
+        user_row = query_db("SELECT id, username, role, is_active FROM users WHERE id = %s", (user_id,), one=True)
+        user_dict = dict(user_row) if user_row else {"id": user_id, "username": "user", "role": "operator", "is_active": True}
+        new_token = create_refresh_token(user_id)
+        return user_dict, new_token
+
+
 def get_current_user_id(
     credentials: HTTPAuthorizationCredentials | None = Security(security),
 ) -> int:
-    """Dépendance FastAPI pour protéger les routes API mobile."""
+    """Dépendance FastAPI pour obtenir l'ID utilisateur mobile."""
     if not credentials:
         raise HTTPException(401, "Token Bearer requis")
     payload = decode_token(credentials.credentials)
@@ -140,3 +153,24 @@ def get_current_user_id(
     if not user_row or not user_row.get("is_active"):
         raise HTTPException(401, "Compte utilisateur inactif ou désactivé")
     return user_id
+
+
+def require_mobile_permission(permission: str):
+    """Dépendance pour vérifier une permission fine sur une route mobile."""
+
+    def dependency(user_id: int = Security(get_current_user_id)) -> dict[str, Any]:
+        from app.core.db_helpers import query_db
+
+        user_row = query_db(
+            "SELECT id, username, role, is_active, custom_permissions_json FROM users WHERE id = %s",
+            (int(user_id),),
+            one=True,
+        )
+        user = dict(user_row) if user_row else {"id": int(user_id), "role": "admin", "is_active": True}
+        from app.core.permissions import has_permission
+
+        if not has_permission(user, permission):
+            raise HTTPException(403, "Accès refusé pour cette ressource mobile")
+        return user
+
+    return dependency

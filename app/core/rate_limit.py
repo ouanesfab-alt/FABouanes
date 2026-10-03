@@ -4,10 +4,14 @@ from app.core.config import settings
 
 try:
     from slowapi import Limiter
-    from slowapi.util import get_remote_address
+
+    def _rate_limit_key(request) -> str:
+        from app.core.security import client_ip
+
+        return client_ip(request)
 
     limiter = Limiter(
-        key_func=get_remote_address,
+        key_func=_rate_limit_key,
         default_limits=["200/minute"],
         storage_uri="memory://",
         enabled=(not settings.desktop_mode) and settings.env != "test",

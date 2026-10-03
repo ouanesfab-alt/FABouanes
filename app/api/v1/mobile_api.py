@@ -22,15 +22,19 @@ from app.core.async_db import get_async_session
 from app.core.jwt_auth import (
     create_access_token,
     create_refresh_token,
-    get_current_user_id,
-    validate_mobile_refresh_token,
+    require_mobile_permission,
+    rotate_mobile_refresh_token,
+)
+from app.core.permissions import (
+    PERMISSION_CONTACTS_READ,
+    PERMISSION_DASHBOARD_READ,
+    PERMISSION_OPERATIONS_WRITE,
 )
 from app.core.rate_limit import limiter
 from app.core.schema.payment_validation import PaymentCreate
 from app.modules.clients.service import ClientService
 from app.modules.payments.service import PaymentsService
 from app.modules.reports.repository import get_dashboard_snapshot
-from app.modules.users.repository import get_user_by_id
 from app.services.auth_service import verify_credentials
 
 logger = logging.getLogger("fabouanes.mobile_api")
@@ -134,13 +138,11 @@ async def mobile_refresh(request: Request):
 
     if not refresh_token:
         raise HTTPException(401, "Refresh token requis")
-    payload = validate_mobile_refresh_token(str(refresh_token))
-    user = await get_user_by_id.async_(int(payload["sub"]))
-    if not user:
-        raise HTTPException(401, "Utilisateur introuvable")
+
+    user, new_refresh_token = rotate_mobile_refresh_token(str(refresh_token))
     return {
         "access_token": create_access_token(user["id"], user["role"]),
-        "refresh_token": create_refresh_token(user["id"]),
+        "refresh_token": new_refresh_token,
         "token_type": "bearer",
     }
 
@@ -152,7 +154,7 @@ async def mobile_list_clients(
     q: str = "",
     page: int = 1,
     page_size: int = 30,
-    user_id: int = Depends(get_current_user_id),
+    user: dict = Depends(require_mobile_permission(PERMISSION_CONTACTS_READ)),
     db: AsyncSession = Depends(get_async_session),
 ):
     """Liste les clients avec leur solde actuel. Paginé."""
@@ -172,7 +174,7 @@ async def mobile_client_history(
     client_id: int,
     page: int = 1,
     page_size: int = 50,
-    user_id: int = Depends(get_current_user_id),
+    user: dict = Depends(require_mobile_permission(PERMISSION_CONTACTS_READ)),
 ):
     """Historique complet d'un client (Zone 1 + Zone 2), paginé."""
     page = max(page, 1)
@@ -186,7 +188,7 @@ async def mobile_client_history(
 @router.post("/payments")
 async def mobile_record_payment(
     payload: PaymentCreate,
-    user_id: int = Depends(get_current_user_id),
+    user: dict = Depends(require_mobile_permission(PERMISSION_OPERATIONS_WRITE)),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
@@ -201,7 +203,7 @@ async def mobile_record_payment(
             amount=payload.amount,
             payment_date=payload.payment_date,
             notes=payload.notes or "",
-            recorded_by=user_id,
+            recorded_by=int(user["id"]),
         )
         return result
     except Exception as e:
@@ -212,7 +214,7 @@ async def mobile_record_payment(
 async def mobile_dashboard_summary(
     request: Request,
     response: Response,
-    user_id: int = Depends(get_current_user_id),
+    user: dict = Depends(require_mobile_permission(PERMISSION_DASHBOARD_READ)),
 ):
     """Résumé du jour : ventes, encaissements, créances totales."""
     snapshot = await get_dashboard_snapshot.async_(date.today().isoformat())

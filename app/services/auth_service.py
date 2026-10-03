@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 import secrets
 
@@ -164,6 +165,15 @@ async def change_user_password(user_id: int, current_password: str, new_password
         return {"ok": False, "message": "La confirmation du mot de passe ne correspond pas."}
     before = {"must_change_password": int(user["must_change_password"] or 0)}
     await update_password(user_id, generate_password_hash(new_password), 0)
+    from app.core.db_helpers import execute_db
+
+    try:
+        execute_db(
+            "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = %s AND revoked_at IS NULL",
+            (user_id,),
+        )
+    except Exception as exc:
+        logging.getLogger("fabouanes.auth").warning("Could not revoke refresh tokens on password change: %s", exc)
     if str(user["username"]) == DEFAULT_ADMIN_USERNAME:
         try:
             (APP_DATA_DIR / "first_admin_password.txt").unlink(missing_ok=True)

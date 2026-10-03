@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+from typing import Any
 
 from app.core.request_state import get_state_value
 
@@ -20,14 +21,15 @@ _TRUSTED_PROXIES: frozenset[str] = frozenset(
 )
 
 
-def client_ip() -> str:
-    request = get_state_value("request")
+def client_ip(request: Any = None) -> str:
+    if request is None:
+        request = get_state_value("request")
     if request is None:
         return "unknown"
     direct_ip = getattr(getattr(request, "client", None), "host", None) or "unknown"
     # Only trust X-Forwarded-For if the direct connection comes from a known proxy
     if _TRUSTED_PROXIES and direct_ip in _TRUSTED_PROXIES:
-        forwarded = request.headers.get("X-Forwarded-For", "")
+        forwarded = getattr(request, "headers", {}).get("X-Forwarded-For", "")
         if forwarded:
             return forwarded.split(",", 1)[0].strip() or direct_ip
     return direct_ip

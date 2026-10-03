@@ -270,6 +270,7 @@ def bootstrap_schema() -> None:
             status VARCHAR(50) DEFAULT 'pending',
             error_message TEXT,
             created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            locked_at TIMESTAMPTZ,
             processed_at TIMESTAMPTZ
         );
 
@@ -280,8 +281,12 @@ def bootstrap_schema() -> None:
             status VARCHAR(50) DEFAULT 'pending',
             error_message TEXT,
             created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            locked_at TIMESTAMPTZ,
             processed_at TIMESTAMPTZ
         );
+
+        ALTER TABLE offline_sales_staging ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ;
+        ALTER TABLE offline_payments_staging ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ;
 
         CREATE INDEX IF NOT EXISTS idx_offline_sales_status ON offline_sales_staging(status, created_at);
         CREATE INDEX IF NOT EXISTS idx_offline_payments_status ON offline_payments_staging(status, created_at);

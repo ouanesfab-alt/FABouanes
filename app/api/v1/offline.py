@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,6 +44,10 @@ async def sync_operation(request: Request, db: AsyncSession = Depends(get_async_
     op_type = body.get("type")
     payload = body.get("payload", {})
 
+    # Check permission for purchase before try block
+    if op_type == "create_purchase":
+        require_api_user(request, "admin")
+
     try:
         if op_type == "create_sale":
             validated = SaleFormSchema(**payload)
@@ -51,7 +55,6 @@ async def sync_operation(request: Request, db: AsyncSession = Depends(get_async_
             result = await service.create_sale_from_form(validated)
             res_payload = {"ok": True, "mode": result.get("mode")}
         elif op_type == "create_purchase":
-            require_api_user(request, "admin")
             validated = PurchaseFormSchema(**payload)
             service = PurchaseService(db)
             result = await service.create_purchase_from_form(validated)
@@ -68,33 +71,20 @@ async def sync_operation(request: Request, db: AsyncSession = Depends(get_async_
             result = await service.create_production(payload)
             res_payload = {"ok": True, "batch_id": result.get("batch_id")}
         else:
-            err_res = {
-                "success": False,
-                "error": {"code": "unknown_type", "message": f"Type inconnu : {op_type}", "details": None},
-            }
-            if idempotency_key:
-                await save_idempotency(idempotency_key, {"content": err_res, "status_code": 400})
             api_error("unknown_type", f"Type inconnu : {op_type}", 400)
 
         if idempotency_key:
             await save_idempotency(idempotency_key, {"content": res_payload, "status_code": 200})
         return JSONResponse(res_payload)
 
+    except HTTPException:
+        raise
     except (ValueError, ValidationError, ConflictError) as exc:
         code = getattr(exc, "code", "validation_error")
         message = getattr(exc, "message", str(exc))
-        err_res = {"success": False, "error": {"code": code, "message": message, "details": None}}
-        if idempotency_key:
-            await save_idempotency(idempotency_key, {"content": err_res, "status_code": 422})
         api_error(code, message, 422)
     except Exception as exc:
         logger.exception("Offline sync operation failed")
-        err_res = {
-            "success": False,
-            "error": {"code": "internal_error", "message": "Erreur serveur", "details": str(exc)},
-        }
-        if idempotency_key:
-            await save_idempotency(idempotency_key, {"content": err_res, "status_code": 500})
         api_error("internal_error", "Erreur serveur", 500, details=str(exc))
 
 
@@ -187,6 +177,13 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
                 continue
 
         # 2. Process operation
+        if op_type == "create_purchase":
+            try:
+                require_api_user(request, "admin")
+            except HTTPException as he:
+                results.append({"idempotency_key": idempotency_key, "status_code": he.status_code, "response": {"error": he.detail}})
+                continue
+
         try:
             if op_type == "create_sale":
                 validated = SaleFormSchema(**payload)
@@ -194,7 +191,6 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
                 result = await service.create_sale_from_form(validated)
                 res_payload = {"ok": True, "mode": result.get("mode")}
             elif op_type == "create_purchase":
-                require_api_user(request, "admin")
                 validated = PurchaseFormSchema(**payload)
                 service = PurchaseService(db)
                 result = await service.create_purchase_from_form(validated)
@@ -212,21 +208,19 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
                 res_payload = {"ok": True, "batch_id": result.get("batch_id")}
             else:
                 res_payload = {"error": f"Type inconnu : {op_type}"}
-                if idempotency_key:
-                    await save_idempotency(idempotency_key, {"content": res_payload, "status_code": 400})
                 results.append({"idempotency_key": idempotency_key, "status_code": 400, "response": res_payload})
                 continue
 
-            # Save idempotency on success
+            # Save idempotency ONLY on success
             if idempotency_key:
                 await save_idempotency(idempotency_key, {"content": res_payload, "status_code": 200})
 
             results.append({"idempotency_key": idempotency_key, "status_code": 200, "response": res_payload})
 
+        except HTTPException as he:
+            results.append({"idempotency_key": idempotency_key, "status_code": he.status_code, "response": {"error": he.detail}})
         except (ValueError, ValidationError, ConflictError) as exc:
             res_payload = {"error": str(exc)}
-            if idempotency_key:
-                await save_idempotency(idempotency_key, {"content": res_payload, "status_code": 422})
             results.append({"idempotency_key": idempotency_key, "status_code": 422, "response": res_payload})
         except Exception as exc:
             logger.exception("Bulk sync operation failed due to internal error")

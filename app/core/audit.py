@@ -338,10 +338,9 @@ def audit_event(
     state_request = get_state_value("request")
     if state_request is not None:
         request_source = request_source or ("api" if state_request.url.path.startswith("/api/") else "web")
-        forwarded = state_request.headers.get("X-Forwarded-For", "")
-        remote_addr = (forwarded.split(",", 1)[0].strip() if forwarded else "") or (
-            getattr(getattr(state_request, "client", None), "host", "") or ""
-        )
+        from app.core.security import client_ip
+
+        remote_addr = client_ip(state_request)
         user_agent = state_request.headers.get("User-Agent", "")[:500]
     else:
         request_source = request_source or "system"

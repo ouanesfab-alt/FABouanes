@@ -38,13 +38,23 @@ async def login_submit(request: Request):
         target = "/change-password" if int(user.get("must_change_password", 0) or 0) else "/"
         if int(user.get("must_change_password", 0) or 0):
             flash(request, "Changez immédiatement le mot de passe administrateur par défaut.", "warning")
+        import time
+
+        cookie_max_age = int(settings.session_max_age if request.session.get("remember") else 86400)
+        auth_now = int(time.time())
+        request.session["auth_time"] = auth_now
         response = RedirectResponse(target, status_code=303)
         from app.core.security import get_client_fingerprint
 
         response.set_cookie(
             AUTH_COOKIE_NAME,
-            build_auth_cookie_value(int(user["id"]), get_client_fingerprint(request)),
-            max_age=settings.session_max_age if request.session.get("remember") else None,
+            build_auth_cookie_value(
+                int(user["id"]),
+                get_client_fingerprint(request),
+                max_age=cookie_max_age,
+                auth_time=auth_now,
+            ),
+            max_age=cookie_max_age,
             httponly=True,
             samesite="lax",
             secure=settings.session_cookie_secure,
@@ -78,7 +88,30 @@ async def change_password_submit(request: Request):
         form.get("confirm_password", ""),
     )
     flash(request, result["message"], "success" if result["ok"] else "danger")
-    return RedirectResponse("/" if result["ok"] else "/change-password", status_code=303)
+    target = "/" if result["ok"] else "/change-password"
+    response = RedirectResponse(target, status_code=303)
+    if result["ok"]:
+        import time
+        from app.core.security import get_client_fingerprint
+
+        auth_now = int(time.time())
+        request.session["auth_time"] = auth_now
+        cookie_max_age = int(settings.session_max_age if request.session.get("remember") else 86400)
+        response.set_cookie(
+            AUTH_COOKIE_NAME,
+            build_auth_cookie_value(
+                int(user["id"]),
+                get_client_fingerprint(request),
+                max_age=cookie_max_age,
+                auth_time=auth_now,
+            ),
+            max_age=cookie_max_age,
+            httponly=True,
+            samesite="lax",
+            secure=settings.session_cookie_secure,
+            path="/",
+        )
+    return response
 
 
 @router.get("/logout", name="logout")

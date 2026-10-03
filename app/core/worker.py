@@ -341,11 +341,11 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
         res = conn.execute(
             """
             UPDATE offline_sales_staging
-            SET status = 'processing'
+            SET status = 'processing', locked_at = CURRENT_TIMESTAMP
             WHERE id IN (
                 SELECT id FROM offline_sales_staging
                 WHERE status = 'pending'
-                   OR (status = 'processing' AND processed_at IS NULL AND created_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes')
+                   OR (status = 'processing' AND processed_at IS NULL AND (locked_at IS NULL OR locked_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'))
                 ORDER BY id ASC
                 LIMIT 50
                 FOR UPDATE SKIP LOCKED
@@ -399,11 +399,11 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
         res = conn.execute(
             """
             UPDATE offline_payments_staging
-            SET status = 'processing'
+            SET status = 'processing', locked_at = CURRENT_TIMESTAMP
             WHERE id IN (
                 SELECT id FROM offline_payments_staging
                 WHERE status = 'pending'
-                   OR (status = 'processing' AND processed_at IS NULL AND created_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes')
+                   OR (status = 'processing' AND processed_at IS NULL AND (locked_at IS NULL OR locked_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'))
                 ORDER BY id ASC
                 LIMIT 50
                 FOR UPDATE SKIP LOCKED

@@ -247,8 +247,8 @@ def upgrade() -> None:
                     0
                 ) INTO v_prev_solde;
 
-                v_montant_achat := CASE WHEN NEW.payment_type='avance' THEN NEW.amount ELSE 0 END;
-                v_montant_verse := CASE WHEN NEW.payment_type='versement' THEN NEW.amount ELSE 0 END;
+                v_montant_achat := 0;
+                v_montant_verse := NEW.amount;
                 v_solde := v_prev_solde + v_montant_achat - v_montant_verse;
 
                 INSERT INTO client_history (
@@ -280,8 +280,8 @@ def upgrade() -> None:
                         WHEN NEW.sale_kind = 'finished' THEN 'Versement lié à la vente produit'
                         ELSE COALESCE(NULLIF(NEW.notes,''), CASE WHEN NEW.payment_type='avance' THEN 'Avance client' ELSE 'Versement client' END)
                     END,
-                    montant_achat = CASE WHEN NEW.payment_type='avance' THEN NEW.amount ELSE 0 END,
-                    montant_verse = CASE WHEN NEW.payment_type='versement' THEN NEW.amount ELSE 0 END,
+                    montant_achat = 0,
+                    montant_verse = NEW.amount,
                     client_id = NEW.client_id
                 WHERE payment_id = NEW.id;
             ELSIF TG_OP = 'DELETE' THEN
