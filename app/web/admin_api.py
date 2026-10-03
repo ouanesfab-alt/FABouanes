@@ -7,9 +7,12 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi.responses import FileResponse
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
+from app.core.audit import list_audit_logs
 from app.core.db_helpers import db_manager
 from app.core.permissions import (
     PERMISSION_AUDIT_READ,
@@ -17,8 +20,16 @@ from app.core.permissions import (
     PERMISSION_USERS_MANAGE,
     has_permission,
 )
-from app.core.storage import list_restore_backups
+from app.core.security import encrypt_val
+from app.core.storage import (
+    LOCAL_BACKUP_DIR,
+    list_restore_backups,
+    resolve_backup_path,
+    restore_database_from,
+)
+from app.modules.assistant.schema_context import get_encryption_key
 from app.modules.users.repository import list_users
+from app.services.activity_service import activity_filter_values, list_admin_activity
 from app.services.admin_service import (
     create_manual_backup,
     create_user_account,
@@ -28,7 +39,7 @@ from app.services.admin_service import (
     save_backup_settings_from_form,
     update_user_account,
 )
-from app.services.backup_service import list_backup_jobs
+from app.services.backup_service import get_backup_settings, list_backup_jobs
 from app.services.system_service import get_system_status
 from app.utils.api_response import APIResponse
 from app.web.deps import get_current_user
@@ -124,10 +135,7 @@ async def api_get_backups(request: Request, db: AsyncSession = Depends(get_async
     # Récupérer les sauvegardes locales
     backups = await asyncio.to_thread(list_restore_backups)
 
-    # Récupérer l'historique des jobs
     jobs = await list_backup_jobs(limit=30, db=db)
-    from app.services.backup_service import get_backup_settings
-
     settings = await get_backup_settings(db=db)
 
     return {
@@ -147,8 +155,6 @@ async def api_get_backups(request: Request, db: AsyncSession = Depends(get_async
 @router.get("/backups/list")
 async def api_list_backups(request: Request):
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
-    from app.core.storage import list_restore_backups, resolve_backup_path
-
     items = list_restore_backups()
     result = []
     for item in items:
@@ -166,10 +172,6 @@ async def api_list_backups(request: Request):
 @router.get("/backups/download/{filename}")
 async def api_download_backup(filename: str, request: Request):
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
-    from fastapi.responses import FileResponse
-
-    from app.core.storage import resolve_backup_path
-
     safe_filename = Path(filename).name
     path = resolve_backup_path(f"local:{safe_filename}")
     if not path or not path.exists():
@@ -186,8 +188,6 @@ async def api_upload_and_restore_backup(request: Request, file: UploadFile = Fil
     filename = Path(file.filename).name
     if not (filename.endswith(".sql") or filename.endswith(".sql.gz") or filename.endswith(".sql.gz.enc")):
         return {"ok": False, "message": "Format de fichier invalide. Extensions acceptées: .sql, .sql.gz, .sql.gz.enc"}
-
-    from app.core.storage import LOCAL_BACKUP_DIR, restore_database_from
 
     dest_path = LOCAL_BACKUP_DIR / f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
 
@@ -259,9 +259,6 @@ async def api_get_audit_logs(request: Request, db: AsyncSession = Depends(get_as
 
 
 async def _get_filtered_audit_data(filters: dict[str, str], db) -> dict[str, Any]:
-    from app.core.audit import list_audit_logs
-    from app.services.activity_service import activity_filter_values, list_admin_activity
-
     audit_logs = await list_audit_logs(filters, limit=150, db=db)
     activity_logs = await list_admin_activity(filters, limit=150, db=db)
 
@@ -287,9 +284,6 @@ async def api_save_sabrina_settings(request: Request):
             db_manager.set_setting("gemini_model", selected_model)
     if api_key:
         if not api_key.startswith("••••"):
-            from app.core.security import encrypt_val
-            from app.modules.assistant.schema_context import get_encryption_key
-
             encrypted_key = encrypt_val(api_key, get_encryption_key())
             db_manager.set_setting("gemini_api_key", encrypted_key)
 
@@ -306,8 +300,6 @@ async def api_get_system_status(request: Request, db: AsyncSession = Depends(get
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
 
     status_info = await get_system_status(db=db)
-    from sqlalchemy import text
-
     error_res = await db.execute(text("SELECT * FROM error_logs ORDER BY id DESC LIMIT 30"))
     error_logs = [dict(row._mapping) for row in error_res.all()]
 

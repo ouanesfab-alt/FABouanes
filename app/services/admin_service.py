@@ -9,10 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.security import generate_password_hash
 
 from app.core.activity import log_activity
+from app.core.async_compat import async_compat
 from app.core.async_db import get_async_sessionmaker
 from app.core.audit import audit_event, list_audit_logs
 from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_USERNAME
-from app.core.helpers import async_compat
+from app.core.db_helpers import db_manager as helper_db_manager
 from app.core.perf_cache import async_cached_result
 from app.core.security import validate_password_strength
 from app.core.storage import (
@@ -22,6 +23,8 @@ from app.core.storage import (
     resolve_backup_path,
     restore_database_from,
 )
+from app.modules.assistant.schema_context import get_gemini_api_key
+from app.modules.assistant.service import is_ollama_available
 from app.modules.users.repository import (
     create_user,
     delete_user,
@@ -240,10 +243,6 @@ async def _build_admin_view_data(audit_filters: dict[str, str], db: AsyncSession
 
     stock_movements_res = await db.execute(text("SELECT * FROM stock_movements ORDER BY id DESC LIMIT 20"))
     stock_movements = [dict(row._mapping) for row in stock_movements_res.all()]
-
-    from app.core.db_helpers import db_manager as helper_db_manager
-    from app.modules.assistant.schema_context import get_gemini_api_key
-    from app.modules.assistant.service import is_ollama_available
 
     sabrina_api_key = get_gemini_api_key()
     selected_model = (

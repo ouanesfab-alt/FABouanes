@@ -5,11 +5,13 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
+from app.core.exceptions import get_friendly_error_message
 from app.core.permissions import (
     PERMISSION_CONTACTS_DELETE,
     PERMISSION_CONTACTS_READ,
     PERMISSION_CONTACTS_WRITE,
 )
+from app.core.schema.supplier_validation import SupplierValidationSchema
 from app.services.contact_directory_service import (
     contacts_context,
     create_supplier_from_form,
@@ -57,15 +59,11 @@ async def suppliers_submit(request: Request, db: AsyncSession = Depends(get_asyn
     await csrf_protect(request)
     form = await request.form()
     try:
-        from app.core.schema.supplier_validation import SupplierValidationSchema
-
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
         await create_supplier_from_form(validated.model_dump(), db=db)
         flash(request, "Fournisseur ajouté avec succès.", "success")
     except Exception as e:
-        from app.core.exceptions import get_friendly_error_message
-
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur de validation : {friendly}", "danger")
         return RedirectResponse(NEW_SUPPLIER_URL, status_code=303)
@@ -106,15 +104,11 @@ async def new_supplier_submit(request: Request, db: AsyncSession = Depends(get_a
     await csrf_protect(request)
     form = await request.form()
     try:
-        from app.core.schema.supplier_validation import SupplierValidationSchema
-
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
         await create_supplier_from_form(validated.model_dump(), db=db)
         flash(request, "Fournisseur ajouté avec succès.", "success")
     except Exception as e:
-        from app.core.exceptions import get_friendly_error_message
-
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur de validation : {friendly}", "danger")
         return RedirectResponse(NEW_SUPPLIER_URL, status_code=303)
@@ -174,15 +168,11 @@ async def edit_supplier_submit(request: Request, supplier_id: int, db: AsyncSess
         return RedirectResponse(SUPPLIERS_FILTER_URL, status_code=303)
     form = await request.form()
     try:
-        from app.core.schema.supplier_validation import SupplierValidationSchema
-
         data = {k: v for k, v in form.items()}
         validated = SupplierValidationSchema(**data)
         await update_supplier_from_form(supplier_id, validated.model_dump(), db=db)
         flash(request, "Fournisseur modifié.", "success")
     except Exception as e:
-        from app.core.exceptions import get_friendly_error_message
-
         friendly = get_friendly_error_message(e)
         flash(request, f"Erreur de validation : {friendly}", "danger")
         return RedirectResponse(str(request.url), status_code=303)

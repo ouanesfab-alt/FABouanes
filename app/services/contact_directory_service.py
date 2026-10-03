@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity import log_activity
+from app.core.async_compat import async_compat
 from app.core.async_db import get_async_sessionmaker
 from app.core.audit import audit_event
-from app.core.helpers import async_compat
-from app.core.models import Supplier
+from app.core.exceptions import ValidationError
+from app.core.models import Purchase, PurchaseDocument, Supplier
 from app.core.perf_cache import async_cached_result
 from app.core.storage import backup_database
 from app.utils.pagination import paginate_sequence
@@ -169,9 +170,6 @@ async def has_supplier_operations(supplier_id: int, db: AsyncSession | None = No
 
 
 async def _has_supplier_operations_impl(supplier_id: int, db: AsyncSession) -> bool:
-    from sqlalchemy import func
-    from app.core.models_pkg.purchases import Purchase, PurchaseDocument
-
     stmt1 = select(func.count()).select_from(Purchase).where(Purchase.supplier_id == supplier_id)
     stmt2 = select(func.count()).select_from(PurchaseDocument).where(PurchaseDocument.supplier_id == supplier_id)
     p_count = (await db.execute(stmt1)).scalar() or 0
@@ -191,8 +189,6 @@ async def delete_supplier_by_id(supplier_id: int, db: AsyncSession | None = None
 
 async def _delete_supplier_by_id_impl(supplier_id: int, db: AsyncSession) -> None:
     if await _has_supplier_operations_impl(supplier_id, db):
-        from app.core.exceptions import ValidationError
-
         raise ValidationError("Impossible de supprimer ce fournisseur car il possède des achats associés.")
 
     before = await _get_supplier_impl(supplier_id, db)

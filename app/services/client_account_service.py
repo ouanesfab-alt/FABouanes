@@ -7,12 +7,13 @@ from __future__ import annotations
 
 import warnings
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_sessionmaker
 from app.core.exceptions import ValidationError
-from app.core.helpers import async_compat
+from app.core.async_compat import async_compat
 from app.modules.payments.service import PaymentsService
 
 warnings.warn(
@@ -41,7 +42,7 @@ async def get_open_credit_entries(client_id: int | None = None, db: AsyncSession
 
 @async_compat
 async def apply_payment_to_entry(
-    kind: str, row_id: int, amount: float, entry: dict | None = None, db: AsyncSession | None = None
+    kind: str, row_id: int, amount: float | Decimal, entry: dict | None = None, db: AsyncSession | None = None
 ) -> float:
     if db is None:
         async with get_async_sessionmaker()() as session:
@@ -51,9 +52,9 @@ async def apply_payment_to_entry(
         return await PaymentsService(db).apply_payment_to_entry(kind, row_id, amount)
     except (KeyError, AttributeError):
         # Fallback pour sessions mockees de tests legacy
-        if amount <= 0:
+        if float(amount) <= 0:
             return 0.0
-        return amount
+        return float(amount)
 
 
 @async_compat
@@ -75,7 +76,7 @@ async def reverse_payment_allocations(payment_row, db: AsyncSession | None = Non
 @async_compat
 async def create_payment_record(
     client_id: int,
-    amount: float,
+    amount: float | Decimal,
     payment_date: str | date,
     notes: str,
     sale_link: str = "",

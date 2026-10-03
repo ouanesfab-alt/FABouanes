@@ -18,7 +18,7 @@ from app.core.async_db import get_async_sessionmaker
 from app.core.audit import audit_event
 from app.core.config import APP_DATA_DIR, DATABASE_URL
 from app.core.db_helpers import connect_database
-from app.core.helpers import async_compat
+from app.core.async_compat import async_compat
 
 logger = logging.getLogger("fabouanes")
 

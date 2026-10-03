@@ -188,3 +188,22 @@ class RecipeCreateSchema(BaseModel):
         if not cleaned:
             raise ValueError("Le nom de la recette ne peut pas être vide.")
         return cleaned
+
+
+class SupplierCreateSchema(BaseModel):
+    name: str = Field(..., min_length=1)
+    phone: Optional[str] = Field(default="")
+    address: Optional[str] = Field(default="")
+    notes: Optional[str] = Field(default="")
+
+    @field_validator("name")
+    @classmethod
+    def clean_name(cls, val: str) -> str:
+        cleaned = str(val).strip()
+        if not cleaned:
+            raise ValueError("Le nom du fournisseur ne peut pas être vide.")
+        return cleaned
+
+
+class SupplierUpdateSchema(SupplierCreateSchema):
+    pass

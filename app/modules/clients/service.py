@@ -3,25 +3,29 @@ from __future__ import annotations
 import base64
 import json
 import math
+import os
 import secrets
 import shutil
 from time import time
 from typing import Any, Dict, List, Optional, Tuple
 
+from sqlalchemy import column, table
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import delete, func, literal, literal_column, select
 from werkzeug.utils import secure_filename
 
 from app.core.events import DomainEvent, emit
-from app.core.exceptions import ConflictError
+from app.core.exceptions import ConflictError, ValidationError
 from app.core.helpers import parse_excel_client_file
 from app.core.models import Client, ClientHistory, ClientKey
-from app.core.perf_cache import invalidate_client_cache
-from app.core.security import decrypt_val
+from app.core.perf_cache import async_cached_result, invalidate_client_cache
+from app.core.security import decrypt_val, encrypt_val
 from app.core.storage import IMPORT_DIR, ensure_runtime_dirs
 from app.modules.clients.repository import ClientRepository
 from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
 from app.services.excel_import_service import parse_client_history_excel
+from app.utils.phone_normalize import normalize_phone_number
 
 _IMPORT_PREVIEW_TTL_SECONDS = 30 * 60
 
@@ -106,8 +110,6 @@ class ClientService:
         self, search: Optional[str] = None, page: int = 1, page_size: int = 25
     ) -> Tuple[List[dict], int]:
         """Lists clients with calculated statistics and balance from the database view."""
-        from sqlalchemy import column, table
-
         cws_cols = [column(c.name) for c in Client.__table__.columns] + [
             column("current_balance"),
             column("total_sales"),
@@ -165,18 +167,12 @@ class ClientService:
         )
         created = await self.repo.create(client)
 
-        import base64
-        import os
-
         key = os.urandom(32)
         b64_key = base64.b64encode(key).decode("utf-8")
 
         ck = ClientKey(client_id=created.id, encryption_key=b64_key)
         self.repo.session.add(ck)
         await self.repo.session.commit()
-
-        from app.core.security import encrypt_val
-        from app.utils.phone_normalize import normalize_phone_number
 
         normalized_phone = normalize_phone_number(schema.phone)
         created.phone = encrypt_val(normalized_phone, key)
@@ -204,22 +200,16 @@ class ClientService:
             return None
 
         # Fetch key
-        import base64
-
         stmt_key = select(ClientKey.client_id, ClientKey.encryption_key).where(ClientKey.client_id == client.id)
         res = await self.repo.session.execute(stmt_key)
         row = res.mappings().first()
         key = base64.b64decode(row["encryption_key"]) if row and row.get("encryption_key") else None
         if not key:
-            import os
-
             key = os.urandom(32)
             b64_key = base64.b64encode(key).decode("utf-8")
             ck = ClientKey(client_id=client.id, encryption_key=b64_key)
             self.repo.session.add(ck)
             await self.repo.session.commit()
-
-        from app.core.security import decrypt_val, encrypt_val
 
         decrypted_before = Client(
             id=client.id,
@@ -232,8 +222,6 @@ class ClientService:
             updated_at=client.updated_at,
         )
         before_dump = decrypted_before.model_dump()
-
-        from app.utils.phone_normalize import normalize_phone_number
 
         client.name = schema.name
         normalized_phone = normalize_phone_number(schema.phone)
@@ -269,17 +257,11 @@ class ClientService:
             return False
 
         if await self.has_operations(client_id):
-            from app.core.exceptions import ValidationError
-
             raise ValidationError(
                 "Impossible de supprimer ce client car il possède des opérations historiques (ventes ou règlements) associées."
             )
 
         before_dump = client.model_dump()
-
-        from sqlalchemy.exc import IntegrityError
-
-        from app.core.exceptions import ValidationError
 
         try:
             success = await self.repo.delete(client_id)
@@ -308,8 +290,6 @@ class ClientService:
 
     async def get_client_detail_context(self, client_id: int) -> Optional[Dict[str, Any]]:
         """Build full client detail context with timeline and stats (async)."""
-        from app.core.perf_cache import async_cached_result
-
         async def _load():
             client = await self.get_client(client_id)
             if not client:

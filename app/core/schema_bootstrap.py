@@ -6,11 +6,6 @@ from __future__ import annotations
 
 from app.core.config import settings
 from app.core.db_helpers import connect_database
-from app.core.schema.catalog import SCHEMA_CATALOG
-from app.core.schema.contacts import SCHEMA_CONTACTS
-from app.core.schema.core import SCHEMA_CORE
-from app.core.schema.operations import SCHEMA_OPERATIONS
-from app.core.schema.production import SCHEMA_PRODUCTION
 
 ADVISORY_LOCK_ID = 884712
 
@@ -52,6 +47,8 @@ def _executescript(conn, sql: str) -> None:
 
 
 def bootstrap_schema() -> None:
+    from app.core.database import run_alembic_upgrade
+
     conn = connect_database(settings.database_url)
     try:
         try:
@@ -59,88 +56,7 @@ def bootstrap_schema() -> None:
         except Exception:
             pass
 
-        # Core schema first
-        _executescript(conn, SCHEMA_CORE)
-
-        # Create rate_limit_events and stock_alerts tables
-        _executescript(
-            conn,
-            """
-        CREATE TABLE IF NOT EXISTS rate_limit_events (
-            key TEXT NOT NULL,
-            hit_at TIMESTAMPTZ NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_rate_limit_events_key_hit_at ON rate_limit_events(key, hit_at);
-
-        CREATE TABLE IF NOT EXISTS stock_alerts (
-            id BIGSERIAL PRIMARY KEY,
-            product_type TEXT NOT NULL,
-            product_id BIGINT NOT NULL,
-            product_name TEXT NOT NULL,
-            current_qty NUMERIC(15, 4) NOT NULL,
-            threshold_qty NUMERIC(15, 4) NOT NULL,
-            triggered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            acknowledged_at TIMESTAMPTZ
-        );
-        CREATE INDEX IF NOT EXISTS idx_stock_alerts_product ON stock_alerts(product_type, product_id);
-        CREATE INDEX IF NOT EXISTS idx_stock_alerts_triggered_at ON stock_alerts(triggered_at);
-
-        CREATE TABLE IF NOT EXISTS idempotent_requests (
-            key VARCHAR(255) PRIMARY KEY,
-            response_json TEXT NOT NULL,
-            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS pubsub_events (
-            id BIGSERIAL PRIMARY KEY,
-            channel VARCHAR(255) NOT NULL,
-            payload TEXT NOT NULL,
-            sender_worker_id VARCHAR(255) NOT NULL,
-            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE INDEX IF NOT EXISTS idx_pubsub_events_created_at ON pubsub_events(created_at);
-
-        CREATE TABLE IF NOT EXISTS outbox_events (
-            id BIGSERIAL PRIMARY KEY,
-            event_type VARCHAR(255) NOT NULL,
-            payload TEXT NOT NULL,
-            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-            processed_at TIMESTAMPTZ,
-            retry_count INTEGER NOT NULL DEFAULT 0,
-            last_error TEXT
-        );
-        CREATE INDEX IF NOT EXISTS idx_outbox_events_processed_at ON outbox_events(processed_at);
-
-        CREATE TABLE IF NOT EXISTS background_jobs (
-            id BIGSERIAL PRIMARY KEY,
-            task_name VARCHAR(255) NOT NULL,
-            payload TEXT NOT NULL,
-            status VARCHAR(50) DEFAULT 'pending',
-            priority INTEGER DEFAULT 0,
-            run_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-            locked_by VARCHAR(255),
-            started_at TIMESTAMPTZ,
-            completed_at TIMESTAMPTZ,
-            error_message TEXT,
-            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE INDEX IF NOT EXISTS idx_background_jobs_status_run_at ON background_jobs(status, run_at);
-        """,
-        )
-        # Commit explicite ici pour garantir que background_jobs et les tables
-        # precedentes sont persistees meme si le bloc pgvector echoue ensuite.
-        conn.commit()
-
-        # Then domain schemas
-        _executescript(conn, SCHEMA_CONTACTS)
-        _executescript(conn, SCHEMA_CATALOG)
-        _executescript(conn, SCHEMA_OPERATIONS)
-        _executescript(conn, SCHEMA_PRODUCTION)
-
-        # Commit raw SQL tables first
-        conn.commit()
-
-        # Create all remaining SQLModel tables (like expenses)
+        # 1. Base Core & domain schema models (SQLModel)
         from sqlmodel import SQLModel
 
         import app.core.models  # noqa: F401
@@ -149,52 +65,10 @@ def bootstrap_schema() -> None:
         engine = get_database_engine(settings.database_url)
         SQLModel.metadata.create_all(engine)
 
-        # Then schema updates and indexes for Options J, I, K
-        _executescript(
-            conn,
-            """
-        CREATE TABLE IF NOT EXISTS client_keys (
-            client_id BIGINT PRIMARY KEY,
-            encryption_key TEXT NOT NULL,
-            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-        );
+        # 2. Alembic is the canonical and single authority for schema lifecycle and migrations
+        run_alembic_upgrade()
 
-        CREATE TABLE IF NOT EXISTS dead_letter_events (
-            id BIGSERIAL PRIMARY KEY,
-            event_type VARCHAR(255) NOT NULL,
-            payload TEXT NOT NULL,
-            reason TEXT NOT NULL,
-            failed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_sales_credit_client ON sales(client_id, total) WHERE sale_type = 'credit';
-        CREATE INDEX IF NOT EXISTS idx_raw_sales_credit_client ON raw_sales(client_id, total) WHERE sale_type = 'credit';
-
-        -- Option N: Composite and Search Indexes for SQL Query Optimization
-        CREATE INDEX IF NOT EXISTS idx_sales_client_date_type ON sales(client_id, sale_date, sale_type);
-        CREATE INDEX IF NOT EXISTS idx_purchases_supplier_date ON purchases(supplier_id, purchase_date);
-        CREATE INDEX IF NOT EXISTS idx_finished_products_name ON finished_products(name);
-        CREATE INDEX IF NOT EXISTS idx_raw_materials_name ON raw_materials(name);
-
-        -- Additional Missing Foreign Key & Search Indexes
-        CREATE INDEX IF NOT EXISTS idx_purchases_finished_product_id ON purchases(finished_product_id);
-        CREATE INDEX IF NOT EXISTS idx_prod_items_material_id ON production_batch_items(raw_material_id);
-        CREATE INDEX IF NOT EXISTS idx_saved_recipe_items_material_id ON saved_recipe_items(raw_material_id);
-        CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_user_id ON audit_logs(actor_user_id);
-        CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
-        CREATE INDEX IF NOT EXISTS idx_audit_logs_status ON audit_logs(status);
-        CREATE INDEX IF NOT EXISTS idx_activity_logs_entity ON activity_logs(entity_type, entity_id);
-        CREATE INDEX IF NOT EXISTS idx_performance_logs_created_at ON performance_logs(created_at);
-
-        -- High-speed indexes for Dashboard KPIs, Reports & Offline Sync Queues
-        CREATE INDEX IF NOT EXISTS idx_sales_sale_date ON sales(sale_date);
-        CREATE INDEX IF NOT EXISTS idx_purchases_purchase_date ON purchases(purchase_date);
-        CREATE INDEX IF NOT EXISTS idx_payments_client_date ON payments(client_id, payment_date);
-        CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date);
-        """,
-        )
-
-        # Then discover and execute module schemas
+        # 3. Discover and register module schemas if any
         try:
             from app.core.registry import discover_modules, get_enabled_modules
 
@@ -207,179 +81,7 @@ def bootstrap_schema() -> None:
 
             logging.getLogger("fabouanes").warning("Failed to bootstrap module schemas: %s", e)
 
-        # Auto-migrate existing database for operations time tracking and finished product purchases
-        from app.core.db_helpers import list_columns
-
-        try:
-            cols = list_columns(conn, "users")
-            if cols:
-                if "custom_permissions_json" not in cols:
-                    _execute(conn, "ALTER TABLE users ADD COLUMN custom_permissions_json TEXT DEFAULT '[]'")
-                if "failed_login_count" not in cols:
-                    _execute(conn, "ALTER TABLE users ADD COLUMN failed_login_count INTEGER NOT NULL DEFAULT 0")
-                if "locked_until" not in cols:
-                    _execute(conn, "ALTER TABLE users ADD COLUMN locked_until TIMESTAMPTZ")
-        except Exception:
-            import logging
-
-            logging.getLogger("fabouanes").debug("Auto-migration for users columns skipped", exc_info=True)
-
-        for table in ["purchases", "sales", "raw_sales", "payments"]:
-            try:
-                cols = list_columns(conn, table)
-                if cols and "created_at" not in cols:
-                    _execute(conn, f"ALTER TABLE {table} ADD COLUMN created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP")
-            except Exception:
-                logging.getLogger("fabouanes").debug("Auto-migration column add skipped for %s", table, exc_info=True)
-
-        try:
-            cols = list_columns(conn, "purchases")
-            if cols and "finished_product_id" not in cols:
-                _execute(
-                    conn,
-                    "ALTER TABLE purchases ADD COLUMN finished_product_id BIGINT REFERENCES finished_products(id) ON DELETE CASCADE",
-                )
-            if cols:
-                # PostgreSQL command to drop not null constraint if present
-                _execute(conn, "ALTER TABLE purchases ALTER COLUMN raw_material_id DROP NOT NULL")
-        except Exception:
-            logging.getLogger("fabouanes").debug(
-                "Auto-migration for purchases.finished_product_id skipped", exc_info=True
-            )
-
-        try:
-            cols = list_columns(conn, "outbox_events")
-            if cols:
-                if "retry_count" not in cols:
-                    _execute(conn, "ALTER TABLE outbox_events ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0")
-                if "last_error" not in cols:
-                    _execute(conn, "ALTER TABLE outbox_events ADD COLUMN last_error TEXT")
-        except Exception:
-            logging.getLogger("fabouanes").debug(
-                "Auto-migration for outbox_events retry columns skipped", exc_info=True
-            )
-
-        # Staging tables for PWA offline sync
-        _executescript(
-            conn,
-            """
-        CREATE TABLE IF NOT EXISTS offline_sales_staging (
-            id BIGSERIAL PRIMARY KEY,
-            idempotency_key VARCHAR(255) UNIQUE,
-            payload TEXT NOT NULL,
-            status VARCHAR(50) DEFAULT 'pending',
-            error_message TEXT,
-            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-            locked_at TIMESTAMPTZ,
-            processed_at TIMESTAMPTZ
-        );
-
-        CREATE TABLE IF NOT EXISTS offline_payments_staging (
-            id BIGSERIAL PRIMARY KEY,
-            idempotency_key VARCHAR(255) UNIQUE,
-            payload TEXT NOT NULL,
-            status VARCHAR(50) DEFAULT 'pending',
-            error_message TEXT,
-            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-            locked_at TIMESTAMPTZ,
-            processed_at TIMESTAMPTZ
-        );
-
-        ALTER TABLE offline_sales_staging ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ;
-        ALTER TABLE offline_payments_staging ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ;
-
-        CREATE INDEX IF NOT EXISTS idx_offline_sales_status ON offline_sales_staging(status, created_at);
-        CREATE INDEX IF NOT EXISTS idx_offline_payments_status ON offline_payments_staging(status, created_at);
-        """,
-        )
-
-        # pgvector extension activation and catalog embeddings
-        has_vector = False
-        try:
-            res = _execute(
-                conn, "SELECT 1 FROM pg_available_extensions WHERE name = 'vector' AND installed_version IS NOT NULL;"
-            ).fetchone()
-            if res:
-                has_vector = True
-            else:
-                avail = _execute(conn, "SELECT 1 FROM pg_available_extensions WHERE name = 'vector';").fetchone()
-                if avail:
-                    _execute(conn, "CREATE EXTENSION IF NOT EXISTS vector;")
-                    conn.commit()
-                    has_vector = True
-        except Exception:
-            conn.rollback()
-
-        if has_vector:
-            _executescript(
-                conn,
-                """
-            CREATE TABLE IF NOT EXISTS catalog_embeddings (
-                id BIGSERIAL PRIMARY KEY,
-                item_kind VARCHAR(50) NOT NULL,
-                item_id BIGINT NOT NULL,
-                text_content TEXT NOT NULL,
-                embedding vector(1536),
-                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_catalog_embeddings_item ON catalog_embeddings(item_kind, item_id);
-            """,
-            )
-        else:
-            _executescript(
-                conn,
-                """
-            CREATE TABLE IF NOT EXISTS catalog_embeddings (
-                id BIGSERIAL PRIMARY KEY,
-                item_kind VARCHAR(50) NOT NULL,
-                item_id BIGINT NOT NULL,
-                text_content TEXT NOT NULL,
-                embedding TEXT,
-                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_catalog_embeddings_item ON catalog_embeddings(item_kind, item_id);
-            """,
-            )
-
-        # performance indexes
-        is_sqlite = settings.database_url.startswith("sqlite")
-
-        # Check expenses table
-        if is_sqlite:
-            expenses_exists = (
-                _execute(conn, "SELECT 1 FROM sqlite_master WHERE type='table' AND name='expenses'").fetchone()
-                is not None
-            )
-        else:
-            res = _execute(
-                conn, "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'expenses')"
-            ).fetchone()
-            expenses_exists = res[0] if res else False
-
-        if expenses_exists:
-            _execute(conn, "CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);")
-
-        # Check stock_movements table
-        if is_sqlite:
-            movements_exists = (
-                _execute(conn, "SELECT 1 FROM sqlite_master WHERE type='table' AND name='stock_movements'").fetchone()
-                is not None
-            )
-        else:
-            res = _execute(
-                conn,
-                "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'stock_movements')",
-            ).fetchone()
-            movements_exists = res[0] if res else False
-
-        if movements_exists:
-            _execute(
-                conn, "CREATE INDEX IF NOT EXISTS idx_stock_movements_item ON stock_movements(item_kind, item_id);"
-            )
-
-        conn.commit()
-
-        # ── Seeds (absorbé depuis schema.py) ─────────────────────────────────
+        # 4. Seeds (admin, settings, other operations)
         from app.core.schema import _seed_default_admin, _seed_default_settings, _seed_other_operation
 
         _seed_default_admin(conn)

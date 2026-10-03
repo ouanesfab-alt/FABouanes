@@ -34,31 +34,34 @@ async def api_sellable_items(request: Request):
     return response
 
 
-@router.api_route("/sales", methods=["GET", "POST"])
-async def api_sales(request: Request, db: AsyncSession = Depends(get_async_session)):
-    require_api_user(request, PERMISSION_OPERATIONS_WRITE if request.method == "POST" else PERMISSION_OPERATIONS_READ)
-    if request.method == "POST":
-        payload = await request.json()
-        validated = SaleFormSchema(**payload)
-        service = SalesService(db)
-        created = await service.create_sale_from_form(validated)
+@router.post("/sales", status_code=201)
+async def api_create_sale(
+    payload: SaleFormSchema, request: Request, db: AsyncSession = Depends(get_async_session)
+):
+    require_api_user(request, PERMISSION_OPERATIONS_WRITE)
+    service = SalesService(db)
+    created = await service.create_sale_from_form(payload)
 
-        if created["mode"] == "line":
-            payload = {
-                "mode": "line",
-                "kind": created["first_line_kind"],
-                "sale": await sale_payload(created["first_line_kind"], int(created["first_line_id"]), db=db),
-            }
-        else:
-            payload = {
-                "mode": "document",
-                "document_id": int(created["document_id"]),
-                "line_count": int(created["line_count"]),
-                "print_doc_type": created["print_doc_type"],
-                "print_item_id": int(created["print_item_id"]),
-            }
-        return json_response(api_success(payload, status_code=201))
+    if created["mode"] == "line":
+        res_payload = {
+            "mode": "line",
+            "kind": created["first_line_kind"],
+            "sale": await sale_payload(created["first_line_kind"], int(created["first_line_id"]), db=db),
+        }
+    else:
+        res_payload = {
+            "mode": "document",
+            "document_id": int(created["document_id"]),
+            "line_count": int(created["line_count"]),
+            "print_doc_type": created["print_doc_type"],
+            "print_item_id": int(created["print_item_id"]),
+        }
+    return json_response(api_success(res_payload, status_code=201))
 
+
+@router.get("/sales")
+async def api_list_sales(request: Request, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_OPERATIONS_READ)
     page = max(int(request.query_params.get("page", 1)), 1)
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     service = SalesService(db)

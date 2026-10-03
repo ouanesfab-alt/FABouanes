@@ -175,11 +175,12 @@ async def mobile_client_history(
     page: int = 1,
     page_size: int = 50,
     user: dict = Depends(require_mobile_permission(PERMISSION_CONTACTS_READ)),
+    db: AsyncSession = Depends(get_async_session),
 ):
     """Historique complet d'un client (Zone 1 + Zone 2), paginé."""
     page = max(page, 1)
     page_size = min(max(page_size, 1), 100)
-    rows, total = await _fetch_client_history(client_id, page, page_size)
+    rows, total = await _fetch_client_history(client_id, page, page_size, db=db)
     res_data = {"rows": rows, "total": total, "page": page}
     add_cache_headers(request, response, res_data, max_age=30)
     return res_data
@@ -215,9 +216,10 @@ async def mobile_dashboard_summary(
     request: Request,
     response: Response,
     user: dict = Depends(require_mobile_permission(PERMISSION_DASHBOARD_READ)),
+    db: AsyncSession = Depends(get_async_session),
 ):
     """Résumé du jour : ventes, encaissements, créances totales."""
-    snapshot = await get_dashboard_snapshot.async_(date.today().isoformat())
+    snapshot = await get_dashboard_snapshot(date.today().isoformat(), db=db)
     res_data = {
         "sales_today": snapshot["sales_today"],
         "cash_today": snapshot["cash_today"],

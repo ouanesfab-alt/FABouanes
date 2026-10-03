@@ -9,9 +9,10 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity import log_activity
+from app.core.async_compat import async_compat
 from app.core.async_db import get_async_sessionmaker
 from app.core.audit import audit_event
-from app.core.helpers import async_compat, to_float
+from app.core.helpers import to_float
 from app.core.models import FinishedProduct, ProductionBatch, ProductionBatchItem, RawMaterial, SavedRecipe
 from app.core.perf_cache import async_cached_result
 from app.core.request_state import get_state_value

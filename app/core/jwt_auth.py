@@ -8,6 +8,9 @@ Séparée des cookies de session web pour ne pas interférer.
 
 from __future__ import annotations
 
+import hashlib
+import logging
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -16,7 +19,19 @@ from fastapi import HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import PyJWTError
 
+from app.core import db_helpers
 from app.core.config import settings
+from app.core.permissions import has_permission
+
+
+def execute_db(*args, **kwargs):
+    return db_helpers.execute_db(*args, **kwargs)
+
+
+def query_db(*args, **kwargs):
+    return db_helpers.query_db(*args, **kwargs)
+
+logger = logging.getLogger("fabouanes.auth")
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
@@ -35,8 +50,6 @@ def create_access_token(user_id: int, role: str) -> str:
 
 
 def create_refresh_token(user_id: int) -> str:
-    import uuid
-
     expires = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     jti = uuid.uuid4().hex
     token = pyjwt.encode(
@@ -44,11 +57,6 @@ def create_refresh_token(user_id: int) -> str:
         settings.secret_key,
         ALGORITHM,
     )
-
-    # Save token hash in api_refresh_tokens
-    import hashlib
-
-    from app.core.db_helpers import execute_db
 
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
     expires_str = expires.strftime("%Y-%m-%d %H:%M:%S")
@@ -61,9 +69,7 @@ def create_refresh_token(user_id: int) -> str:
             (user_id, token_hash, token[-8:], expires_str),
         )
     except Exception as exc:
-        import logging
-
-        logging.getLogger("fabouanes.auth").error(
+        logger.error(
             "Could not persist mobile refresh token in DB: %s", exc, exc_info=True
         )
         raise HTTPException(500, "Impossible de sécuriser la session mobile")
@@ -86,10 +92,6 @@ def validate_mobile_refresh_token(token: str) -> dict[str, Any]:
         raise HTTPException(401, "Jeton de rafraîchissement requis")
 
     # 2. Check in database
-    import hashlib
-
-    from app.core.db_helpers import execute_db, query_db
-
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
 
     all_row = query_db(
@@ -125,9 +127,7 @@ def rotate_mobile_refresh_token(token: str) -> tuple[dict[str, Any], str]:
     Returns (user_dict, new_refresh_token).
     Executes in a single database transaction.
     """
-    from app.core.db_helpers import db_manager, query_db
-
-    with db_manager.db_transaction():
+    with db_helpers.db_manager.db_transaction():
         payload = validate_mobile_refresh_token(token)
         user_id = int(payload["sub"])
         user_row = query_db("SELECT id, username, role, is_active FROM users WHERE id = %s", (user_id,), one=True)
@@ -147,8 +147,6 @@ def get_current_user_id(
         raise HTTPException(401, "Token d'accès requis")
 
     user_id = int(payload["sub"])
-    from app.core.db_helpers import query_db
-
     user_row = query_db("SELECT id, is_active FROM users WHERE id = %s", (user_id,), one=True)
     if not user_row or not user_row.get("is_active"):
         raise HTTPException(401, "Compte utilisateur inactif ou désactivé")
@@ -159,16 +157,12 @@ def require_mobile_permission(permission: str):
     """Dépendance pour vérifier une permission fine sur une route mobile."""
 
     def dependency(user_id: int = Security(get_current_user_id)) -> dict[str, Any]:
-        from app.core.db_helpers import query_db
-
         user_row = query_db(
             "SELECT id, username, role, is_active, custom_permissions_json FROM users WHERE id = %s",
             (int(user_id),),
             one=True,
         )
         user = dict(user_row) if user_row else {"id": int(user_id), "role": "admin", "is_active": True}
-        from app.core.permissions import has_permission
-
         if not has_permission(user, permission):
             raise HTTPException(403, "Accès refusé pour cette ressource mobile")
         return user

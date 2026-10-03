@@ -2,7 +2,6 @@
 
 from app.core.registry import register
 from app.modules.base import ModuleBase
-from app.modules.catalog.web import router as web_router
 
 
 class CatalogModule(ModuleBase):
@@ -24,7 +23,9 @@ class CatalogModule(ModuleBase):
 
     @property
     def web_router(self):
-        return web_router
+        from app.modules.catalog.web import router
+
+        return router
 
     @property
     def permissions(self) -> list[str]:

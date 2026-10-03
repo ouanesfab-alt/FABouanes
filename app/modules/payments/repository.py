@@ -7,7 +7,7 @@ from sqlmodel import and_, case, func, or_, select
 
 from app.core.async_db import get_async_sessionmaker
 from app.core.base_repository import AsyncRepository
-from app.core.helpers import async_compat, db_task_compat, get_open_credit_entries
+from app.core.async_compat import async_compat, db_task_compat
 from app.core.models import Client, Payment
 
 
@@ -108,9 +108,11 @@ async def payment_form_context(db: AsyncSession | None = None) -> dict:
 
 
 async def _payment_form_context_impl(db: AsyncSession) -> dict:
+    from app.modules.payments.service import PaymentsService
+
     res = await db.execute(select(Client).order_by(Client.name))
     clients = [c.model_dump() for c in res.scalars().all()]
-    open_sales = await get_open_credit_entries()
+    open_sales = await PaymentsService(db).get_open_credit_entries()
     return {
         "clients": clients,
         "open_sales": open_sales,

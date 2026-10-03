@@ -1,23 +1,35 @@
 from __future__ import annotations
 
+import decimal
 import hmac
+import json
 import os
 import re
 import secrets
 import time
+from datetime import datetime
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from urllib.parse import urlencode, urlparse
 
-from fastapi import Request
+from fastapi import Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from jinja2 import pass_context
+from markupsafe import Markup
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.routing import NoMatchFound
 
+from app.core.async_db import get_async_session
 from app.core.auth_cookie import AUTH_COOKIE_NAME, read_auth_cookie_payload
+from app.core.config import settings
+from app.core.db_helpers import query_db
+from app.core.model_utils import to_gmt1
 from app.core.permissions import has_permission
+from app.core.request_state import get_state_value
 from app.core.runtime_paths import paths
+from app.core.security import get_client_fingerprint
 from app.web.compat import COMPAT_ROUTE_MAP
 
 STARTUP_TIMESTAMP = str(int(time.time()))
@@ -70,8 +82,6 @@ templates = _FATemplates(directory=str(paths.templates_dir))
 
 def preload_templates() -> int:
     """Pre-compiles and loads all Jinja2 HTML templates into RAM memory at startup."""
-    from pathlib import Path
-
     template_dir = Path(paths.templates_dir)
     if not template_dir.exists():
         return 0
@@ -225,17 +235,13 @@ async def verify_csrf_token(request: Request):
     if os.environ.get("FAB_DESKTOP") == "1" and request.client and request.client.host in ("127.0.0.1", "localhost", "::1"):
         sec_fetch_site = request.headers.get("sec-fetch-site")
         if sec_fetch_site == "cross-site":
-            from fastapi import HTTPException
             raise HTTPException(status_code=403, detail="Cross-site request blocked")
         origin = request.headers.get("origin")
         if origin:
             parsed_origin = urlparse(origin)
             if parsed_origin.hostname not in ("127.0.0.1", "localhost", "::1"):
-                from fastapi import HTTPException
                 raise HTTPException(status_code=403, detail="Cross-origin request blocked")
         return
-
-    from fastapi import HTTPException
 
     raise HTTPException(status_code=403, detail="CSRF token invalid")
 
@@ -257,8 +263,6 @@ def get_db():
 
     Note: This is part of the new dependency injection way. The ContextVar approach is legacy.
     """
-    from app.core.request_state import get_state_value
-
     db = get_state_value("db")
     if db is None:
         raise RuntimeError("No active database connection found in request context.")
@@ -273,8 +277,6 @@ def current_user_ns(request: Request) -> SimpleNamespace | None:
 
 
 def load_user_from_session(request: Request):
-    from app.core.security import get_client_fingerprint
-
     current_fingerprint = get_client_fingerprint(request)
     user_id = request.session.get("user_id")
 
@@ -299,7 +301,6 @@ def load_user_from_session(request: Request):
 
     if not user_id:
         return None
-    from app.core.db_helpers import query_db
 
     try:
         user_row = query_db(
@@ -318,8 +319,6 @@ def load_user_from_session(request: Request):
     last_change = user.get("last_password_change_at")
     if last_change is not None:
         try:
-            from datetime import datetime
-
             if isinstance(last_change, str):
                 last_change_dt = datetime.fromisoformat(last_change)
             else:
@@ -335,6 +334,74 @@ def load_user_from_session(request: Request):
     return user
 
 
+async def load_user_from_session_async(request: Request, db: AsyncSession) -> dict[str, Any] | None:
+    current_fingerprint = get_client_fingerprint(request)
+    user_id = request.session.get("user_id")
+
+    auth_time = request.session.get("auth_time")
+    if user_id:
+        expected_fingerprint = request.session.get("fingerprint")
+        if expected_fingerprint:
+            if expected_fingerprint != current_fingerprint:
+                request.session.clear()
+                return None
+        else:
+            request.session["fingerprint"] = current_fingerprint
+    else:
+        payload = read_auth_cookie_payload(request.cookies.get(AUTH_COOKIE_NAME), current_fingerprint)
+        if payload:
+            user_id = int(payload["user_id"])
+            auth_time = payload.get("auth_time")
+            request.session["user_id"] = user_id
+            request.session["fingerprint"] = current_fingerprint
+            if auth_time:
+                request.session["auth_time"] = auth_time
+
+    if not user_id:
+        return None
+
+    try:
+        from sqlmodel import select
+        from app.core.models import User
+
+        res = await db.execute(select(User).where(User.id == int(user_id)))
+        user_obj = res.scalar_one_or_none()
+        user = user_obj.model_dump() if user_obj else None
+    except Exception:
+        user = None
+
+    if not user or not bool(user.get("is_active", True)):
+        request.session.clear()
+        return None
+
+    last_change = user.get("last_password_change_at")
+    if last_change is not None:
+        try:
+            if isinstance(last_change, str):
+                last_change_dt = datetime.fromisoformat(last_change)
+            else:
+                last_change_dt = last_change
+            last_change_ts = last_change_dt.timestamp()
+            if auth_time is None or float(auth_time) < (last_change_ts - 5):
+                request.session.clear()
+                return None
+        except Exception:
+            pass
+
+    return user
+
+
+async def get_current_user_async(
+    request: Request, db: AsyncSession = Depends(get_async_session)
+) -> dict[str, Any] | None:
+    """Asynchronous FastAPI dependency to retrieve the current authenticated user."""
+    user = getattr(request.state, "user", None)
+    if not user:
+        user = await load_user_from_session_async(request, db)
+        request.state.user = user
+    return user
+
+
 def login_redirect() -> RedirectResponse:
     return RedirectResponse("/login", status_code=303)
 
@@ -344,6 +411,14 @@ def require_user(request: Request):
     if not user:
         return login_redirect()
     return None
+
+
+async def require_user_async(
+    request: Request, user: dict[str, Any] | None = Depends(get_current_user_async)
+) -> dict[str, Any]:
+    if not user:
+        raise HTTPException(status_code=303, headers={"Location": "/login"})
+    return user
 
 
 def require_permission(request: Request, permission: str):
@@ -356,13 +431,24 @@ def require_permission(request: Request, permission: str):
     return None
 
 
+def require_permission_async(permission: str):
+    async def _dependency(
+        request: Request, user: dict[str, Any] | None = Depends(get_current_user_async)
+    ) -> dict[str, Any]:
+        if not user:
+            raise HTTPException(status_code=303, headers={"Location": "/login"})
+        if not has_permission(user, permission):
+            flash(request, "Acces refuse pour cette action.", "danger")
+            raise HTTPException(status_code=303, headers={"Location": "/"})
+        return user
+
+    return _dependency
+
+
 def template_context(request: Request, **context: Any) -> dict[str, Any]:
     csrf_token = ensure_csrf_token(request)
     proxy = TemplateRequestProxy(request)
     user = current_user_ns(request)
-    from app.core.config import settings
-    from app.core.request_state import get_state_value
-
     csp_nonce = get_state_value("csp_nonce") or ""
     return {
         "request": proxy,
@@ -378,8 +464,6 @@ def template_context(request: Request, **context: Any) -> dict[str, Any]:
 def _dt_filter(value: Any, length: int = 16) -> str:
     if value is None:
         return ""
-    from app.core.model_utils import to_gmt1
-
     value = to_gmt1(value)
     if hasattr(value, "strftime"):
         if length <= 10:
@@ -390,27 +474,20 @@ def _dt_filter(value: Any, length: int = 16) -> str:
     return str(value)[:length]
 
 
+class _SafeEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, decimal.Decimal):
+            return float(obj)
+        if hasattr(obj, "isoformat"):
+            return obj.isoformat()
+        try:
+            return super().default(obj)
+        except TypeError:
+            return str(obj)
+
+
 def _custom_tojson_filter(value: Any, *args: Any, **kwargs: Any) -> Any:
-    import decimal
-    import json
-
-    try:
-        from markupsafe import Markup
-    except ImportError:
-        from jinja2 import Markup
-
-    class SafeEncoder(json.JSONEncoder):
-        def default(self, obj):
-            if isinstance(obj, decimal.Decimal):
-                return float(obj)
-            if hasattr(obj, "isoformat"):
-                return obj.isoformat()
-            try:
-                return super().default(obj)
-            except TypeError:
-                return str(obj)
-
-    rendered = json.dumps(value, cls=SafeEncoder, ensure_ascii=False)
+    rendered = json.dumps(value, cls=_SafeEncoder, ensure_ascii=False)
     safe_rendered = (
         rendered.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026").replace("'", "\\u0027")
     )

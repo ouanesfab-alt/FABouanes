@@ -8,8 +8,9 @@ from fastapi import Request
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.core.activity import log_activity
+from app.core.async_db import execute_sql_async
 from app.core.audit import audit_event
-from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_USERNAME
+from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_USERNAME, settings
 from app.core.permissions import ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR, normalize_role
 from app.core.security import (
     clear_login_failures,
@@ -33,8 +34,6 @@ VALID_ROLES = {ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR}
 async def attempt_login(username: str, password: str, request: Request | None = None):
     normalized = (username or "").strip()
     ip = client_ip()
-
-    from app.core.config import settings
 
     user_key = f"user_account:{normalized.lower()}" if normalized else None
 
@@ -165,12 +164,11 @@ async def change_user_password(user_id: int, current_password: str, new_password
         return {"ok": False, "message": "La confirmation du mot de passe ne correspond pas."}
     before = {"must_change_password": int(user["must_change_password"] or 0)}
     await update_password(user_id, generate_password_hash(new_password), 0)
-    from app.core.db_helpers import execute_db
 
     try:
-        execute_db(
-            "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = %s AND revoked_at IS NULL",
-            (user_id,),
+        await execute_sql_async(
+            "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = :user_id AND revoked_at IS NULL",
+            {"user_id": user_id},
         )
     except Exception as exc:
         logging.getLogger("fabouanes.auth").warning("Could not revoke refresh tokens on password change: %s", exc)

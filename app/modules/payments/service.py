@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from decimal import Decimal
 import json
-from datetime import date
+import os
+from datetime import date, timedelta
 from typing import Any, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,10 +11,12 @@ from sqlmodel import func, literal, literal_column, select, text, union_all
 
 from app.core.events import DomainEvent, emit
 from app.core.exceptions import ValidationError
+from app.core.model_utils import _now
 from app.core.models import Client, FinishedProduct, Payment, RawMaterial, RawSale, Sale, User
 from app.core.perf_cache import invalidate_cache_domains
 from app.modules.payments.repository import PaymentRepository
 from app.modules.payments.schemas_validation import PaymentFormSchema
+from app.modules.sales.service import SalesService
 
 
 class PaymentsService:
@@ -76,10 +80,10 @@ class PaymentsService:
         res = await self.session.execute(stmt)
         return [dict(row._mapping) for row in res.fetchall()]
 
-    async def apply_payment_to_entry(self, kind: str, row_id: int, amount: float) -> float:
-        if amount <= 0:
+    async def apply_payment_to_entry(self, kind: str, row_id: int, amount: float | Decimal) -> float:
+        dec_amount = Decimal(str(amount or 0))
+        if dec_amount <= Decimal("0"):
             return 0.0
-        from app.modules.sales.service import SalesService
 
         sales_service = SalesService(self.session)
         if kind == "finished":
@@ -88,32 +92,34 @@ class PaymentsService:
             sale = res.scalar_one_or_none()
             if not sale:
                 return 0.0
-            paid = round(min(amount, float(sale.balance_due or 0.0)), 2)
-            sale.balance_due = round(max(0.0, float(sale.balance_due or 0.0) - paid), 2)
-            sale.amount_paid = round(float(sale.amount_paid or 0.0) + paid, 2)
+            sale_bal = Decimal(str(sale.balance_due or 0))
+            sale_paid = Decimal(str(sale.amount_paid or 0))
+            paid = min(dec_amount, sale_bal).quantize(Decimal("0.01"))
+            sale.balance_due = float(max(Decimal("0"), sale_bal - paid).quantize(Decimal("0.01")))
+            sale.amount_paid = float((sale_paid + paid).quantize(Decimal("0.01")))
             self.session.add(sale)
             await self.session.flush()
             if sale.document_id:
                 await sales_service.recalc_sale_document_totals(int(sale.document_id))
-            return paid
+            return float(paid)
         else:
             stmt = select(RawSale).where(RawSale.id == row_id).with_for_update()
             res = await self.session.execute(stmt)
             sale = res.scalar_one_or_none()
             if not sale:
                 return 0.0
-            paid = round(min(amount, float(sale.balance_due or 0.0)), 2)
-            sale.balance_due = round(max(0.0, float(sale.balance_due or 0.0) - paid), 2)
-            sale.amount_paid = round(float(sale.amount_paid or 0.0) + paid, 2)
+            sale_bal = Decimal(str(sale.balance_due or 0))
+            sale_paid = Decimal(str(sale.amount_paid or 0))
+            paid = min(dec_amount, sale_bal).quantize(Decimal("0.01"))
+            sale.balance_due = float(max(Decimal("0"), sale_bal - paid).quantize(Decimal("0.01")))
+            sale.amount_paid = float((sale_paid + paid).quantize(Decimal("0.01")))
             self.session.add(sale)
             await self.session.flush()
             if sale.document_id:
                 await sales_service.recalc_sale_document_totals(int(sale.document_id))
-            return paid
+            return float(paid)
 
     async def reverse_payment_allocations(self, payment_row: dict) -> None:
-        from app.modules.sales.service import SalesService
-
         sales_service = SalesService(self.session)
         meta_raw = payment_row.get("allocation_meta")
         if meta_raw:
@@ -132,18 +138,20 @@ class PaymentsService:
                 if not row_id:
                     continue
                 try:
-                    amount = float(allocation.get("amount", 0) or 0)
-                except (ValueError, TypeError):
+                    dec_amount = Decimal(str(allocation.get("amount", 0) or 0))
+                except Exception:
                     continue
-                if amount <= 0:
+                if dec_amount <= Decimal("0"):
                     continue
                 if kind == "finished":
                     stmt = select(Sale).where(Sale.id == row_id).with_for_update()
                     res = await self.session.execute(stmt)
                     doc_row = res.scalar_one_or_none()
                     if doc_row:
-                        doc_row.amount_paid = round(max(0.0, float(doc_row.amount_paid or 0.0) - amount), 2)
-                        doc_row.balance_due = round(float(doc_row.balance_due or 0.0) + amount, 2)
+                        curr_paid = Decimal(str(doc_row.amount_paid or 0))
+                        curr_bal = Decimal(str(doc_row.balance_due or 0))
+                        doc_row.amount_paid = float(max(Decimal("0"), curr_paid - dec_amount).quantize(Decimal("0.01")))
+                        doc_row.balance_due = float((curr_bal + dec_amount).quantize(Decimal("0.01")))
                         self.session.add(doc_row)
                         await self.session.flush()
                         if doc_row.document_id:
@@ -153,8 +161,10 @@ class PaymentsService:
                     res = await self.session.execute(stmt)
                     doc_row = res.scalar_one_or_none()
                     if doc_row:
-                        doc_row.amount_paid = round(max(0.0, float(doc_row.amount_paid or 0.0) - amount), 2)
-                        doc_row.balance_due = round(float(doc_row.balance_due or 0.0) + amount, 2)
+                        curr_paid = Decimal(str(doc_row.amount_paid or 0))
+                        curr_bal = Decimal(str(doc_row.balance_due or 0))
+                        doc_row.amount_paid = float(max(Decimal("0"), curr_paid - dec_amount).quantize(Decimal("0.01")))
+                        doc_row.balance_due = float((curr_bal + dec_amount).quantize(Decimal("0.01")))
                         self.session.add(doc_row)
                         await self.session.flush()
                         if doc_row.document_id:
@@ -194,18 +204,17 @@ class PaymentsService:
     async def create_payment_record(
         self,
         client_id: int,
-        amount: float,
+        amount: float | Decimal,
         payment_date: date | str,
         notes: str,
         sale_link: str = "",
         payment_type: str = "versement",
     ) -> int:
-        from datetime import date
-
         if isinstance(payment_date, str):
             payment_date = date.fromisoformat(payment_date.strip())
 
-        amount = float(amount)
+        dec_amount = Decimal(str(amount or 0)).quantize(Decimal("0.01"))
+        amount = float(dec_amount)
         if amount <= 0:
             raise ValidationError("Le montant doit être supérieur à zéro.")
 
@@ -216,12 +225,7 @@ class PaymentsService:
             raise ValidationError("Client introuvable.")
 
         # ── Double-submit guard: reject identical click within 5s window ──
-        import os
-
         if not os.getenv("PYTEST_CURRENT_TEST"):
-            from datetime import timedelta
-            from app.core.model_utils import _now
-
             cutoff = _now() - timedelta(seconds=5)
             clean_notes = notes or ("Avance client" if payment_type == "avance" else "Versement client")
             dup_check = await self.session.execute(

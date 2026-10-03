@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import os
 import re
 from typing import Any
 
+from app.core.config import settings
+from app.core.rate_limit_store import RateLimitStore
 from app.core.request_state import get_state_value
 
 
 def consume_rate_limit(key: str, limit: int, window: float) -> bool:
-    from app.core.rate_limit_store import RateLimitStore
-
     return RateLimitStore.consume(key, limit, window)
 
 
@@ -84,8 +85,6 @@ def validate_password_strength(password: str, mode: str | None = None) -> tuple[
 
 
 def security_headers(response):
-    from app.core.config import settings
-
     # Only expose version in desktop/dev mode to prevent fingerprinting in production
     if settings.desktop_mode or settings.env == "development":
         from app.version import APP_VERSION
@@ -143,20 +142,14 @@ LOCKOUT_DURATION_SECONDS = 900
 
 
 def is_locked_out(ip: str) -> bool:
-    from app.core.rate_limit_store import RateLimitStore
-
     return RateLimitStore.is_locked_out(ip, LOCKOUT_MAX_ATTEMPTS, LOCKOUT_WINDOW_SECONDS, LOCKOUT_DURATION_SECONDS)
 
 
 def record_login_failure(ip: str) -> None:
-    from app.core.rate_limit_store import RateLimitStore
-
     RateLimitStore.record_failure(ip)
 
 
 def clear_login_failures(ip: str) -> None:
-    from app.core.rate_limit_store import RateLimitStore
-
     RateLimitStore.clear(ip)
 
 
@@ -170,8 +163,6 @@ def get_client_fingerprint(request) -> str:
 def encrypt_val(val: str | None, key: bytes) -> str | None:
     if val is None:
         return None
-    import base64
-    import os
 
     try:
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -195,8 +186,6 @@ def decrypt_val(enc_val: str | None, key: bytes | None) -> str | None:
         if key is None:
             return "[DONNÉES SUPPRIMÉES]"
         try:
-            import base64
-
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
             combined = base64.b64decode(enc_val[4:])
@@ -217,16 +206,11 @@ def get_client_key_sync(client_id: int) -> bytes | None:
 
     res = query_db("SELECT encryption_key FROM client_keys WHERE client_id = %s", (client_id,), one=True)
     if res and res["encryption_key"]:
-        import base64
-
         return base64.b64decode(res["encryption_key"])
     return None
 
 
 def create_client_key_sync(client_id: int) -> bytes:
-    import base64
-    import os
-
     from app.core.db_helpers import execute_db
 
     key = os.urandom(32)
@@ -242,3 +226,30 @@ def delete_client_key_sync(client_id: int) -> None:
     from app.core.db_helpers import execute_db
 
     execute_db("DELETE FROM client_keys WHERE client_id = %s", (client_id,))
+
+
+async def get_client_key_async(client_id: int) -> bytes | None:
+    from app.core.async_db import query_sql_async
+
+    rows = await query_sql_async("SELECT encryption_key FROM client_keys WHERE client_id = :client_id", {"client_id": client_id})
+    if rows and rows[0].get("encryption_key"):
+        return base64.b64decode(rows[0]["encryption_key"])
+    return None
+
+
+async def create_client_key_async(client_id: int) -> bytes:
+    from app.core.async_db import execute_sql_async
+
+    key = os.urandom(32)
+    b64_key = base64.b64encode(key).decode("utf-8")
+    await execute_sql_async(
+        "INSERT INTO client_keys (client_id, encryption_key) VALUES (:client_id, :key) ON CONFLICT (client_id) DO UPDATE SET encryption_key = EXCLUDED.encryption_key",
+        {"client_id": client_id, "key": b64_key},
+    )
+    return key
+
+
+async def delete_client_key_async(client_id: int) -> None:
+    from app.core.async_db import execute_sql_async
+
+    await execute_sql_async("DELETE FROM client_keys WHERE client_id = :client_id", {"client_id": client_id})

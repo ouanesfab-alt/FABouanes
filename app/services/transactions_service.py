@@ -5,8 +5,9 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.async_compat import async_compat
 from app.core.async_db import get_async_sessionmaker
-from app.core.helpers import async_compat
+from app.core.model_utils import to_gmt1
 from app.modules.production.service import update_production_notes  # noqa: F401
 from app.utils.pagination import (
     MAX_PAGE_SIZE,
@@ -199,8 +200,6 @@ async def _transactions_context_impl(
     formatted_rows = []
     for row in rows:
         row_dict = dict(row._mapping)
-        from app.core.model_utils import to_gmt1
-
         tx_created = to_gmt1(row_dict.get("tx_created_at"))
         if hasattr(tx_created, "strftime"):
             row_dict["tx_time"] = tx_created.strftime("%H:%M")

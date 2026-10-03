@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_sessionmaker
 from app.core.base_repository import AsyncRepository
-from app.core.helpers import async_compat, db_task_compat
+from app.core.async_compat import async_compat, db_task_compat
 from app.core.models import (
     FinishedProduct,
     ProductionBatch,

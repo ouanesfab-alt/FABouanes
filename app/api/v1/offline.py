@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -10,10 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_error, require_api_user
 from app.core.async_db import get_async_session
+from app.core.db_helpers import execute_db
 from app.core.exceptions import ConflictError, ValidationError
 from app.core.idempotency import check_idempotency, save_idempotency
 from app.core.permissions import PERMISSION_OPERATIONS_WRITE
 from app.core.rate_limit import limiter
+from app.core.schema.production_validation import ProductionBatchCreate
+from app.core.worker import enqueue_background_task
+from app.modules.production.service import ProductionService
 from app.modules.purchases.schemas_validation import PurchaseFormSchema
 from app.modules.purchases.service import PurchaseService
 from app.modules.sales.schemas_validation import SaleFormSchema
@@ -63,9 +68,6 @@ async def sync_operation(request: Request, db: AsyncSession = Depends(get_async_
             payment_id, payment_type = await create_payment_from_form(payload, db=db)
             res_payload = {"ok": True, "id": payment_id, "payment_type": payment_type}
         elif op_type == "create_production":
-            from app.core.schema.production_validation import ProductionBatchCreate
-            from app.modules.production.service import ProductionService
-
             ProductionBatchCreate.model_validate(payload)
             service = ProductionService(db)
             result = await service.create_production(payload)
@@ -104,12 +106,6 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
     results = []
 
     if use_staging:
-        import json
-
-        from app.core.db_helpers import execute_db
-        from app.core.idempotency import check_idempotency
-        from app.core.worker import enqueue_background_task
-
         for op in operations:
             op_type = op.get("type")
             payload = op.get("payload", {})
@@ -199,9 +195,6 @@ async def sync_operations_bulk(request: Request, db: AsyncSession = Depends(get_
                 payment_id, payment_type = await create_payment_from_form(payload, db=db)
                 res_payload = {"ok": True, "id": payment_id, "payment_type": payment_type}
             elif op_type == "create_production":
-                from app.core.schema.production_validation import ProductionBatchCreate
-                from app.modules.production.service import ProductionService
-
                 ProductionBatchCreate.model_validate(payload)
                 service = ProductionService(db)
                 result = await service.create_production(payload)

@@ -18,7 +18,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi import APIRouter
@@ -36,12 +36,25 @@ class ModuleDescriptor:
     label: str  # Nom affiché en UI (ex: "Catalogue", "Dépenses")
     icon: str = "bi-box"  # Icône Bootstrap Icons
     nav_order: int = 100  # Ordre dans la navigation (plus petit = plus à gauche)
-    web_router: APIRouter | None = None  # Routes web (pages HTML)
-    api_router: APIRouter | None = None  # Routes API REST
+    _web_router: APIRouter | None = None  # Routes web (pages HTML)
+    _api_router: APIRouter | None = None  # Routes API REST
     schema_sql: list[str] = field(default_factory=list)  # DDL SQL du module
     permissions: list[str] = field(default_factory=list)  # Permissions déclarées
     role_permissions: dict[str, list[str]] = field(default_factory=dict)  # Permissions par rôle
     enabled: bool = True  # Peut être désactivé via env
+    _source_module: Any = None
+
+    @property
+    def web_router(self) -> APIRouter | None:
+        if self._source_module is not None:
+            return self._source_module.web_router
+        return self._web_router
+
+    @property
+    def api_router(self) -> APIRouter | None:
+        if self._source_module is not None:
+            return self._source_module.api_router
+        return self._api_router
 
     @classmethod
     def from_module(cls, module: "ModuleBase") -> ModuleDescriptor:
@@ -50,11 +63,10 @@ class ModuleDescriptor:
             label=module.label,
             icon=module.icon,
             nav_order=module.nav_order,
-            web_router=module.web_router,
-            api_router=module.api_router,
             schema_sql=module.schema_sql,
             permissions=module.permissions,
             role_permissions=getattr(module, "role_permissions", {}),
+            _source_module=module,
         )
 
 

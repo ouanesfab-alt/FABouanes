@@ -1,14 +1,13 @@
-from __future__ import annotations
-
+from collections import defaultdict
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import Numeric, case, cast, delete, func, literal, or_, select, union_all
 
+from app.core.async_compat import async_compat
 from app.core.async_db import get_async_sessionmaker
 from app.core.base_repository import AsyncRepository
-from app.core.helpers import async_compat
 from app.core.models import (
     FinishedProduct,
     ProductionBatch,
@@ -22,7 +21,6 @@ from app.core.models import (
     StockMovement,
     Supplier,
 )
-from app.services.recipe_service import load_saved_recipes  # noqa: F401
 
 
 class RawMaterialRepository(AsyncRepository[RawMaterial]):
@@ -188,6 +186,37 @@ class SavedRecipeRepository(AsyncRepository[SavedRecipe]):
     async def add_recipe_item(self, recipe_item: SavedRecipeItem) -> SavedRecipeItem:
         self.session.add(recipe_item)
         return recipe_item
+
+
+@async_compat
+async def load_saved_recipes(db: AsyncSession | None = None) -> list[dict[str, Any]]:
+    if db is None:
+        async with get_async_sessionmaker()() as session:
+            return await _load_saved_recipes_impl(session)
+    return await _load_saved_recipes_impl(db)
+
+
+async def _load_saved_recipes_impl(db: AsyncSession) -> list[dict[str, Any]]:
+    repo = SavedRecipeRepository(db)
+    recipes = await repo.get_all_with_products()
+    if not recipes:
+        return []
+
+    item_rows = await repo.get_recipe_items()
+    grouped: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for row in item_rows:
+        grouped[int(row["recipe_id"])].append(
+            {
+                "raw_material_id": int(row["raw_material_id"]),
+                "quantity": float(row["quantity"]),
+                "material_name": row["material_name"],
+                "stock_qty": float(row["stock_qty"]),
+                "unit": row["unit"],
+            }
+        )
+    for recipe in recipes:
+        recipe["items"] = grouped.get(int(recipe["id"]), [])
+    return recipes
 
 
 # --- Stock Movement and List Queries (migrated from stock_repository) ---

@@ -7,13 +7,17 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity import log_activity
+from app.core.async_compat import async_compat
 from app.core.async_db import get_async_sessionmaker
 from app.core.audit import audit_delete_event, audit_event
-from app.core.helpers import async_compat, to_float
+from app.core.events import DomainEvent, emit
+from app.core.helpers import to_float
 from app.core.models import Client, FinishedProduct, Payment, RawMaterial, RawSale, Sale
+from app.core.perf_cache import invalidate_cache_domains
 from app.core.storage import mark_backup_needed
 from app.modules.payments.repository import payment_form_context
 from app.modules.payments.service import PaymentsService
+from app.modules.users.repository import get_user_by_id
 
 logger = logging.getLogger("fabouanes")
 
@@ -214,9 +218,6 @@ async def _delete_payment_by_id_impl(payment_id: int, db: AsyncSession) -> bool:
     await PaymentsService(db).reverse_payment_allocations(payment_dict)
     await db.execute(delete(Payment).where(Payment.id == payment_id))
 
-    from app.core.events import DomainEvent, emit
-    from app.core.perf_cache import invalidate_cache_domains
-
     invalidate_cache_domains("sales", "client", "dashboard")
     emit(
         DomainEvent(
@@ -262,9 +263,6 @@ async def _create_mobile_payment_impl(
         sale_link="",
         payment_type="versement",
     )
-    from app.core.audit import audit_event
-    from app.modules.users.repository import get_user_by_id
-
     created_res = await db.execute(select(Payment).where(Payment.id == payment_id))
     created = created_res.scalar_one_or_none()
     created_dict = created.model_dump() if created else None

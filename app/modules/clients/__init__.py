@@ -2,7 +2,6 @@
 
 from app.core.registry import register
 from app.modules.base import ModuleBase
-from app.modules.clients.web import router as web_router
 
 
 class ClientsModule(ModuleBase):
@@ -24,7 +23,9 @@ class ClientsModule(ModuleBase):
 
     @property
     def web_router(self):
-        return web_router
+        from app.modules.clients.web import router
+
+        return router
 
 
     @property

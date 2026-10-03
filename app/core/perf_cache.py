@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import inspect
 import logging
 import os
 from collections import OrderedDict
 from threading import RLock
 from time import monotonic
 from typing import Any, Callable, Hashable
+
+from app.core.config import settings
 
 logger = logging.getLogger("fabouanes.cache")
 
@@ -87,8 +90,6 @@ class InMemoryCache(CacheBackend):
         else:
             version = self._get_domain_version(domain)
             target_fingerprint = f"v:{version}"
-
-        import inspect
 
         if inspect.iscoroutine(value) or inspect.isawaitable(value):
             logger.warning("Refusing to store un-awaited coroutine in cache for key %s", key)
@@ -296,8 +297,6 @@ class HybridCache(CacheBackend):
 
 
 def _initialize_backend() -> CacheBackend:
-    from app.core.config import settings
-
     url = settings.redis_url
     if url:
         try:
@@ -358,8 +357,6 @@ async def async_cached_result(
     ttl_seconds: float = 5.0,
 ) -> Any:
     cache_key = tuple(key_parts)
-    import inspect
-
     val = _BACKEND.get(cache_key)
     if val is not None and not inspect.iscoroutine(val) and not inspect.isawaitable(val):
         return val
@@ -477,8 +474,6 @@ def invalidate_client_cache(client_id: int) -> None:
 
 def cache_remember(domain: str, key_str: str, builder: Callable[[], Any], ttl: float = 30.0) -> Any:
     """Convenience alias for memoizing results in the in-memory cache."""
-    import inspect
-
     if inspect.iscoroutinefunction(builder):
         raise ValueError("Use async_cached_result or await builder() for coroutines.")
     return cached_result((domain, key_str), builder, ttl_seconds=ttl)

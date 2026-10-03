@@ -4,8 +4,11 @@ from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse, Response
 
 from app.core.audit import export_audit_logs_csv
+from app.core.db_helpers import db_manager
 from app.core.permissions import PERMISSION_AUDIT_READ, PERMISSION_SETTINGS_MANAGE, PERMISSION_USERS_MANAGE
 from app.core.rate_limit import limiter
+from app.modules.assistant.schema_context import get_gemini_api_key
+from app.modules.assistant.service import is_ollama_available
 from app.services.admin_service import (
     get_admin_view_data,
 )
@@ -20,10 +23,6 @@ async def admin_panel_page(request: Request):
     denied = require_permission(request, PERMISSION_SETTINGS_MANAGE)
     if denied:
         return denied
-
-    from app.core.db_helpers import db_manager
-    from app.modules.assistant.schema_context import get_gemini_api_key
-    from app.modules.assistant.service import is_ollama_available
 
     sabrina_api_key = get_gemini_api_key()
     selected_model = db_manager.get_setting("gemini_model", "gemini-3.1-flash-lite").strip() or "gemini-3.1-flash-lite"

@@ -32,6 +32,8 @@ from app.modules.catalog.schemas_validation import (
     FinishedProductUpdateSchema,
     RawMaterialCreateSchema,
     RawMaterialUpdateSchema,
+    SupplierCreateSchema,
+    SupplierUpdateSchema,
 )
 from app.modules.catalog.service import CatalogService
 from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
@@ -56,13 +58,13 @@ async def api_get_clients(request: Request, db: AsyncSession = Depends(get_async
     return response
 
 
-@router.post("/clients")
-async def api_create_client(request: Request, db: AsyncSession = Depends(get_async_session)):
+@router.post("/clients", status_code=201)
+async def api_create_client(
+    payload: ClientCreateSchema, request: Request, db: AsyncSession = Depends(get_async_session)
+):
     require_api_user(request, PERMISSION_CONTACTS_WRITE)
-    payload = await request.json()
-    validated = ClientCreateSchema(**payload)
     service = ClientService(db)
-    client = await service.create_client(validated)
+    client = await service.create_client(payload)
     return json_response(api_success(await client_payload(client.id, db=db), status_code=201))
 
 
@@ -156,15 +158,15 @@ async def api_get_client_detail(request: Request, client_id: int, db: AsyncSessi
 
 
 @router.put("/clients/{client_id}")
-async def api_update_client(request: Request, client_id: int, db: AsyncSession = Depends(get_async_session)):
+async def api_update_client(
+    client_id: int, payload: ClientUpdateSchema, request: Request, db: AsyncSession = Depends(get_async_session)
+):
     require_api_user(request, PERMISSION_CONTACTS_WRITE)
     client = await client_payload(client_id, db=db)
     if not client:
         api_error("not_found", "Client introuvable.", 404)
-    payload = await request.json()
-    validated = ClientUpdateSchema(**payload)
     service = ClientService(db)
-    await service.update_client(client_id, validated)
+    await service.update_client(client_id, payload)
     client = await client_payload(client_id, db=db)
     detail = await client_history_payload(client_id, db)
     client["summary"] = detail.get("stats", {}) if detail else {}
@@ -343,15 +345,16 @@ async def api_get_suppliers(request: Request, db: AsyncSession = Depends(get_asy
     return response
 
 
-@router.post("/suppliers")
-async def api_create_supplier(request: Request, db: AsyncSession = Depends(get_async_session)):
+@router.post("/suppliers", status_code=201)
+async def api_create_supplier(
+    payload: SupplierCreateSchema, request: Request, db: AsyncSession = Depends(get_async_session)
+):
     require_api_user(request, PERMISSION_CONTACTS_WRITE)
-    payload = await request.json()
     supplier = Supplier(
-        name=str(payload.get("name", "")).strip(),
-        phone=str(payload.get("phone", "")).strip(),
-        address=str(payload.get("address", "")).strip(),
-        notes=str(payload.get("notes", "")).strip(),
+        name=payload.name,
+        phone=payload.phone or "",
+        address=payload.address or "",
+        notes=payload.notes or "",
     )
     db.add(supplier)
     await db.commit()
@@ -376,24 +379,25 @@ async def api_get_supplier_detail(request: Request, supplier_id: int, db: AsyncS
 
 
 @router.put("/suppliers/{supplier_id}")
-async def api_update_supplier(request: Request, supplier_id: int, db: AsyncSession = Depends(get_async_session)):
+async def api_update_supplier(
+    supplier_id: int, payload: SupplierUpdateSchema, request: Request, db: AsyncSession = Depends(get_async_session)
+):
     require_api_user(request, PERMISSION_CONTACTS_WRITE)
     supplier_dict = await supplier_payload(supplier_id, db=db)
     if not supplier_dict:
         api_error("not_found", "Fournisseur introuvable.", 404)
-    payload = await request.json()
     supplier = await db.get(Supplier, supplier_id)
     if not supplier:
         api_error("not_found", "Fournisseur introuvable.", 404)
     before = dict(supplier_dict)
-    if "name" in payload:
-        supplier.name = str(payload["name"]).strip()
-    if "phone" in payload:
-        supplier.phone = str(payload["phone"]).strip()
-    if "address" in payload:
-        supplier.address = str(payload["address"]).strip()
-    if "notes" in payload:
-        supplier.notes = str(payload["notes"]).strip()
+    if payload.name:
+        supplier.name = payload.name
+    if payload.phone is not None:
+        supplier.phone = payload.phone
+    if payload.address is not None:
+        supplier.address = payload.address
+    if payload.notes is not None:
+        supplier.notes = payload.notes
     db.add(supplier)
     await db.commit()
     supplier_dict = await supplier_payload(supplier_id, db=db)
@@ -442,13 +446,13 @@ async def api_get_raw_materials(request: Request, db: AsyncSession = Depends(get
     return response
 
 
-@router.post("/raw-materials")
-async def api_create_raw_material(request: Request, db: AsyncSession = Depends(get_async_session)):
+@router.post("/raw-materials", status_code=201)
+async def api_create_raw_material(
+    payload: RawMaterialCreateSchema, request: Request, db: AsyncSession = Depends(get_async_session)
+):
     require_api_user(request, PERMISSION_CATALOG_WRITE)
-    payload = dict(await request.json())
-    validated = RawMaterialCreateSchema(**payload)
     service = CatalogService(db)
-    material = await service.create_raw_material(validated)
+    material = await service.create_raw_material(payload)
     return json_response(api_success(await raw_material_payload(material.id, db=db), status_code=201))
 
 
@@ -467,15 +471,15 @@ async def api_get_raw_material_detail(
 
 
 @router.put("/raw-materials/{material_id}")
-async def api_update_raw_material(request: Request, material_id: int, db: AsyncSession = Depends(get_async_session)):
+async def api_update_raw_material(
+    material_id: int, payload: RawMaterialUpdateSchema, request: Request, db: AsyncSession = Depends(get_async_session)
+):
     require_api_user(request, PERMISSION_CATALOG_WRITE)
     material = await raw_material_payload(material_id, db=db)
     if not material:
         api_error("not_found", "Matiere premiere introuvable.", 404)
-    payload = dict(await request.json())
-    validated = RawMaterialUpdateSchema(**payload)
     service = CatalogService(db)
-    await service.update_raw_material(material_id, validated)
+    await service.update_raw_material(material_id, payload)
     material = await raw_material_payload(material_id, db=db)
     return json_response(api_success(material))
 
@@ -507,13 +511,13 @@ async def api_get_finished_products(request: Request, db: AsyncSession = Depends
     return response
 
 
-@router.post("/finished-products")
-async def api_create_finished_product(request: Request, db: AsyncSession = Depends(get_async_session)):
+@router.post("/finished-products", status_code=201)
+async def api_create_finished_product(
+    payload: FinishedProductCreateSchema, request: Request, db: AsyncSession = Depends(get_async_session)
+):
     require_api_user(request, PERMISSION_CATALOG_WRITE)
-    payload = dict(await request.json())
-    validated = FinishedProductCreateSchema(**payload)
     service = CatalogService(db)
-    product = await service.create_finished_product(validated)
+    product = await service.create_finished_product(payload)
     return json_response(api_success(await finished_product_payload(product.id, db=db), status_code=201))
 
 
@@ -532,15 +536,15 @@ async def api_get_finished_product_detail(
 
 
 @router.put("/finished-products/{product_id}")
-async def api_update_finished_product(request: Request, product_id: int, db: AsyncSession = Depends(get_async_session)):
+async def api_update_finished_product(
+    product_id: int, payload: FinishedProductUpdateSchema, request: Request, db: AsyncSession = Depends(get_async_session)
+):
     require_api_user(request, PERMISSION_CATALOG_WRITE)
     product = await finished_product_payload(product_id, db=db)
     if not product:
         api_error("not_found", "Produit fini introuvable.", 404)
-    payload = dict(await request.json())
-    validated = FinishedProductUpdateSchema(**payload)
     service = CatalogService(db)
-    await service.update_finished_product(product_id, validated)
+    await service.update_finished_product(product_id, payload)
     product = await finished_product_payload(product_id, db=db)
     return json_response(api_success(product))
 

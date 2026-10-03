@@ -8,7 +8,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_sessionmaker
-from app.core.helpers import async_compat
+from app.core.async_compat import async_compat
 from app.core.models import FinishedProduct, RawMaterial, StockAlert
 from app.core.websockets import manager
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Request
@@ -11,9 +12,16 @@ from app.core.async_db import get_async_session
 from app.core.db_helpers import db_manager
 from app.core.models import FinishedProduct, Sale
 from app.modules.assistant.schema_context import get_gemini_api_key
-from app.modules.reports.repository import get_dashboard_snapshot, get_kpis_for_date
+from app.modules.reports.repository import (
+    get_dashboard_snapshot,
+    get_kpi_history_last_30_days,
+    get_kpis_for_date,
+    get_kpis_for_period,
+)
 from app.utils.mobile_connect import build_mobile_connect_context
 from app.web.deps import get_current_user, template_context, templates
+
+logger = logging.getLogger("fabouanes")
 
 router = APIRouter()
 
@@ -119,22 +127,18 @@ async def api_kpi_period(request: Request, db: AsyncSession = Depends(get_async_
     if period not in ("today", "week", "month"):
         return JSONResponse({"error": "Période invalide."}, status_code=400)
     try:
-        from app.modules.reports.repository import get_kpis_for_period
-
         kpis = await get_kpis_for_period(period, db=db)
         return JSONResponse(
             {
                 "success": True,
-                "sales": kpis["sales"],
-                "cash": kpis["cash"],
-                "profit": kpis["profit"],
-                "receivables": kpis["receivables"],
+                "sales": float(kpis["sales"]),
+                "cash": float(kpis["cash"]),
+                "profit": float(kpis["profit"]),
+                "receivables": float(kpis["receivables"]),
             }
         )
     except Exception as exc:
-        import logging
-
-        logging.getLogger("fabouanes").error("Error fetching KPI for period %s: %s", period, exc)
+        logger.error("Error fetching KPI for period %s: %s", period, exc)
         return JSONResponse({"success": False, "error": "Erreur interne."}, status_code=500)
 
 
@@ -153,14 +157,10 @@ async def api_kpi_history(request: Request):
         days_param = 30
 
     try:
-        from app.modules.reports.repository import get_kpi_history_last_30_days
-
         labels, values = await get_kpi_history_last_30_days(metric, days=days_param)
         return JSONResponse({"success": True, "labels": labels, "values": values})
     except Exception as exc:
-        import logging
-
-        logging.getLogger("fabouanes").error("Error fetching KPI history for %s: %s", metric, exc)
+        logger.error("Error fetching KPI history for %s: %s", metric, exc)
         return JSONResponse({"success": False, "error": "Erreur interne."}, status_code=500)
 
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from app.core.registry import register
-from app.modules.accounting.web import router as web_router
 from app.modules.base import ModuleBase
 
 
@@ -26,7 +25,9 @@ class AccountingModule(ModuleBase):
 
     @property
     def web_router(self):
-        return web_router
+        from app.modules.accounting.web import router
+
+        return router
 
     @property
     def permissions(self) -> list[str]:

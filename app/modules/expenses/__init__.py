@@ -2,7 +2,6 @@
 
 from app.core.registry import register
 from app.modules.base import ModuleBase
-from app.modules.expenses.web import router as web_router
 
 
 class ExpensesModule(ModuleBase):
@@ -24,7 +23,9 @@ class ExpensesModule(ModuleBase):
 
     @property
     def web_router(self):
-        return web_router
+        from app.modules.expenses.web import router
+
+        return router
 
 
     @property

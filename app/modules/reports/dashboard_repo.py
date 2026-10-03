@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import time
 from datetime import date, timedelta
+from decimal import Decimal
 
 from sqlalchemy import Numeric, case, cast, func, literal_column, select, text, true, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_sessionmaker
-from app.core.helpers import db_task_compat
+from app.core.async_compat import db_task_compat
 from app.core.models import (
     Client,
     FinishedProduct,
@@ -239,9 +240,9 @@ async def _build_dashboard_snapshot(today: str, db: AsyncSession) -> dict:
         ttl_seconds=TTL_FREQUENT,
     )
 
-    today_value = float(summary["sales_today"])
-    week_value = float(summary["sales_week_ago"])
-    sales_delta_pct = round((today_value - week_value) / week_value * 100, 1) if week_value > 0 else None
+    today_value = Decimal(str(summary.get("sales_today") or 0))
+    week_value = Decimal(str(summary.get("sales_week_ago") or 0))
+    sales_delta_pct = round(float((today_value - week_value) / week_value * 100), 1) if week_value > Decimal("0") else None
 
     async def load_debt_by_client():
         return await _build_debt_by_client(db)
@@ -341,8 +342,9 @@ async def _build_stock_materials(cutoff_30d: str, db: AsyncSession) -> list[dict
     result = []
     for material in stock_materials_raw:
         row = dict(material._mapping)
-        daily = float(row.get("consumed_30d") or 0) / 30.0
-        row["days_left"] = int(round(float(row["stock_qty"]) / daily)) if daily > 0.01 else None
+        daily = Decimal(str(row.get("consumed_30d") or 0)) / Decimal("30.0")
+        stock_qty = Decimal(str(row.get("stock_qty") or 0))
+        row["days_left"] = int(round(stock_qty / daily)) if daily > Decimal("0.01") else None
         result.append(row)
     return result
 
@@ -519,11 +521,12 @@ async def _dashboard_daily_summary(today: str, week_iso: str, db: AsyncSession) 
         ttl_seconds=20.0,
     )
     return {
-        key: float(row[key] if row else 0) for key in ("sales_today", "sales_week_ago", "cash_today", "profit_today")
+        key: Decimal(str(row[key] if row and row.get(key) is not None else 0))
+        for key in ("sales_today", "sales_week_ago", "cash_today", "profit_today")
     }
 
 
-async def _dashboard_cumulative_summary(db: AsyncSession) -> dict[str, float]:
+async def _dashboard_cumulative_summary(db: AsyncSession) -> dict[str, Decimal]:
     total_receivables_sub = (
         select(func.coalesce(func.sum(literal_column("balance")), 0))
         .select_from(text("mv_client_balances"))
@@ -579,12 +582,12 @@ async def _dashboard_cumulative_summary(db: AsyncSession) -> dict[str, float]:
         ttl_seconds=300.0,
     )
     return {
-        key: float(row[key] if row else 0)
+        key: Decimal(str(row[key] if row and row.get(key) is not None else 0))
         for key in ("total_receivables", "total_profit", "revenue", "cost_of_goods", "gross_profit")
     }
 
 
-async def _build_kpis_for_date(target_date: str, db: AsyncSession) -> dict[str, float | str]:
+async def _build_kpis_for_date(target_date: str, db: AsyncSession) -> dict[str, Decimal | str]:
     target_date_obj = date.fromisoformat(target_date) if isinstance(target_date, str) else target_date
     s_cte = (
         select(
@@ -641,10 +644,10 @@ async def _build_kpis_for_date(target_date: str, db: AsyncSession) -> dict[str, 
     row = res.first()
     return {
         "date": target_date,
-        "sales": float(row._mapping["sales"] if row else 0),
-        "cash": float(row._mapping["cash"] if row else 0),
-        "profit": float(row._mapping["profit"] if row else 0),
-        "receivables": float(row._mapping["receivables"] if row else 0),
+        "sales": Decimal(str(row._mapping["sales"] if row and row._mapping.get("sales") is not None else 0)),
+        "cash": Decimal(str(row._mapping["cash"] if row and row._mapping.get("cash") is not None else 0)),
+        "profit": Decimal(str(row._mapping["profit"] if row and row._mapping.get("profit") is not None else 0)),
+        "receivables": Decimal(str(row._mapping["receivables"] if row and row._mapping.get("receivables") is not None else 0)),
     }
 
 
@@ -892,10 +895,10 @@ async def _build_kpis_for_period(period: str, db: AsyncSession) -> dict[str, flo
     res = await db.execute(query)
     row = res.first()
     return {
-        "sales": float(row._mapping["sales"] if row else 0),
-        "cash": float(row._mapping["cash"] if row else 0),
-        "profit": float(row._mapping["profit"] if row else 0),
-        "receivables": float(row._mapping["receivables"] if row else 0),
+        "sales": Decimal(str(row._mapping["sales"] if row and row._mapping.get("sales") is not None else 0)),
+        "cash": Decimal(str(row._mapping["cash"] if row and row._mapping.get("cash") is not None else 0)),
+        "profit": Decimal(str(row._mapping["profit"] if row and row._mapping.get("profit") is not None else 0)),
+        "receivables": Decimal(str(row._mapping["receivables"] if row and row._mapping.get("receivables") is not None else 0)),
     }
 
 
@@ -930,14 +933,14 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
     date_list = [start_date + timedelta(days=i) for i in range(days)]
     date_strs = [d.isoformat() for d in date_list]
 
-    values = {d: 0.0 for d in date_list}
+    values: dict[date, Decimal] = {d: Decimal("0.0") for d in date_list}
 
     if metric == "sales":
         q1 = select(Sale.sale_date, func.sum(Sale.total)).where(Sale.sale_date >= start_date).group_by(Sale.sale_date)
         res1 = await db.execute(q1)
         for d, tot in res1.all():
             if d in values:
-                values[d] += float(tot or 0)
+                values[d] += Decimal(str(tot or 0))
         q2 = (
             select(RawSale.sale_date, func.sum(RawSale.total))
             .where(RawSale.sale_date >= start_date)
@@ -946,10 +949,10 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
         res2 = await db.execute(q2)
         for d, tot in res2.all():
             if d in values:
-                values[d] += float(tot or 0)
+                values[d] += Decimal(str(tot or 0))
 
         # Rendre cumulatif
-        running = 0.0
+        running = Decimal("0.0")
         for d in date_list:
             running += values[d]
             values[d] = running
@@ -963,7 +966,7 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
         res1 = await db.execute(q1)
         for d, tot in res1.all():
             if d in values:
-                values[d] += float(tot or 0)
+                values[d] += Decimal(str(tot or 0))
 
         q2 = (
             select(RawSale.sale_date, func.sum(RawSale.amount_paid))
@@ -973,7 +976,7 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
         res2 = await db.execute(q2)
         for d, tot in res2.all():
             if d in values:
-                values[d] += float(tot or 0)
+                values[d] += Decimal(str(tot or 0))
 
         q3 = (
             select(Payment.payment_date, func.sum(Payment.amount))
@@ -987,10 +990,10 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
         res3 = await db.execute(q3)
         for d, tot in res3.all():
             if d in values:
-                values[d] += float(tot or 0)
+                values[d] += Decimal(str(tot or 0))
 
         # Rendre cumulatif
-        running = 0.0
+        running = Decimal("0.0")
         for d in date_list:
             running += values[d]
             values[d] = running
@@ -1004,7 +1007,7 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
         res1 = await db.execute(q1)
         for d, tot in res1.all():
             if d in values:
-                values[d] += float(tot or 0)
+                values[d] += Decimal(str(tot or 0))
         q2 = (
             select(RawSale.sale_date, func.sum(RawSale.profit_amount))
             .where(RawSale.sale_date >= start_date)
@@ -1013,20 +1016,22 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
         res2 = await db.execute(q2)
         for d, tot in res2.all():
             if d in values:
-                values[d] += float(tot or 0)
+                values[d] += Decimal(str(tot or 0))
 
         # Rendre cumulatif
-        running = 0.0
+        running = Decimal("0.0")
         for d in date_list:
             running += values[d]
             values[d] = running
 
     elif metric == "receivables":
-        current_rec = float(
-            await db.scalar(
-                select(func.coalesce(func.sum(literal_column("balance")), 0)).select_from(text("mv_client_balances"))
+        current_rec = Decimal(
+            str(
+                await db.scalar(
+                    select(func.coalesce(func.sum(literal_column("balance")), 0)).select_from(text("mv_client_balances"))
+                )
+                or 0
             )
-            or 0
         )
 
         sf_changes = (
@@ -1035,7 +1040,7 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
             .group_by(Sale.sale_date)
         )
         res_sf = await db.execute(sf_changes)
-        sf_map = {d: float(tot or 0) for d, tot in res_sf.all()}
+        sf_map = {d: Decimal(str(tot or 0)) for d, tot in res_sf.all()}
 
         sr_changes = (
             select(RawSale.sale_date, func.sum(RawSale.total))
@@ -1043,7 +1048,7 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
             .group_by(RawSale.sale_date)
         )
         res_sr = await db.execute(sr_changes)
-        sr_map = {d: float(tot or 0) for d, tot in res_sr.all()}
+        sr_map = {d: Decimal(str(tot or 0)) for d, tot in res_sr.all()}
 
         p_changes = (
             select(Payment.payment_date, Payment.payment_type, func.sum(Payment.amount))
@@ -1051,14 +1056,14 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
             .group_by(Payment.payment_date, Payment.payment_type)
         )
         res_p = await db.execute(p_changes)
-        p_map = {}
+        p_map: dict[date, Decimal] = {}
         for d, ptype, amt in res_p.all():
             if d not in p_map:
-                p_map[d] = 0.0
+                p_map[d] = Decimal("0.0")
             if ptype == "versement":
-                p_map[d] -= float(amt or 0)
+                p_map[d] -= Decimal(str(amt or 0))
             elif ptype == "avance":
-                p_map[d] += float(amt or 0)
+                p_map[d] += Decimal(str(amt or 0))
 
         # Intégrer les crédits initiaux créés sur la période à leur date de création
         oc_changes = (
@@ -1067,12 +1072,12 @@ async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> t
             .group_by(cast(Client.created_at, Date))
         )
         res_oc = await db.execute(oc_changes)
-        oc_map = {d: float(tot or 0) for d, tot in res_oc.all()}
+        oc_map = {d: Decimal(str(tot or 0)) for d, tot in res_oc.all()}
 
         running_receivables = current_rec
         for d in reversed(date_list):
             values[d] = running_receivables
-            change = sf_map.get(d, 0.0) + sr_map.get(d, 0.0) + p_map.get(d, 0.0) + oc_map.get(d, 0.0)
+            change = sf_map.get(d, Decimal("0.0")) + sr_map.get(d, Decimal("0.0")) + p_map.get(d, Decimal("0.0")) + oc_map.get(d, Decimal("0.0"))
             running_receivables -= change
 
-    return date_strs, [values[d] for d in date_list]
+    return date_strs, [float(values[d]) for d in date_list]

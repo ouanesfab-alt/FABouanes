@@ -10,7 +10,7 @@ from sqlmodel import case, func, literal, or_, select, union_all
 
 from app.core.async_db import get_async_sessionmaker
 from app.core.base_repository import AsyncRepository
-from app.core.helpers import db_task_compat
+from app.core.async_compat import db_task_compat
 from app.core.models import Client, FinishedProduct, Payment, RawMaterial, RawSale, Sale, SaleDocument
 
 

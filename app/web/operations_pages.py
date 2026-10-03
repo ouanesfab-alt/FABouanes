@@ -6,11 +6,16 @@ from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
+from app.core.models import Client, Supplier
 from app.core.permissions import PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
 from app.modules.production.web import edit_production_notes  # noqa: F401 (compat)
+from app.modules.purchases.service import PurchaseService
+from app.modules.sales.service import SalesService
+from app.services.payment_service import new_payment_context
 from app.services.print_service import COMPANY_INFO, PRINT_LAYOUT, build_print_payload, generate_invoice_pdf
 from app.services.transactions_service import transactions_context
 from app.web.deps import (
@@ -163,13 +168,6 @@ async def new_operation_page(request: Request, db: AsyncSession = Depends(get_as
     denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
     if denied:
         return denied
-
-    from sqlalchemy import select
-
-    from app.core.models import Client, Supplier
-    from app.modules.purchases.service import PurchaseService
-    from app.modules.sales.service import SalesService
-    from app.services.payment_service import new_payment_context
 
     p_ctx = await PurchaseService(db).purchase_form_context()
     s_ctx = await SalesService(db).sale_form_context()

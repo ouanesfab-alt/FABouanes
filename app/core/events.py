@@ -14,15 +14,31 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 import decimal
 import json
 import logging
 import os
+import select
+import threading
+import time
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Callable
+
+from app.core.activity import log_activity
+from app.core.audit import audit_event
+from app.core.config import DATABASE_URL
+from app.core.db_helpers import execute_db, pool_manager, query_db
+from app.core.async_compat import async_compat
+from app.core.perf_cache import _BACKEND
+from app.core.storage import backup_database
+from app.core.websockets import manager
+from app.core.worker import enqueue_background_task
+from app.modules.reports.repository import refresh_client_balances_view
+from app.services.alert_service import broadcast_overdue_alerts, check_stock_alerts
 
 logger = logging.getLogger("fabouanes.events")
 
@@ -154,8 +170,6 @@ def emit(event: DomainEvent) -> None:
     force_outbox = os.getenv("FAB_FORCE_OUTBOX") == "1"
     if force_outbox:
         try:
-            from app.core.db_helpers import execute_db
-
             payload = _serialize_event(event, WORKER_ID)
             execute_db(
                 "INSERT INTO outbox_events (event_type, payload) VALUES (%s, %s)",
@@ -173,8 +187,6 @@ def emit(event: DomainEvent) -> None:
     # 2. Publish to DB Pub/Sub
     if not is_testing:
         try:
-            from app.core.db_helpers import execute_db
-
             payload = _serialize_event(event, WORKER_ID)
             execute_db(
                 "INSERT INTO pubsub_events (channel, payload, sender_worker_id) VALUES (%s, %s, %s)",
@@ -196,8 +208,6 @@ def _auto_audit(event: DomainEvent) -> None:
     """Enregistre automatiquement un événement d'audit."""
     if event.action == "invalidate":
         return
-    from app.core.audit import audit_event
-
     audit_event(
         f"{event.action}_{event.entity_type}",
         event.entity_type,
@@ -212,8 +222,6 @@ def _auto_activity(event: DomainEvent) -> None:
     """Log l'activité utilisateur automatiquement."""
     if event.action == "invalidate":
         return
-    from app.core.activity import log_activity
-
     log_activity(
         f"{event.action}_{event.entity_type}",
         event.entity_type,
@@ -224,8 +232,6 @@ def _auto_activity(event: DomainEvent) -> None:
 
 def _auto_backup(event: DomainEvent) -> None:
     """Déclenche un backup après les mutations (create/update/delete)."""
-    from app.core.storage import backup_database
-
     backup_database(f"{event.action}_{event.entity_type}")
 
 
@@ -233,8 +239,6 @@ def _auto_websocket(event: DomainEvent) -> None:
     """Diffuse un message WebSocket lors d'une modification d'opération."""
     # Seuls certains types d'entités doivent déclencher un rafraîchissement
     if event.entity_type in ("sale", "purchase", "payment", "sale_document", "purchase_document"):
-        from app.core.websockets import manager
-
         manager.broadcast_sync("refresh_operations")
 
 
@@ -242,10 +246,6 @@ def _auto_refresh_balances(event: DomainEvent) -> None:
     """Refresh the mv_client_balances materialized view after financial mutations."""
     if event.entity_type in ("sale", "payment", "client", "sale_document"):
         try:
-            import asyncio
-
-            from app.modules.reports.repository import refresh_client_balances_view
-
             try:
                 loop = asyncio.get_running_loop()
             except RuntimeError:
@@ -264,8 +264,6 @@ def _auto_invalidate_cache(event: DomainEvent) -> None:
         domains = event.extra.get("domains") or []
         if domains:
             try:
-                from app.core.perf_cache import _BACKEND
-
                 _BACKEND.invalidate_domains(*domains)
             except Exception as e:
                 logger.debug("Failed to handle remote cache invalidation: %s", e)
@@ -276,8 +274,6 @@ def _auto_invalidate_client_cache(event: DomainEvent) -> None:
         client_id = event.extra.get("client_id")
         if client_id is not None:
             try:
-                from app.core.perf_cache import _BACKEND
-
                 keys_to_delete = [
                     ("client_detail", client_id),
                     ("client_history", client_id),
@@ -295,8 +291,6 @@ def _auto_invalidate_client_cache(event: DomainEvent) -> None:
 def _auto_invalidate_all_cache(event: DomainEvent) -> None:
     if event.action == "invalidate" and event.entity_type == "all_cache":
         try:
-            from app.core.perf_cache import _BACKEND
-
             _BACKEND.clear()
         except Exception as e:
             logger.debug("Failed to clear remote cache: %s", e)
@@ -307,10 +301,6 @@ def _auto_check_stock_alert(event: DomainEvent) -> None:
     if event.action == "invalidate":
         return
     if event.entity_type in ("sale", "purchase", "production_batch", "raw_material", "finished_product"):
-        import asyncio
-
-        from app.services.alert_service import check_stock_alerts
-
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -319,8 +309,6 @@ def _auto_check_stock_alert(event: DomainEvent) -> None:
             loop.create_task(check_stock_alerts())
         else:
             try:
-                from app.core.helpers import async_compat
-
                 async_compat(check_stock_alerts)()
             except Exception:
                 logger.debug("Stock alert check fallback failed (non-critical)")
@@ -331,10 +319,6 @@ def _auto_rebuild_catalog_embeddings(event: DomainEvent) -> None:
     if event.action == "invalidate":
         return
     try:
-        import asyncio
-
-        from app.core.worker import enqueue_background_task
-
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -343,8 +327,6 @@ def _auto_rebuild_catalog_embeddings(event: DomainEvent) -> None:
             loop.create_task(enqueue_background_task("rebuild_catalog_embeddings_task"))
         else:
             try:
-                from app.core.helpers import async_compat
-
                 async_compat(enqueue_background_task)("rebuild_catalog_embeddings_task")
             except Exception:
                 logger.debug("Catalog embedding enqueue fallback failed (non-critical)")
@@ -397,10 +379,6 @@ _last_seen_pubsub_id = 0
 
 def _db_event_listener_loop():
     global _db_listener_running, _last_seen_pubsub_id
-    import select
-    import time
-
-    from app.core.db_helpers import execute_db, query_db
 
     # Initialize last seen ID to current max
     try:
@@ -414,9 +392,6 @@ def _db_event_listener_loop():
     listen_conn = None
     listen_fileno = None
     try:
-        from app.core.config import DATABASE_URL
-        from app.core.db_helpers import pool_manager
-
         listen_conn = pool_manager.connect_database(DATABASE_URL)
         listen_conn.execute("LISTEN fabouanes_events")
         listen_conn.commit()
@@ -466,8 +441,6 @@ def _db_event_listener_loop():
                 _last_seen_pubsub_id = max(_last_seen_pubsub_id, int(row["id"]))
                 if row["channel"] == "fabouanes:ws_broadcast":
                     try:
-                        from app.core.websockets import manager
-
                         data = json.loads(row["payload"])
                         msg_type = data.get("type")
                         msg = data.get("message")
@@ -502,14 +475,11 @@ def _db_event_listener_loop():
 def startup():
     """Démarre le planificateur de tâches en arrière-plan et le listener de base de données Pub/Sub."""
     global _db_listener_thread, _db_listener_running
-    import threading
 
     # Start DB Pub/Sub listener
     if not _db_listener_running:
         # Nettoyer les anciens événements au démarrage pour garder la table légère
         try:
-            from app.core.db_helpers import execute_db
-
             execute_db("DELETE FROM pubsub_events WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'")
         except Exception:
             logger.debug("Startup pubsub cleanup failed (non-critical)")
@@ -522,8 +492,6 @@ def startup():
         try:
             if not scheduler.running:
                 scheduler.start()
-            from app.services.alert_service import broadcast_overdue_alerts
-
             scheduler.add_job(
                 broadcast_overdue_alerts,
                 "cron",

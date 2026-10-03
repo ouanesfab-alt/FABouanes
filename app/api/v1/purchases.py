@@ -13,26 +13,29 @@ from app.modules.purchases.service import PurchaseService
 router = APIRouter(prefix="/api/v1", tags=["purchases"])
 
 
-@router.api_route("/purchases", methods=["GET", "POST"])
-async def api_purchases(request: Request, db: AsyncSession = Depends(get_async_session)):
-    require_api_user(request, PERMISSION_OPERATIONS_WRITE if request.method == "POST" else PERMISSION_OPERATIONS_READ)
-    if request.method == "POST":
-        payload = await request.json()
-        validated = PurchaseFormSchema(**payload)
-        service = PurchaseService(db)
-        created = await service.create_purchase_from_form(validated)
-        if created["mode"] == "line":
-            payload = {"mode": "line", "purchase": await purchase_payload(int(created["print_item_id"]), db=db)}
-        else:
-            payload = {
-                "mode": "document",
-                "document_id": int(created["document_id"]),
-                "line_count": int(created["line_count"]),
-                "print_doc_type": created["print_doc_type"],
-                "print_item_id": int(created["print_item_id"]),
-            }
-        return json_response(api_success(payload, status_code=201))
+@router.post("/purchases", status_code=201)
+async def api_create_purchase(
+    payload: PurchaseFormSchema, request: Request, db: AsyncSession = Depends(get_async_session)
+):
+    require_api_user(request, PERMISSION_OPERATIONS_WRITE)
+    service = PurchaseService(db)
+    created = await service.create_purchase_from_form(payload)
+    if created["mode"] == "line":
+        res_payload = {"mode": "line", "purchase": await purchase_payload(int(created["print_item_id"]), db=db)}
+    else:
+        res_payload = {
+            "mode": "document",
+            "document_id": int(created["document_id"]),
+            "line_count": int(created["line_count"]),
+            "print_doc_type": created["print_doc_type"],
+            "print_item_id": int(created["print_item_id"]),
+        }
+    return json_response(api_success(res_payload, status_code=201))
 
+
+@router.get("/purchases")
+async def api_list_purchases(request: Request, db: AsyncSession = Depends(get_async_session)):
+    require_api_user(request, PERMISSION_OPERATIONS_READ)
     page = max(int(request.query_params.get("page", 1)), 1)
     page_size = min(max(int(request.query_params.get("page_size", 50)), 1), 100)
     service = PurchaseService(db)

@@ -212,13 +212,15 @@ class DatabaseManager:
     def create_database_engine(self, database_url: str) -> Engine:
         engine_url = self.sqlalchemy_database_url(database_url)
         is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux")
-        default_pool = 5 if is_termux else 10
+        sync_default_pool = 1 if is_termux else 2
+        pool_size = self._env_int("FAB_SYNC_PG_POOL_SIZE", self._env_int("FAB_PG_POOL_SIZE", sync_default_pool, 1, 50), 1, 50)
+        max_overflow = self._env_int("FAB_SYNC_PG_MAX_OVERFLOW", 3, 0, 50)
         engine = create_engine(
             engine_url,
             future=True,
             pool_pre_ping=True,
-            pool_size=self._env_int("FAB_PG_POOL_SIZE", default_pool, 1, 200),
-            max_overflow=self._env_int("FAB_PG_POOL_MAX_OVERFLOW", default_pool, 0, 500),
+            pool_size=pool_size,
+            max_overflow=max_overflow,
             pool_timeout=self._env_int("FAB_PG_POOL_TIMEOUT", 30, 1, 300),
             pool_recycle=self._env_int("FAB_PG_POOL_RECYCLE_SECONDS", 1800, 60, 86400),
         )

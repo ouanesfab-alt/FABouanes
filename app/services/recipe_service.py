@@ -1,47 +1,14 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from typing import Any
 
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.async_compat import async_compat
 from app.core.async_db import get_async_sessionmaker
-from app.core.helpers import async_compat
 from app.core.models import SavedRecipe, SavedRecipeItem
-
-
-@async_compat
-async def load_saved_recipes(db: AsyncSession | None = None) -> list[dict[str, Any]]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _load_saved_recipes_impl(session)
-    return await _load_saved_recipes_impl(db)
-
-
-async def _load_saved_recipes_impl(db: AsyncSession) -> list[dict[str, Any]]:
-    from app.modules.catalog.repository import SavedRecipeRepository
-
-    repo = SavedRecipeRepository(db)
-    recipes = await repo.get_all_with_products()
-    if not recipes:
-        return []
-
-    item_rows = await repo.get_recipe_items()
-    grouped: dict[int, list[dict[str, Any]]] = defaultdict(list)
-    for row in item_rows:
-        grouped[int(row["recipe_id"])].append(
-            {
-                "raw_material_id": int(row["raw_material_id"]),
-                "quantity": float(row["quantity"]),
-                "material_name": row["material_name"],
-                "stock_qty": float(row["stock_qty"]),
-                "unit": row["unit"],
-            }
-        )
-    for recipe in recipes:
-        recipe["items"] = grouped.get(int(recipe["id"]), [])
-    return recipes
+from app.modules.catalog.repository import SavedRecipeRepository, load_saved_recipes  # noqa: F401
 
 
 @async_compat

@@ -4,45 +4,11 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.async_compat import async_compat, db_task_compat  # noqa: F401
+from app.core.async_db import get_async_sessionmaker
 from app.core.request_state import get_state_value
 
 logger = logging.getLogger("fabouanes.helpers")
-
-
-def async_compat(func):
-    """Allows an async function to be called synchronously if no event loop is running."""
-    import asyncio
-    import functools
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-        if loop is not None and loop.is_running():
-            return func(*args, **kwargs)
-        else:
-            try:
-                loop = asyncio.get_event_loop_policy().get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            return loop.run_until_complete(func(*args, **kwargs))
-
-    return wrapper
-
-
-def db_task_compat(func):
-    """
-    Decorator for our newly migrated async repositories to keep full compatibility
-    with callers calling it asynchronously (via await func(...) or await func.async_(...))
-    or synchronously (via func(...) in a sync context).
-    """
-    wrapper = async_compat(func)
-    wrapper.async_ = wrapper
-    wrapper.sync = wrapper
-    return wrapper
 
 
 def to_float(value: str | None, default: float = 0.0) -> float:
@@ -85,7 +51,6 @@ async def refresh_sale_profits_for_item(
 @async_compat
 async def get_open_credit_entries(client_id: int | None = None, db: AsyncSession | None = None):
     """DEPRECATED: Utiliser app.modules.payments.service.PaymentsService.get_open_credit_entries à la place."""
-    from app.core.async_db import get_async_sessionmaker
     from app.modules.payments.service import PaymentsService
 
     if db is None:
@@ -213,7 +178,6 @@ async def create_payment_record(
     db: AsyncSession | None = None,
 ) -> int:
     """DEPRECATED: Utiliser app.modules.payments.service.PaymentsService.create_payment_record à la place."""
-    from app.core.async_db import get_async_sessionmaker
     from app.modules.payments.service import PaymentsService
 
     if db is None:
@@ -230,7 +194,6 @@ async def create_payment_record(
 @async_compat
 async def reverse_payment_allocations(payment_row, db: AsyncSession | None = None) -> None:
     """DEPRECATED: Utiliser app.modules.payments.service.PaymentsService.reverse_payment_allocations à la place."""
-    from app.core.async_db import get_async_sessionmaker
     from app.modules.payments.service import PaymentsService
 
     p_dict = dict(payment_row) if hasattr(payment_row, "keys") and not isinstance(payment_row, dict) else payment_row
