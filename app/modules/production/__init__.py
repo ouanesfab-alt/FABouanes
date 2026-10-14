@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from app.core.registry import register
-from app.core.schema.production import SCHEMA_PRODUCTION
 from app.modules.base import ModuleBase
 
 
@@ -32,7 +31,7 @@ class ProductionModule(ModuleBase):
 
     @property
     def schema_sql(self) -> list[str]:
-        return [SCHEMA_PRODUCTION]
+        return []
 
     @property
     def permissions(self) -> list[str]:

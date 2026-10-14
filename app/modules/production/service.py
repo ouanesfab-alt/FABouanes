@@ -4,14 +4,22 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
-from sqlalchemy import select, text
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity import log_activity
 from app.core.audit import audit_event
 from app.core.helpers import to_float
-from app.core.models import FinishedProduct, ProductionBatch, ProductionBatchItem, RawMaterial, SavedRecipe
+from app.core.models import (
+    FinishedProduct,
+    ProductionBatch,
+    ProductionBatchItem,
+    RawMaterial,
+    SavedRecipe,
+    SavedRecipeItem,
+)
 from app.core.perf_cache import async_cached_result
 from app.core.request_state import get_state_value
 from app.core.storage import backup_database, mark_backup_needed
@@ -23,7 +31,7 @@ from app.modules.production.repository import (
     production_form_context,
 )
 from app.modules.sales.repository import invalidate_sellable_items_cache
-from app.services.recipe_service import save_recipe_definition
+from app.modules.catalog.repository import load_saved_recipes  # noqa: F401
 from app.services.stock_service import apply_finished_production, apply_raw_material_consumption, reverse_production
 
 
@@ -323,3 +331,69 @@ async def _update_production_notes_impl(
     log_activity("edit_production_notes", "production", batch_id, f"date={production_date}")
     audit_event("edit_production_notes", "production", batch_id, before=before, after=after)
     backup_database("edit_production_notes")
+
+
+async def save_recipe_definition(
+    finished_id: int,
+    recipe_name: str,
+    notes: str,
+    recipe_lines: list[dict[str, Any]],
+    user_id: int | None = None,
+    db: AsyncSession | None = None,
+) -> int | None:
+    async with unit_of_work(db, auto_commit=True) as session:
+        return await _save_recipe_definition_impl(
+            finished_id, recipe_name, notes, recipe_lines, user_id, session
+        )
+
+
+async def _save_recipe_definition_impl(
+    finished_id: int,
+    recipe_name: str,
+    notes: str,
+    recipe_lines: list[dict[str, Any]],
+    user_id: int | None,
+    db: AsyncSession,
+) -> int | None:
+    clean_name = (recipe_name or "").strip()
+    if not clean_name or not recipe_lines:
+        return None
+    stmt = select(SavedRecipe).where(
+        SavedRecipe.finished_product_id == finished_id,
+        func.lower(SavedRecipe.name) == func.lower(clean_name),
+    )
+    res = await db.execute(stmt)
+    existing = res.scalars().first()
+    if existing:
+        recipe_id = existing.id
+        await db.execute(
+            update(SavedRecipe)
+            .where(SavedRecipe.id == recipe_id)
+            .values(
+                notes=notes,
+                updated_at=func.current_timestamp(),
+                created_by_user_id=func.coalesce(SavedRecipe.created_by_user_id, user_id),
+            )
+        )
+        await db.execute(delete(SavedRecipeItem).where(SavedRecipeItem.recipe_id == recipe_id))
+    else:
+        new_recipe = SavedRecipe(
+            finished_product_id=finished_id,
+            name=clean_name,
+            notes=notes,
+            created_by_user_id=user_id,
+        )
+        db.add(new_recipe)
+        await db.flush()
+        recipe_id = new_recipe.id
+
+    for position, line in enumerate(recipe_lines, start=1):
+        item = SavedRecipeItem(
+            recipe_id=recipe_id,
+            raw_material_id=int(line["material"]["id"]),
+            quantity=float(line["qty"]),
+            position=position,
+        )
+        db.add(item)
+    await db.flush()
+    return recipe_id

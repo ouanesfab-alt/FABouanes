@@ -213,9 +213,9 @@ def parse_excel_client_history(file_path) -> dict:
 
 
 def init_db() -> None:
-    from app.core.schema import init_db as _init_db
+    from app.core.database import bootstrap_and_migrate
 
-    return _init_db()
+    return bootstrap_and_migrate()
 
 
 def log_server_start() -> None:

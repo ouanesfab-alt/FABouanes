@@ -1,65 +1,12 @@
-"""Service legacy pour la gestion du compte client.
-
-DEPRECATED: Utiliser app.modules.payments.service.PaymentsService à la place.
+# -*- coding: utf-8 -*-
+"""
+Shim de compatibilité pour client_account_service.
+Désormais hébergé dans app.modules.payments.service.
 """
 
 from __future__ import annotations
 
-from datetime import date
-from decimal import Decimal
+import sys
+from app.modules.payments import service as _mod
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.exceptions import ValidationError
-from app.core.uow import unit_of_work
-from app.modules.payments.service import PaymentsService
-
-
-async def client_balance(client_id: int, db: AsyncSession | None = None) -> float:
-    async with unit_of_work(db) as session:
-        return await PaymentsService(session).get_client_balance(client_id)
-
-
-async def get_open_credit_entries(client_id: int | None = None, db: AsyncSession | None = None):
-    async with unit_of_work(db) as session:
-        return await PaymentsService(session).get_open_credit_entries(client_id)
-
-
-async def apply_payment_to_entry(
-    kind: str, row_id: int, amount: float | Decimal, entry: dict | None = None, db: AsyncSession | None = None
-) -> float:
-    try:
-        async with unit_of_work(db, auto_commit=True) as session:
-            return await PaymentsService(session).apply_payment_to_entry(kind, row_id, amount)
-    except (KeyError, AttributeError):
-        # Fallback pour sessions mockees de tests legacy
-        if float(amount) <= 0:
-            return 0.0
-        return float(amount)
-
-
-async def reverse_payment_allocations(payment_row, db: AsyncSession | None = None) -> None:
-    p_dict = dict(payment_row) if hasattr(payment_row, "keys") and not isinstance(payment_row, dict) else payment_row
-    try:
-        async with unit_of_work(db, auto_commit=True) as session:
-            return await PaymentsService(session).reverse_payment_allocations(p_dict)
-    except (KeyError, AttributeError):
-        return
-
-
-async def create_payment_record(
-    client_id: int,
-    amount: float | Decimal,
-    payment_date: str | date,
-    notes: str,
-    sale_link: str = "",
-    payment_type: str = "versement",
-    db: AsyncSession | None = None,
-) -> int:
-    try:
-        async with unit_of_work(db, auto_commit=True) as session:
-            return await PaymentsService(session).create_payment_record(
-                client_id, amount, payment_date, notes, sale_link, payment_type
-            )
-    except ValidationError as ve:
-        raise ValueError(str(ve.message)) from ve
+sys.modules[__name__] = _mod

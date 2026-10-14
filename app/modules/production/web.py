@@ -12,7 +12,7 @@ from app.core.async_db import get_async_session
 from app.core.helpers import wants_print_after_submit
 from app.core.permissions import PERMISSION_PRODUCTION_DELETE, PERMISSION_PRODUCTION_READ, PERMISSION_PRODUCTION_WRITE
 from app.core.request_state import set_state_value
-from app.core.schema.production_validation import ProductionBatchCreate
+from app.modules.production.schemas import ProductionBatchCreate
 from app.modules.production.service import (
     create_production_from_form,
     delete_production_by_id,

@@ -1,4 +1,20 @@
 import os
+import sys
+
+# Silence known Python 3.11 Windows ProactorEventLoop __del__ access violation during GC
+if sys.platform == "win32":
+    try:
+        from asyncio.proactor_events import _ProactorBasePipeTransport
+        _orig_del = getattr(_ProactorBasePipeTransport, "__del__", None)
+        def _safe_proactor_del(self, *args, **kwargs):
+            try:
+                if _orig_del:
+                    _orig_del(self, *args, **kwargs)
+            except Exception:
+                pass
+        _ProactorBasePipeTransport.__del__ = _safe_proactor_del
+    except Exception:
+        pass
 
 # Set test environment variables before any application code is imported
 os.environ["FASTAPI_ENV"] = "test"

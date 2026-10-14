@@ -16,7 +16,7 @@ from app.core.exceptions import ConflictError, ValidationError
 from app.core.idempotency import check_idempotency, save_idempotency
 from app.core.permissions import PERMISSION_OPERATIONS_WRITE
 from app.core.rate_limit import limiter
-from app.core.schema.production_validation import ProductionBatchCreate
+from app.modules.production.schemas import ProductionBatchCreate
 from app.core.worker import enqueue_background_task
 from app.modules.production.service import ProductionService
 from app.modules.purchases.schemas_validation import PurchaseFormSchema

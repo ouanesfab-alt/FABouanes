@@ -31,7 +31,7 @@ from app.core.permissions import (
     PERMISSION_OPERATIONS_WRITE,
 )
 from app.core.rate_limit import limiter
-from app.core.schema.payment_validation import PaymentCreate
+from app.modules.payments.schemas import PaymentCreate
 from app.modules.clients.service import ClientService
 from app.modules.payments.service import PaymentsService
 from app.modules.reports.repository import get_dashboard_snapshot

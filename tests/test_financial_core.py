@@ -601,7 +601,7 @@ class TestRegistry:
 
 class TestApiValidationSchemas:
     def test_payment_create_schema_valid(self):
-        from app.core.schema.api_validation import PaymentCreateSchema
+        from app.modules.payments.schemas import PaymentCreateSchema
         from decimal import Decimal
         p = PaymentCreateSchema(
             client_id=1,
@@ -614,7 +614,7 @@ class TestApiValidationSchemas:
 
     def test_payment_create_schema_zero_amount(self):
         """Zero amount should be accepted or rejected consistently."""
-        from app.core.schema.api_validation import PaymentCreateSchema
+        from app.modules.payments.schemas import PaymentCreateSchema
         from decimal import Decimal
         # Just test it doesn't crash unexpectedly
         try:
@@ -627,7 +627,7 @@ class TestApiValidationSchemas:
             pass  # strict validation is also acceptable
 
     def test_production_create_schema_valid(self):
-        from app.core.schema.api_validation import ProductionCreateSchema
+        from app.modules.production.schemas import ProductionCreateSchema
         p = ProductionCreateSchema(
             finished_product_id=3,
             output_quantity=150,
@@ -638,7 +638,7 @@ class TestApiValidationSchemas:
         assert p.output_quantity == 150
 
     def test_client_history_row_schema(self):
-        from app.core.schema.api_validation import ClientHistoryRowSchema
+        from app.modules.clients.schemas import ClientHistoryRowSchema
         from decimal import Decimal
         row = ClientHistoryRowSchema(
             operation_date="2026-07-01",
@@ -654,7 +654,7 @@ class TestApiValidationSchemas:
         assert row.solde_cumule == Decimal("12000")
 
     def test_client_history_response_schema(self):
-        from app.core.schema.api_validation import ClientHistoryResponseSchema, ClientHistoryRowSchema
+        from app.modules.clients.schemas import ClientHistoryResponseSchema, ClientHistoryRowSchema
         from decimal import Decimal
         rows = [
             ClientHistoryRowSchema(
@@ -682,18 +682,18 @@ class TestApiValidationSchemas:
 
 
 # =============================================================================
-# 7. app.core.schema.auth_validation — branches login/password
+# 7. app.modules.users.schemas — branches login/password
 # =============================================================================
 
 class TestAuthValidationSchemas:
     def test_login_schema_valid(self):
-        from app.core.schema.auth_validation import LoginRequest
+        from app.modules.users.schemas import LoginRequest
         req = LoginRequest(username="admin", password="secret123")
         assert req.username == "admin"
         assert req.password == "secret123"
 
     def test_login_schema_strips_whitespace(self):
-        from app.core.schema.auth_validation import LoginRequest
+        from app.modules.users.schemas import LoginRequest
         try:
             req = LoginRequest(username="  admin  ", password="pass")
             # Depending on implementation, username may be stripped
@@ -702,7 +702,7 @@ class TestAuthValidationSchemas:
             pass  # Strict validation is also acceptable
 
     def test_change_password_schema_valid(self):
-        from app.core.schema.auth_validation import ChangePasswordRequest
+        from app.modules.users.schemas import ChangePasswordRequest
         req = ChangePasswordRequest(
             current_password="old_pass",
             new_password="new_secure_pass!",
@@ -711,7 +711,7 @@ class TestAuthValidationSchemas:
         assert req.new_password == "new_secure_pass!"
 
     def test_change_password_mismatch_raises(self):
-        from app.core.schema.auth_validation import ChangePasswordRequest
+        from app.modules.users.schemas import ChangePasswordRequest
         try:
             from pydantic import ValidationError as PydanticVE
             with pytest.raises(PydanticVE):

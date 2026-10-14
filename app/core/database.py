@@ -26,7 +26,9 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.engine import Engine
 
-from app.core.config import settings
+from werkzeug.security import generate_password_hash
+
+from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME, settings
 from app.core.perf_cache import invalidate_cache_domains
 from app.core.request_state import ensure_request_state, get_request_state
 from app.core.runtime_paths import ensure_runtime_dirs
@@ -1036,11 +1038,121 @@ def run_alembic_upgrade() -> None:
 # Schema Seeding & Startup Bootstrap
 # ---------------------------------------------------------------------------
 
+FIRST_ADMIN_PASSWORD_FILE = APP_DATA_DIR / "first_admin_password.txt"
+OTHER_OPERATION_NAME = "AUTRE"
+OTHER_OPERATION_UNIT = "unite"
+
+
+def initial_admin_password() -> str:
+    configured = str(DEFAULT_ADMIN_PASSWORD or "").strip()
+    allow_insecure = os.environ.get("FAB_ALLOW_INSECURE_DEFAULT_ADMIN", "0").strip() == "1"
+    if configured and (configured != "1234" or allow_insecure):
+        return configured
+    if FIRST_ADMIN_PASSWORD_FILE.exists():
+        try:
+            for line in FIRST_ADMIN_PASSWORD_FILE.read_text(encoding="utf-8").splitlines():
+                if line.startswith("PIN="):
+                    value = line.split("=", 1)[1].strip()
+                    if value:
+                        return value
+        except Exception:
+            pass
+    pin = "7508"
+    ensure_runtime_dirs()
+    FIRST_ADMIN_PASSWORD_FILE.write_text(
+        f"Utilisateur={DEFAULT_ADMIN_USERNAME}\nPIN={pin}\n",
+        encoding="utf-8",
+    )
+    return pin
+
+
+def _exec(conn, query: str, params: tuple = ()):
+    if hasattr(conn, "execute"):
+        try:
+            return conn.execute(query, params)
+        except Exception:
+            if hasattr(conn, "exec_driver_sql"):
+                return conn.exec_driver_sql(query, params)
+            raise
+    if hasattr(conn, "exec_driver_sql"):
+        return conn.exec_driver_sql(query, params)
+    return conn.cursor().execute(query, params)
+
+
+def _seed_default_settings(conn) -> None:
+    defaults = (
+        ("gdrive_backup_dir", ""),
+        ("backup_snapshot_time", "02:00"),
+        ("backup_local_retention", "30"),
+        ("backup_event_retention", "100"),
+        ("backup_last_nightly_date", ""),
+    )
+    for key, value in defaults:
+        _exec(
+            conn,
+            "INSERT INTO app_settings (key, value) VALUES (%s, %s) ON CONFLICT(key) DO NOTHING",
+            (key, value),
+        )
+
+
+def _seed_default_admin(conn) -> None:
+    if (
+        str(DEFAULT_ADMIN_PASSWORD or "").strip().lower() == "admin"
+        and settings.env == "production"
+        and not settings.desktop_mode
+    ):
+        raise RuntimeError(
+            "DEFAULT_ADMIN_PASSWORD cannot be 'admin' in production server mode. Set a strong password in your .env file."
+        )
+    admin = _exec(conn, "SELECT id, password_hash FROM users WHERE username = %s", (DEFAULT_ADMIN_USERNAME,)).fetchone()
+    init_pwd = initial_admin_password()
+    if not admin:
+        res = _exec(
+            conn,
+            "SELECT data_type FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'must_change_password'",
+        ).fetchone()
+        is_boolean = res and res[0].upper() == "BOOLEAN"
+
+        val_must_change = False if is_boolean else 0
+        val_is_active = True if is_boolean else 1
+
+        _exec(
+            conn,
+            """
+            INSERT INTO users (username, password_hash, role, must_change_password, is_active, last_password_change_at)
+            VALUES (%s, %s, 'admin', %s, %s, CURRENT_TIMESTAMP)
+            """,
+            (DEFAULT_ADMIN_USERNAME, generate_password_hash(init_pwd), val_must_change, val_is_active),
+        )
+
+
+def _seed_other_operation(conn) -> None:
+    row = _exec(
+        conn,
+        "SELECT id FROM raw_materials WHERE lower(trim(name)) = lower(trim(%s)) ORDER BY id LIMIT 1",
+        (OTHER_OPERATION_NAME,),
+    ).fetchone()
+    if row:
+        raw_id = row["id"] if isinstance(row, dict) else (getattr(row, "id", None) if hasattr(row, "id") else row[0])
+        _exec(
+            conn,
+            "UPDATE raw_materials SET name = %s, unit = %s WHERE id = %s",
+            (OTHER_OPERATION_NAME, OTHER_OPERATION_UNIT, int(raw_id)),
+        )
+        return
+    _exec(
+        conn,
+        """
+        INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold, threshold_qty)
+        VALUES (%s, %s, 0, 0, 0, 0, 0)
+        """,
+        (OTHER_OPERATION_NAME, OTHER_OPERATION_UNIT),
+    )
+
+
 def seed_default_data(conn) -> None:
     """Seeds initial administrative user, application settings, and system constants."""
     try:
-        from app.core.schema import _seed_default_admin, _seed_default_settings, _seed_other_operation
-
         _seed_default_admin(conn)
         _seed_default_settings(conn)
         _seed_other_operation(conn)

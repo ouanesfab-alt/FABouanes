@@ -1,76 +1,12 @@
+# -*- coding: utf-8 -*-
+"""
+Shim de compatibilité pour recipe_service.
+Désormais hébergé dans app.modules.production.service.
+"""
+
 from __future__ import annotations
 
-from typing import Any
+import sys
+from app.modules.production import service as _mod
 
-from sqlalchemy import delete, func, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.models import SavedRecipe, SavedRecipeItem
-from app.core.uow import unit_of_work
-from app.modules.catalog.repository import SavedRecipeRepository, load_saved_recipes  # noqa: F401
-
-
-async def save_recipe_definition(
-    finished_id: int,
-    recipe_name: str,
-    notes: str,
-    recipe_lines: list[dict[str, Any]],
-    user_id: int | None = None,
-    db: AsyncSession | None = None,
-) -> int | None:
-    async with unit_of_work(db, auto_commit=True) as session:
-        return await _save_recipe_definition_impl(
-            finished_id, recipe_name, notes, recipe_lines, user_id, session
-        )
-
-
-async def _save_recipe_definition_impl(
-    finished_id: int,
-    recipe_name: str,
-    notes: str,
-    recipe_lines: list[dict[str, Any]],
-    user_id: int | None,
-    db: AsyncSession,
-) -> int | None:
-    clean_name = (recipe_name or "").strip()
-    if not clean_name or not recipe_lines:
-        return None
-    stmt = select(SavedRecipe).where(
-        SavedRecipe.finished_product_id == finished_id,
-        func.lower(SavedRecipe.name) == func.lower(clean_name),
-    )
-    res = await db.execute(stmt)
-    existing = res.scalars().first()
-    if existing:
-        recipe_id = existing.id
-        await db.execute(
-            update(SavedRecipe)
-            .where(SavedRecipe.id == recipe_id)
-            .values(
-                notes=notes,
-                updated_at=func.current_timestamp(),
-                created_by_user_id=func.coalesce(SavedRecipe.created_by_user_id, user_id),
-            )
-        )
-        await db.execute(delete(SavedRecipeItem).where(SavedRecipeItem.recipe_id == recipe_id))
-    else:
-        new_recipe = SavedRecipe(
-            finished_product_id=finished_id,
-            name=clean_name,
-            notes=notes,
-            created_by_user_id=user_id,
-        )
-        db.add(new_recipe)
-        await db.flush()
-        recipe_id = new_recipe.id
-
-    for position, line in enumerate(recipe_lines, start=1):
-        item = SavedRecipeItem(
-            recipe_id=recipe_id,
-            raw_material_id=int(line["material"]["id"]),
-            quantity=float(line["qty"]),
-            position=position,
-        )
-        db.add(item)
-    await db.flush()
-    return recipe_id
+sys.modules[__name__] = _mod

@@ -11,7 +11,7 @@ from app.api.v1._common import add_cache_headers, json_response, payload_to_form
 from app.core.async_db import get_async_session
 from app.core.models import ProductionBatchItem, SavedRecipe, SavedRecipeItem
 from app.core.permissions import PERMISSION_PRODUCTION_DELETE, PERMISSION_PRODUCTION_READ, PERMISSION_PRODUCTION_WRITE
-from app.core.schema.api_validation import ProductionCreateSchema
+from app.modules.production.schemas import ProductionCreateSchema
 from app.modules.catalog.repository import list_production_batches, list_recipes
 from app.services.production_service import create_production_from_form, delete_production_by_id
 

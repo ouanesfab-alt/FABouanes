@@ -1,29 +1,42 @@
 """
-Responsibility: Seed functions, configuration parameters, and backward-compatible init_db interface for schema.
+Responsibility: Backward-compatible seed functions and initial database configuration.
+The canonical data access and migration implementation is in `app.core.database`.
 """
 
 from __future__ import annotations
 
 import os
+import sys
 
-from werkzeug.security import generate_password_hash
-
-from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME
-from app.core.storage import ensure_runtime_dirs
-
-FIRST_ADMIN_PASSWORD_FILE = APP_DATA_DIR / "first_admin_password.txt"
-OTHER_OPERATION_NAME = "AUTRE"
-OTHER_OPERATION_UNIT = "unite"
+from app.core.config import (  # noqa: F401
+    APP_DATA_DIR,
+    DEFAULT_ADMIN_PASSWORD,
+    DEFAULT_ADMIN_USERNAME,
+)
+from app.core.database import (  # noqa: F401
+    FIRST_ADMIN_PASSWORD_FILE,
+    OTHER_OPERATION_NAME,
+    OTHER_OPERATION_UNIT,
+    _exec,
+    _seed_default_admin as _db_seed_default_admin,
+    _seed_default_settings,
+    _seed_other_operation,
+    bootstrap_and_migrate,
+    seed_default_data,
+)
+from app.core.runtime_paths import ensure_runtime_dirs  # noqa: F401
 
 
 def initial_admin_password() -> str:
-    configured = str(DEFAULT_ADMIN_PASSWORD or "").strip()
+    module = sys.modules.get(__name__)
+    configured = str(getattr(module, "DEFAULT_ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD) or "").strip()
     allow_insecure = os.environ.get("FAB_ALLOW_INSECURE_DEFAULT_ADMIN", "0").strip() == "1"
     if configured and (configured != "1234" or allow_insecure):
         return configured
-    if FIRST_ADMIN_PASSWORD_FILE.exists():
+    file_path = getattr(module, "FIRST_ADMIN_PASSWORD_FILE", FIRST_ADMIN_PASSWORD_FILE)
+    if hasattr(file_path, "exists") and file_path.exists():
         try:
-            for line in FIRST_ADMIN_PASSWORD_FILE.read_text(encoding="utf-8").splitlines():
+            for line in file_path.read_text(encoding="utf-8").splitlines():
                 if line.startswith("PIN="):
                     value = line.split("=", 1)[1].strip()
                     if value:
@@ -31,103 +44,49 @@ def initial_admin_password() -> str:
         except Exception:
             pass
     pin = "7508"
-    ensure_runtime_dirs()
-    FIRST_ADMIN_PASSWORD_FILE.write_text(
-        f"Utilisateur={DEFAULT_ADMIN_USERNAME}\nPIN={pin}\n",
-        encoding="utf-8",
-    )
-    return pin
-
-
-def _exec(conn, query: str, params: tuple = ()):
-    if hasattr(conn, "execute"):
-        try:
-            return conn.execute(query, params)
-        except Exception:
-            if hasattr(conn, "exec_driver_sql"):
-                return conn.exec_driver_sql(query, params)
-            raise
-    if hasattr(conn, "exec_driver_sql"):
-        return conn.exec_driver_sql(query, params)
-    return conn.cursor().execute(query, params)
-
-
-def _seed_default_settings(conn) -> None:
-    defaults = (
-        ("gdrive_backup_dir", ""),
-        ("backup_snapshot_time", "02:00"),
-        ("backup_local_retention", "30"),
-        ("backup_event_retention", "100"),
-        ("backup_last_nightly_date", ""),
-    )
-    for key, value in defaults:
-        _exec(
-            conn,
-            "INSERT INTO app_settings (key, value) VALUES (%s, %s) ON CONFLICT(key) DO NOTHING",
-            (key, value),
+    ensure_fn = getattr(module, "ensure_runtime_dirs", ensure_runtime_dirs)
+    ensure_fn()
+    if hasattr(file_path, "write_text"):
+        file_path.write_text(
+            f"Utilisateur={DEFAULT_ADMIN_USERNAME}\nPIN={pin}\n",
+            encoding="utf-8",
         )
+    return pin
 
 
 def _seed_default_admin(conn) -> None:
     from app.core.config import settings
 
+    module = sys.modules.get(__name__)
+    pwd_val = getattr(module, "DEFAULT_ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD)
     if (
-        str(DEFAULT_ADMIN_PASSWORD or "").strip().lower() == "admin"
+        str(pwd_val or "").strip().lower() == "admin"
         and settings.env == "production"
         and not settings.desktop_mode
     ):
         raise RuntimeError(
             "DEFAULT_ADMIN_PASSWORD cannot be 'admin' in production server mode. Set a strong password in your .env file."
         )
-    admin = _exec(conn, "SELECT id, password_hash FROM users WHERE username = %s", (DEFAULT_ADMIN_USERNAME,)).fetchone()
-    init_pwd = initial_admin_password()
-    if not admin:
-        # Detect if column type is boolean or integer (PostgreSQL strict type safety)
-        res = _exec(
-            conn,
-            "SELECT data_type FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'must_change_password'",
-        ).fetchone()
-        is_boolean = res and res[0].upper() == "BOOLEAN"
-
-        val_must_change = False if is_boolean else 0
-        val_is_active = True if is_boolean else 1
-
-        _exec(
-            conn,
-            """
-            INSERT INTO users (username, password_hash, role, must_change_password, is_active, last_password_change_at)
-            VALUES (%s, %s, 'admin', %s, %s, CURRENT_TIMESTAMP)
-            """,
-            (DEFAULT_ADMIN_USERNAME, generate_password_hash(init_pwd), val_must_change, val_is_active),
-        )
-
-
-def _seed_other_operation(conn) -> None:
-    row = _exec(
-        conn,
-        "SELECT id FROM raw_materials WHERE lower(trim(name)) = lower(trim(%s)) ORDER BY id LIMIT 1",
-        (OTHER_OPERATION_NAME,),
-    ).fetchone()
-    if row:
-        raw_id = row["id"] if isinstance(row, dict) else (getattr(row, "id", None) if hasattr(row, "id") else row[0])
-        _exec(
-            conn,
-            "UPDATE raw_materials SET name = %s, unit = %s WHERE id = %s",
-            (OTHER_OPERATION_NAME, OTHER_OPERATION_UNIT, int(raw_id)),
-        )
-        return
-    _exec(
-        conn,
-        """
-        INSERT INTO raw_materials (name, unit, stock_qty, avg_cost, sale_price, alert_threshold, threshold_qty)
-        VALUES (%s, %s, 0, 0, 0, 0, 0)
-        """,
-        (OTHER_OPERATION_NAME, OTHER_OPERATION_UNIT),
-    )
+    _db_seed_default_admin(conn)
 
 
 def init_db() -> None:
     """Delegates to database bootstrap and migrations."""
-    from app.core.database import bootstrap_and_migrate
-
     bootstrap_and_migrate()
+
+
+__all__ = [
+    "DEFAULT_ADMIN_PASSWORD",
+    "FIRST_ADMIN_PASSWORD_FILE",
+    "OTHER_OPERATION_NAME",
+    "OTHER_OPERATION_UNIT",
+    "ensure_runtime_dirs",
+    "initial_admin_password",
+    "_exec",
+    "_seed_default_settings",
+    "_seed_default_admin",
+    "_seed_other_operation",
+    "seed_default_data",
+    "init_db",
+]
+

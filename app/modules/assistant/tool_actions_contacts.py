@@ -12,7 +12,7 @@ from app.core.config import BASE_DIR
 from app.core.exceptions import ValidationError
 from app.core.models import Purchase, PurchaseDocument
 from app.core.perf_cache import async_cached_result
-from app.core.schema.supplier_validation import SupplierValidationSchema
+from app.modules.purchases.schemas import SupplierValidationSchema
 from app.modules.assistant.tool_actions import _assert_workspace_path, sanitize_numeric
 from app.modules.clients import service as client_service_pkg
 from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema

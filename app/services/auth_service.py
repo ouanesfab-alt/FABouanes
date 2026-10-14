@@ -1,221 +1,40 @@
+# -*- coding: utf-8 -*-
+"""
+Shim de compatibilité pour auth_service.
+Désormais hébergé dans app.modules.users.service.
+"""
+
 from __future__ import annotations
 
-import logging
-import re
-import secrets
-
-from fastapi import Request
-from werkzeug.security import check_password_hash, generate_password_hash
-
-from app.core.activity import log_activity
-from app.core.async_db import execute_sql_async
-from app.core.audit import audit_event
-from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_USERNAME, settings
-from app.core.permissions import ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR, normalize_role
-from app.core.security import (
-    clear_login_failures,
-    client_ip,
-    consume_rate_limit,
-    get_client_fingerprint,
-    is_locked_out,
-    record_login_failure,
-    validate_password_strength,
-)
-from app.modules.users.repository import (
+import sys
+from app.modules.users import service as _mod
+from app.modules.users.service import (  # noqa: F401
+    VALID_ROLES,
+    attempt_login,
+    change_user_password,
+    generate_password_hash,
     get_user_by_id,
     get_user_by_username,
     touch_login,
     update_password,
+    validate_new_user_payload,
+    verify_credentials,
 )
 
-VALID_ROLES = {ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR}
+# Mirror any remaining module attributes dynamically
+for _name in dir(_mod):
+    if not _name.startswith("__"):
+        setattr(sys.modules[__name__], _name, getattr(_mod, _name))
 
-
-async def attempt_login(username: str, password: str, request: Request | None = None):
-    normalized = (username or "").strip()
-    ip = client_ip()
-
-    user_key = f"user_account:{normalized.lower()}" if normalized else None
-
-    # 1. Check IP and Account lockout
-    if not settings.desktop_mode and (is_locked_out(ip) or (user_key and is_locked_out(user_key))):
-        audit_event(
-            action="login",
-            entity_type="user",
-            entity_id=normalized or None,
-            status="failure",
-            actor={"username": normalized or "anonymous", "role": "anonymous"},
-            meta={"reason": "locked_out", "ip": ip},
-        )
-        return {"ok": False, "status": 429, "message": "Trop d'échecs de connexion. Accès temporairement bloqué."}
-
-    # 2. Check standard rate limit (réduit à 5 tentatives / 5 minutes)
-    login_key = f"login:{ip}:{normalized.lower()}"
-    if not settings.desktop_mode and not consume_rate_limit(login_key, 5, 300):
-        audit_event(
-            action="login",
-            entity_type="user",
-            entity_id=normalized or None,
-            status="failure",
-            actor={"username": normalized or "anonymous", "role": "anonymous"},
-            meta={"reason": "rate_limited"},
-        )
-        return {"ok": False, "status": 429, "message": "Trop de tentatives de connexion. Réessayez dans 5 minutes."}
-
-    user = await get_user_by_username(normalized)
-
-    # Check if user account is locked in DB
-    if user:
-        from datetime import datetime
-
-        locked_until = user.get("locked_until")
-        if locked_until:
-            if isinstance(locked_until, str):
-                try:
-                    locked_until = datetime.fromisoformat(locked_until)
-                except Exception:
-                    locked_until = None
-            if isinstance(locked_until, datetime):
-                if locked_until.tzinfo is not None:
-                    locked_until = locked_until.replace(tzinfo=None)
-                if locked_until > datetime.now():
-                    audit_event(
-                        action="account_lockout",
-                        entity_type="user",
-                        entity_id=user["id"],
-                        status="failure",
-                        actor={"username": normalized, "role": user.get("role", "operator")},
-                        meta={"reason": "account_locked_until", "locked_until": str(locked_until)},
-                    )
-                    return {
-                        "ok": False,
-                        "status": 423,
-                        "message": "Compte verrouillé suite à trop d'échecs de connexion.",
-                    }
-
-    if user and int(user.get("is_active", 1) or 0) and check_password_hash(user["password_hash"], password or ""):
-        clear_login_failures(ip)  # Clear IP failures on success
-        if user_key:
-            clear_login_failures(user_key)  # Clear account failures on success
-        from app.modules.users.repository import reset_account_login_failures
-
-        await reset_account_login_failures(int(user["id"]))
-        await touch_login(int(user["id"]))
-        user = await get_user_by_username(normalized)
-        log_activity("login", "user", user["id"], f"Connexion de {normalized}")
-        audit_event("login", "user", user["id"], after={"username": normalized, "role": user["role"]})
-
-        # Rotation de session pour empêcher la fixation de session
-        if request and hasattr(request, "session"):
-            request.session.clear()
-            request.session["session_token"] = secrets.token_hex(32)
-            request.session["user_id"] = int(user["id"])
-            request.session["role"] = user["role"]
-            request.session["username"] = normalized
-            request.session["fingerprint"] = get_client_fingerprint(request)
-
-        return {"ok": True, "user": user}
-
-    # Failed attempt: record failure on both IP, rate_limit_store, and DB user table
-    record_login_failure(ip)
-    if user_key:
-        record_login_failure(user_key)
-    if user:
-        from app.modules.users.repository import record_account_login_failure
-
-        new_cnt, is_locked = await record_account_login_failure(int(user["id"]), max_attempts=5, lockout_minutes=15)
-        if is_locked:
-            audit_event(
-                action="account_lockout",
-                entity_type="user",
-                entity_id=user["id"],
-                status="warning",
-                actor={"username": normalized, "role": user.get("role", "operator")},
-                meta={"reason": "max_failed_attempts_reached"},
-            )
-
-    reason = "inactive" if user and not int(user.get("is_active", 1) or 0) else "invalid_credentials"
-    audit_event(
-        action="login",
-        entity_type="user",
-        entity_id=user["id"] if user else normalized or None,
-        status="failure",
-        actor={"username": normalized or "anonymous", "role": user["role"] if user else "anonymous"},
-        meta={"reason": reason},
-    )
-    return {"ok": False, "status": 401, "message": "Nom d'utilisateur ou mot de passe incorrect."}
-
-
-async def change_user_password(user_id: int, current_password: str, new_password: str, confirm_password: str):
-    user = await get_user_by_id(user_id)
-    if not user or not check_password_hash(user["password_hash"], current_password or ""):
-        audit_event(
-            action="change_password",
-            entity_type="user",
-            entity_id=user_id,
-            status="failure",
-            meta={"reason": "invalid_current_password"},
-        )
-        return {"ok": False, "message": "Mot de passe actuel incorrect."}
-    ok, password_msg = validate_password_strength(new_password or "")
-    if not ok:
-        return {"ok": False, "message": password_msg}
-    if (new_password or "") != (confirm_password or ""):
-        return {"ok": False, "message": "La confirmation du mot de passe ne correspond pas."}
-    before = {"must_change_password": int(user["must_change_password"] or 0)}
-    await update_password(user_id, generate_password_hash(new_password), 0)
-
-    try:
-        await execute_sql_async(
-            "UPDATE api_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = :user_id AND revoked_at IS NULL",
-            {"user_id": user_id},
-        )
-    except Exception as exc:
-        logging.getLogger("fabouanes.auth").warning("Could not revoke refresh tokens on password change: %s", exc)
-    if str(user["username"]) == DEFAULT_ADMIN_USERNAME:
-        try:
-            (APP_DATA_DIR / "first_admin_password.txt").unlink(missing_ok=True)
-        except Exception:
-            pass
-    updated_user = await get_user_by_id(user_id)
-    log_activity("change_password", "user", user_id, f"Changement du mot de passe pour {user['username']}")
-    audit_event(
-        "change_password",
-        "user",
-        user_id,
-        before=before,
-        after={
-            "must_change_password": int(updated_user["must_change_password"] or 0),
-            "last_password_change_at": updated_user["last_password_change_at"],
-        },
-    )
-    return {"ok": True, "message": "Mot de passe mis à jour."}
-
-
-def validate_new_user_payload(username: str, password: str, role: str):
-    normalized = (username or "").strip()
-    if not normalized or not password:
-        return {"ok": False, "message": "Nom d'utilisateur et mot de passe obligatoires."}
-    ok, password_msg = validate_password_strength(password)
-    if not ok:
-        return {"ok": False, "message": password_msg}
-    role_value = normalize_role(role)
-    if role_value not in VALID_ROLES:
-        return {"ok": False, "message": "Role invalide."}
-    if not re.fullmatch(r"[A-Za-z0-9_.-]{3,50}", normalized):
-        return {
-            "ok": False,
-            "message": "Nom d'utilisateur invalide. Utilisez 3 à 50 caractères : lettres, chiffres, point, tiret, underscore.",
-        }
-    return {"ok": True, "username": normalized, "role": role_value}
-
-
-async def verify_credentials(username: str, password: str) -> dict | None:
-    """
-    Vérifie les identifiants d'un utilisateur et retourne ses informations s'ils sont valides.
-    Utilisé par l'API mobile.
-    """
-    res = await attempt_login(username, password)
-    if res.get("ok") and "user" in res:
-        return res["user"]
-    return None
+__all__ = [
+    "VALID_ROLES",
+    "attempt_login",
+    "change_user_password",
+    "generate_password_hash",
+    "get_user_by_id",
+    "get_user_by_username",
+    "touch_login",
+    "update_password",
+    "validate_new_user_payload",
+    "verify_credentials",
+]

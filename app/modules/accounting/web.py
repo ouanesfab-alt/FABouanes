@@ -1,21 +1,33 @@
-"""
-Routes Web pour la Comptabilité SCF (Balance Général, Bilan, TCR).
-"""
-
 from __future__ import annotations
 
 import csv
 import io
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
+from app.core.models import Client, Supplier
+from app.core.permissions import PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
 from app.core.rate_limit import limiter
 from app.modules.accounting.scf_service import SCFService
-from app.web.deps import get_current_user, template_context, templates
+from app.modules.accounting.service import transactions_context
+from app.modules.production.web import edit_production_notes  # noqa: F401 (compat)
+from app.modules.purchases.service import PurchaseService
+from app.modules.sales.service import SalesService
+from app.services.payment_service import new_payment_context
+from app.services.print_service import COMPANY_INFO, PRINT_LAYOUT, build_print_payload, generate_invoice_pdf
+from app.web.deps import (
+    flash,
+    get_current_user,
+    login_redirect,
+    require_permission,
+    template_context,
+    templates,
+)
 
 router = APIRouter()
 
@@ -296,3 +308,196 @@ async def export_scf_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+def _print_not_found_response(message: str = "Bon introuvable.") -> HTMLResponse:
+    return HTMLResponse(
+        f"""<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;font-family:Arial,sans-serif;background:#f8fafc;color:#111827;display:grid;place-items:center;min-height:100vh;">
+  <main style="max-width:520px;padding:24px;text-align:center;">
+    <h1 style="font-size:1.25rem;margin:0 0 8px;">{message}</h1>
+    <p style="margin:0;color:#64748b;">Le document demandé n'existe plus ou n'est pas disponible.</p>
+  </main>
+</body>
+</html>""",
+        status_code=404,
+    )
+
+
+@router.get("/operations", name="operations")
+@router.get("/transactions", name="transactions")
+async def operations_page(request: Request, db: AsyncSession = Depends(get_async_session)):
+    denied = require_permission(request, PERMISSION_OPERATIONS_READ)
+    if denied:
+        return denied
+
+    fmt = request.query_params.get("format", "").lower()
+    if fmt in ("csv", "xlsx"):
+        large_args = dict(request.query_params)
+        large_args["page_size"] = 1000000
+        context = await transactions_context(
+            filter_type=str(request.query_params.get("type", "all") or "all"),
+            filter_name=str(request.query_params.get("name", "") or ""),
+            filter_date=str(request.query_params.get("date", "") or ""),
+            filter_operation=str(request.query_params.get("operation", "") or ""),
+            args=large_args,
+            path=request.url.path,
+            db=db,
+        )
+        data = context["transactions"]
+
+        if fmt == "csv":
+            output = io.StringIO()
+            fieldnames = [
+                "tx_type",
+                "tx_date",
+                "partner_name",
+                "designation",
+                "quantity",
+                "unit",
+                "unit_price",
+                "total",
+                "paid",
+                "due",
+            ]
+            writer = csv.DictWriter(output, fieldnames=fieldnames, delimiter=";", extrasaction="ignore")
+            writer.writerow({f: f.upper() for f in fieldnames})
+            for row in data:
+                writer.writerow(row)
+            output.seek(0)
+            filename = f"transactions_{date.today().isoformat()}.csv"
+            return StreamingResponse(
+                iter(["\ufeff" + output.getvalue()]),
+                media_type="text/csv; charset=utf-8",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+
+        elif fmt == "xlsx":
+            import openpyxl
+            from openpyxl.styles import Font
+
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Transactions"
+
+            headers = [
+                "TYPE",
+                "DATE",
+                "TIERS",
+                "DÉSIGNATION",
+                "QUANTITÉ",
+                "UNITÉ",
+                "PRIX UNITAIRE",
+                "TOTAL",
+                "PAYÉ",
+                "DU",
+            ]
+            ws.append(headers)
+
+            fieldnames = [
+                "tx_type",
+                "tx_date",
+                "partner_name",
+                "designation",
+                "quantity",
+                "unit",
+                "unit_price",
+                "total",
+                "paid",
+                "due",
+            ]
+            for row in data:
+                ws.append([str(row.get(f) or "") if row.get(f) is not None else "" for f in fieldnames])
+
+            ws.freeze_panes = "A2"
+            bold_font = Font(bold=True)
+            for cell in ws[1]:
+                cell.font = bold_font
+
+            for col in ws.columns:
+                max_len = max(len(str(cell.value or "")) for cell in col)
+                col_letter = openpyxl.utils.get_column_letter(col[0].column)
+                ws.column_dimensions[col_letter].width = max(max_len + 3, 10)
+
+            filename = f"transactions_{date.today().isoformat()}.xlsx"
+            out_buf = io.BytesIO()
+            wb.save(out_buf)
+            out_buf.seek(0)
+            return StreamingResponse(
+                out_buf,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+
+    context = await transactions_context(
+        filter_type=str(request.query_params.get("type", "all") or "all"),
+        filter_name=str(request.query_params.get("name", "") or ""),
+        filter_date=str(request.query_params.get("date", "") or ""),
+        filter_operation=str(request.query_params.get("operation", "") or ""),
+        args=request.query_params,
+        path=request.url.path,
+        db=db,
+    )
+    return templates.TemplateResponse("transactions.html", template_context(request, **context))
+
+
+@router.get("/operations/new", name="new_operation")
+async def new_operation_page(request: Request, db: AsyncSession = Depends(get_async_session)):
+    denied = require_permission(request, PERMISSION_OPERATIONS_WRITE)
+    if denied:
+        return denied
+
+    p_ctx = await PurchaseService(db).purchase_form_context()
+    s_ctx = await SalesService(db).sale_form_context()
+    pay_ctx = await new_payment_context(db=db)
+
+    context = {}
+    context.update(p_ctx)
+    context.update(s_ctx)
+    context.update(pay_ctx)
+
+    clients_res = await db.execute(select(Client).order_by(Client.name))
+    context["clients"] = [c.model_dump() for c in clients_res.scalars().all()]
+
+    suppliers_res = await db.execute(select(Supplier).order_by(Supplier.name))
+    context["suppliers"] = [s.model_dump() for s in suppliers_res.scalars().all()]
+    context["mode"] = request.query_params.get("mode", "achat")
+
+    return templates.TemplateResponse("operation_new.html", template_context(request, **context))
+
+
+@router.get("/print/{doc_type}/{item_id}", name="print_document")
+async def print_document_page(
+    request: Request, doc_type: str, item_id: int, db: AsyncSession = Depends(get_async_session)
+):
+    user = get_current_user(request)
+    if not user:
+        return login_redirect()
+    payload = await build_print_payload(doc_type, item_id, db=db)
+    if not payload:
+        return _print_not_found_response("Document introuvable pour impression.")
+    printed_at = datetime.now()
+    payload = {
+        **payload,
+        "printed_date": printed_at.strftime("%Y-%m-%d"),
+        "printed_time": printed_at.strftime("%H:%M"),
+    }
+    if request.query_params.get("format") == "pdf":
+        pdf_buf = generate_invoice_pdf(payload, user["username"])
+        if pdf_buf:
+            headers = {"Content-Disposition": f'attachment; filename="{payload["number"]}.pdf"'}
+            return StreamingResponse(pdf_buf, media_type="application/pdf", headers=headers)
+        flash(request, "Génération PDF indisponible. Affichage HTML utilisé à la place.", "warning")
+    return templates.TemplateResponse(
+        "print_document.html",
+        template_context(
+            request,
+            doc=payload,
+            company=payload.get("company") or COMPANY_INFO,
+            printed_by=user["username"],
+            print_layout=PRINT_LAYOUT,
+        ),
+    )
+
