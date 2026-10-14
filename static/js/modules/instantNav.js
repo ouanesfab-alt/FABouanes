@@ -74,6 +74,8 @@ export function prefetch(url) {
   if (!url || prefetchedUrls.has(url)) return;
   if (url.startsWith('#') || url.startsWith('javascript:')) return;
   if (url.includes('/logout') || url.includes('/print/')) return;
+  // Ne pas précharger de formulaires transactionnels complexes (création/édition/suppression)
+  if (url.includes('/new') || url.includes('/edit') || url.includes('/create') || url.includes('/delete')) return;
 
   try {
     const urlObj = new URL(url, window.location.origin);
@@ -96,7 +98,34 @@ export function prefetchPrimaryRoutes() {
   primaryRoutes.forEach((route) => prefetch(route));
 }
 
+let _prefetchHandler = null;
+let _clickHandler = null;
+
+export function destroyInstantNavModule() {
+  if (_prefetchHandler) {
+    document.removeEventListener('mouseover', _prefetchHandler);
+    document.removeEventListener('touchstart', _prefetchHandler);
+    document.removeEventListener('focusin', _prefetchHandler);
+    _prefetchHandler = null;
+  }
+  if (_clickHandler) {
+    document.removeEventListener('click', _clickHandler);
+    _clickHandler = null;
+  }
+  if (progressBar && progressBar.parentNode) {
+    progressBar.parentNode.removeChild(progressBar);
+    progressBar = null;
+  }
+  const rainbowStyle = document.getElementById('rainbow-nav-style');
+  if (rainbowStyle && rainbowStyle.parentNode) {
+    rainbowStyle.parentNode.removeChild(rainbowStyle);
+  }
+}
+
 export function initInstantNavModule() {
+  // Cleanup any previous handlers
+  destroyInstantNavModule();
+
   // Prefetch primary navigation routes during browser idle
   if ('requestIdleCallback' in window) {
     window.requestIdleCallback(() => prefetchPrimaryRoutes(), { timeout: 1000 });
@@ -105,18 +134,23 @@ export function initInstantNavModule() {
   }
 
   // Mouse / Touch / Focus prefetching
-  const prefetchHandler = (e) => {
+  _prefetchHandler = (e) => {
     const link = e.target.closest('a');
-    if (link && link.href) prefetch(link.href);
+    if (!link || !link.href) return;
+    if (link.hasAttribute('data-no-instant-nav') || link.classList.contains('no-instant-nav')) return;
+    // Si la page actuelle contient un formulaire transactionnel en cours de modification, désactiver
+    if (document.querySelector('form[data-dirty="true"], form.transactional-dirty')) return;
+    prefetch(link.href);
   };
 
-  document.addEventListener('mouseover', prefetchHandler, { passive: true });
-  document.addEventListener('touchstart', prefetchHandler, { passive: true });
-  document.addEventListener('focusin', prefetchHandler, { passive: true });
+  document.addEventListener('mouseover', _prefetchHandler, { passive: true });
+  document.addEventListener('touchstart', _prefetchHandler, { passive: true });
+  document.addEventListener('focusin', _prefetchHandler, { passive: true });
 
-  document.addEventListener('click', (e) => {
+  _clickHandler = (e) => {
     const link = e.target.closest('a');
     if (!link) return;
+    if (link.hasAttribute('data-no-instant-nav') || link.classList.contains('no-instant-nav')) return;
 
     const href = link.getAttribute('href');
     if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
@@ -128,6 +162,12 @@ export function initInstantNavModule() {
         triggerRainbowProgressBar();
       }
     } catch (err) {}
-  });
+  };
+
+  document.addEventListener('click', _clickHandler);
+
+  // Expose hook globally for SPA or custom cleanup
+  window.destroyInstantNav = destroyInstantNavModule;
 }
+
 

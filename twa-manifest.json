@@ -11,8 +11,8 @@
   "backgroundColor": "#16253F",
   "enableNotifications": true,
   "startUrl": "/",
-  "iconUrl": "https://fabouanes.app/static/icon_512.png",
-  "maskableIconUrl": "https://fabouanes.app/static/icon_512.png",
+  "iconUrl": "https://fabouanes.app/static/icon-512.png",
+  "maskableIconUrl": "https://fabouanes.app/static/icon-512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "./android.keystore",

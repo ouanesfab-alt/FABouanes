@@ -45,7 +45,10 @@ def main():
     
     output_bundle = DIST_DIR / f"bundle.{content_hash}.min.css"
     output_bundle.write_text(minified, encoding='utf-8')
-    print(f"[OK] Generated production CSS bundle: {output_bundle.name} ({len(minified):,} bytes)")
+    canonical_bundle = DIST_DIR / "bundle.min.css"
+    canonical_bundle.write_text(minified, encoding='utf-8')
+    print(f"[OK] Generated production CSS bundle: {output_bundle.name} and {canonical_bundle.name} ({len(minified):,} bytes)")
 
 if __name__ == "__main__":
     main()
+

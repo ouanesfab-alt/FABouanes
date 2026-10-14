@@ -46,10 +46,24 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  const request = event.request;
-  
-  // Ignore non-GET or API POST requests
-  if (request.method !== 'GET' || request.url.includes('/api/') || request.url.includes('/login')) {
+  // Ignore non-GET or login mutations
+  if (request.method !== 'GET' || request.url.includes('/login') || request.url.includes('/auth/login')) {
+    return;
+  }
+
+  // API v1 & Mobile read queries: Network-First with cache fallback for offline resilience
+  if (request.url.includes('/api/v1/') || request.url.includes('/api/mobile/')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
     return;
   }
 
