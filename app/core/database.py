@@ -12,17 +12,12 @@ from threading import RLock
 from sqlalchemy import inspect, text
 
 from app.core.config import settings
-from app.core.db import connect_database, sqlalchemy_database_url
+from app.core.db import sqlalchemy_database_url
 from app.core.runtime_paths import ensure_runtime_dirs
 from app.core.schema_bootstrap import bootstrap_schema
 
 _BOOTSTRAP_LOCK = RLock()
 _BOOTSTRAPPED = False
-
-
-def create_request_connection():
-    """Create a new database connection for the current request context."""
-    return connect_database(settings.database_url)
 
 
 def _load_alembic():

@@ -124,7 +124,11 @@ def test_exception_handler_404_page():
     import asyncio
     try:
         if asyncio.iscoroutinefunction(http_exception_handler):
-            response = asyncio.get_event_loop().run_until_complete(
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = asyncio.get_event_loop_policy().get_event_loop()
+            response = loop.run_until_complete(
                 http_exception_handler(mock_request, exc)
             )
         else:

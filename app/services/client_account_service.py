@@ -5,7 +5,6 @@ DEPRECATED: Utiliser app.modules.payments.service.PaymentsService à la place.
 
 from __future__ import annotations
 
-import warnings
 from datetime import date
 from decimal import Decimal
 
@@ -15,13 +14,6 @@ from app.core.async_compat import async_compat
 from app.core.exceptions import ValidationError
 from app.core.uow import unit_of_work
 from app.modules.payments.service import PaymentsService
-
-warnings.warn(
-    "app.services.client_account_service est déprécié. "
-    "Utilisez app.modules.payments.service.PaymentsService à la place.",
-    DeprecationWarning,
-    stacklevel=2,
-)
 
 
 @async_compat

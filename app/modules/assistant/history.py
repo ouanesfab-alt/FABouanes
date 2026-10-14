@@ -74,52 +74,68 @@ def clean_unconfirmed_tool_calls(messages: List[Dict[str, Any]]) -> List[Dict[st
     return cleaned
 
 
-def list_persisted_threads(limit: int = 15) -> List[Dict[str, Any]]:
-    """Récupère les fils de discussion sauvegardés en base de données."""
+async def async_list_persisted_threads(limit: int = 15, db=None) -> List[Dict[str, Any]]:
+    """Récupère les fils de discussion sauvegardés en base de données de manière asynchrone."""
     try:
-        from app.core.db_helpers import db_manager
+        from sqlalchemy import text
+        from app.core.uow import unit_of_work
 
-        rows = db_manager.query_db(
-            "SELECT id, title, history, updated_at FROM sabrina_threads ORDER BY updated_at DESC LIMIT %s",
-            (limit,),
-        )
-        threads = []
-        for r in rows:
-            try:
-                hist = r["history"]
-            except Exception:
-                hist = r[2]
-            threads.append(
-                {
-                    "id": r["id"] if isinstance(r, dict) else r[0],
-                    "title": r["title"] if isinstance(r, dict) else r[1],
-                    "history": hist if isinstance(hist, list) else [],
-                    "updated_at": str(r["updated_at"] if isinstance(r, dict) else r[3]),
-                }
+        async with unit_of_work(db) as session:
+            stmt = text(
+                "SELECT id, title, history, updated_at FROM sabrina_threads ORDER BY updated_at DESC LIMIT :limit"
             )
-        return threads
+            res = await session.execute(stmt, {"limit": limit})
+            rows = res.mappings().all()
+            threads = []
+            for r in rows:
+                hist = r["history"]
+                threads.append(
+                    {
+                        "id": r["id"],
+                        "title": r["title"],
+                        "history": hist if isinstance(hist, list) else [],
+                        "updated_at": str(r["updated_at"]),
+                    }
+                )
+            return threads
     except Exception as exc:
         logger.warning("Could not list persisted threads: %s", exc)
         return []
 
 
-def persist_thread(thread_id: str, title: str, history: List[Dict[str, Any]]) -> bool:
-    """Sauvegarde ou met à jour un fil de discussion dans PostgreSQL."""
+def list_persisted_threads(limit: int = 15) -> List[Dict[str, Any]]:
+    """Récupère les fils de discussion sauvegardés en base de données."""
+    from app.core.async_compat import async_compat
+
+    return async_compat(async_list_persisted_threads)(limit)
+
+
+async def async_persist_thread(thread_id: str, title: str, history: List[Dict[str, Any]], db=None) -> bool:
+    """Sauvegarde ou met à jour un fil de discussion dans PostgreSQL de manière asynchrone."""
     try:
         import json
-        from app.core.db_helpers import db_manager
+        from sqlalchemy import text
+        from app.core.uow import unit_of_work
 
         history_json = json.dumps(history, ensure_ascii=False)
-        db_manager.execute_db(
-            """INSERT INTO sabrina_threads (id, title, history, updated_at)
-               VALUES (%s, %s, %s::jsonb, CURRENT_TIMESTAMP)
-               ON CONFLICT (id) DO UPDATE SET
-                   title = EXCLUDED.title,
-                   history = EXCLUDED.history,
-                   updated_at = CURRENT_TIMESTAMP""",
-            (thread_id, title[:250], history_json),
-        )
-        return True
+        async with unit_of_work(db, auto_commit=True) as session:
+            stmt = text(
+                """INSERT INTO sabrina_threads (id, title, history, updated_at)
+                   VALUES (:id, :title, CAST(:history AS jsonb), CURRENT_TIMESTAMP)
+                   ON CONFLICT (id) DO UPDATE SET
+                       title = EXCLUDED.title,
+                       history = EXCLUDED.history,
+                       updated_at = CURRENT_TIMESTAMP"""
+            )
+            await session.execute(stmt, {"id": thread_id, "title": title[:250], "history": history_json})
+            return True
     except Exception as exc:
         logger.warning("Could not persist thread %s: %s", thread_id, exc)
         return False
+
+
+def persist_thread(thread_id: str, title: str, history: List[Dict[str, Any]]) -> bool:
+    """Sauvegarde ou met à jour un fil de discussion dans PostgreSQL."""
+    from app.core.async_compat import async_compat
+
+    return async_compat(async_persist_thread)(thread_id, title, history)

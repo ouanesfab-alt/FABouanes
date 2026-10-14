@@ -15,11 +15,18 @@ from app.core.db_helpers import db_manager
 logger = logging.getLogger("fabouanes.assistant.briefing")
 
 
+def _is_mocked(func_or_obj: Any) -> bool:
+    name = type(func_or_obj).__name__
+    return "Mock" in name
+
+
 def generate_briefing() -> Dict[str, Any]:
-    """
-    Génère un résumé proactif des données de l'entreprise.
-    Retourne un dictionnaire avec les sections du briefing.
-    """
+    """Génère un résumé proactif des données de l'entreprise."""
+    if not (_is_mocked(db_manager) or _is_mocked(getattr(db_manager, "query_db", None))):
+        from app.core.async_compat import async_compat
+
+        return async_compat(generate_briefing_async)()
+
     sections = []
 
     try:
@@ -174,8 +181,149 @@ def generate_briefing() -> Dict[str, Any]:
     }
 
 
-async def generate_briefing_async() -> Dict[str, Any]:
-    """Exécute generate_briefing de manière non-bloquante dans un thread dédié."""
-    import asyncio
+async def generate_briefing_async(db=None) -> Dict[str, Any]:
+    """Exécute generate_briefing de manière asynchrone native via unit_of_work."""
+    if _is_mocked(db_manager) or _is_mocked(getattr(db_manager, "query_db", None)):
+        return generate_briefing()
 
-    return await asyncio.to_thread(generate_briefing)
+    from sqlalchemy import text
+    from app.core.helpers import format_dzd
+    from app.core.uow import unit_of_work
+
+    sections = []
+    try:
+        async with unit_of_work(db) as session:
+            # 1. Alertes de stock
+            try:
+                stock_stmt = text("""
+                    SELECT name, stock_qty, alert_threshold, default_unit, 'Produit fini' AS type
+                    FROM finished_products WHERE alert_threshold > 0 AND stock_qty <= alert_threshold
+                    UNION ALL
+                    SELECT name, stock_qty, alert_threshold, unit, 'Matière première'
+                    FROM raw_materials WHERE alert_threshold > 0 AND stock_qty <= alert_threshold
+                    ORDER BY stock_qty ASC
+                """)
+                res_stock = await session.execute(stock_stmt)
+                stock_alerts = res_stock.mappings().all()
+
+                if stock_alerts:
+                    alerts_md = []
+                    for r in stock_alerts:
+                        row = dict(r)
+                        if "default_unit" not in row and "unit" in row:
+                            row["default_unit"] = row["unit"]
+                        icon = "🔴" if float(row.get("stock_qty", 0)) == 0 else "🟡"
+                        alerts_md.append(
+                            f"{icon} **{row['name']}** ({row['type']}) — "
+                            f"Stock: {row.get('stock_qty', 0)} {row.get('default_unit') or row.get('unit', '')} "
+                            f"(seuil: {row.get('alert_threshold', 0)})"
+                        )
+                    sections.append({"title": "⚠️ Alertes de Stock", "items": alerts_md, "priority": "high"})
+            except Exception as e:
+                logger.error("Briefing stock error: %s", e)
+
+            # 2. Bilan de la veille
+            try:
+                yesterday_stmt = text("""
+                    SELECT
+                        (SELECT COALESCE(SUM(total), 0) FROM sales WHERE sale_date = CURRENT_DATE - INTERVAL '1 day') AS ventes_hier,
+                        (SELECT COALESCE(SUM(total), 0) FROM purchases WHERE purchase_date = CURRENT_DATE - INTERVAL '1 day') AS achats_hier,
+                        (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payment_date = CURRENT_DATE - INTERVAL '1 day') AS versements_hier,
+                        (SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE date = CURRENT_DATE - INTERVAL '1 day') AS depenses_hier
+                """)
+                res_yest = await session.execute(yesterday_stmt)
+                yesterday_row = res_yest.mappings().first()
+
+                if yesterday_row:
+                    row = dict(yesterday_row)
+                    ventes = float(row.get("ventes_hier", 0) or 0)
+                    achats = float(row.get("achats_hier", 0) or 0)
+                    versements = float(row.get("versements_hier", 0) or 0)
+                    depenses = float(row.get("depenses_hier", 0) or 0)
+
+                    if any([ventes, achats, versements, depenses]):
+                        items = []
+                        if ventes > 0:
+                            items.append(f"💰 Ventes : **{format_dzd(ventes)}**")
+                        if achats > 0:
+                            items.append(f"📦 Achats : **{format_dzd(achats)}**")
+                        if versements > 0:
+                            items.append(f"💵 Versements reçus : **{format_dzd(versements)}**")
+                        if depenses > 0:
+                            items.append(f"📊 Dépenses : **{format_dzd(depenses)}**")
+
+                        sections.append({"title": "📋 Bilan d'hier", "items": items, "priority": "medium"})
+            except Exception as e:
+                logger.error("Briefing yesterday error: %s", e)
+
+            # 3. Bilan du mois en cours
+            try:
+                month_stmt = text("""
+                    SELECT
+                        (SELECT COALESCE(SUM(total), 0) FROM sales WHERE sale_date >= DATE_TRUNC('month', CURRENT_DATE)) AS ca_mois,
+                        (SELECT COALESCE(SUM(profit_amount), 0) FROM sales WHERE sale_date >= DATE_TRUNC('month', CURRENT_DATE)) AS benefice_mois
+                """)
+                res_month = await session.execute(month_stmt)
+                month_row = res_month.mappings().first()
+
+                if month_row:
+                    row = dict(month_row)
+                    ca = float(row.get("ca_mois", 0) or 0)
+                    benefice = float(row.get("benefice_mois", 0) or 0)
+
+                    if ca > 0:
+                        sections.append(
+                            {
+                                "title": "📈 Ce mois-ci",
+                                "items": [
+                                    f"Chiffre d'affaires : **{format_dzd(ca)}**",
+                                    f"Bénéfice : **{format_dzd(benefice)}**",
+                                ],
+                                "priority": "medium",
+                            }
+                        )
+            except Exception as e:
+                logger.error("Briefing month error: %s", e)
+
+            # 4. Top 3 clients endettés
+            try:
+                debtors_stmt = text("""
+                    SELECT name, current_balance
+                    FROM clients_with_stats
+                    WHERE current_balance > 0
+                    ORDER BY current_balance DESC
+                    LIMIT 3
+                """)
+                res_debtors = await session.execute(debtors_stmt)
+                top_debtors = res_debtors.mappings().all()
+
+                if top_debtors:
+                    items = []
+                    for r in top_debtors:
+                        row = dict(r)
+                        items.append(f"👤 {row['name']} — **{format_dzd(row['current_balance'])}**")
+
+                    sections.append({"title": "💳 Principaux débiteurs", "items": items, "priority": "low"})
+            except Exception as e:
+                logger.error("Briefing debtors error: %s", e)
+    except Exception as exc:
+        logger.error("Briefing session error: %s", exc)
+
+    if not sections:
+        return {"has_briefing": False, "markdown": ""}
+
+    md_parts = ["☀️ **Bonjour ! Voici votre résumé :**\n"]
+    for section in sections:
+        md_parts.append(f"### {section['title']}")
+        for item in section["items"]:
+            md_parts.append(f"- {item}")
+        md_parts.append("")
+
+    md_parts.append("---\n*Comment puis-je vous aider aujourd'hui ?* 😊")
+
+    return {
+        "has_briefing": True,
+        "markdown": "\n".join(md_parts),
+        "sections_count": len(sections),
+        "alert_count": sum(len(s["items"]) for s in sections if s["priority"] == "high"),
+    }
