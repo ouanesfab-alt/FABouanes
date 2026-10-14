@@ -51,9 +51,17 @@ def dry_run_sql(query: str) -> str:
         table_names = [t.name.lower() for t in stmt.find_all(sqlglot.exp.Table)]
 
         try:
+            from app.core.database import is_sqlite
+
             with db_manager.db_transaction() as conn:
-                # Limiter le temps d'exécution des requêtes IA à 10s
-                conn.execute("SET LOCAL statement_timeout = '10000'")
+                # Limiter le temps d'exécution des requêtes IA à 4s (strict 3-5s)
+                if is_sqlite():
+                    try:
+                        conn.execute("PRAGMA busy_timeout = 4000")
+                    except Exception:
+                        pass
+                else:
+                    conn.execute("SET LOCAL statement_timeout = '4000'")
                 # Récupérer les soldes clients avant
                 client_balances_before = {}
                 if "clients" in table_names:
@@ -125,17 +133,26 @@ def execute_readonly_sql(query: str) -> Dict[str, Any]:
     sql_to_run = validation.sql_to_run or query
 
     try:
+        from app.core.database import is_sqlite
+
         # SET LOCAL must run inside the same transaction as the query to have effect
         with db_manager.db_transaction() as conn:
-            conn.execute("SET LOCAL statement_timeout = '10000'")
-            conn.execute("SET TRANSACTION READ ONLY")
+            if is_sqlite():
+                try:
+                    conn.execute("PRAGMA busy_timeout = 4000")
+                    conn.execute("PRAGMA query_only = ON")
+                except Exception as pe:
+                    logger.debug("SQLite pragma query_only error: %s", pe)
+            else:
+                conn.execute("SET LOCAL statement_timeout = '4000'")
+                conn.execute("SET TRANSACTION READ ONLY")
             rows = conn.execute(sql_to_run).fetchall()
         return {"rows": serialize_for_json([dict(r) for r in rows])}
     except Exception as e:
         logger.error("execute_readonly_sql error for query %s: %s", sql_to_run, e, exc_info=True)
         err_msg = str(e)
-        if "statement timeout" in err_msg.lower() or "57014" in err_msg:
-            return {"error": "⚠️ La requête a pris trop de temps (>10s). Essayez d'ajouter des filtres WHERE ou LIMIT."}
+        if "statement timeout" in err_msg.lower() or "57014" in err_msg or "timeout" in err_msg.lower():
+            return {"error": "⚠️ La requête a pris trop de temps (>4s / timeout). Essayez d'ajouter des filtres WHERE ou LIMIT."}
         return {"error": f"Erreur SQL : {err_msg}"}
 
 

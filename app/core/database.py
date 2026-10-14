@@ -56,6 +56,13 @@ _BOOTSTRAP_LOCK = RLock()
 _BOOTSTRAPPED = False
 
 
+def is_sqlite() -> bool:
+    """Return True if the configured DATABASE_URL is SQLite."""
+    from app.core.config import DATABASE_URL
+    return "sqlite" in (DATABASE_URL or "").lower()
+
+
+
 # ---------------------------------------------------------------------------
 # Low-level DB compatibility objects
 # ---------------------------------------------------------------------------
