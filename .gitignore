@@ -79,4 +79,9 @@ ssl/
 *.jfif
 *.tmp
 
+# Offline Wheels (downloaded via scripts/download_wheels.*)
+wheels/
+*.whl
+
+
 

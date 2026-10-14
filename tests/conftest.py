@@ -70,3 +70,24 @@ try:
 except Exception as e:
     import logging
     logging.warning("Could not bootstrap test database: %s", e)
+
+import pytest
+
+@pytest.fixture
+def db_session():
+    """Provides a database session for tests."""
+    from app.core.database import SessionLocal
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+
+@pytest.fixture
+def test_client():
+    """Provides a FastAPI TestClient instance."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    with TestClient(app) as client:
+        yield client
+
