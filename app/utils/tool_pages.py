@@ -37,7 +37,7 @@ def list_user_notes() -> list[dict[str, Any]]:
             main_note_path.write_text(json.dumps(main_note, ensure_ascii=False, indent=2), encoding="utf-8")
             # Rename legacy file to avoid migrating again
             old_path.rename(paths.notes_dir / "bloc_note.txt.bak")
-        except Exception:
+        except OSError:
             pass
 
     # Read all notes
@@ -59,7 +59,7 @@ def list_user_notes() -> list[dict[str, Any]]:
             if "updated_at" not in note:
                 note["updated_at"] = item.stat().st_mtime
             notes.append(note)
-        except Exception:
+        except (json.JSONDecodeError, OSError):
             pass
 
     # If no notes exist, create a default welcome note
@@ -75,7 +75,7 @@ def list_user_notes() -> list[dict[str, Any]]:
         try:
             main_note_path.write_text(json.dumps(welcome_note, ensure_ascii=False, indent=2), encoding="utf-8")
             notes.append(welcome_note)
-        except Exception:
+        except OSError:
             pass
 
     # Sort: Pinned first, then by updated_at desc
@@ -90,7 +90,7 @@ def get_user_note(note_id: str) -> dict[str, Any] | None:
     if path.exists():
         try:
             return json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
+        except (json.JSONDecodeError, OSError):
             pass
     return None
 
@@ -127,9 +127,9 @@ def save_user_note(
                 for stale in hist_files[15:]:
                     try:
                         stale.unlink()
-                    except Exception:
+                    except OSError:
                         pass
-        except Exception:
+        except (json.JSONDecodeError, OSError):
             pass
 
     path.write_text(json.dumps(note, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -155,10 +155,10 @@ def delete_user_note(note_id: str) -> bool:
                 for item in history_dir.glob(f"history_{safe_id}_*.json"):
                     try:
                         item.unlink()
-                    except Exception:
+                    except OSError:
                         pass
             return True
-        except Exception:
+        except OSError:
             pass
     return False
 
@@ -189,7 +189,7 @@ def list_notes_history() -> list[dict[str, str]]:
             stamp = parts[-2] + "_" + parts[-1]
             rendered = datetime.strptime(stamp, "%Y%m%d_%H%M%S").strftime("%d/%m/%Y %H:%M:%S")
             versions.append({"filename": item.name, "label": f"{rendered} ({parts[1]})"})
-        except Exception:
+        except (ValueError, IndexError):
             versions.append({"filename": item.name, "label": item.stem})
     return versions
 
@@ -202,7 +202,7 @@ def read_notes_version(filename: str) -> str:
         try:
             note = json.loads(path.read_text(encoding="utf-8"))
             return note.get("content", "")
-        except Exception:
+        except (json.JSONDecodeError, OSError):
             pass
     return ""
 

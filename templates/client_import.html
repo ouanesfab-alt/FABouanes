@@ -165,11 +165,11 @@
         <div class="mac-card-title"><i class="bi bi-cloud-arrow-up"></i> Téléverser les fichiers</div>
         <form method="post" enctype="multipart/form-data" id="importForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <div class="mac-upload-zone mb-3" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+          <div class="mac-upload-zone mb-3" id="uploadZone">
             <div class="mac-upload-icon"><i class="bi bi-folder2-open"></i></div>
             <div class="mac-upload-text">Glisser-déposer ou cliquer pour sélectionner</div>
             <div class="mac-upload-hint">Fichiers .xlsx — un fichier par client</div>
-            <input type="file" name="excel_files" id="fileInput" accept=".xlsx,.xlsm" multiple required style="display:none" onchange="updateFileLabel(this)">
+            <input type="file" name="excel_files" id="fileInput" accept=".xlsx,.xlsm" multiple required style="display:none">
           </div>
           <div id="fileLabel" class="small text-muted mb-3" style="display:none;"></div>
           <div class="d-grid gap-2">
@@ -223,7 +223,7 @@
           {% if preview.rows %}
             {% if preview.token %}
               <div class="mb-3">
-                <button type="button" class="btn btn-dark w-100" style="border-radius:10px;" onclick="startBatchPreviewImport('{{ preview.token }}', {{ preview.rows|length }})">
+                <button type="button" class="btn btn-dark w-100" style="border-radius:10px;" id="btnConfirmBatch" data-token="{{ preview.token }}" data-total="{{ preview.rows|length }}">
                   <i class="bi bi-check2-circle me-1"></i>Confirmer cet import
                 </button>
               </div>
@@ -256,7 +256,7 @@
                         </span>
                       </td>
                       <td class="text-center">
-                        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none fw-bold" onclick="openClientPreview('{{ preview.token }}', {{ loop.index0 }})">
+                        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none fw-bold btn-view-client" data-token="{{ preview.token }}" data-index="{{ loop.index0 }}">
                           <i class="bi bi-eye me-1"></i>Voir
                         </button>
                       </td>
@@ -327,19 +327,19 @@
         </div>
 
         <div class="d-flex justify-content-center gap-2 mb-3">
-          <button type="button" class="btn btn-outline-secondary btn-xs py-1 px-2" id="progressPauseBtn" onclick="togglePauseResume()" style="font-size: 0.75rem; border-radius: 6px;">
+          <button type="button" class="btn btn-outline-secondary btn-xs py-1 px-2" id="progressPauseBtn" style="font-size: 0.75rem; border-radius: 6px;">
             <i class="bi bi-pause-fill" id="progressPauseIcon"></i> <span id="progressPauseText">Pause</span>
           </button>
-          <button type="button" class="btn btn-outline-danger btn-xs py-1 px-2" id="progressCancelBtn" onclick="cancelProgress()" style="font-size: 0.75rem; border-radius: 6px;">
+          <button type="button" class="btn btn-outline-danger btn-xs py-1 px-2" id="progressCancelBtn" style="font-size: 0.75rem; border-radius: 6px;">
             <i class="bi bi-x-circle-fill"></i> Annuler
           </button>
-          <button type="button" class="btn btn-outline-primary btn-xs py-1 px-2" id="progressBgBtn" onclick="continueInBackground()" style="font-size: 0.75rem; border-radius: 6px;">
+          <button type="button" class="btn btn-outline-primary btn-xs py-1 px-2" id="progressBgBtn" style="font-size: 0.75rem; border-radius: 6px;">
             <i class="bi bi-arrow-down-left-circle"></i> Arrière-plan
           </button>
         </div>
         
         <div class="text-center mb-3">
-          <button type="button" class="btn btn-link text-decoration-none btn-sm p-0 text-muted small" id="toggleDetailsBtn" onclick="toggleProgressLogs()" style="font-size: 0.8rem; font-weight: 600; color: var(--muted);">
+          <button type="button" class="btn btn-link text-decoration-none btn-sm p-0 text-muted small" id="toggleDetailsBtn" style="font-size: 0.8rem; font-weight: 600; color: var(--muted);">
             <i class="bi bi-chevron-down me-1" id="toggleDetailsIcon"></i><span id="toggleDetailsText">Afficher les détails</span>
           </button>
         </div>
@@ -386,7 +386,7 @@
   </div>
   <div class="d-flex justify-content-between align-items-center">
     <span class="text-muted small" id="miniProgressSubtitle" style="font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;">Préparation...</span>
-    <button type="button" class="btn btn-link text-decoration-none btn-sm p-0 text-primary fw-bold" onclick="showMainProgressModal()" style="font-size: 0.72rem;">
+    <button type="button" class="btn btn-link text-decoration-none btn-sm p-0 text-primary fw-bold" id="miniProgressOpenBtn" style="font-size: 0.72rem;">
       <i class="bi bi-fullscreen"></i> Ouvrir
     </button>
   </div>
@@ -395,10 +395,14 @@
 
 {% block scripts %}
 <script nonce="{{ csp_nonce }}">
-  // Drag & drop support
+  // Drag & drop and click support
   const zone = document.getElementById('uploadZone');
   const fileInput = document.getElementById('fileInput');
-  if (zone) {
+  if (zone && fileInput) {
+    zone.addEventListener('click', e => {
+      if (e.target !== fileInput) fileInput.click();
+    });
+    fileInput.addEventListener('change', () => updateFileLabel(fileInput));
     zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
     zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
     zone.addEventListener('drop', e => {
@@ -797,6 +801,35 @@
     }
 
     importNext();
+  }
+
+  // Bind event listeners without inline handlers (CSP compliant)
+  function initEventBindings() {
+    document.getElementById('progressPauseBtn')?.addEventListener('click', togglePauseResume);
+    document.getElementById('progressCancelBtn')?.addEventListener('click', cancelProgress);
+    document.getElementById('progressBgBtn')?.addEventListener('click', continueInBackground);
+    document.getElementById('toggleDetailsBtn')?.addEventListener('click', toggleProgressLogs);
+    document.getElementById('miniProgressOpenBtn')?.addEventListener('click', showMainProgressModal);
+
+    const confirmBtn = document.getElementById('btnConfirmBatch');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', () => {
+        startBatchPreviewImport(confirmBtn.dataset.token, parseInt(confirmBtn.dataset.total, 10));
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-view-client');
+      if (btn) {
+        openClientPreview(btn.dataset.token, parseInt(btn.dataset.index, 10));
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initEventBindings);
+  } else {
+    initEventBindings();
   }
 </script>
 {% endblock %}

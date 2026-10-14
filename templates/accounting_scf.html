@@ -54,7 +54,7 @@
       <a href="{{ url_for('reports_export_livre_journal') }}" class="btn btn-sm btn-page-action-secondary d-inline-flex align-items-center gap-1">
         <i class="bi bi-book"></i> <span>Livre Journal</span>
       </a>
-      <button type="button" onclick="window.print()" class="btn btn-sm btn-page-action-secondary d-inline-flex align-items-center gap-1" title="Imprimer l'état comptable actif">
+      <button type="button" id="scfPrintBtn" class="btn btn-sm btn-page-action-secondary d-inline-flex align-items-center gap-1" title="Imprimer l'état comptable actif">
         <i class="bi bi-printer"></i> <span>Imprimer</span>
       </button>
     </div>
@@ -63,28 +63,28 @@
   <!-- Summary Cards -->
   <div class="row g-3 mb-4">
     <div class="col-6 col-lg-3">
-      <div class="rpt-kpi rpt-kpi-interactive" onclick="document.getElementById('tcr-tab')?.click();" role="button" tabindex="0" title="Cliquer pour afficher le TCR détaillé">
+      <div class="rpt-kpi rpt-kpi-interactive" role="button" tabindex="0" title="Cliquer pour afficher le TCR détaillé">
         <span class="rpt-kpi-label"><i class="bi bi-graph-up me-1"></i>Chiffre d'Affaires [70]</span>
         <span class="rpt-kpi-value blue">{{ "%.2f"|format(tcr.chiffre_affaires) }} <small style="font-size:0.65em;">DA</small></span>
         <span class="rpt-kpi-sub">Ventes de marchandises & produits</span>
       </div>
     </div>
     <div class="col-6 col-lg-3">
-      <div class="rpt-kpi rpt-kpi-interactive" onclick="document.getElementById('tcr-tab')?.click();" role="button" tabindex="0" title="Cliquer pour afficher le TCR détaillé">
+      <div class="rpt-kpi rpt-kpi-interactive" role="button" tabindex="0" title="Cliquer pour afficher le TCR détaillé">
         <span class="rpt-kpi-label"><i class="bi bi-cart3 me-1"></i>Achats Consommés [60]</span>
         <span class="rpt-kpi-value orange">{{ "%.2f"|format(tcr.achats_consommes) }} <small style="font-size:0.65em;">DA</small></span>
         <span class="rpt-kpi-sub">Matières premières & consommables</span>
       </div>
     </div>
     <div class="col-6 col-lg-3">
-      <div class="rpt-kpi rpt-kpi-interactive" onclick="document.getElementById('tcr-tab')?.click();" role="button" tabindex="0" title="Cliquer pour afficher le TCR détaillé">
+      <div class="rpt-kpi rpt-kpi-interactive" role="button" tabindex="0" title="Cliquer pour afficher le TCR détaillé">
         <span class="rpt-kpi-label"><i class="bi bi-pie-chart me-1"></i>Marge Brute SCF</span>
         <span class="rpt-kpi-value purple">{{ "%.2f"|format(tcr.marge_brute) }} <small style="font-size:0.65em;">DA</small></span>
         <span class="rpt-kpi-sub">CA − Achats consommés</span>
       </div>
     </div>
     <div class="col-6 col-lg-3">
-      <div class="rpt-kpi rpt-kpi-interactive" onclick="document.getElementById('tcr-tab')?.click();" role="button" tabindex="0" title="Cliquer pour afficher le TCR détaillé">
+      <div class="rpt-kpi rpt-kpi-interactive" role="button" tabindex="0" title="Cliquer pour afficher le TCR détaillé">
         <span class="rpt-kpi-label"><i class="bi bi-trophy me-1"></i>Résultat Net Exercice</span>
         <span class="rpt-kpi-value {{ 'green' if tcr.resultat_net >= 0 else 'red' }}">{{ "%.2f"|format(tcr.resultat_net) }} <small style="font-size:0.65em;">DA</small></span>
         <span class="rpt-kpi-sub">Marge − Charges d'exploitation</span>
@@ -356,6 +356,17 @@
         const paneHash = paneMap[id];
         if (paneHash && window.history.replaceState) {
           window.history.replaceState(null, '', '#' + paneHash);
+        }
+    // Print button handler
+    document.getElementById('scfPrintBtn')?.addEventListener('click', () => window.print());
+
+    // Interactive KPI cards navigating to TCR tab
+    document.querySelectorAll('.rpt-kpi-interactive').forEach(el => {
+      el.addEventListener('click', () => document.getElementById('tcr-tab')?.click());
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          document.getElementById('tcr-tab')?.click();
         }
       });
     });

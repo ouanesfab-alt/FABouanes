@@ -304,6 +304,8 @@ async def _update_production_notes_impl(
         updates["production_date"] = production_date
     updates["notes"] = notes
 
+    # SECURITY: Only whitelisted column names are used in the SET clause.
+    # Values are always passed as named parameters (:key), never interpolated.
     ALLOWED_KEYS = {"production_date", "notes"}
     for key in updates:
         if key not in ALLOWED_KEYS:
@@ -312,7 +314,8 @@ async def _update_production_notes_impl(
     if not updates:
         return
 
-    sets = ", ".join(f"{key}=:{key}" for key in updates)
+    # Build SET clause from validated keys only (safe: keys are hardcoded identifiers)
+    sets = ", ".join(f'"{key}" = :{key}' for key in updates if key in ALLOWED_KEYS)
     values = {**updates, "batch_id": batch_id}
     await db.execute(text(f"UPDATE production_batches SET {sets} WHERE id = :batch_id"), values)
 

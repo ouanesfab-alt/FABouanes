@@ -1069,19 +1069,18 @@
 	<!-- ═══ KPIs ═══ -->
 	<!-- Sélecteur de période KPI -->
 	<div class="kpi-period-bar" id="kpiPeriodBar">
-		<button class="kpi-period-btn active" data-period="today" onclick="switchKpiPeriod('today', this)">
+		<button class="kpi-period-btn active" data-period="today">
 			<i class="bi bi-sun"></i> Aujourd'hui
 		</button>
-		<button class="kpi-period-btn" data-period="week" onclick="switchKpiPeriod('week', this)">
+		<button class="kpi-period-btn" data-period="week">
 			<i class="bi bi-calendar-week"></i> Semaine
 		</button>
-		<button class="kpi-period-btn" data-period="month" onclick="switchKpiPeriod('month', this)">
+		<button class="kpi-period-btn" data-period="month">
 			<i class="bi bi-calendar-month"></i> Mois
 		</button>
 	</div>
 	<div class="dashboard-kpis">
-		<div class="card kpi-card" role="button" tabindex="0" onclick="openKpiSheet('sales','Ventes')"
-			onkeydown="if(event.key==='Enter'||event.key===' ') openKpiSheet('sales','Ventes')">
+		<div class="card kpi-card" role="button" tabindex="0" data-kpi-key="sales" data-kpi-label="Ventes">
 			<div class="kpi-icon"><i class="bi bi-graph-up-arrow"></i></div>
 			<div class="kpi-label">Ventes du jour</div>
 			<div class="kpi-value">{{ (sales_today|money).replace(' DA','') }}</div>
@@ -1102,8 +1101,7 @@
 			</svg>
 			<div class="kpi-date-badge"><i class="bi bi-calendar3"></i> Voir autre date</div>
 		</div>
-		<div class="card kpi-card green" role="button" tabindex="0" onclick="openKpiSheet('cash','Encaisse')"
-			onkeydown="if(event.key==='Enter'||event.key===' ') openKpiSheet('cash','Encaisse')">
+		<div class="card kpi-card green" role="button" tabindex="0" data-kpi-key="cash" data-kpi-label="Encaisse">
 			<div class="kpi-icon text-success" style="background: rgba(22,163,74,.12);"><i class="bi bi-cash-stack"></i>
 			</div>
 			<div class="kpi-label">Encaisse du jour</div>
@@ -1122,8 +1120,7 @@
 			</svg>
 			<div class="kpi-date-badge"><i class="bi bi-calendar3"></i> Voir autre date</div>
 		</div>
-		<div class="card kpi-card green" role="button" tabindex="0" onclick="openKpiSheet('profit','Profit')"
-			onkeydown="if(event.key==='Enter'||event.key===' ') openKpiSheet('profit','Profit')">
+		<div class="card kpi-card green" role="button" tabindex="0" data-kpi-key="profit" data-kpi-label="Profit">
 			<div class="kpi-icon text-success" style="background: rgba(22,163,74,.12);"><i class="bi bi-piggy-bank"></i>
 			</div>
 			<div class="kpi-label">Profit du jour</div>
@@ -1142,8 +1139,7 @@
 			</svg>
 			<div class="kpi-date-badge"><i class="bi bi-calendar3"></i> Voir autre date</div>
 		</div>
-		<div class="card kpi-card red" role="button" tabindex="0" onclick="openKpiSheet('receivables','Créances')"
-			onkeydown="if(event.key==='Enter'||event.key===' ') openKpiSheet('receivables','Créances')">
+		<div class="card kpi-card red" role="button" tabindex="0" data-kpi-key="receivables" data-kpi-label="Créances">
 			<div class="kpi-icon text-danger" style="background: rgba(220,38,38,.12);"><i
 					class="bi bi-exclamation-triangle"></i></div>
 			<div class="kpi-label">Créances clients</div>
@@ -1426,12 +1422,12 @@
 	</div>
 </div>
 
-<div class="kpi-sheet-overlay" id="kpiSheetOverlay" onclick="if(event.target===this) closeKpiSheet()">
+<div class="kpi-sheet-overlay" id="kpiSheetOverlay">
 	<div class="kpi-sheet">
 		<div class="kpi-sheet-handle"></div>
 		<div class="kpi-sheet-head">
 			<h3 class="kpi-sheet-title" id="kpiSheetTitle">Progression</h3><button type="button"
-				class="kpi-sheet-close" onclick="closeKpiSheet()"><i class="bi bi-x-lg"></i></button>
+				class="kpi-sheet-close" id="kpiSheetCloseBtn"><i class="bi bi-x-lg"></i></button>
 		</div>
 		<div class="kpi-sheet-body">
 			<!-- Sélecteur de durée courbe -->
@@ -1667,11 +1663,43 @@
 			}
 		});
 
+		// Sélecteur de période KPI
+		document.querySelectorAll('.kpi-period-btn').forEach(function(btn) {
+			btn.addEventListener('click', function() {
+				switchKpiPeriod(btn.getAttribute('data-period'), btn);
+			});
+		});
+
+		// Cartes KPI cliquables
+		document.querySelectorAll('.kpi-card[data-kpi-key]').forEach(function(card) {
+			var key = card.getAttribute('data-kpi-key');
+			var label = card.getAttribute('data-kpi-label');
+			card.addEventListener('click', function() { openKpiSheet(key, label); });
+			card.addEventListener('keydown', function(e) {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					openKpiSheet(key, label);
+				}
+			});
+		});
+
+		// Fermeture de la sheet KPI
+		var overlay = document.getElementById('kpiSheetOverlay');
+		if (overlay) {
+			overlay.addEventListener('click', function(e) {
+				if (e.target === this) closeKpiSheet();
+			});
+		}
+		var closeBtn = document.getElementById('kpiSheetCloseBtn');
+		if (closeBtn) {
+			closeBtn.addEventListener('click', closeKpiSheet);
+		}
+
 		// Fermeture par touche Echap
 		document.addEventListener('keydown', function(e) {
 			if (e.key === 'Escape') {
-				var overlay = document.getElementById('kpiSheetOverlay');
-				if (overlay && overlay.classList.contains('open')) closeKpiSheet();
+				var ov = document.getElementById('kpiSheetOverlay');
+				if (ov && ov.classList.contains('open')) closeKpiSheet();
 			}
 		});
 	}

@@ -356,7 +356,8 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
                     cols = [r[0] if not hasattr(r, "keys") else r["column_name"] for r in cur.fetchall()]
                     cur.close()
 
-                    cur = conn.execute(f"SELECT * FROM {table}")
+                    # SECURITY: table identifier is strictly validated via validate_identifier(table) above
+                    cur = conn.execute(f'SELECT * FROM "{table}"')
                     rows = cur.fetchall()
                     cur.close()
 

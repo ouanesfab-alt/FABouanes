@@ -212,7 +212,7 @@ def parse_flexible_date(value, fallback_to_today: bool = True) -> str | None:
     for fmt in ("%d/%m/%Y", "%Y/%m/%d", "%d/%m/%y", "%Y/%m/%d %H:%M:%S", "%d/%m/%Y %H:%M:%S"):
         try:
             return datetime.strptime(text, fmt).date().isoformat()
-        except Exception:
+        except (ValueError, TypeError):
             pass
 
     # Gestion de l'année sur 3 chiffres (ex: 27/06/203 -> 27/06/2023)
@@ -223,12 +223,12 @@ def parse_flexible_date(value, fallback_to_today: bool = True) -> str | None:
             year = "202" + year[2]
         try:
             return date(int(year), int(month), int(day)).isoformat()
-        except Exception:
+        except (ValueError, TypeError):
             pass
 
     try:
         return datetime.fromisoformat(text).date().isoformat()
-    except Exception:
+    except (ValueError, TypeError):
         pass
 
     try:
@@ -236,7 +236,7 @@ def parse_flexible_date(value, fallback_to_today: bool = True) -> str | None:
         from dateutil import parser as _du_parser
 
         return _du_parser.parse(text, dayfirst=True).date().isoformat()
-    except Exception:
+    except (ValueError, TypeError, ImportError, Exception):
         pass
 
     return date.today().isoformat() if fallback_to_today else None
@@ -256,7 +256,7 @@ def parse_flexible_amount(value) -> float:
 def parse_excel_client_file(file_path) -> dict:
     try:
         import openpyxl
-    except Exception as exc:  # pragma: no cover
+    except ImportError as exc:  # pragma: no cover
         raise RuntimeError("Le module openpyxl est requis pour l'import Excel.") from exc
 
     workbook = openpyxl.load_workbook(file_path, data_only=True)
@@ -334,7 +334,7 @@ def parse_excel_client_file(file_path) -> dict:
 def parse_excel_bulk_clients(file_path: str) -> list[dict]:
     try:
         import openpyxl
-    except Exception as exc:
+    except ImportError as exc:
         raise RuntimeError("Le module openpyxl est requis pour l'import Excel.") from exc
 
     workbook = openpyxl.load_workbook(file_path, data_only=True)
@@ -409,7 +409,7 @@ def parse_excel_bulk_clients(file_path: str) -> list[dict]:
 def parse_excel_bulk_products(file_path: str) -> list[dict]:
     try:
         import openpyxl
-    except Exception as exc:
+    except ImportError as exc:
         raise RuntimeError("Le module openpyxl est requis pour l'import Excel.") from exc
 
     workbook = openpyxl.load_workbook(file_path, data_only=True)

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -45,6 +46,7 @@ from app.utils.api_response import APIResponse
 from app.web.deps import get_current_user
 
 router = APIRouter(prefix="/api/admin", tags=["admin-api"])
+logger = logging.getLogger(__name__)
 
 
 def enforce_permission(request: Request, permission: str) -> dict[str, Any]:
@@ -74,7 +76,8 @@ async def api_create_user(request: Request, db: AsyncSession = Depends(get_async
     enforce_permission(request, PERMISSION_USERS_MANAGE)
     try:
         data = await request.json()
-    except Exception:
+    except Exception as exc:
+        logger.warning("api_create_user invalid JSON: %s", exc)
         raise HTTPException(status_code=400, detail="Corps de requête JSON invalide.")
 
     username = data.get("username", "").strip()
@@ -96,7 +99,8 @@ async def api_update_user(request: Request, user_id: int, db: AsyncSession = Dep
     enforce_permission(request, PERMISSION_USERS_MANAGE)
     try:
         data = await request.json()
-    except Exception:
+    except Exception as exc:
+        logger.warning("api_update_user invalid JSON: %s", exc)
         raise HTTPException(status_code=400, detail="Corps de requête JSON invalide.")
 
     role = data.get("role", "operator").strip()
@@ -212,7 +216,8 @@ async def api_restore_backup(request: Request):
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
     try:
         data = await request.json()
-    except Exception:
+    except Exception as exc:
+        logger.warning("api_restore_backup invalid JSON: %s", exc)
         raise HTTPException(status_code=400, detail="Corps de requête JSON invalide.")
 
     backup_name = data.get("backup_name", "").strip()
@@ -228,7 +233,8 @@ async def api_save_backup_settings(request: Request, db: AsyncSession = Depends(
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
     try:
         data = await request.json()
-    except Exception:
+    except Exception as exc:
+        logger.warning("api_save_backup_settings invalid JSON: %s", exc)
         raise HTTPException(status_code=400, detail="Corps de requête JSON invalide.")
 
     result = await save_backup_settings_from_form(data, db=db)
@@ -270,7 +276,8 @@ async def api_save_sabrina_settings(request: Request):
     enforce_permission(request, PERMISSION_SETTINGS_MANAGE)
     try:
         data = await request.json()
-    except Exception:
+    except Exception as exc:
+        logger.warning("api_save_sabrina_settings invalid JSON: %s", exc)
         raise HTTPException(status_code=400, detail="Corps de requête JSON invalide.")
 
     api_key = data.get("gemini_api_key", "").strip()

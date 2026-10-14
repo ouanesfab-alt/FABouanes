@@ -3,6 +3,7 @@ from __future__ import annotations
 import decimal
 import hmac
 import json
+import logging
 import os
 import re
 import secrets
@@ -16,7 +17,7 @@ from urllib.parse import urlencode, urlparse
 from fastapi import Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
-from jinja2 import pass_context
+from jinja2 import Undefined, UndefinedError, pass_context
 from markupsafe import Markup
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.routing import NoMatchFound
@@ -33,6 +34,7 @@ from app.core.security import get_client_fingerprint
 from app.web.compat import COMPAT_ROUTE_MAP
 
 STARTUP_TIMESTAMP = str(int(time.time()))
+logger = logging.getLogger(__name__)
 
 
 class TemplateRequestProxy:
@@ -91,31 +93,31 @@ def preload_templates() -> int:
             rel = str(p.relative_to(template_dir)).replace("\\", "/")
             templates.env.get_template(rel)
             count += 1
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Template precompile skip %s: %s", p, exc)
     return count
 
 
 def _money_filter(value: Any) -> str:
     try:
-        if value is None:
+        if value is None or isinstance(value, Undefined):
             return "0 DA"
         amount = f"{int(round(float(value))):,}".replace(",", " ")
         return f"{amount} DA"
-    except Exception:
+    except (ValueError, TypeError, decimal.InvalidOperation, UndefinedError):
         return "0 DA"
 
 
 def _qty_filter(value: Any) -> str:
     try:
-        if value is None:
+        if value is None or isinstance(value, Undefined):
             return "0"
         number = float(value)
         if abs(number - round(number)) < 1e-9:
             return str(int(round(number)))
         rendered = f"{number:,.2f}".replace(",", " ").replace(".", ",")
         return rendered.rstrip("0").rstrip(",")
-    except Exception:
+    except (ValueError, TypeError, decimal.InvalidOperation, UndefinedError):
         return str(value or "0")
 
 
@@ -309,7 +311,8 @@ def load_user_from_session(request: Request):
             one=True,
         )
         user = dict(user_row) if user_row else None
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to load user %s from session: %s", user_id, exc)
         user = None
     if not user or not bool(user.get("is_active", 1)):
         request.session.clear()
@@ -328,7 +331,7 @@ def load_user_from_session(request: Request):
             if auth_time is None or float(auth_time) < (last_change_ts - 5):
                 request.session.clear()
                 return None
-        except Exception:
+        except (ValueError, TypeError, OSError):
             pass
 
     return user
@@ -367,7 +370,8 @@ async def load_user_from_session_async(request: Request, db: AsyncSession) -> di
         res = await db.execute(select(User).where(User.id == int(user_id)))
         user_obj = res.scalar_one_or_none()
         user = user_obj.model_dump() if user_obj else None
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to load user %s from async session: %s", user_id, exc)
         user = None
 
     if not user or not bool(user.get("is_active", True)):
@@ -385,7 +389,7 @@ async def load_user_from_session_async(request: Request, db: AsyncSession) -> di
             if auth_time is None or float(auth_time) < (last_change_ts - 5):
                 request.session.clear()
                 return None
-        except Exception:
+        except (ValueError, TypeError, OSError):
             pass
 
     return user

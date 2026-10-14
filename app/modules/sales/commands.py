@@ -313,9 +313,12 @@ class SalesCommands:
         except Exception as exc:
             logger.warning("Échec d'enregistrement du mouvement de stock : %s", exc)
 
+    # SECURITY: Table name whitelist — only these hardcoded identifiers are allowed
+    # in dynamic SQL. User input is never used as a table name.
     _DOCUMENT_LINE_TABLES = {"sales": "sales", "raw_sales": "raw_sales"}
 
     async def _sum_document_lines(self, table_name: str, document_id: int) -> dict:
+        # Safe: table name resolved from _DOCUMENT_LINE_TABLES whitelist (not user input)
         safe_table = self._DOCUMENT_LINE_TABLES.get(table_name)
         if not safe_table:
             raise ValueError(f"Table name not allowed: {table_name}")

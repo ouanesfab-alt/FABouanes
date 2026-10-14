@@ -84,6 +84,7 @@ async def api_kpi_date(request: Request, db: AsyncSession = Depends(get_async_se
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception:
+        logger.warning("KPI date error for %s", target_date, exc_info=True)
         return JSONResponse({"error": "Erreur interne."}, status_code=500)
 
 
@@ -116,6 +117,7 @@ async def api_kpi_at_date(request: Request, db: AsyncSession = Depends(get_async
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception:
+        logger.warning("KPI at-date error for %s/%s", target_date, metric, exc_info=True)
         return JSONResponse({"error": "Erreur interne."}, status_code=500)
 
 

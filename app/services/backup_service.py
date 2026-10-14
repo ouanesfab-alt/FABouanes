@@ -53,7 +53,7 @@ def _event_backup_interval_seconds() -> int:
     raw = os.getenv("FAB_EVENT_BACKUP_INTERVAL_SECONDS", "600")
     try:
         return max(60, int(raw))
-    except Exception:
+    except (ValueError, TypeError):
         return 600
 
 
@@ -248,7 +248,7 @@ async def _apply_retention_to_directory(directory: Path, backup_type: str, db: A
     for old_file in files[limit:]:
         try:
             old_file.unlink()
-        except Exception:
+        except OSError:
             pass
 
 
