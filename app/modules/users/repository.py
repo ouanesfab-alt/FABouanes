@@ -1,13 +1,17 @@
 from __future__ import annotations
 
-from sqlalchemy import func, select, update
+from datetime import datetime, timedelta
+
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_sessionmaker
-from app.core.base_repository import AsyncRepository
 from app.core.async_compat import db_task_compat
+from app.core.base_repository import AsyncRepository
 from app.core.models import User
+from app.core.models_pkg.users import UserBadge
 from app.core.permissions import normalize_role
+from app.core.rate_limit_store import RateLimitStore
+from app.core.uow import unit_of_work
 
 
 class UserRepository(AsyncRepository[User]):
@@ -19,10 +23,8 @@ class UserRepository(AsyncRepository[User]):
 
 @db_task_compat
 async def get_user_by_username(username: str, db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _get_user_by_username_impl(username, session)
-    return await _get_user_by_username_impl(username, db)
+    async with unit_of_work(db) as session:
+        return await _get_user_by_username_impl(username, session)
 
 
 async def _get_user_by_username_impl(username: str, db: AsyncSession):
@@ -34,10 +36,8 @@ async def _get_user_by_username_impl(username: str, db: AsyncSession):
 
 @db_task_compat
 async def get_user_by_id(user_id: int, db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _get_user_by_id_impl(user_id, session)
-    return await _get_user_by_id_impl(user_id, db)
+    async with unit_of_work(db) as session:
+        return await _get_user_by_id_impl(user_id, session)
 
 
 async def _get_user_by_id_impl(user_id: int, db: AsyncSession):
@@ -62,12 +62,8 @@ async def create_user(
     is_active: bool = True,
     db: AsyncSession | None = None,
 ) -> int:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            res = await _create_user_impl(username, password_hash, role, must_change_password, is_active, session)
-            await session.commit()
-            return res
-    return await _create_user_impl(username, password_hash, role, must_change_password, is_active, db)
+    async with unit_of_work(db) as session:
+        return await _create_user_impl(username, password_hash, role, must_change_password, is_active, session)
 
 
 async def _create_user_impl(
@@ -97,12 +93,8 @@ async def update_password(
     must_change_password: bool = False,
     db: AsyncSession | None = None,
 ) -> int:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            res = await _update_password_impl(user_id, password_hash, must_change_password, session)
-            await session.commit()
-            return res
-    return await _update_password_impl(user_id, password_hash, must_change_password, db)
+    async with unit_of_work(db) as session:
+        return await _update_password_impl(user_id, password_hash, must_change_password, session)
 
 
 async def _update_password_impl(
@@ -131,12 +123,8 @@ async def update_user_role_and_status(
     is_active: bool,
     db: AsyncSession | None = None,
 ) -> int:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            res = await _update_user_role_and_status_impl(user_id, role, is_active, session)
-            await session.commit()
-            return res
-    return await _update_user_role_and_status_impl(user_id, role, is_active, db)
+    async with unit_of_work(db) as session:
+        return await _update_user_role_and_status_impl(user_id, role, is_active, session)
 
 
 async def _update_user_role_and_status_impl(
@@ -159,12 +147,8 @@ async def _update_user_role_and_status_impl(
 
 @db_task_compat
 async def touch_login(user_id: int, db: AsyncSession | None = None) -> int:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            res = await _touch_login_impl(user_id, session)
-            await session.commit()
-            return res
-    return await _touch_login_impl(user_id, db)
+    async with unit_of_work(db) as session:
+        return await _touch_login_impl(user_id, session)
 
 
 async def _touch_login_impl(user_id: int, db: AsyncSession) -> int:
@@ -181,10 +165,8 @@ async def _touch_login_impl(user_id: int, db: AsyncSession) -> int:
 
 @db_task_compat
 async def list_users(db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_users_impl(session)
-    return await _list_users_impl(db)
+    async with unit_of_work(db) as session:
+        return await _list_users_impl(session)
 
 
 async def _list_users_impl(db: AsyncSession):
@@ -204,19 +186,11 @@ async def _list_users_impl(db: AsyncSession):
 
 @db_task_compat
 async def delete_user(user_id: int, db: AsyncSession | None = None) -> bool:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            res = await _delete_user_impl(user_id, session)
-            await session.commit()
-            return res
-    return await _delete_user_impl(user_id, db)
+    async with unit_of_work(db) as session:
+        return await _delete_user_impl(user_id, session)
 
 
 async def _delete_user_impl(user_id: int, db: AsyncSession) -> bool:
-    from sqlalchemy import delete
-
-    from app.core.models_pkg.users import UserBadge
-
     # Supprimer d'abord les badges
     await db.execute(delete(UserBadge).where(UserBadge.user_id == user_id))
 
@@ -234,12 +208,8 @@ async def record_account_login_failure(
     db: AsyncSession | None = None,
 ) -> tuple[int, bool]:
     """Increments failed_login_count. If count >= max_attempts, locks account for lockout_minutes."""
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            res = await _record_account_login_failure_impl(user_id, max_attempts, lockout_minutes, session)
-            await session.commit()
-            return res
-    return await _record_account_login_failure_impl(user_id, max_attempts, lockout_minutes, db)
+    async with unit_of_work(db) as session:
+        return await _record_account_login_failure_impl(user_id, max_attempts, lockout_minutes, session)
 
 
 async def _record_account_login_failure_impl(
@@ -248,10 +218,6 @@ async def _record_account_login_failure_impl(
     lockout_minutes: int,
     db: AsyncSession,
 ) -> tuple[int, bool]:
-    from datetime import datetime, timedelta
-
-    from sqlalchemy import func
-
     stmt = (
         update(User)
         .where(User.id == user_id)
@@ -273,12 +239,8 @@ async def _record_account_login_failure_impl(
 
 @db_task_compat
 async def reset_account_login_failures(user_id: int, db: AsyncSession | None = None) -> None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            await _reset_account_login_failures_impl(user_id, session)
-            await session.commit()
-            return
-    await _reset_account_login_failures_impl(user_id, db)
+    async with unit_of_work(db) as session:
+        await _reset_account_login_failures_impl(user_id, session)
 
 
 async def _reset_account_login_failures_impl(user_id: int, db: AsyncSession) -> None:
@@ -288,12 +250,8 @@ async def _reset_account_login_failures_impl(user_id: int, db: AsyncSession) -> 
 
 @db_task_compat
 async def unlock_user_account(user_id: int, db: AsyncSession | None = None) -> bool:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            res = await _unlock_user_account_impl(user_id, session)
-            await session.commit()
-            return res
-    return await _unlock_user_account_impl(user_id, db)
+    async with unit_of_work(db) as session:
+        return await _unlock_user_account_impl(user_id, session)
 
 
 async def _unlock_user_account_impl(user_id: int, db: AsyncSession) -> bool:
@@ -301,8 +259,6 @@ async def _unlock_user_account_impl(user_id: int, db: AsyncSession) -> bool:
     res = await db.execute(user_stmt)
     uname = res.scalar_one_or_none()
     if uname:
-        from app.core.rate_limit_store import RateLimitStore
-
         RateLimitStore.clear_user(uname)
     stmt = update(User).where(User.id == user_id).values(failed_login_count=0, locked_until=None)
     res_up = await db.execute(stmt)

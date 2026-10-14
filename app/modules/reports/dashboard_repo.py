@@ -6,10 +6,9 @@ import time
 from datetime import date, timedelta
 from decimal import Decimal
 
-from sqlalchemy import Numeric, case, cast, func, literal_column, select, text, true, union_all
+from sqlalchemy import Date, Numeric, case, cast, func, literal_column, select, text, true, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_sessionmaker
 from app.core.async_compat import db_task_compat
 from app.core.models import (
     Client,
@@ -24,6 +23,7 @@ from app.core.models import (
     Supplier,
 )
 from app.core.perf_cache import TTL_FREQUENT, TTL_SEMI_STABLE, async_cached_result
+from app.core.uow import unit_of_work
 
 
 # --- Dashboard Queries (migrated from dashboard_repository) ---
@@ -34,10 +34,8 @@ async def get_dashboard_snapshot(target_date: str | None = None, db: AsyncSessio
     resolved_date = target_date or date.today().isoformat()
 
     async def load():
-        if db is None:
-            async with get_async_sessionmaker()() as session:
-                return await _build_dashboard_snapshot(resolved_date, session)
-        return await _build_dashboard_snapshot(resolved_date, db)
+        async with unit_of_work(db) as session:
+            return await _build_dashboard_snapshot(resolved_date, session)
 
     return await async_cached_result(
         ("dashboard_snapshot", resolved_date),
@@ -49,10 +47,8 @@ async def get_dashboard_snapshot(target_date: str | None = None, db: AsyncSessio
 @db_task_compat
 async def get_kpis_for_date(target_date: str, db: AsyncSession | None = None) -> dict[str, float | str]:
     async def load():
-        if db is None:
-            async with get_async_sessionmaker()() as session:
-                return await _build_kpis_for_date(target_date, session)
-        return await _build_kpis_for_date(target_date, db)
+        async with unit_of_work(db) as session:
+            return await _build_kpis_for_date(target_date, session)
 
     return await async_cached_result(
         ("dashboard_kpis", target_date),
@@ -454,12 +450,8 @@ async def refresh_client_balances_view(db: AsyncSession | None = None) -> None:
     _LAST_REFRESH_TIME_IN_MEM = now
 
     try:
-        if db is None:
-            async with get_async_sessionmaker()() as session:
-                await session.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_client_balances"))
-                await session.commit()
-        else:
-            await db.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_client_balances"))
+        async with unit_of_work(db, auto_commit=True) as session:
+            await session.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_client_balances"))
         logger.info("Materialized view mv_client_balances refreshed successfully")
     except Exception as e:
         logger.debug("Could not refresh mv_client_balances: %s", e)
@@ -663,10 +655,8 @@ async def list_recent_operations(
     page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_recent_operations_impl(search, date_from, date_to, kind, page, page_size, session)
-    return await _list_recent_operations_impl(search, date_from, date_to, kind, page, page_size, db)
+    async with unit_of_work(db) as session:
+        return await _list_recent_operations_impl(search, date_from, date_to, kind, page, page_size, session)
 
 
 async def _list_recent_operations_impl(
@@ -809,10 +799,8 @@ async def _list_recent_operations_impl(
 @db_task_compat
 async def get_kpis_for_period(period: str, db: AsyncSession | None = None) -> dict[str, float]:
     async def load():
-        if db is None:
-            async with get_async_sessionmaker()() as session:
-                return await _build_kpis_for_period(period, session)
-        return await _build_kpis_for_period(period, db)
+        async with unit_of_work(db) as session:
+            return await _build_kpis_for_period(period, session)
 
     return await async_cached_result(
         ("dashboard_kpis_period", period),
@@ -822,8 +810,6 @@ async def get_kpis_for_period(period: str, db: AsyncSession | None = None) -> di
 
 
 async def _build_kpis_for_period(period: str, db: AsyncSession) -> dict[str, float]:
-    from datetime import date, timedelta
-
     today_obj = date.today()
 
     if period == "today":
@@ -907,10 +893,8 @@ async def get_kpi_history_last_30_days(
     metric: str, db: AsyncSession | None = None, days: int = 30
 ) -> tuple[list[str], list[float]]:
     async def load():
-        if db is None:
-            async with get_async_sessionmaker()() as session:
-                return await _build_kpi_history(metric, session, days=days)
-        return await _build_kpi_history(metric, db, days=days)
+        async with unit_of_work(db) as session:
+            return await _build_kpi_history(metric, session, days=days)
 
     return await async_cached_result(
         ("dashboard_kpis_history", metric, days),
@@ -920,12 +904,6 @@ async def get_kpi_history_last_30_days(
 
 
 async def _build_kpi_history(metric: str, db: AsyncSession, days: int = 30) -> tuple[list[str], list[float]]:
-    from datetime import date, timedelta
-
-    from sqlalchemy import Date
-
-    from app.core.models import Client
-
     today_obj = date.today()
     start_date = today_obj - timedelta(days=days - 1)
 

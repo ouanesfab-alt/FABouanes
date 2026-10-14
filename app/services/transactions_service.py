@@ -1,13 +1,36 @@
 from __future__ import annotations
 
+from datetime import datetime as dt_class
 from typing import Any
 
-from sqlalchemy import text
+from sqlalchemy import (
+    Integer,
+    Numeric,
+    String,
+    and_,
+    case,
+    cast,
+    func,
+    literal,
+    or_,
+    select,
+    union_all,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_compat import async_compat
-from app.core.async_db import get_async_sessionmaker
 from app.core.model_utils import to_gmt1
+from app.core.models import (
+    Client,
+    FinishedProduct,
+    Payment,
+    Purchase,
+    RawMaterial,
+    RawSale,
+    Sale,
+    Supplier,
+)
+from app.core.uow import unit_of_work
 from app.modules.production.service import update_production_notes  # noqa: F401
 from app.utils.pagination import (
     MAX_PAGE_SIZE,
@@ -26,12 +49,10 @@ async def transactions_context(
     path: str = "/operations",
     db: AsyncSession | None = None,
 ) -> dict:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _transactions_context_impl(
-                filter_type, filter_name, filter_date, filter_operation, args, path, session
-            )
-    return await _transactions_context_impl(filter_type, filter_name, filter_date, filter_operation, args, path, db)
+    async with unit_of_work(db) as session:
+        return await _transactions_context_impl(
+            filter_type, filter_name, filter_date, filter_operation, args, path, session
+        )
 
 
 async def _transactions_context_impl(
@@ -39,162 +60,269 @@ async def _transactions_context_impl(
     filter_name: str,
     filter_date: str,
     filter_operation: str,
-    args,
+    args: Any,
     path: str,
     db: AsyncSession,
 ) -> dict:
-    queries = []
-    params: dict[str, Any] = {}
-
     name_filter = (filter_name or "").strip().lower()
     date_filter = (filter_date or "").strip()
     operation_filter = (filter_operation or "").strip().lower()
 
     db_date_filter = None
     if date_filter:
-        from datetime import datetime as dt_class
-
         try:
-            db_date_filter = dt_class.strptime(date_filter.strip(), "%Y-%m-%d").date()
+            db_date_filter = dt_class.strptime(date_filter, "%Y-%m-%d").date()
         except ValueError:
             pass
 
+    queries = []
+
     # 1. Purchases query
     if filter_type in ("all", "purchase"):
-        p_where = []
-        if db_date_filter:
-            p_where.append("p.purchase_date = :date_filter")
-            params["date_filter"] = db_date_filter
-        if name_filter:
-            p_where.append(
-                "(lower(COALESCE(s.name, '')) LIKE :name_filter OR lower(COALESCE(r.name, '')) LIKE :name_filter OR lower(COALESCE(fp.name, '')) LIKE :name_filter)"
+        p_unit_raw = func.coalesce(Purchase.unit, FinishedProduct.default_unit, RawMaterial.unit, "kg")
+        p_unit_lower = func.lower(p_unit_raw)
+        sac_weight = func.coalesce(
+            func.nullif(func.regexp_replace(p_unit_raw, r"[^0-9.]", "", "g"), ""),
+            "50",
+        )
+        sac_weight_num = cast(sac_weight, Numeric)
+
+        p_qty = case(
+            (p_unit_lower.like("sac%"), Purchase.quantity / sac_weight_num),
+            (p_unit_lower.in_(["qt", "quintal"]), Purchase.quantity / 100.0),
+            else_=Purchase.quantity,
+        )
+        p_price = case(
+            (p_unit_lower.like("sac%"), Purchase.unit_price * sac_weight_num),
+            (p_unit_lower.in_(["qt", "quintal"]), Purchase.unit_price * 100.0),
+            else_=Purchase.unit_price,
+        )
+        p_designation = case(
+            (Purchase.finished_product_id.isnot(None), FinishedProduct.name),
+            else_=RawMaterial.name,
+        )
+
+        p_stmt = (
+            select(
+                literal("Achat").label("tx_type"),
+                literal("purchase").label("tx_kind"),
+                Purchase.id.label("id"),
+                Purchase.purchase_date.label("tx_date"),
+                func.coalesce(Supplier.name, "-").label("partner_name"),
+                p_designation.label("designation"),
+                p_qty.label("quantity"),
+                p_unit_raw.label("unit"),
+                p_price.label("unit_price"),
+                Purchase.total.label("total"),
+                cast(None, Numeric).label("paid"),
+                cast(None, Numeric).label("due"),
+                Purchase.document_id.label("document_id"),
+                Purchase.created_at.label("tx_created_at"),
             )
-            params["name_filter"] = f"%{name_filter}%"
+            .select_from(Purchase)
+            .outerjoin(Supplier, Supplier.id == Purchase.supplier_id)
+            .outerjoin(RawMaterial, RawMaterial.id == Purchase.raw_material_id)
+            .outerjoin(FinishedProduct, FinishedProduct.id == Purchase.finished_product_id)
+        )
+
+        if db_date_filter:
+            p_stmt = p_stmt.where(Purchase.purchase_date == db_date_filter)
+        if name_filter:
+            like_pat = f"%{name_filter}%"
+            p_stmt = p_stmt.where(
+                or_(
+                    func.lower(func.coalesce(Supplier.name, "")).like(like_pat),
+                    func.lower(func.coalesce(RawMaterial.name, "")).like(like_pat),
+                    func.lower(func.coalesce(FinishedProduct.name, "")).like(like_pat),
+                )
+            )
         if operation_filter:
-            p_where.append("lower('Achat') LIKE :operation_filter")
-            params["operation_filter"] = f"%{operation_filter}%"
+            p_stmt = p_stmt.where(func.lower(literal("Achat")).like(f"%{operation_filter}%"))
 
-        p_where_str = " AND ".join(p_where)
-        p_where_clause = f"WHERE {p_where_str}" if p_where else ""
-
-        p_query = f"""
-            SELECT 'Achat' AS tx_type, 'purchase' AS tx_kind, p.id, p.purchase_date AS tx_date,
-                   COALESCE(s.name, '-') AS partner_name,
-                   CASE
-                       WHEN p.finished_product_id IS NOT NULL THEN fp.name
-                       ELSE r.name
-                   END AS designation,
-                    CASE
-                        WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) LIKE 'sac%%' THEN p.quantity / COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, r.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
-                        WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.quantity / 100.0
-                        ELSE p.quantity
-                    END AS quantity,
-                    COALESCE(p.unit, fp.default_unit, r.unit, 'kg') AS unit,
-                    CASE
-                        WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) LIKE 'sac%%' THEN p.unit_price * COALESCE(NULLIF(regexp_replace(COALESCE(p.unit, fp.default_unit, r.unit, 'kg'), '[^0-9.]', '', 'g'), ''), '50')::numeric
-                        WHEN lower(COALESCE(p.unit, fp.default_unit, r.unit, 'kg')) IN ('qt', 'quintal') THEN p.unit_price * 100.0
-                        ELSE p.unit_price
-                    END AS unit_price,
-                   p.total, CAST(NULL AS numeric) AS paid, CAST(NULL AS numeric) AS due, p.document_id AS document_id, p.created_at AS tx_created_at
-            FROM purchases p
-            LEFT JOIN suppliers s ON s.id = p.supplier_id
-            LEFT JOIN raw_materials r ON r.id = p.raw_material_id
-            LEFT JOIN finished_products fp ON fp.id = p.finished_product_id
-            {p_where_clause}
-        """
-        queries.append(p_query)
+        queries.append(p_stmt)
 
     # 2. Sales query (finished + raw)
     if filter_type in ("all", "sale"):
-        s_where = []
-        if db_date_filter:
-            s_where.append("x.sale_date = :date_filter")
-            params["date_filter"] = db_date_filter
-        if name_filter:
-            s_where.append(
-                "(lower(COALESCE(x.client_name, '')) LIKE :name_filter OR lower(x.item_name) LIKE :name_filter)"
+        sales_finished = (
+            select(
+                Sale.id.label("id"),
+                Sale.document_id.label("document_id"),
+                literal("finished").label("row_kind"),
+                Sale.sale_date.label("sale_date"),
+                Client.name.label("client_name"),
+                FinishedProduct.name.label("item_name"),
+                Sale.quantity.label("quantity"),
+                Sale.unit.label("unit"),
+                Sale.unit_price.label("unit_price"),
+                Sale.total.label("total"),
+                Sale.amount_paid.label("amount_paid"),
+                Sale.balance_due.label("balance_due"),
+                Sale.created_at.label("created_at"),
             )
-            params["name_filter"] = f"%{name_filter}%"
+            .select_from(Sale)
+            .outerjoin(Client, Client.id == Sale.client_id)
+            .join(FinishedProduct, FinishedProduct.id == Sale.finished_product_id)
+        )
+
+        sales_raw = (
+            select(
+                RawSale.id.label("id"),
+                RawSale.document_id.label("document_id"),
+                literal("raw").label("row_kind"),
+                RawSale.sale_date.label("sale_date"),
+                Client.name.label("client_name"),
+                RawMaterial.name.label("item_name"),
+                RawSale.quantity.label("quantity"),
+                RawSale.unit.label("unit"),
+                RawSale.unit_price.label("unit_price"),
+                RawSale.total.label("total"),
+                RawSale.amount_paid.label("amount_paid"),
+                RawSale.balance_due.label("balance_due"),
+                RawSale.created_at.label("created_at"),
+            )
+            .select_from(RawSale)
+            .outerjoin(Client, Client.id == RawSale.client_id)
+            .join(RawMaterial, RawMaterial.id == RawSale.raw_material_id)
+        )
+
+        sales_union = union_all(sales_finished, sales_raw).subquery("x")
+
+        s_stmt = select(
+            literal("Vente").label("tx_type"),
+            case(
+                (sales_union.c.row_kind == "finished", literal("sale_finished")),
+                else_=literal("sale_raw"),
+            ).label("tx_kind"),
+            sales_union.c.id.label("id"),
+            sales_union.c.sale_date.label("tx_date"),
+            func.coalesce(sales_union.c.client_name, "-").label("partner_name"),
+            sales_union.c.item_name.label("designation"),
+            sales_union.c.quantity.label("quantity"),
+            sales_union.c.unit.label("unit"),
+            sales_union.c.unit_price.label("unit_price"),
+            sales_union.c.total.label("total"),
+            sales_union.c.amount_paid.label("paid"),
+            sales_union.c.balance_due.label("due"),
+            sales_union.c.document_id.label("document_id"),
+            sales_union.c.created_at.label("tx_created_at"),
+        ).select_from(sales_union)
+
+        if db_date_filter:
+            s_stmt = s_stmt.where(sales_union.c.sale_date == db_date_filter)
+        if name_filter:
+            like_pat = f"%{name_filter}%"
+            s_stmt = s_stmt.where(
+                or_(
+                    func.lower(func.coalesce(sales_union.c.client_name, "")).like(like_pat),
+                    func.lower(sales_union.c.item_name).like(like_pat),
+                )
+            )
         if operation_filter:
-            s_where.append("lower('Vente') LIKE :operation_filter")
-            params["operation_filter"] = f"%{operation_filter}%"
+            s_stmt = s_stmt.where(func.lower(literal("Vente")).like(f"%{operation_filter}%"))
 
-        s_where_str = " AND ".join(s_where)
-        s_where_clause = f"WHERE {s_where_str}" if s_where else ""
-
-        s_query = f"""
-            SELECT 'Vente' AS tx_type,
-                   CASE WHEN x.row_kind='finished' THEN 'sale_finished' ELSE 'sale_raw' END AS tx_kind,
-                   x.id, x.sale_date AS tx_date, COALESCE(x.client_name, '-') AS partner_name, x.item_name AS designation,
-                   x.quantity, x.unit, x.unit_price, x.total, x.amount_paid AS paid, x.balance_due AS due, x.document_id AS document_id, x.created_at AS tx_created_at
-            FROM (
-                SELECT s.id, s.document_id, 'finished' AS row_kind, s.sale_date, c.name AS client_name, f.name AS item_name, s.quantity, s.unit, s.unit_price, s.total, s.amount_paid, s.balance_due, s.created_at
-                FROM sales s LEFT JOIN clients c ON c.id = s.client_id JOIN finished_products f ON f.id = s.finished_product_id
-                UNION ALL
-                SELECT rs.id, rs.document_id, 'raw' AS row_kind, rs.sale_date, c.name AS client_name, r.name AS item_name, rs.quantity, rs.unit, rs.unit_price, rs.total, rs.amount_paid, rs.balance_due, rs.created_at
-                FROM raw_sales rs LEFT JOIN clients c ON c.id = rs.client_id JOIN raw_materials r ON r.id = rs.raw_material_id
-            ) x
-            {s_where_clause}
-        """
-        queries.append(s_query)
+        queries.append(s_stmt)
 
     # 3. Payments query
     if filter_type in ("all", "payment"):
-        pay_where = []
+        pay_designation = case(
+            (
+                and_(Payment.sale_kind == "finished", Payment.sale_id.isnot(None)),
+                literal("Versement vente #") + cast(Payment.sale_id, String),
+            ),
+            (
+                and_(Payment.sale_kind == "raw", Payment.raw_sale_id.isnot(None)),
+                literal("Versement vente matiere #") + cast(Payment.raw_sale_id, String),
+            ),
+            (
+                Payment.payment_type == "avance",
+                literal("Avance client"),
+            ),
+            else_=literal("Versement client"),
+        )
+
+        pay_type_label = case(
+            (Payment.payment_type == "avance", literal("Avance")),
+            else_=literal("Versement"),
+        )
+
+        pay_stmt = (
+            select(
+                pay_type_label.label("tx_type"),
+                literal("payment").label("tx_kind"),
+                Payment.id.label("id"),
+                Payment.payment_date.label("tx_date"),
+                Client.name.label("partner_name"),
+                pay_designation.label("designation"),
+                cast(None, Numeric).label("quantity"),
+                cast(None, String).label("unit"),
+                cast(None, Numeric).label("unit_price"),
+                Payment.amount.label("total"),
+                Payment.amount.label("paid"),
+                cast(None, Numeric).label("due"),
+                cast(None, Integer).label("document_id"),
+                Payment.created_at.label("tx_created_at"),
+            )
+            .select_from(Payment)
+            .join(Client, Client.id == Payment.client_id)
+        )
+
         if db_date_filter:
-            pay_where.append("p.payment_date = :date_filter")
-            params["date_filter"] = db_date_filter
+            pay_stmt = pay_stmt.where(Payment.payment_date == db_date_filter)
         if name_filter:
-            pay_where.append(
-                "(lower(COALESCE(c.name, '')) LIKE :name_filter OR lower(CASE WHEN p.payment_type='avance' THEN 'Avance client' ELSE 'Versement client' END) LIKE :name_filter)"
+            like_pat = f"%{name_filter}%"
+            pay_stmt = pay_stmt.where(
+                or_(
+                    func.lower(func.coalesce(Client.name, "")).like(like_pat),
+                    func.lower(
+                        case(
+                            (Payment.payment_type == "avance", literal("Avance client")),
+                            else_=literal("Versement client"),
+                        )
+                    ).like(like_pat),
+                )
             )
-            params["name_filter"] = f"%{name_filter}%"
         if operation_filter:
-            pay_where.append(
-                "lower(CASE WHEN p.payment_type='avance' THEN 'Avance' ELSE 'Versement' END) LIKE :operation_filter"
+            pay_stmt = pay_stmt.where(
+                func.lower(
+                    case(
+                        (Payment.payment_type == "avance", literal("Avance")),
+                        else_=literal("Versement"),
+                    )
+                ).like(f"%{operation_filter}%")
             )
-            params["operation_filter"] = f"%{operation_filter}%"
 
-        pay_where_str = " AND ".join(pay_where)
-        pay_where_clause = f"WHERE {pay_where_str}" if pay_where else ""
-
-        pay_query = f"""
-            SELECT CASE WHEN p.payment_type='avance' THEN 'Avance' ELSE 'Versement' END AS tx_type, 'payment' AS tx_kind, p.id, p.payment_date AS tx_date,
-                   c.name AS partner_name,
-                   CASE
-                       WHEN p.sale_kind = 'finished' AND p.sale_id IS NOT NULL THEN 'Versement vente #' || CAST(p.sale_id AS VARCHAR)
-                       WHEN p.sale_kind = 'raw' AND p.raw_sale_id IS NOT NULL THEN 'Versement vente matiere #' || CAST(p.raw_sale_id AS VARCHAR)
-                       ELSE CASE WHEN p.payment_type='avance' THEN 'Avance client' ELSE 'Versement client' END
-                   END AS designation,
-                   CAST(NULL AS numeric) AS quantity, CAST(NULL AS varchar) AS unit, CAST(NULL AS numeric) AS unit_price, p.amount AS total, p.amount AS paid, CAST(NULL AS numeric) AS due, CAST(NULL AS integer) AS document_id, p.created_at AS tx_created_at
-            FROM payments p JOIN clients c ON c.id = p.client_id
-            {pay_where_clause}
-        """
-        queries.append(pay_query)
+        queries.append(pay_stmt)
 
     if not queries:
-        union_query = "SELECT CAST(NULL AS varchar) AS tx_type LIMIT 0"
-    else:
-        union_query = " UNION ALL ".join(queries)
+        page, page_size, _ = parse_pagination(args)
+        return {
+            "transactions": [],
+            "filter_type": filter_type,
+            "filter_name": filter_name,
+            "filter_date": filter_date,
+            "filter_operation": filter_operation,
+            "pagination": pagination_context(path, args, total=0, page=page, page_size=page_size),
+        }
 
-    full_query = f"""
-        SELECT * FROM (
-            {union_query}
-        ) t
-        ORDER BY tx_date DESC, tx_created_at DESC, id DESC
-    """
+    combined = union_all(*queries).subquery("t")
+
+    ordered_stmt = select(combined).order_by(
+        combined.c.tx_date.desc(),
+        combined.c.tx_created_at.desc(),
+        combined.c.id.desc(),
+    )
 
     requested_size = int((args or {}).get("page_size", 0) or 0)
     page, page_size, offset = parse_pagination(args)
     if requested_size > MAX_PAGE_SIZE:
         page_size = MAX_PAGE_SIZE
 
-    count_res = await db.execute(text(f"SELECT COUNT(*) AS c FROM ({full_query}) paginated_query"), params)
-    count_row = count_res.first()
-    total = int(count_row.c if count_row else 0)
+    count_stmt = select(func.count()).select_from(combined)
+    count_res = await db.execute(count_stmt)
+    total = int(count_res.scalar() or 0)
 
-    limit_params = {**params, "limit": page_size, "offset": offset}
-    rows_res = await db.execute(text(f"{full_query} LIMIT :limit OFFSET :offset"), limit_params)
+    paged_stmt = ordered_stmt.offset(offset).limit(page_size)
+    rows_res = await db.execute(paged_stmt)
     rows = rows_res.all()
 
     formatted_rows = []

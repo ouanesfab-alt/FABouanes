@@ -37,3 +37,8 @@ def db_task_compat(func: Callable[..., Any]) -> Any:
     wrapper.async_ = wrapper
     wrapper.sync = wrapper
     return wrapper
+
+
+from app.core.uow import unit_of_work, with_uow  # noqa: E402
+
+__all__ = ["async_compat", "db_task_compat", "unit_of_work", "with_uow"]

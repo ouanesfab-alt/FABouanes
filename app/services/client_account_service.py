@@ -11,9 +11,9 @@ from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_sessionmaker
-from app.core.exceptions import ValidationError
 from app.core.async_compat import async_compat
+from app.core.exceptions import ValidationError
+from app.core.uow import unit_of_work
 from app.modules.payments.service import PaymentsService
 
 warnings.warn(
@@ -26,30 +26,23 @@ warnings.warn(
 
 @async_compat
 async def client_balance(client_id: int, db: AsyncSession | None = None) -> float:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await PaymentsService(session).get_client_balance(client_id)
-    return await PaymentsService(db).get_client_balance(client_id)
+    async with unit_of_work(db) as session:
+        return await PaymentsService(session).get_client_balance(client_id)
 
 
 @async_compat
 async def get_open_credit_entries(client_id: int | None = None, db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await PaymentsService(session).get_open_credit_entries(client_id)
-    return await PaymentsService(db).get_open_credit_entries(client_id)
+    async with unit_of_work(db) as session:
+        return await PaymentsService(session).get_open_credit_entries(client_id)
 
 
 @async_compat
 async def apply_payment_to_entry(
     kind: str, row_id: int, amount: float | Decimal, entry: dict | None = None, db: AsyncSession | None = None
 ) -> float:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await PaymentsService(session).apply_payment_to_entry(kind, row_id, amount)
     try:
-        return await PaymentsService(db).apply_payment_to_entry(kind, row_id, amount)
+        async with unit_of_work(db, auto_commit=True) as session:
+            return await PaymentsService(session).apply_payment_to_entry(kind, row_id, amount)
     except (KeyError, AttributeError):
         # Fallback pour sessions mockees de tests legacy
         if float(amount) <= 0:
@@ -60,15 +53,9 @@ async def apply_payment_to_entry(
 @async_compat
 async def reverse_payment_allocations(payment_row, db: AsyncSession | None = None) -> None:
     p_dict = dict(payment_row) if hasattr(payment_row, "keys") and not isinstance(payment_row, dict) else payment_row
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                try:
-                    return await PaymentsService(session).reverse_payment_allocations(p_dict)
-                except (KeyError, AttributeError):
-                    return
     try:
-        return await PaymentsService(db).reverse_payment_allocations(p_dict)
+        async with unit_of_work(db, auto_commit=True) as session:
+            return await PaymentsService(session).reverse_payment_allocations(p_dict)
     except (KeyError, AttributeError):
         return
 
@@ -84,14 +71,9 @@ async def create_payment_record(
     db: AsyncSession | None = None,
 ) -> int:
     try:
-        if db is None:
-            async with get_async_sessionmaker()() as session:
-                async with session.begin():
-                    return await PaymentsService(session).create_payment_record(
-                        client_id, amount, payment_date, notes, sale_link, payment_type
-                    )
-        return await PaymentsService(db).create_payment_record(
-            client_id, amount, payment_date, notes, sale_link, payment_type
-        )
+        async with unit_of_work(db, auto_commit=True) as session:
+            return await PaymentsService(session).create_payment_record(
+                client_id, amount, payment_date, notes, sale_link, payment_type
+            )
     except ValidationError as ve:
         raise ValueError(str(ve.message)) from ve

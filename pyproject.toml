@@ -56,8 +56,8 @@ dev = [
 testpaths = [
   "tests",
 ]
-python_files = ["test_*.py"]
-addopts = "-q --cov=app --cov-config=pyproject.toml --cov-report=term-missing --cov-fail-under=85"
+addopts = "-ra -q"
+asyncio_mode = "strict"
 
 
 

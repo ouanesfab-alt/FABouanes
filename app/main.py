@@ -45,7 +45,7 @@ if sys.platform == "win32":
 
 from app.api.router import router as api_router
 from app.core.config import settings
-from app.core.exception_handlers import register_exception_handlers
+from app.web.exception_handlers import register_exception_handlers
 from app.core.lifespan import lifespan
 from app.core.middleware import CachedStaticFiles, RequestContextMiddleware
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler

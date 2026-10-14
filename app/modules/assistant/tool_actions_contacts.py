@@ -5,8 +5,19 @@ import logging
 import os
 from typing import Any, Dict
 
+from sqlalchemy import func
+from sqlmodel import select, text
+
 from app.core.config import BASE_DIR
+from app.core.exceptions import ValidationError
+from app.core.models import Purchase, PurchaseDocument
+from app.core.perf_cache import async_cached_result
+from app.core.schema.supplier_validation import SupplierValidationSchema
 from app.modules.assistant.tool_actions import _assert_workspace_path, sanitize_numeric
+from app.modules.clients import service as client_service_pkg
+from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
+from app.services import contact_directory_service as contact_service
+from app.services import excel_import_service
 
 logger = logging.getLogger("fabouanes.assistant")
 
@@ -21,12 +32,10 @@ async def handle_contacts(
         address = str(func_args.get("address", "")).strip()
         notes = str(func_args.get("notes", "")).strip()
         opening_credit = sanitize_numeric(func_args.get("opening_credit"))
-        from app.modules.clients.schemas_validation import ClientCreateSchema
-        from app.modules.clients.service import ClientService
 
         schema = ClientCreateSchema(name=name, phone=phone, address=address, notes=notes, opening_credit=opening_credit)
         async with session_maker() as session:
-            service = ClientService(session)
+            service = client_service_pkg.ClientService(session)
             client = await service.create_client(schema)
             await session.commit()
         return {"success": True, "client_id": client.id}
@@ -45,12 +54,10 @@ async def handle_contacts(
         notes = func_args.get("notes")
         if notes:
             notes = str(notes).strip()
-        from app.modules.clients.schemas_validation import ClientUpdateSchema
-        from app.modules.clients.service import ClientService
 
         success = False
         async with session_maker() as session:
-            service = ClientService(session)
+            service = client_service_pkg.ClientService(session)
             if not name:
                 existing = await service.get_client(client_id)
                 if existing:
@@ -66,13 +73,10 @@ async def handle_contacts(
 
     elif func_name == "delete_client":
         client_id = int(func_args.get("client_id"))
-        from app.core.exceptions import ValidationError
-        from app.modules.clients.service import ClientService
-
         success = False
         try:
             async with session_maker() as session:
-                service = ClientService(session)
+                service = client_service_pkg.ClientService(session)
                 success = await service.delete_client(client_id)
                 if success:
                     await session.commit()
@@ -87,22 +91,17 @@ async def handle_contacts(
         phone = str(func_args.get("phone", "")).strip()
         address = str(func_args.get("address", "")).strip()
         notes = str(func_args.get("notes", "")).strip()
-        from app.core.schema.supplier_validation import SupplierValidationSchema
-        from app.services.contact_directory_service import create_supplier_from_form
 
         schema = SupplierValidationSchema(name=name, phone=phone, address=address, notes=notes)
         async with session_maker() as session:
-            supplier_id = await create_supplier_from_form(schema.model_dump(), db=session)
+            supplier_id = await contact_service.create_supplier_from_form(schema.model_dump(), db=session)
             await session.commit()
         return {"success": True, "supplier_id": supplier_id}
 
     elif func_name == "modify_supplier":
         supplier_id = int(func_args.get("supplier_id"))
-        from app.core.schema.supplier_validation import SupplierValidationSchema
-        from app.services.contact_directory_service import get_supplier, update_supplier_from_form
-
         async with session_maker() as session:
-            existing = await get_supplier(supplier_id, db=session)
+            existing = await contact_service.get_supplier(supplier_id, db=session)
             if not existing:
                 return {"error": f"Fournisseur {supplier_id} introuvable."}
             data = {
@@ -112,20 +111,14 @@ async def handle_contacts(
                 "notes": str(func_args.get("notes", existing.get("notes") or "")).strip(),
             }
             schema = SupplierValidationSchema(**data)
-            await update_supplier_from_form(supplier_id, schema.model_dump(), db=session)
+            await contact_service.update_supplier_from_form(supplier_id, schema.model_dump(), db=session)
             await session.commit()
         return {"success": True, "message": f"Fournisseur {supplier_id} modifie."}
 
     elif func_name == "delete_supplier":
         supplier_id = int(func_args.get("supplier_id"))
-        from sqlalchemy import func
-        from sqlmodel import select
-
-        from app.core.models import Purchase, PurchaseDocument
-        from app.services.contact_directory_service import delete_supplier_by_id, get_supplier
-
         async with session_maker() as session:
-            existing = await get_supplier(supplier_id, db=session)
+            existing = await contact_service.get_supplier(supplier_id, db=session)
             if not existing:
                 return {"error": f"Fournisseur {supplier_id} introuvable."}
             purchases_count = (
@@ -142,17 +135,14 @@ async def handle_contacts(
             ).scalar() or 0
             if purchases_count or docs_count:
                 return {"error": f"Fournisseur {supplier_id} lie a des achats; suppression refusee."}
-            await delete_supplier_by_id(supplier_id, db=session)
+            await contact_service.delete_supplier_by_id(supplier_id, db=session)
             await session.commit()
         return {"success": True, "message": f"Fournisseur {supplier_id} supprime."}
 
     elif func_name == "search_clients":
         q = func_args.get("query", "").strip()
-        from app.core.perf_cache import async_cached_result
 
         async def builder():
-            from sqlmodel import text
-
             async with session_maker() as session:
                 rows = (
                     await session.execute(
@@ -177,14 +167,11 @@ async def handle_contacts(
             _assert_workspace_path(abs_path, workspace_dir)
         except ValueError as e:
             return {"error": str(e)}
-        from app.services.excel_import_service import parse_excel_client_file
 
         try:
-            data = parse_excel_client_file(abs_path)
+            data = excel_import_service.parse_excel_client_file(abs_path)
         except Exception as e:
             return {"error": f"Erreur de lecture du fichier Excel : {str(e)}"}
-        from app.modules.clients.schemas_validation import ClientCreateSchema
-        from app.modules.clients.service import ClientService
 
         schema = ClientCreateSchema(
             name=data["name"],
@@ -194,7 +181,7 @@ async def handle_contacts(
             opening_credit=data["opening_credit"],
         )
         async with session_maker() as session:
-            service = ClientService(session)
+            service = client_service_pkg.ClientService(session)
             client = await service.create_client(schema)
             await session.commit()
         return {
@@ -215,10 +202,8 @@ async def handle_contacts(
         except ValueError as e:
             return {"error": str(e)}
 
-        from app.modules.clients.service import ClientService
-
         async with session_maker() as session:
-            service = ClientService(session)
+            service = client_service_pkg.ClientService(session)
             try:
                 res = await service.import_client_history_from_excel(abs_path, client_id=client_id, force_reimport=True)
                 await session.commit()
@@ -238,19 +223,14 @@ async def handle_contacts(
         except ValueError as e:
             return {"error": str(e)}
 
-        from app.services.excel_import_service import parse_excel_bulk_clients
-
         try:
-            parsed_clients = parse_excel_bulk_clients(abs_path)
+            parsed_clients = excel_import_service.parse_excel_bulk_clients(abs_path)
         except Exception as e:
             return {"error": f"Erreur de lecture du fichier Excel : {str(e)}"}
 
-        from app.modules.clients.schemas_validation import ClientCreateSchema
-        from app.modules.clients.service import ClientService
-
         imported_count = 0
         async with session_maker() as session:
-            service = ClientService(session)
+            service = client_service_pkg.ClientService(session)
             for c_data in parsed_clients:
                 try:
                     schema = ClientCreateSchema(

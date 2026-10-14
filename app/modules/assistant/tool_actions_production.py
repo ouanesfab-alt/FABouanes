@@ -1,10 +1,24 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from collections import defaultdict
+import datetime
+from decimal import Decimal
 import logging
 from typing import Any, Dict
 
+from sqlalchemy import delete
+from sqlmodel import select
+
+from app.core.models_pkg.catalog import FinishedProduct, RawMaterial
+from app.core.models_pkg.production import (
+    ProductionBatch,
+    ProductionBatchItem,
+    SavedRecipe,
+    SavedRecipeItem,
+)
 from app.modules.assistant.tool_actions import sanitize_numeric
+from app.services import production_service, recipe_service, stock_service
 
 logger = logging.getLogger("fabouanes.assistant")
 
@@ -17,20 +31,6 @@ async def handle_production(
         finished_product_id = int(func_args.get("finished_product_id"))
         quantity = sanitize_numeric(func_args.get("quantity"))
         notes = str(func_args.get("notes", "")).strip()
-
-        import datetime
-        from decimal import Decimal
-
-        from sqlmodel import select
-
-        from app.core.models_pkg.catalog import FinishedProduct, RawMaterial
-        from app.core.models_pkg.production import (
-            ProductionBatch,
-            ProductionBatchItem,
-            SavedRecipe,
-            SavedRecipeItem,
-        )
-        from app.services.stock_service import apply_finished_production, apply_raw_material_consumption
 
         async with session_maker() as session:
             # 1. Fetch finished product
@@ -55,7 +55,6 @@ async def handle_production(
                 )
                 recipe_items = items_res.scalars().all()
 
-                from collections import defaultdict
                 needed_stock = defaultdict(float)
                 for item in recipe_items:
                     needed_stock[item.raw_material_id] += float(item.quantity) * quantity
@@ -115,7 +114,7 @@ async def handle_production(
                 )
                 session.add(item)
                 # Deduct from raw material stock and record movement
-                await apply_raw_material_consumption(
+                await stock_service.apply_raw_material_consumption(
                     material={"id": line["material"].id},
                     qty=line["qty"],
                     reference_type="production",
@@ -125,7 +124,7 @@ async def handle_production(
                 )
 
             # 5. Add finished product to stock and record movement
-            await apply_finished_production(
+            await stock_service.apply_finished_production(
                 product={"id": finished_product_id},
                 output_qty=quantity,
                 total_cost=total_cost,
@@ -139,22 +138,17 @@ async def handle_production(
 
     elif func_name == "delete_production":
         batch_id = int(func_args.get("batch_id"))
-        from app.services.production_service import delete_production_by_id
 
         async with session_maker() as session:
-            await delete_production_by_id(batch_id, db=session)
+            await production_service.delete_production_by_id(batch_id, db=session)
             await session.commit()
         return {"success": True, "message": f"Production {batch_id} supprimée."}
 
     elif func_name == "list_recipes":
-        from app.services.recipe_service import load_saved_recipes
-
-        recipes = await load_saved_recipes()
+        recipes = await recipe_service.load_saved_recipes()
         return {"recipes": recipes}
 
     elif func_name == "create_recipe":
-        from app.services.recipe_service import save_recipe_definition
-
         finished_id = int(func_args.get("finished_product_id") or 0)
         name = func_args.get("name", "").strip()
         notes = func_args.get("notes", "").strip()
@@ -166,7 +160,7 @@ async def handle_production(
             qty = float(it.get("quantity") or 0.0)
             recipe_lines.append({"material": {"id": raw_id}, "qty": qty})
 
-        recipe_id = await save_recipe_definition(
+        recipe_id = await recipe_service.save_recipe_definition(
             finished_id=finished_id, recipe_name=name, notes=notes, recipe_lines=recipe_lines
         )
         if recipe_id:
@@ -178,10 +172,6 @@ async def handle_production(
         return {"error": "Impossible d'enregistrer la recette. Vérifiez les composants."}
 
     elif func_name == "delete_recipe":
-        from sqlalchemy import delete
-
-        from app.core.models import SavedRecipe, SavedRecipeItem
-
         recipe_id = int(func_args.get("recipe_id") or 0)
         async with session_maker() as session:
             async with session.begin():

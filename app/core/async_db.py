@@ -109,11 +109,17 @@ AsyncSessionLocal = LoopBoundSessionLocal()
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency injection session getter for FastAPI endpoints."""
+    """Dependency injection session getter for FastAPI endpoints with Unit of Work guarantees."""
     session_local = get_async_sessionmaker()
     async with session_local() as session:
         try:
             yield session
+            if session.is_active:
+                await session.commit()
+        except Exception:
+            if session.is_active:
+                await session.rollback()
+            raise
         finally:
             await session.close()
 

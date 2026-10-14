@@ -10,13 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity import log_activity
 from app.core.async_compat import async_compat
-from app.core.async_db import get_async_sessionmaker
 from app.core.audit import audit_event
 from app.core.helpers import to_float
 from app.core.models import FinishedProduct, ProductionBatch, ProductionBatchItem, RawMaterial, SavedRecipe
 from app.core.perf_cache import async_cached_result
 from app.core.request_state import get_state_value
 from app.core.storage import backup_database, mark_backup_needed
+from app.core.uow import unit_of_work
 from app.modules.production.repository import (
     ProductionBatchItemRepository,
     ProductionBatchRepository,
@@ -80,11 +80,8 @@ def _current_user_id() -> int | None:
 
 @async_compat
 async def create_production_from_form(form, db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await ProductionService(session).create_production(form)
-    return await ProductionService(db).create_production(form)
+    async with unit_of_work(db, auto_commit=True) as session:
+        return await ProductionService(session).create_production(form)
 
 
 async def _create_production_from_form_impl(form, db: AsyncSession):
@@ -255,11 +252,8 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
 
 @async_compat
 async def delete_production_by_id(batch_id: int, db: AsyncSession | None = None) -> bool:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await ProductionService(session).delete_production(batch_id)
-    return await ProductionService(db).delete_production(batch_id)
+    async with unit_of_work(db, auto_commit=True) as session:
+        return await ProductionService(session).delete_production(batch_id)
 
 
 async def _delete_production_by_id_impl(batch_id: int, db: AsyncSession) -> bool:
@@ -283,12 +277,8 @@ async def update_production_notes(
     notes: str,
     db: AsyncSession | None = None,
 ) -> None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            await _update_production_notes_impl(batch_id, production_date, notes, session)
-            await session.commit()
-            return
-    await _update_production_notes_impl(batch_id, production_date, notes, db)
+    async with unit_of_work(db, auto_commit=True) as session:
+        await _update_production_notes_impl(batch_id, production_date, notes, session)
 
 
 async def _update_production_notes_impl(

@@ -12,7 +12,7 @@ from app.core.permissions import (
     PERMISSION_CONTACTS_WRITE,
 )
 from app.core.schema.supplier_validation import SupplierValidationSchema
-from app.services.contact_directory_service import (
+from app.modules.clients.directory_service import (
     contacts_context,
     create_supplier_from_form,
     delete_supplier_by_id,

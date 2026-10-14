@@ -8,10 +8,10 @@ from datetime import date
 from sqlalchemy import case, delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_sessionmaker
+from app.core.async_compat import async_compat
 from app.core.events import DomainEvent, emit
 from app.core.exceptions import NotFoundError, ValidationError
-from app.core.async_compat import async_compat
+from app.core.uow import unit_of_work
 from app.core.models import (
     FinishedProduct,
     Payment,
@@ -26,7 +26,7 @@ from app.core.models import (
 )
 from app.core.perf_cache import invalidate_cache_domains, invalidate_client_cache
 from app.core.request_state import get_state_value
-from app.modules.catalog.repository import insert_stock_movement
+import app.modules.catalog.repository as catalog_repo
 
 logger = logging.getLogger("fabouanes")
 
@@ -165,7 +165,7 @@ async def record_stock_movement(
     db: AsyncSession | None = None,
 ) -> None:
     try:
-        await insert_stock_movement(
+        await catalog_repo.insert_stock_movement(
             item_kind,
             item_id,
             direction,
@@ -187,12 +187,8 @@ async def record_stock_movement(
 
 @async_compat
 async def recalc_raw_material_avg_cost(material_id: int, db: AsyncSession | None = None) -> None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                await _recalc_raw_material_avg_cost_impl(material_id, session)
-    else:
-        await _recalc_raw_material_avg_cost_impl(material_id, db)
+    async with unit_of_work(db, auto_commit=True) as session:
+        await _recalc_raw_material_avg_cost_impl(material_id, session)
 
 
 async def _recalc_raw_material_avg_cost_impl(material_id: int, db: AsyncSession) -> None:
@@ -241,12 +237,8 @@ async def _recalc_raw_material_avg_cost_impl(material_id: int, db: AsyncSession)
 
 @async_compat
 async def recalc_finished_product_avg_cost(product_id: int, db: AsyncSession | None = None) -> None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                await _recalc_finished_product_avg_cost_impl(product_id, session)
-    else:
-        await _recalc_finished_product_avg_cost_impl(product_id, db)
+    async with unit_of_work(db, auto_commit=True) as session:
+        await _recalc_finished_product_avg_cost_impl(product_id, session)
 
 
 async def _recalc_finished_product_avg_cost_impl(product_id: int, db: AsyncSession) -> None:
@@ -281,12 +273,8 @@ async def _recalc_finished_product_avg_cost_impl(product_id: int, db: AsyncSessi
 async def recalc_purchase_document_totals(document_id: int | None, db: AsyncSession | None = None) -> None:
     if not document_id:
         return
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                await _recalc_purchase_document_totals_impl(document_id, session)
-    else:
-        await _recalc_purchase_document_totals_impl(document_id, db)
+    async with unit_of_work(db, auto_commit=True) as session:
+        await _recalc_purchase_document_totals_impl(document_id, session)
 
 
 async def _recalc_purchase_document_totals_impl(document_id: int, db: AsyncSession) -> None:
@@ -309,12 +297,8 @@ async def _recalc_purchase_document_totals_impl(document_id: int, db: AsyncSessi
 async def recalc_sale_document_totals(document_id: int | None, db: AsyncSession | None = None) -> None:
     if not document_id:
         return
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                await _recalc_sale_document_totals_impl(document_id, session)
-    else:
-        await _recalc_sale_document_totals_impl(document_id, db)
+    async with unit_of_work(db, auto_commit=True) as session:
+        await _recalc_sale_document_totals_impl(document_id, session)
 
 
 async def _recalc_sale_document_totals_impl(document_id: int, db: AsyncSession) -> None:
@@ -358,12 +342,8 @@ async def _recalc_sale_document_totals_impl(document_id: int, db: AsyncSession) 
 async def refresh_sale_profits_for_item(
     item_kind: str, item_id: int, avg_cost: float, sale_price: float | None = None, db: AsyncSession | None = None
 ) -> None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                await _refresh_sale_profits_for_item_impl(item_kind, item_id, avg_cost, sale_price, session)
-    else:
-        await _refresh_sale_profits_for_item_impl(item_kind, item_id, avg_cost, sale_price, db)
+    async with unit_of_work(db, auto_commit=True) as session:
+        await _refresh_sale_profits_for_item_impl(item_kind, item_id, avg_cost, sale_price, session)
 
 
 async def _refresh_sale_profits_for_item_impl(
@@ -434,35 +414,20 @@ async def create_purchase_record(
     item_id: int | None = None,
     db: AsyncSession | None = None,
 ) -> int:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _create_purchase_record_impl(
-                    supplier_id,
-                    item_kind_or_raw_id,
-                    qty,
-                    unit_price,
-                    purchase_date,
-                    notes,
-                    unit,
-                    document_id,
-                    custom_item_name,
-                    item_id,
-                    session,
-                )
-    return await _create_purchase_record_impl(
-        supplier_id,
-        item_kind_or_raw_id,
-        qty,
-        unit_price,
-        purchase_date,
-        notes,
-        unit,
-        document_id,
-        custom_item_name,
-        item_id,
-        db,
-    )
+    async with unit_of_work(db, auto_commit=True) as session:
+        return await _create_purchase_record_impl(
+            supplier_id,
+            item_kind_or_raw_id,
+            qty,
+            unit_price,
+            purchase_date,
+            notes,
+            unit,
+            document_id,
+            custom_item_name,
+            item_id,
+            session,
+        )
 
 
 async def _create_purchase_record_impl(
@@ -620,39 +585,22 @@ async def create_sale_record(
     custom_item_name: str = "",
     db: AsyncSession | None = None,
 ) -> tuple[str, int]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _create_sale_record_impl(
-                    client_id,
-                    item_kind,
-                    item_id,
-                    qty,
-                    unit,
-                    unit_price,
-                    sale_type,
-                    sale_date,
-                    notes,
-                    amount_paid_input,
-                    document_id,
-                    custom_item_name,
-                    session,
-                )
-    return await _create_sale_record_impl(
-        client_id,
-        item_kind,
-        item_id,
-        qty,
-        unit,
-        unit_price,
-        sale_type,
-        sale_date,
-        notes,
-        amount_paid_input,
-        document_id,
-        custom_item_name,
-        db,
-    )
+    async with unit_of_work(db, auto_commit=True) as session:
+        return await _create_sale_record_impl(
+            client_id,
+            item_kind,
+            item_id,
+            qty,
+            unit,
+            unit_price,
+            sale_type,
+            sale_date,
+            notes,
+            amount_paid_input,
+            document_id,
+            custom_item_name,
+            session,
+        )
 
 
 async def _create_sale_record_impl(
@@ -832,11 +780,8 @@ async def _create_sale_record_impl(
 
 @async_compat
 async def reverse_purchase(purchase_id: int, db: AsyncSession | None = None) -> bool:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _reverse_purchase_impl(purchase_id, session)
-    return await _reverse_purchase_impl(purchase_id, db)
+    async with unit_of_work(db, auto_commit=True) as session:
+        return await _reverse_purchase_impl(purchase_id, session)
 
 
 async def _reverse_purchase_impl(purchase_id: int, db: AsyncSession) -> bool:
@@ -921,11 +866,8 @@ async def _reverse_purchase_impl(purchase_id: int, db: AsyncSession) -> bool:
 
 @async_compat
 async def reverse_sale(kind: str, row_id: int, db: AsyncSession | None = None) -> bool:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _reverse_sale_impl(kind, row_id, session)
-    return await _reverse_sale_impl(kind, row_id, db)
+    async with unit_of_work(db, auto_commit=True) as session:
+        return await _reverse_sale_impl(kind, row_id, session)
 
 
 async def _reverse_sale_impl(kind: str, row_id: int, db: AsyncSession) -> bool:
@@ -1018,12 +960,8 @@ async def apply_raw_material_consumption(
     reason: str = "production",
     db: AsyncSession | None = None,
 ) -> None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                await _apply_raw_material_consumption_impl(material, qty, reference_type, reference_id, reason, session)
-    else:
-        await _apply_raw_material_consumption_impl(material, qty, reference_type, reference_id, reason, db)
+    async with unit_of_work(db, auto_commit=True) as session:
+        await _apply_raw_material_consumption_impl(material, qty, reference_type, reference_id, reason, session)
 
 
 async def _apply_raw_material_consumption_impl(
@@ -1061,12 +999,8 @@ async def _apply_raw_material_consumption_impl(
 async def apply_finished_production(
     product, output_qty: Decimal | float, total_cost: Decimal | float, reference_id: int, db: AsyncSession | None = None
 ) -> None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                await _apply_finished_production_impl(product, output_qty, total_cost, reference_id, session)
-    else:
-        await _apply_finished_production_impl(product, output_qty, total_cost, reference_id, db)
+    async with unit_of_work(db, auto_commit=True) as session:
+        await _apply_finished_production_impl(product, output_qty, total_cost, reference_id, session)
 
 
 async def _apply_finished_production_impl(
@@ -1113,11 +1047,8 @@ async def _apply_finished_production_impl(
 
 @async_compat
 async def reverse_production(batch_id: int, db: AsyncSession | None = None) -> bool:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _reverse_production_impl(batch_id, session)
-    return await _reverse_production_impl(batch_id, db)
+    async with unit_of_work(db, auto_commit=True) as session:
+        return await _reverse_production_impl(batch_id, session)
 
 
 async def _reverse_production_impl(batch_id: int, db: AsyncSession) -> bool:

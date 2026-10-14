@@ -6,7 +6,6 @@ import os
 import re
 from typing import Any
 
-from app.core.config import settings
 from app.core.rate_limit_store import RateLimitStore
 from app.core.request_state import get_state_value
 
@@ -85,6 +84,8 @@ def validate_password_strength(password: str, mode: str | None = None) -> tuple[
 
 
 def security_headers(response):
+    from app.core.config import settings
+
     # Only expose version in desktop/dev mode to prevent fingerprinting in production
     if settings.desktop_mode or settings.env == "development":
         from app.version import APP_VERSION

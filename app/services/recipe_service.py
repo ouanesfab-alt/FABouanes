@@ -6,8 +6,8 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_compat import async_compat
-from app.core.async_db import get_async_sessionmaker
 from app.core.models import SavedRecipe, SavedRecipeItem
+from app.core.uow import unit_of_work
 from app.modules.catalog.repository import SavedRecipeRepository, load_saved_recipes  # noqa: F401
 
 
@@ -20,13 +20,10 @@ async def save_recipe_definition(
     user_id: int | None = None,
     db: AsyncSession | None = None,
 ) -> int | None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                return await _save_recipe_definition_impl(
-                    finished_id, recipe_name, notes, recipe_lines, user_id, session
-                )
-    return await _save_recipe_definition_impl(finished_id, recipe_name, notes, recipe_lines, user_id, db)
+    async with unit_of_work(db, auto_commit=True) as session:
+        return await _save_recipe_definition_impl(
+            finished_id, recipe_name, notes, recipe_lines, user_id, session
+        )
 
 
 async def _save_recipe_definition_impl(

@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import date
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
@@ -6,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import Numeric, case, cast, delete, func, literal, or_, select, union_all
 
 from app.core.async_compat import async_compat
-from app.core.async_db import get_async_sessionmaker
 from app.core.base_repository import AsyncRepository
+from app.core.uow import unit_of_work
 from app.core.models import (
     FinishedProduct,
     ProductionBatch,
@@ -48,8 +49,6 @@ class RawMaterialRepository(AsyncRepository[RawMaterial]):
 
     async def get_30d_velocities(self, cutoff_date_str: str) -> Dict[int, float]:
         """Calculate 30-day consumption velocity for raw materials."""
-        from datetime import date
-
         cutoff_date = date.fromisoformat(cutoff_date_str) if isinstance(cutoff_date_str, str) else cutoff_date_str
         sac_capacity_num = cast(
             func.coalesce(func.nullif(func.regexp_replace(RawSale.unit, "[^0-9.]", "", "g"), ""), "50"), Numeric
@@ -111,8 +110,6 @@ class FinishedProductRepository(AsyncRepository[FinishedProduct]):
 
     async def get_30d_velocities(self, cutoff_date_str: str) -> Dict[int, float]:
         """Calculate 30-day sales velocity for finished products."""
-        from datetime import date
-
         cutoff_date = date.fromisoformat(cutoff_date_str) if isinstance(cutoff_date_str, str) else cutoff_date_str
         sold_q = (
             select(Sale.finished_product_id, func.sum(Sale.quantity).label("sold_30d"))
@@ -190,10 +187,8 @@ class SavedRecipeRepository(AsyncRepository[SavedRecipe]):
 
 @async_compat
 async def load_saved_recipes(db: AsyncSession | None = None) -> list[dict[str, Any]]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _load_saved_recipes_impl(session)
-    return await _load_saved_recipes_impl(db)
+    async with unit_of_work(db) as session:
+        return await _load_saved_recipes_impl(session)
 
 
 async def _load_saved_recipes_impl(db: AsyncSession) -> list[dict[str, Any]]:
@@ -237,24 +232,7 @@ async def insert_stock_movement(
     username: str,
     db: AsyncSession | None = None,
 ) -> None:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            await _insert_stock_movement_impl(
-                item_kind,
-                item_id,
-                direction,
-                quantity,
-                unit,
-                stock_before,
-                stock_after,
-                reason,
-                reference_type,
-                reference_id,
-                username,
-                session,
-            )
-            await session.commit()
-    else:
+    async with unit_of_work(db, auto_commit=True) as session:
         await _insert_stock_movement_impl(
             item_kind,
             item_id,
@@ -267,7 +245,7 @@ async def insert_stock_movement(
             reference_type,
             reference_id,
             username,
-            db,
+            session,
         )
 
 
@@ -308,10 +286,8 @@ async def list_raw_materials(
     page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
-    if db is None:
-        async with get_async_sessionmaker()() as sess:
-            return await _list_raw_materials_impl(search, status, page, page_size, sess)
-    return await _list_raw_materials_impl(search, status, page, page_size, db)
+    async with unit_of_work(db) as session:
+        return await _list_raw_materials_impl(search, status, page, page_size, session)
 
 
 async def _list_raw_materials_impl(
@@ -358,10 +334,8 @@ async def list_finished_products(
     page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
-    if db is None:
-        async with get_async_sessionmaker()() as sess:
-            return await _list_finished_products_impl(search, page, page_size, sess)
-    return await _list_finished_products_impl(search, page, page_size, db)
+    async with unit_of_work(db) as session:
+        return await _list_finished_products_impl(search, page, page_size, session)
 
 
 async def _list_finished_products_impl(
@@ -396,10 +370,8 @@ async def list_production_batches(
     page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_production_batches_impl(search, date_from, date_to, page, page_size, session)
-    return await _list_production_batches_impl(search, date_from, date_to, page, page_size, db)
+    async with unit_of_work(db) as session:
+        return await _list_production_batches_impl(search, date_from, date_to, page, page_size, session)
 
 
 async def _list_production_batches_impl(
@@ -410,8 +382,6 @@ async def _list_production_batches_impl(
     page_size: int,
     db: AsyncSession,
 ) -> tuple[list[dict], int]:
-    from datetime import date
-
     date_from_obj = date.fromisoformat(date_from) if date_from else None
     date_to_obj = date.fromisoformat(date_to) if date_to else None
     stmt = select(
@@ -457,10 +427,8 @@ async def list_recipes(
     page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_recipes_impl(page, page_size, session)
-    return await _list_recipes_impl(page, page_size, db)
+    async with unit_of_work(db) as session:
+        return await _list_recipes_impl(page, page_size, session)
 
 
 async def _list_recipes_impl(
@@ -496,10 +464,8 @@ async def list_suppliers(
     page_size: int = 25,
     db: AsyncSession | None = None,
 ) -> tuple[list[dict], int]:
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await _list_suppliers_impl(search, page, page_size, session)
-    return await _list_suppliers_impl(search, page, page_size, db)
+    async with unit_of_work(db) as session:
+        return await _list_suppliers_impl(search, page, page_size, session)
 
 
 async def _list_suppliers_impl(

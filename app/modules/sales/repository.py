@@ -8,10 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlmodel import case, func, literal, or_, select, union_all
 
-from app.core.async_db import get_async_sessionmaker
-from app.core.base_repository import AsyncRepository
 from app.core.async_compat import db_task_compat
+from app.core.base_repository import AsyncRepository
 from app.core.models import Client, FinishedProduct, Payment, RawMaterial, RawSale, Sale, SaleDocument
+from app.core.perf_cache import TTL_SEMI_STABLE, async_cached_result
+from app.core.uow import unit_of_work
 
 
 def _payment_references_sale(payment_row: Dict[str, Any], sale_refs: Set[Tuple[str, int]]) -> bool:
@@ -383,16 +384,9 @@ def invalidate_sellable_items_cache() -> None:
 
 @db_task_compat
 async def build_sellable_items(db: AsyncSession | None = None):
-    from app.core.perf_cache import TTL_SEMI_STABLE
-
     async def load():
-        if db is None:
-            async with get_async_sessionmaker()() as session:
-                repo = SaleRepository(session)
-                return await repo.list_sellable_items()
-        repo = SaleRepository(db)
-        return await repo.list_sellable_items()
-
-    from app.core.perf_cache import async_cached_result
+        async with unit_of_work(db) as session:
+            repo = SaleRepository(session)
+            return await repo.list_sellable_items()
 
     return await async_cached_result(("sales_sellable_items",), load, ttl_seconds=TTL_SEMI_STABLE)

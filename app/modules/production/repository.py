@@ -8,15 +8,17 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.async_compat import async_compat, db_task_compat
 from app.core.async_db import get_async_sessionmaker
 from app.core.base_repository import AsyncRepository
-from app.core.async_compat import async_compat, db_task_compat
 from app.core.models import (
     FinishedProduct,
     ProductionBatch,
     ProductionBatchItem,
     RawMaterial,
 )
+from app.core.uow import unit_of_work
+from app.modules.catalog.repository import load_saved_recipes
 from app.utils.pagination import pagination_context, parse_pagination
 
 
@@ -59,10 +61,8 @@ class ProductionBatchItemRepository(AsyncRepository[ProductionBatchItem]):
 
 @db_task_compat
 async def list_production_page_context(args=None, db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await ProductionBatchRepository(session).list_page_context(args)
-    return await ProductionBatchRepository(db).list_page_context(args)
+    async with unit_of_work(db, session_factory=get_async_sessionmaker) as session:
+        return await ProductionBatchRepository(session).list_page_context(args)
 
 
 async def _list_production_page_context_impl(args, db: AsyncSession):
@@ -130,14 +130,11 @@ async def _list_production_page_context_impl(args, db: AsyncSession):
 
 @async_compat
 async def production_form_context(db: AsyncSession | None = None):
-    if db is None:
-        async with get_async_sessionmaker()() as session:
-            return await ProductionBatchRepository(session).get_form_context()
-    return await ProductionBatchRepository(db).get_form_context()
+    async with unit_of_work(db, session_factory=get_async_sessionmaker) as session:
+        return await ProductionBatchRepository(session).get_form_context()
 
 
 async def _production_form_context_impl(db: AsyncSession):
-    from app.modules.catalog.repository import load_saved_recipes
 
     raw_res = await db.execute(select(RawMaterial).order_by(RawMaterial.name))
     raw_materials = [r.model_dump() for r in raw_res.scalars().all()]
