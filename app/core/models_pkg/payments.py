@@ -7,7 +7,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Column, Numeric, String
+from sqlalchemy import Column, Index, Numeric, String
 from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -26,6 +26,10 @@ class PaymentType(str, Enum):
 
 class Payment(SQLModel, table=True):
     __tablename__ = "payments"
+    __table_args__ = (
+        Index("idx_payments_client_date", "client_id", "payment_date"),
+        Index("idx_payments_date", "payment_date"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     client_id: int = Field(foreign_key="clients.id")

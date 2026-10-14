@@ -11,7 +11,6 @@ from app.core.activity import write_text_log
 from app.core.async_db import get_async_sessionmaker
 from app.core.config import APP_DATA_DIR, DATABASE_URL
 from app.core.db_helpers import connect_database, postgres_pool_status
-from app.core.async_compat import async_compat
 from app.core.perf_cache import async_cached_result
 from app.core.storage import LOCAL_BACKUP_DIR, LOG_DIR, get_pending_backup_marker, list_restore_backups
 from app.version import VERSION_LABEL
@@ -21,7 +20,6 @@ def _ok_status(ok: bool) -> str:
     return "OK" if ok else "Attention"
 
 
-@async_compat
 async def get_system_status(db: AsyncSession | None = None) -> dict:
     async def load():
         if db is None:
@@ -248,7 +246,6 @@ async def reconcile_client_balances(db: AsyncSession) -> dict:
         return {"ok": False, "status": "Erreur de verification", "count": 0, "discrepancies": [], "error": str(exc)}
 
 
-@async_compat
 async def export_diagnostic_report(db: AsyncSession | None = None) -> str:
     status = await get_system_status(db=db)
     return json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True)

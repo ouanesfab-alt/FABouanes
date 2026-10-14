@@ -6,7 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Column, Numeric
+from sqlalchemy import Column, Index, Numeric
 from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -56,6 +56,9 @@ class FinishedProduct(SQLModel, table=True):
 
 class StockMovement(SQLModel, table=True):
     __tablename__ = "stock_movements"
+    __table_args__ = (
+        Index("idx_stock_movements_item", "item_kind", "item_id"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     item_kind: str
@@ -74,6 +77,10 @@ class StockMovement(SQLModel, table=True):
 
 class StockAlert(SQLModel, table=True):
     __tablename__ = "stock_alerts"
+    __table_args__ = (
+        Index("idx_stock_alerts_product", "product_type", "product_id"),
+        Index("idx_stock_alerts_triggered_at", "triggered_at"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     product_type: str

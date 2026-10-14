@@ -18,7 +18,6 @@ from app.core.async_db import get_async_sessionmaker
 from app.core.audit import audit_event
 from app.core.config import APP_DATA_DIR, DATABASE_URL
 from app.core.db_helpers import connect_database
-from app.core.async_compat import async_compat
 
 logger = logging.getLogger("fabouanes")
 
@@ -74,7 +73,6 @@ async def _set_setting_db(key: str, value: str, db: AsyncSession) -> None:
     )
 
 
-@async_compat
 async def get_backup_settings(db: AsyncSession | None = None) -> dict[str, Any]:
     if db is None:
         async with get_async_sessionmaker()() as session:
@@ -99,7 +97,6 @@ async def _get_backup_settings_impl(db: AsyncSession) -> dict[str, Any]:
     }
 
 
-@async_compat
 async def save_backup_configuration(payload: dict[str, Any], db: AsyncSession | None = None) -> None:
     if db is None:
         async with get_async_sessionmaker()() as session:
@@ -121,7 +118,6 @@ async def _save_backup_configuration_impl(payload: dict[str, Any], db: AsyncSess
         await _set_setting_db(key, value, db)
 
 
-@async_compat
 async def enqueue_backup_upload(
     reason: str,
     backup_type: str,
@@ -174,7 +170,6 @@ async def _enqueue_backup_upload_impl(
     return int(row.id) if row else 0
 
 
-@async_compat
 async def enqueue_backup_snapshot(
     reason: str,
     backup_type: str = "manual",
@@ -193,7 +188,6 @@ async def enqueue_backup_snapshot(
     )
 
 
-@async_compat
 async def list_backup_jobs(limit: int = 40, db: AsyncSession | None = None):
     if db is None:
         async with get_async_sessionmaker()() as session:

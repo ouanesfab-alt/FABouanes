@@ -9,7 +9,6 @@ from decimal import Decimal
 from sqlalchemy import Date, Numeric, case, cast, func, literal_column, select, text, true, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_compat import db_task_compat
 from app.core.models import (
     Client,
     FinishedProduct,
@@ -29,7 +28,6 @@ from app.core.uow import unit_of_work
 # --- Dashboard Queries (migrated from dashboard_repository) ---
 
 
-@db_task_compat
 async def get_dashboard_snapshot(target_date: str | None = None, db: AsyncSession | None = None) -> dict:
     resolved_date = target_date or date.today().isoformat()
 
@@ -44,7 +42,6 @@ async def get_dashboard_snapshot(target_date: str | None = None, db: AsyncSessio
     )
 
 
-@db_task_compat
 async def get_kpis_for_date(target_date: str, db: AsyncSession | None = None) -> dict[str, float | str]:
     async def load():
         async with unit_of_work(db) as session:
@@ -410,7 +407,6 @@ _LAST_REFRESH_TIME_IN_MEM = 0.0
 _REFRESH_PENDING = False
 
 
-@db_task_compat
 async def refresh_client_balances_view(db: AsyncSession | None = None) -> None:
     """Refresh the mv_client_balances materialized view after financial mutations, throttled with a trailing call."""
     global _LAST_REFRESH_TIME_IN_MEM, _REFRESH_PENDING
@@ -442,7 +438,7 @@ async def refresh_client_balances_view(db: AsyncSession | None = None) -> None:
                     time.sleep(delay)
                     global _REFRESH_PENDING
                     _REFRESH_PENDING = False
-                    refresh_client_balances_view.sync()
+                    asyncio.run(refresh_client_balances_view())
 
                 threading.Thread(target=thread_target, daemon=True).start()
         return
@@ -796,7 +792,6 @@ async def _list_recent_operations_impl(
     return rows, total
 
 
-@db_task_compat
 async def get_kpis_for_period(period: str, db: AsyncSession | None = None) -> dict[str, float]:
     async def load():
         async with unit_of_work(db) as session:
@@ -888,7 +883,6 @@ async def _build_kpis_for_period(period: str, db: AsyncSession) -> dict[str, flo
     }
 
 
-@db_task_compat
 async def get_kpi_history_last_30_days(
     metric: str, db: AsyncSession | None = None, days: int = 30
 ) -> tuple[list[str], list[float]]:

@@ -32,7 +32,6 @@ from app.core.activity import log_activity
 from app.core.audit import audit_event
 from app.core.config import DATABASE_URL
 from app.core.db_helpers import execute_db, pool_manager, query_db
-from app.core.async_compat import async_compat
 from app.core.perf_cache import _BACKEND
 from app.core.storage import backup_database
 from app.core.websockets import manager
@@ -251,10 +250,9 @@ def _auto_refresh_balances(event: DomainEvent) -> None:
             except RuntimeError:
                 loop = None
             if loop is not None and loop.is_running():
-                coro = refresh_client_balances_view()
-                loop.create_task(coro)
+                loop.create_task(refresh_client_balances_view())
             else:
-                refresh_client_balances_view()
+                asyncio.run(refresh_client_balances_view())
         except Exception:
             logger.debug("Could not refresh client balances view after %s.%s", event.action, event.entity_type)
 
@@ -309,7 +307,7 @@ def _auto_check_stock_alert(event: DomainEvent) -> None:
             loop.create_task(check_stock_alerts())
         else:
             try:
-                async_compat(check_stock_alerts)()
+                asyncio.run(check_stock_alerts())
             except Exception:
                 logger.debug("Stock alert check fallback failed (non-critical)")
 
@@ -327,7 +325,7 @@ def _auto_rebuild_catalog_embeddings(event: DomainEvent) -> None:
             loop.create_task(enqueue_background_task("rebuild_catalog_embeddings_task"))
         else:
             try:
-                async_compat(enqueue_background_task)("rebuild_catalog_embeddings_task")
+                asyncio.run(enqueue_background_task("rebuild_catalog_embeddings_task"))
             except Exception:
                 logger.debug("Catalog embedding enqueue fallback failed (non-critical)")
     except Exception:

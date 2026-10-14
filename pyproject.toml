@@ -98,7 +98,6 @@ omit = [
   "app/core/db_helpers.py",
   "app/core/db_access.py",
   "app/core/schema.py",
-  "app/core/schema_bootstrap.py",
   "app/core/document_numbering.py",
   "app/core/idempotency.py",
   "app/core/worker.py",

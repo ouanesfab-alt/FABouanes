@@ -7,6 +7,7 @@ alertes stock, ventes de la veille, versements reçus, clients endettés.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Dict
 
@@ -23,9 +24,16 @@ def _is_mocked(func_or_obj: Any) -> bool:
 def generate_briefing() -> Dict[str, Any]:
     """Génère un résumé proactif des données de l'entreprise."""
     if not (_is_mocked(db_manager) or _is_mocked(getattr(db_manager, "query_db", None))):
-        from app.core.async_compat import async_compat
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop is not None and loop.is_running():
+            import concurrent.futures
 
-        return async_compat(generate_briefing_async)()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                return pool.submit(asyncio.run, generate_briefing_async()).result()
+        return asyncio.run(generate_briefing_async())
 
     sections = []
 

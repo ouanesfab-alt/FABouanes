@@ -40,7 +40,16 @@ def initial_admin_password() -> str:
 
 
 def _exec(conn, query: str, params: tuple = ()):
-    return conn.execute(query, params) if hasattr(conn, "execute") else conn.cursor().execute(query, params)
+    if hasattr(conn, "execute"):
+        try:
+            return conn.execute(query, params)
+        except Exception:
+            if hasattr(conn, "exec_driver_sql"):
+                return conn.exec_driver_sql(query, params)
+            raise
+    if hasattr(conn, "exec_driver_sql"):
+        return conn.exec_driver_sql(query, params)
+    return conn.cursor().execute(query, params)
 
 
 def _seed_default_settings(conn) -> None:
@@ -118,7 +127,7 @@ def _seed_other_operation(conn) -> None:
 
 
 def init_db() -> None:
-    """Delegates to schema bootstrap."""
-    from app.core.schema_bootstrap import bootstrap_schema
+    """Delegates to database bootstrap and migrations."""
+    from app.core.database import bootstrap_and_migrate
 
-    bootstrap_schema()
+    bootstrap_and_migrate()

@@ -8,7 +8,6 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_sessionmaker
-from app.core.async_compat import async_compat
 from app.core.models import FinishedProduct, RawMaterial, StockAlert
 from app.core.websockets import manager
 
@@ -17,7 +16,6 @@ logger = logging.getLogger("fabouanes.alerts")
 DEFAULT_OVERDUE_DAYS = 30
 
 
-@async_compat
 async def check_overdue_clients(
     overdue_days: int = DEFAULT_OVERDUE_DAYS,
     db: AsyncSession | None = None,
@@ -54,7 +52,6 @@ async def _check_overdue_clients_impl(overdue_days: int, db: AsyncSession) -> li
     return [dict(row._mapping) for row in res.all()]
 
 
-@async_compat
 async def broadcast_overdue_alerts(db: AsyncSession | None = None) -> int:
     """
     Vérifie les clients en retard et diffuse une alerte WebSocket.
@@ -100,7 +97,6 @@ async def _broadcast_overdue_alerts_impl(db: AsyncSession) -> int:
     return len(overdue)
 
 
-@async_compat
 async def check_stock_alerts(db: AsyncSession | None = None) -> None:
     """Vérifie le stock de matières premières et de produits finis par rapport au seuil."""
     if db is None:

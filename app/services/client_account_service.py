@@ -10,25 +10,21 @@ from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_compat import async_compat
 from app.core.exceptions import ValidationError
 from app.core.uow import unit_of_work
 from app.modules.payments.service import PaymentsService
 
 
-@async_compat
 async def client_balance(client_id: int, db: AsyncSession | None = None) -> float:
     async with unit_of_work(db) as session:
         return await PaymentsService(session).get_client_balance(client_id)
 
 
-@async_compat
 async def get_open_credit_entries(client_id: int | None = None, db: AsyncSession | None = None):
     async with unit_of_work(db) as session:
         return await PaymentsService(session).get_open_credit_entries(client_id)
 
 
-@async_compat
 async def apply_payment_to_entry(
     kind: str, row_id: int, amount: float | Decimal, entry: dict | None = None, db: AsyncSession | None = None
 ) -> float:
@@ -42,7 +38,6 @@ async def apply_payment_to_entry(
         return float(amount)
 
 
-@async_compat
 async def reverse_payment_allocations(payment_row, db: AsyncSession | None = None) -> None:
     p_dict = dict(payment_row) if hasattr(payment_row, "keys") and not isinstance(payment_row, dict) else payment_row
     try:
@@ -52,7 +47,6 @@ async def reverse_payment_allocations(payment_row, db: AsyncSession | None = Non
         return
 
 
-@async_compat
 async def create_payment_record(
     client_id: int,
     amount: float | Decimal,

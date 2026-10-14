@@ -303,9 +303,9 @@ async def get_assistant_threads(request: Request):
     denied = require_permission(request, "assistant.read")
     if denied:
         return JSONResponse({"threads": []}, status_code=403)
-    from app.modules.assistant.history import list_persisted_threads
+    from app.modules.assistant.history import async_list_persisted_threads
 
-    threads = list_persisted_threads(limit=20)
+    threads = await async_list_persisted_threads(limit=20)
     return JSONResponse({"threads": threads})
 
 
@@ -324,9 +324,9 @@ async def save_assistant_thread(request: Request):
         if not thread_id:
             return JSONResponse({"success": False, "error": "thread_id manquant"}, status_code=400)
 
-        from app.modules.assistant.history import persist_thread
+        from app.modules.assistant.history import async_persist_thread
 
-        ok = persist_thread(thread_id, title, history)
+        ok = await async_persist_thread(thread_id, title, history)
         return JSONResponse({"success": ok})
     except Exception as exc:
         return JSONResponse({"success": False, "error": str(exc)}, status_code=500)

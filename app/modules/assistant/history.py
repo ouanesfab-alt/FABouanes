@@ -4,6 +4,7 @@ history.py — Helpers for conversation transcript parsing and dangling call pru
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Dict, List
 
@@ -105,9 +106,16 @@ async def async_list_persisted_threads(limit: int = 15, db=None) -> List[Dict[st
 
 def list_persisted_threads(limit: int = 15) -> List[Dict[str, Any]]:
     """Récupère les fils de discussion sauvegardés en base de données."""
-    from app.core.async_compat import async_compat
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop is not None and loop.is_running():
+        import concurrent.futures
 
-    return async_compat(async_list_persisted_threads)(limit)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, async_list_persisted_threads(limit)).result()
+    return asyncio.run(async_list_persisted_threads(limit))
 
 
 async def async_persist_thread(thread_id: str, title: str, history: List[Dict[str, Any]], db=None) -> bool:
@@ -136,6 +144,11 @@ async def async_persist_thread(thread_id: str, title: str, history: List[Dict[st
 
 def persist_thread(thread_id: str, title: str, history: List[Dict[str, Any]]) -> bool:
     """Sauvegarde ou met à jour un fil de discussion dans PostgreSQL."""
-    from app.core.async_compat import async_compat
-
-    return async_compat(async_persist_thread)(thread_id, title, history)
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop is not None and loop.is_running():
+        loop.create_task(async_persist_thread(thread_id, title, history))
+        return True
+    return asyncio.run(async_persist_thread(thread_id, title, history))

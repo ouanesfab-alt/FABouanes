@@ -5,13 +5,11 @@ from typing import Any
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_compat import async_compat
 from app.core.models import SavedRecipe, SavedRecipeItem
 from app.core.uow import unit_of_work
 from app.modules.catalog.repository import SavedRecipeRepository, load_saved_recipes  # noqa: F401
 
 
-@async_compat
 async def save_recipe_definition(
     finished_id: int,
     recipe_name: str,

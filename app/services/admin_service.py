@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.security import generate_password_hash
 
 from app.core.activity import log_activity
-from app.core.async_compat import async_compat
 from app.core.async_db import get_async_sessionmaker
 from app.core.audit import audit_event, list_audit_logs
 from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_USERNAME
@@ -52,7 +51,6 @@ from app.services.system_service import get_system_status
 logger = logging.getLogger("fabouanes.admin")
 
 
-@async_compat
 async def create_user_account(username: str, password: str, role: str, db: AsyncSession | None = None):
     payload = validate_new_user_payload(username, password, role)
     if not payload["ok"]:
@@ -72,7 +70,6 @@ async def create_user_account(username: str, password: str, role: str, db: Async
     return {"ok": True, "message": "Compte créé avec succès."}
 
 
-@async_compat
 async def update_user_account(
     user_id: int, role: str, is_active: bool, new_password: str = "", db: AsyncSession | None = None
 ):
@@ -140,7 +137,6 @@ async def delete_user_account(user_id: int, db: AsyncSession | None = None):
         }
 
 
-@async_compat
 async def save_backup_settings_from_form(form_data: dict[str, str], db: AsyncSession | None = None):
     await save_backup_configuration(form_data, db=db)
     log_activity("update_backup_settings", "settings", None, "Mise à jour des paramètres de sauvegarde")
@@ -159,7 +155,6 @@ async def save_backup_settings_from_form(form_data: dict[str, str], db: AsyncSes
     return {"ok": True, "message": "Paramètres de sauvegarde enregistrés."}
 
 
-@async_compat
 async def create_manual_backup(db: AsyncSession | None = None):
     job_id = await enqueue_backup_snapshot("manual", "manual", db=db)
     log_activity("backup_now", "backup", job_id, "Sauvegarde mise en file d'attente")
@@ -167,7 +162,6 @@ async def create_manual_backup(db: AsyncSession | None = None):
     return {"ok": True, "message": f"Sauvegarde lancee en arriere-plan (job #{job_id})."}
 
 
-@async_compat
 async def restore_backup_by_value(backup_value: str):
     backup_path = resolve_backup_path((backup_value or "").strip())
     if backup_path is None or not backup_path.exists():
@@ -194,7 +188,6 @@ def _build_restore_list():
     return list(list_restore_backups())
 
 
-@async_compat
 async def get_admin_view_data(audit_filters: dict[str, str] | None = None, db: AsyncSession | None = None):
     normalized_filters = audit_filters or {}
     filter_key = tuple(sorted(normalized_filters.items()))

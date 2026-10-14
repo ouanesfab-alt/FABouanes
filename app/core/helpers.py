@@ -4,7 +4,6 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_compat import async_compat, db_task_compat  # noqa: F401
 from app.core.async_db import get_async_sessionmaker
 from app.core.request_state import get_state_value
 
@@ -39,7 +38,6 @@ def format_dzd(amount: float | int | str | None) -> str:
         return "0,00 DA"
 
 
-@async_compat
 async def refresh_sale_profits_for_item(
     item_kind: str, item_id: int, avg_cost: float, sale_price: float | None = None, db: AsyncSession | None = None
 ) -> None:
@@ -48,7 +46,6 @@ async def refresh_sale_profits_for_item(
     return await _refresh_sale_profits_for_item(item_kind, item_id, avg_cost, sale_price, db=db)
 
 
-@async_compat
 async def get_open_credit_entries(client_id: int | None = None, db: AsyncSession | None = None):
     """DEPRECATED: Utiliser app.modules.payments.service.PaymentsService.get_open_credit_entries à la place."""
     from app.modules.payments.service import PaymentsService
@@ -59,14 +56,12 @@ async def get_open_credit_entries(client_id: int | None = None, db: AsyncSession
     return await PaymentsService(db).get_open_credit_entries(client_id)
 
 
-@async_compat
 async def load_saved_recipes(db: AsyncSession | None = None):
     from app.services.recipe_service import load_saved_recipes as _load_saved_recipes
 
     return await _load_saved_recipes(db=db)
 
 
-@async_compat
 async def save_recipe_definition(
     finished_id: int,
     recipe_name: str,
@@ -80,28 +75,24 @@ async def save_recipe_definition(
     return await _save_recipe_definition(finished_id, recipe_name, notes, recipe_lines, user_id, db=db)
 
 
-@async_compat
 async def reverse_purchase(purchase_id: int, db: AsyncSession | None = None) -> bool:
     from app.services.stock_service import reverse_purchase as _reverse_purchase
 
     return await _reverse_purchase(purchase_id, db=db)
 
 
-@async_compat
 async def reverse_sale(kind: str, row_id: int, db: AsyncSession | None = None) -> bool:
     from app.services.stock_service import reverse_sale as _reverse_sale
 
     return await _reverse_sale(kind, row_id, db=db)
 
 
-@async_compat
 async def reverse_production(batch_id: int, db: AsyncSession | None = None) -> bool:
     from app.services.stock_service import reverse_production as _reverse_production
 
     return await _reverse_production(batch_id, db=db)
 
 
-@async_compat
 async def create_purchase_record(
     supplier_id,
     item_kind_or_raw_id,
@@ -132,7 +123,6 @@ async def create_purchase_record(
     )
 
 
-@async_compat
 async def create_sale_record(
     client_id,
     item_kind: str,
@@ -167,7 +157,6 @@ async def create_sale_record(
     )
 
 
-@async_compat
 async def create_payment_record(
     client_id: int,
     amount: float,
@@ -191,7 +180,6 @@ async def create_payment_record(
     )
 
 
-@async_compat
 async def reverse_payment_allocations(payment_row, db: AsyncSession | None = None) -> None:
     """DEPRECATED: Utiliser app.modules.payments.service.PaymentsService.reverse_payment_allocations à la place."""
     from app.modules.payments.service import PaymentsService

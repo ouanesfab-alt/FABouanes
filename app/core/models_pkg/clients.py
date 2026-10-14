@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Optional
 
 from pydantic import field_validator
-from sqlalchemy import Column, Numeric
+from sqlalchemy import Column, Index, Numeric, text
 from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -21,6 +21,9 @@ from app.core.model_utils import _now
 
 class Client(SQLModel, table=True):
     __tablename__ = "clients"
+    __table_args__ = (
+        Index("idx_clients_name_lower", text("lower(name)")),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
@@ -74,6 +77,10 @@ class ImportedClientHistory(SQLModel, table=True):
 
 class ClientHistory(SQLModel, table=True):
     __tablename__ = "client_history"
+    __table_args__ = (
+        Index("idx_ch_client_id", "client_id"),
+        Index("idx_ch_date", "client_id", "operation_date"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     client_id: int = Field(foreign_key="clients.id")

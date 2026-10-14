@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -146,7 +145,7 @@ async def validate_refresh_token(raw_token: str):
     )
     if not row:
         return None
-    user = await asyncio.to_thread(get_user_by_id, int(row["user_id"]))
+    user = await get_user_by_id(int(row["user_id"]))
     if not user or not int(user.get("is_active", 1) or 0):
         await revoke_refresh_token(raw_token)
         return None

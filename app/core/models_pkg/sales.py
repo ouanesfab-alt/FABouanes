@@ -8,7 +8,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional
 
 from pydantic import field_validator
-from sqlalchemy import Column, Numeric, String
+from sqlalchemy import Column, Index, Numeric, String, text
 from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -28,6 +28,12 @@ class SaleType(str, Enum):
 
 class Sale(SQLModel, table=True):
     __tablename__ = "sales"
+    __table_args__ = (
+        Index("idx_sales_credit_client", "client_id", "total", postgresql_where=text("sale_type = 'credit'")),
+        Index("idx_sales_client_date_type", "client_id", "sale_date", "sale_type"),
+        Index("idx_sales_product_date", "finished_product_id", "sale_date"),
+        Index("idx_sales_sale_date", "sale_date"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     client_id: Optional[int] = Field(default=None, foreign_key="clients.id")
@@ -65,6 +71,9 @@ class Sale(SQLModel, table=True):
 
 class RawSale(SQLModel, table=True):
     __tablename__ = "raw_sales"
+    __table_args__ = (
+        Index("idx_raw_sales_credit_client", "client_id", "total", postgresql_where=text("sale_type = 'credit'")),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     client_id: Optional[int] = Field(default=None, foreign_key="clients.id")
@@ -103,6 +112,11 @@ class RawSale(SQLModel, table=True):
 
 class SaleDocument(SQLModel, table=True):
     __tablename__ = "sale_documents"
+    __table_args__ = (
+        Index("idx_sale_documents_client_date", "client_id", "sale_date"),
+        Index("idx_sale_documents_date", "sale_date"),
+        Index("idx_sale_documents_doc_number", "doc_number"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     client_id: Optional[int] = Field(default=None, foreign_key="clients.id")

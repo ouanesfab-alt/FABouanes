@@ -8,7 +8,6 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_compat import async_compat, db_task_compat
 from app.core.async_db import get_async_sessionmaker
 from app.core.base_repository import AsyncRepository
 from app.core.models import (
@@ -59,7 +58,6 @@ class ProductionBatchItemRepository(AsyncRepository[ProductionBatchItem]):
         return items_res.all()
 
 
-@db_task_compat
 async def list_production_page_context(args=None, db: AsyncSession | None = None):
     async with unit_of_work(db, session_factory=get_async_sessionmaker) as session:
         return await ProductionBatchRepository(session).list_page_context(args)
@@ -128,7 +126,6 @@ async def _list_production_page_context_impl(args, db: AsyncSession):
     }
 
 
-@async_compat
 async def production_form_context(db: AsyncSession | None = None):
     async with unit_of_work(db, session_factory=get_async_sessionmaker) as session:
         return await ProductionBatchRepository(session).get_form_context()

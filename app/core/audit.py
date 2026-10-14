@@ -16,7 +16,6 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_sessionmaker
-from app.core.async_compat import async_compat
 from app.core.request_state import get_state_value
 
 _logger = logging.getLogger("fabouanes.audit")
@@ -397,7 +396,6 @@ def audit_event(
                 )
 
 
-@async_compat
 async def list_audit_logs(
     filters: Mapping[str, Any] | None = None,
     *,

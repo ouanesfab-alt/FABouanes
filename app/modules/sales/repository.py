@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlmodel import case, func, literal, or_, select, union_all
 
-from app.core.async_compat import db_task_compat
 from app.core.base_repository import AsyncRepository
 from app.core.models import Client, FinishedProduct, Payment, RawMaterial, RawSale, Sale, SaleDocument
 from app.core.perf_cache import TTL_SEMI_STABLE, async_cached_result
@@ -382,7 +381,6 @@ def invalidate_sellable_items_cache() -> None:
     invalidate_cache_domains("dashboard", "sales", "client")
 
 
-@db_task_compat
 async def build_sellable_items(db: AsyncSession | None = None):
     async def load():
         async with unit_of_work(db) as session:

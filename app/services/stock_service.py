@@ -8,7 +8,6 @@ from datetime import date
 from sqlalchemy import case, delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_compat import async_compat
 from app.core.events import DomainEvent, emit
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.uow import unit_of_work
@@ -150,7 +149,6 @@ def _flash_warning(message: str) -> None:
     flash(state_request, message, "warning")
 
 
-@async_compat
 async def record_stock_movement(
     item_kind: str,
     item_id: int,
@@ -185,7 +183,6 @@ async def record_stock_movement(
         )
 
 
-@async_compat
 async def recalc_raw_material_avg_cost(material_id: int, db: AsyncSession | None = None) -> None:
     async with unit_of_work(db, auto_commit=True) as session:
         await _recalc_raw_material_avg_cost_impl(material_id, session)
@@ -235,7 +232,6 @@ async def _recalc_raw_material_avg_cost_impl(material_id: int, db: AsyncSession)
     )
 
 
-@async_compat
 async def recalc_finished_product_avg_cost(product_id: int, db: AsyncSession | None = None) -> None:
     async with unit_of_work(db, auto_commit=True) as session:
         await _recalc_finished_product_avg_cost_impl(product_id, session)
@@ -269,7 +265,6 @@ async def _recalc_finished_product_avg_cost_impl(product_id: int, db: AsyncSessi
     )
 
 
-@async_compat
 async def recalc_purchase_document_totals(document_id: int | None, db: AsyncSession | None = None) -> None:
     if not document_id:
         return
@@ -293,7 +288,6 @@ async def _recalc_purchase_document_totals_impl(document_id: int, db: AsyncSessi
     )
 
 
-@async_compat
 async def recalc_sale_document_totals(document_id: int | None, db: AsyncSession | None = None) -> None:
     if not document_id:
         return
@@ -338,7 +332,6 @@ async def _recalc_sale_document_totals_impl(document_id: int, db: AsyncSession) 
     )
 
 
-@async_compat
 async def refresh_sale_profits_for_item(
     item_kind: str, item_id: int, avg_cost: float, sale_price: float | None = None, db: AsyncSession | None = None
 ) -> None:
@@ -400,7 +393,6 @@ async def _refresh_sale_profits_for_item_impl(
     )
 
 
-@async_compat
 async def create_purchase_record(
     supplier_id,
     item_kind_or_raw_id,
@@ -569,7 +561,6 @@ async def _create_purchase_record_impl(
     return purchase_id
 
 
-@async_compat
 async def create_sale_record(
     client_id,
     item_kind: str,
@@ -778,7 +769,6 @@ async def _create_sale_record_impl(
     return "raw", row_id
 
 
-@async_compat
 async def reverse_purchase(purchase_id: int, db: AsyncSession | None = None) -> bool:
     async with unit_of_work(db, auto_commit=True) as session:
         return await _reverse_purchase_impl(purchase_id, session)
@@ -864,7 +854,6 @@ async def _reverse_purchase_impl(purchase_id: int, db: AsyncSession) -> bool:
     return True
 
 
-@async_compat
 async def reverse_sale(kind: str, row_id: int, db: AsyncSession | None = None) -> bool:
     async with unit_of_work(db, auto_commit=True) as session:
         return await _reverse_sale_impl(kind, row_id, session)
@@ -951,7 +940,6 @@ async def _reverse_sale_impl(kind: str, row_id: int, db: AsyncSession) -> bool:
     return True
 
 
-@async_compat
 async def apply_raw_material_consumption(
     material,
     qty: float,
@@ -995,7 +983,6 @@ async def _apply_raw_material_consumption_impl(
     )
 
 
-@async_compat
 async def apply_finished_production(
     product, output_qty: Decimal | float, total_cost: Decimal | float, reference_id: int, db: AsyncSession | None = None
 ) -> None:
@@ -1045,7 +1032,6 @@ async def _apply_finished_production_impl(
     invalidate_cache_domains("finished", "raw", "dashboard", "stock")
 
 
-@async_compat
 async def reverse_production(batch_id: int, db: AsyncSession | None = None) -> bool:
     async with unit_of_work(db, auto_commit=True) as session:
         return await _reverse_production_impl(batch_id, session)

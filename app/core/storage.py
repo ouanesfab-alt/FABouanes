@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import gzip
 import hashlib
 import json
@@ -428,7 +429,18 @@ def backup_database(reason: str = "manual", backup_type: str = "event") -> Path:
         from app.services.backup_service import enqueue_backup_upload
 
         requested_by = _current_user_id()
-        enqueue_backup_upload(reason, backup_type, target, requested_by_user_id=requested_by)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop is not None and loop.is_running():
+            loop.create_task(
+                enqueue_backup_upload(reason, backup_type, target, requested_by_user_id=requested_by)
+            )
+        else:
+            asyncio.run(
+                enqueue_backup_upload(reason, backup_type, target, requested_by_user_id=requested_by)
+            )
         if backup_type in {"manual", "nightly"}:
             clear_backup_needed()
     except Exception as cloud_exc:

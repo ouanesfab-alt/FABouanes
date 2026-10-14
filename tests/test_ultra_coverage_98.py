@@ -9,7 +9,6 @@ from app.modules.assistant.rag import search_manual, normalize_text, SYNONYM_MAP
 from app.modules.assistant.sql_tools import serialize_for_json
 from app.modules.assistant.sql_guard import validate_readonly_sql, get_allowed_write_tables
 from app.core.permissions import has_permission, PERMISSION_DASHBOARD_READ
-from app.core.helpers import async_compat
 
 def test_compat_row_edge_cases():
     row_dict = {"id": 10, "name": "Test", "val": None}
@@ -52,11 +51,12 @@ def test_sql_tools_serialization():
     assert "2026-07-31" in serialized["created"]
 
 def test_helpers_formatters():
-    @async_compat
+    import asyncio
+
     async def sample_async_func():
         return 42
 
-    res = sample_async_func()
+    res = asyncio.run(sample_async_func())
     assert res == 42
 
 def test_permissions_edge_cases():

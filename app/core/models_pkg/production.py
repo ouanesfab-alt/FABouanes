@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Optional
 
 from pydantic import field_validator
-from sqlalchemy import Column, Numeric
+from sqlalchemy import Column, Index, Numeric
 from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -20,6 +20,10 @@ from app.core.model_utils import _now
 
 class ProductionBatch(SQLModel, table=True):
     __tablename__ = "production_batches"
+    __table_args__ = (
+        Index("idx_production_batches_date", "production_date"),
+        Index("idx_production_batches_product_id", "finished_product_id"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     finished_product_id: int = Field(foreign_key="finished_products.id")
@@ -56,6 +60,9 @@ class ProductionBatch(SQLModel, table=True):
 
 class ProductionBatchItem(SQLModel, table=True):
     __tablename__ = "production_batch_items"
+    __table_args__ = (
+        Index("idx_prod_items_material_id", "raw_material_id"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     batch_id: int = Field(foreign_key="production_batches.id")
@@ -101,6 +108,9 @@ class SavedRecipe(SQLModel, table=True):
 
 class SavedRecipeItem(SQLModel, table=True):
     __tablename__ = "saved_recipe_items"
+    __table_args__ = (
+        Index("idx_saved_recipe_items_material_id", "raw_material_id"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     recipe_id: int = Field(foreign_key="saved_recipes.id")

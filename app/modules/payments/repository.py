@@ -7,7 +7,6 @@ from sqlmodel import and_, case, func, or_, select
 
 from app.core.async_db import get_async_sessionmaker
 from app.core.base_repository import AsyncRepository
-from app.core.async_compat import async_compat, db_task_compat
 from app.core.models import Client, Payment
 
 
@@ -99,7 +98,6 @@ class PaymentRepository(AsyncRepository[Payment]):
 # --- Legacy compatibility wrappers ---
 
 
-@async_compat
 async def payment_form_context(db: AsyncSession | None = None) -> dict:
     if db is None:
         async with get_async_sessionmaker()() as sess:
@@ -119,7 +117,6 @@ async def _payment_form_context_impl(db: AsyncSession) -> dict:
     }
 
 
-@db_task_compat
 async def get_payment(payment_id: int, db: AsyncSession | None = None):
     if db is None:
         async with get_async_sessionmaker()() as session:
@@ -134,7 +131,6 @@ async def _get_payment_impl(payment_id: int, db: AsyncSession):
     return payment.model_dump() if payment else None
 
 
-@async_compat
 async def list_payments(
     search: str | None = None,
     date_from: str | None = None,

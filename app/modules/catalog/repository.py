@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import Numeric, case, cast, delete, func, literal, or_, select, union_all
 
-from app.core.async_compat import async_compat
 from app.core.base_repository import AsyncRepository
 from app.core.uow import unit_of_work
 from app.core.models import (
@@ -185,7 +184,6 @@ class SavedRecipeRepository(AsyncRepository[SavedRecipe]):
         return recipe_item
 
 
-@async_compat
 async def load_saved_recipes(db: AsyncSession | None = None) -> list[dict[str, Any]]:
     async with unit_of_work(db) as session:
         return await _load_saved_recipes_impl(session)
@@ -217,7 +215,6 @@ async def _load_saved_recipes_impl(db: AsyncSession) -> list[dict[str, Any]]:
 # --- Stock Movement and List Queries (migrated from stock_repository) ---
 
 
-@async_compat
 async def insert_stock_movement(
     item_kind: str,
     item_id: int,
@@ -361,7 +358,6 @@ async def _list_finished_products_impl(
     return rows, total
 
 
-@async_compat
 async def list_production_batches(
     search: str | None = None,
     date_from: str | None = None,
@@ -421,7 +417,6 @@ async def _list_production_batches_impl(
     return rows, total
 
 
-@async_compat
 async def list_recipes(
     page: int = 1,
     page_size: int = 25,

@@ -3,7 +3,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 
 from app.api.deps import api_success, require_api_user
-from app.api.v1._common import add_cache_headers, json_response, query_list_async
+from app.api.v1._common import add_cache_headers, json_response
+from app.core.audit import list_audit_logs
 from app.core.permissions import PERMISSION_AUDIT_READ
 
 router = APIRouter(prefix="/api/v1", tags=["admin"])
@@ -12,7 +13,15 @@ router = APIRouter(prefix="/api/v1", tags=["admin"])
 @router.get("/audit-logs")
 async def api_audit_logs(request: Request):
     require_api_user(request, PERMISSION_AUDIT_READ)
-    rows, meta = await query_list_async(request, "SELECT * FROM audit_logs ORDER BY id DESC")
+    page = max(int(request.query_params.get("page", "1") or "1"), 1)
+    page_size = min(max(int(request.query_params.get("page_size", "50") or "50"), 1), 100)
+    rows = await list_audit_logs(dict(request.query_params), limit=page_size)
+    meta = {
+        "page": page,
+        "page_size": page_size,
+        "returned": len(rows),
+        "total": len(rows),
+    }
     res_data = api_success(rows, meta)
     response = json_response(res_data)
     add_cache_headers(request, response, res_data, max_age=30)

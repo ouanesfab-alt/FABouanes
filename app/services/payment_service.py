@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import events, perf_cache
 from app.core.activity import log_activity
-from app.core.async_compat import async_compat
 from app.core.audit import audit_delete_event, audit_event
 from app.core.events import DomainEvent
 from app.core.helpers import to_float
@@ -22,12 +21,10 @@ from app.modules.users.repository import get_user_by_id
 logger = logging.getLogger("fabouanes")
 
 
-@async_compat
 async def new_payment_context(db: AsyncSession | None = None):
     return await payment_form_context(db=db)
 
 
-@async_compat
 async def create_payment_from_form(form, db: AsyncSession | None = None):
     async with unit_of_work(db, auto_commit=True) as session:
         return await _create_payment_from_form_impl(form, session)
@@ -57,7 +54,6 @@ async def _create_payment_from_form_impl(form, db: AsyncSession):
     return payment_id, payment_type
 
 
-@async_compat
 async def get_edit_payment_context(payment_id: int, db: AsyncSession | None = None):
     async with unit_of_work(db) as session:
         return await _get_edit_payment_context_impl(payment_id, session)
@@ -146,7 +142,6 @@ async def _get_edit_payment_context_impl(payment_id: int, db: AsyncSession):
     return {"payment": payment, "current_link": current_link, "clients": clients, "open_sales": open_sales}
 
 
-@async_compat
 async def edit_payment_from_form(payment_id: int, form, db: AsyncSession | None = None):
     async with unit_of_work(db, auto_commit=True) as session:
         return await _edit_payment_from_form_impl(payment_id, form, session)
@@ -188,7 +183,6 @@ async def _edit_payment_from_form_impl(payment_id: int, form, db: AsyncSession):
     return new_payment_id
 
 
-@async_compat
 async def delete_payment_by_id(payment_id: int, db: AsyncSession | None = None) -> bool:
     async with unit_of_work(db, auto_commit=True) as session:
         return await _delete_payment_by_id_impl(payment_id, session)
@@ -220,7 +214,6 @@ async def _delete_payment_by_id_impl(payment_id: int, db: AsyncSession) -> bool:
     return True
 
 
-@async_compat
 async def create_mobile_payment(
     client_id: int,
     amount: float,

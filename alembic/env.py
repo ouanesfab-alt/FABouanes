@@ -16,7 +16,7 @@ target_metadata = None
 
 
 def run_migrations_offline() -> None:
-    from app.core.db import sqlalchemy_database_url
+    from app.core.database import sqlalchemy_database_url
     url = sqlalchemy_database_url(settings.database_url)
     context.configure(url=url, target_metadata=target_metadata, literal_binds=True, compare_type=True)
 
@@ -25,7 +25,7 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    from app.core.db import sqlalchemy_database_url
+    from app.core.database import sqlalchemy_database_url
     section = config.get_section(config.config_ini_section, {})
     main_url = config.get_main_option("sqlalchemy.url")
     if main_url and main_url != "postgresql://dummy":

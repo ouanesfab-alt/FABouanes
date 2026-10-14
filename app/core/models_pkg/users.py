@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 from pydantic import field_validator
+from sqlalchemy import Index, text
 from sqlmodel import Field, SQLModel
 
 from app.core.model_utils import _now
@@ -13,6 +14,9 @@ from app.core.model_utils import _now
 
 class User(SQLModel, table=True):
     __tablename__ = "users"
+    __table_args__ = (
+        Index("idx_users_username_lower", text("lower(username)")),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(unique=True, index=True)

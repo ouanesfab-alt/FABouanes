@@ -6,7 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Column, Numeric
+from sqlalchemy import Column, Index, Numeric, text
 from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -20,6 +20,9 @@ from app.core.model_utils import _now
 
 class Supplier(SQLModel, table=True):
     __tablename__ = "suppliers"
+    __table_args__ = (
+        Index("idx_suppliers_name_lower", text("lower(name)")),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
@@ -38,6 +41,11 @@ class Supplier(SQLModel, table=True):
 
 class Purchase(SQLModel, table=True):
     __tablename__ = "purchases"
+    __table_args__ = (
+        Index("idx_purchases_supplier_date", "supplier_id", "purchase_date"),
+        Index("idx_purchases_finished_product_id", "finished_product_id"),
+        Index("idx_purchases_purchase_date", "purchase_date"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     supplier_id: Optional[int] = Field(default=None, foreign_key="suppliers.id")
@@ -66,6 +74,11 @@ class Purchase(SQLModel, table=True):
 
 class PurchaseDocument(SQLModel, table=True):
     __tablename__ = "purchase_documents"
+    __table_args__ = (
+        Index("idx_purchase_documents_supplier_date", "supplier_id", "purchase_date"),
+        Index("idx_purchase_documents_date", "purchase_date"),
+        Index("idx_purchase_documents_doc_number", "doc_number"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     supplier_id: Optional[int] = Field(default=None, foreign_key="suppliers.id")

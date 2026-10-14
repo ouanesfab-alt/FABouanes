@@ -1,12 +1,11 @@
-from __future__ import annotations
-
+import asyncio
+import concurrent.futures
 import logging
 from typing import Any, Dict
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_compat import async_compat
 from app.core.db_helpers import db_manager
 from app.core.uow import unit_of_work
 
@@ -16,6 +15,17 @@ logger = logging.getLogger("fabouanes.assistant.memory")
 def _is_mocked(func_or_obj: Any) -> bool:
     name = type(func_or_obj).__name__
     return "Mock" in name
+
+
+def _run_async(coro: Any) -> Any:
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop is not None and loop.is_running():
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, coro).result()
+    return asyncio.run(coro)
 
 
 def remember(content: str, category: str = "general", source: str = "user_explicit") -> Dict[str, Any]:
@@ -46,7 +56,7 @@ def remember(content: str, category: str = "general", source: str = "user_explic
         except Exception as e:
             return {"error": f"Erreur lors de la mémorisation : {str(e)}"}
 
-    return async_compat(async_remember)(content, category, source)
+    return _run_async(async_remember(content, category, source))
 
 
 async def async_remember(
@@ -140,7 +150,7 @@ def recall(query: str, limit: int = 10) -> Dict[str, Any]:
         except Exception as e:
             return {"error": f"Erreur lors du rappel : {str(e)}"}
 
-    return async_compat(async_recall)(query, limit)
+    return _run_async(async_recall(query, limit))
 
 
 async def async_recall(query: str, limit: int = 10, db: AsyncSession | None = None) -> Dict[str, Any]:
@@ -208,7 +218,7 @@ def forget(memory_id: int) -> Dict[str, Any]:
         except Exception as e:
             return {"error": f"Erreur lors de la suppression : {str(e)}"}
 
-    return async_compat(async_forget)(memory_id)
+    return _run_async(async_forget(memory_id))
 
 
 async def async_forget(memory_id: int, db: AsyncSession | None = None) -> Dict[str, Any]:
@@ -258,7 +268,7 @@ def get_context_memories(limit: int = 10) -> str:
         except Exception:
             return ""
 
-    return async_compat(async_get_context_memories)(limit)
+    return _run_async(async_get_context_memories(limit))
 
 
 async def async_get_context_memories(limit: int = 10, db: AsyncSession | None = None) -> str:

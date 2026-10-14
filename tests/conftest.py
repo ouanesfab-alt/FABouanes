@@ -49,8 +49,8 @@ def _ensure_test_db_exists():
 _ensure_test_db_exists()
 
 try:
-    from app.core.schema_bootstrap import bootstrap_schema
-    bootstrap_schema()
+    from app.core.database import bootstrap_and_migrate
+    bootstrap_and_migrate()
 except Exception as e:
     import logging
     logging.warning("Could not bootstrap test database: %s", e)

@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Any, Optional
 
 from pydantic import field_validator
-from sqlalchemy import BigInteger, Column, Numeric
+from sqlalchemy import BigInteger, Column, Index, Numeric
 from sqlmodel import Field, SQLModel
 
 from app.core.model_utils import _now
@@ -15,10 +15,14 @@ from app.core.model_utils import _now
 
 class Expense(SQLModel, table=True):
     __tablename__ = "expenses"
+    __table_args__ = (
+        Index("idx_expenses_date", "date"),
+        Index("idx_expenses_category", "category"),
+    )
 
     id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
     date: date
-    category: str = Field(default="general", index=True)
+    category: str = Field(default="general")
     description: Optional[str] = Field(default=None)
     amount: Decimal = Field(
         default=Decimal("0.00"), sa_column=Column(Numeric(15, 2))

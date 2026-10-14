@@ -18,7 +18,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_compat import async_compat
 from app.core.model_utils import to_gmt1
 from app.core.models import (
     Client,
@@ -39,7 +38,6 @@ from app.utils.pagination import (
 )
 
 
-@async_compat
 async def transactions_context(
     filter_type: str = "all",
     filter_name: str = "",

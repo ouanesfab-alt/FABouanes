@@ -4,7 +4,6 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_compat import async_compat
 
 from .base import COMPANY_INFO, PRINT_LAYOUT
 from .invoice_printer import _generate_invoice_pdf_model, generate_invoice_pdf
@@ -26,7 +25,6 @@ __all__ = [
 ]
 
 
-@async_compat
 async def build_print_payload(
     doc_type: str,
     item_id: int,

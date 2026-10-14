@@ -6,7 +6,6 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity import log_activity
-from app.core.async_compat import async_compat
 from app.core.audit import audit_event
 from app.core.exceptions import ValidationError
 from app.core.models import Purchase, PurchaseDocument, Supplier
@@ -16,7 +15,6 @@ from app.core.uow import unit_of_work
 from app.utils.pagination import paginate_sequence
 
 
-@async_compat
 async def contacts_context(
     filter_type: str = "all",
     filter_name: str = "",
@@ -88,7 +86,6 @@ async def _build_contacts_context(filter_type: str, filter_name: str, raw_filter
     }
 
 
-@async_compat
 async def create_supplier_from_form(form, db: AsyncSession | None = None) -> int:
     async with unit_of_work(db, auto_commit=True) as session:
         return await _create_supplier_from_form_impl(form, session)
@@ -113,7 +110,6 @@ async def _create_supplier_from_form_impl(form, db: AsyncSession) -> int:
     return supplier_id
 
 
-@async_compat
 async def get_supplier(supplier_id: int, db: AsyncSession | None = None):
     async with unit_of_work(db) as session:
         return await _get_supplier_impl(supplier_id, session)
@@ -126,7 +122,6 @@ async def _get_supplier_impl(supplier_id: int, db: AsyncSession):
     return supplier.model_dump() if supplier else None
 
 
-@async_compat
 async def update_supplier_from_form(supplier_id: int, form, db: AsyncSession | None = None) -> None:
     async with unit_of_work(db, auto_commit=True) as session:
         await _update_supplier_from_form_impl(supplier_id, form, session)
@@ -151,7 +146,6 @@ async def _update_supplier_from_form_impl(supplier_id: int, form, db: AsyncSessi
     backup_database("update_supplier")
 
 
-@async_compat
 async def has_supplier_operations(supplier_id: int, db: AsyncSession | None = None) -> bool:
     async with unit_of_work(db) as session:
         return await _has_supplier_operations_impl(supplier_id, session)
@@ -165,7 +159,6 @@ async def _has_supplier_operations_impl(supplier_id: int, db: AsyncSession) -> b
     return bool(p_count or d_count)
 
 
-@async_compat
 async def delete_supplier_by_id(supplier_id: int, db: AsyncSession | None = None) -> None:
     async with unit_of_work(db, auto_commit=True) as session:
         await _delete_supplier_by_id_impl(supplier_id, session)
@@ -188,7 +181,6 @@ async def _delete_supplier_by_id_impl(supplier_id: int, db: AsyncSession) -> Non
     backup_database("delete_supplier")
 
 
-@async_compat
 async def get_supplier_detail_context(
     supplier_id: int, args=None, path: str | None = None, db: AsyncSession | None = None
 ) -> dict | None:

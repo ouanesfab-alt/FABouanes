@@ -9,7 +9,6 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity import log_activity
-from app.core.async_compat import async_compat
 from app.core.audit import audit_event
 from app.core.helpers import to_float
 from app.core.models import FinishedProduct, ProductionBatch, ProductionBatchItem, RawMaterial, SavedRecipe
@@ -52,7 +51,6 @@ class ProductionService:
         await _update_production_notes_impl(batch_id, production_date, notes, self.session)
 
 
-@async_compat
 async def productions_context(args=None, db: AsyncSession | None = None):
     args = args or {}
     cache_key = tuple(sorted((str(key), str(value)) for key, value in dict(args).items()))
@@ -63,7 +61,6 @@ async def productions_context(args=None, db: AsyncSession | None = None):
     )
 
 
-@async_compat
 async def new_production_context(db: AsyncSession | None = None):
     return await production_form_context(db=db)
 
@@ -78,7 +75,6 @@ def _current_user_id() -> int | None:
     return None
 
 
-@async_compat
 async def create_production_from_form(form, db: AsyncSession | None = None):
     async with unit_of_work(db, auto_commit=True) as session:
         return await ProductionService(session).create_production(form)
@@ -250,7 +246,6 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
     }
 
 
-@async_compat
 async def delete_production_by_id(batch_id: int, db: AsyncSession | None = None) -> bool:
     async with unit_of_work(db, auto_commit=True) as session:
         return await ProductionService(session).delete_production(batch_id)
@@ -270,7 +265,6 @@ async def _delete_production_by_id_impl(batch_id: int, db: AsyncSession) -> bool
     return ok
 
 
-@async_compat
 async def update_production_notes(
     batch_id: int,
     production_date: str,
