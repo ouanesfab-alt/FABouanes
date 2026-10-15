@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from app.core.activity import write_text_log
+from app.modules.admin.activity_service import write_text_log
 from app.core.config import APP_DATA_DIR, DATABASE_URL, settings
 from app.core.database import execute_db, get_setting
 from app.core.request_state import get_state_value

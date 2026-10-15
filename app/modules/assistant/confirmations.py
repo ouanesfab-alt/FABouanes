@@ -1,6 +1,103 @@
 from __future__ import annotations
 
-from app.modules.assistant.sql_write import dry_run_sql
+import logging
+import sqlglot
+
+from app.core.database import db_manager
+from app.modules.assistant.sql_guard import validate_write_sql as guard_write_sql
+
+logger = logging.getLogger("fabouanes.assistant.confirmations")
+
+
+class DryRunRollback(Exception):
+    def __init__(self, data):
+        self.data = data
+
+
+def dry_run_sql(query: str) -> str:
+    """Simule une requête SQL d'écriture dans une transaction temporaire puis effectue un rollback."""
+    validation = guard_write_sql(query)
+    if not validation.ok:
+        return f"⚠️ Requête SQL refusée : {validation.error}"
+
+    query_to_run = validation.sql_to_run or query
+    try:
+        stmts = validation.statements or sqlglot.parse(query_to_run, read="postgres")
+        if not stmts:
+            return "⚠️ Requête SQL invalide."
+        stmt = stmts[0]
+        table_names = [t.name.lower() for t in stmt.find_all(sqlglot.exp.Table)]
+
+        try:
+            from app.core.database import is_sqlite
+
+            with db_manager.db_transaction() as conn:
+                if is_sqlite():
+                    try:
+                        conn.execute("PRAGMA busy_timeout = 4000")
+                    except Exception:
+                        pass
+                else:
+                    conn.execute("SET LOCAL statement_timeout = '4000'")
+                client_balances_before = {}
+                if "clients" in table_names:
+                    rows = conn.execute("SELECT id, name, current_balance FROM clients_with_stats").fetchall()
+                    client_balances_before = {r[0]: (r[1], r[2]) for r in rows}
+
+                cur = conn.execute(query_to_run)
+                rowcount = getattr(cur, "rowcount", None)
+                inserted_id = None
+                try:
+                    row = cur.fetchone()
+                    if row:
+                        if isinstance(row, dict):
+                            inserted_id = row.get("id")
+                        elif isinstance(row, (list, tuple)) and len(row) > 0:
+                            inserted_id = row[0]
+                except Exception as exc:
+                    logger.debug("Could not fetch inserted_id: %s", exc)
+
+                client_balances_after = {}
+                if "clients" in table_names:
+                    rows = conn.execute("SELECT id, name, current_balance FROM clients_with_stats").fetchall()
+                    client_balances_after = {r[0]: r[2] for r in rows}
+
+                res_info = {
+                    "inserted_id": inserted_id,
+                    "rowcount": rowcount,
+                    "balances_before": client_balances_before,
+                    "balances_after": client_balances_after,
+                }
+                raise DryRunRollback(res_info)
+        except DryRunRollback as dr:
+            res_info = dr.data
+            inserted_id = res_info["inserted_id"]
+            rowcount = res_info["rowcount"]
+            client_balances_before = res_info["balances_before"]
+            client_balances_after = res_info["balances_after"]
+
+            parts = ["📝 **[Simulation] Résumé des modifications de données :**"]
+            if inserted_id:
+                parts.append(
+                    f"• Création d'un nouvel enregistrement (ID temporaire : `{inserted_id}`) dans la table `{', '.join(table_names)}`."
+                )
+            elif rowcount is not None and rowcount > 0:
+                parts.append(f"• Modification de `{rowcount}` ligne(s) dans la table `{', '.join(table_names)}`.")
+            else:
+                parts.append(f"• Exécution d'une modification sur la table `{', '.join(table_names)}`.")
+
+            for cid, (name, bal_before) in client_balances_before.items():
+                bal_before_val = float(bal_before or 0.0)
+                bal_after_val = float(client_balances_after.get(cid) or 0.0)
+                if bal_before_val != bal_after_val:
+                    parts.append(
+                        f"   - Le solde de **{name}** passe de `{bal_before_val:,.2f} DA` à `{bal_after_val:,.2f} DA`."
+                    )
+
+            return "\n".join(parts)
+    except Exception as e:
+        return f"⚠️ La simulation (dry-run) a échoué : {str(e)}"
+
 
 READ_ONLY_TOOL_NAMES = frozenset(
     {

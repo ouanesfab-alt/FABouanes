@@ -320,27 +320,42 @@ class DatabaseManager:
 
     def create_database_engine(self, database_url: str) -> Engine:
         engine_url = self.sqlalchemy_database_url(database_url)
-        is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux")
-        sync_default_pool = 1 if is_termux else 2
-        pool_size = self._env_int("FAB_SYNC_PG_POOL_SIZE", self._env_int("FAB_PG_POOL_SIZE", sync_default_pool, 1, 50), 1, 50)
-        max_overflow = self._env_int("FAB_SYNC_PG_MAX_OVERFLOW", 3, 0, 50)
-        engine = create_engine(
-            engine_url,
-            future=True,
-            pool_pre_ping=True,
-            pool_size=pool_size,
-            max_overflow=max_overflow,
-            pool_timeout=self._env_int("FAB_PG_POOL_TIMEOUT", 30, 1, 300),
-            pool_recycle=self._env_int("FAB_PG_POOL_RECYCLE_SECONDS", 1800, 60, 86400),
-        )
+        is_sqlite = "sqlite" in str(engine_url).lower()
+        if is_sqlite:
+            engine = create_engine(
+                engine_url,
+                future=True,
+                pool_pre_ping=True,
+                connect_args={"timeout": 30.0},
+            )
+        else:
+            is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux")
+            sync_default_pool = 1 if is_termux else 2
+            pool_size = self._env_int("FAB_SYNC_PG_POOL_SIZE", self._env_int("FAB_PG_POOL_SIZE", sync_default_pool, 1, 50), 1, 50)
+            max_overflow = self._env_int("FAB_SYNC_PG_MAX_OVERFLOW", 3, 0, 50)
+            engine = create_engine(
+                engine_url,
+                future=True,
+                pool_pre_ping=True,
+                pool_size=pool_size,
+                max_overflow=max_overflow,
+                pool_timeout=self._env_int("FAB_PG_POOL_TIMEOUT", 30, 1, 300),
+                pool_recycle=self._env_int("FAB_PG_POOL_RECYCLE_SECONDS", 1800, 60, 86400),
+            )
 
         from sqlalchemy import event
 
         @event.listens_for(engine, "connect")
-        def set_connection_timezone(dbapi_connection, connection_record):
+        def set_connection_pragmas(dbapi_connection, connection_record):
             cursor = dbapi_connection.cursor()
             try:
-                cursor.execute("SET TIME ZONE 'UTC'")
+                if is_sqlite:
+                    cursor.execute("PRAGMA journal_mode=WAL")
+                    cursor.execute("PRAGMA busy_timeout=10000")
+                    cursor.execute("PRAGMA foreign_keys=ON")
+                    cursor.execute("PRAGMA synchronous=NORMAL")
+                else:
+                    cursor.execute("SET TIME ZONE 'UTC'")
             except Exception:
                 pass
             finally:

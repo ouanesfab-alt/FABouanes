@@ -231,9 +231,20 @@ export function initDataGrids(root) {
   });
 }
 
+let _tablesDelegated = false;
+
 export function initTablesModule() {
-  document.addEventListener('fab:panel-open', function (event) {
-    if (event.detail && event.detail.panel) initDataGrids(event.detail.panel);
-  });
+  if (!_tablesDelegated) {
+    document.addEventListener('fab:panel-open', function (event) {
+      if (event.detail && event.detail.panel) initDataGrids(event.detail.panel);
+    });
+    _tablesDelegated = true;
+  }
   queueGridTask(function () { initDataGrids(document); });
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('fab:page-loaded', () => {
+    initTablesModule();
+  });
 }

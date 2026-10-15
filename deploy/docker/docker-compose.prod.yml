@@ -40,7 +40,7 @@ services:
     ports:
       - "${FAB_PORT:-8000}:8000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       start_period: 15s

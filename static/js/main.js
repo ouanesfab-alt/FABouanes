@@ -10,10 +10,12 @@ import { initOfflineSync } from './offline-sync.js';
 import { initRippleModule } from './modules/ripple.js';
 import { initAudioModule } from './modules/audio.js';
 import { initShortcutsModule } from './modules/shortcuts.js';
-import { initInstantNavModule } from './modules/instantNav.js';
+import { initInstantNavModule, abortPreviousPage, getNavSignal } from './modules/instantNav.js';
 
 // Bind functions to window for backward compatibility with inline HTML events
 window.openInvoice = openInvoice;
+window.getNavSignal = getNavSignal;
+window.abortPreviousPage = abortPreviousPage;
 
 // Initialize all modules in correct dependency order
 initThemeModule();
@@ -34,5 +36,12 @@ initAudioModule();
 initShortcutsModule();
 // Navigation SPA Turbo Instantanée (Zéro rechargement complet de page, basculement ultra-rapide)
 initInstantNavModule();
+
+// Cycle de vie SPA : réinitialisation des formulaires, tableaux et effets visuels sur transition de page
+document.addEventListener('fab:page-loaded', () => {
+  initFormsModule();
+  initTablesModule();
+  initRippleModule();
+});
 
 

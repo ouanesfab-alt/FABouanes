@@ -5,7 +5,7 @@ from decimal import Decimal
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.activity import log_activity
+from app.modules.admin.activity_service import log_activity
 from app.core.audit import audit_event
 from app.core.exceptions import ValidationError
 from app.core.models import Purchase, PurchaseDocument, Supplier

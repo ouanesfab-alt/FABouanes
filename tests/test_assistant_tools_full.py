@@ -5,7 +5,7 @@ from unittest import mock
 import pytest
 
 from app.modules.assistant.rag import search_manual
-from app.modules.assistant.sql_write import dry_run_sql
+from app.modules.assistant.confirmations import dry_run_sql
 from app.modules.assistant.tool_actions_contacts import handle_contacts
 from app.modules.assistant.tool_actions_operations import handle_operations
 

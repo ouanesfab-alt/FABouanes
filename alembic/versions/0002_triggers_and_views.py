@@ -28,8 +28,96 @@ tables_to_add_updated_at = [
 ]
 
 
+def _upgrade_sqlite() -> None:
+    for table in tables_to_add_updated_at:
+        op.execute(f'DROP TRIGGER IF EXISTS trg_{table}_updated_at;')
+        op.execute(f"""
+            CREATE TRIGGER trg_{table}_updated_at
+            AFTER UPDATE ON "{table}"
+            FOR EACH ROW
+            BEGIN
+                UPDATE "{table}" SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+            END;
+        """)
+
+    op.execute("DROP VIEW IF EXISTS mv_client_balances;")
+    op.execute("""
+    CREATE VIEW mv_client_balances AS
+    SELECT
+        c.id AS client_id,
+        c.name,
+        c.opening_credit
+            + COALESCE(s_finished.total, 0)
+            + COALESCE(s_raw.total, 0)
+            - COALESCE(p_versement.total, 0)
+            - COALESCE(p_avance.total, 0) AS balance
+    FROM clients c
+    LEFT JOIN (SELECT client_id, SUM(total) AS total FROM sales WHERE sale_type='credit' GROUP BY client_id) s_finished ON s_finished.client_id = c.id
+    LEFT JOIN (SELECT client_id, SUM(total) AS total FROM raw_sales WHERE sale_type='credit' GROUP BY client_id) s_raw ON s_raw.client_id = c.id
+    LEFT JOIN (SELECT client_id, SUM(amount) AS total FROM payments WHERE payment_type='versement' GROUP BY client_id) p_versement ON p_versement.client_id = c.id
+    LEFT JOIN (SELECT client_id, SUM(amount) AS total FROM payments WHERE payment_type='avance' GROUP BY client_id) p_avance ON p_avance.client_id = c.id;
+    """)
+
+    op.execute("DROP VIEW IF EXISTS clients_with_stats;")
+    op.execute("""
+    CREATE VIEW clients_with_stats AS
+    WITH finished_totals AS (
+        SELECT client_id,
+               SUM(total) AS total_sales,
+               SUM(CASE WHEN sale_type = 'credit' THEN total ELSE 0 END) AS credit_total
+        FROM sales
+        WHERE client_id IS NOT NULL
+        GROUP BY client_id
+    ),
+    raw_totals AS (
+        SELECT client_id,
+               SUM(total) AS total_sales,
+               SUM(CASE WHEN sale_type = 'credit' THEN total ELSE 0 END) AS credit_total
+        FROM raw_sales
+        WHERE client_id IS NOT NULL
+        GROUP BY client_id
+    ),
+    payment_totals AS (
+        SELECT client_id,
+               SUM(CASE WHEN payment_type = 'versement' THEN amount ELSE 0 END) AS versements,
+               SUM(CASE WHEN payment_type = 'avance' THEN amount ELSE 0 END) AS avances
+        FROM payments
+        GROUP BY client_id
+    )
+    SELECT c.id,
+           c.name,
+           c.phone,
+           c.address,
+           c.notes,
+           c.opening_credit,
+           c.created_at,
+           c.updated_at,
+           COALESCE(ft.total_sales, 0) + COALESCE(rt.total_sales, 0) AS total_sales,
+           COALESCE(ft.credit_total, 0) + COALESCE(rt.credit_total, 0) AS total_credit_sales,
+           COALESCE(pt.versements, 0) AS total_versements,
+           COALESCE(pt.avances, 0) AS total_avances,
+           c.opening_credit
+               + COALESCE(ft.credit_total, 0)
+               + COALESCE(rt.credit_total, 0)
+               - COALESCE(pt.versements, 0)
+               - COALESCE(pt.avances, 0) AS current_balance,
+           c.opening_credit
+               + COALESCE(ft.credit_total, 0)
+               + COALESCE(rt.credit_total, 0)
+               - COALESCE(pt.versements, 0)
+               - COALESCE(pt.avances, 0) AS current_debt
+    FROM clients c
+    LEFT JOIN finished_totals ft ON ft.client_id = c.id
+    LEFT JOIN raw_totals rt ON rt.client_id = c.id
+    LEFT JOIN payment_totals pt ON pt.client_id = c.id;
+    """)
+
+
 def upgrade() -> None:
     bind = op.get_bind()
+    if bind.dialect.name == "sqlite":
+        _upgrade_sqlite()
+        return
     if bind.dialect.name != "postgresql":
         return
 
@@ -402,7 +490,12 @@ def upgrade() -> None:
                + COALESCE(ft.credit_total, 0)
                + COALESCE(rt.credit_total, 0)
                - COALESCE(pt.versements, 0)
-               - COALESCE(pt.avances, 0) AS current_balance
+               - COALESCE(pt.avances, 0) AS current_balance,
+           c.opening_credit
+               + COALESCE(ft.credit_total, 0)
+               + COALESCE(rt.credit_total, 0)
+               - COALESCE(pt.versements, 0)
+               - COALESCE(pt.avances, 0) AS current_debt
     FROM clients c
     LEFT JOIN finished_totals ft ON ft.client_id = c.id
     LEFT JOIN raw_totals rt ON rt.client_id = c.id
@@ -411,4 +504,21 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    pass
+    bind = op.get_bind()
+    if bind.dialect.name == "sqlite":
+        op.execute("DROP VIEW IF EXISTS clients_with_stats;")
+        op.execute("DROP VIEW IF EXISTS mv_client_balances;")
+        for table in tables_to_add_updated_at:
+            op.execute(f'DROP TRIGGER IF EXISTS trg_{table}_updated_at;')
+        return
+
+    if bind.dialect.name == "postgresql":
+        op.execute("DROP VIEW IF EXISTS clients_with_stats CASCADE;")
+        op.execute("DROP MATERIALIZED VIEW IF EXISTS mv_client_balances CASCADE;")
+        for table in tables_to_add_updated_at:
+            op.execute(f'DROP TRIGGER IF EXISTS trg_{table}_updated_at ON "{table}";')
+        op.execute("DROP FUNCTION IF EXISTS set_updated_at();")
+        op.execute("DROP TRIGGER IF EXISTS trg_sale_client_history ON sales;")
+        op.execute("DROP FUNCTION IF EXISTS sync_sale_to_client_history();")
+        op.execute("DROP TRIGGER IF EXISTS trg_payment_client_history ON payments;")
+        op.execute("DROP FUNCTION IF EXISTS sync_payment_to_client_history();")

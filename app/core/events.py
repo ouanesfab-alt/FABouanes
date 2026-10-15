@@ -28,7 +28,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from app.core.activity import log_activity
+from app.modules.admin.activity_service import log_activity
 from app.core.audit import audit_event
 from app.core.config import DATABASE_URL
 from app.core.database import execute_db, pool_manager, query_db

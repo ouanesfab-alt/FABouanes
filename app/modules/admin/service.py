@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.security import generate_password_hash
 
-from app.core.activity import log_activity
+from app.modules.admin.activity_service import log_activity
 from app.core.async_db import get_async_sessionmaker
 from app.core.audit import audit_event, list_audit_logs
 from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_USERNAME

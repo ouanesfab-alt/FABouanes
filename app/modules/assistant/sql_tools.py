@@ -3,7 +3,7 @@ sql_tools.py — Outils SQL de Sabrina (IA).
 
 CONFORMITÉ RÈGLE 3 (GEMINI.md) :
 Ce module est STRICTEMENT RÉSERVÉ au SELECT en lecture seule.
-Toute écriture SQL directe doit passer par les services métiers ou par `sql_write.py`.
+Toute écriture doit impérativement passer par les services métiers via le Unit of Work (uow.py).
 """
 
 from __future__ import annotations

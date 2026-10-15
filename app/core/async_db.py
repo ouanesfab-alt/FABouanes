@@ -47,6 +47,20 @@ def get_async_engine() -> AsyncEngine:
                     pool_pre_ping=True,
                     connect_args={"timeout": 30.0},
                 )
+                from sqlalchemy import event
+
+                @event.listens_for(engine.sync_engine, "connect")
+                def _set_sqlite_pragmas(dbapi_connection, connection_record):
+                    cursor = dbapi_connection.cursor()
+                    try:
+                        cursor.execute("PRAGMA journal_mode=WAL")
+                        cursor.execute("PRAGMA busy_timeout=10000")
+                        cursor.execute("PRAGMA foreign_keys=ON")
+                        cursor.execute("PRAGMA synchronous=NORMAL")
+                    except Exception:
+                        pass
+                    finally:
+                        cursor.close()
 
             else:
                 connect_kwargs = {}

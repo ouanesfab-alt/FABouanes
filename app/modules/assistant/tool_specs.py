@@ -109,25 +109,6 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     },
                 },
                 {
-                    "name": "execute_write_sql",
-                    "description": (
-                        "Exécute une seule requête SQL d'écriture (INSERT, UPDATE ou DELETE) "
-                        "pour ajouter, modifier ou supprimer des données. Les instructions multiples, "
-                        "les modifications de schéma et la table users sont interdites. Pour les INSERT, "
-                        "ajouter 'RETURNING id' à la fin quand l'identifiant créé est utile."
-                    ),
-                    "parameters": {
-                        "type": "OBJECT",
-                        "properties": {
-                            "query": {
-                                "type": "STRING",
-                                "description": "Une seule requête SQL d'écriture complète à exécuter.",
-                            }
-                        },
-                        "required": ["query"],
-                    },
-                },
-                {
                     "name": "read_app_file",
                     "description": "Lit le contenu d'un fichier source de l'application (HTML, Python, CSS, JS) pour comprendre son fonctionnement ou ses boutons.",
                     "parameters": {

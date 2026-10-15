@@ -122,3 +122,28 @@ test('sw.js safely handles cache-first and background revalidation', () => {
     assert.strictEqual(!code.includes('.catch(() => null);'), true);
 });
 
+test('instantNav.js provides AbortController, destroyAllCharts and fab:page-loaded lifecycle', () => {
+    const instantNavPath = path.join(process.cwd(), 'static', 'js', 'modules', 'instantNav.js');
+    const code = fs.readFileSync(instantNavPath, 'utf8');
+    assert.strictEqual(code.includes('export function abortPreviousPage()'), true);
+    assert.strictEqual(code.includes('export function getNavSignal()'), true);
+    assert.strictEqual(code.includes('export function destroyAllCharts()'), true);
+    assert.strictEqual(code.includes('fab:page-loaded'), true);
+});
+
+test('dashboard.js exports destroyDashboardCharts and listens to fab:page-loaded', () => {
+    const dashboardPath = path.join(process.cwd(), 'static', 'js', 'modules', 'dashboard.js');
+    const code = fs.readFileSync(dashboardPath, 'utf8');
+    assert.strictEqual(code.includes('export function destroyDashboardCharts()'), true);
+    assert.strictEqual(code.includes('window.destroyDashboardCharts = destroyDashboardCharts'), true);
+    assert.strictEqual(code.includes('fab:page-loaded'), true);
+});
+
+test('main.js handles fab:page-loaded event to reinitialize modules', () => {
+    const mainPath = path.join(process.cwd(), 'static', 'js', 'main.js');
+    const code = fs.readFileSync(mainPath, 'utf8');
+    assert.strictEqual(code.includes("addEventListener('fab:page-loaded'"), true);
+    assert.strictEqual(code.includes('initFormsModule()'), true);
+    assert.strictEqual(code.includes('initTablesModule()'), true);
+});
+

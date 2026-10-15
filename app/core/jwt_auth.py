@@ -19,17 +19,17 @@ from fastapi import HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import PyJWTError
 
-from app.core import database as db_helpers
+from app.core import database
 from app.core.config import settings
 from app.core.permissions import has_permission
 
 
 def execute_db(*args, **kwargs):
-    return db_helpers.execute_db(*args, **kwargs)
+    return database.execute_db(*args, **kwargs)
 
 
 def query_db(*args, **kwargs):
-    return db_helpers.query_db(*args, **kwargs)
+    return database.query_db(*args, **kwargs)
 
 logger = logging.getLogger("fabouanes.auth")
 
@@ -127,7 +127,7 @@ def rotate_mobile_refresh_token(token: str) -> tuple[dict[str, Any], str]:
     Returns (user_dict, new_refresh_token).
     Executes in a single database transaction.
     """
-    with db_helpers.db_manager.db_transaction():
+    with database.db_manager.db_transaction():
         payload = validate_mobile_refresh_token(token)
         user_id = int(payload["sub"])
         user_row = query_db("SELECT id, username, role, is_active FROM users WHERE id = %s", (user_id,), one=True)

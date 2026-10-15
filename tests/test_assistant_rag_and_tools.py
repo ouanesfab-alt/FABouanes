@@ -7,7 +7,7 @@ from unittest import mock
 
 from app.modules.assistant.rag import normalize_text, search_manual
 from app.modules.assistant.sql_tools import serialize_for_json
-from app.modules.assistant.sql_write import dry_run_sql
+from app.modules.assistant.confirmations import dry_run_sql
 
 
 def test_rag_normalize_text_and_search_manual():

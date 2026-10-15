@@ -10,7 +10,7 @@ from typing import Any
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.activity import log_activity
+from app.modules.admin.activity_service import log_activity
 from app.core.audit import audit_event
 from app.core.models import (
     FinishedProduct,

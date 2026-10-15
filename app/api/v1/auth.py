@@ -16,7 +16,7 @@ from app.api.deps import (
     revoke_refresh_token,
     validate_refresh_token,
 )
-from app.core.activity import log_activity
+from app.modules.admin.activity_service import log_activity
 from app.core.audit import audit_event
 from app.core.rate_limit import limiter
 from app.modules.users.schemas import LoginRequest as UserLoginSchema

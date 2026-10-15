@@ -4,7 +4,7 @@ import time
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 
-from app.core.activity import log_activity
+from app.modules.admin.activity_service import log_activity
 from app.core.audit import audit_event
 from app.core.auth_cookie import AUTH_COOKIE_NAME, build_auth_cookie_value
 from app.core.config import settings

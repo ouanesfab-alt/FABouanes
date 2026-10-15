@@ -25,12 +25,102 @@ from app.modules.assistant.schema_context import (
     get_sabrina_system_prompt,
     get_schema,
 )
-from app.modules.assistant.sql_tools import execute_readonly_sql
-from app.modules.assistant.sql_write import execute_write_sql
+from app.modules.assistant.sql_tools import execute_readonly_sql, serialize_for_json
+from app.modules.assistant.sql_guard import validate_write_sql as guard_write_sql
 from app.modules.assistant.tool_actions import execute_tool_action
 from app.modules.assistant.tool_specs import get_gemini_tools, get_ollama_tools
+import sqlglot
 
 logger = logging.getLogger("fabouanes.assistant")
+
+
+def execute_write_sql(query: str) -> Dict[str, Any]:
+    """Exécute une requête SQL d'écriture (INSERT, UPDATE, DELETE) pour modifier, ajouter ou supprimer des données."""
+    validation = guard_write_sql(query)
+    if not validation.ok:
+        return {"error": validation.error}
+
+    query_to_run = validation.sql_to_run or query
+
+    auto_eval_reports = []
+    for stmt in validation.statements:
+        if stmt is None:
+            continue
+        if stmt.__class__.__name__.lower() in ("update", "delete"):
+            try:
+                tbl_expr = stmt.find(sqlglot.exp.Table)
+                if tbl_expr:
+                    select_stmt = sqlglot.exp.select("*").from_(tbl_expr)
+                    where_node = stmt.args.get("where")
+                    if where_node:
+                        select_stmt = select_stmt.where(where_node.this)
+                    select_stmt = select_stmt.limit(100)
+                    select_query = select_stmt.sql(dialect="postgres")
+
+                    eval_rows = db_manager.query_db(select_query)
+
+                    preview_sample = []
+                    for r in eval_rows[:5]:
+                        try:
+                            preview_sample.append(dict(r))
+                        except Exception:
+                            preview_sample.append(list(r))
+
+                    where_clause_str = (
+                        where_node.sql(dialect="postgres").strip()
+                        if where_node
+                        else "Aucune restriction (toutes les lignes !)"
+                    )
+                    auto_eval_reports.append(
+                        {
+                            "table_name": tbl_expr.sql(dialect="postgres"),
+                            "where_clause": where_clause_str,
+                            "rows_affected_preview": len(eval_rows),
+                            "preview_sample": serialize_for_json(preview_sample),
+                        }
+                    )
+            except Exception as eval_err:
+                logger.error("Auto-évaluation SQL échouée : %s", eval_err)
+
+    clean_query = query.strip().lower()
+    has_returning = "returning" in clean_query
+
+    try:
+        with db_manager.db_transaction() as conn:
+            conn.execute("SET LOCAL statement_timeout = '10000'")
+            cur = conn.execute(query_to_run)
+            inserted_id = None
+            if has_returning:
+                try:
+                    row = cur.fetchone()
+                    if row:
+                        if isinstance(row, dict):
+                            inserted_id = row.get("id")
+                        elif isinstance(row, (list, tuple)) and len(row) > 0:
+                            inserted_id = row[0]
+                except Exception as exc:
+                    logger.debug("Could not fetch inserted_id: %s", exc)
+            rowcount = getattr(cur, "rowcount", None)
+            try:
+                cur.close()
+            except Exception as exc:
+                logger.debug("Error closing cursor: %s", exc)
+            result: Dict[str, Any] = {"success": True}
+            if auto_eval_reports:
+                result["auto_evaluation"] = auto_eval_reports
+            if inserted_id is not None:
+                result["inserted_id"] = inserted_id
+                result["message"] = f"Opération réussie. ID créé : {inserted_id}."
+            elif rowcount is not None:
+                result["rowcount"] = rowcount
+                result["message"] = f"{rowcount} ligne(s) affectée(s)."
+            else:
+                result["message"] = "Opération exécutée avec succès."
+            return result
+    except Exception as e:
+        logger.error("execute_write_sql error for query %s: %s", query_to_run, e, exc_info=True)
+        return {"error": f"Erreur SQL lors de l'écriture : {str(e)}"}
+
 
 
 __all__ = [

@@ -1,16 +1,8 @@
-export function initFormsModule() {
-  const token = window.fabApi?.csrfToken || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-  if (token) {
-    document.querySelectorAll('form[method="post"],form[method="POST"]').forEach(function (form) {
-      if (form.querySelector('input[name="csrf_token"]')) return;
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = 'csrf_token';
-      input.value = token;
-      form.appendChild(input);
-    });
-    window.fabCsrfToken = token;
-  }
+let _formsListenersBound = false;
+
+function bindFormEventListeners() {
+  if (_formsListenersBound) return;
+  _formsListenersBound = true;
 
   document.addEventListener('submit', function (event) {
     const form = event.target;
@@ -48,22 +40,6 @@ export function initFormsModule() {
     }, 8000);
 
   });
-
-  const _getLocalDate = typeof window.getLocalDateISO === 'function' 
-    ? window.getLocalDateISO 
-    : function(d) {
-        const dt = d || new Date();
-        return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-      };
-  const today = _getLocalDate();
-  document.querySelectorAll('input[type="date"]').forEach(function (input) {
-    if (input.dataset.noAutoDate === '1') return;
-    if (input.value) return;
-    const form = input.closest('form');
-    if (form && (form.method || 'get').toLowerCase() === 'get') return;
-    input.value = today;
-  });
-
 
   document.addEventListener('input', function (event) {
     const field = event.target;
@@ -103,4 +79,42 @@ export function initFormsModule() {
       event.stopImmediatePropagation();
     }
   }, true);
+}
+
+export function initFormsModule() {
+  const token = window.fabApi?.csrfToken || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  if (token) {
+    document.querySelectorAll('form[method="post"],form[method="POST"]').forEach(function (form) {
+      if (form.querySelector('input[name="csrf_token"]')) return;
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'csrf_token';
+      input.value = token;
+      form.appendChild(input);
+    });
+    window.fabCsrfToken = token;
+  }
+
+  const _getLocalDate = typeof window.getLocalDateISO === 'function' 
+    ? window.getLocalDateISO 
+    : function(d) {
+        const dt = d || new Date();
+        return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+      };
+  const today = _getLocalDate();
+  document.querySelectorAll('input[type="date"]').forEach(function (input) {
+    if (input.dataset.noAutoDate === '1') return;
+    if (input.value) return;
+    const form = input.closest('form');
+    if (form && (form.method || 'get').toLowerCase() === 'get') return;
+    input.value = today;
+  });
+
+  bindFormEventListeners();
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('fab:page-loaded', () => {
+    initFormsModule();
+  });
 }

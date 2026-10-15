@@ -14,7 +14,7 @@ from app.api.v1._common import (
     raw_material_payload,
     supplier_payload,
 )
-from app.core.activity import log_activity
+from app.modules.admin.activity_service import log_activity
 from app.core.async_db import get_async_session
 from app.core.audit import audit_event
 from app.core.models import Client, ClientHistory, Payment, RawSale, Sale, Supplier

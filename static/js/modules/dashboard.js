@@ -1,6 +1,36 @@
 // dashboard.js — KPI sheets, Chart.js graphs, date pickers
 // Extracted from dashboard.html inline <script> block 1
 
+export function destroyDashboardCharts() {
+	if (window.kpiChartInstance) {
+		try { window.kpiChartInstance.destroy(); } catch (e) {}
+		window.kpiChartInstance = null;
+	}
+	if (window.reportChartInstances) {
+		try {
+			Object.values(window.reportChartInstances).forEach(chart => {
+				try { chart?.destroy(); } catch (e) {}
+			});
+		} catch (e) {}
+		window.reportChartInstances = {};
+	}
+	if (window.Chart && window.Chart.instances) {
+		try {
+			Object.values(window.Chart.instances).forEach(chart => {
+				try { chart?.destroy(); } catch (e) {}
+			});
+		} catch (e) {}
+	}
+}
+
+window.destroyDashboardCharts = destroyDashboardCharts;
+
+// Listen to instantNav page transitions to systematically destroy active charts
+if (typeof document !== 'undefined') {
+	document.addEventListener('fab:page-loaded', () => {
+		destroyDashboardCharts();
+	});
+}
 
 	// ─── SABRINA QUICK PROMPT HELPER ───
 	window.askSabrina = function(promptText) {

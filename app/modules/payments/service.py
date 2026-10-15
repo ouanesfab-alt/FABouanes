@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import func, literal, literal_column, select, text, union_all
 
 from app.core import events
-from app.core.activity import log_activity
+from app.modules.admin.activity_service import log_activity
 from app.core.audit import audit_delete_event, audit_event
 from app.core.events import DomainEvent, emit
 from app.core.exceptions import ValidationError

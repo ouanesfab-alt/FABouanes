@@ -23,8 +23,8 @@
     },
     "/health": {
       "get": {
-        "summary": "Health",
-        "operationId": "health_health_get",
+        "summary": "Health Check",
+        "operationId": "health_check_health_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -274,8 +274,49 @@
         }
       }
     },
+    "/contacts": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Contacts",
+        "operationId": "contacts_contacts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/new": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "New Contact",
+        "operationId": "new_contact_contacts_new_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/clients": {
       "get": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Clients",
         "operationId": "clients_clients_get",
         "responses": {
@@ -290,8 +331,11 @@
         }
       },
       "post": {
-        "summary": "Clients",
-        "operationId": "clients_clients_post",
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Clients Create Legacy",
+        "operationId": "clients_create_legacy_clients_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -306,24 +350,49 @@
     },
     "/clients/new": {
       "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Compat New Client Redirect",
+        "operationId": "compat_new_client_redirect_clients_new_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/clients": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Clients List",
+        "operationId": "clients_list_contacts_clients_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/clients/new": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Compat New Client",
-        "operationId": "compat_new_client_clients_new_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/clients/import-excel": {
-      "get": {
-        "summary": "Compat Import Clients Excel",
-        "operationId": "compat_import_clients_excel_clients_import_excel_get",
+        "operationId": "compat_new_client_contacts_clients_new_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -336,134 +405,11 @@
         }
       },
       "post": {
-        "summary": "Compat Import Clients Excel Submit",
-        "operationId": "compat_import_clients_excel_submit_clients_import_excel_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/contacts/clients/import-excel": {
-      "get": {
-        "summary": "Import Clients Excel",
-        "operationId": "import_clients_excel_contacts_clients_import_excel_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "Import Clients Excel",
-        "operationId": "import_clients_excel_contacts_clients_import_excel_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/contacts/clients/import/preview-client": {
-      "get": {
-        "summary": "Preview Client Import",
-        "operationId": "preview_client_import_contacts_clients_import_preview_client_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/contacts/clients/import/import-single-file": {
-      "post": {
-        "summary": "Import Single Client File",
-        "operationId": "import_single_client_file_contacts_clients_import_import_single_file_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/contacts/clients/import/import-preview-single-row": {
-      "post": {
-        "summary": "Import Preview Single Row",
-        "operationId": "import_preview_single_row_contacts_clients_import_import_preview_single_row_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/contacts/clients/import/clear-preview": {
-      "post": {
-        "summary": "Clear Preview Token",
-        "operationId": "clear_preview_token_contacts_clients_import_clear_preview_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/contacts/clients/import/preview-single-file": {
-      "post": {
-        "summary": "Preview Single Client File",
-        "operationId": "preview_single_client_file_contacts_clients_import_preview_single_file_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/contacts/clients/import/save-preview-token": {
-      "post": {
-        "summary": "Save Preview Token Endpoint",
-        "operationId": "save_preview_token_endpoint_contacts_clients_import_save_preview_token_post",
+        "tags": [
+          "contacts"
+        ],
+        "summary": "New Client",
+        "operationId": "new_client_contacts_clients_new_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -478,6 +424,9 @@
     },
     "/clients/{client_id}": {
       "get": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Compat Client Detail",
         "operationId": "compat_client_detail_clients__client_id__get",
         "parameters": [
@@ -513,10 +462,13 @@
         }
       }
     },
-    "/clients/{client_id}/print-history": {
+    "/contacts/clients/{client_id}": {
       "get": {
-        "summary": "Compat Print Client History",
-        "operationId": "compat_print_client_history_clients__client_id__print_history_get",
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Client Detail",
+        "operationId": "client_detail_contacts_clients__client_id__get",
         "parameters": [
           {
             "name": "client_id",
@@ -552,6 +504,9 @@
     },
     "/clients/{client_id}/edit": {
       "get": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Compat Edit Client",
         "operationId": "compat_edit_client_clients__client_id__edit_get",
         "parameters": [
@@ -587,10 +542,458 @@
         }
       }
     },
-    "/contacts": {
+    "/contacts/clients/{client_id}/edit": {
       "get": {
-        "summary": "Contacts",
-        "operationId": "contacts_contacts_get",
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Edit Client",
+        "operationId": "edit_client_contacts_clients__client_id__edit_get",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Client Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Edit Client Submit",
+        "operationId": "edit_client_submit_contacts_clients__client_id__edit_post",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Client Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/clients/{client_id}/delete": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Delete Client",
+        "operationId": "delete_client_contacts_clients__client_id__delete_post",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Client Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/clients/{client_id}/history": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Client History Page",
+        "operationId": "client_history_page_contacts_clients__client_id__history_get",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Client Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clients/{client_id}/print-history": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Compat Print Client History",
+        "operationId": "compat_print_client_history_clients__client_id__print_history_get",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Client Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/clients/{client_id}/print-history": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Print Client History",
+        "operationId": "print_client_history_contacts_clients__client_id__print_history_get",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Client Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/clients/{client_id}/shred": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Shred Client",
+        "operationId": "shred_client_contacts_clients__client_id__shred_post",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Client Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clients/import-excel": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Compat Import Clients Excel",
+        "operationId": "compat_import_clients_excel_clients_import_excel_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Compat Import Clients Excel Submit",
+        "operationId": "compat_import_clients_excel_submit_clients_import_excel_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/clients/import-excel": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Import Clients Excel",
+        "operationId": "import_clients_excel_contacts_clients_import_excel_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Import Clients Excel",
+        "operationId": "import_clients_excel_contacts_clients_import_excel_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/clients/import/preview-client": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Preview Client Import",
+        "operationId": "preview_client_import_contacts_clients_import_preview_client_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/clients/import/import-single-file": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Import Single Client File",
+        "operationId": "import_single_client_file_contacts_clients_import_import_single_file_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/clients/import/import-preview-single-row": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Import Preview Single Row",
+        "operationId": "import_preview_single_row_contacts_clients_import_import_preview_single_row_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/clients/import/clear-preview": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Clear Preview Token",
+        "operationId": "clear_preview_token_contacts_clients_import_clear_preview_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/clients/import/preview-single-file": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Preview Single Client File",
+        "operationId": "preview_single_client_file_contacts_clients_import_preview_single_file_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/clients/import/save-preview-token": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Save Preview Token Endpoint",
+        "operationId": "save_preview_token_endpoint_contacts_clients_import_save_preview_token_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -605,6 +1008,9 @@
     },
     "/suppliers": {
       "get": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Suppliers",
         "operationId": "suppliers_suppliers_get",
         "responses": {
@@ -619,6 +1025,9 @@
         }
       },
       "post": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Suppliers",
         "operationId": "suppliers_suppliers_post",
         "responses": {
@@ -635,6 +1044,9 @@
     },
     "/suppliers/new": {
       "get": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Compat New Supplier",
         "operationId": "compat_new_supplier_suppliers_new_get",
         "responses": {
@@ -649,6 +1061,9 @@
         }
       },
       "post": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Compat New Supplier Submit",
         "operationId": "compat_new_supplier_submit_suppliers_new_post",
         "responses": {
@@ -663,24 +1078,11 @@
         }
       }
     },
-    "/contacts/new": {
-      "get": {
-        "summary": "New Contact",
-        "operationId": "new_contact_contacts_new_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
     "/contacts/suppliers/new": {
       "get": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "New Supplier",
         "operationId": "new_supplier_contacts_suppliers_new_get",
         "responses": {
@@ -695,6 +1097,9 @@
         }
       },
       "post": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "New Supplier",
         "operationId": "new_supplier_contacts_suppliers_new_post",
         "responses": {
@@ -711,6 +1116,9 @@
     },
     "/suppliers/{supplier_id}": {
       "get": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Compat Supplier Detail",
         "operationId": "compat_supplier_detail_suppliers__supplier_id__get",
         "parameters": [
@@ -748,6 +1156,9 @@
     },
     "/contacts/suppliers/{supplier_id}": {
       "get": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Supplier Detail",
         "operationId": "supplier_detail_contacts_suppliers__supplier_id__get",
         "parameters": [
@@ -785,6 +1196,9 @@
     },
     "/suppliers/{supplier_id}/edit": {
       "get": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Compat Edit Supplier",
         "operationId": "compat_edit_supplier_suppliers__supplier_id__edit_get",
         "parameters": [
@@ -820,6 +1234,9 @@
         }
       },
       "post": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Compat Edit Supplier Submit",
         "operationId": "compat_edit_supplier_submit_suppliers__supplier_id__edit_post",
         "parameters": [
@@ -857,6 +1274,9 @@
     },
     "/contacts/suppliers/{supplier_id}/edit": {
       "get": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Edit Supplier",
         "operationId": "edit_supplier_contacts_suppliers__supplier_id__edit_get",
         "parameters": [
@@ -892,6 +1312,9 @@
         }
       },
       "post": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Edit Supplier",
         "operationId": "edit_supplier_contacts_suppliers__supplier_id__edit_post",
         "parameters": [
@@ -929,6 +1352,9 @@
     },
     "/suppliers/{supplier_id}/delete": {
       "post": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Compat Delete Supplier",
         "operationId": "compat_delete_supplier_suppliers__supplier_id__delete_post",
         "parameters": [
@@ -966,6 +1392,9 @@
     },
     "/contacts/suppliers/{supplier_id}/delete": {
       "post": {
+        "tags": [
+          "contacts"
+        ],
         "summary": "Delete Supplier",
         "operationId": "delete_supplier_contacts_suppliers__supplier_id__delete_post",
         "parameters": [
@@ -995,6 +1424,70 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounting/scf": {
+      "get": {
+        "summary": "Accounting Scf Dashboard",
+        "operationId": "accounting_scf_dashboard_accounting_scf_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounting/balance/export": {
+      "get": {
+        "summary": "Accounting Balance Export",
+        "operationId": "accounting_balance_export_accounting_balance_export_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounting/export-excel": {
+      "get": {
+        "summary": "Accounting Export Excel",
+        "operationId": "accounting_export_excel_accounting_export_excel_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounting/scf/export-excel": {
+      "get": {
+        "summary": "Accounting Scf Export Excel",
+        "operationId": "accounting_scf_export_excel_accounting_scf_export_excel_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -1070,135 +1563,6 @@
             "schema": {
               "type": "integer",
               "title": "Item Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/production/notes": {
-      "post": {
-        "summary": "Edit Production Notes",
-        "operationId": "edit_production_notes_production_notes_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/production/edit-notes": {
-      "post": {
-        "summary": "Edit Production Notes",
-        "operationId": "edit_production_notes_production_edit_notes_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/production": {
-      "get": {
-        "summary": "Production",
-        "operationId": "production_production_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "Production",
-        "operationId": "production_production_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/production/new": {
-      "get": {
-        "summary": "New Production",
-        "operationId": "new_production_production_new_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "New Production",
-        "operationId": "new_production_production_new_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/production/{batch_id}/delete": {
-      "post": {
-        "summary": "Delete Production",
-        "operationId": "delete_production_production__batch_id__delete_post",
-        "parameters": [
-          {
-            "name": "batch_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Batch Id"
             }
           }
         ],
@@ -1682,6 +2046,72 @@
         }
       }
     },
+    "/reports": {
+      "get": {
+        "summary": "Reports Dashboard",
+        "operationId": "reports_dashboard_reports_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/export-csv": {
+      "get": {
+        "summary": "Reports Export Csv",
+        "operationId": "reports_export_csv_reports_export_csv_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/livre-journal/export": {
+      "get": {
+        "summary": "Reports Export Livre Journal",
+        "description": "Export standard Livre Journal (accounting ledger) in CSV/Excel format.",
+        "operationId": "reports_export_livre_journal_reports_livre_journal_export_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/marge-brute/export": {
+      "get": {
+        "summary": "Reports Export Marge Brute",
+        "description": "Export product margin analysis (Gross Margin & % Margin) in CSV/Excel format.",
+        "operationId": "reports_export_marge_brute_reports_marge_brute_export_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/notes": {
       "get": {
         "summary": "Notes Page",
@@ -1896,38 +2326,6 @@
         }
       }
     },
-    "/accounting/scf": {
-      "get": {
-        "summary": "Accounting Scf Dashboard",
-        "operationId": "accounting_scf_dashboard_accounting_scf_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/accounting/balance/export": {
-      "get": {
-        "summary": "Accounting Balance Export",
-        "operationId": "accounting_balance_export_accounting_balance_export_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/search": {
       "get": {
         "summary": "Global Search",
@@ -1969,339 +2367,6 @@
                 "schema": {
                   "type": "string"
                 }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/contacts/clients": {
-      "get": {
-        "tags": [
-          "clients"
-        ],
-        "summary": "Clients List",
-        "operationId": "clients_list_contacts_clients_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/contacts/clients/new": {
-      "get": {
-        "tags": [
-          "clients"
-        ],
-        "summary": "Compat New Client",
-        "operationId": "compat_new_client_contacts_clients_new_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "clients"
-        ],
-        "summary": "New Client",
-        "operationId": "new_client_contacts_clients_new_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/contacts/clients/{client_id}": {
-      "get": {
-        "tags": [
-          "clients"
-        ],
-        "summary": "Client Detail",
-        "operationId": "client_detail_contacts_clients__client_id__get",
-        "parameters": [
-          {
-            "name": "client_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Client Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/contacts/clients/{client_id}/edit": {
-      "get": {
-        "tags": [
-          "clients"
-        ],
-        "summary": "Edit Client",
-        "operationId": "edit_client_contacts_clients__client_id__edit_get",
-        "parameters": [
-          {
-            "name": "client_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Client Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "clients"
-        ],
-        "summary": "Edit Client Submit",
-        "operationId": "edit_client_submit_contacts_clients__client_id__edit_post",
-        "parameters": [
-          {
-            "name": "client_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Client Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/contacts/clients/{client_id}/delete": {
-      "post": {
-        "tags": [
-          "clients"
-        ],
-        "summary": "Delete Client",
-        "operationId": "delete_client_contacts_clients__client_id__delete_post",
-        "parameters": [
-          {
-            "name": "client_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Client Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/contacts/clients/{client_id}/history": {
-      "get": {
-        "tags": [
-          "clients"
-        ],
-        "summary": "Client History Page",
-        "operationId": "client_history_page_contacts_clients__client_id__history_get",
-        "parameters": [
-          {
-            "name": "client_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Client Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/contacts/clients/{client_id}/print-history": {
-      "get": {
-        "tags": [
-          "clients"
-        ],
-        "summary": "Print Client History",
-        "operationId": "print_client_history_contacts_clients__client_id__print_history_get",
-        "parameters": [
-          {
-            "name": "client_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Client Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/contacts/clients/{client_id}/shred": {
-      "post": {
-        "tags": [
-          "clients"
-        ],
-        "summary": "Shred Client",
-        "operationId": "shred_client_contacts_clients__client_id__shred_post",
-        "parameters": [
-          {
-            "name": "client_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Client Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
               }
             }
           },
@@ -2473,72 +2538,6 @@
         }
       }
     },
-    "/reports": {
-      "get": {
-        "summary": "Reports Dashboard",
-        "operationId": "reports_dashboard_reports_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/reports/export-csv": {
-      "get": {
-        "summary": "Reports Export Csv",
-        "operationId": "reports_export_csv_reports_export_csv_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/reports/livre-journal/export": {
-      "get": {
-        "summary": "Reports Export Livre Journal",
-        "description": "Export standard Livre Journal (accounting ledger) in CSV/Excel format.",
-        "operationId": "reports_export_livre_journal_reports_livre_journal_export_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/reports/marge-brute/export": {
-      "get": {
-        "summary": "Reports Export Marge Brute",
-        "description": "Export product margin analysis (Gross Margin & % Margin) in CSV/Excel format.",
-        "operationId": "reports_export_marge_brute_reports_marge_brute_export_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
     "/catalog": {
       "get": {
         "tags": [
@@ -2564,7 +2563,7 @@
           "catalog"
         ],
         "summary": "Raw Materials",
-        "operationId": "raw_materials_raw_materials_get",
+        "operationId": "raw_materials_raw_materials_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2581,7 +2580,7 @@
           "catalog"
         ],
         "summary": "Raw Materials",
-        "operationId": "raw_materials_raw_materials_get",
+        "operationId": "raw_materials_raw_materials_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2600,7 +2599,7 @@
           "catalog"
         ],
         "summary": "Products",
-        "operationId": "products_products_get",
+        "operationId": "products_products_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2617,7 +2616,7 @@
           "catalog"
         ],
         "summary": "Products",
-        "operationId": "products_products_get",
+        "operationId": "products_products_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3469,6 +3468,135 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/production": {
+      "get": {
+        "summary": "Production",
+        "operationId": "production_production_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Production",
+        "operationId": "production_production_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/production/new": {
+      "get": {
+        "summary": "New Production",
+        "operationId": "new_production_production_new_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "New Production",
+        "operationId": "new_production_production_new_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/production/{batch_id}/delete": {
+      "post": {
+        "summary": "Delete Production",
+        "operationId": "delete_production_production__batch_id__delete_post",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Batch Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/production/notes": {
+      "post": {
+        "summary": "Edit Production Notes",
+        "operationId": "edit_production_notes_production_notes_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/production/edit-notes": {
+      "post": {
+        "summary": "Edit Production Notes",
+        "operationId": "edit_production_notes_production_edit_notes_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -4401,6 +4529,40 @@
         }
       }
     },
+    "/api/assistant/threads": {
+      "get": {
+        "summary": "Get Assistant Threads",
+        "description": "Récupère l'historique des discussions sauvegardé en base de données.",
+        "operationId": "get_assistant_threads_api_assistant_threads_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assistant/threads/save": {
+      "post": {
+        "summary": "Save Assistant Thread",
+        "description": "Enregistre ou met à jour un fil de discussion dans la base de données.",
+        "operationId": "save_assistant_thread_api_assistant_threads_save_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "tags": [
@@ -4802,12 +4964,32 @@
         ],
         "summary": "Api Create Client",
         "operationId": "api_create_client_api_v1_clients_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientCreateSchema"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -4890,6 +5072,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientUpdateSchema"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -5075,12 +5267,32 @@
         ],
         "summary": "Api Create Supplier",
         "operationId": "api_create_supplier_api_v1_suppliers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupplierCreateSchema"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -5143,6 +5355,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupplierUpdateSchema"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -5227,12 +5449,32 @@
         ],
         "summary": "Api Create Raw Material",
         "operationId": "api_create_raw_material_api_v1_raw_materials_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RawMaterialCreateSchema"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -5295,6 +5537,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RawMaterialUpdateSchema"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -5379,12 +5631,32 @@
         ],
         "summary": "Api Create Finished Product",
         "operationId": "api_create_finished_product_api_v1_finished_products_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinishedProductCreateSchema"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -5447,6 +5719,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinishedProductUpdateSchema"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -5571,8 +5853,8 @@
         "tags": [
           "sales"
         ],
-        "summary": "Api Sales",
-        "operationId": "api_sales_api_v1_sales_get",
+        "summary": "Api List Sales",
+        "operationId": "api_list_sales_api_v1_sales_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -5588,49 +5870,20 @@
         "tags": [
           "sales"
         ],
-        "summary": "Api Sales",
-        "operationId": "api_sales_api_v1_sales_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
+        "summary": "Api Create Sale",
+        "operationId": "api_create_sale_api_v1_sales_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaleFormSchema"
               }
             }
-          }
-        }
-      }
-    },
-    "/api/v1/sales/{kind}/{row_id}": {
-      "get": {
-        "tags": [
-          "sales"
-        ],
-        "summary": "Api Sale Detail",
-        "operationId": "api_sale_detail_api_v1_sales__kind___row_id__get",
-        "parameters": [
-          {
-            "name": "kind",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Kind"
-            }
           },
-          {
-            "name": "row_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Row Id"
-            }
-          }
-        ],
+          "required": true
+        },
         "responses": {
-          "200": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -5649,13 +5902,15 @@
             }
           }
         }
-      },
+      }
+    },
+    "/api/v1/sales/{kind}/{row_id}": {
       "put": {
         "tags": [
           "sales"
         ],
         "summary": "Api Sale Detail",
-        "operationId": "api_sale_detail_api_v1_sales__kind___row_id__get",
+        "operationId": "api_sale_detail_api_v1_sales__kind___row_id__put",
         "parameters": [
           {
             "name": "kind",
@@ -5702,7 +5957,54 @@
           "sales"
         ],
         "summary": "Api Sale Detail",
-        "operationId": "api_sale_detail_api_v1_sales__kind___row_id__get",
+        "operationId": "api_sale_detail_api_v1_sales__kind___row_id__put",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "row_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Row Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "sales"
+        ],
+        "summary": "Api Sale Detail",
+        "operationId": "api_sale_detail_api_v1_sales__kind___row_id__put",
         "parameters": [
           {
             "name": "kind",
@@ -5746,12 +6048,12 @@
       }
     },
     "/api/v1/sale-documents/{document_id}": {
-      "get": {
+      "put": {
         "tags": [
           "sales"
         ],
         "summary": "Api Sale Document Detail",
-        "operationId": "api_sale_document_detail_api_v1_sale_documents__document_id__get",
+        "operationId": "api_sale_document_detail_api_v1_sale_documents__document_id__put",
         "parameters": [
           {
             "name": "document_id",
@@ -5784,12 +6086,12 @@
           }
         }
       },
-      "put": {
+      "get": {
         "tags": [
           "sales"
         ],
         "summary": "Api Sale Document Detail",
-        "operationId": "api_sale_document_detail_api_v1_sale_documents__document_id__get",
+        "operationId": "api_sale_document_detail_api_v1_sale_documents__document_id__put",
         "parameters": [
           {
             "name": "document_id",
@@ -5847,8 +6149,8 @@
         "tags": [
           "purchases"
         ],
-        "summary": "Api Purchases",
-        "operationId": "api_purchases_api_v1_purchases_get",
+        "summary": "Api List Purchases",
+        "operationId": "api_list_purchases_api_v1_purchases_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -5864,40 +6166,20 @@
         "tags": [
           "purchases"
         ],
-        "summary": "Api Purchases",
-        "operationId": "api_purchases_api_v1_purchases_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
+        "summary": "Api Create Purchase",
+        "operationId": "api_create_purchase_api_v1_purchases_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurchaseFormSchema"
               }
             }
-          }
-        }
-      }
-    },
-    "/api/v1/purchases/{purchase_id}": {
-      "get": {
-        "tags": [
-          "purchases"
-        ],
-        "summary": "Api Purchase Detail",
-        "operationId": "api_purchase_detail_api_v1_purchases__purchase_id__get",
-        "parameters": [
-          {
-            "name": "purchase_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Purchase Id"
-            }
-          }
-        ],
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -5916,13 +6198,15 @@
             }
           }
         }
-      },
+      }
+    },
+    "/api/v1/purchases/{purchase_id}": {
       "put": {
         "tags": [
           "purchases"
         ],
         "summary": "Api Purchase Detail",
-        "operationId": "api_purchase_detail_api_v1_purchases__purchase_id__get",
+        "operationId": "api_purchase_detail_api_v1_purchases__purchase_id__put",
         "parameters": [
           {
             "name": "purchase_id",
@@ -5960,7 +6244,45 @@
           "purchases"
         ],
         "summary": "Api Purchase Detail",
-        "operationId": "api_purchase_detail_api_v1_purchases__purchase_id__get",
+        "operationId": "api_purchase_detail_api_v1_purchases__purchase_id__put",
+        "parameters": [
+          {
+            "name": "purchase_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Purchase Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "purchases"
+        ],
+        "summary": "Api Purchase Detail",
+        "operationId": "api_purchase_detail_api_v1_purchases__purchase_id__put",
         "parameters": [
           {
             "name": "purchase_id",
@@ -5995,12 +6317,12 @@
       }
     },
     "/api/v1/purchase-documents/{document_id}": {
-      "get": {
+      "put": {
         "tags": [
           "purchases"
         ],
         "summary": "Api Purchase Document Detail",
-        "operationId": "api_purchase_document_detail_api_v1_purchase_documents__document_id__get",
+        "operationId": "api_purchase_document_detail_api_v1_purchase_documents__document_id__put",
         "parameters": [
           {
             "name": "document_id",
@@ -6033,12 +6355,12 @@
           }
         }
       },
-      "put": {
+      "get": {
         "tags": [
           "purchases"
         ],
         "summary": "Api Purchase Document Detail",
-        "operationId": "api_purchase_document_detail_api_v1_purchase_documents__document_id__get",
+        "operationId": "api_purchase_document_detail_api_v1_purchase_documents__document_id__put",
         "parameters": [
           {
             "name": "document_id",
@@ -6532,7 +6854,7 @@
           "offline"
         ],
         "summary": "Sync Operations Bulk",
-        "description": "Reçoit une liste d'opérations hors-ligne.\nSi 'staging' est vrai, écrit dans la table de staging et lance le worker en tâche de fond.\nSinon, exécute séquentiellement et immédiatement.",
+        "description": "Reçoit une liste d'opérations hors-ligne.\nSi 'staging' est vrai, écrit dans la table de staging et lance le worker en tâche de fond.\nSinon, exécute chaque mutation individuellement dans un UoW dédié (Dead-Letter Queue).",
         "operationId": "sync_operations_bulk_api_mobile_v1_offline_sync_bulk_post",
         "responses": {
           "200": {
@@ -7047,6 +7369,110 @@
         ],
         "title": "Body_import_client_history_api_v1_clients_import_history_post"
       },
+      "ClientCreateSchema": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "opening_credit": {
+            "type": "number",
+            "title": "Opening Credit",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ClientCreateSchema"
+      },
+      "ClientUpdateSchema": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "opening_credit": {
+            "type": "number",
+            "title": "Opening Credit",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ClientUpdateSchema"
+      },
       "ErrorResponseSchema": {
         "properties": {
           "success": {
@@ -7266,6 +7692,124 @@
           "data"
         ],
         "title": "ExpensesListResponse"
+      },
+      "FinishedProductCreateSchema": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "default_unit": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Default Unit",
+            "default": "kg"
+          },
+          "stock_qty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Stock Qty",
+            "default": "0.00"
+          },
+          "sale_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Sale Price",
+            "default": "0.00"
+          },
+          "avg_cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Avg Cost",
+            "default": "0.00"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "FinishedProductCreateSchema"
+      },
+      "FinishedProductUpdateSchema": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "default_unit": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Default Unit"
+          },
+          "stock_qty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Stock Qty",
+            "default": "0.00"
+          },
+          "sale_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Sale Price",
+            "default": "0.00"
+          },
+          "avg_cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Avg Cost",
+            "default": "0.00"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "default_unit"
+        ],
+        "title": "FinishedProductUpdateSchema"
       },
       "HTTPValidationError": {
         "properties": {
@@ -7606,6 +8150,459 @@
           "output_quantity"
         ],
         "title": "ProductionCreateSchema"
+      },
+      "PurchaseFormSchema": {
+        "properties": {
+          "supplier_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier Id"
+          },
+          "purchase_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Purchase Date"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes",
+            "default": ""
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PurchaseLineSchema"
+            },
+            "type": "array",
+            "title": "Lines"
+          }
+        },
+        "type": "object",
+        "title": "PurchaseFormSchema"
+      },
+      "PurchaseLineSchema": {
+        "properties": {
+          "raw_material_id": {
+            "type": "string",
+            "minLength": 3,
+            "title": "Raw Material Id"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Unit",
+            "default": "kg"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Unit Price"
+          },
+          "custom_item_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Item Name",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "raw_material_id",
+          "quantity",
+          "unit_price"
+        ],
+        "title": "PurchaseLineSchema"
+      },
+      "RawMaterialCreateSchema": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Unit",
+            "default": "kg"
+          },
+          "stock_qty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Stock Qty",
+            "default": "0.00"
+          },
+          "avg_cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Avg Cost",
+            "default": "0.00"
+          },
+          "sale_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Sale Price",
+            "default": "0.00"
+          },
+          "alert_threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Alert Threshold",
+            "default": "0.00"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "RawMaterialCreateSchema"
+      },
+      "RawMaterialUpdateSchema": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Unit"
+          },
+          "stock_qty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Stock Qty",
+            "default": "0.00"
+          },
+          "avg_cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Avg Cost",
+            "default": "0.00"
+          },
+          "sale_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Sale Price",
+            "default": "0.00"
+          },
+          "alert_threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Alert Threshold",
+            "default": "0.00"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "unit"
+        ],
+        "title": "RawMaterialUpdateSchema"
+      },
+      "SaleFormSchema": {
+        "properties": {
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "sale_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sale Type"
+          },
+          "sale_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Sale Date"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes",
+            "default": ""
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/SaleLineSchema"
+            },
+            "type": "array",
+            "title": "Lines"
+          }
+        },
+        "type": "object",
+        "title": "SaleFormSchema"
+      },
+      "SaleLineSchema": {
+        "properties": {
+          "item_key": {
+            "type": "string",
+            "minLength": 3,
+            "title": "Item Key"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Unit",
+            "default": "kg"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Unit Price"
+          },
+          "custom_item_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Item Name",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "item_key",
+          "quantity",
+          "unit_price"
+        ],
+        "title": "SaleLineSchema"
+      },
+      "SupplierCreateSchema": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "default": ""
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "default": ""
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SupplierCreateSchema"
+      },
+      "SupplierUpdateSchema": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "default": ""
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "default": ""
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SupplierUpdateSchema"
       },
       "ValidationError": {
         "properties": {

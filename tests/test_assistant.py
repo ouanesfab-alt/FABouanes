@@ -5,7 +5,7 @@ from app.modules.assistant.service import (
     compress_history_if_needed,
 )
 from app.modules.assistant.sql_tools import execute_readonly_sql
-from app.modules.assistant.sql_write import dry_run_sql
+from app.modules.assistant.confirmations import dry_run_sql
 from app.modules.assistant.tool_actions import execute_tool_action, sanitize_numeric
 from app.modules.assistant.tool_specs import get_gemini_tools, get_ollama_tools
 from app.modules.assistant.confirmations import tool_requires_confirmation
