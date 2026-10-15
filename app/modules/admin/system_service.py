@@ -8,7 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.admin.activity_service import write_text_log
-from app.core.async_db import get_async_sessionmaker
+from app.core.database import get_async_sessionmaker
 from app.core.config import APP_DATA_DIR, DATABASE_URL
 from app.core.database import connect_database, postgres_pool_status
 from app.infra.perf_cache import async_cached_result

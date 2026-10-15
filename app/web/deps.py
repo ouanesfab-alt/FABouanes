@@ -22,7 +22,7 @@ from markupsafe import Markup
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.routing import NoMatchFound
 
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 from app.core.auth_cookie import AUTH_COOKIE_NAME, read_auth_cookie_payload
 from app.core.config import settings
 from app.core.database import query_db

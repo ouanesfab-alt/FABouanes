@@ -230,7 +230,7 @@ def delete_client_key_sync(client_id: int) -> None:
 
 
 async def get_client_key_async(client_id: int) -> bytes | None:
-    from app.core.async_db import query_sql_async
+    from app.core.database import query_sql_async
 
     rows = await query_sql_async("SELECT encryption_key FROM client_keys WHERE client_id = :client_id", {"client_id": client_id})
     if rows and rows[0].get("encryption_key"):
@@ -239,7 +239,7 @@ async def get_client_key_async(client_id: int) -> bytes | None:
 
 
 async def create_client_key_async(client_id: int) -> bytes:
-    from app.core.async_db import execute_sql_async
+    from app.core.database import execute_sql_async
 
     key = os.urandom(32)
     b64_key = base64.b64encode(key).decode("utf-8")
@@ -251,6 +251,6 @@ async def create_client_key_async(client_id: int) -> bytes:
 
 
 async def delete_client_key_async(client_id: int) -> None:
-    from app.core.async_db import execute_sql_async
+    from app.core.database import execute_sql_async
 
     await execute_sql_async("DELETE FROM client_keys WHERE client_id = :client_id", {"client_id": client_id})

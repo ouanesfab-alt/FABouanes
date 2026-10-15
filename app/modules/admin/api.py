@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 from app.core.audit import list_audit_logs
 from app.core.database import db_manager
 from app.core.permissions import (

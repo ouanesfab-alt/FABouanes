@@ -61,7 +61,7 @@ async def import_excel_task(
     await update_task_progress(job_id, 10, "Lecture du fichier Excel...")
     await asyncio.sleep(0.5)
 
-    from app.core.async_db import get_async_sessionmaker
+    from app.core.database import get_async_sessionmaker
     from app.modules.clients.service import ClientService
 
     await update_task_progress(job_id, 50, "Insertion et rapprochement en base de données...")
@@ -331,7 +331,7 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
     job_id = ctx.get("job_id", "direct-run")
     await update_task_progress(job_id, 10, "Démarrage du traitement de la synchronisation hors-ligne...")
 
-    from app.core.async_db import get_async_sessionmaker
+    from app.core.database import get_async_sessionmaker
     from app.core.database import db_manager, execute_db
     from app.core.idempotency import check_idempotency, save_idempotency
     from app.modules.sales.schemas import SaleFormSchema
@@ -608,7 +608,7 @@ def _worker_poll_loop():
     while _worker_running:
         try:
             now_ts = time.time()
-            if now_ts - last_cleanup > 300:
+            if now_ts - last_cleanup > 21600:  # Run cleanup once every 6 hours instead of every 5 minutes
                 cleanup_background_jobs()
                 try:
                     from app.modules.admin.backup_service import trigger_nightly_snapshot_if_due
@@ -685,7 +685,7 @@ def _worker_poll_loop():
 
             if listen_fileno is not None:
                 try:
-                    readable, _, _ = select.select([listen_fileno], [], [], 5.0)
+                    readable, _, _ = select.select([listen_fileno], [], [], 30.0)
                     if readable:
                         try:
                             listen_conn.commit()
@@ -693,12 +693,12 @@ def _worker_poll_loop():
                             logger.debug("LISTEN connection commit failed, will reconnect")
                 except (OSError, ValueError):
                     listen_fileno = None
-                    time.sleep(5.0)
+                    time.sleep(30.0)
             else:
-                time.sleep(5.0)
+                time.sleep(30.0)
         except Exception as exc:
             logger.error("Error in background worker loop: %s", exc)
-            time.sleep(5.0)
+            time.sleep(30.0)
 
 
 def start_worker():

@@ -195,7 +195,7 @@ async def test_supplier_tools_use_contact_service():
     fake_cm.__aexit__ = AsyncMock(return_value=None)
     fake_session_maker = MagicMock(return_value=fake_cm)
 
-    with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
+    with patch("app.core.database.get_async_sessionmaker", return_value=fake_session_maker):
         with patch("app.modules.clients.directory_service.create_supplier_from_form", new_callable=AsyncMock, return_value=77) as mock_create:
             res = await execute_tool_action("add_supplier", {"name": "acme", "phone": "0555"})
             assert res["success"] is True
@@ -204,7 +204,7 @@ async def test_supplier_tools_use_contact_service():
             fake_session.commit.assert_awaited()
 
     fake_session.commit.reset_mock()
-    with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
+    with patch("app.core.database.get_async_sessionmaker", return_value=fake_session_maker):
         with patch("app.modules.clients.directory_service.get_supplier", new_callable=AsyncMock, return_value={"id": 77, "name": "Acme", "phone": "", "address": "", "notes": ""}):
             with patch("app.modules.clients.directory_service.update_supplier_from_form", new_callable=AsyncMock) as mock_update:
                 res = await execute_tool_action("modify_supplier", {"supplier_id": 77, "notes": "ok"})
@@ -223,7 +223,7 @@ async def test_commercial_tools_use_business_services():
     fake_cm.__aexit__ = AsyncMock(return_value=None)
     fake_session_maker = MagicMock(return_value=fake_cm)
 
-    with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
+    with patch("app.core.database.get_async_sessionmaker", return_value=fake_session_maker):
         sale_service = MagicMock()
         sale_service.create_sale_from_form = AsyncMock(return_value={"print_item_id": 11})
         with patch("app.modules.sales.service.SalesService", return_value=sale_service):
@@ -237,7 +237,7 @@ async def test_commercial_tools_use_business_services():
             fake_session.commit.assert_awaited()
 
     fake_session.commit.reset_mock()
-    with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
+    with patch("app.core.database.get_async_sessionmaker", return_value=fake_session_maker):
         purchase_service = MagicMock()
         purchase_service.create_purchase_from_form = AsyncMock(return_value={"purchase_id": 22})
         with patch("app.modules.purchases.service.PurchaseService", return_value=purchase_service):
@@ -251,7 +251,7 @@ async def test_commercial_tools_use_business_services():
             fake_session.commit.assert_awaited()
 
     fake_session.commit.reset_mock()
-    with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
+    with patch("app.core.database.get_async_sessionmaker", return_value=fake_session_maker):
         payment_service = MagicMock()
         payment_service.create_payment_from_form = AsyncMock(return_value=(33, "versement"))
         with patch("app.modules.payments.service.PaymentsService", return_value=payment_service):
@@ -353,7 +353,7 @@ async def test_get_business_insights_tool():
     mock_session_maker = MagicMock()
     mock_session_maker.return_value.__aenter__.return_value = mock_session
 
-    with patch("app.core.async_db.get_async_sessionmaker", return_value=mock_session_maker):
+    with patch("app.core.database.get_async_sessionmaker", return_value=mock_session_maker):
         # We also mock async_cached_result to just call the builder
         async def mock_cached(key, builder, ttl_seconds=0):
             return await builder()
@@ -379,7 +379,7 @@ async def test_import_client_history_excel_tool():
 
     mock_session_maker = MagicMock()
 
-    with patch("app.core.async_db.get_async_sessionmaker", return_value=mock_session_maker):
+    with patch("app.core.database.get_async_sessionmaker", return_value=mock_session_maker):
         with patch("app.modules.clients.service.ClientService", return_value=mock_service):
             res = await execute_tool_action("import_client_history_excel", {"filepath": "test.xlsx", "client_id": 42})
             assert "success" in res
@@ -752,7 +752,7 @@ async def test_admin_tools_role_security():
     fake_cm.__aexit__ = AsyncMock(return_value=None)
     fake_session_maker = MagicMock(return_value=fake_cm)
 
-    with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
+    with patch("app.core.database.get_async_sessionmaker", return_value=fake_session_maker):
         with patch("app.modules.admin.service.create_user_account", new_callable=AsyncMock, return_value={"ok": True, "message": "created"}) as mock_create:
             res_allowed = await execute_tool_action(
                 "create_app_user",
@@ -850,7 +850,7 @@ async def test_new_specialized_assistant_tools():
     fake_cm.__aexit__ = AsyncMock(return_value=None)
     fake_session_maker = MagicMock(return_value=fake_cm)
 
-    with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
+    with patch("app.core.database.get_async_sessionmaker", return_value=fake_session_maker):
         status_res = await execute_tool_action("get_stock_status", {"product_type": "all"})
         assert status_res["success"] is True
         assert len(status_res["finished_products"]) == 1
@@ -876,7 +876,7 @@ async def test_new_specialized_assistant_tools():
     fake_cm.__aexit__ = AsyncMock(return_value=None)
     fake_session_maker = MagicMock(return_value=fake_cm)
 
-    with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
+    with patch("app.core.database.get_async_sessionmaker", return_value=fake_session_maker):
         report_res = await execute_tool_action("get_financial_report", {"start_date": "2026-07-01", "end_date": "2026-07-31"})
         assert report_res["success"] is True
         assert report_res["total_sales"] == 50000.0

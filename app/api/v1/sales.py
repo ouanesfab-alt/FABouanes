@@ -11,7 +11,7 @@ from app.api.v1._common import (
 )
 
 # list_sales is now handled via SalesService
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 from app.core.permissions import (
     PERMISSION_CATALOG_READ,
     PERMISSION_OPERATIONS_DELETE,

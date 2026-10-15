@@ -14,7 +14,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_sessionmaker
+from app.core.database import get_async_sessionmaker
 from app.core.audit import audit_event
 from app.core.config import APP_DATA_DIR, DATABASE_URL
 from app.core.database import connect_database
@@ -704,8 +704,8 @@ def _background_loop(app) -> None:
                 stats = postgres_pool_status(DATABASE_URL)
                 logger.debug("PG Pool status: %s", stats)
 
-            # Call check_stock_alerts every 30 minutes (40 loops of 45s)
-            if loop_counter == 1 or loop_counter % 40 == 0:
+            # Call check_stock_alerts every 6 hours (240 loops of 90s)
+            if loop_counter == 1 or loop_counter % 240 == 0:
                 from app.modules.admin.alert_service import check_stock_alerts
 
                 await _safe_run_async("check_stock_alerts", check_stock_alerts)
@@ -715,10 +715,10 @@ def _background_loop(app) -> None:
 
             if not success:
                 consecutive_failures += 1
-                sleep_time = min(300.0, 45.0 * (1.5**consecutive_failures) + rand.uniform(0.0, 10.0))
+                sleep_time = min(300.0, 90.0 * (1.5**consecutive_failures) + rand.uniform(0.0, 10.0))
             else:
                 consecutive_failures = 0
-                sleep_time = 45.0
+                sleep_time = 90.0
 
             # Incremental sleep to check shutdown_requested quickly
             for _ in range(int(sleep_time)):

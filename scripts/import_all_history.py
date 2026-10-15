@@ -8,7 +8,7 @@ from pathlib import Path
 root_dir = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root_dir))
 
-from app.core.async_db import get_async_sessionmaker, close_async_engine
+from app.core.database import get_async_sessionmaker, close_async_engine
 from app.modules.clients.service import ClientService
 
 async def main():

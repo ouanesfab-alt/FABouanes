@@ -8,7 +8,7 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_sessionmaker
+from app.core.database import get_async_sessionmaker
 from app.core.base_repository import AsyncRepository
 from app.core.models import (
     FinishedProduct,

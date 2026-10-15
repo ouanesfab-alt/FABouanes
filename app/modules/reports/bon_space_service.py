@@ -6,7 +6,7 @@ from urllib.parse import quote
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_sessionmaker
+from app.core.database import get_async_sessionmaker
 from app.utils.tool_pages import list_pdf_reader_files
 
 DEFAULT_LIMIT = 80

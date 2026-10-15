@@ -69,7 +69,8 @@ class CachedStaticFiles(StaticFiles):
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        if request.url.path.startswith("/static/"):
+        path = request.url.path
+        if path.startswith("/static/") or path in ("/favicon.ico", "/manifest.json") or path.startswith("/favicon."):
             response = await call_next(request)
             return security_headers(response)
 

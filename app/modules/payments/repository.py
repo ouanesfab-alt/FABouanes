@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import and_, case, func, or_, select
 
-from app.core.async_db import get_async_sessionmaker
+from app.core.database import get_async_sessionmaker
 from app.core.base_repository import AsyncRepository
 from app.core.models import Client, Payment
 

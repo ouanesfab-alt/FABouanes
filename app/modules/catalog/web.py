@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 from app.core.exceptions import get_friendly_error_message
 from app.modules.catalog.schemas import (
     FinishedProductCreateSchema,

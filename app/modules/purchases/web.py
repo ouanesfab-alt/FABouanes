@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 from app.core.exceptions import get_friendly_error_message
 from app.core.permissions import PERMISSION_OPERATIONS_DELETE, PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
 from app.core.request_state import set_state_value

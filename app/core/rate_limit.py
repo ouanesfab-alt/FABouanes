@@ -6,6 +6,9 @@ try:
     from slowapi import Limiter
 
     def _rate_limit_key(request) -> str:
+        path = getattr(getattr(request, "url", None), "path", "")
+        if path.startswith("/static/") or path in ("/favicon.ico", "/manifest.json") or path.startswith("/favicon."):
+            return ""
         from app.core.security import client_ip
 
         return client_ip(request)

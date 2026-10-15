@@ -1,6 +1,5 @@
 <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js', v='20260526-v1') }}" nonce="{{ csp_nonce }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/main.js', v='20260710-ripple-v12') }}" nonce="{{ csp_nonce }}"></script>
-<script src="{{ url_for('static', filename='js/modules/dashboard-fonts.js', v='20260801-v1') }}" nonce="{{ csp_nonce }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/main.js', v='20261015-v1') }}" nonce="{{ csp_nonce }}"></script>
 
 <script nonce="{{ csp_nonce }}">
   document.addEventListener('DOMContentLoaded', () => {
@@ -443,17 +442,10 @@
     }, 10000); // Check every 10 seconds
   })();
 
-  // Digital Clock -- font+color animation (data loaded from external JSON)
-  (function navClockRotator() {
+  // Digital Clock -- ultra-lightweight native tick without network calls
+  (function initNavClock() {
     const clock = document.getElementById('navClock');
     if (!clock) return;
-    clock.style.cursor = 'pointer';
-    clock.style.transition = 'color 0.5s ease, font-family 0.3s ease, opacity 0.3s ease';
-    clock.setAttribute('title', "Cliquer pour changer la couleur et la police de l'horloge");
-    let currentFontIdx = -1;
-    let currentColorIdx = -1;
-    const nonce = document.querySelector('script[nonce]')?.getAttribute('nonce') || '';
-
     function tick() {
       const now = new Date();
       const hh = String(now.getHours()).padStart(2, '0');
@@ -461,44 +453,8 @@
       const ss = String(now.getSeconds()).padStart(2, '0');
       clock.textContent = `${hh}:${mm}:${ss}`;
     }
-
-    function rotateClockColor(colors) {
-      let idx;
-      do { idx = Math.floor(Math.random() * colors.length); }
-      while (idx === currentColorIdx && colors.length > 1);
-      currentColorIdx = idx;
-      clock.style.setProperty('color', colors[idx], 'important');
-    }
-
-    function rotateClockFont(fonts) {
-      let idx;
-      do { idx = Math.floor(Math.random() * fonts.length); }
-      while (idx === currentFontIdx && fonts.length > 1);
-      currentFontIdx = idx;
-      const fontObj = fonts[idx];
-      clock.style.opacity = '0.4';
-      setTimeout(() => {
-        clock.style.setProperty('font-family', fontObj.stack, 'important');
-        clock.style.opacity = '1';
-      }, 150);
-    }
-
     tick();
     setInterval(tick, 1000);
-
-    fetch("{{ url_for('static', filename='js/data/clock-data.json') }}")
-      .then(r => r.json())
-      .then(data => {
-        const fonts = data.fonts || [];
-        const colors = data.colors || [];
-        if (!fonts.length || !colors.length) return;
-        clock.addEventListener('click', () => { rotateClockFont(fonts); rotateClockColor(colors); });
-        rotateClockFont(fonts);
-        rotateClockColor(colors);
-        setInterval(() => rotateClockFont(fonts), 60000);
-        setInterval(() => rotateClockColor(colors), 50000);
-      })
-      .catch(() => {});
   })();
 
   // 🔄 Expiration Glissante de Session (Sliding Session Keep-Alive)

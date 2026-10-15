@@ -14,7 +14,7 @@ from typing import Any, AsyncGenerator, Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_sessionmaker
+from app.core.database import get_async_sessionmaker
 
 logger = logging.getLogger("fabouanes.uow")
 

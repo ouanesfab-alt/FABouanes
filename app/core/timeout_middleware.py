@@ -43,8 +43,8 @@ class RequestTimeoutMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
-        # Skip timeout for static files and health checks
-        if path.startswith("/static/") or path == "/health" or path == "/metrics":
+        # Skip timeout for static files, manifest, favicon and health checks
+        if path.startswith("/static/") or path in ("/favicon.ico", "/manifest.json", "/health", "/metrics", "/readiness") or path.startswith("/favicon."):
             return await call_next(request)
 
         # Use longer timeout for heavy operations

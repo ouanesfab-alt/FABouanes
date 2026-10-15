@@ -731,12 +731,12 @@ class MockAsyncSession:
     async def __aenter__(self): return self
     async def __aexit__(self, exc_type, exc_val, exc_tb): pass
 
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 async def override_get_async_session():
     yield MockAsyncSession()
 
-import app.core.async_db
-app.core.async_db.get_async_sessionmaker = MagicMock(return_value=MockAsyncSession)
+import app.core.database
+app.core.database.get_async_sessionmaker = MagicMock(return_value=MockAsyncSession)
 
 # Import all API and Web routes before patching so that they are in sys.modules
 import app.main

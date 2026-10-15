@@ -15,7 +15,7 @@ from app.api.v1._common import (
     supplier_payload,
 )
 from app.modules.admin.activity_service import log_activity
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 from app.core.audit import audit_event
 from app.core.models import Client, ClientHistory, Payment, RawSale, Sale, Supplier
 from app.core.permissions import (

@@ -57,7 +57,7 @@
   --glass-ultra-thin: rgba(255, 255, 255, 0.22);
   --glass-thin: rgba(255, 255, 255, 0.38);
   --glass-regular: rgba(255, 255, 255, 0.52);
-  --glass-thick: rgba(255, 255, 255, 0.65);
+  --glass-thick: #ffffff;
   --glass-chrome: rgba(255, 255, 255, 0.74);
   --glass-sidebar: rgba(255, 255, 255, 0.68);
   --glass-border: rgba(255, 255, 255, 0.60);
@@ -68,15 +68,15 @@
   --glass-shadow: var(--shadow-glass);
 
   /* Card */
-  --card: var(--glass-thick);
-  --surface: var(--glass-regular);
+  --card: #ffffff;
+  --surface: #f8fafc;
 
   /* Blur levels */
-  --blur-xs: blur(10px);
-  --blur-sm: blur(16px);
-  --blur-md: blur(28px);
-  --blur-lg: blur(44px);
-  --blur-xl: blur(80px);
+  --blur-xs: none;
+  --blur-sm: none;
+  --blur-md: none;
+  --blur-lg: none;
+  --blur-xl: none;
   --backdrop-blur: var(--blur-md);
 
   /* Shadows */
@@ -84,7 +84,7 @@
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
-  --shadow-glass: 0 12px 36px -4px rgba(0, 0, 0, 0.06), 0 2px 8px -1px rgba(0, 0, 0, 0.03);
+  --shadow-glass: 0 2px 8px rgba(0, 0, 0, 0.05);
   --shadow-glass-hover: 0 18px 45px -4px rgba(0, 0, 0, 0.10), 0 6px 20px -2px rgba(0, 0, 0, 0.05);
 
   /* Typography */
@@ -159,7 +159,7 @@
   --glass-ultra-thin: rgba(20, 24, 34, 0.28);
   --glass-thin: rgba(20, 24, 34, 0.42);
   --glass-regular: rgba(20, 24, 34, 0.55);
-  --glass-thick: rgba(22, 26, 38, 0.66);
+  --glass-thick: #161a26;
   --glass-chrome: rgba(26, 30, 44, 0.78);
   --glass-sidebar: rgba(18, 22, 34, 0.70);
   --glass-border: rgba(255, 255, 255, 0.12);
@@ -169,8 +169,8 @@
   --glass-bg: var(--glass-thick);
   --glass-shadow: var(--shadow-glass);
 
-  --card: var(--glass-thick);
-  --surface: var(--glass-regular);
+  --card: #ffffff;
+  --surface: #f8fafc;
 
   /* Dark Apple System Colors */
   --system-blue: #0A84FF;
@@ -189,7 +189,7 @@
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.30), 0 1px 4px rgba(0, 0, 0, 0.15);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.20);
   --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.45), 0 8px 20px rgba(0, 0, 0, 0.25);
-  --shadow-glass: 0 14px 40px -4px rgba(0, 0, 0, 0.55), 0 4px 14px -2px rgba(0, 0, 0, 0.35);
+  --shadow-glass: 0 2px 8px rgba(0, 0, 0, 0.25);
   --shadow-glass-hover: 0 22px 55px -4px rgba(0, 0, 0, 0.70), 0 6px 22px -2px rgba(0, 0, 0, 0.45);
 
   /* Dark Sequoia ambient */
@@ -345,8 +345,8 @@ h1, h2, h3, h4, h5, h6, .section-title {
 /* ── Liquid Glass Panels — macOS & iOS authentic material ── */
 .card, .glass-panel, .table-card, .dashboard-card, .entity-form-card, .stat-card, .fab-card, .panel, .rpt-kpi, .rpt-chart-card, .rpt-top-card, .qa-sub-section {
   background: var(--card) !important;
-  backdrop-filter: blur(28px) saturate(200%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border: 1px solid var(--glass-border) !important;
   border-radius: var(--radius-lg) !important;
   box-shadow: var(--shadow-glass) !important;
@@ -377,8 +377,8 @@ h1, h2, h3, h4, h5, h6, .section-title {
   border-radius: var(--radius-sm) !important;
   border: 1px solid var(--separator) !important;
   background: rgba(255, 255, 255, 0.55) !important;
-  backdrop-filter: blur(14px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   color: var(--text) !important;
   font-size: 13px !important;
   padding: 7px 10px !important;
@@ -440,7 +440,7 @@ h1, h2, h3, h4, h5, h6, .section-title {
 /* Outline / secondary glass */
 .btn-outline-secondary, .btn-outline-dark {
   background: var(--glass-thick) !important;
-  backdrop-filter: var(--blur-xs);
+  backdrop-filter: none !important;
   border: 0.5px solid var(--separator) !important;
   color: var(--text) !important;
 }
@@ -453,8 +453,8 @@ h1, h2, h3, h4, h5, h6, .section-title {
 
 .app-navbar {
   background: var(--glass-chrome) !important;
-  backdrop-filter: blur(28px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border-bottom: 1px solid var(--glass-border) !important;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03), inset 0 -1px 0 var(--glass-border-light) !important;
 }
@@ -462,16 +462,16 @@ h1, h2, h3, h4, h5, h6, .section-title {
 /* ── Sidebar glass ── */
 .nav-drawer, .mac-sidebar {
   background: var(--glass-sidebar) !important;
-  backdrop-filter: blur(32px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(32px) saturate(190%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border-right: 1px solid var(--glass-border) !important;
 }
 
 /* ── Mobile Bottom Navigation glass ── */
 .bot-nav {
   background: var(--glass-chrome) !important;
-  backdrop-filter: blur(28px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border-top: 1px solid var(--glass-border) !important;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.04) !important;
 }
@@ -479,8 +479,8 @@ h1, h2, h3, h4, h5, h6, .section-title {
 /* ── Dropdowns Liquid Glass ── */
 .dropdown-menu {
   background: var(--glass-chrome) !important;
-  backdrop-filter: blur(28px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border: 1px solid var(--glass-border) !important;
   border-radius: 14px !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.14) !important;
@@ -507,7 +507,7 @@ h1, h2, h3, h4, h5, h6, .section-title {
   font-size: 11px !important;
   text-transform: uppercase !important;
   letter-spacing: 0.03em !important;
-  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
+  -webkit-backdrop-filter: none !important;
 }
 .table td {
   padding: 8px 12px !important;
@@ -571,8 +571,8 @@ h1, h2, h3, h4, h5, h6, .section-title {
 }
 .modal-content {
   background: var(--glass-chrome) !important;
-  backdrop-filter: blur(36px) saturate(200%) !important;
-  -webkit-backdrop-filter: blur(36px) saturate(200%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border: 1px solid var(--glass-border) !important;
   border-radius: var(--radius-xl) !important;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22) !important;
@@ -616,7 +616,7 @@ h1, h2, h3, h4, h5, h6, .section-title {
   border-radius: var(--radius-md) !important;
   border: 0.5px solid var(--separator) !important;
   font-size: 13px;
-  backdrop-filter: var(--blur-sm);
+  backdrop-filter: none !important;
 }
 .alert-success { background: rgba(52, 199, 89, 0.10) !important; color: #1B7A36 !important; border-color: rgba(52, 199, 89, 0.20) !important; }
 .alert-danger  { background: rgba(255, 59, 48, 0.10) !important; color: #C62828 !important; border-color: rgba(255, 59, 48, 0.20) !important; }
@@ -774,8 +774,8 @@ html[data-theme="windows-dark"] .ripple-wave {
 /* 2. Premium Translucent PWA Banner */
 .pwa-banner {
   background: var(--glass-chrome) !important;
-  backdrop-filter: var(--blur-md) !important;
-  -webkit-backdrop-filter: var(--blur-md) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border: 0.5px solid var(--glass-border) !important;
   border-radius: var(--radius-lg) !important;
   box-shadow: var(--shadow-lg) !important;
@@ -784,8 +784,8 @@ html[data-theme="windows-dark"] .ripple-wave {
 /* 3. macOS Sidebar & Drawer Links */
 .drawer-content, .nav-drawer {
   background: var(--glass-sidebar) !important;
-  backdrop-filter: var(--blur-lg) saturate(180%) !important;
-  -webkit-backdrop-filter: var(--blur-lg) saturate(180%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .drawer-link, .nav-links a {
@@ -803,8 +803,8 @@ html[data-theme="windows-dark"] .ripple-wave {
 /* 4. Beautiful Glass Dashboard KPI Widgets */
 .kpi-card {
   background: var(--glass-thick) !important;
-  backdrop-filter: var(--blur-md) !important;
-  -webkit-backdrop-filter: var(--blur-md) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border: 0.5px solid var(--glass-border) !important;
   border-radius: var(--radius-xl) !important;
 
@@ -1013,8 +1013,8 @@ thead.table-light th {
   top: 0 !important;
   z-index: 15 !important;
   background: rgba(255, 255, 255, 0.72) !important;
-  backdrop-filter: blur(24px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   color: var(--text) !important;
   font-family: var(--font-title, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif) !important;
   font-size: 0.78rem !important;
@@ -1059,8 +1059,8 @@ thead.table-light th {
 [data-theme="windows-dark"] table.record-table thead th,
 [data-theme="windows-dark"] thead.table-light th {
   background: rgba(20, 24, 34, 0.72) !important;
-  backdrop-filter: blur(24px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   color: var(--text) !important;
   border-left: none !important;
   border-right: none !important;
@@ -1362,4 +1362,22 @@ th[data-sortable="1"]:not([aria-sort="ascending"]):not([aria-sort="descending"])
   input, select, textarea {
     font-size: max(1rem, 16px) !important;
   }
+}
+
+
+/* ── Performance Enhancements (content-visibility & native active response) ── */
+.table-responsive,
+.contacts-table-wrap,
+.transactions-table-wrap,
+.catalog-table-wrap,
+.production-table-wrap,
+.table-shell {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+.btn:active, button:active, [type="submit"]:active, .nav-btn:active, .bot-tab:active {
+  transform: scale(0.98);
+  opacity: 0.92;
+  transition: transform 0.05s ease, opacity 0.05s ease;
 }

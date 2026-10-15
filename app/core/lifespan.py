@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.core.async_db import close_async_engine
+from app.core.database import close_async_engine
 from app.core.audit import start_audit_worker, stop_audit_worker
 from app.core.config import settings, validate_security_runtime, validate_single_worker_runtime
 from app.core.database import bootstrap_and_migrate

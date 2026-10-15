@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_error, api_success, require_api_user
 from app.api.v1._common import json_response
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 from app.core.models import StockAlert
 from app.core.permissions import PERMISSION_CATALOG_READ, PERMISSION_CATALOG_WRITE
 

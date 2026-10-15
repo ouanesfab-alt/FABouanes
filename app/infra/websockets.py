@@ -92,7 +92,7 @@ class ConnectionManager:
     async def broadcast_async(self, message: str):
         """Broadcast global (asynchrone non-bloquant)."""
         try:
-            from app.core.async_db import execute_sql_async
+            from app.core.database import execute_sql_async
 
             payload = json.dumps({"type": "global", "message": message, "sender_id": WORKER_ID})
             await execute_sql_async(
@@ -123,7 +123,7 @@ class ConnectionManager:
     async def broadcast_to_user_async(self, user_id: int, message: str):
         """Envoie un message uniquement aux connexions de cet utilisateur (asynchrone)."""
         try:
-            from app.core.async_db import execute_sql_async
+            from app.core.database import execute_sql_async
 
             payload = json.dumps({"type": "user", "user_id": user_id, "message": message, "sender_id": WORKER_ID})
             await execute_sql_async(

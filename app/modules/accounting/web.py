@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 from app.core.models import Client, Supplier
 from app.core.permissions import PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
 from app.core.rate_limit import limiter

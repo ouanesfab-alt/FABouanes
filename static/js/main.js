@@ -7,8 +7,6 @@ import { initNotificationsModule } from './modules/notifications.js';
 import { initContextMenuModule } from './modules/contextMenu.js';
 import { initMobileShellModule } from './modules/mobileShell.js';
 import { initOfflineSync } from './offline-sync.js';
-import { initRippleModule } from './modules/ripple.js';
-import { initAudioModule } from './modules/audio.js';
 import { initShortcutsModule } from './modules/shortcuts.js';
 import { initInstantNavModule, abortPreviousPage, getNavSignal } from './modules/instantNav.js';
 
@@ -28,20 +26,16 @@ initContextMenuModule();
 initMobileShellModule();
 // Active la synchronisation hors-ligne (IndexedDB → /api/mobile/v1/offline/sync)
 initOfflineSync();
-// Ripple effect sur tous les boutons
-initRippleModule();
-// Sons de clics et retours sonores PWA
-initAudioModule();
 // Raccourcis clavier optimisés pour Windows Desktop (Ctrl+K, Ctrl+N, Ctrl+B, etc.)
 initShortcutsModule();
 // Navigation SPA Turbo Instantanée (Zéro rechargement complet de page, basculement ultra-rapide)
 initInstantNavModule();
 
-// Cycle de vie SPA : réinitialisation des formulaires, tableaux et effets visuels sur transition de page
+// Cycle de vie SPA : réinitialisation des formulaires et tableaux sur transition de page
 document.addEventListener('fab:page-loaded', () => {
   initFormsModule();
   initTablesModule();
-  initRippleModule();
 });
+
 
 

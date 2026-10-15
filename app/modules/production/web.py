@@ -10,7 +10,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 from app.core.permissions import PERMISSION_PRODUCTION_DELETE, PERMISSION_PRODUCTION_READ, PERMISSION_PRODUCTION_WRITE
 from app.core.request_state import set_state_value
 from app.modules.production.schemas import ProductionBatchCreate

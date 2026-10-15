@@ -93,7 +93,7 @@ def instrument_app(app: Any) -> None:
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-        FastAPIInstrumentor.instrument_app(app)
+        FastAPIInstrumentor.instrument_app(app, excluded_urls="/static/.*,/favicon.*,/manifest.json")
     except Exception as exc:
         logging.getLogger("observability").warning("Failed to instrument FastAPI application: %s", exc)
 

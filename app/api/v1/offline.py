@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_error, require_api_user
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 from app.core.database import execute_db
 from app.core.exceptions import ConflictError, ValidationError
 from app.core.idempotency import check_idempotency, save_idempotency

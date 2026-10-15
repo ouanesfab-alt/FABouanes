@@ -15,7 +15,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_sessionmaker
+from app.core.database import get_async_sessionmaker
 from app.core.request_state import get_state_value
 
 _logger = logging.getLogger("fabouanes.audit")

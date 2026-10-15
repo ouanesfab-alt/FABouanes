@@ -58,7 +58,14 @@ from app.web.router import router as web_router
 
 logger = logging.getLogger("fabouanes")
 
-app = FastAPI(title=settings.app_name, lifespan=lifespan)
+is_debug = bool(settings.debug or os.environ.get("FAB_DEBUG", "").lower() in ("true", "1"))
+app = FastAPI(
+    title=settings.app_name,
+    lifespan=lifespan,
+    openapi_url="/openapi.json" if is_debug else None,
+    docs_url="/docs" if is_debug else None,
+    redoc_url="/redoc" if is_debug else None,
+)
 if limiter and RateLimitExceeded:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
@@ -114,7 +121,7 @@ app.add_middleware(
     https_only=settings.session_cookie_secure,
     max_age=settings.session_max_age,
 )
-app.add_middleware(GZipMiddleware, minimum_size=500)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(RequestTimeoutMiddleware)
 
 register_exception_handlers(app)
@@ -128,7 +135,7 @@ async def health_check():
 
     # Database connectivity (native async check)
     try:
-        from app.core.async_db import async_healthcheck
+        from app.core.database import async_healthcheck
 
         is_ok = await asyncio.wait_for(async_healthcheck(), timeout=3.0)
         checks["db"] = "ok" if is_ok else "error"

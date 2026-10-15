@@ -7,8 +7,6 @@ from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
 from app.core.database import db_manager
 from app.core.security import encrypt_val
-from app.modules.assistant.schema_context import get_encryption_key, get_gemini_api_key
-from app.modules.assistant.service import run_assistant_agent_generator, start_ollama
 from app.web.deps import require_permission
 
 _logger = logging.getLogger("fabouanes.assistant.web")
@@ -35,6 +33,18 @@ async def assistant_briefing(request: Request):
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"has_briefing": False, "error": str(e)})
+
+
+def get_gemini_api_key():
+    from app.modules.assistant.schema_context import get_gemini_api_key as _fn
+
+    return _fn()
+
+
+def get_encryption_key():
+    from app.modules.assistant.schema_context import get_encryption_key as _fn
+
+    return _fn()
 
 
 def _resolve_api_key(req_api_key: str) -> str:
@@ -129,6 +139,8 @@ def _create_chat_stream(
 
     async def chat_event_generator():
         try:
+            from app.modules.assistant.service import run_assistant_agent_generator
+
             if confirmed_query:
                 messages_to_send = history
             else:
@@ -231,6 +243,8 @@ async def save_settings(request: Request):
     if api_key:
         # Si la clé saisie n'est pas masquée, on la chiffre avant de l'enregistrer
         if not api_key.startswith("••••"):
+            from app.modules.assistant.schema_context import get_encryption_key
+
             encrypted_key = encrypt_val(api_key, get_encryption_key())
             db_manager.set_setting("gemini_api_key", encrypted_key)
 
@@ -238,6 +252,8 @@ async def save_settings(request: Request):
         db_manager.set_setting("gemini_model", selected_model)
         if selected_model.lower() in ("local", "ollama"):
             try:
+                from app.modules.assistant.service import start_ollama
+
                 start_ollama()
             except Exception as exc:
                 _logger.warning("Failed auto-starting Ollama process: %s", exc)

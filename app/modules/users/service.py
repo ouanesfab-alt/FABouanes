@@ -8,7 +8,7 @@ from fastapi import Request
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.modules.admin.activity_service import log_activity
-from app.core.async_db import execute_sql_async
+from app.core.database import execute_sql_async
 from app.core.audit import audit_event
 from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_USERNAME, settings
 from app.core.permissions import ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR, normalize_role

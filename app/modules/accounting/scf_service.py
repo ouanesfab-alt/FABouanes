@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_sessionmaker
+from app.core.database import get_async_sessionmaker
 from app.core.database import query_db
 from app.core.models import (
     Expense,

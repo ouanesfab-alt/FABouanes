@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_error, api_success, require_api_user
 from app.api.v1._common import add_cache_headers, json_response, payload_to_form_data, payment_payload
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 from app.core.models import Payment
 from app.core.permissions import PERMISSION_OPERATIONS_DELETE, PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
 from app.modules.payments.schemas import PaymentCreateSchema

@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 from app.infra.perf_cache import async_cached_result
 from app.core.rate_limit import limiter
 from app.core.runtime_paths import paths

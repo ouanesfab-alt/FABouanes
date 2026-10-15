@@ -60,7 +60,7 @@ async def execute_tool_action(func_name: str, func_args: dict, user_role: str = 
     if func_name in ADMIN_ONLY_TOOLS and user_role != "admin":
         return {"error": "Sécurité : Cette action d'administration est réservée aux administrateurs."}
 
-    from app.core.async_db import get_async_sessionmaker
+    from app.core.database import get_async_sessionmaker
 
     session_maker = get_async_sessionmaker()
     try:

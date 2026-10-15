@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import Float, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 from app.core.database import db_manager
 from app.core.models import FinishedProduct, Sale
 from app.modules.assistant.schema_context import get_gemini_api_key

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import api_error, api_success, require_api_user
 from app.api.v1._common import add_cache_headers, json_response, payload_to_form_data, production_payload
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 from app.core.models import ProductionBatchItem, SavedRecipe, SavedRecipeItem
 from app.core.permissions import PERMISSION_PRODUCTION_DELETE, PERMISSION_PRODUCTION_READ, PERMISSION_PRODUCTION_WRITE
 from app.modules.production.schemas import ProductionCreateSchema

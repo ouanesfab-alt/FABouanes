@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1._common import add_cache_headers
 from app.api.v1.clients import _fetch_client_history
-from app.core.async_db import get_async_session
+from app.core.database import get_async_session
 from app.core.jwt_auth import (
     create_access_token,
     create_refresh_token,
