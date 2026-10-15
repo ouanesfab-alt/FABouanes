@@ -29,6 +29,9 @@
         
         event.preventDefault();
         const href = link.href;
+
+        if (typeof window.abortPreviousPage === 'function') window.abortPreviousPage();
+        if (typeof window.destroyAllCharts === 'function') window.destroyAllCharts();
         
         if (appContent) {
           appContent.classList.remove('page-visible');

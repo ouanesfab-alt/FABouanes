@@ -159,38 +159,14 @@ export async function navigateTo(url, push = true) {
   abortPreviousPage();
   destroyAllCharts();
   triggerRainbowProgressBar();
+  notifyPageLoaded({ url });
 
-  try {
-    const res = await fetch(url, {
-      signal: getNavSignal(),
-      headers: { 'X-Requested-With': 'instantNav' }
-    });
-    if (!res.ok) {
-      window.location.href = url;
-      return;
-    }
-    const html = await res.text();
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    const newContent = doc.querySelector('.app-content');
-    const curContent = document.querySelector('.app-content');
-    if (newContent && curContent) {
-      curContent.replaceWith(newContent);
-      if (doc.title) document.title = doc.title;
-      if (push) {
-        history.pushState({ url }, '', url);
-      }
-      notifyPageLoaded({ url });
-      return;
-    }
+  if (push) {
     window.location.href = url;
-  } catch (err) {
-    if (err && err.name !== 'AbortError') {
-      window.location.href = url;
-    }
+  } else {
+    window.location.replace(url);
   }
 }
-
-let _popstateHandler = null;
 
 export function destroyInstantNavModule() {
   if (_prefetchHandler) {
@@ -202,10 +178,6 @@ export function destroyInstantNavModule() {
   if (_clickHandler) {
     document.removeEventListener('click', _clickHandler);
     _clickHandler = null;
-  }
-  if (_popstateHandler) {
-    window.removeEventListener('popstate', _popstateHandler);
-    _popstateHandler = null;
   }
   if (progressBar && progressBar.parentNode) {
     progressBar.parentNode.removeChild(progressBar);
@@ -256,23 +228,14 @@ export function initInstantNavModule() {
       const urlObj = new URL(link.href, window.location.origin);
       if (urlObj.origin === window.location.origin) {
         if (urlObj.pathname.startsWith('/print/') || urlObj.pathname.includes('/logout')) return;
-        const curContent = document.querySelector('.app-content');
-        if (curContent && !document.querySelector('form[data-dirty="true"], form.transactional-dirty')) {
-          e.preventDefault();
-          navigateTo(link.href, true);
-        } else {
-          triggerRainbowProgressBar();
-        }
+        triggerRainbowProgressBar();
+        abortPreviousPage();
+        destroyAllCharts();
       }
     } catch (err) {}
   };
 
   document.addEventListener('click', _clickHandler);
-
-  _popstateHandler = () => {
-    navigateTo(window.location.href, false);
-  };
-  window.addEventListener('popstate', _popstateHandler);
 
   // Expose hook globally for SPA or custom cleanup
   window.destroyInstantNav = destroyInstantNavModule;

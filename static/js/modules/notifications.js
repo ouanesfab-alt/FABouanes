@@ -14,9 +14,18 @@ export function initNotificationsModule() {
   function hide() { if (banner) banner.classList.remove('show'); }
   
   dismissBtn?.addEventListener('click', hide);
+  let refreshing = false;
   reloadBtn?.addEventListener('click', function () {
-    if (waitingWorker) waitingWorker.postMessage({ type: 'SKIP_WAITING' });
-    else window.location.reload();
+    if (waitingWorker) {
+      if (refreshing) return;
+      refreshing = true;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        window.location.reload();
+      }, { once: true });
+      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    } else {
+      window.location.reload();
+    }
   });
   
   window.addEventListener('online', hide);
@@ -40,6 +49,5 @@ export function initNotificationsModule() {
         }
       });
     });
-    navigator.serviceWorker.addEventListener('controllerchange', function () { window.location.reload(); });
   }).catch(function () {});
 }
