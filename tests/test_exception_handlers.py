@@ -170,3 +170,31 @@ def test_api_v1_error_handling_live_app():
     assert data_bad["success"] is False
     assert data_bad["error"]["code"] == "validation_error"
 
+
+def test_html_form_error_flashes_toast_notification():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app, raise_server_exceptions=False)
+
+    # When a form POST fails with a referer header, it redirects (303) and flashes a toast notification
+    res = client.post(
+        "/clients",
+        data={"phone": "123"},
+        headers={"referer": "http://testserver/clients", "accept": "text/html"},
+        follow_redirects=False,
+    )
+    assert res.status_code == 303
+    assert res.headers.get("location") == "http://testserver/clients"
+
+    # Following the redirect displays the page with the toast notification instead of error.html
+    res_followed = client.post(
+        "/clients",
+        data={"phone": "123"},
+        headers={"referer": "http://testserver/clients", "accept": "text/html"},
+        follow_redirects=True,
+    )
+    assert res_followed.status_code == 200
+    assert "flash-toast" in res_followed.text
+
+

@@ -28,6 +28,37 @@ def is_html_request(request: Request) -> bool:
     return True
 
 
+def handle_web_error_response(request: Request, message: str, status_code: int = 400):
+    """Render a flash toast notification or fallback error page for HTML web requests.
+
+    If the request originated from a form submission or user action (POST/PUT/DELETE/PATCH)
+    or has a referer, flash a toast notification and redirect back to the referer so the user
+    stays on their current screen without seeing a full error.html page.
+    """
+    referer = request.headers.get("referer")
+    method = str(getattr(request, "method", "GET")).upper()
+    is_mutation = method in ("POST", "PUT", "DELETE", "PATCH")
+
+    # If it's a mutation (form action) or referer is present and different from current URL
+    if referer and (is_mutation or (status_code in (400, 401, 403, 404, 409, 422) and referer != str(request.url))):
+        from app.web.deps import flash
+        from fastapi.responses import RedirectResponse
+
+        try:
+            flash(request, message, "danger")
+        except Exception:
+            pass
+        return RedirectResponse(referer, status_code=303)
+
+    from app.web.deps import template_context, templates
+
+    return templates.TemplateResponse(
+        "error.html",
+        template_context(request, status_code=status_code, error_message=message),
+        status_code=status_code,
+    )
+
+
 async def not_found_handler(request: Request, exc: NotFoundError):
     if not is_html_request(request):
         return JSONResponse(
@@ -37,11 +68,7 @@ async def not_found_handler(request: Request, exc: NotFoundError):
             },
             status_code=404,
         )
-    from app.web.deps import template_context, templates
-
-    return templates.TemplateResponse(
-        "error.html", template_context(request, status_code=404, error_message=exc.message), status_code=404
-    )
+    return handle_web_error_response(request, exc.message, status_code=404)
 
 
 async def validation_handler(request: Request, exc: ValidationError):
@@ -50,11 +77,7 @@ async def validation_handler(request: Request, exc: ValidationError):
             {"success": False, "error": {"code": exc.code, "message": exc.message, "details": exc.details}},
             status_code=422,
         )
-    from app.web.deps import template_context, templates
-
-    return templates.TemplateResponse(
-        "error.html", template_context(request, status_code=422, error_message=exc.message), status_code=422
-    )
+    return handle_web_error_response(request, exc.message, status_code=422)
 
 
 async def conflict_handler(request: Request, exc: ConflictError):
@@ -63,11 +86,7 @@ async def conflict_handler(request: Request, exc: ConflictError):
             {"success": False, "error": {"code": exc.code, "message": exc.message, "details": exc.details}},
             status_code=409,
         )
-    from app.web.deps import template_context, templates
-
-    return templates.TemplateResponse(
-        "error.html", template_context(request, status_code=409, error_message=exc.message), status_code=409
-    )
+    return handle_web_error_response(request, exc.message, status_code=409)
 
 
 async def permission_handler(request: Request, exc: PermissionDeniedError):
@@ -109,18 +128,12 @@ async def http_exception_handler(request: Request, exc: HTTPException | Starlett
             status_code=exc.status_code,
         )
 
-    from app.web.deps import template_context, templates
-
     detail_msg = getattr(exc, "detail", None)
     if isinstance(detail_msg, dict):
         detail_msg = detail_msg.get("message") or str(detail_msg)
     elif not detail_msg:
         detail_msg = "Ressource introuvable" if exc.status_code == 404 else "Une erreur s'est produite."
-    return templates.TemplateResponse(
-        "error.html",
-        template_context(request, status_code=exc.status_code, error_message=detail_msg),
-        status_code=exc.status_code,
-    )
+    return handle_web_error_response(request, str(detail_msg), status_code=exc.status_code)
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception):
@@ -135,11 +148,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
             return JSONResponse(
                 {"success": False, "error": {"code": "invalid_value", "message": str(exc)}}, status_code=400
             )
-        from app.web.deps import template_context, templates
-
-        return templates.TemplateResponse(
-            "error.html", template_context(request, status_code=400, error_message=str(exc)), status_code=400
-        )
+        return handle_web_error_response(request, str(exc), status_code=400)
 
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
 
@@ -187,11 +196,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
             {"success": False, "error": {"code": "internal_error", "message": friendly_msg}}, status_code=500
         )
 
-    from app.web.deps import template_context, templates
-
-    return templates.TemplateResponse(
-        "error.html", template_context(request, status_code=500, error_message=friendly_msg), status_code=500
-    )
+    return handle_web_error_response(request, friendly_msg, status_code=500)
 
 
 async def validation_error_handler(request: Request, exc: RequestValidationError):
@@ -208,11 +213,7 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
             status_code=422,
         )
 
-    from app.web.deps import template_context, templates
-
-    return templates.TemplateResponse(
-        "error.html", template_context(request, status_code=422, error_message=friendly_msg), status_code=422
-    )
+    return handle_web_error_response(request, friendly_msg, status_code=422)
 
 
 def register_exception_handlers(app) -> None:
