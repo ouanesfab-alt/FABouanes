@@ -5,6 +5,7 @@ import logging
 from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.exceptions import (
     AuthenticationRequiredError,
@@ -70,29 +71,37 @@ async def conflict_handler(request: Request, exc: ConflictError):
 
 
 async def permission_handler(request: Request, exc: PermissionDeniedError):
+    from app.core.request_state import get_state_value, set_state_value
+
+    if get_state_value("request") is None:
+        set_state_value("request", request)
     from app.core.permissions import permission_denied_response
 
     return permission_denied_response(exc.code)
 
 
 async def auth_required_handler(request: Request, exc: AuthenticationRequiredError):
+    from app.core.request_state import get_state_value, set_state_value
+
+    if get_state_value("request") is None:
+        set_state_value("request", request)
     from app.core.permissions import permission_denied_response
 
     return permission_denied_response(None)
 
 
-async def http_exception_handler(request: Request, exc: HTTPException):
+async def http_exception_handler(request: Request, exc: HTTPException | StarletteHTTPException):
     is_api = request.url.path.startswith("/api/") or not is_html_request(request)
 
     if is_api:
-        detail = exc.detail
+        detail = getattr(exc, "detail", None)
         if isinstance(detail, dict):
-            code = detail.get("code") or "http_error"
+            code = detail.get("code") or ("not_found" if exc.status_code == 404 else "http_error")
             message = detail.get("message") or "HTTP Exception occurred"
             details = detail.get("details")
         else:
-            code = "http_error"
-            message = str(detail)
+            code = "not_found" if exc.status_code == 404 else "http_error"
+            message = str(detail) if detail else ("Ressource introuvable" if exc.status_code == 404 else "Erreur HTTP")
             details = None
 
         return JSONResponse(
@@ -102,9 +111,11 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
     from app.web.deps import template_context, templates
 
-    detail_msg = exc.detail
+    detail_msg = getattr(exc, "detail", None)
     if isinstance(detail_msg, dict):
         detail_msg = detail_msg.get("message") or str(detail_msg)
+    elif not detail_msg:
+        detail_msg = "Ressource introuvable" if exc.status_code == 404 else "Une erreur s'est produite."
     return templates.TemplateResponse(
         "error.html",
         template_context(request, status_code=exc.status_code, error_message=detail_msg),
@@ -211,5 +222,6 @@ def register_exception_handlers(app) -> None:
     app.add_exception_handler(PermissionDeniedError, permission_handler)
     app.add_exception_handler(AuthenticationRequiredError, auth_required_handler)
     app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)

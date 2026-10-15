@@ -145,3 +145,28 @@ async def test_http_exception_handler():
         mock_ctx.return_value = {}
         res_html = await http_exception_handler(req_html, exc)
         assert res_html == "html-response"
+
+
+def test_api_v1_error_handling_live_app():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app, raise_server_exceptions=False)
+
+    # 1. Non-existent API route must return JSON and never HTML
+    res = client.get("/api/v1/non_existent_production_check_route")
+    assert res.status_code == 404
+    assert res.headers.get("content-type") == "application/json"
+    data = res.json()
+    assert data["success"] is False
+    assert "error" in data
+    assert data["error"]["code"] == "not_found"
+
+    # 2. Malformed JSON payload on API route must return JSON 422
+    res_bad = client.post("/api/v1/clients", content="invalid json", headers={"content-type": "application/json"})
+    assert res_bad.status_code == 422
+    assert res_bad.headers.get("content-type") == "application/json"
+    data_bad = res_bad.json()
+    assert data_bad["success"] is False
+    assert data_bad["error"]["code"] == "validation_error"
+

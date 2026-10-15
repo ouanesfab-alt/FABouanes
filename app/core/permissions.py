@@ -297,14 +297,14 @@ def permission_denied_response(permission: str | None, login_endpoint: str = "lo
     if get_state_value("user") is None:
         if path.startswith("/api/"):
             return JSONResponse(
-                {"error": {"code": "unauthorized", "message": "Authentification requise.", "details": None}},
+                {"success": False, "error": {"code": "unauthorized", "message": "Authentification requise.", "details": None}},
                 status_code=401,
             )
         return RedirectResponse(f"/{login_endpoint}", status_code=303)
     _audit_permission_denied(permission)
     if path.startswith("/api/"):
         return JSONResponse(
-            {"error": {"code": "forbidden", "message": "Permission refusee.", "details": {"permission": permission}}},
+            {"success": False, "error": {"code": "forbidden", "message": "Permission refusee.", "details": {"permission": permission}}},
             status_code=403,
         )
     if state_request is not None:
