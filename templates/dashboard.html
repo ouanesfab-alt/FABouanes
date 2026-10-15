@@ -1446,7 +1446,6 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/chart.umd.min.js') }}" nonce="{{ csp_nonce }}"></script>
 <script src="{{ url_for('static', filename='js/modules/dashboard.js') }}" nonce="{{ csp_nonce }}"></script>
-<script src="{{ url_for('static', filename='js/modules/dashboard-fonts.js') }}" nonce="{{ csp_nonce }}"></script>
 <script nonce="{{ csp_nonce }}">
 	let kpiChartInstance = null;
 	let currentChartDays = 30;

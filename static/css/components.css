@@ -58,7 +58,9 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
 }
 @media (max-width: 767px) {
   .toast-container-app {
-    bottom: 68px !important;
+    top: auto !important;
+    bottom: 74px !important;
+    margin-top: 0 !important;
     padding-bottom: 0 !important;
   }
 }

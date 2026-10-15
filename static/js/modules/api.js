@@ -22,71 +22,97 @@ export function headers(extra) {
   return Object.assign({ 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' }, extra || {});
 }
 
-export function showToast(message, type = 'info') {
+export function showToast(message, type = 'info', options = {}) {
+  const normType = type === 'error' ? 'danger' : type;
+
   // Play dynamic synthesized sound feedback
-  if (type === 'success' && typeof window.playSuccessSound === 'function') {
+  if (normType === 'success' && typeof window.playSuccessSound === 'function') {
     window.playSuccessSound();
-  } else if (type === 'error' && typeof window.playErrorSound === 'function') {
+  } else if (normType === 'danger' && typeof window.playErrorSound === 'function') {
     window.playErrorSound();
-  } else if (type === 'warning' && typeof window.playClickSound === 'function') {
+  } else if (normType === 'warning' && typeof window.playClickSound === 'function') {
     window.playClickSound('warning');
   }
 
-  let container = document.getElementById('fab-toast-container');
-
+  let container = document.getElementById('toastContainer');
   if (!container) {
     container = document.createElement('div');
-    container.id = 'fab-toast-container';
-    container.style.position = 'fixed';
-    container.style.bottom = '20px';
-    container.style.right = '20px';
+    container.id = 'toastContainer';
+    container.className = 'toast-container position-fixed top-0 end-0 p-4 toast-container-app';
+    container.style.marginTop = '60px';
     container.style.zIndex = '99999';
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column';
     container.setAttribute('aria-live', 'polite');
     container.setAttribute('aria-atomic', 'true');
     document.body.appendChild(container);
   }
 
-  const toast = document.createElement('div');
-  toast.className = `toast-message toast-${type}`;
-  toast.style.padding = '12px 20px';
-  toast.style.borderRadius = '8px';
-  toast.style.color = '#fff';
-  toast.style.fontFamily = 'system-ui, -apple-system, sans-serif';
-  toast.style.fontSize = '14px';
-  toast.style.fontWeight = '500';
-  toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-  toast.style.opacity = '0';
-  toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-  toast.style.transform = 'translateY(20px)';
-  
-  let bgColor = '#333';
-  if (type === 'error') bgColor = '#dc3545';
-  else if (type === 'warning') bgColor = '#ffc107';
-  else if (type === 'success') bgColor = '#198754';
-  else if (type === 'info') bgColor = '#0dcaf0';
-  toast.style.backgroundColor = bgColor;
-  if (type === 'warning') toast.style.color = '#000';
+  const iconMap = {
+    success: 'check-circle-fill',
+    danger: 'exclamation-triangle-fill',
+    warning: 'exclamation-circle-fill',
+    info: 'info-circle-fill'
+  };
+  const accentMap = {
+    success: '#25D366',
+    danger: '#ef4444',
+    warning: '#f59e0b',
+    info: '#007AFF'
+  };
 
-  toast.textContent = message;
-  container.appendChild(toast);
+  const icon = iconMap[normType] || 'info-circle-fill';
+  const accent = accentMap[normType] || '#007AFF';
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
-  setTimeout(() => {
-    toast.style.opacity = '1';
-    toast.style.transform = 'translateY(0)';
-  }, 10);
+  const toastEl = document.createElement('div');
+  toastEl.className = 'toast border-0 mb-2 shadow-lg flash-toast';
+  toastEl.setAttribute('role', 'alert');
+  toastEl.setAttribute('aria-live', 'assertive');
+  toastEl.setAttribute('aria-atomic', 'true');
+  toastEl.dataset.accent = accent;
 
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(-20px)';
-    setTimeout(() => {
-      toast.remove();
-      if (container.children.length === 0) {
-        container.remove();
-      }
-    }, 300);
-  }, 5000);
+  toastEl.style.borderRadius = '10px';
+  toastEl.style.backgroundColor = isDark ? '#1e2a30' : '#f0f2f5';
+  toastEl.style.color = isDark ? '#e9edef' : '#111b21';
+  toastEl.style.borderLeft = `4px solid ${accent}`;
+  toastEl.style.minWidth = '280px';
+  toastEl.style.maxWidth = '380px';
+  if (!isDark) toastEl.style.boxShadow = '0 6px 24px rgba(0,0,0,0.12)';
+
+  const autoHide = options.autoHide !== false;
+  const duration = options.duration || 4500;
+
+  toastEl.innerHTML = `
+    <div class="toast-body p-3">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-${icon} flex-shrink-0" style="color:${accent};font-size:1rem;"></i>
+        <div class="fw-medium flex-grow-1" style="font-size:0.9rem;line-height:1.4;">${message}</div>
+        <button type="button" class="btn-close ${isDark ? 'btn-close-white' : ''} flex-shrink-0 flash-toast-close ms-auto"
+          data-bs-dismiss="toast" aria-label="Fermer" style="font-size:0.7em;opacity:0.75;"></button>
+      </div>
+    </div>
+  `;
+
+  container.appendChild(toastEl);
+
+  if (window.bootstrap && window.bootstrap.Toast) {
+    const bsToast = new window.bootstrap.Toast(toastEl, {
+      autohide: autoHide,
+      delay: duration
+    });
+    bsToast.show();
+    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+  } else {
+    toastEl.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    toastEl.style.opacity = '1';
+    if (autoHide) {
+      setTimeout(() => {
+        toastEl.style.opacity = '0';
+        setTimeout(() => toastEl.remove(), 300);
+      }, duration);
+    }
+    const closeBtn = toastEl.querySelector('.flash-toast-close');
+    if (closeBtn) closeBtn.onclick = () => toastEl.remove();
+  }
 }
 
 export async function fabFetch(url, options = {}) {
@@ -148,4 +174,6 @@ export function initApiModule() {
   };
   window.fixUrl = window.fixUrl || absoluteUrl;
   window.fabFetch = window.fabFetch || fabFetch;
+  window.showToast = showToast;
+  window.fabToast = showToast;
 }

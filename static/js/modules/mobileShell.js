@@ -8,7 +8,7 @@ export function initMobileShellModule() {
       if (!document.querySelector('.fab-mobile-return')) {
         const back = document.createElement('a');
         back.className = 'fab-mobile-return';
-        back.href = 'http://localhost/?setup=1';
+        back.href = '/mobile-connect';
         back.innerHTML = '<i class="bi bi-phone"></i><span>Config mobile</span>';
         document.body.appendChild(back);
       }

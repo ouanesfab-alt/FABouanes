@@ -476,24 +476,11 @@
       while (idx === currentFontIdx && fonts.length > 1);
       currentFontIdx = idx;
       const fontObj = fonts[idx];
-      const fontId = `gfont-clock-${fontObj.name.replace(/\s+/g,'-').toLowerCase()}`;
-      const applyFont = () => {
-        clock.style.opacity = '0.08';
-        setTimeout(() => {
-          clock.style.setProperty('font-family', fontObj.stack, 'important');
-          clock.style.opacity = '1';
-        }, 300);
-      };
-      if (document.getElementById(fontId)) { applyFont(); return; }
-      const link = document.createElement('link');
-      link.id = fontId;
-      link.rel = 'stylesheet';
-      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontObj.name)}&display=swap`;
-      if (nonce) link.setAttribute('nonce', nonce);
-      link.onload = applyFont;
-      link.onerror = applyFont;
-      document.head.appendChild(link);
-      applyFont();
+      clock.style.opacity = '0.4';
+      setTimeout(() => {
+        clock.style.setProperty('font-family', fontObj.stack, 'important');
+        clock.style.opacity = '1';
+      }, 150);
     }
 
     tick();

@@ -45,23 +45,23 @@
       }
       
       function showToast(message, category = "info", autoRefresh = false) {
+          if (typeof window.showToast === 'function') {
+              window.showToast(message, category, { autoHide: !autoRefresh, duration: 5000 });
+              return;
+          }
           const container = document.getElementById('toastContainer');
           if(!container) return;
 
-          // Ne pas afficher si une notification est déjà en cours d'affichage
-          const activeToasts = container.querySelectorAll('.toast.show, .toast.showing');
-          if (activeToasts.length > 0) {
-              return;
-          }
-
           const toastEl = document.createElement('div');
           const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+          const accent = category === 'success' ? '#25D366' : category === 'warning' ? '#f59e0b' : category === 'danger' ? '#ef4444' : '#007AFF';
+          const icon = category === 'success' ? 'check-circle-fill' : category === 'warning' ? 'exclamation-triangle-fill' : category === 'danger' ? 'x-circle-fill' : 'bell-fill';
 
-          toastEl.className = 'toast border-0 mb-2 shadow-lg';
+          toastEl.className = 'toast border-0 mb-2 shadow-lg flash-toast';
           toastEl.style.borderRadius = '10px';
           toastEl.style.backgroundColor = isDark ? '#1e2a30' : '#f0f2f5';
           toastEl.style.color = isDark ? '#e9edef' : '#111b21';
-          toastEl.style.borderLeft = '4px solid #25D366';
+          toastEl.style.borderLeft = `4px solid ${accent}`;
           toastEl.style.minWidth = '280px';
           toastEl.style.maxWidth = '360px';
           if (!isDark) toastEl.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)';
@@ -74,11 +74,11 @@
           toastEl.innerHTML = `
             <div class="toast-body p-3">
               <div class="d-flex align-items-start gap-2">
-                <i class="bi bi-bell-fill mt-1 flex-shrink-0" style="color:#25D366;font-size:0.95rem;"></i>
+                <i class="bi bi-${icon} mt-1 flex-shrink-0" style="color:${accent};font-size:0.95rem;"></i>
                 <div class="flex-grow-1" style="min-width:0;">
-                  <div class="fw-semibold mb-1" style="color:#25D366;font-size:0.85rem;">Nouvelle activité</div>
+                  <div class="fw-semibold mb-1" style="color:${accent};font-size:0.85rem;">Activité réseau</div>
                   <div style="font-size:0.9rem;line-height:1.4;">${message}</div>
-                  ${autoRefresh ? '<button class="btn btn-sm btn-success mt-2" onclick="location.reload()" style="border-radius:20px;font-weight:600;font-size:0.82rem;padding:4px 14px;border:none;">Rafraîchir</button>' : ''}
+                  ${autoRefresh ? '<button class="btn btn-sm btn-primary mt-2" onclick="location.reload()" style="border-radius:20px;font-weight:600;font-size:0.82rem;padding:4px 14px;border:none;">Rafraîchir</button>' : ''}
                 </div>
                 <button type="button" class="btn-close ${isDark ? 'btn-close-white' : ''} flex-shrink-0" data-bs-dismiss="toast" aria-label="Fermer" style="font-size:0.7em;opacity:0.75;margin-top:2px;"></button>
               </div>
@@ -86,16 +86,11 @@
           `;
 
           container.appendChild(toastEl);
-          const t = new bootstrap.Toast(toastEl);
-
-          // Nettoyer le DOM à la fermeture de la notification
-          toastEl.addEventListener('hidden.bs.toast', function() {
-              toastEl.remove();
-          });
-
-          t.show();
-          if(!autoRefresh) {
-              setTimeout(() => { t.hide(); }, 5000);
+          if (window.bootstrap && window.bootstrap.Toast) {
+              const t = new window.bootstrap.Toast(toastEl);
+              toastEl.addEventListener('hidden.bs.toast', function() { toastEl.remove(); });
+              t.show();
+              if(!autoRefresh) { setTimeout(() => { t.hide(); }, 5000); }
           }
       }
       

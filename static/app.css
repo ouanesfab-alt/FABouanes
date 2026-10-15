@@ -434,9 +434,22 @@ tbody tr.context-target {
 .cell-num,
 .col-money,
 .col-qty,
-.col-balance {
+.col-balance,
+.stat-value,
+.kpi-val,
+.kpi-num,
+.amount,
+.money,
+.nav-clock,
+input[type="number"] {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+}
+
+.cell-num,
+.col-money,
+.col-qty,
+.col-balance {
   white-space: nowrap;
 }
 

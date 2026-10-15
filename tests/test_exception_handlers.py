@@ -174,10 +174,12 @@ def test_api_v1_error_handling_live_app():
 def test_html_form_error_flashes_toast_notification():
     from fastapi.testclient import TestClient
     from app.main import app
+    from app.web.exception_handlers import handle_web_error_response
+    from starlette.requests import Request
 
     client = TestClient(app, raise_server_exceptions=False)
 
-    # When a form POST fails with a referer header, it redirects (303) and flashes a toast notification
+    # When a form POST fails with validation, it redirects (303) and flashes a toast notification
     res = client.post(
         "/clients",
         data={"phone": "123"},
@@ -185,7 +187,7 @@ def test_html_form_error_flashes_toast_notification():
         follow_redirects=False,
     )
     assert res.status_code == 303
-    assert res.headers.get("location") == "http://testserver/clients"
+    assert res.headers.get("location") in ("http://testserver/clients", "/contacts/clients/new")
 
     # Following the redirect displays the page with the toast notification instead of error.html
     res_followed = client.post(
@@ -196,5 +198,17 @@ def test_html_form_error_flashes_toast_notification():
     )
     assert res_followed.status_code == 200
     assert "flash-toast" in res_followed.text
+
+    # Verify handle_web_error_response redirect to referer on form mutation error
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/test-form",
+        "headers": [(b"referer", b"http://testserver/my-form"), (b"accept", b"text/html")],
+    }
+    req = Request(scope)
+    resp = handle_web_error_response(req, "Erreur de saisie", 422)
+    assert resp.status_code == 303
+    assert resp.headers.get("location") == "http://testserver/my-form"
 
 

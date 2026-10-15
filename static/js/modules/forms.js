@@ -111,6 +111,29 @@ export function initFormsModule() {
   });
 
   bindFormEventListeners();
+  resetSubmittingButtons();
+}
+
+export function resetSubmittingButtons(root) {
+  const scope = root || (typeof document !== 'undefined' ? document : null);
+  if (!scope) return;
+  scope.querySelectorAll('button.is-loading, input.is-loading').forEach(button => {
+    button.classList.remove('is-loading', 'disabled');
+    button.disabled = false;
+    const originalHTML = button.getAttribute('data-original-html');
+    if (originalHTML) {
+      button.innerHTML = originalHTML;
+    }
+  });
+  scope.querySelectorAll('form[data-submitting="true"]').forEach(form => {
+    form.dataset.submitting = 'false';
+  });
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pageshow', (event) => {
+    resetSubmittingButtons();
+  });
 }
 
 if (typeof document !== 'undefined') {

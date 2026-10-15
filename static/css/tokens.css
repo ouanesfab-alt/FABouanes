@@ -522,6 +522,53 @@ h1, h2, h3, h4, h5, h6, .section-title {
 [data-theme="dark"] .table td {
   border-bottom-color: rgba(255, 255, 255, 0.04) !important;
 }
+
+/* ── Sticky Table Headers & Data Grid Enhancements ── */
+.table-sticky thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background-color: var(--bg-th-opaque, #F2F2F7);
+  box-shadow: 0 1px 0 var(--line);
+}
+[data-theme="dark"] .table-sticky thead th,
+[data-theme="windows-dark"] .table-sticky thead th {
+  background-color: #171d2b !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.table-shell {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+}
+
+.table-shell .table-search {
+  padding: 8px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-shell .table-search input {
+  max-width: 280px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--line);
+  font-size: 0.85rem;
+  padding: 5px 10px;
+}
+
+.table-shell .table-search input:focus {
+  border-color: var(--system-blue);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+}
 .modal-content {
   background: var(--glass-chrome) !important;
   backdrop-filter: blur(36px) saturate(200%) !important;

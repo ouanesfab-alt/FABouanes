@@ -147,3 +147,26 @@ test('main.js handles fab:page-loaded event to reinitialize modules', () => {
     assert.strictEqual(code.includes('initTablesModule()'), true);
 });
 
+test('forms.js exports resetSubmittingButtons to prevent stuck state on BFCache', () => {
+    const formsPath = path.join(process.cwd(), 'static', 'js', 'modules', 'forms.js');
+    const code = fs.readFileSync(formsPath, 'utf8');
+    assert.strictEqual(code.includes('export function resetSubmittingButtons'), true);
+    assert.strictEqual(code.includes('pageshow'), true);
+});
+
+test('api.js showToast unifies with #toastContainer and binds to window.showToast', () => {
+    const apiPath = path.join(process.cwd(), 'static', 'js', 'modules', 'api.js');
+    const code = fs.readFileSync(apiPath, 'utf8');
+    assert.strictEqual(code.includes('toastContainer'), true);
+    assert.strictEqual(code.includes('window.showToast = showToast'), true);
+});
+
+test('dashboard-fonts.js is lightweight, offline-ready corporate typography (< 10 KB)', () => {
+    const fontsPath = path.join(process.cwd(), 'static', 'js', 'modules', 'dashboard-fonts.js');
+    const stats = fs.statSync(fontsPath);
+    assert.ok(stats.size < 10000, 'dashboard-fonts.js should be lightweight (< 10KB)');
+    const code = fs.readFileSync(fontsPath, 'utf8');
+    assert.strictEqual(code.includes('EXECUTIVE_FONTS'), true);
+});
+
+
