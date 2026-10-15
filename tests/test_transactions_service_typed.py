@@ -1,5 +1,5 @@
 import pytest
-from app.services.transactions_service import transactions_context
+from app.modules.accounting.service import transactions_context
 
 
 @pytest.mark.asyncio

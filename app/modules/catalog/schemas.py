@@ -5,6 +5,7 @@ from typing import Any, List, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
+from decimal import Decimal
 import math
 
 
@@ -28,13 +29,35 @@ def parse_numeric(val: Any) -> float:
     return f_val
 
 
+def parse_decimal(val: Any) -> Decimal:
+    if val is None or val == "":
+        return Decimal("0.00")
+    if isinstance(val, Decimal):
+        d_val = val
+    elif isinstance(val, (int, float)):
+        d_val = Decimal(str(val))
+    else:
+        try:
+            cleaned = str(val).replace(",", ".").replace(" ", "").replace("\xa0", "").strip()
+            d_val = Decimal(cleaned)
+        except Exception as e:
+            raise ValueError("La valeur doit être un nombre valide.") from e
+    if d_val.is_nan() or d_val.is_infinite():
+        raise ValueError("La valeur doit être un nombre fini.")
+    if d_val < 0:
+        raise ValueError("La valeur ne peut pas être négative.")
+    if d_val > Decimal("1e12"):
+        raise ValueError("La valeur dépasse la limite autorisée.")
+    return d_val
+
+
 class RawMaterialCreateSchema(BaseModel):
     name: str = Field(..., min_length=1)
     unit: str = Field("kg", min_length=1)
-    stock_qty: float = Field(default=0.0)
-    avg_cost: float = Field(default=0.0)
-    sale_price: float = Field(default=0.0)
-    alert_threshold: float = Field(default=0.0)
+    stock_qty: Decimal = Field(default=Decimal("0.00"))
+    avg_cost: Decimal = Field(default=Decimal("0.00"))
+    sale_price: Decimal = Field(default=Decimal("0.00"))
+    alert_threshold: Decimal = Field(default=Decimal("0.00"))
 
     @field_validator("name")
     @classmethod
@@ -54,17 +77,17 @@ class RawMaterialCreateSchema(BaseModel):
 
     @field_validator("stock_qty", "avg_cost", "sale_price", "alert_threshold", mode="before")
     @classmethod
-    def parse_fields(cls, val: any) -> float:
-        return parse_numeric(val)
+    def parse_fields(cls, val: any) -> Decimal:
+        return parse_decimal(val)
 
 
 class RawMaterialUpdateSchema(BaseModel):
     name: str = Field(..., min_length=1)
     unit: str = Field(..., min_length=1)
-    stock_qty: float = Field(default=0.0)
-    avg_cost: float = Field(default=0.0)
-    sale_price: float = Field(default=0.0)
-    alert_threshold: float = Field(default=0.0)
+    stock_qty: Decimal = Field(default=Decimal("0.00"))
+    avg_cost: Decimal = Field(default=Decimal("0.00"))
+    sale_price: Decimal = Field(default=Decimal("0.00"))
+    alert_threshold: Decimal = Field(default=Decimal("0.00"))
 
     @field_validator("name")
     @classmethod
@@ -84,16 +107,16 @@ class RawMaterialUpdateSchema(BaseModel):
 
     @field_validator("stock_qty", "avg_cost", "sale_price", "alert_threshold", mode="before")
     @classmethod
-    def parse_fields(cls, val: any) -> float:
-        return parse_numeric(val)
+    def parse_fields(cls, val: any) -> Decimal:
+        return parse_decimal(val)
 
 
 class FinishedProductCreateSchema(BaseModel):
     name: str = Field(..., min_length=1)
     default_unit: str = Field("kg", min_length=1)
-    stock_qty: float = Field(default=0.0)
-    sale_price: float = Field(default=0.0)
-    avg_cost: float = Field(default=0.0)
+    stock_qty: Decimal = Field(default=Decimal("0.00"))
+    sale_price: Decimal = Field(default=Decimal("0.00"))
+    avg_cost: Decimal = Field(default=Decimal("0.00"))
 
     @model_validator(mode="before")
     @classmethod
@@ -121,16 +144,16 @@ class FinishedProductCreateSchema(BaseModel):
 
     @field_validator("stock_qty", "sale_price", "avg_cost", mode="before")
     @classmethod
-    def parse_fields(cls, val: any) -> float:
-        return parse_numeric(val)
+    def parse_fields(cls, val: any) -> Decimal:
+        return parse_decimal(val)
 
 
 class FinishedProductUpdateSchema(BaseModel):
     name: str = Field(..., min_length=1)
     default_unit: str = Field(..., min_length=1)
-    stock_qty: float = Field(default=0.0)
-    sale_price: float = Field(default=0.0)
-    avg_cost: float = Field(default=0.0)
+    stock_qty: Decimal = Field(default=Decimal("0.00"))
+    sale_price: Decimal = Field(default=Decimal("0.00"))
+    avg_cost: Decimal = Field(default=Decimal("0.00"))
 
     @model_validator(mode="before")
     @classmethod
@@ -158,21 +181,21 @@ class FinishedProductUpdateSchema(BaseModel):
 
     @field_validator("stock_qty", "sale_price", "avg_cost", mode="before")
     @classmethod
-    def parse_fields(cls, val: any) -> float:
-        return parse_numeric(val)
+    def parse_fields(cls, val: any) -> Decimal:
+        return parse_decimal(val)
 
 
 class RecipeItemSchema(BaseModel):
     raw_material_id: int
-    quantity: float
+    quantity: Decimal
 
     @field_validator("quantity", mode="before")
     @classmethod
-    def parse_quantity(cls, val: any) -> float:
-        f_val = parse_numeric(val)
-        if f_val <= 0:
+    def parse_quantity(cls, val: any) -> Decimal:
+        d_val = parse_decimal(val)
+        if d_val <= Decimal("0.00"):
             raise ValueError("La quantité doit être supérieure à 0.")
-        return f_val
+        return d_val
 
 
 class RecipeCreateSchema(BaseModel):

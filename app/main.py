@@ -52,7 +52,7 @@ from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.registry import discover_modules, mount_api_routes, mount_web_routes
 from app.core.runtime_paths import paths
 from app.core.timeout_middleware import RequestTimeoutMiddleware
-from app.services.backup_service import BACKGROUND_STATE
+from app.modules.admin.backup_service import BACKGROUND_STATE
 from app.version import APP_VERSION
 from app.web.router import router as web_router
 
@@ -163,14 +163,14 @@ async def health_check():
 
     # Cache and Performance queue stats
     try:
-        from app.core.perf_cache import cache_entry_count
+        from app.infra.perf_cache import cache_entry_count
 
         checks["cache_entries"] = str(cache_entry_count())
     except Exception:
         checks["cache_entries"] = "unknown"
 
     try:
-        from app.core.db_helpers import db_manager
+        from app.core.database import db_manager
 
         checks["perf_queue_size"] = str(db_manager.pending_performance_event_count())
     except Exception:

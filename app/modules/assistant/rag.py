@@ -12,7 +12,7 @@ from typing import Any, Dict, List
 from pypdf import PdfReader
 
 from app.core.runtime_paths import paths
-from app.web.manual_pages import SPECIFIC_CHAPTER_DATA
+from app.modules.admin.manual_web import SPECIFIC_CHAPTER_DATA
 
 _logger = logging.getLogger("fabouanes.rag")
 INDEX_FILE = paths.pdf_reader_dir / "index_rag.json"
@@ -120,7 +120,7 @@ async def search_vector_manual(query: str, api_key: str, limit: int = 2) -> List
     if not emb:
         return []
 
-    from app.core.db_helpers import query_db
+    from app.core.database import query_db
 
     has_vector = False
     try:
@@ -317,7 +317,7 @@ async def search_vector_catalog(query: str, api_key: str, limit: int = 5) -> Lis
     if not api_key:
         return []
 
-    from app.core.db_helpers import query_db
+    from app.core.database import query_db
 
     has_vector = False
     try:

@@ -3,13 +3,14 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
-from app.core.helpers import wants_print_after_submit
 from app.core.permissions import PERMISSION_PRODUCTION_DELETE, PERMISSION_PRODUCTION_READ, PERMISSION_PRODUCTION_WRITE
 from app.core.request_state import set_state_value
 from app.modules.production.schemas import ProductionBatchCreate
@@ -20,7 +21,7 @@ from app.modules.production.service import (
     productions_context,
     update_production_notes,
 )
-from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
+from app.web.deps import csrf_protect, flash, require_permission, template_context, templates, wants_print_after_submit
 
 router = APIRouter()
 
@@ -30,7 +31,10 @@ def parse_production_form(form) -> dict:
     finished_product_id = int(finished_id_str) if finished_id_str else None
 
     output_qty_str = form.get("output_quantity")
-    output_quantity = float(output_qty_str) if output_qty_str else None
+    try:
+        output_quantity = Decimal(str(output_qty_str)) if output_qty_str else None
+    except Exception:
+        output_quantity = None
 
     production_date = form.get("production_date")
     notes = form.get("notes")
@@ -42,8 +46,11 @@ def parse_production_form(form) -> dict:
     for r_id, qty in zip(raw_ids, quantities):
         if r_id or qty:
             try:
-                items.append({"raw_material_id": int(r_id) if r_id else None, "quantity": float(qty) if qty else None})
-            except ValueError:
+                items.append({
+                    "raw_material_id": int(r_id) if r_id else None,
+                    "quantity": Decimal(str(qty)) if qty else None,
+                })
+            except Exception:
                 items.append({"raw_material_id": r_id, "quantity": qty})
 
     return {

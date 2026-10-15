@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
 from app.core.audit import list_audit_logs
-from app.core.db_helpers import db_manager
+from app.core.database import db_manager
 from app.core.permissions import (
     PERMISSION_AUDIT_READ,
     PERMISSION_SETTINGS_MANAGE,
@@ -22,7 +22,7 @@ from app.core.permissions import (
     has_permission,
 )
 from app.core.security import encrypt_val
-from app.core.storage import (
+from app.infra.storage import (
     LOCAL_BACKUP_DIR,
     list_restore_backups,
     resolve_backup_path,
@@ -30,8 +30,8 @@ from app.core.storage import (
 )
 from app.modules.assistant.schema_context import get_encryption_key
 from app.modules.users.repository import list_users
-from app.services.activity_service import activity_filter_values, list_admin_activity
-from app.services.admin_service import (
+from app.modules.admin.activity_service import activity_filter_values, list_admin_activity
+from app.modules.admin.service import (
     create_manual_backup,
     create_user_account,
     delete_user_account,
@@ -40,8 +40,8 @@ from app.services.admin_service import (
     save_backup_settings_from_form,
     update_user_account,
 )
-from app.services.backup_service import get_backup_settings, list_backup_jobs
-from app.services.system_service import get_system_status
+from app.modules.admin.backup_service import get_backup_settings, list_backup_jobs
+from app.modules.admin.system_service import get_system_status
 from app.utils.api_response import APIResponse
 from app.web.deps import get_current_user
 

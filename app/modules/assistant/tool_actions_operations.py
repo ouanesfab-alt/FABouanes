@@ -27,7 +27,7 @@ async def handle_operations(
         unit_price = sanitize_numeric(func_args.get("unit_price"))
         amount_paid = sanitize_numeric(func_args.get("amount_paid", 0.0))
         notes = str(func_args.get("notes", "")).strip()
-        from app.modules.sales.schemas_validation import SaleFormSchema, SaleLineSchema
+        from app.modules.sales.schemas import SaleFormSchema, SaleLineSchema
         from app.modules.sales.service import SalesService
 
         line = SaleLineSchema(item_key=f"{item_kind}:{item_id}", quantity=quantity, unit=unit, unit_price=unit_price)
@@ -36,7 +36,7 @@ async def handle_operations(
             service = SalesService(session)
             res = await service.create_sale_from_form(schema)
             if amount_paid > 0 and client_id:
-                from app.modules.payments.schemas_validation import PaymentFormSchema
+                from app.modules.payments.schemas import PaymentFormSchema
                 from app.modules.payments.service import PaymentsService
 
                 pay_service = PaymentsService(session)
@@ -63,7 +63,7 @@ async def handle_operations(
         unit = str(func_args.get("unit", "kg")).strip().lower()
         unit_price = sanitize_numeric(func_args.get("unit_price"))
         notes = str(func_args.get("notes", "")).strip()
-        from app.modules.purchases.schemas_validation import PurchaseFormSchema, PurchaseLineSchema
+        from app.modules.purchases.schemas import PurchaseFormSchema, PurchaseLineSchema
         from app.modules.purchases.service import PurchaseService
 
         line = PurchaseLineSchema(
@@ -84,7 +84,7 @@ async def handle_operations(
         if payment_type not in ("versement", "avance"):
             payment_type = "versement"
         notes = str(func_args.get("notes", "")).strip()
-        from app.modules.payments.schemas_validation import PaymentFormSchema
+        from app.modules.payments.schemas import PaymentFormSchema
         from app.modules.payments.service import PaymentsService
 
         schema = PaymentFormSchema(client_id=client_id, amount=amount, payment_type=payment_type, notes=notes)
@@ -159,7 +159,7 @@ async def handle_operations(
 
         import datetime
 
-        from app.modules.expenses.schemas_validation import ExpenseCreateSchema
+        from app.modules.expenses.schemas import ExpenseCreateSchema
 
         schema = ExpenseCreateSchema(
             date=datetime.date.today(),
@@ -230,46 +230,33 @@ async def handle_operations(
         return {"success": True, "message": f"Dépense {expense_id} supprimée."}
 
     elif func_name == "add_supplier_payment":
+        from app.modules.purchases.service import create_supplier_payment
+
         supplier_id = int(func_args.get("supplier_id"))
         amount = sanitize_numeric(func_args.get("amount"))
         payment_type = str(func_args.get("payment_type", "versement")).strip().lower()
         if payment_type not in ("versement", "avance"):
             payment_type = "versement"
         notes = str(func_args.get("notes", "")).strip()
-        purchase_id = func_args.get("purchase_id")
-        if purchase_id:
-            purchase_id = int(purchase_id)
-        import datetime
+        purchase_id = int(func_args.get("purchase_id")) if func_args.get("purchase_id") else None
 
-        from sqlmodel import text
+        if amount <= 0:
+            return {"error": "Le montant du versement doit être supérieur à 0."}
 
         async with session_maker() as session:
-            # Verify supplier exists
-            supplier_exists = (
-                await session.execute(text("SELECT id FROM suppliers WHERE id = :sid"), {"sid": supplier_id})
-            ).fetchone()
-            if not supplier_exists:
-                return {"error": f"Fournisseur ID {supplier_id} introuvable."}
-            if amount <= 0:
-                return {"error": "Le montant du versement doit être supérieur à 0."}
-            result = await session.execute(
-                text("""
-                        INSERT INTO supplier_payments (supplier_id, purchase_id, payment_type, amount, payment_date, notes)
-                        VALUES (:sid, :pid, :ptype, :amount, :pdate, :notes)
-                        RETURNING id
-                    """),
-                {
-                    "sid": supplier_id,
-                    "pid": purchase_id,
-                    "ptype": payment_type,
-                    "amount": amount,
-                    "pdate": datetime.date.today().isoformat(),
-                    "notes": notes,
-                },
-            )
-            payment_row = result.fetchone()
-            await session.commit()
-        payment_id = payment_row[0] if payment_row else None
+            try:
+                payment_id = await create_supplier_payment(
+                    supplier_id=supplier_id,
+                    amount=amount,
+                    payment_type=payment_type,
+                    notes=notes,
+                    purchase_id=purchase_id,
+                    db=session,
+                )
+                await session.commit()
+            except Exception as exc:
+                return {"error": str(exc)}
+
         return {
             "success": True,
             "payment_id": payment_id,
@@ -373,7 +360,7 @@ async def handle_operations(
         if not lines_input:
             return {"error": "Une facture doit comporter au moins une ligne."}
 
-        from app.modules.sales.schemas_validation import SaleFormSchema, SaleLineSchema
+        from app.modules.sales.schemas import SaleFormSchema, SaleLineSchema
 
         lines = []
         for line in lines_input:

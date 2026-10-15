@@ -18,8 +18,8 @@ from app.modules.accounting.service import transactions_context
 from app.modules.production.web import edit_production_notes  # noqa: F401 (compat)
 from app.modules.purchases.service import PurchaseService
 from app.modules.sales.service import SalesService
-from app.services.payment_service import new_payment_context
-from app.services.print_service import COMPANY_INFO, PRINT_LAYOUT, build_print_payload, generate_invoice_pdf
+from app.modules.payments.service import new_payment_context
+from app.infra.printing import COMPANY_INFO, PRINT_LAYOUT, build_print_payload, generate_invoice_pdf
 from app.web.deps import (
     flash,
     get_current_user,

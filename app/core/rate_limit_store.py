@@ -105,7 +105,7 @@ class _DbRateLimitStore:
 
     @staticmethod
     def consume(key: str, limit: int, window_seconds: float) -> bool:
-        from app.core.db_helpers import execute_db, query_db
+        from app.core.database import execute_db, query_db
 
         execute_db(
             "DELETE FROM rate_limit_events WHERE key = %s AND hit_at < NOW() - %s * INTERVAL '1 second'",
@@ -127,7 +127,7 @@ class _DbRateLimitStore:
 
     @staticmethod
     def record_failure(key: str) -> None:
-        from app.core.db_helpers import execute_db
+        from app.core.database import execute_db
 
         execute_db(
             "INSERT INTO rate_limit_events (key, hit_at) VALUES (%s, NOW())",
@@ -142,7 +142,7 @@ class _DbRateLimitStore:
     def is_locked_out(key: str, max_attempts: int, window_s: float, lockout_s: float) -> bool:
         import time as _time
 
-        from app.core.db_helpers import execute_db, query_db
+        from app.core.database import execute_db, query_db
 
         max_age = max(window_s, lockout_s * 16.0)
         execute_db(
@@ -165,13 +165,13 @@ class _DbRateLimitStore:
 
     @staticmethod
     def clear(key: str) -> None:
-        from app.core.db_helpers import execute_db
+        from app.core.database import execute_db
 
         execute_db("DELETE FROM rate_limit_events WHERE key = %s", (key,))
 
     @staticmethod
     def clear_user(username: str) -> None:
-        from app.core.db_helpers import execute_db
+        from app.core.database import execute_db
 
         try:
             execute_db("DELETE FROM rate_limit_events WHERE key LIKE %s", (f"%{username.lower()}%",))
@@ -179,7 +179,7 @@ class _DbRateLimitStore:
             _fallback_in_memory.clear_user(username)
 
     def clear_all(self) -> None:
-        from app.core.db_helpers import execute_db
+        from app.core.database import execute_db
 
         try:
             execute_db("DELETE FROM rate_limit_events")

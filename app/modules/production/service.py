@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import delete, func, select, text, update
@@ -11,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity import log_activity
 from app.core.audit import audit_event
-from app.core.helpers import to_float
 from app.core.models import (
     FinishedProduct,
     ProductionBatch,
@@ -20,9 +20,9 @@ from app.core.models import (
     SavedRecipe,
     SavedRecipeItem,
 )
-from app.core.perf_cache import async_cached_result
+from app.infra.perf_cache import async_cached_result
 from app.core.request_state import get_state_value
-from app.core.storage import backup_database, mark_backup_needed
+from app.infra.storage import backup_database, mark_backup_needed
 from app.core.uow import unit_of_work
 from app.modules.production.repository import (
     ProductionBatchItemRepository,
@@ -32,7 +32,7 @@ from app.modules.production.repository import (
 )
 from app.modules.sales.repository import invalidate_sellable_items_cache
 from app.modules.catalog.repository import load_saved_recipes  # noqa: F401
-from app.services.stock_service import apply_finished_production, apply_raw_material_consumption, reverse_production
+from app.modules.catalog.stock_service import apply_finished_production, apply_raw_material_consumption, reverse_production
 
 
 class ProductionService:
@@ -90,7 +90,11 @@ async def create_production_from_form(form, db: AsyncSession | None = None):
 
 async def _create_production_from_form_impl(form, db: AsyncSession):
     finished_id = int(form["finished_product_id"])
-    output_qty = to_float(form.get("output_quantity"))
+    output_qty_raw = form.get("output_quantity")
+    try:
+        output_qty = Decimal(str(output_qty_raw)) if output_qty_raw is not None and str(output_qty_raw).strip() else Decimal("0.00")
+    except Exception:
+        output_qty = Decimal("0.00")
 
     production_date_val = form.get("production_date")
     if production_date_val is None:
@@ -133,7 +137,7 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
 
     if production_date_obj > date.today():
         raise ValueError("La date de production ne peut pas etre dans le futur.")
-    if output_qty <= 0:
+    if output_qty <= Decimal("0"):
         raise ValueError("La quantite produite doit etre superieure a zero.")
 
     product_res = await db.execute(select(FinishedProduct).where(FinishedProduct.id == finished_id))
@@ -147,14 +151,17 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
     for raw_id, qty_str in zip(raw_ids, quantities):
         if not raw_id:
             continue
-        qty = to_float(qty_str)
-        if qty <= 0:
+        try:
+            qty = Decimal(str(qty_str)) if qty_str is not None and str(qty_str).strip() else Decimal("0.00")
+        except Exception:
+            continue
+        if qty <= Decimal("0"):
             continue
         valid_inputs.append((int(raw_id), qty))
 
     recipe_lines = []
-    total_cost = 0.0
-    total_recipe_qty = 0.0
+    total_cost = Decimal("0.00")
+    total_recipe_qty = Decimal("0.00")
 
     if valid_inputs:
         ids_to_query = [x[0] for x in valid_inputs]
@@ -163,7 +170,7 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
         materials_map = {m["id"]: m for m in materials_rows}
 
         from collections import defaultdict
-        needed_by_raw = defaultdict(float)
+        needed_by_raw = defaultdict(Decimal)
         for raw_id, qty in valid_inputs:
             needed_by_raw[raw_id] += qty
 
@@ -171,14 +178,15 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
             material = materials_map.get(raw_id)
             if not material:
                 raise ValueError("Une matière première selectionnee est introuvable.")
-            if total_needed > float(material["stock_qty"]):
+            if total_needed > Decimal(str(material["stock_qty"])):
                 raise ValueError(f"Stock insuffisant pour {material['name']}.")
 
         for raw_id, qty in valid_inputs:
             material = materials_map.get(raw_id)
-            line_cost = qty * float(material["avg_cost"])
+            unit_cost = Decimal(str(material["avg_cost"]))
+            line_cost = qty * unit_cost
             recipe_lines.append(
-                {"material": material, "qty": qty, "unit_cost": float(material["avg_cost"]), "line_cost": line_cost}
+                {"material": material, "qty": qty, "unit_cost": unit_cost, "line_cost": line_cost}
             )
             total_cost += line_cost
             total_recipe_qty += qty
@@ -192,7 +200,7 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
         finished_product_id=finished_id,
         output_quantity=output_qty,
         production_cost=total_cost,
-        unit_cost=(total_cost / output_qty) if output_qty else 0,
+        unit_cost=(total_cost / output_qty) if output_qty > Decimal("0") else Decimal("0.00"),
         production_date=production_date_obj,
         notes=notes,
     )
@@ -397,3 +405,12 @@ async def _save_recipe_definition_impl(
         db.add(item)
     await db.flush()
     return recipe_id
+
+
+async def delete_saved_recipe(recipe_id: int, db: AsyncSession | None = None) -> bool:
+    """Supprime une recette enregistrée et ses composants dans une transaction UoW."""
+    async with unit_of_work(db, auto_commit=True) as session:
+        await session.execute(delete(SavedRecipeItem).where(SavedRecipeItem.recipe_id == recipe_id))
+        await session.execute(delete(SavedRecipe).where(SavedRecipe.id == recipe_id))
+        return True
+

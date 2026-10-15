@@ -17,7 +17,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from app.core.activity import write_text_log
 from app.core.config import APP_DATA_DIR, DATABASE_URL, settings
-from app.core.db_helpers import execute_db, get_setting
+from app.core.database import execute_db, get_setting
 from app.core.request_state import get_state_value
 
 BACKUP_DIR = APP_DATA_DIR / "backups"
@@ -104,7 +104,7 @@ def mark_backup_needed(reason: str = "event") -> None:
 
     # Broadcast to connected clients for real-time operations refresh
     try:
-        from app.core.websockets import manager
+        from app.infra.websockets import manager
 
         manager.broadcast_sync("refresh_operations")
     except Exception:
@@ -190,6 +190,11 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
     atomiquement pour éviter les fichiers partiels.
     """
     ensure_runtime_dirs()
+    if DATABASE_URL.startswith("sqlite"):
+        from app.modules.admin.backup_service import create_hot_sqlite_backup
+
+        return create_hot_sqlite_backup(reason=reason)
+
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_reason = reason.replace(" ", "_")
     # Nom final (compressé et chiffré)
@@ -262,7 +267,7 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
     # Génération via pg8000 dans une transaction READ ONLY pour cohérence.
     # On utilise COPY TO STDOUT … pour éviter les TRUNCATE CASCADE risqués.
     try:
-        from app.core.db_helpers import connect_database
+        from app.core.database import connect_database
 
         conn = connect_database(DATABASE_URL)
         try:
@@ -336,7 +341,7 @@ def capture_local_backup_snapshot(reason: str = "manual") -> Path:
                 tmp_f.write("BEGIN;\n")
                 tmp_f.write("SET CONSTRAINTS ALL DEFERRED;\n\n")
 
-                from app.core.db_helpers import validate_identifier
+                from app.core.database import validate_identifier
 
                 # Deletions in child-to-parent order
                 for table in reversed(ordered_tables):
@@ -426,7 +431,7 @@ def backup_database(reason: str = "manual", backup_type: str = "event") -> Path:
         return APP_DATA_DIR / "database.db"  # Chemin factice — aucune opération ici
     target = capture_local_backup_snapshot(reason)
     try:
-        from app.services.backup_service import enqueue_backup_upload
+        from app.modules.admin.backup_service import enqueue_backup_upload
 
         requested_by = _current_user_id()
         try:
@@ -461,7 +466,7 @@ def restore_database_from(path_str: str) -> None:
     stored_sha256 = _get_stored_sha256(path)
     verify_backup_file(path, expected_sha256=stored_sha256)
 
-    from app.core.db_helpers import connect_database, split_sql_script
+    from app.core.database import connect_database, split_sql_script
 
     # Lire le SQL (déchiffrement puis décompression si applicable)
     if path.name.endswith(".enc"):
@@ -534,7 +539,7 @@ def _get_stored_sha256(backup_path: Path) -> str | None:
 def _query_backup_sha256(filename: str):
     """Cherche le job de sauvegarde correspondant au nom de fichier."""
     try:
-        from app.core.db_helpers import query_db
+        from app.core.database import query_db
 
         # La colonne local_path contient le chemin complet
         rows = query_db(

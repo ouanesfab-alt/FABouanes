@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_session
 from app.core.exceptions import get_friendly_error_message
 from app.modules.expenses.repository import expenses_by_category
-from app.modules.expenses.schemas_validation import ExpenseCreateSchema
+from app.modules.expenses.schemas import ExpenseCreateSchema
 from app.modules.expenses.service import (
     add_expense,
     get_categories,

@@ -1,12 +1,12 @@
-"""Tests unitaires pour app/services/printing/invoice_printer.py (lot D2)."""
+"""Tests unitaires pour app/infra/printing/invoice_printer.py."""
 from __future__ import annotations
 
 from unittest.mock import patch
-from app.services.printing.invoice_printer import generate_invoice_pdf
+from app.infra.printing.invoice_printer import generate_invoice_pdf
 
 
 def test_generate_invoice_pdf_reportlab_unavailable():
-    with patch("app.services.printing.invoice_printer.REPORTLAB_AVAILABLE", False):
+    with patch("app.infra.printing.invoice_printer.REPORTLAB_AVAILABLE", False):
         result = generate_invoice_pdf({"id": 1}, "Admin")
         assert result is None
 

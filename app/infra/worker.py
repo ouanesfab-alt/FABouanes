@@ -10,7 +10,7 @@ from typing import Any, Callable
 
 import structlog
 
-from app.core.websockets import manager
+from app.infra.websockets import manager
 
 logger = structlog.get_logger("fabouanes.worker")
 
@@ -41,7 +41,7 @@ async def generate_invoice_pdf_task(ctx: dict[str, Any], payload: dict[str, Any]
     await update_task_progress(job_id, 10, "Initialisation de la génération PDF...")
     await asyncio.sleep(0.5)
 
-    from app.services.print_service import generate_invoice_pdf
+    from app.infra.printing import generate_invoice_pdf
 
     await update_task_progress(job_id, 40, "Génération des layouts de facturation...")
 
@@ -87,7 +87,7 @@ async def run_database_backup_task(ctx: dict[str, Any], reason: str) -> str:
     await update_task_progress(job_id, 20, "Vérification de l'intégrité de la base...")
     await asyncio.sleep(0.5)
 
-    from app.core.storage import capture_local_backup_snapshot
+    from app.infra.storage import capture_local_backup_snapshot
 
     await update_task_progress(job_id, 60, "Écriture du dump PostgreSQL...")
 
@@ -102,7 +102,7 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
     Polls the outbox_events table for unprocessed events, publishes them to DB Pub/Sub,
     runs the default local handlers, and marks them as processed.
     """
-    from app.core.db_helpers import db_transaction
+    from app.core.database import db_transaction
 
     events_processed = 0
     try:
@@ -183,7 +183,7 @@ async def dispatch_outbox_events_task(ctx: dict[str, Any]) -> int:
 
 async def replay_dead_letter_events_task(ctx: dict[str, Any]) -> int:
     """Replays all events from dead_letter_events table."""
-    from app.core.db_helpers import db_transaction
+    from app.core.database import db_transaction
 
     events_replayed = 0
     try:
@@ -228,7 +228,7 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
         await update_task_progress(job_id, 100, "Erreur: Clé API manquante.")
         return 0
 
-    from app.core.db_helpers import execute_db, query_db
+    from app.core.database import execute_db, query_db
     from app.modules.assistant.rag import get_embedding
 
     raw_mats = query_db("SELECT id, name, unit FROM raw_materials") or []
@@ -297,7 +297,7 @@ async def rebuild_catalog_embeddings_task(ctx: dict[str, Any], api_key: str = No
             )
 
     # Indexer le manuel utilisateur bilingue pour la recherche vectorielle (RAG Hybride)
-    from app.web.manual_pages import SPECIFIC_CHAPTER_DATA
+    from app.modules.admin.manual_web import SPECIFIC_CHAPTER_DATA
 
     for key, data in SPECIFIC_CHAPTER_DATA.items():
         try:
@@ -332,9 +332,9 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
     await update_task_progress(job_id, 10, "Démarrage du traitement de la synchronisation hors-ligne...")
 
     from app.core.async_db import get_async_sessionmaker
-    from app.core.db_helpers import db_manager, execute_db
+    from app.core.database import db_manager, execute_db
     from app.core.idempotency import check_idempotency, save_idempotency
-    from app.modules.sales.schemas_validation import SaleFormSchema
+    from app.modules.sales.schemas import SaleFormSchema
     from app.modules.sales.service import SalesService
 
     with db_manager.db_transaction() as conn:
@@ -433,7 +433,7 @@ async def process_offline_staging_task(ctx: dict[str, Any]) -> int:
 
                 try:
                     payload = json.loads(payload_str)
-                    from app.modules.payments.schemas_validation import PaymentFormSchema
+                    from app.modules.payments.schemas import PaymentFormSchema
                     validated_payment = PaymentFormSchema.model_validate(payload)
                     await payments_service.create_payment_from_form(validated_payment)
                     await session.commit()
@@ -476,7 +476,7 @@ async def enqueue_background_task(task_name: str, *args: Any, **kwargs: Any) -> 
         logger.error("Requested background task name not found in mapping", task=task_name)
         return "invalid-task"
 
-    from app.core.db_helpers import execute_db, query_db
+    from app.core.database import execute_db, query_db
 
     payload = json.dumps({"args": args, "kwargs": kwargs})
 
@@ -508,7 +508,7 @@ async def execute_job(job_id: int, task_name: str, payload_str: str) -> None:
     func = TASK_MAPPING.get(task_name)
     if not func:
         logger.error("Task not found in mapping", task=task_name, job_id=job_id)
-        from app.core.db_helpers import execute_db
+        from app.core.database import execute_db
 
         execute_db(
             "UPDATE background_jobs SET status = 'failed', error_message = %s, completed_at = CURRENT_TIMESTAMP WHERE id = %s",
@@ -526,7 +526,7 @@ async def execute_job(job_id: int, task_name: str, payload_str: str) -> None:
     ctx = {"job_id": str(job_id)}
 
     logger.info("Executing background job", job_id=job_id, task=task_name)
-    from app.core.db_helpers import execute_db
+    from app.core.database import execute_db
 
     try:
         import inspect
@@ -551,7 +551,7 @@ async def execute_job(job_id: int, task_name: str, payload_str: str) -> None:
 
 def cleanup_background_jobs():
     """Cleans up completed/failed jobs and resets stale running jobs."""
-    from app.core.db_helpers import execute_db
+    from app.core.database import execute_db
 
     try:
         execute_db(
@@ -585,7 +585,7 @@ def cleanup_background_jobs():
 def _worker_poll_loop():
     global _worker_running
     from app.core.config import DATABASE_URL
-    from app.core.db_helpers import db_transaction, pool_manager
+    from app.core.database import db_transaction, pool_manager
     from app.core.events import WORKER_ID
 
     listen_conn = None
@@ -611,7 +611,7 @@ def _worker_poll_loop():
             if now_ts - last_cleanup > 300:
                 cleanup_background_jobs()
                 try:
-                    from app.services.backup_service import trigger_nightly_snapshot_if_due
+                    from app.modules.admin.backup_service import trigger_nightly_snapshot_if_due
 
                     asyncio.run(trigger_nightly_snapshot_if_due())
                 except Exception:
@@ -646,7 +646,7 @@ def _worker_poll_loop():
                 # On la cree ici pour auto-reparer sans intervention manuelle.
                 if "42P01" in err_str or "background_jobs" in err_str.lower():
                     try:
-                        from app.core.db_helpers import execute_db
+                        from app.core.database import execute_db
 
                         execute_db("""
                             CREATE TABLE IF NOT EXISTS background_jobs (

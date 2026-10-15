@@ -22,6 +22,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from decimal import Decimal
+
 from app.core.model_utils import to_gmt1
 from app.core.models import (
     Client,
@@ -32,6 +34,7 @@ from app.core.models import (
     RawSale,
     Sale,
     Supplier,
+    SupplierPayment,
 )
 from app.core.uow import unit_of_work
 from app.modules.accounting.scf_service import SCFService
@@ -67,6 +70,30 @@ class AccountingService:
             path=path,
             db=db,
         )
+
+    @staticmethod
+    async def reconcile_client_balances(db: AsyncSession | None = None) -> dict:
+        from app.modules.admin.system_service import reconcile_client_balances as rcb
+        if db is not None:
+            return await rcb(db)
+        async with unit_of_work(db) as session:
+            return await rcb(session)
+
+    @staticmethod
+    async def reconcile_supplier_balances(db: AsyncSession | None = None) -> dict:
+        return await reconcile_supplier_balances(db)
+
+    @staticmethod
+    async def reconcile_stock_balance(db: AsyncSession | None = None) -> dict:
+        return await reconcile_stock_balance(db)
+
+    @staticmethod
+    async def reconcile_scf_balance(db: AsyncSession | None = None) -> dict:
+        return await reconcile_scf_balance(db)
+
+    @staticmethod
+    async def reconcile_financial_system(db: AsyncSession | None = None) -> dict:
+        return await reconcile_financial_system(db)
 
 
 async def transactions_context(
@@ -384,4 +411,224 @@ __all__ = [
     "transactions_context",
     "_transactions_context_impl",
     "update_production_notes",
+    "reconcile_supplier_balances",
+    "reconcile_stock_balance",
+    "reconcile_scf_balance",
+    "reconcile_financial_system",
 ]
+
+
+async def reconcile_supplier_balances(db: AsyncSession | None = None) -> dict:
+    """
+    Vérifie l'exactitude des soldes et engagements fournisseurs :
+    Total des achats effectués vs total des versements émis au fournisseur.
+    """
+    try:
+        async with unit_of_work(db) as session:
+            stmt = (
+                select(
+                    Supplier.id,
+                    Supplier.name,
+                    func.coalesce(func.sum(Purchase.total), 0).label("total_purchased"),
+                )
+                .outerjoin(Purchase, Purchase.supplier_id == Supplier.id)
+                .group_by(Supplier.id, Supplier.name)
+            )
+            purchases_res = await session.execute(stmt)
+            purchases_map = {row[0]: (row[1], Decimal(str(row[2]))) for row in purchases_res.all()}
+
+            sp_stmt = (
+                select(
+                    SupplierPayment.supplier_id,
+                    func.coalesce(func.sum(SupplierPayment.amount), 0).label("total_paid"),
+                )
+                .group_by(SupplierPayment.supplier_id)
+            )
+            sp_res = await session.execute(sp_stmt)
+            payments_map = {row[0]: Decimal(str(row[1])) for row in sp_res.all()}
+
+            discrepancies = []
+            all_supplier_ids = set(purchases_map.keys()) | set(payments_map.keys())
+            for s_id in sorted(all_supplier_ids):
+                name, purchased = purchases_map.get(s_id, ("Fournisseur Inconnu", Decimal("0.00")))
+                paid = payments_map.get(s_id, Decimal("0.00"))
+                balance = purchased - paid
+                # Surplus anormal de versement (dette négative au-delà d'un centime)
+                if balance < Decimal("-0.01"):
+                    discrepancies.append(
+                        {
+                            "supplier_id": s_id,
+                            "name": name,
+                            "total_purchased": float(purchased),
+                            "total_paid": float(paid),
+                            "balance_due": float(balance),
+                            "anomaly": "Surplus de paiement fournisseur supérieur aux achats enregistrés",
+                        }
+                    )
+
+            return {
+                "ok": len(discrepancies) == 0,
+                "status": "Conforme" if not discrepancies else "Anomalie fournisseur détectée",
+                "count": len(discrepancies),
+                "discrepancies": discrepancies,
+            }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "status": "Erreur audit fournisseurs",
+            "error": str(exc),
+            "count": 0,
+            "discrepancies": [],
+        }
+
+
+async def reconcile_stock_balance(db: AsyncSession | None = None) -> dict:
+    """
+    Audit de cohérence physique et valorisation des stocks :
+    Contrôle l'absence de stocks négatifs et la présence d'un Coût Moyen Pondéré (PMP) valide.
+    """
+    try:
+        async with unit_of_work(db) as session:
+            discrepancies = []
+
+            # 1. Produits finis
+            fp_res = await session.execute(select(FinishedProduct))
+            for fp in fp_res.scalars().all():
+                if fp.stock_qty < Decimal("0.00"):
+                    discrepancies.append(
+                        {
+                            "item_kind": "finished",
+                            "item_id": fp.id,
+                            "name": fp.name,
+                            "stock_qty": float(fp.stock_qty),
+                            "anomaly": "Stock négatif interdit",
+                        }
+                    )
+                if fp.avg_cost <= Decimal("0.00") and fp.stock_qty > Decimal("0.00"):
+                    discrepancies.append(
+                        {
+                            "item_kind": "finished",
+                            "item_id": fp.id,
+                            "name": fp.name,
+                            "avg_cost": float(fp.avg_cost),
+                            "anomaly": "Coût Moyen Pondéré (PMP) manquant sur du stock physique",
+                        }
+                    )
+
+            # 2. Matières premières
+            rm_res = await session.execute(select(RawMaterial))
+            for rm in rm_res.scalars().all():
+                if rm.stock_qty < Decimal("0.00"):
+                    discrepancies.append(
+                        {
+                            "item_kind": "raw",
+                            "item_id": rm.id,
+                            "name": rm.name,
+                            "stock_qty": float(rm.stock_qty),
+                            "anomaly": "Stock négatif interdit",
+                        }
+                    )
+                if rm.avg_cost <= Decimal("0.00") and rm.stock_qty > Decimal("0.00"):
+                    discrepancies.append(
+                        {
+                            "item_kind": "raw",
+                            "item_id": rm.id,
+                            "name": rm.name,
+                            "avg_cost": float(rm.avg_cost),
+                            "anomaly": "Coût Moyen Pondéré (PMP) manquant sur du stock physique",
+                        }
+                    )
+
+            return {
+                "ok": len(discrepancies) == 0,
+                "status": "Conforme" if not discrepancies else "Anomalie de stock détectée",
+                "count": len(discrepancies),
+                "discrepancies": discrepancies,
+            }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "status": "Erreur audit stock",
+            "error": str(exc),
+            "count": 0,
+            "discrepancies": [],
+        }
+
+
+async def reconcile_scf_balance(db: AsyncSession | None = None) -> dict:
+    """
+    Vérifie l'équilibre strict de la Balance Générale du SCF (partie double).
+    """
+    try:
+        async with unit_of_work(db) as session:
+            balance = await SCFService.get_balance_generale(db=session)
+            total_debiteur = sum(acc.get("solde_debiteur", 0.0) for acc in balance)
+            total_crediteur = sum(acc.get("solde_crediteur", 0.0) for acc in balance)
+            diff = round(abs(total_debiteur - total_crediteur), 2)
+            is_ok = diff <= 0.05
+            return {
+                "ok": is_ok,
+                "status": "Conforme" if is_ok else "Déséquilibre balance SCF",
+                "total_debiteur": total_debiteur,
+                "total_crediteur": total_crediteur,
+                "imbalance": diff,
+                "count": 0 if is_ok else 1,
+                "discrepancies": [] if is_ok else [{"imbalance": diff, "total_debiteur": total_debiteur, "total_crediteur": total_crediteur}],
+            }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "status": "Erreur audit SCF",
+            "error": str(exc),
+            "total_debiteur": 0.0,
+            "total_crediteur": 0.0,
+            "imbalance": 0.0,
+            "count": 0,
+            "discrepancies": [],
+        }
+
+
+
+async def reconcile_financial_system(db: AsyncSession | None = None) -> dict:
+    """
+    Exécute un audit financier global à 360° :
+    1. Soldes et créances clients
+    2. Soldes et dettes fournisseurs
+    3. Cohérence physique et valorisation des stocks
+    4. Partie double et équilibre du SCF
+    """
+    from datetime import datetime
+    from app.modules.admin.system_service import reconcile_client_balances as rcb
+
+    async with unit_of_work(db) as session:
+        clients_report = await rcb(session)
+        suppliers_report = await reconcile_supplier_balances(session)
+        stock_report = await reconcile_stock_balance(session)
+        scf_report = await reconcile_scf_balance(session)
+
+        total_anomalies = (
+            clients_report.get("count", 0)
+            + suppliers_report.get("count", 0)
+            + stock_report.get("count", 0)
+            + scf_report.get("count", 0)
+        )
+        all_ok = total_anomalies == 0
+
+        summary_msg = (
+            "✅ Audit financier 360° conforme : Tous les soldes, stocks et états comptables sont intègres."
+            if all_ok
+            else f"⚠️ {total_anomalies} anomalie(s) ou écart(s) financier(s) détecté(s)."
+        )
+
+        return {
+            "ok": all_ok,
+            "status": "Conforme" if all_ok else f"{total_anomalies} anomalie(s) détectée(s)",
+            "summary": summary_msg,
+            "timestamp": datetime.now().isoformat(),
+            "clients": clients_report,
+            "suppliers": suppliers_report,
+            "stock": stock_report,
+            "scf": scf_report,
+            "total_anomalies": total_anomalies,
+        }
+

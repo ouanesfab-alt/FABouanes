@@ -57,10 +57,12 @@ async def save_idempotency(key: str | None, response: dict[str, Any], db=None) -
 
 async def cleanup_expired_idempotency_keys(max_age_days: int = 7, db=None) -> int:
     """Supprime les entrées d'idempotence plus vieilles que `max_age_days` jours."""
+    from datetime import datetime, timedelta, timezone
     try:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=int(max_age_days))
         async with unit_of_work(db, auto_commit=True) as session:
-            stmt = text("DELETE FROM idempotent_requests WHERE created_at < NOW() - (:max_age * INTERVAL '1 day')")
-            res = await session.execute(stmt, {"max_age": int(max_age_days)})
+            stmt = text("DELETE FROM idempotent_requests WHERE created_at < :cutoff")
+            res = await session.execute(stmt, {"cutoff": cutoff})
             deleted = res.rowcount if hasattr(res, "rowcount") else 0
             logger.info(
                 "Idempotency cleanup: deleted %d expired entries (older than %d days)",

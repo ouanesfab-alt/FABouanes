@@ -10,7 +10,7 @@ from sqlmodel import case, func, literal, or_, select, union_all
 
 from app.core.base_repository import AsyncRepository
 from app.core.models import Client, FinishedProduct, Payment, RawMaterial, RawSale, Sale, SaleDocument
-from app.core.perf_cache import TTL_SEMI_STABLE, async_cached_result
+from app.infra.perf_cache import TTL_SEMI_STABLE, async_cached_result
 from app.core.uow import unit_of_work
 
 
@@ -373,10 +373,10 @@ class SaleDocumentRepository(AsyncRepository[SaleDocument]):
 
 
 def invalidate_sellable_items_cache() -> None:
-    from app.core.perf_cache import invalidate_cache_domain
+    from app.infra.perf_cache import invalidate_cache_domain
 
     invalidate_cache_domain("sales_sellable_items")
-    from app.core.perf_cache import invalidate_cache_domains
+    from app.infra.perf_cache import invalidate_cache_domains
 
     invalidate_cache_domains("dashboard", "sales", "client")
 

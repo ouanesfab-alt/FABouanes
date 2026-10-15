@@ -13,7 +13,7 @@ try:
     limiter = Limiter(
         key_func=_rate_limit_key,
         default_limits=["200/minute"],
-        storage_uri="memory://",
+        storage_uri=settings.redis_url or "memory://",
         enabled=(not settings.desktop_mode) and settings.env != "test",
     )
 except Exception:

@@ -10,7 +10,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.core.audit import audit_event
 from app.core.config import settings
-from app.core.db_helpers import execute_db_async, query_db_async
+from app.core.database import execute_db_async, query_db_async
 from app.core.permissions import PERMISSION_API_ACCESS, has_permission
 from app.modules.users.repository import get_user_by_id
 
@@ -61,7 +61,7 @@ def decode_access_token(raw_token: str) -> dict[str, Any]:
         raise HTTPException(
             status_code=401, detail={"code": "access_token_invalid", "message": "Jeton d'acces invalide."}
         ) from exc
-    from app.core.db_helpers import query_db
+    from app.core.database import query_db
 
     user = query_db("SELECT * FROM users WHERE id = %s", (int(payload.get("sub", 0) or 0),), one=True)
     if not user or not int(user.get("is_active", 1) or 0):

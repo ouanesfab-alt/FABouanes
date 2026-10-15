@@ -7,7 +7,7 @@ from unittest import mock
 from app.core.db_helpers.manager import DatabaseManager
 from app.core.exceptions import NotFoundError, ConflictError
 from app.modules.sales.commands import SalesCommands
-from app.modules.sales.schemas_validation import SaleFormSchema, SaleLineSchema
+from app.modules.sales.schemas import SaleFormSchema, SaleLineSchema
 
 
 def test_database_manager_helpers():

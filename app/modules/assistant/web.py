@@ -5,7 +5,7 @@ import os
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
-from app.core.db_helpers import db_manager
+from app.core.database import db_manager
 from app.core.security import encrypt_val
 from app.modules.assistant.schema_context import get_encryption_key, get_gemini_api_key
 from app.modules.assistant.service import run_assistant_agent_generator, start_ollama

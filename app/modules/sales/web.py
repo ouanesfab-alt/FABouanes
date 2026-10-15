@@ -8,13 +8,12 @@ from sqlmodel import select
 
 from app.core.async_db import get_async_session
 from app.core.exceptions import get_friendly_error_message
-from app.core.helpers import wants_print_after_submit
 from app.core.models import Client
 from app.core.permissions import PERMISSION_OPERATIONS_DELETE, PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
 from app.core.request_state import set_state_value
-from app.modules.sales.schemas_validation import SaleFormSchema
+from app.modules.sales.schemas import SaleFormSchema
 from app.modules.sales.service import SalesService
-from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
+from app.web.deps import csrf_protect, flash, require_permission, template_context, templates, wants_print_after_submit
 
 router = APIRouter(tags=["sales"])
 

@@ -753,13 +753,14 @@ import app.api.v1.purchases
 import app.api.v1.sales
 import app.web.deps
 import app.modules.admin.web
-import app.web.auth_pages
+import app.modules.users.web
 import app.modules.clients.web
-import app.web.dashboard_pages
+import app.modules.reports.dashboard_web
 import app.modules.accounting.web
 import app.modules.production.web
 import app.modules.reports.web
-import app.web.search_pages
+import app.modules.catalog.search_web
+import app.modules.admin.manual_web
 import app.modules.expenses.web
 import app.api.v1.expenses
 
@@ -919,96 +920,61 @@ class TestHTTPRoutes:
 class TestServicesDirect:
     @pytest.mark.asyncio
     async def test_alert_service(self):
-        from app.services.alert_service import check_overdue_clients, broadcast_overdue_alerts
+        from app.modules.admin.alert_service import check_overdue_clients, broadcast_overdue_alerts
         assert isinstance(await check_overdue_clients(30), list)
         assert isinstance(await broadcast_overdue_alerts(), int)
 
     @pytest.mark.asyncio
     async def test_backup_service(self):
-        from app.services.backup_service import get_backup_settings, save_backup_configuration, list_backup_jobs
+        from app.modules.admin.backup_service import get_backup_settings, save_backup_configuration, list_backup_jobs
         assert isinstance(await get_backup_settings(), dict)
         await save_backup_configuration({"auto_backup": "1", "backup_interval": "600"})
         assert isinstance(await list_backup_jobs(), list)
 
     @pytest.mark.asyncio
     async def test_system_service(self):
-        from app.services.system_service import get_system_status, export_diagnostic_report
+        from app.modules.admin.system_service import get_system_status, export_diagnostic_report
         assert isinstance(await get_system_status(), dict)
         assert isinstance(await export_diagnostic_report(), str)
 
     @pytest.mark.asyncio
     async def test_activity_service(self):
-        from app.services.activity_service import list_admin_activity, list_activity_actions, list_activity_entity_types
+        from app.modules.admin.activity_service import list_admin_activity, list_activity_actions, list_activity_entity_types
         assert isinstance(await list_admin_activity({}), list)
         assert isinstance(await list_activity_actions(), list)
         assert isinstance(await list_activity_entity_types(), list)
 
     @pytest.mark.asyncio
     async def test_payment_service(self):
-        from app.services.payment_service import new_payment_context, create_mobile_payment
+        from app.modules.payments.service import new_payment_context, create_mobile_payment
         assert await new_payment_context() is not None
         assert await create_mobile_payment(1, 100.0, "2026-05-31", "notes", 1) is not None
 
     @pytest.mark.asyncio
     async def test_stock_service(self):
-        from app.services.stock_service import unit_choices, qty_to_kg, unit_price_to_kg
+        from app.modules.catalog.stock_service import unit_choices, qty_to_kg, unit_price_to_kg
         assert isinstance(unit_choices(), list)
         assert qty_to_kg(10.0, "sac (50kg)") == 500.0
         assert unit_price_to_kg(10.0, "quintal") == 0.1
 
     @pytest.mark.asyncio
     async def test_print_service(self):
-        from app.services.printing import build_print_payload
+        from app.infra.printing import build_print_payload
         assert await build_print_payload("payment", 1) is not None
 
     @pytest.mark.asyncio
     async def test_helpers_coverage(self):
-        from app.core import helpers
-        
-        helpers.to_float("1,5")
-        helpers.to_float(None)
-        helpers.wants_print_after_submit()
-        helpers.unit_choices()
-        try:
-            helpers.init_db()
-        except Exception:
-            pass
-        helpers.log_server_start()
-        
-        await helpers.refresh_sale_profits_for_item("raw", 1, 10.0)
-        await helpers.get_open_credit_entries(1)
-        await helpers.load_saved_recipes()
-        await helpers.save_recipe_definition(1, "Recipe X", "notes", [{"material": {"id": 1}, "qty": 5.0}])
-        await helpers.reverse_purchase(1)
-        await helpers.reverse_sale("finished", 1)
-        await helpers.reverse_production(1)
-        
-        try:
-            await helpers.create_purchase_record(1, 1, 10.0, 5.0, "2026-05-31", "notes", item_id=1)
-        except Exception:
-            pass
-            
-        try:
-            await helpers.create_sale_record(1, "finished", 1, 10.0, "kg", 5.0, "credit", "2026-05-31", "notes")
-        except Exception:
-            pass
-            
-        try:
-            await helpers.create_payment_record(1, 100.0, "2026-05-31", "notes")
-        except Exception:
-            pass
-            
-        await helpers.reverse_payment_allocations({"amount": 100.0, "payment_type": "versement", "sale_kind": "finished", "sale_id": 1})
-        
-        try:
-            helpers.parse_excel_client_file("dummy")
-        except Exception:
-            pass
-            
-        try:
-            helpers.parse_excel_client_history("dummy")
-        except Exception:
-            pass
+        from app.utils.formatters import to_float, format_dzd
+        from app.web.deps import wants_print_after_submit
+        from app.modules.catalog.stock_service import unit_choices
+        from app.modules.admin.system_service import log_server_start
+
+        assert to_float("1,5") == 1.5
+        assert to_float(None) == 0.0
+        assert "DA" in format_dzd(1250)
+        assert wants_print_after_submit() is False
+        assert len(unit_choices()) > 0
+        log_server_start()
 
 
 # ─── Tests métier critiques ────────────────────────────────────────────────────
@@ -1068,7 +1034,7 @@ class TestCriticalServiceIntegrity:
     def test_perf_cache_no_pickle_dependency(self):
         """Vérifie que pickle n'est plus importé dans perf_cache (risque sécurité)."""
         import inspect
-        import app.core.perf_cache as pc
+        import app.infra.perf_cache as pc
         source = inspect.getsource(pc)
         assert "import pickle" not in source, (
             "pickle ne doit plus être importé dans perf_cache.py (risque de désérialisation arbitraire)"
@@ -1076,7 +1042,7 @@ class TestCriticalServiceIntegrity:
 
     def test_in_memory_cache_ttl_and_eviction(self):
         """Vérifie l'expiration par TTL du cache via invalidation de domaine (méthode fiable)."""
-        from app.core.perf_cache import InMemoryCache
+        from app.infra.perf_cache import InMemoryCache
         cache = InMemoryCache()
         key = ("test_domain", "key1")
         fp = f"v:{cache.cache_generation()}"
@@ -1091,7 +1057,7 @@ class TestCriticalServiceIntegrity:
 
     def test_in_memory_cache_domain_invalidation(self):
         """Vérifie l'invalidation par domaine du cache."""
-        from app.core.perf_cache import InMemoryCache
+        from app.infra.perf_cache import InMemoryCache
         cache = InMemoryCache()
         key = ("test_domain", "key_inv")
         fp = f"v:{cache.cache_generation()}"

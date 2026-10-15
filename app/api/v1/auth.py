@@ -20,7 +20,7 @@ from app.core.activity import log_activity
 from app.core.audit import audit_event
 from app.core.rate_limit import limiter
 from app.modules.users.schemas import LoginRequest as UserLoginSchema
-from app.services.auth_service import attempt_login
+from app.modules.users.service import attempt_login
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 

@@ -3,16 +3,17 @@ from __future__ import annotations
 import asyncio
 from collections import defaultdict
 from datetime import date, timedelta
+from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events import DomainEvent, emit
-from app.core.helpers import refresh_sale_profits_for_item, unit_choices
+from app.modules.catalog.stock_service import refresh_sale_profits_for_item, unit_choices
 from app.core.models import FinishedProduct, RawMaterial, SavedRecipe, SavedRecipeItem
-from app.core.perf_cache import async_cached_result, invalidate_cache_domains
+from app.infra.perf_cache import async_cached_result, invalidate_cache_domains
 from app.modules.catalog.repository import FinishedProductRepository, RawMaterialRepository, SavedRecipeRepository
-from app.modules.catalog.schemas_validation import (
+from app.modules.catalog.schemas import (
     FinishedProductCreateSchema,
     FinishedProductUpdateSchema,
     RawMaterialCreateSchema,
@@ -382,9 +383,9 @@ class CatalogService:
             grouped[int(row["recipe_id"])].append(
                 {
                     "raw_material_id": int(row["raw_material_id"]),
-                    "quantity": float(row["quantity"]),
+                    "quantity": Decimal(str(row["quantity"])),
                     "material_name": row["material_name"],
-                    "stock_qty": float(row["stock_qty"]),
+                    "stock_qty": Decimal(str(row["stock_qty"])),
                     "unit": row["unit"],
                 }
             )
@@ -428,7 +429,7 @@ class CatalogService:
             recipe_item = SavedRecipeItem(
                 recipe_id=recipe_id,
                 raw_material_id=int(item_data["raw_material_id"]),
-                quantity=float(item_data["quantity"]),
+                quantity=Decimal(str(item_data["quantity"])),
                 position=pos,
             )
             await self.recipe_repo.add_recipe_item(recipe_item)

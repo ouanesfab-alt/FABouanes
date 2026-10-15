@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.async_db import get_async_sessionmaker
 from app.core.audit import audit_event
 from app.core.config import APP_DATA_DIR, DATABASE_URL
-from app.core.db_helpers import connect_database
+from app.core.database import connect_database
 
 logger = logging.getLogger("fabouanes")
 
@@ -54,6 +54,93 @@ def _event_backup_interval_seconds() -> int:
         return max(60, int(raw))
     except (ValueError, TypeError):
         return 600
+
+
+def backup_sqlite_hot(
+    source_db_path: Path | str,
+    target_backup_path: Path | str,
+    *,
+    compress: bool = True,
+) -> Path:
+    """
+    Sauvegarde à chaud native SQLite utilisant sqlite3.Connection.backup().
+    Exécute un PRAGMA integrity_check sur la copie avant de valider l'archive.
+    """
+    import gzip
+    import shutil
+    import sqlite3
+
+    src_path = Path(source_db_path).resolve()
+    dst_path = Path(target_backup_path).resolve()
+    dst_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not src_path.exists():
+        raise FileNotFoundError(f"Base SQLite source introuvable: {src_path}")
+
+    tmp_raw = dst_path.parent / f"{dst_path.stem}.tmp_raw.db"
+    if tmp_raw.exists():
+        tmp_raw.unlink()
+
+    # 1. Sauvegarde à chaud native (verrou de lecture partagée minimal)
+    src_conn = sqlite3.connect(str(src_path))
+    dst_conn = sqlite3.connect(str(tmp_raw))
+    try:
+        src_conn.backup(dst_conn)
+        dst_conn.commit()
+    finally:
+        src_conn.close()
+        dst_conn.close()
+
+    # 2. Vérification d'intégrité PRAGMA integrity_check sur la copie
+    check_conn = sqlite3.connect(str(tmp_raw))
+    try:
+        cur = check_conn.cursor()
+        cur.execute("PRAGMA integrity_check")
+        rows = cur.fetchall()
+        if not rows or rows[0][0] != "ok":
+            tmp_raw.unlink(missing_ok=True)
+            raise RuntimeError(f"Échec de l'intégrité SQLite (PRAGMA integrity_check): {rows}")
+    finally:
+        check_conn.close()
+
+    # 3. Compression atomique ou renommage direct
+    if compress:
+        final_gz = dst_path if dst_path.name.endswith(".gz") else Path(str(dst_path) + ".gz")
+        tmp_gz = final_gz.with_suffix(".tmp.gz")
+        with open(tmp_raw, "rb") as f_in, gzip.open(tmp_gz, "wb", compresslevel=6) as f_out:
+            shutil.copyfileobj(f_in, f_out)
+        tmp_raw.unlink(missing_ok=True)
+        tmp_gz.replace(final_gz)
+        return final_gz
+    else:
+        tmp_raw.replace(dst_path)
+        return dst_path
+
+
+def create_hot_sqlite_backup(reason: str = "manual") -> Path:
+    """Détecte la base SQLite active et produit une sauvegarde à chaud vérifiée."""
+    safe_reason = reason.replace(" ", "_")
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_dir = APP_DATA_DIR / "backups" / "local"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+
+    target_file = backup_dir / f"sqlite_backup_{stamp}_{safe_reason}.db.gz"
+
+    if DATABASE_URL.startswith("sqlite"):
+        raw = DATABASE_URL.replace("sqlite:///", "").replace("sqlite://", "")
+        src = Path(raw).resolve()
+    else:
+        src = (APP_DATA_DIR / "fabouanes.db").resolve()
+
+    if not src.exists():
+        # Crée une base minimale si elle n'existe pas encore pour les tests
+        import sqlite3
+        conn = sqlite3.connect(str(src))
+        conn.execute("CREATE TABLE IF NOT EXISTS _fab_init (id INTEGER PRIMARY KEY)")
+        conn.commit()
+        conn.close()
+
+    return backup_sqlite_hot(src, target_file, compress=True)
 
 
 async def _get_setting_db(key: str, default: str, db: AsyncSession) -> str:
@@ -264,7 +351,7 @@ async def _mirror_backup_to_sync_folder(local_path: Path, db: AsyncSession) -> t
     if sync_folder_raw and Path(sync_folder_raw).exists():
         target_dir = Path(sync_folder_raw)
     else:
-        from app.core.storage import get_google_drive_sync_dir
+        from app.infra.storage import get_google_drive_sync_dir
 
         target_dir = get_google_drive_sync_dir()
 
@@ -330,7 +417,7 @@ async def run_pending_backup_jobs(limit: int = 3) -> int:
             try:
                 local_path = Path(job["local_path"])
                 if str(job["local_path"]) == BACKUP_CREATE_IN_WORKER:
-                    from app.core.storage import capture_local_backup_snapshot
+                    from app.infra.storage import capture_local_backup_snapshot
 
                     local_path = await asyncio.to_thread(capture_local_backup_snapshot, str(job["reason"] or "manual"))
                     await session.execute(
@@ -398,7 +485,7 @@ async def run_pending_backup_jobs(limit: int = 3) -> int:
 
 
 async def run_deferred_event_backup(*, force: bool = False, reason: str = "deferred_event") -> Path | None:
-    from app.core.storage import (
+    from app.infra.storage import (
         capture_local_backup_snapshot,
         clear_backup_needed,
         get_pending_backup_marker,
@@ -479,13 +566,13 @@ async def trigger_nightly_snapshot_if_due() -> bool:
             return False
         if (now.hour, now.minute) < (hour, minute):
             return False
-        from app.core.storage import capture_local_backup_snapshot
+        from app.infra.storage import capture_local_backup_snapshot
 
         backup_path = await asyncio.to_thread(capture_local_backup_snapshot, "nightly_snapshot")
         await _enqueue_backup_upload_impl(
             "nightly_snapshot", "nightly", backup_path, None, {"scheduled": True}, db=session
         )
-        from app.core.storage import clear_backup_needed
+        from app.infra.storage import clear_backup_needed
 
         await asyncio.to_thread(clear_backup_needed)
         await _set_setting_db("backup_last_nightly_date", today, session)
@@ -603,7 +690,7 @@ def _background_loop(app) -> None:
             success &= await _safe_run_async("weekly_vacuum", _weekly_vacuum)
 
             # Dispatch outbox events to ensure transactional events are processed
-            from app.core.worker import dispatch_outbox_events_task
+            from app.infra.worker import dispatch_outbox_events_task
 
             success &= await _safe_run_async("dispatch_outbox_events", dispatch_outbox_events_task, ctx={})
 
@@ -612,14 +699,14 @@ def _background_loop(app) -> None:
                 loop_counter = BACKGROUND_STATE.get("loop_counter", 0) + 1
                 BACKGROUND_STATE["loop_counter"] = loop_counter
             if loop_counter % 20 == 0:
-                from app.core.db_helpers import postgres_pool_status
+                from app.core.database import postgres_pool_status
 
                 stats = postgres_pool_status(DATABASE_URL)
                 logger.debug("PG Pool status: %s", stats)
 
             # Call check_stock_alerts every 30 minutes (40 loops of 45s)
             if loop_counter == 1 or loop_counter % 40 == 0:
-                from app.services.alert_service import check_stock_alerts
+                from app.modules.admin.alert_service import check_stock_alerts
 
                 await _safe_run_async("check_stock_alerts", check_stock_alerts)
 

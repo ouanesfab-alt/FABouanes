@@ -11,19 +11,20 @@ from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import func, literal, literal_column, select, text, union_all
 
-from app.core import events, perf_cache
+from app.core import events
 from app.core.activity import log_activity
 from app.core.audit import audit_delete_event, audit_event
 from app.core.events import DomainEvent, emit
 from app.core.exceptions import ValidationError
-from app.core.helpers import to_float
+from app.utils.formatters import to_float
 from app.core.model_utils import _now
 from app.core.models import Client, FinishedProduct, Payment, RawMaterial, RawSale, Sale, User
-from app.core.perf_cache import invalidate_cache_domains
-from app.core.storage import mark_backup_needed
+import app.infra.perf_cache as perf_cache
+from app.infra.perf_cache import invalidate_cache_domains
+from app.infra.storage import mark_backup_needed
 from app.core.uow import unit_of_work
 from app.modules.payments.repository import PaymentRepository, payment_form_context
-from app.modules.payments.schemas_validation import PaymentFormSchema
+from app.modules.payments.schemas import PaymentFormSchema
 from app.modules.sales.service import SalesService
 from app.modules.users.repository import get_user_by_id
 
@@ -118,10 +119,10 @@ class PaymentsService:
         res = await self.session.execute(stmt)
         return [dict(row._mapping) for row in res.fetchall()]
 
-    async def apply_payment_to_entry(self, kind: str, row_id: int, amount: float | Decimal) -> float:
+    async def apply_payment_to_entry(self, kind: str, row_id: int, amount: float | Decimal) -> Decimal:
         dec_amount = Decimal(str(amount or 0))
         if dec_amount <= Decimal("0"):
-            return 0.0
+            return Decimal("0.00")
 
         sales_service = SalesService(self.session)
         if kind == "finished":
@@ -129,33 +130,33 @@ class PaymentsService:
             res = await self.session.execute(stmt)
             sale = _resolve_scalar(res)
             if not sale:
-                return 0.0
+                return Decimal("0.00")
             sale_bal = _to_decimal(getattr(sale, "balance_due", 0))
             sale_paid = _to_decimal(getattr(sale, "amount_paid", 0))
             paid = min(dec_amount, sale_bal).quantize(Decimal("0.01"))
-            sale.balance_due = float(max(Decimal("0"), sale_bal - paid).quantize(Decimal("0.01")))
-            sale.amount_paid = float((sale_paid + paid).quantize(Decimal("0.01")))
+            sale.balance_due = max(Decimal("0.00"), sale_bal - paid).quantize(Decimal("0.01"))
+            sale.amount_paid = (sale_paid + paid).quantize(Decimal("0.01"))
             self.session.add(sale)
             await self.session.flush()
             if getattr(sale, "document_id", None):
                 await sales_service.recalc_sale_document_totals(int(sale.document_id))
-            return float(paid)
+            return paid
         else:
             stmt = select(RawSale).where(RawSale.id == row_id).with_for_update()
             res = await self.session.execute(stmt)
             sale = _resolve_scalar(res)
             if not sale:
-                return 0.0
+                return Decimal("0.00")
             sale_bal = _to_decimal(getattr(sale, "balance_due", 0))
             sale_paid = _to_decimal(getattr(sale, "amount_paid", 0))
             paid = min(dec_amount, sale_bal).quantize(Decimal("0.01"))
-            sale.balance_due = float(max(Decimal("0"), sale_bal - paid).quantize(Decimal("0.01")))
-            sale.amount_paid = float((sale_paid + paid).quantize(Decimal("0.01")))
+            sale.balance_due = max(Decimal("0.00"), sale_bal - paid).quantize(Decimal("0.01"))
+            sale.amount_paid = (sale_paid + paid).quantize(Decimal("0.01"))
             self.session.add(sale)
             await self.session.flush()
             if getattr(sale, "document_id", None):
                 await sales_service.recalc_sale_document_totals(int(sale.document_id))
-            return float(paid)
+            return paid
 
     async def reverse_payment_allocations(self, payment_row: dict) -> None:
         sales_service = SalesService(self.session)
@@ -188,8 +189,8 @@ class PaymentsService:
                     if doc_row:
                         curr_paid = _to_decimal(getattr(doc_row, "amount_paid", 0))
                         curr_bal = _to_decimal(getattr(doc_row, "balance_due", 0))
-                        doc_row.amount_paid = float(max(Decimal("0"), curr_paid - dec_amount).quantize(Decimal("0.01")))
-                        doc_row.balance_due = float((curr_bal + dec_amount).quantize(Decimal("0.01")))
+                        doc_row.amount_paid = max(Decimal("0.00"), curr_paid - dec_amount).quantize(Decimal("0.01"))
+                        doc_row.balance_due = (curr_bal + dec_amount).quantize(Decimal("0.01"))
                         self.session.add(doc_row)
                         await self.session.flush()
                         if getattr(doc_row, "document_id", None):
@@ -201,8 +202,8 @@ class PaymentsService:
                     if doc_row:
                         curr_paid = _to_decimal(getattr(doc_row, "amount_paid", 0))
                         curr_bal = _to_decimal(getattr(doc_row, "balance_due", 0))
-                        doc_row.amount_paid = float(max(Decimal("0"), curr_paid - dec_amount).quantize(Decimal("0.01")))
-                        doc_row.balance_due = float((curr_bal + dec_amount).quantize(Decimal("0.01")))
+                        doc_row.amount_paid = max(Decimal("0.00"), curr_paid - dec_amount).quantize(Decimal("0.01"))
+                        doc_row.balance_due = (curr_bal + dec_amount).quantize(Decimal("0.01"))
                         self.session.add(doc_row)
                         await self.session.flush()
                         if getattr(doc_row, "document_id", None):
@@ -214,26 +215,30 @@ class PaymentsService:
 
         if payment_row.get("sale_kind") == "finished" and payment_row.get("sale_id"):
             sale_id = int(payment_row["sale_id"])
-            amount = float(payment_row["amount"])
+            amount = Decimal(str(payment_row["amount"] or 0))
             stmt = select(Sale).where(Sale.id == sale_id).with_for_update()
             res = await self.session.execute(stmt)
             doc_row = res.scalar_one_or_none()
             if doc_row:
-                doc_row.amount_paid = round(max(0.0, float(doc_row.amount_paid or 0.0) - amount), 2)
-                doc_row.balance_due = round(float(doc_row.balance_due or 0.0) + amount, 2)
+                curr_paid = _to_decimal(getattr(doc_row, "amount_paid", 0))
+                curr_bal = _to_decimal(getattr(doc_row, "balance_due", 0))
+                doc_row.amount_paid = max(Decimal("0.00"), curr_paid - amount).quantize(Decimal("0.01"))
+                doc_row.balance_due = (curr_bal + amount).quantize(Decimal("0.01"))
                 self.session.add(doc_row)
                 await self.session.flush()
                 if doc_row.document_id:
                     await sales_service.recalc_sale_document_totals(int(doc_row.document_id))
         elif payment_row.get("sale_kind") == "raw" and payment_row.get("raw_sale_id"):
             raw_sale_id = int(payment_row["raw_sale_id"])
-            amount = float(payment_row["amount"])
+            amount = Decimal(str(payment_row["amount"] or 0))
             stmt = select(RawSale).where(RawSale.id == raw_sale_id).with_for_update()
             res = await self.session.execute(stmt)
             doc_row = res.scalar_one_or_none()
             if doc_row:
-                doc_row.amount_paid = round(max(0.0, float(doc_row.amount_paid or 0.0) - amount), 2)
-                doc_row.balance_due = round(float(doc_row.balance_due or 0.0) + amount, 2)
+                curr_paid = _to_decimal(getattr(doc_row, "amount_paid", 0))
+                curr_bal = _to_decimal(getattr(doc_row, "balance_due", 0))
+                doc_row.amount_paid = max(Decimal("0.00"), curr_paid - amount).quantize(Decimal("0.01"))
+                doc_row.balance_due = (curr_bal + amount).quantize(Decimal("0.01"))
                 self.session.add(doc_row)
                 await self.session.flush()
                 if doc_row.document_id:
@@ -252,8 +257,7 @@ class PaymentsService:
             payment_date = date.fromisoformat(payment_date.strip())
 
         dec_amount = Decimal(str(amount or 0)).quantize(Decimal("0.01"))
-        amount = float(dec_amount)
-        if amount <= 0:
+        if dec_amount <= Decimal("0"):
             raise ValidationError("Le montant doit être supérieur à zéro.")
 
         # Verify client
@@ -270,7 +274,7 @@ class PaymentsService:
                 select(Payment.id)
                 .where(
                     Payment.client_id == client_id,
-                    Payment.amount == amount,
+                    Payment.amount == dec_amount,
                     Payment.notes == clean_notes,
                     Payment.payment_date
                     == (
@@ -295,7 +299,7 @@ class PaymentsService:
                 sale_kind=None,
                 payment_type="avance",
                 allocation_meta=None,
-                amount=amount,
+                amount=dec_amount,
                 payment_date=payment_date,
                 notes=notes or "Avance client",
             )
@@ -307,7 +311,7 @@ class PaymentsService:
         raw_sale_id = None
         sale_kind = None
         allocations: list[dict[str, Any]] = []
-        applied = 0.0
+        applied = Decimal("0.00")
 
         if sale_link and ":" in sale_link:
             sale_kind, id_str = sale_link.split(":", 1)
@@ -321,26 +325,26 @@ class PaymentsService:
             if entry and int(entry.client_id or 0) != client_id:
                 raise ValidationError("Cette créance ne correspond pas au client choisi.")
 
-            applied = await self.apply_payment_to_entry(sale_kind, row_id, amount)
-            if applied <= 0:
+            applied = await self.apply_payment_to_entry(sale_kind, row_id, dec_amount)
+            if applied <= Decimal("0"):
                 raise ValidationError("Aucune créance ouverte à solder pour ce client.")
-            allocations = [{"kind": sale_kind, "id": row_id, "amount": applied}]
+            allocations = [{"kind": sale_kind, "id": row_id, "amount": float(applied)}]
             if sale_kind == "finished":
                 sale_id = row_id
             else:
                 raw_sale_id = row_id
         else:
-            remaining = amount
+            remaining = dec_amount
             open_credits = await self.get_open_credit_entries(client_id)
             for entry in open_credits:
-                if remaining <= 0:
+                if remaining <= Decimal("0"):
                     break
                 paid = await self.apply_payment_to_entry(entry["item_kind"], entry["id"], remaining)
-                if paid > 0:
-                    allocations.append({"kind": entry["item_kind"], "id": int(entry["id"]), "amount": paid})
+                if paid > Decimal("0"):
+                    allocations.append({"kind": entry["item_kind"], "id": int(entry["id"]), "amount": float(paid)})
                     applied += paid
                     remaining -= paid
-            if applied <= 0:
+            if applied <= Decimal("0"):
                 balance = await self.get_client_balance(client_id)
                 if balance <= 0:
                     raise ValidationError("Aucune dette ouverte pour ce client.")
@@ -352,7 +356,7 @@ class PaymentsService:
             sale_kind=sale_kind,
             payment_type="versement",
             allocation_meta=json.dumps(allocations) if allocations else None,
-            amount=amount,
+            amount=dec_amount,
             payment_date=payment_date,
             notes=notes or "Versement client",
         )
@@ -743,7 +747,6 @@ async def _delete_payment_by_id_impl(payment_id: int, db: AsyncSession) -> bool:
 
     await PaymentsService(db).reverse_payment_allocations(payment_dict)
     await db.execute(delete(Payment).where(Payment.id == payment_id))
-
     perf_cache.invalidate_cache_domains("sales", "client", "dashboard")
     events.emit(
         DomainEvent(
@@ -858,7 +861,7 @@ async def reverse_payment_allocations(payment_row, db: AsyncSession | None = Non
         return
     async with unit_of_work(db) as session:
         from app.core.models import RawSale, Sale
-        from app.services.stock_service import recalc_sale_document_totals
+        from app.modules.catalog.stock_service import recalc_sale_document_totals
 
         doc_ids_to_recalc = set()
         for alloc in allocations:

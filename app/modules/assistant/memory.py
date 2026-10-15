@@ -6,7 +6,7 @@ from typing import Any, Dict
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.db_helpers import db_manager
+from app.core.database import db_manager
 from app.core.uow import unit_of_work
 
 logger = logging.getLogger("fabouanes.assistant.memory")

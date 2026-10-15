@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import pytest
+from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 from app.modules.sales.commands import SalesCommands
-from app.services.stock_service import qty_to_kg, unit_price_to_kg
+from app.modules.catalog.stock_service import qty_to_kg, unit_price_to_kg
 
 
 def test_qty_and_price_conversions():
@@ -54,8 +55,8 @@ async def test_sales_commands_rounding_precision():
 
     assert added_sale is not None
     # total = 1.333333 * 10.5555 = 14.07399... -> 14.07
-    assert added_sale.total == 14.07
+    assert added_sale.total in (14.07, Decimal("14.07"))
     # amount_paid = round(5.1234, 2) = 5.12
-    assert added_sale.amount_paid == 5.12
+    assert added_sale.amount_paid in (5.12, Decimal("5.12"))
     # balance_due = 14.07 - 5.12 = 8.95
-    assert added_sale.balance_due == 8.95
+    assert added_sale.balance_due in (8.95, Decimal("8.95"))

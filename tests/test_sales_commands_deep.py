@@ -52,8 +52,8 @@ async def test_sales_commands_create_raw_sale():
     mock_res.scalar_one_or_none.return_value = raw_mat
     mock_session.execute.return_value = mock_res
 
-    with mock.patch("app.modules.sales.validation.SalesValidator.validate_client", return_value=None), \
-         mock.patch("app.modules.sales.validation.SalesValidator.validate_stock_availability", return_value=(raw_mat, 10.0)), \
+    with mock.patch("app.modules.sales.schemas.SalesValidator.validate_client", return_value=None), \
+         mock.patch("app.modules.sales.schemas.SalesValidator.validate_stock_availability", return_value=(raw_mat, 10.0)), \
          mock.patch.object(cmd, "record_stock_movement", return_value=None), \
          mock.patch.object(cmd, "recalc_sale_document_totals", return_value=None):
 

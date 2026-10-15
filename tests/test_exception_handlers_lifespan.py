@@ -5,7 +5,7 @@ from unittest import mock
 import pytest
 from fastapi import FastAPI, Request
 
-from app.core.exception_handlers import (
+from app.web.exception_handlers import (
     is_html_request,
     not_found_handler,
     validation_handler,
@@ -62,8 +62,8 @@ async def test_lifespan_lifecycle():
          mock.patch("app.core.lifespan.stop_audit_worker"), \
          mock.patch("app.core.lifespan.bootstrap_and_migrate"), \
          mock.patch("app.core.lifespan.get_enabled_modules", return_value=[]), \
-         mock.patch("app.services.backup_service.start_background_services"), \
-         mock.patch("app.services.backup_service.shutdown_background_services"):
+         mock.patch("app.modules.admin.backup_service.start_background_services"), \
+         mock.patch("app.modules.admin.backup_service.shutdown_background_services"):
         async with lifespan(app):
             pass
 

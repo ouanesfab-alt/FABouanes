@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 import math
 from datetime import date
 from typing import Any, List, Optional
@@ -10,21 +11,21 @@ from sqlmodel import select
 
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.models import Client, FinishedProduct, RawMaterial
-from app.modules.catalog.schemas import parse_numeric
+from app.modules.catalog.schemas import parse_decimal
 from app.modules.catalog.stock_service import qty_to_kg
 
 
 class SaleLineSchema(BaseModel):
     item_key: str = Field(..., min_length=3)  # e.g. "finished:1" or "raw:2"
-    quantity: float
+    quantity: Decimal
     unit: str = Field("kg", min_length=1)
-    unit_price: float
+    unit_price: Decimal
     custom_item_name: Optional[str] = Field(default="")
 
     @field_validator("quantity", "unit_price", mode="before")
     @classmethod
-    def parse_fields(cls, val: Any) -> float:
-        return parse_numeric(val)
+    def parse_fields(cls, val: Any) -> Decimal:
+        return parse_decimal(val)
 
     @field_validator("item_key")
     @classmethod

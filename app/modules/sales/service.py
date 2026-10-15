@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.sales.commands import SalesCommands
 from app.modules.sales.queries import SalesQueries
-from app.modules.sales.schemas_validation import SaleFormSchema
+from app.modules.sales.schemas import SaleFormSchema
 
 
 class SalesService:
@@ -55,13 +56,13 @@ class SalesService:
         client_id: int | None,
         item_kind: str,
         item_id: int,
-        qty: float,
+        qty: Decimal | float,
         unit: str,
-        unit_price: float,
+        unit_price: Decimal | float,
         sale_type: str,
         sale_date: Any,
         notes: str,
-        amount_paid_input: float = 0.0,
+        amount_paid_input: Decimal | float = Decimal("0.00"),
         document_id: int | None = None,
         custom_item_name: str = "",
     ) -> Tuple[str, int]:

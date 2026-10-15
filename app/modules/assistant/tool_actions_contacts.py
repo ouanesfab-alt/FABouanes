@@ -11,13 +11,13 @@ from sqlmodel import select, text
 from app.core.config import BASE_DIR
 from app.core.exceptions import ValidationError
 from app.core.models import Purchase, PurchaseDocument
-from app.core.perf_cache import async_cached_result
+from app.infra.perf_cache import async_cached_result
 from app.modules.purchases.schemas import SupplierValidationSchema
 from app.modules.assistant.tool_actions import _assert_workspace_path, sanitize_numeric
 from app.modules.clients import service as client_service_pkg
-from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
-from app.services import contact_directory_service as contact_service
-from app.services import excel_import_service
+from app.modules.clients.schemas import ClientCreateSchema, ClientUpdateSchema
+from app.modules.clients import directory_service as contact_service
+from app.modules.admin import excel_import_service
 
 logger = logging.getLogger("fabouanes.assistant")
 

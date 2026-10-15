@@ -301,7 +301,7 @@ def _resolve_actor(actor: Mapping[str, Any] | None = None, user_id: int | None =
             resolved_role = resolved_role or cached_r
         else:
             try:
-                from app.core.db_helpers import query_db
+                from app.core.database import query_db
 
                 user_row = query_db("SELECT username, role FROM users WHERE id = %s", (uid_key,), one=True)
                 if user_row:
@@ -315,6 +315,16 @@ def _resolve_actor(actor: Mapping[str, Any] | None = None, user_id: int | None =
                 logging.getLogger("fabouanes.audit").warning("Impossible de charger l'utilisateur pour l'audit: %s", e)
 
     return resolved_id, resolved_username or "anonymous", resolved_role or "anonymous"
+
+
+def compute_audit_signature(payload: str) -> str:
+    """Génère une signature HMAC-SHA256 infalsifiable pour sceller l'enregistrement d'audit."""
+    import hashlib
+    import hmac
+    from app.core.config import settings
+
+    key = (settings.secret_key or "fabouanes_audit_tamper_evident_key").encode("utf-8")
+    return hmac.new(key, payload.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def audit_event(
@@ -343,21 +353,37 @@ def audit_event(
         user_agent = state_request.headers.get("User-Agent", "")[:500]
     else:
         request_source = request_source or "system"
+
+    dumped_before = _json_dump(before)
+    dumped_after = _json_dump(after)
+
+    meta_dict = dict(meta) if isinstance(meta, Mapping) else {}
+    if not isinstance(meta, Mapping) and meta is not None:
+        meta_dict = {"original_meta": meta}
+
+    resolved_username_str = actor_username or "anonymous"
+    resolved_entity_id_str = "" if entity_id is None else str(entity_id)
+
+    # Scellement cryptographique HMAC
+    sig_payload = f"{resolved_username_str}:{action}:{entity_type}:{resolved_entity_id_str}:{status}:{dumped_before}:{dumped_after}"
+    meta_dict["_audit_sig"] = compute_audit_signature(sig_payload)
+    dumped_meta = _json_dump(meta_dict)
+
     params = (
         actor_user_id,
-        actor_username or "anonymous",
+        resolved_username_str,
         actor_role or "anonymous",
         request_source,
         action,
         entity_type,
-        "" if entity_id is None else str(entity_id),
+        resolved_entity_id_str,
         status,
         remote_addr,
         user_agent,
         request_id,
-        _json_dump(before),
-        _json_dump(after),
-        _json_dump(meta),
+        dumped_before,
+        dumped_after,
+        dumped_meta,
     )
     global _last_warned_ts, _AUDIT_DROPPED
     queue = _get_audit_queue()
@@ -549,3 +575,76 @@ def audit_delete_event(
         before=snapshot,
         actor={"id": resolved_user_id, "username": actor_username, "role": actor_role} if resolved_user_id else None,
     )
+
+
+async def verify_audit_log_integrity(limit: int = 200, db: AsyncSession | None = None) -> dict[str, Any]:
+    """
+    Vérifie l'intégrité cryptographique des enregistrements d'audit récents.
+    Détecte toute tentative d'altération manuelle directe en base ou d'injection SQL.
+    """
+    import hmac
+
+    from app.core.uow import unit_of_work
+
+    async with unit_of_work(db) as session:
+        stmt = text("""
+            SELECT id, actor_username, action, entity_type, entity_id, status, before_json, after_json, meta_json, created_at
+            FROM audit_logs
+            ORDER BY id DESC
+            LIMIT :lim
+        """)
+        res = await session.execute(stmt, {"lim": limit})
+        rows = res.fetchall()
+
+        verified = 0
+        tampered = []
+        unsigned = 0
+
+        for r in rows:
+            row_id, actor_username, action, entity_type, entity_id, status, before_json, after_json, meta_json, created_at = r
+            if not meta_json:
+                unsigned += 1
+                continue
+            try:
+                m_data = json.loads(meta_json)
+                expected_sig = m_data.get("_audit_sig")
+                if not expected_sig:
+                    unsigned += 1
+                    continue
+
+                sig_payload = f"{actor_username}:{action}:{entity_type}:{entity_id or ''}:{status}:{before_json}:{after_json}"
+                calculated_sig = compute_audit_signature(sig_payload)
+
+                if hmac.compare_digest(expected_sig, calculated_sig):
+                    verified += 1
+                else:
+                    tampered.append(
+                        {
+                            "id": row_id,
+                            "action": action,
+                            "entity_type": entity_type,
+                            "timestamp": str(created_at),
+                            "reason": "Signature HMAC non conforme (données altérées en base)",
+                        }
+                    )
+            except Exception as e:
+                tampered.append(
+                    {
+                        "id": row_id,
+                        "action": action,
+                        "entity_type": entity_type,
+                        "timestamp": str(created_at),
+                        "reason": f"Erreur de décodage JSON/Signature: {e}",
+                    }
+                )
+
+        is_ok = len(tampered) == 0
+        return {
+            "ok": is_ok,
+            "status": "Intègre" if is_ok else "Altération détectée",
+            "verified_count": verified,
+            "unsigned_count": unsigned,
+            "tampered_count": len(tampered),
+            "tampered_records": tampered,
+        }
+

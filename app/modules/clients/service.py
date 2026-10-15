@@ -17,14 +17,14 @@ from werkzeug.utils import secure_filename
 
 from app.core.events import DomainEvent, emit
 from app.core.exceptions import ConflictError, ValidationError
-from app.core.helpers import parse_excel_client_file
+from app.modules.admin.excel_import_service import parse_excel_client_file
 from app.core.models import Client, ClientHistory, ClientKey
-from app.core.perf_cache import async_cached_result, invalidate_client_cache
+from app.infra.perf_cache import async_cached_result, invalidate_client_cache
 from app.core.security import decrypt_val, encrypt_val
-from app.core.storage import IMPORT_DIR, ensure_runtime_dirs
+from app.infra.storage import IMPORT_DIR, ensure_runtime_dirs
 from app.modules.clients.repository import ClientRepository
-from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
-from app.services.excel_import_service import parse_client_history_excel
+from app.modules.clients.schemas import ClientCreateSchema, ClientUpdateSchema
+from app.modules.admin.excel_import_service import parse_client_history_excel
 from app.utils.phone_normalize import normalize_phone_number
 
 _IMPORT_PREVIEW_TTL_SECONDS = 30 * 60
@@ -657,7 +657,7 @@ class ClientService:
             updated = 0
 
         if not errors:
-            from app.core.storage import mark_backup_needed
+            from app.infra.storage import mark_backup_needed
 
             mark_backup_needed("import_excel")
         return {"created": created, "updated": updated, "errors": errors, "preview": rows}

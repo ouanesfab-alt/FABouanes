@@ -7,7 +7,6 @@ from decimal import Decimal
 import logging
 from typing import Any, Dict
 
-from sqlalchemy import delete
 from sqlmodel import select
 
 from app.core.models_pkg.catalog import FinishedProduct, RawMaterial
@@ -18,7 +17,9 @@ from app.core.models_pkg.production import (
     SavedRecipeItem,
 )
 from app.modules.assistant.tool_actions import sanitize_numeric
-from app.services import production_service, recipe_service, stock_service
+from app.modules.catalog import stock_service
+from app.modules.production import service as production_service
+from app.modules.production import service as recipe_service
 
 logger = logging.getLogger("fabouanes.assistant")
 
@@ -173,10 +174,9 @@ async def handle_production(
 
     elif func_name == "delete_recipe":
         recipe_id = int(func_args.get("recipe_id") or 0)
-        async with session_maker() as session:
-            async with session.begin():
-                await session.execute(delete(SavedRecipeItem).where(SavedRecipeItem.recipe_id == recipe_id))
-                await session.execute(delete(SavedRecipe).where(SavedRecipe.id == recipe_id))
+        from app.modules.production.service import delete_saved_recipe
+
+        await delete_saved_recipe(recipe_id)
         return {"success": True, "message": f"Recette #{recipe_id} supprimée avec succès."}
 
     return None

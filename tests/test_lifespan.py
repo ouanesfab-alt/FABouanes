@@ -20,8 +20,8 @@ async def test_lifespan_startup_and_shutdown():
          patch("app.core.lifespan.bootstrap_and_migrate"), \
          patch("app.core.lifespan.execute_db"), \
          patch("app.core.lifespan.get_enabled_modules", return_value=[]), \
-         patch("app.services.backup_service.start_background_services"), \
-         patch("app.services.backup_service.shutdown_background_services"):
+         patch("app.modules.admin.backup_service.start_background_services"), \
+         patch("app.modules.admin.backup_service.shutdown_background_services"):
 
         async with lifespan(app):
             pass
@@ -41,8 +41,8 @@ async def test_lifespan_error_resilience():
          patch("app.core.lifespan.bootstrap_and_migrate"), \
          patch("app.core.lifespan.execute_db"), \
          patch("app.core.lifespan.get_enabled_modules", return_value=[]), \
-         patch("app.services.backup_service.start_background_services"), \
-         patch("app.services.backup_service.shutdown_background_services", side_effect=RuntimeError("shutdown fail")):
+         patch("app.modules.admin.backup_service.start_background_services"), \
+         patch("app.modules.admin.backup_service.shutdown_background_services", side_effect=RuntimeError("shutdown fail")):
 
         async with lifespan(app):
             pass

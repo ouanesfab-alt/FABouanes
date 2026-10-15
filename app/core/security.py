@@ -203,7 +203,7 @@ def decrypt_val(enc_val: str | None, key: bytes | None) -> str | None:
 
 
 def get_client_key_sync(client_id: int) -> bytes | None:
-    from app.core.db_helpers import query_db
+    from app.core.database import query_db
 
     res = query_db("SELECT encryption_key FROM client_keys WHERE client_id = %s", (client_id,), one=True)
     if res and res["encryption_key"]:
@@ -212,7 +212,7 @@ def get_client_key_sync(client_id: int) -> bytes | None:
 
 
 def create_client_key_sync(client_id: int) -> bytes:
-    from app.core.db_helpers import execute_db
+    from app.core.database import execute_db
 
     key = os.urandom(32)
     b64_key = base64.b64encode(key).decode("utf-8")
@@ -224,7 +224,7 @@ def create_client_key_sync(client_id: int) -> bytes:
 
 
 def delete_client_key_sync(client_id: int) -> None:
-    from app.core.db_helpers import execute_db
+    from app.core.database import execute_db
 
     execute_db("DELETE FROM client_keys WHERE client_id = %s", (client_id,))
 

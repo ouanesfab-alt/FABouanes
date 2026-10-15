@@ -6,10 +6,10 @@ from app.modules.admin.web import router as admin_router
 from app.modules.clients.web import router as clients_router
 from app.modules.reports.web import router as report_router
 from app.modules.users.web import router as auth_router
-from app.web.dashboard_pages import router as dashboard_router
+from app.modules.reports.dashboard_web import router as dashboard_router
 from app.web.deps import verify_csrf_token
-from app.web.manual_pages import router as manual_router
-from app.web.search_pages import router as search_router
+from app.modules.admin.manual_web import router as manual_router
+from app.modules.catalog.search_web import router as search_router
 
 router = APIRouter()
 router.include_router(auth_router, dependencies=[Depends(verify_csrf_token)])

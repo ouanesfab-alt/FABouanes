@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Tuple
 
 import httpx
 
-from app.core.db_helpers import db_manager
+from app.core.database import db_manager
 from app.modules.assistant.confirmations import get_tool_confirmation_message, tool_requires_confirmation
 from app.modules.assistant.history import (
     clean_unconfirmed_tool_calls,
@@ -25,7 +25,8 @@ from app.modules.assistant.schema_context import (
     get_sabrina_system_prompt,
     get_schema,
 )
-from app.modules.assistant.sql_tools import execute_readonly_sql, execute_write_sql
+from app.modules.assistant.sql_tools import execute_readonly_sql
+from app.modules.assistant.sql_write import execute_write_sql
 from app.modules.assistant.tool_actions import execute_tool_action
 from app.modules.assistant.tool_specs import get_gemini_tools, get_ollama_tools
 
@@ -143,7 +144,7 @@ async def call_gemini_api(
 
     last_query = _get_last_user_query(contents)
     rag_ctx = get_rag_context(last_query)
-    system_instruction = get_sabrina_system_prompt(model_name, rag_context=rag_ctx)
+    system_instruction = get_sabrina_system_prompt(model_name, rag_context=rag_ctx, query=last_query)
 
     payload = {"contents": contents, "tools": tools, "systemInstruction": {"parts": [{"text": system_instruction}]}}
 
@@ -212,7 +213,7 @@ async def call_gemini_api_generator(
 
     last_query = _get_last_user_query(contents)
     rag_ctx = get_rag_context(last_query)
-    system_instruction = get_sabrina_system_prompt(model_name, rag_context=rag_ctx)
+    system_instruction = get_sabrina_system_prompt(model_name, rag_context=rag_ctx, query=last_query)
 
     payload = {"contents": contents, "tools": tools, "systemInstruction": {"parts": [{"text": system_instruction}]}}
 
@@ -479,7 +480,7 @@ async def run_ollama_agent_generator(
 
     last_query = _get_last_user_query(messages)
     rag_ctx = get_rag_context(last_query)
-    system_prompt = get_sabrina_system_prompt(OLLAMA_MODEL, rag_context=rag_ctx)
+    system_prompt = get_sabrina_system_prompt(OLLAMA_MODEL, rag_context=rag_ctx, query=last_query)
     tools = get_ollama_tools()
 
     ollama_messages = [{"role": "system", "content": system_prompt}]
@@ -1071,7 +1072,7 @@ async def run_assistant_agent_generator(
                         or "unauthenticated" in err_str
                     ):
                         try:
-                            from app.core.db_helpers import db_manager as helper_db_manager
+                            from app.core.database import db_manager as helper_db_manager
 
                             helper_db_manager.set_setting("gemini_api_key", "")
                             logger.info(

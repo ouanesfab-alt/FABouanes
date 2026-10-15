@@ -1,4 +1,4 @@
-from app.core.db_helpers import db_task, get_db
+from app.core.database import db_task, get_db
 
 
 @db_task

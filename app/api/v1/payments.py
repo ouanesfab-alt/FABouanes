@@ -12,7 +12,7 @@ from app.core.async_db import get_async_session
 from app.core.models import Payment
 from app.core.permissions import PERMISSION_OPERATIONS_DELETE, PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
 from app.modules.payments.schemas import PaymentCreateSchema
-from app.services.payment_service import create_payment_from_form, delete_payment_by_id, edit_payment_from_form
+from app.modules.payments.service import create_payment_from_form, delete_payment_by_id, edit_payment_from_form
 
 router = APIRouter(prefix="/api/v1", tags=["payments"])
 

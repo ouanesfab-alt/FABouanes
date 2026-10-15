@@ -563,12 +563,12 @@ class TestConfig:
 
 
 # =============================================================================
-# 7. app.core.perf_cache — InMemoryCache
+# 7. app.infra.perf_cache — InMemoryCache
 # =============================================================================
 
 class TestInMemoryCache:
     def _cache(self):
-        from app.core.perf_cache import InMemoryCache
+        from app.infra.perf_cache import InMemoryCache
         return InMemoryCache()
 
     def test_get_missing_returns_none(self):
@@ -631,30 +631,30 @@ class TestInMemoryCache:
 
 class TestSafeInt:
     def test_none(self):
-        from app.core.perf_cache import _safe_int
+        from app.infra.perf_cache import _safe_int
         assert _safe_int(None) == 0
 
     def test_valid(self):
-        from app.core.perf_cache import _safe_int
+        from app.infra.perf_cache import _safe_int
         assert _safe_int(42) == 42
         assert _safe_int("7") == 7
 
     def test_invalid(self):
-        from app.core.perf_cache import _safe_int
+        from app.infra.perf_cache import _safe_int
         assert _safe_int("abc") == 0
 
     def test_mock(self):
-        from app.core.perf_cache import _safe_int
+        from app.infra.perf_cache import _safe_int
         assert _safe_int(MagicMock()) == 0
 
 
 class TestCacheTTLConstants:
     def test_ordering(self):
-        from app.core.perf_cache import TTL_STABLE, TTL_SEMI_STABLE, TTL_FREQUENT, TTL_REALTIME
+        from app.infra.perf_cache import TTL_STABLE, TTL_SEMI_STABLE, TTL_FREQUENT, TTL_REALTIME
         assert TTL_STABLE > TTL_SEMI_STABLE > TTL_FREQUENT > TTL_REALTIME > 0
 
     def test_values(self):
-        from app.core.perf_cache import TTL_STABLE, TTL_SEMI_STABLE, TTL_FREQUENT, TTL_REALTIME
+        from app.infra.perf_cache import TTL_STABLE, TTL_SEMI_STABLE, TTL_FREQUENT, TTL_REALTIME
         assert TTL_STABLE == 3600.0
         assert TTL_SEMI_STABLE == 300.0
         assert TTL_FREQUENT == 30.0
@@ -662,14 +662,14 @@ class TestCacheTTLConstants:
 
 
 # =============================================================================
-# 8. app.core.perf_cache — HybridCache (Redis mocké, thread supprimé)
+# 8. app.infra.perf_cache — HybridCache (Redis mocké, thread supprimé)
 # =============================================================================
 
 class TestHybridCache:
     """Thread Redis pubsub supprimé dans tous les tests via _start_invalidation_listener mock."""
 
     def _make(self):
-        from app.core.perf_cache import HybridCache
+        from app.infra.perf_cache import HybridCache
         mc = MagicMock()
         mc.keys.return_value = []
         with patch("redis.from_url", return_value=mc), \
@@ -677,7 +677,7 @@ class TestHybridCache:
             return HybridCache("redis://localhost:6379"), mc
 
     def test_l1_hit(self):
-        from app.core.perf_cache import InMemoryCache
+        from app.infra.perf_cache import InMemoryCache
         cache, _ = self._make()
         assert isinstance(cache.l1, InMemoryCache)
         key = ("hk",)
@@ -999,16 +999,7 @@ class TestEvents:
 
     def teardown_method(self):
         from app.core import events
-        events._listeners.clear()
-        for pattern, handler in [
-            ("*", events._auto_audit), ("*", events._auto_activity),
-            ("create.*", events._auto_backup), ("update.*", events._auto_backup),
-            ("delete.*", events._auto_backup), ("create.*", events._auto_websocket),
-            ("update.*", events._auto_websocket), ("delete.*", events._auto_websocket),
-            ("create.*", events._auto_refresh_balances), ("update.*", events._auto_refresh_balances),
-            ("delete.*", events._auto_refresh_balances),
-        ]:
-            events.on(pattern, handler)
+        events.reset_default_listeners()
 
     def test_domain_event_creation(self):
         from app.core.events import DomainEvent
@@ -1116,7 +1107,7 @@ class TestEvents:
 
 
 # =============================================================================
-# 16. app.core.schema — validators complets
+# 16. app.modules.*.schemas — validators complets
 # =============================================================================
 
 class TestSchemas:

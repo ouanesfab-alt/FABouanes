@@ -5,7 +5,7 @@ import pytest
 import json
 from unittest.mock import MagicMock, patch, AsyncMock
 
-from app.services.client_account_service import (
+from app.modules.payments.service import (
     client_balance,
     get_open_credit_entries,
     apply_payment_to_entry,
@@ -110,7 +110,7 @@ async def test_get_open_credit_entries():
 
 
 @pytest.mark.asyncio
-@patch("app.services.stock_service.recalc_sale_document_totals", new_callable=AsyncMock)
+@patch("app.modules.catalog.stock_service.recalc_sale_document_totals", new_callable=AsyncMock)
 async def test_apply_payment_to_entry(mock_recalc):
     # Apply to finished sale
     session = CustomAccountMockSession()
@@ -129,7 +129,7 @@ async def test_apply_payment_to_entry(mock_recalc):
 
 
 @pytest.mark.asyncio
-@patch("app.services.stock_service.recalc_sale_document_totals", new_callable=AsyncMock)
+@patch("app.modules.catalog.stock_service.recalc_sale_document_totals", new_callable=AsyncMock)
 async def test_reverse_payment_allocations(mock_recalc):
     # Mocking payment row with metadata allocation
     allocation_meta = json.dumps([

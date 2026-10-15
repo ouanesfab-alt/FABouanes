@@ -7,12 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
 from app.core.exceptions import get_friendly_error_message
-from app.core.helpers import wants_print_after_submit
 from app.core.permissions import PERMISSION_OPERATIONS_DELETE, PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
 from app.core.request_state import set_state_value
-from app.modules.payments.schemas_validation import PaymentFormSchema
+from app.modules.payments.schemas import PaymentFormSchema
 from app.modules.payments.service import PaymentsService
-from app.web.deps import csrf_protect, flash, require_permission, template_context, templates
+from app.web.deps import csrf_protect, flash, require_permission, template_context, templates, wants_print_after_submit
 
 router = APIRouter(tags=["payments"])
 

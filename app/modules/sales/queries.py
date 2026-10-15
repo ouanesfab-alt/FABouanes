@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.helpers import unit_choices
+from app.modules.catalog.stock_service import unit_choices
 from app.modules.sales.repository import SaleDocumentRepository, SaleRepository
 
 

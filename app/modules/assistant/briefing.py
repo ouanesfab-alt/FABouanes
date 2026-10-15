@@ -11,7 +11,8 @@ import asyncio
 import logging
 from typing import Any, Dict
 
-from app.core.db_helpers import db_manager
+from app.core.database import db_manager
+from app.utils.formatters import format_dzd
 
 logger = logging.getLogger("fabouanes.assistant.briefing")
 
@@ -87,7 +88,6 @@ def generate_briefing() -> Dict[str, Any]:
                 r = yesterday_summary[0]
                 row = {"ventes_hier": r[0], "achats_hier": r[1], "versements_hier": r[2], "depenses_hier": r[3]}
 
-            from app.core.helpers import format_dzd
 
             ventes = float(row.get("ventes_hier", 0))
             achats = float(row.get("achats_hier", 0))
@@ -124,7 +124,6 @@ def generate_briefing() -> Dict[str, Any]:
                 r = month_summary[0]
                 row = {"ca_mois": r[0], "benefice_mois": r[1]}
 
-            from app.core.helpers import format_dzd
 
             ca = float(row.get("ca_mois", 0))
             benefice = float(row.get("benefice_mois", 0))
@@ -154,7 +153,6 @@ def generate_briefing() -> Dict[str, Any]:
         """)
 
         if top_debtors:
-            from app.core.helpers import format_dzd
 
             items = []
             for r in top_debtors:
@@ -195,7 +193,6 @@ async def generate_briefing_async(db=None) -> Dict[str, Any]:
         return generate_briefing()
 
     from sqlalchemy import text
-    from app.core.helpers import format_dzd
     from app.core.uow import unit_of_work
 
     sections = []

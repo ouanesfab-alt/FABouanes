@@ -8,7 +8,7 @@ logger = logging.getLogger("fabouanes.assistant")
 
 
 async def search_web(query: str) -> Dict[str, Any]:
-    from app.core.perf_cache import async_cached_result
+    from app.infra.perf_cache import async_cached_result
 
     async def builder():
         import html
@@ -73,7 +73,7 @@ async def handle_insights(
     from datetime import date, timedelta
     from sqlalchemy import column, desc, func, literal, select, table, union_all
     from app.core.models import Client, Expense, FinishedProduct, Purchase, RawMaterial, Sale, SaleDocument
-    from app.core.perf_cache import async_cached_result
+    from app.infra.perf_cache import async_cached_result
 
     clients_with_stats = table(
         "clients_with_stats",
@@ -314,7 +314,7 @@ async def handle_insights(
 
     elif func_name == "get_current_weather":
         location = func_args.get("location", "Paris").strip()
-        from app.core.perf_cache import async_cached_result
+        from app.infra.perf_cache import async_cached_result
 
         async def builder():
             import httpx
@@ -335,4 +335,27 @@ async def handle_insights(
         query = func_args.get("query", "").strip()
         return await search_web(query)
 
+    elif func_name == "run_financial_reconciliation":
+        from app.modules.accounting.service import AccountingService
+
+        async with session_maker() as session:
+            audit_report = await AccountingService.reconcile_financial_system(session)
+            return {
+                "ok": audit_report.get("ok", True),
+                "status": audit_report.get("status", "Conforme"),
+                "summary": audit_report.get("summary", ""),
+                "total_anomalies": audit_report.get("total_anomalies", 0),
+                "clients_anomalies": audit_report.get("clients", {}).get("count", 0),
+                "suppliers_anomalies": audit_report.get("suppliers", {}).get("count", 0),
+                "stock_anomalies": audit_report.get("stock", {}).get("count", 0),
+                "scf_status": audit_report.get("scf", {}).get("status", "Conforme"),
+                "details": {
+                    "clients": audit_report.get("clients", {}).get("discrepancies", []),
+                    "suppliers": audit_report.get("suppliers", {}).get("discrepancies", []),
+                    "stock": audit_report.get("stock", {}).get("discrepancies", []),
+                    "scf": audit_report.get("scf", {}),
+                },
+            }
+
     return None
+

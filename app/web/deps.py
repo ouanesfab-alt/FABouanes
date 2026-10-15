@@ -25,7 +25,7 @@ from starlette.routing import NoMatchFound
 from app.core.async_db import get_async_session
 from app.core.auth_cookie import AUTH_COOKIE_NAME, read_auth_cookie_payload
 from app.core.config import settings
-from app.core.db_helpers import query_db
+from app.core.database import query_db
 from app.core.model_utils import to_gmt1
 from app.core.permissions import has_permission
 from app.core.request_state import get_state_value
@@ -577,3 +577,9 @@ templates.env.filters["money"] = _money_filter
 templates.env.filters["qty"] = _qty_filter
 templates.env.filters["dt"] = _dt_filter
 templates.env.filters["tojson"] = _custom_tojson_filter
+
+
+def wants_print_after_submit() -> bool:
+    form = get_state_value("submitted_form")
+    return str((form or {}).get("print_after") or "").strip().lower() in {"1", "true", "on", "yes"}
+

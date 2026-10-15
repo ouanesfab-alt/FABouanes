@@ -3,7 +3,7 @@ from collections import defaultdict
 
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect, status
 
-from app.core.websockets import manager
+from app.infra.websockets import manager
 from app.utils.api_response import APIResponse
 
 logger = logging.getLogger("fabouanes.api.ws")

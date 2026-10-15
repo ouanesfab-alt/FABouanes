@@ -12,10 +12,10 @@ from app.core.activity import log_activity
 from app.core.async_db import get_async_sessionmaker
 from app.core.audit import audit_event, list_audit_logs
 from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_USERNAME
-from app.core.db_helpers import db_manager as helper_db_manager
-from app.core.perf_cache import async_cached_result
+from app.core.database import db_manager as helper_db_manager
+from app.infra.perf_cache import async_cached_result
 from app.core.security import validate_password_strength
-from app.core.storage import (
+from app.infra.storage import (
     backup_database,
     list_restore_backups,
     mark_backup_needed,
@@ -33,20 +33,20 @@ from app.modules.users.repository import (
     update_user_role_and_status,
     user_exists,
 )
-from app.services.activity_service import (
+from app.modules.admin.activity_service import (
     activity_filter_values,
     list_activity_actions,
     list_activity_entity_types,
     list_admin_activity,
 )
-from app.services.auth_service import validate_new_user_payload
-from app.services.backup_service import (
+from app.modules.users.service import validate_new_user_payload
+from app.modules.admin.backup_service import (
     enqueue_backup_snapshot,
     get_backup_settings,
     list_backup_jobs,
     save_backup_configuration,
 )
-from app.services.system_service import get_system_status
+from app.modules.admin.system_service import get_system_status
 
 logger = logging.getLogger("fabouanes.admin")
 

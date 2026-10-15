@@ -6,7 +6,7 @@ from unittest import mock
 import pytest
 
 from app.modules.sales.commands import SalesCommands
-from app.modules.sales.schemas_validation import SaleFormSchema, SaleLineSchema
+from app.modules.sales.schemas import SaleFormSchema, SaleLineSchema
 
 
 
@@ -25,7 +25,7 @@ async def test_sales_commands_create_sale_from_form_single_line():
         ]
     )
 
-    with mock.patch("app.modules.sales.validation.SalesValidator.validate_client", return_value=None), \
+    with mock.patch("app.modules.sales.schemas.SalesValidator.validate_client", return_value=None), \
          mock.patch.object(cmd, "create_sale_record", return_value=("finished", 55)), \
          mock.patch.object(cmd.sale_repo, "get_sale_detail", return_value={"id": 55, "row_kind": "finished"}):
 
@@ -51,7 +51,7 @@ async def test_sales_commands_create_sale_from_form_multi_line():
         ]
     )
 
-    with mock.patch("app.modules.sales.validation.SalesValidator.validate_client", return_value=None), \
+    with mock.patch("app.modules.sales.schemas.SalesValidator.validate_client", return_value=None), \
          mock.patch.object(cmd, "_insert_sale_document", return_value=100), \
          mock.patch.object(cmd, "create_sale_record", side_effect=[("finished", 55), ("raw", 12)]), \
          mock.patch.object(cmd.doc_repo, "get_by_id", return_value=mock.MagicMock(model_dump=lambda: {})):
@@ -78,7 +78,7 @@ async def test_sales_commands_edit_single_sale_from_form():
     )
 
     with mock.patch.object(cmd.sale_repo, "get_sale_detail", side_effect=[{"id": 55, "document_id": None}, {"id": 60}]), \
-         mock.patch("app.modules.sales.validation.SalesValidator.validate_client", return_value=None), \
+         mock.patch("app.modules.sales.schemas.SalesValidator.validate_client", return_value=None), \
          mock.patch.object(cmd, "reverse_sale", return_value=True), \
          mock.patch.object(cmd, "create_sale_record", return_value=("finished", 60)):
 

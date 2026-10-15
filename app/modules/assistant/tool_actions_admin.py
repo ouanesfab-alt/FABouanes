@@ -6,7 +6,7 @@ import os
 from typing import Any, Dict
 
 from app.core.config import BASE_DIR
-from app.core.db_helpers import db_manager
+from app.core.database import db_manager
 from app.modules.assistant.tool_actions import _assert_workspace_path
 
 logger = logging.getLogger("fabouanes.assistant")
@@ -47,20 +47,20 @@ async def handle_admin(
         return {"success": True, "message": "Fichier modifié avec succès."}
 
     elif func_name == "create_app_backup":
-        from app.services.admin_service import create_manual_backup
+        from app.modules.admin.service import create_manual_backup
 
         res = await create_manual_backup()
         return {"success": True, "backup": res}
 
     elif func_name == "list_app_backups":
-        from app.services.admin_service import list_restore_backups
+        from app.modules.admin.service import list_restore_backups
 
         res = list_restore_backups()
         return {"backups": res}
 
     elif func_name == "restore_app_backup":
         backup_name = func_args.get("backup_name", "")
-        from app.services.admin_service import restore_backup_by_value
+        from app.modules.admin.service import restore_backup_by_value
 
         await restore_backup_by_value(backup_name)
         return {"success": True, "message": "Restauration effectuée avec succès."}
@@ -69,7 +69,7 @@ async def handle_admin(
         username = func_args.get("username", "")
         password = func_args.get("password", "")
         role = func_args.get("role", "operator")
-        from app.services.admin_service import create_user_account
+        from app.modules.admin.service import create_user_account
 
         res = await create_user_account(username, password, role)
         if not res.get("ok"):
@@ -81,7 +81,7 @@ async def handle_admin(
         new_password = func_args.get("new_password", "")
         from app.core.security import validate_password_strength
         from app.modules.users.repository import update_password
-        from app.services.auth_service import generate_password_hash, get_user_by_username
+        from app.modules.users.service import generate_password_hash, get_user_by_username
 
         ok, password_msg = validate_password_strength(new_password)
         if not ok:
@@ -96,20 +96,20 @@ async def handle_admin(
 
     elif func_name == "delete_app_user":
         username = func_args.get("username", "")
-        from app.services.auth_service import get_user_by_username
+        from app.modules.users.service import get_user_by_username
 
         user = await get_user_by_username(username)
         if not user:
             return {"error": f"Utilisateur {username} introuvable."}
         async with session_maker() as session:
-            from sqlmodel import text
+            from app.modules.users.repository import delete_user
 
-            await session.execute(text("DELETE FROM users WHERE id = :id"), {"id": user["id"]})
+            await delete_user(user["id"], db=session)
             await session.commit()
         return {"success": True, "message": f"Utilisateur {username} supprimé."}
 
     elif func_name == "update_app_user":
-        from app.services.admin_service import update_user_account
+        from app.modules.admin.service import update_user_account
 
         user_id = int(func_args.get("user_id") or 0)
         role = func_args.get("role", "").strip()
@@ -126,13 +126,13 @@ async def handle_admin(
         return {"success": True, "message": f"Paramètre {key} mis à jour."}
 
     elif func_name == "run_system_maintenance":
-        from app.services.admin_service import run_database_maintenance
+        from app.modules.admin.service import run_database_maintenance
 
         result = run_database_maintenance()
         return {"success": result.get("ok", False), "message": result.get("message", "Maintenance complétée.")}
 
     elif func_name == "save_backup_settings":
-        from app.services.backup_service import save_backup_configuration
+        from app.modules.admin.backup_service import save_backup_configuration
 
         payload = {
             "gdrive_backup_dir": func_args.get("gdrive_backup_dir", ""),

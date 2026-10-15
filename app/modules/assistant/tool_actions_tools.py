@@ -66,7 +66,7 @@ async def handle_tools(
         return mem_forget(int(memory_id))
 
     elif func_name == "list_bon_space_documents":
-        from app.services.bon_space_service import list_bon_space_documents
+        from app.modules.reports.bon_space_service import list_bon_space_documents
 
         q = func_args.get("query", "").strip()
         kind = func_args.get("kind", "").strip()
@@ -77,7 +77,7 @@ async def handle_tools(
         return {"documents": docs}
 
     elif func_name == "get_recent_activity_logs":
-        from app.services.activity_service import list_admin_activity
+        from app.modules.admin.activity_service import list_admin_activity
 
         limit = int(func_args.get("limit") or 50)
         activities = await list_admin_activity(limit=limit)
@@ -87,7 +87,7 @@ async def handle_tools(
         from sqlalchemy import select
 
         from app.core.models import FinishedProduct, RawMaterial
-        from app.services.alert_service import check_overdue_clients
+        from app.modules.admin.alert_service import check_overdue_clients
 
         alerts = []
         async with session_maker() as session:

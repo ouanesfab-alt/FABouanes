@@ -12,32 +12,32 @@ from unittest.mock import AsyncMock, MagicMock, patch
 class TestSalesValidatorStatic:
 
     def test_cash_no_client_ok(self):
-        from app.modules.sales.validation import SalesValidator
+        from app.modules.sales.schemas import SalesValidator
         SalesValidator.validate_sale_type(None, "cash")
 
     def test_credit_with_client_ok(self):
-        from app.modules.sales.validation import SalesValidator
+        from app.modules.sales.schemas import SalesValidator
         SalesValidator.validate_sale_type(42, "credit")
 
     def test_credit_no_client_raises(self):
-        from app.modules.sales.validation import SalesValidator
+        from app.modules.sales.schemas import SalesValidator
         from app.core.exceptions import ValidationError
         with pytest.raises(ValidationError):
             SalesValidator.validate_sale_type(None, "credit")
 
     def test_quantity_positive_ok(self):
-        from app.modules.sales.validation import SalesValidator
+        from app.modules.sales.schemas import SalesValidator
         SalesValidator.validate_quantity(10.0)
         SalesValidator.validate_quantity(0.001)
 
     def test_quantity_zero_raises(self):
-        from app.modules.sales.validation import SalesValidator
+        from app.modules.sales.schemas import SalesValidator
         from app.core.exceptions import ValidationError
         with pytest.raises(ValidationError):
             SalesValidator.validate_quantity(0.0)
 
     def test_quantity_negative_raises(self):
-        from app.modules.sales.validation import SalesValidator
+        from app.modules.sales.schemas import SalesValidator
         from app.core.exceptions import ValidationError
         with pytest.raises(ValidationError):
             SalesValidator.validate_quantity(-5.0)
@@ -47,19 +47,19 @@ class TestSalesValidatorStatic:
 class TestSalesValidatorAsync:
 
     async def test_client_none_skips(self):
-        from app.modules.sales.validation import SalesValidator
+        from app.modules.sales.schemas import SalesValidator
         session = AsyncMock()
         await SalesValidator.validate_client(None, session)
         session.get.assert_not_called()
 
     async def test_client_found_ok(self):
-        from app.modules.sales.validation import SalesValidator
+        from app.modules.sales.schemas import SalesValidator
         session = AsyncMock()
         session.get.return_value = MagicMock()
         await SalesValidator.validate_client(1, session)
 
     async def test_client_not_found_raises(self):
-        from app.modules.sales.validation import SalesValidator
+        from app.modules.sales.schemas import SalesValidator
         from app.core.exceptions import NotFoundError
         session = AsyncMock()
         session.get.return_value = None
@@ -67,14 +67,14 @@ class TestSalesValidatorAsync:
             await SalesValidator.validate_client(99, session)
 
     async def test_finished_stock_ok(self):
-        from app.modules.sales.validation import SalesValidator
+        from app.modules.sales.schemas import SalesValidator
         session = AsyncMock()
         mock_product = MagicMock()
         mock_product.stock_qty = 100.0
         mock_res = MagicMock()
         mock_res.scalar_one_or_none.return_value = mock_product
         session.execute.return_value = mock_res
-        with patch("app.modules.sales.validation.qty_to_kg", return_value=10.0):
+        with patch("app.modules.sales.schemas.qty_to_kg", return_value=10.0):
             item, qty_kg = await SalesValidator.validate_stock_availability(
                 "finished", 1, 10.0, "kg", "", session
             )
@@ -82,7 +82,7 @@ class TestSalesValidatorAsync:
         assert qty_kg == 10.0
 
     async def test_finished_stock_insufficient_raises(self):
-        from app.modules.sales.validation import SalesValidator
+        from app.modules.sales.schemas import SalesValidator
         from app.core.exceptions import ValidationError
         session = AsyncMock()
         mock_product = MagicMock()
@@ -90,27 +90,27 @@ class TestSalesValidatorAsync:
         mock_res = MagicMock()
         mock_res.scalar_one_or_none.return_value = mock_product
         session.execute.return_value = mock_res
-        with patch("app.modules.sales.validation.qty_to_kg", return_value=10.0):
+        with patch("app.modules.sales.schemas.qty_to_kg", return_value=10.0):
             with pytest.raises(ValidationError, match="insuffisant"):
                 await SalesValidator.validate_stock_availability(
                     "finished", 1, 10.0, "kg", "", session
                 )
 
     async def test_finished_not_found_raises(self):
-        from app.modules.sales.validation import SalesValidator
+        from app.modules.sales.schemas import SalesValidator
         from app.core.exceptions import NotFoundError
         session = AsyncMock()
         mock_res = MagicMock()
         mock_res.scalar_one_or_none.return_value = None
         session.execute.return_value = mock_res
-        with patch("app.modules.sales.validation.qty_to_kg", return_value=10.0):
+        with patch("app.modules.sales.schemas.qty_to_kg", return_value=10.0):
             with pytest.raises(NotFoundError):
                 await SalesValidator.validate_stock_availability(
                     "finished", 99, 10.0, "kg", "", session
                 )
 
     async def test_raw_stock_ok(self):
-        from app.modules.sales.validation import SalesValidator
+        from app.modules.sales.schemas import SalesValidator
         session = AsyncMock()
         mock_material = MagicMock()
         mock_material.stock_qty = 200.0
@@ -118,14 +118,14 @@ class TestSalesValidatorAsync:
         mock_res = MagicMock()
         mock_res.scalar_one_or_none.return_value = mock_material
         session.execute.return_value = mock_res
-        with patch("app.modules.sales.validation.qty_to_kg", return_value=20.0):
+        with patch("app.modules.sales.schemas.qty_to_kg", return_value=20.0):
             item, qty_kg = await SalesValidator.validate_stock_availability(
                 "raw", 1, 20.0, "kg", "", session
             )
         assert item is mock_material
 
     async def test_raw_autre_no_name_raises(self):
-        from app.modules.sales.validation import SalesValidator
+        from app.modules.sales.schemas import SalesValidator
         from app.core.exceptions import ValidationError
         session = AsyncMock()
         mock_material = MagicMock()
@@ -134,17 +134,17 @@ class TestSalesValidatorAsync:
         mock_res = MagicMock()
         mock_res.scalar_one_or_none.return_value = mock_material
         session.execute.return_value = mock_res
-        with patch("app.modules.sales.validation.qty_to_kg", return_value=5.0):
+        with patch("app.modules.sales.schemas.qty_to_kg", return_value=5.0):
             with pytest.raises(ValidationError, match="nom du produit"):
                 await SalesValidator.validate_stock_availability(
                     "raw", 1, 5.0, "kg", "", session
                 )
 
     async def test_unknown_kind_raises(self):
-        from app.modules.sales.validation import SalesValidator
+        from app.modules.sales.schemas import SalesValidator
         from app.core.exceptions import ValidationError
         session = AsyncMock()
-        with patch("app.modules.sales.validation.qty_to_kg", return_value=1.0):
+        with patch("app.modules.sales.schemas.qty_to_kg", return_value=1.0):
             with pytest.raises(ValidationError):
                 await SalesValidator.validate_stock_availability(
                     "unknown", 1, 1.0, "kg", "", session
@@ -378,7 +378,7 @@ class TestSalesCommandsAsync:
 
     async def test_create_sale_from_form_cash_with_client(self):
         from app.modules.sales.commands import SalesCommands
-        from app.modules.sales.schemas_validation import SaleFormSchema
+        from app.modules.sales.schemas import SaleFormSchema
         from unittest.mock import AsyncMock, patch
 
         session = self._session()
@@ -395,7 +395,7 @@ class TestSalesCommandsAsync:
         }
         schema = SaleFormSchema.model_validate(form_data)
 
-        with patch("app.modules.sales.validation.SalesValidator.validate_client", new_callable=AsyncMock), \
+        with patch("app.modules.sales.schemas.SalesValidator.validate_client", new_callable=AsyncMock), \
              patch.object(cmd, "create_sale_record", new_callable=AsyncMock) as mock_create_rec, \
              patch.object(cmd.sale_repo, "get_sale_detail", new_callable=AsyncMock, return_value={"id": 100}), \
              patch("app.modules.sales.commands.invalidate_cache_domains"), \
@@ -411,7 +411,7 @@ class TestSalesCommandsAsync:
 
     async def test_create_sale_from_form_credit_no_client_raises(self):
         from app.modules.sales.commands import SalesCommands
-        from app.modules.sales.schemas_validation import SaleFormSchema
+        from app.modules.sales.schemas import SaleFormSchema
         from app.core.exceptions import ValidationError
 
         session = self._session()

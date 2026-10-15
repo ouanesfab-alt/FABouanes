@@ -21,7 +21,7 @@ from app.core.models import (
     Sale,
     Supplier,
 )
-from app.core.perf_cache import TTL_FREQUENT, TTL_SEMI_STABLE, async_cached_result
+from app.infra.perf_cache import TTL_FREQUENT, TTL_SEMI_STABLE, async_cached_result
 from app.core.uow import unit_of_work
 
 
@@ -36,9 +36,10 @@ async def get_dashboard_snapshot(target_date: str | None = None, db: AsyncSessio
             return await _build_dashboard_snapshot(resolved_date, session)
 
     return await async_cached_result(
-        ("dashboard_snapshot", resolved_date),
+        ("dashboard", "snapshot", resolved_date),
         load,
         ttl_seconds=45.0,
+        tags=("dashboard", "sales", "clients"),
     )
 
 
@@ -48,9 +49,10 @@ async def get_kpis_for_date(target_date: str, db: AsyncSession | None = None) ->
             return await _build_kpis_for_date(target_date, session)
 
     return await async_cached_result(
-        ("dashboard_kpis", target_date),
+        ("dashboard", "kpis", target_date),
         load,
         ttl_seconds=45.0,
+        tags=("dashboard", "sales"),
     )
 
 
@@ -77,6 +79,7 @@ async def _build_dashboard_snapshot(today: str, db: AsyncSession) -> dict:
         ("dashboard", "low_stock"),
         load_low_stock,
         ttl_seconds=TTL_FREQUENT,
+        tags=("dashboard", "stock"),
     )
 
     # Recent sales query
@@ -148,6 +151,7 @@ async def _build_dashboard_snapshot(today: str, db: AsyncSession) -> dict:
         ("dashboard", "recent_sales"),
         load_recent_sales,
         ttl_seconds=TTL_FREQUENT,
+        tags=("dashboard", "sales"),
     )
 
     # Counts query
@@ -166,6 +170,7 @@ async def _build_dashboard_snapshot(today: str, db: AsyncSession) -> dict:
         ("dashboard", "counts"),
         load_counts,
         ttl_seconds=TTL_FREQUENT,
+        tags=("dashboard", "clients", "stock", "purchases"),
     )
 
     # Sales summary query
@@ -211,6 +216,7 @@ async def _build_dashboard_snapshot(today: str, db: AsyncSession) -> dict:
         ("dashboard", "sales_summary"),
         load_sales_summary,
         ttl_seconds=TTL_FREQUENT,
+        tags=("dashboard", "sales"),
     )
 
     async def load_stock_materials():

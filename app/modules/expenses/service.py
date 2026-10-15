@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events import DomainEvent, emit
 from app.core.models import Expense
-from app.core.perf_cache import invalidate_cache_domains
+from app.infra.perf_cache import invalidate_cache_domains
 from app.modules.expenses.repository import (
     EXPENSE_CATEGORIES,
     PAYMENT_METHODS,
@@ -35,7 +36,7 @@ async def get_expense(db: AsyncSession, expense_id: int) -> Expense | None:
 
 
 async def add_expense(
-    db: AsyncSession, date: Any, category: str, description: str, amount: float, method: str = "cash"
+    db: AsyncSession, date: Any, category: str, description: str, amount: Decimal | float, method: str = "cash"
 ) -> int:
     expense_id = await _db_create(db, date, category, description, amount, method)
     created = await get_expense_by_id(db, expense_id)
@@ -48,7 +49,7 @@ async def add_expense(
 
 
 async def modify_expense(
-    db: AsyncSession, expense_id: int, date: Any, category: str, description: str, amount: float, method: str = "cash"
+    db: AsyncSession, expense_id: int, date: Any, category: str, description: str, amount: Decimal | float, method: str = "cash"
 ) -> None:
     before = await get_expense_by_id(db, expense_id)
     before_dict = before.model_dump() if before else None

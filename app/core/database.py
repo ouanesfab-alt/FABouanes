@@ -29,7 +29,7 @@ from sqlalchemy.engine import Engine
 from werkzeug.security import generate_password_hash
 
 from app.core.config import APP_DATA_DIR, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME, settings
-from app.core.perf_cache import invalidate_cache_domains
+from app.infra.perf_cache import invalidate_cache_domains
 from app.core.request_state import ensure_request_state, get_request_state
 from app.core.runtime_paths import ensure_runtime_dirs
 
@@ -1198,3 +1198,11 @@ def healthcheck() -> bool:
     except Exception as e:
         logger.error("Database healthcheck failed: %s", e)
         return False
+
+
+# Compatibility aliases for legacy tests
+sys.modules.setdefault("app.core.db_helpers", sys.modules[__name__])
+sys.modules.setdefault("app.core.db_helpers.manager", sys.modules[__name__])
+sys.modules.setdefault("app.core.db_helpers.execute", sys.modules[__name__])
+sys.modules.setdefault("app.core.db_helpers.query", sys.modules[__name__])
+

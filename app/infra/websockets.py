@@ -76,7 +76,7 @@ class ConnectionManager:
     def broadcast_sync(self, message: str):
         """Broadcast global (synchrone)."""
         try:
-            from app.core.db_helpers import execute_db
+            from app.core.database import execute_db
 
             payload = json.dumps({"type": "global", "message": message, "sender_id": WORKER_ID})
             execute_db(
@@ -107,7 +107,7 @@ class ConnectionManager:
     def broadcast_to_user(self, user_id: int, message: str):
         """Envoie un message uniquement aux connexions de cet utilisateur (synchrone)."""
         try:
-            from app.core.db_helpers import execute_db
+            from app.core.database import execute_db
 
             payload = json.dumps({"type": "user", "user_id": user_id, "message": message, "sender_id": WORKER_ID})
             execute_db(

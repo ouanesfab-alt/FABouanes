@@ -53,7 +53,7 @@ async def test_handle_insights():
     async def mock_async_cached_result(key, builder, ttl_seconds=None):
         return await builder()
 
-    with patch("app.core.perf_cache.async_cached_result", side_effect=mock_async_cached_result):
+    with patch("app.infra.perf_cache.async_cached_result", side_effect=mock_async_cached_result):
         # 1. get_business_insights (top_debtors)
         mock_res = MagicMock()
         mock_res.fetchall.return_value = [("Jean", "0555", Decimal("15000.0"))]
@@ -177,21 +177,21 @@ async def test_handle_catalog():
         [(101, "Orge", Decimal("85.0"), "kg", Decimal("5000.0"))]
     ]
     mock_session.execute.return_value = mock_res
-    with patch("app.core.perf_cache.async_cached_result", side_effect=mock_async_cached_result):
+    with patch("app.infra.perf_cache.async_cached_result", side_effect=mock_async_cached_result):
         res = await handle_catalog("search_products", {"query": "mouton"}, session_maker)
         assert "results" in res
         assert len(res["results"]) == 2
 
     # 8. import_bulk_products_excel
     with patch("app.modules.assistant.tool_actions_catalog._assert_workspace_path"):
-        with patch("app.services.excel_import_service.parse_excel_bulk_products", return_value=[{"name": "Orge", "unit": "kg", "stock_qty": 5000, "avg_cost": 85, "sale_price": 0, "alert_threshold": 1000}]):
+        with patch("app.modules.admin.excel_import_service.parse_excel_bulk_products", return_value=[{"name": "Orge", "unit": "kg", "stock_qty": 5000, "avg_cost": 85, "sale_price": 0, "alert_threshold": 1000}]):
             mock_catalog_service.create_raw_material = AsyncMock()
             with patch("app.modules.catalog.service.CatalogService", return_value=mock_catalog_service):
                 res = await handle_catalog("import_bulk_products_excel", {"filepath": "products.xlsx", "is_raw_material": True}, session_maker)
                 assert res["success"] is True
 
     # 9. get_enum_values
-    with patch("app.modules.assistant.business_helpers.get_enum_values", return_value=["val1", "val2"]):
+    with patch("app.modules.assistant.parsing.get_enum_values", return_value=["val1", "val2"]):
         res = await handle_catalog("get_enum_values", {"table": "clients", "column": "category"}, session_maker)
         assert res == ["val1", "val2"]
 
@@ -231,7 +231,7 @@ async def test_handle_contacts():
         assert res["success"] is True
 
     # 4. add_supplier
-    with patch("app.services.contact_directory_service.create_supplier_from_form", new_callable=AsyncMock, return_value=12):
+    with patch("app.modules.clients.directory_service.create_supplier_from_form", new_callable=AsyncMock, return_value=12):
         res = await handle_contacts("add_supplier", {
             "name": "Somacob", "phone": "034211111", "address": "Bejaia"
         }, session_maker)
@@ -239,8 +239,8 @@ async def test_handle_contacts():
         assert res["supplier_id"] == 12
 
     # 5. modify_supplier
-    with patch("app.services.contact_directory_service.get_supplier", new_callable=AsyncMock, return_value={"name": "Somacob", "phone": "034211111"}):
-        with patch("app.services.contact_directory_service.update_supplier_from_form", new_callable=AsyncMock, return_value=True):
+    with patch("app.modules.clients.directory_service.get_supplier", new_callable=AsyncMock, return_value={"name": "Somacob", "phone": "034211111"}):
+        with patch("app.modules.clients.directory_service.update_supplier_from_form", new_callable=AsyncMock, return_value=True):
             res = await handle_contacts("modify_supplier", {
                 "supplier_id": 12, "notes": "New note"
             }, session_maker)
@@ -248,8 +248,8 @@ async def test_handle_contacts():
 
     # 6. delete_supplier
     mock_session.execute = AsyncMock(return_value=MagicMock(scalar=MagicMock(return_value=0)))
-    with patch("app.services.contact_directory_service.get_supplier", new_callable=AsyncMock, return_value={"id": 12}):
-        with patch("app.services.contact_directory_service.delete_supplier_by_id", new_callable=AsyncMock, return_value=True):
+    with patch("app.modules.clients.directory_service.get_supplier", new_callable=AsyncMock, return_value={"id": 12}):
+        with patch("app.modules.clients.directory_service.delete_supplier_by_id", new_callable=AsyncMock, return_value=True):
             res = await handle_contacts("delete_supplier", {"supplier_id": 12}, session_maker)
             assert res["success"] is True
 
@@ -263,7 +263,7 @@ async def test_handle_production():
     session_maker = get_mock_session_maker(mock_session)
 
     # 1. create_recipe
-    with patch("app.services.recipe_service.save_recipe_definition", new_callable=AsyncMock, return_value=5):
+    with patch("app.modules.production.service.save_recipe_definition", new_callable=AsyncMock, return_value=5):
         res = await handle_production("create_recipe", {
             "name": "Recipe 1", "finished_product_id": 1, "items": [{"raw_material_id": 2, "quantity": "100.0"}]
         }, session_maker)
@@ -310,8 +310,8 @@ async def test_handle_production():
     mock_session.execute = mock_execute
     
     # Mock stock service calls
-    with patch("app.services.stock_service.apply_raw_material_consumption", new_callable=AsyncMock) as mock_consume:
-        with patch("app.services.stock_service.apply_finished_production", new_callable=AsyncMock) as mock_produce:
+    with patch("app.modules.catalog.stock_service.apply_raw_material_consumption", new_callable=AsyncMock) as mock_consume:
+        with patch("app.modules.catalog.stock_service.apply_finished_production", new_callable=AsyncMock) as mock_produce:
             res = await handle_production("add_production_batch", {
                 "finished_product_id": 1, "quantity": "100.0"
             }, session_maker)
@@ -376,14 +376,14 @@ async def test_handle_tools():
         mock_forget.assert_called_once_with(10)
 
     # 9. list_bon_space_documents
-    with patch("app.services.bon_space_service.list_bon_space_documents", new_callable=AsyncMock, return_value=[{"id": 1, "search_text": "S"}]) as mock_list_docs:
+    with patch("app.modules.reports.bon_space_service.list_bon_space_documents", new_callable=AsyncMock, return_value=[{"id": 1, "search_text": "S"}]) as mock_list_docs:
         res = await handle_tools("list_bon_space_documents", {"query": "S", "kind": "pdf"}, session_maker)
         assert "documents" in res
         assert "search_text" not in res["documents"][0]
         mock_list_docs.assert_called_once_with(q="S", kind="pdf", limit=80)
 
     # 10. get_recent_activity_logs
-    with patch("app.services.activity_service.list_admin_activity", new_callable=AsyncMock, return_value=[{"sentence": "Act"}]) as mock_logs:
+    with patch("app.modules.admin.activity_service.list_admin_activity", new_callable=AsyncMock, return_value=[{"sentence": "Act"}]) as mock_logs:
         res = await handle_tools("get_recent_activity_logs", {}, session_maker)
         assert res["logs"] == ["Act"]
         mock_logs.assert_called_once()
@@ -408,7 +408,7 @@ async def test_handle_tools():
         return MockResult([])
 
     mock_session.execute = mock_execute
-    with patch("app.services.alert_service.check_overdue_clients", new_callable=AsyncMock, return_value=[{"name": "Jean", "jours_inactif": 45, "balance": 15000}]):
+    with patch("app.modules.admin.alert_service.check_overdue_clients", new_callable=AsyncMock, return_value=[{"name": "Jean", "jours_inactif": 45, "balance": 15000}]):
         res = await handle_tools("get_active_alerts", {}, session_maker)
         assert "alerts" in res
         assert len(res["alerts"]) == 3
@@ -431,18 +431,18 @@ async def test_handle_admin():
     session_maker = get_mock_session_maker(mock_session)
 
     # 1. create_app_backup
-    with patch("app.services.admin_service.create_manual_backup", new_callable=AsyncMock, return_value={"ok": True, "local_path": "b.sql"}):
+    with patch("app.modules.admin.service.create_manual_backup", new_callable=AsyncMock, return_value={"ok": True, "local_path": "b.sql"}):
         res = await handle_admin("create_app_backup", {}, session_maker, user_role="admin")
         assert res["success"] is True
 
     # 2. list_app_backups
-    with patch("app.services.admin_service.list_restore_backups", return_value=[{"id": 1}]):
+    with patch("app.modules.admin.service.list_restore_backups", return_value=[{"id": 1}]):
         res = await handle_admin("list_app_backups", {}, session_maker, user_role="admin")
         assert "backups" in res
         assert len(res["backups"]) == 1
 
     # 3. update_app_user
-    with patch("app.services.admin_service.update_user_account", new_callable=AsyncMock) as mock_upd:
+    with patch("app.modules.admin.service.update_user_account", new_callable=AsyncMock) as mock_upd:
         res = await handle_admin("update_app_user", {
             "user_id": 1, "role": "admin", "is_active": True
         }, session_maker, user_role="admin")
@@ -450,27 +450,27 @@ async def test_handle_admin():
         mock_upd.assert_called_once()
 
     # 4. restore_app_backup
-    with patch("app.services.admin_service.restore_backup_by_value", new_callable=AsyncMock) as mock_restore:
+    with patch("app.modules.admin.service.restore_backup_by_value", new_callable=AsyncMock) as mock_restore:
         res = await handle_admin("restore_app_backup", {"backup_name": "b.sql"}, session_maker, user_role="admin")
         assert res["success"] is True
         mock_restore.assert_called_once_with("b.sql")
 
     # 5. create_app_user
-    with patch("app.services.admin_service.create_user_account", new_callable=AsyncMock, return_value={"ok": True, "message": "OK"}) as mock_create:
+    with patch("app.modules.admin.service.create_user_account", new_callable=AsyncMock, return_value={"ok": True, "message": "OK"}) as mock_create:
         res = await handle_admin("create_app_user", {"username": "user", "password": "pwd", "role": "operator"}, session_maker, user_role="admin")
         assert res["success"] is True
         mock_create.assert_called_once_with("user", "pwd", "operator")
 
     # 6. change_app_user_password
     with patch("app.core.security.validate_password_strength", return_value=(True, "")):
-        with patch("app.services.auth_service.get_user_by_username", new_callable=AsyncMock, return_value={"id": 1, "username": "user"}):
+        with patch("app.modules.users.service.get_user_by_username", new_callable=AsyncMock, return_value={"id": 1, "username": "user"}):
             with patch("app.modules.users.repository.update_password", new_callable=AsyncMock) as mock_upd_pwd:
                 res = await handle_admin("change_app_user_password", {"username": "user", "new_password": "pwd"}, session_maker, user_role="admin")
                 assert res["success"] is True
                 mock_upd_pwd.assert_called_once()
 
     # 7. delete_app_user
-    with patch("app.services.auth_service.get_user_by_username", new_callable=AsyncMock, return_value={"id": 1, "username": "user"}):
+    with patch("app.modules.users.service.get_user_by_username", new_callable=AsyncMock, return_value={"id": 1, "username": "user"}):
         mock_session.execute = AsyncMock()
         res = await handle_admin("delete_app_user", {"username": "user"}, session_maker, user_role="admin")
         assert res["success"] is True
@@ -482,12 +482,12 @@ async def test_handle_admin():
         mock_set.assert_called_once_with("k", "v")
 
     # 9. run_system_maintenance
-    with patch("app.services.admin_service.run_database_maintenance", return_value={"ok": True, "message": "Done"}):
+    with patch("app.modules.admin.service.run_database_maintenance", return_value={"ok": True, "message": "Done"}):
         res = await handle_admin("run_system_maintenance", {}, session_maker, user_role="admin")
         assert res["success"] is True
 
     # 10. save_backup_settings
-    with patch("app.services.backup_service.save_backup_configuration", new_callable=AsyncMock) as mock_save_config:
+    with patch("app.modules.admin.backup_service.save_backup_configuration", new_callable=AsyncMock) as mock_save_config:
         res = await handle_admin("save_backup_settings", {
             "gdrive_backup_dir": "dir", "backup_snapshot_time": "03:00", "backup_local_retention": 15
         }, session_maker, user_role="admin")

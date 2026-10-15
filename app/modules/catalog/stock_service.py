@@ -23,7 +23,7 @@ from app.core.models import (
     Sale,
     SaleDocument,
 )
-from app.core.perf_cache import invalidate_cache_domains, invalidate_client_cache
+from app.infra.perf_cache import invalidate_cache_domains, invalidate_client_cache
 from app.core.request_state import get_state_value
 import app.modules.catalog.repository as catalog_repo
 

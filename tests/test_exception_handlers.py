@@ -3,7 +3,7 @@ from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 from unittest import mock
 
-from app.core.exception_handlers import (
+from app.web.exception_handlers import (
     is_html_request,
     not_found_handler,
     validation_handler,

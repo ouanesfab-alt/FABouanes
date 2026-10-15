@@ -19,7 +19,7 @@ from app.core.models_pkg.production import (  # noqa: E402, F401
     SavedRecipe,
     SavedRecipeItem,
 )
-from app.core.models_pkg.purchases import Purchase, PurchaseDocument, Supplier  # noqa: E402, F401
+from app.core.models_pkg.purchases import Purchase, PurchaseDocument, Supplier, SupplierPayment  # noqa: E402, F401
 from app.core.models_pkg.sales import RawSale, Sale, SaleDocument  # noqa: E402, F401
 
 # ── Re-exports depuis models_pkg ───────────────────────────────────────────────
@@ -48,6 +48,7 @@ __all__ = [
     "Supplier",
     "Purchase",
     "PurchaseDocument",
+    "SupplierPayment",
     # Payments
     "Payment",
     # Expenses

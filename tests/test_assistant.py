@@ -4,7 +4,8 @@ from app.modules.assistant.service import (
     run_assistant_agent,
     compress_history_if_needed,
 )
-from app.modules.assistant.sql_tools import execute_readonly_sql, dry_run_sql
+from app.modules.assistant.sql_tools import execute_readonly_sql
+from app.modules.assistant.sql_write import dry_run_sql
 from app.modules.assistant.tool_actions import execute_tool_action, sanitize_numeric
 from app.modules.assistant.tool_specs import get_gemini_tools, get_ollama_tools
 from app.modules.assistant.confirmations import tool_requires_confirmation
@@ -195,7 +196,7 @@ async def test_supplier_tools_use_contact_service():
     fake_session_maker = MagicMock(return_value=fake_cm)
 
     with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
-        with patch("app.services.contact_directory_service.create_supplier_from_form", new_callable=AsyncMock, return_value=77) as mock_create:
+        with patch("app.modules.clients.directory_service.create_supplier_from_form", new_callable=AsyncMock, return_value=77) as mock_create:
             res = await execute_tool_action("add_supplier", {"name": "acme", "phone": "0555"})
             assert res["success"] is True
             assert res["supplier_id"] == 77
@@ -204,8 +205,8 @@ async def test_supplier_tools_use_contact_service():
 
     fake_session.commit.reset_mock()
     with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
-        with patch("app.services.contact_directory_service.get_supplier", new_callable=AsyncMock, return_value={"id": 77, "name": "Acme", "phone": "", "address": "", "notes": ""}):
-            with patch("app.services.contact_directory_service.update_supplier_from_form", new_callable=AsyncMock) as mock_update:
+        with patch("app.modules.clients.directory_service.get_supplier", new_callable=AsyncMock, return_value={"id": 77, "name": "Acme", "phone": "", "address": "", "notes": ""}):
+            with patch("app.modules.clients.directory_service.update_supplier_from_form", new_callable=AsyncMock) as mock_update:
                 res = await execute_tool_action("modify_supplier", {"supplier_id": 77, "notes": "ok"})
                 assert res["success"] is True
                 mock_update.assert_awaited_once()
@@ -281,13 +282,13 @@ async def test_commercial_tools_reject_missing_item_before_service_call():
 
 @pytest.mark.asyncio
 async def test_admin_user_tools_report_validation_errors():
-    with patch("app.services.admin_service.create_user_account", new_callable=AsyncMock, return_value={"ok": False, "message": "Role invalide."}) as mock_create:
+    with patch("app.modules.admin.service.create_user_account", new_callable=AsyncMock, return_value={"ok": False, "message": "Role invalide."}) as mock_create:
         res = await execute_tool_action("create_app_user", {"username": "ab", "password": "1", "role": "invalid"}, user_role="admin")
         assert "error" in res
         assert "Role invalide" in res["error"]
         mock_create.assert_awaited_once()
 
-    with patch("app.services.auth_service.get_user_by_username", new_callable=AsyncMock) as mock_get_user:
+    with patch("app.modules.users.service.get_user_by_username", new_callable=AsyncMock) as mock_get_user:
         res = await execute_tool_action("change_app_user_password", {"username": "admin", "new_password": "12"}, user_role="admin")
         assert "error" in res
         mock_get_user.assert_not_awaited()
@@ -356,7 +357,7 @@ async def test_get_business_insights_tool():
         # We also mock async_cached_result to just call the builder
         async def mock_cached(key, builder, ttl_seconds=0):
             return await builder()
-        with patch("app.core.perf_cache.async_cached_result", side_effect=mock_cached):
+        with patch("app.infra.perf_cache.async_cached_result", side_effect=mock_cached):
             res = await execute_tool_action("get_business_insights", {"insight_type": "top_debtors"})
             assert "top_debtors" in res
             assert res["top_debtors"][0]["name"] == "Client A"
@@ -500,12 +501,12 @@ def test_sql_guard_write_allow_list_passes_all_allowed_tables():
 
 
 # ===========================================================================
-# Phase 5: business_helpers tests
+# Phase 5: parsing tests
 # ===========================================================================
 
 def test_parse_french_date_basics():
     from datetime import date
-    from app.modules.assistant.business_helpers import parse_french_date
+    from app.modules.assistant.parsing import parse_french_date
 
     today = date(2024, 7, 15)
 
@@ -519,7 +520,7 @@ def test_parse_french_date_basics():
 
 def test_parse_french_date_named_months():
     from datetime import date
-    from app.modules.assistant.business_helpers import parse_french_date
+    from app.modules.assistant.parsing import parse_french_date
 
     today = date(2024, 7, 15)
 
@@ -534,7 +535,7 @@ def test_parse_french_date_named_months():
 
 
 def test_parse_amount_various_formats():
-    from app.modules.assistant.business_helpers import parse_amount
+    from app.modules.assistant.parsing import parse_amount
 
     assert parse_amount(3500) == 3500.0
     assert parse_amount(3500.0) == 3500.0
@@ -549,7 +550,7 @@ def test_parse_amount_various_formats():
 
 
 def test_get_enum_values_from_business_helpers():
-    from app.modules.assistant.business_helpers import get_enum_values
+    from app.modules.assistant.parsing import get_enum_values
 
     # Known table + column
     res = get_enum_values("expenses", "payment_method")
@@ -618,6 +619,55 @@ def test_schema_context_exports():
     prompt = get_sabrina_system_prompt("gemini-3.1-flash-lite")
     assert "Sabrina" in prompt
     assert "DZD" in prompt
+
+
+def test_dynamic_sql_schema_filtering():
+    """Verify that intent detection filters SQL schema to relevant tables."""
+    from app.modules.assistant.intent import detect_query_domains
+    from app.modules.assistant.schema_context import get_filtered_schema, get_relevant_tables_for_query, get_sabrina_system_prompt
+
+    # Stock query
+    filtered = get_filtered_schema(["raw_materials"])
+    assert "raw_materials" in filtered
+    assert "expenses" not in filtered
+
+    stock_domains = detect_query_domains("Combien de maïs avons-nous en stock ?")
+    assert "stock" in stock_domains
+    stock_tables = get_relevant_tables_for_query("Combien de maïs avons-nous en stock ?")
+    assert "raw_materials" in stock_tables
+    assert "finished_products" in stock_tables
+    assert "expenses" not in stock_tables
+
+    stock_prompt = get_sabrina_system_prompt("gemini-3.1-flash-lite", query="Combien de maïs avons-nous en stock ?")
+    assert "- raw_materials:" in stock_prompt
+    assert "- expenses:" not in stock_prompt
+
+    # Expenses query
+    exp_domains = detect_query_domains("Liste les dépenses de carburant")
+    assert "expenses" in exp_domains
+    exp_tables = get_relevant_tables_for_query("Liste les dépenses de carburant")
+    assert "expenses" in exp_tables
+    assert "sales" not in exp_tables
+
+    # General query falls back to full schema
+    gen_tables = get_relevant_tables_for_query("bonjour")
+    assert "sales" in gen_tables
+    assert "expenses" in gen_tables
+    assert "raw_materials" in gen_tables
+
+
+def test_sql_tools_read_only_strictly_enforced():
+    """Verify sql_tools does not export write tools and executes readonly SQL with timeout."""
+    import app.modules.assistant.sql_tools as sql_tools
+
+    assert not hasattr(sql_tools, "execute_write_sql")
+    assert not hasattr(sql_tools, "dry_run_sql")
+
+    from app.modules.assistant.sql_tools import execute_readonly_sql
+    res = execute_readonly_sql("SELECT 1 AS num")
+    assert "rows" in res
+    assert len(res["rows"]) >= 1
+
 
 
 def test_classify_intent():
@@ -703,7 +753,7 @@ async def test_admin_tools_role_security():
     fake_session_maker = MagicMock(return_value=fake_cm)
 
     with patch("app.core.async_db.get_async_sessionmaker", return_value=fake_session_maker):
-        with patch("app.services.admin_service.create_user_account", new_callable=AsyncMock, return_value={"ok": True, "message": "created"}) as mock_create:
+        with patch("app.modules.admin.service.create_user_account", new_callable=AsyncMock, return_value={"ok": True, "message": "created"}) as mock_create:
             res_allowed = await execute_tool_action(
                 "create_app_user",
                 {"username": "new_user", "password": "password", "role": "operator"},

@@ -74,7 +74,14 @@ class InMemoryCache(CacheBackend):
                 return entry["value"]
         return None
 
-    def set(self, key: tuple[Hashable, ...], value: Any, ttl: float, fingerprint: str) -> None:
+    def set(
+        self,
+        key: tuple[Hashable, ...],
+        value: Any,
+        ttl: float,
+        fingerprint: str,
+        tags: tuple[str, ...] = (),
+    ) -> None:
         now = monotonic()
         domain = str(key[0]) if key else ""
 
@@ -100,6 +107,7 @@ class InMemoryCache(CacheBackend):
                 "expires_at": now + max(0.5, float(ttl or 0)),
                 "fingerprint": target_fingerprint,
                 "value": value,
+                "tags": set(tags) if tags else set(),
             }
             self._cache.move_to_end(key)
             while len(self._cache) > _MAX_ENTRIES:
@@ -113,9 +121,22 @@ class InMemoryCache(CacheBackend):
                 if not prefix:
                     continue
                 self._domain_versions[prefix] = self._domain_versions.get(prefix, 0) + 1
-                keys_to_remove = [
-                    k for k in self._cache if k and (str(k[0]) == prefix or str(k[0]).startswith(prefix + ":"))
-                ]
+                keys_to_remove = []
+                for k, entry in list(self._cache.items()):
+                    if not k:
+                        continue
+                    first_part = str(k[0])
+                    matches = (
+                        first_part == prefix
+                        or first_part.startswith(prefix + ":")
+                        or first_part.startswith(prefix + "_")
+                    )
+                    if not matches and len(k) > 1:
+                        matches = any(str(part) == prefix for part in k)
+                    if not matches and entry and "tags" in entry:
+                        matches = prefix in entry["tags"]
+                    if matches:
+                        keys_to_remove.append(k)
                 for key in keys_to_remove:
                     self._cache.pop(key, None)
                     removed += 1
@@ -270,8 +291,15 @@ class HybridCache(CacheBackend):
             pass
         return None
 
-    def set(self, key: tuple[Hashable, ...], value: Any, ttl: float, fingerprint: str) -> None:
-        self.l1.set(key, value, ttl, fingerprint)
+    def set(
+        self,
+        key: tuple[Hashable, ...],
+        value: Any,
+        ttl: float,
+        fingerprint: str,
+        tags: tuple[str, ...] = (),
+    ) -> None:
+        self.l1.set(key, value, ttl, fingerprint, tags=tags)
         try:
             self.l2.set(key, value, ttl, fingerprint)
         except Exception:
@@ -338,6 +366,7 @@ def cached_result(
     builder: Callable[[], Any],
     *,
     ttl_seconds: float = 5.0,
+    tags: tuple[str, ...] = (),
 ) -> Any:
     cache_key = tuple(key_parts)
     val = _BACKEND.get(cache_key)
@@ -346,7 +375,10 @@ def cached_result(
 
     value = builder()
     fingerprint = _database_fingerprint()
-    _BACKEND.set(cache_key, value, ttl_seconds, fingerprint)
+    try:
+        _BACKEND.set(cache_key, value, ttl_seconds, fingerprint, tags=tags)
+    except TypeError:
+        _BACKEND.set(cache_key, value, ttl_seconds, fingerprint)
     return value
 
 
@@ -355,6 +387,7 @@ async def async_cached_result(
     builder: Callable[[], Any],
     *,
     ttl_seconds: float = 5.0,
+    tags: tuple[str, ...] = (),
 ) -> Any:
     cache_key = tuple(key_parts)
     val = _BACKEND.get(cache_key)
@@ -370,7 +403,10 @@ async def async_cached_result(
 
     fingerprint = _database_fingerprint()
     if not inspect.iscoroutine(value) and not inspect.isawaitable(value):
-        _BACKEND.set(cache_key, value, ttl_seconds, fingerprint)
+        try:
+            _BACKEND.set(cache_key, value, ttl_seconds, fingerprint, tags=tags)
+        except TypeError:
+            _BACKEND.set(cache_key, value, ttl_seconds, fingerprint)
     return value
 
 
@@ -394,6 +430,11 @@ def invalidate_cache_domains(*domains: str) -> int:
     except Exception:
         pass
     return removed
+
+
+def invalidate_cache_tags(*tags: str) -> int:
+    """Invalidation chirurgicale par tags/domaines métier."""
+    return invalidate_cache_domains(*tags)
 
 
 def cache_entry_count() -> int:
@@ -428,11 +469,11 @@ async def warm_cache() -> None:
             get_dashboard_snapshot,
             get_kpis_for_date,
         )
-        from app.services.activity_service import (
+        from app.modules.admin.activity_service import (
             list_activity_actions,
             list_activity_entity_types,
         )
-        from app.services.system_service import get_system_status
+        from app.modules.admin.system_service import get_system_status
 
         today = date.today().isoformat()
         await get_dashboard_snapshot(today)

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import io
 from PIL import Image
-from app.core.image_optimizer import optimize_uploaded_image
+from app.infra.image_optimizer import optimize_uploaded_image
 
 
 def test_optimize_uploaded_image_too_small():

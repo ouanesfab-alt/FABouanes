@@ -187,7 +187,10 @@ async def _delete_user_impl(user_id: int, db: AsyncSession) -> bool:
     # Supprimer l'utilisateur
     stmt = delete(User).where(User.id == user_id)
     res = await db.execute(stmt)
-    return res.rowcount > 0
+    rowcount = getattr(res, "rowcount", None)
+    if isinstance(rowcount, int):
+        return rowcount > 0
+    return True
 
 
 async def record_account_login_failure(

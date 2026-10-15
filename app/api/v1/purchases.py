@@ -7,7 +7,7 @@ from app.core.async_db import get_async_session
 
 # list_purchases is now handled via PurchaseService
 from app.core.permissions import PERMISSION_OPERATIONS_DELETE, PERMISSION_OPERATIONS_READ, PERMISSION_OPERATIONS_WRITE
-from app.modules.purchases.schemas_validation import PurchaseFormSchema
+from app.modules.purchases.schemas import PurchaseFormSchema
 from app.modules.purchases.service import PurchaseService
 
 router = APIRouter(prefix="/api/v1", tags=["purchases"])

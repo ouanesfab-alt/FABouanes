@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date as d_cls
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import and_, func, or_, select
@@ -69,7 +70,7 @@ async def get_expense_by_id(db: AsyncSession, expense_id: int) -> Expense | None
 
 
 async def create_expense(
-    db: AsyncSession, date: Any, category: str, description: str, amount: float, method: str = "cash"
+    db: AsyncSession, date: Any, category: str, description: str, amount: Decimal | float, method: str = "cash"
 ) -> int:
     if isinstance(date, str):
         parsed_date = d_cls.fromisoformat(date.strip()) if date.strip() else d_cls.today()
@@ -79,7 +80,6 @@ async def create_expense(
         parsed_date = date
     else:
         parsed_date = d_cls.today()
-    from decimal import Decimal
 
     entity = Expense(
         date=parsed_date, category=category, description=description, amount=Decimal(str(amount)), payment_method=method
@@ -90,7 +90,7 @@ async def create_expense(
 
 
 async def update_expense(
-    db: AsyncSession, expense_id: int, date: Any, category: str, description: str, amount: float, method: str = "cash"
+    db: AsyncSession, expense_id: int, date: Any, category: str, description: str, amount: Decimal | float, method: str = "cash"
 ) -> None:
     repo = ExpenseRepository(db)
     entity = await repo.get(expense_id)
@@ -103,8 +103,6 @@ async def update_expense(
             entity.date = date
         entity.category = category
         entity.description = description
-        from decimal import Decimal
-
         entity.amount = Decimal(str(amount))
         entity.payment_method = method
         entity.updated_at = datetime.now()

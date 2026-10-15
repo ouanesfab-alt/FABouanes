@@ -27,7 +27,7 @@ from app.core.permissions import (
     PERMISSION_CONTACTS_WRITE,
 )
 from app.modules.catalog.repository import list_finished_products, list_raw_materials, list_suppliers
-from app.modules.catalog.schemas_validation import (
+from app.modules.catalog.schemas import (
     FinishedProductCreateSchema,
     FinishedProductUpdateSchema,
     RawMaterialCreateSchema,
@@ -36,7 +36,7 @@ from app.modules.catalog.schemas_validation import (
     SupplierUpdateSchema,
 )
 from app.modules.catalog.service import CatalogService
-from app.modules.clients.schemas_validation import ClientCreateSchema, ClientUpdateSchema
+from app.modules.clients.schemas import ClientCreateSchema, ClientUpdateSchema
 from app.modules.clients.service import ClientService
 
 router = APIRouter(prefix="/api/v1", tags=["contacts"])
@@ -280,7 +280,7 @@ async def import_client_history(
         temp_path = tmp.name
 
     try:
-        from app.core.worker import enqueue_background_task
+        from app.infra.worker import enqueue_background_task
 
         job_id = await enqueue_background_task("import_excel_task", temp_path, client_id, force_reimport)
         return json_response(
@@ -415,7 +415,7 @@ async def api_delete_supplier(request: Request, supplier_id: int, db: AsyncSessi
     if not supplier:
         api_error("not_found", "Fournisseur introuvable.", 404)
 
-    from app.services.contact_directory_service import has_supplier_operations
+    from app.modules.clients.directory_service import has_supplier_operations
 
     if await has_supplier_operations(supplier_id, db=db):
         api_error("conflict", "Impossible de supprimer ce fournisseur car il possède des achats associés.", 409)

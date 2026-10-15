@@ -24,7 +24,7 @@ async def handle_catalog(
         stock_qty = sanitize_numeric(func_args.get("stock_qty", 0.0))
         alert_threshold = sanitize_numeric(func_args.get("alert_threshold", 0.0))
         is_finished = category in ("finished", "produit final", "produit")
-        from app.modules.catalog.schemas_validation import FinishedProductCreateSchema, RawMaterialCreateSchema
+        from app.modules.catalog.schemas import FinishedProductCreateSchema, RawMaterialCreateSchema
         from app.modules.catalog.service import CatalogService
 
         async with session_maker() as session:
@@ -74,7 +74,7 @@ async def handle_catalog(
         if alert_threshold is not None:
             alert_threshold = sanitize_numeric(alert_threshold)
         is_finished = category in ("finished", "produit final", "produit")
-        from app.modules.catalog.schemas_validation import FinishedProductUpdateSchema, RawMaterialUpdateSchema
+        from app.modules.catalog.schemas import FinishedProductUpdateSchema, RawMaterialUpdateSchema
         from app.modules.catalog.service import CatalogService
 
         async with session_maker() as session:
@@ -131,7 +131,7 @@ async def handle_catalog(
 
     elif func_name == "search_products":
         q = func_args.get("query", "").strip()
-        from app.core.perf_cache import async_cached_result
+        from app.infra.perf_cache import async_cached_result
 
         async def builder():
             from sqlmodel import text
@@ -193,14 +193,14 @@ async def handle_catalog(
         except ValueError as e:
             return {"error": str(e)}
 
-        from app.services.excel_import_service import parse_excel_bulk_products
+        from app.modules.admin.excel_import_service import parse_excel_bulk_products
 
         try:
             parsed_products = parse_excel_bulk_products(abs_path)
         except Exception as e:
             return {"error": f"Erreur de lecture du fichier Excel : {str(e)}"}
 
-        from app.modules.catalog.schemas_validation import FinishedProductCreateSchema, RawMaterialCreateSchema
+        from app.modules.catalog.schemas import FinishedProductCreateSchema, RawMaterialCreateSchema
         from app.modules.catalog.service import CatalogService
 
         imported_count = 0
@@ -239,7 +239,7 @@ async def handle_catalog(
         }
 
     elif func_name == "get_enum_values":
-        from app.modules.assistant.business_helpers import get_enum_values as bh_get_enum_values
+        from app.modules.assistant.parsing import get_enum_values as bh_get_enum_values
 
         table = func_args.get("table", "").lower()
         column = func_args.get("column", "").lower()

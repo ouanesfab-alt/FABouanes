@@ -9,8 +9,8 @@ from app.core.activity import log_activity
 from app.core.audit import audit_event
 from app.core.exceptions import ValidationError
 from app.core.models import Purchase, PurchaseDocument, Supplier
-from app.core.perf_cache import async_cached_result
-from app.core.storage import backup_database
+from app.infra.perf_cache import async_cached_result
+from app.infra.storage import backup_database
 from app.core.uow import unit_of_work
 from app.utils.pagination import paginate_sequence
 

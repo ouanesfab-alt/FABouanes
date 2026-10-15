@@ -6,7 +6,7 @@ import traceback
 from datetime import datetime
 
 from app.core.config import APP_DATA_DIR
-from app.core.db_helpers import execute_db
+from app.core.database import execute_db
 from app.core.request_state import get_state_value
 
 logger = logging.getLogger("fabouanes.activity")

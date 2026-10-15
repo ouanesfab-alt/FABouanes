@@ -19,7 +19,7 @@ from app.core.permissions import (
     PERMISSION_OPERATIONS_WRITE,
 )
 from app.modules.reports.repository import list_recent_operations
-from app.modules.sales.schemas_validation import SaleFormSchema
+from app.modules.sales.schemas import SaleFormSchema
 from app.modules.sales.service import SalesService
 
 router = APIRouter(prefix="/api/v1", tags=["sales"])

@@ -1,10 +1,10 @@
 """
-business_helpers.py — Helpers de raisonnement métier pour Sabrina.
+parsing.py — Utilitaires de raisonnement et de parsing en langage naturel pour Sabrina.
 
-Fournit des utilitaires déterministes pour :
+Fournit des fonctions déterministes pour :
 - Parser des dates en français ("aujourd'hui", "hier", "5 juillet"...)
 - Normaliser des montants et quantités ("45 000 DA", "1,5 kg", "45k"...)
-- Recherche floue de clients/produits dans la base de données
+- Recherche floue et contraintes de colonnes/tables (énumérations)
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import re
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger("fabouanes.assistant.business_helpers")
+logger = logging.getLogger("fabouanes.assistant.parsing")
 
 
 # ---------------------------------------------------------------------------
@@ -118,10 +118,6 @@ def parse_french_date(text: str, reference: Optional[date] = None) -> Optional[d
         if month:
             try:
                 result = date(year, month, day)
-                # If no explicit year and the date falls before the reference date,
-                # keep it in the current year (don't auto-advance to next year).
-                # Only advance if the date is strictly in the future relative to
-                # the reference and no year was specified — i.e., we default to current year.
                 return result
             except ValueError:
                 pass
@@ -220,7 +216,6 @@ def parse_amount(text: Any) -> float:
 
     s = str(text).strip().lower()
 
-    # Supprimer les suffixes connus
     suffixes_to_strip = [
         "da",
         "dzd",
@@ -263,34 +258,23 @@ def parse_amount(text: Any) -> float:
         multiplier = 1_000_000.0
 
     # Clean whitespace
-    s = re.sub(r"\s", "", s)  # Remove all spaces
-
-    # Determine decimal/thousands separators:
-    # Case 1: "3.500,00" → dot before comma → dot = thousands, comma = decimal
-    # Case 2: "3,500.00" → comma before dot → comma = thousands, dot = decimal
-    # Case 3: "1,5" or "1.5" → simple decimal
+    s = re.sub(r"\s", "", s)
 
     dot_pos = s.rfind(".")
     comma_pos = s.rfind(",")
 
     if dot_pos != -1 and comma_pos != -1:
         if dot_pos < comma_pos:
-            # "3.500,50" — dot is thousands sep, comma is decimal sep
             s = s.replace(".", "").replace(",", ".")
         else:
-            # "3,500.50" — comma is thousands sep, dot is decimal sep
             s = s.replace(",", "")
     elif comma_pos != -1 and dot_pos == -1:
-        # Only comma: check if it's a decimal or thousands separator
         parts = s.split(",")
         if len(parts) == 2 and len(parts[1]) <= 2:
-            # "1500,50" → decimal
             s = s.replace(",", ".")
         else:
-            # "1,500,000" → thousands
             s = s.replace(",", "")
     elif s.count(".") > 1:
-        # "1.500.000" → multiple dots, all thousands separators
         parts = s.rsplit(".", 1)
         s = parts[0].replace(".", "") + "." + parts[1]
 

@@ -80,7 +80,7 @@ async def execute_tool_action(func_name: str, func_args: dict, user_role: str = 
 
 
 def sanitize_numeric(val: Any) -> float:
-    from app.modules.assistant.business_helpers import parse_amount
+    from app.modules.assistant.parsing import parse_amount
 
     return parse_amount(val)
 

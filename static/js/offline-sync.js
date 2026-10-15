@@ -3,20 +3,34 @@
 
 import {
   getOperationsByStatus,
+  getConflictOperations,
   updateOperationStatus,
   countPending,
+  countConflicts,
   cacheRefData,
 } from './offline-db.js';
 
 const SYNC_ENDPOINT = '/api/mobile/v1/offline/sync';
+const BULK_SYNC_ENDPOINT = '/api/mobile/v1/offline/sync/bulk';
 
 /** Met à jour le badge dans la navbar (desktop et mobile) */
 async function updatePendingBadge() {
   const count = await countPending();
+  const conflictCount = await countConflicts();
   const badges = document.querySelectorAll('#offline-pending-badge, .offline-pending-badge, #mobile-offline-pending-badge');
   badges.forEach(badge => {
-    badge.textContent = count > 0 ? String(count) : '';
-    badge.hidden = count === 0;
+    const total = count + conflictCount;
+    badge.textContent = total > 0 ? String(total) : '';
+    badge.hidden = total === 0;
+    if (conflictCount > 0) {
+      badge.classList.remove('bg-warning');
+      badge.classList.add('bg-danger');
+      badge.setAttribute('title', `${count} en attente, ${conflictCount} en conflit`);
+    } else {
+      badge.classList.remove('bg-danger');
+      badge.classList.add('bg-warning');
+      badge.removeAttribute('title');
+    }
   });
   await updateNetworkPillUI();
 }
@@ -31,14 +45,16 @@ export async function updateNetworkPillUI() {
 
   const online = navigator.onLine;
   let count = 0;
+  let conflicts = 0;
   try {
     count = await countPending();
+    conflicts = await countConflicts();
   } catch (e) {}
 
   // Ne pas écraser l'affichage si une synchronisation manuelle est active
   if (pill.classList.contains('is-syncing')) return;
 
-  pill.classList.remove('is-offline', 'is-pending', 'is-online', 'is-success');
+  pill.classList.remove('is-offline', 'is-pending', 'is-online', 'is-success', 'is-conflict');
 
   if (!online) {
     pill.classList.add('is-offline');
@@ -47,8 +63,21 @@ export async function updateNetworkPillUI() {
       icon.className = 'bi bi-wifi-off network-pill-icon';
       icon.classList.remove('d-none', 'spinning');
     }
-    if (label) label.textContent = count > 0 ? `${count} (Hors-ligne)` : 'Hors-ligne';
-    pill.setAttribute('title', `Mode hors-ligne${count > 0 ? ` — ${count} opération(s) en attente locale` : ''}`);
+    const total = count + conflicts;
+    if (label) label.textContent = total > 0 ? `${total} (Hors-ligne)` : 'Hors-ligne';
+    pill.setAttribute('title', `Mode hors-ligne${total > 0 ? ` — ${total} opération(s) locale(s)` : ''}`);
+    return;
+  }
+
+  if (conflicts > 0) {
+    pill.classList.add('is-conflict');
+    if (dot) dot.classList.add('d-none');
+    if (icon) {
+      icon.className = 'bi bi-exclamation-triangle-fill network-pill-icon text-danger';
+      icon.classList.remove('d-none', 'spinning');
+    }
+    if (label) label.textContent = `${conflicts} conflit(s)`;
+    pill.setAttribute('title', `${conflicts} conflit(s) hors-ligne requérant votre attention — Cliquer pour examiner`);
     return;
   }
 
@@ -72,39 +101,62 @@ export async function updateNetworkPillUI() {
   pill.setAttribute('title', 'Connecté au réseau — Données synchronisées');
 }
 
-/** Synchronise toutes les opérations en attente */
+/** Synchronise toutes les opérations en attente avec isolation Dead-Letter Queue */
 export async function syncPendingOperations() {
-  if (!navigator.onLine) return { synced: 0, failed: 0 };
+  if (!navigator.onLine) return { synced: 0, failed: 0, conflicts: 0 };
 
   const pending = await getOperationsByStatus('pending');
-  if (pending.length === 0) return { synced: 0, failed: 0 };
+  if (pending.length === 0) return { synced: 0, failed: 0, conflicts: 0 };
 
   let synced = 0;
   let failed = 0;
+  let conflicts = 0;
 
   for (const op of pending) {
     try {
-      // Clé d'idempotence unique et reproductible pour éviter les doublons sur retry
-      const idempotencyKey = `fab-${op.uuid || (op.id + '-' + Date.parse(op.created_at || new Date().toISOString()))}`;
-      // Récupère le token CSRF depuis la meta tag
+      const mutationId = op.mutation_id || op.uuid || `fab-${op.id}-${Date.now()}`;
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+      const payloadWithId = {
+        ...(op.payload || {}),
+        mutation_id: mutationId,
+      };
+
       const res = await fetch(SYNC_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRF-Token': csrfToken,
-          'X-Idempotency-Key': idempotencyKey,
+          'X-Idempotency-Key': mutationId,
         },
-        body: JSON.stringify({ type: op.type, payload: op.payload }),
+        body: JSON.stringify({
+          mutation_id: mutationId,
+          type: op.type,
+          payload: payloadWithId,
+        }),
       });
 
       if (res.ok) {
         await updateOperationStatus(op.id, 'synced');
         synced++;
       } else {
-        const err = await res.text();
-        await updateOperationStatus(op.id, op.retry_count >= 3 ? 'failed' : 'pending', err);
-        failed++;
+        const rawText = await res.text();
+        let reason = rawText;
+        let isConflict = res.status === 409 || res.status === 422;
+
+        try {
+          const json = JSON.parse(rawText);
+          if (json.status === 'conflict') isConflict = true;
+          reason = json.reason || json.error || json.detail || rawText;
+        } catch (_) {}
+
+        if (isConflict) {
+          // Dead-Letter Queue : marque en 'conflict' dans IndexedDB sans bloquer les suivantes
+          await updateOperationStatus(op.id, 'conflict', reason);
+          conflicts++;
+        } else {
+          await updateOperationStatus(op.id, op.retry_count >= 3 ? 'failed' : 'pending', reason);
+          failed++;
+        }
       }
     } catch (e) {
       await updateOperationStatus(op.id, 'pending', e.message);
@@ -115,9 +167,67 @@ export async function syncPendingOperations() {
   await updatePendingBadge();
 
   if (synced > 0) showSyncToast(`${synced} opération(s) synchronisée(s) ✓`);
-  if (failed > 0) showSyncToast(`${failed} opération(s) en erreur`, 'warning');
+  if (conflicts > 0) showSyncToast(`${conflicts} opération(s) en conflit (à vérifier)`, 'danger');
+  if (failed > 0) showSyncToast(`${failed} opération(s) en échec réseau`, 'warning');
 
-  return { synced, failed };
+  return { synced, failed, conflicts };
+}
+
+/** Synchronise un lot d'opérations via le endpoint bulk avec isolation DLQ */
+export async function syncOperationsBulk(operations) {
+  if (!navigator.onLine || !operations || operations.length === 0) {
+    return { results: [] };
+  }
+
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  const opsPayload = operations.map(op => ({
+    mutation_id: op.mutation_id || op.uuid,
+    idempotency_key: op.mutation_id || op.uuid,
+    type: op.type,
+    payload: {
+      ...(op.payload || {}),
+      mutation_id: op.mutation_id || op.uuid,
+    },
+  }));
+
+  try {
+    const res = await fetch(BULK_SYNC_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      body: JSON.stringify({ operations: opsPayload }),
+    });
+
+    if (!res.ok) {
+      return { error: await res.text() };
+    }
+
+    const data = await res.json();
+    const results = data.results || [];
+
+    for (let i = 0; i < operations.length; i++) {
+      const op = operations[i];
+      const match = results.find(r => r.mutation_id === (op.mutation_id || op.uuid)) || results[i];
+      if (!match) continue;
+
+      if (match.status === 'conflict' || match.status_code === 422 || match.status_code === 409) {
+        const reason = match.error || match.response?.reason || 'Conflit de validation';
+        await updateOperationStatus(op.id, 'conflict', reason);
+      } else if (match.status === 'synced' || match.status_code === 200) {
+        await updateOperationStatus(op.id, 'synced');
+      } else if (match.status_code >= 500) {
+        await updateOperationStatus(op.id, op.retry_count >= 3 ? 'failed' : 'pending', match.error);
+      }
+    }
+
+    await updatePendingBadge();
+    return data;
+  } catch (err) {
+    console.error('Erreur lors du bulk sync :', err);
+    throw err;
+  }
 }
 
 /** Met en cache les données de référence (clients, catalogue) */

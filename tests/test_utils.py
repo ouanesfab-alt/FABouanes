@@ -110,7 +110,7 @@ def test_pagination_context():
 async def test_create_client_duplicate_rejected():
     from unittest.mock import AsyncMock
     from app.modules.clients.service import ClientService
-    from app.modules.clients.schemas_validation import ClientCreateSchema
+    from app.modules.clients.schemas import ClientCreateSchema
     from app.core.exceptions import ConflictError
     from app.core.models import Client
 

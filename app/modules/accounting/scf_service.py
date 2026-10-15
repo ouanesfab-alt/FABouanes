@@ -12,7 +12,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_sessionmaker
-from app.core.db_helpers import query_db
+from app.core.database import query_db
 from app.core.models import (
     Expense,
     FinishedProduct,
@@ -35,6 +35,54 @@ def _safe_float(val: Any) -> float:
 
 class SCFService:
     """Calculateur d'états financiers selon les normes du SCF Algérie."""
+
+    @staticmethod
+    def validate_ecriture_comptable(lignes: List[Dict[str, Any]]) -> None:
+        """
+        Garde-fou bloquant de la comptabilité en partie double SCF Algérie.
+        Vérifie que la somme des débits est strictement égale à la somme des crédits en Decimal.
+        Lève une ValidationError métier explicite en cas de déséquilibre ou d'erreur sur les lignes.
+        """
+        from decimal import Decimal
+        from app.core.exceptions import ValidationError
+
+        if not lignes or len(lignes) < 2:
+            raise ValidationError("Une écriture comptable doit contenir au moins deux lignes.")
+
+        total_debit = Decimal("0.00")
+        total_credit = Decimal("0.00")
+
+        for idx, ligne in enumerate(lignes, start=1):
+            compte = str(ligne.get("compte") or ligne.get("code") or "").strip()
+            if not compte:
+                raise ValidationError(f"Ligne #{idx} : Le numéro de compte SCF est obligatoire.")
+
+            raw_debit = ligne.get("debit", 0)
+            raw_credit = ligne.get("credit", 0)
+
+            try:
+                debit = Decimal(str(raw_debit or 0)).quantize(Decimal("0.01"))
+                credit = Decimal(str(raw_credit or 0)).quantize(Decimal("0.01"))
+            except Exception as e:
+                raise ValidationError(f"Ligne #{idx} : Montant invalide ({e}).")
+
+            if debit < Decimal("0.00") or credit < Decimal("0.00"):
+                raise ValidationError(f"Ligne #{idx} : Les montants de débit et crédit ne peuvent pas être négatifs.")
+
+            if debit > Decimal("0.00") and credit > Decimal("0.00"):
+                raise ValidationError(f"Ligne #{idx} : Une ligne ne peut pas avoir simultanément un débit et un crédit.")
+
+            total_debit += debit
+            total_credit += credit
+
+        diff = abs(total_debit - total_credit)
+        if diff >= Decimal("0.01"):
+            raise ValidationError(
+                f"Écriture comptable déséquilibrée : Total Débit ({total_debit:.2f} DZD) ≠ "
+                f"Total Crédit ({total_credit:.2f} DZD). Écart : {diff:.2f} DZD."
+            )
+
+    validate_journal_entry = validate_ecriture_comptable
 
     @staticmethod
     def get_plan_comptable() -> List[Dict[str, str]]:

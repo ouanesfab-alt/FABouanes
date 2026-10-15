@@ -8,7 +8,7 @@ import logging
 import os
 from typing import Any, Dict
 
-from app.core.db_helpers import db_manager
+from app.core.database import db_manager
 
 logger = logging.getLogger("fabouanes.assistant.schema_context")
 
@@ -206,9 +206,34 @@ TABLE_SCHEMAS = {
 
 def get_schema() -> Dict[str, Any]:
     """Retourne la description de la structure de la base de données."""
-    from app.core.perf_cache import cached_result
+    from app.infra.perf_cache import cached_result
 
     return cached_result(("sabrina_schema",), lambda: {"schema": TABLE_SCHEMAS}, ttl_seconds=300.0)
+
+
+def get_filtered_schema(tables: list[str] | None = None) -> dict[str, str]:
+    """Retourne un sous-ensemble des schémas de tables selon les tables demandées."""
+    if not tables:
+        return TABLE_SCHEMAS
+    filtered = {t: TABLE_SCHEMAS[t] for t in tables if t in TABLE_SCHEMAS}
+    return filtered if filtered else TABLE_SCHEMAS
+
+
+def get_relevant_tables_for_query(user_query: str) -> list[str]:
+    """Retourne la liste des tables pertinentes en fonction des domaines détectés par intent.py."""
+    if not user_query:
+        return list(TABLE_SCHEMAS.keys())
+    from app.modules.assistant.intent import DOMAIN_TABLE_MAPPING, detect_query_domains
+
+    domains = detect_query_domains(user_query)
+    if not domains:
+        return list(TABLE_SCHEMAS.keys())
+
+    tables: set[str] = set()
+    for d in domains:
+        tables.update(DOMAIN_TABLE_MAPPING.get(d, []))
+    return [t for t in TABLE_SCHEMAS if t in tables]
+
 
 
 # Mapping: table → lien de formulaire de création et de liste
@@ -532,13 +557,23 @@ ACTION_GUIDE = (
 )
 
 
-def get_sabrina_system_prompt(model_name: str, rag_context: str = "") -> str:
+def get_sabrina_system_prompt(
+    model_name: str,
+    rag_context: str = "",
+    query: str | None = None,
+    tables: list[str] | None = None,
+) -> str:
     """Génère le prompt système personnalisé pour Sabrina avec le contexte de l'entreprise."""
     company_name = db_manager.get_setting("company_name", "FABOuanes").strip() or "FABOuanes"
     currency = "DZD"  # Devise par défaut
     tva = "19%"  # TVA standard algérienne
 
-    schema_text = "\n".join(f"- {t}: {d}" for t, d in TABLE_SCHEMAS.items())
+    if tables is None and query:
+        tables = get_relevant_tables_for_query(query)
+
+    active_schemas = get_filtered_schema(tables)
+    schema_text = "\n".join(f"- {t}: {d}" for t, d in active_schemas.items())
+
 
     # Injection de la mémoire persistante
     memory_context = ""

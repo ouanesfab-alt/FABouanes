@@ -35,7 +35,7 @@ from app.modules.payments.schemas import PaymentCreate
 from app.modules.clients.service import ClientService
 from app.modules.payments.service import PaymentsService
 from app.modules.reports.repository import get_dashboard_snapshot
-from app.services.auth_service import verify_credentials
+from app.modules.users.service import verify_credentials
 
 logger = logging.getLogger("fabouanes.mobile_api")
 

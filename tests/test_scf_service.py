@@ -239,3 +239,36 @@ async def test_export_balance_web():
         assert res.media_type == "text/csv; charset=utf-8"
         assert "balance_generale_scf_" in res.headers["Content-Disposition"]
 
+
+def test_validate_ecriture_comptable_balanced():
+    from decimal import Decimal
+    lignes = [
+        {"compte": "530", "debit": Decimal("1500.50"), "credit": Decimal("0.00")},
+        {"compte": "411", "debit": Decimal("0.00"), "credit": Decimal("1500.50")},
+    ]
+    # Should pass without error
+    SCFService.validate_ecriture_comptable(lignes)
+
+
+def test_validate_ecriture_comptable_unbalanced_raises():
+    from app.core.exceptions import ValidationError
+    lignes = [
+        {"compte": "530", "debit": 1500.50, "credit": 0.00},
+        {"compte": "411", "debit": 0.00, "credit": 1500.00},
+    ]
+    with pytest.raises(ValidationError, match="déséquilibrée"):
+        SCFService.validate_ecriture_comptable(lignes)
+
+
+def test_validate_ecriture_comptable_missing_account_or_lines():
+    from app.core.exceptions import ValidationError
+    with pytest.raises(ValidationError, match="au moins deux lignes"):
+        SCFService.validate_ecriture_comptable([])
+
+    with pytest.raises(ValidationError, match="numéro de compte"):
+        SCFService.validate_ecriture_comptable([
+            {"compte": "", "debit": 100, "credit": 0},
+            {"compte": "530", "debit": 0, "credit": 100},
+        ])
+
+

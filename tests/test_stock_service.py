@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.stock_service import (
+from app.modules.catalog.stock_service import (
     _extract_weight_from_unit,
     qty_to_kg,
     unit_price_to_kg,
@@ -93,7 +93,7 @@ class CustomMockSession:
         elif "from purchases" in stmt_str or "purchase" in stmt_str or "from production_batches" in stmt_str or "productionbatch" in stmt_str:
             if "sum(" in stmt_str or "coalesce(" in stmt_str:
                 if "purchases" in stmt_str or "purchase" in stmt_str:
-                    from app.services.stock_service import qty_to_kg
+                    from app.modules.catalog.stock_service import qty_to_kg
                     total_qty_kg = sum(qty_to_kg(float(line["quantity"]), line["unit"]) for line in self.lines)
                     total_value = sum(float(line["quantity"]) * float(line["unit_price"]) for line in self.lines)
                     row_mock = MagicMock()
@@ -192,7 +192,7 @@ async def test_recalc_finished_product_avg_cost():
 # =============================================================================
 
 @pytest.mark.asyncio
-@patch("app.services.stock_service.get_state_value")
+@patch("app.modules.catalog.stock_service.get_state_value")
 @patch("app.modules.catalog.repository.insert_stock_movement")
 async def test_record_stock_movement(mock_insert, mock_state):
     mock_state.return_value = {"username": "jean_test"}
@@ -225,7 +225,7 @@ async def test_create_purchase_record_validation():
 @pytest.mark.asyncio
 async def test_reverse_production_stock_and_cump_restoration():
     from unittest.mock import AsyncMock
-    from app.services.stock_service import reverse_production
+    from app.modules.catalog.stock_service import reverse_production
     from app.core.models import FinishedProduct, ProductionBatch, ProductionBatchItem, RawMaterial
     from decimal import Decimal
 
@@ -283,10 +283,10 @@ async def test_reverse_production_stock_and_cump_restoration():
         mock_mat_res,    # material1
     ]
 
-    with patch("app.services.stock_service.record_stock_movement", new_callable=AsyncMock) as mock_mov, \
-         patch("app.services.stock_service._recalc_raw_material_avg_cost_impl", new_callable=AsyncMock), \
-         patch("app.services.stock_service.invalidate_cache_domains"), \
-         patch("app.services.stock_service.emit"):
+    with patch("app.modules.catalog.stock_service.record_stock_movement", new_callable=AsyncMock) as mock_mov, \
+         patch("app.modules.catalog.stock_service._recalc_raw_material_avg_cost_impl", new_callable=AsyncMock), \
+         patch("app.modules.catalog.stock_service.invalidate_cache_domains"), \
+         patch("app.modules.catalog.stock_service.emit"):
 
         ok = await reverse_production(1, db=db)
         assert ok is True

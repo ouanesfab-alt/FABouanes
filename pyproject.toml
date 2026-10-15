@@ -58,14 +58,7 @@ testpaths = [
 ]
 addopts = "-ra -q"
 asyncio_mode = "strict"
-
-
-
-
-
-
 filterwarnings = [
-  "ignore::DeprecationWarning:app.services.client_account_service",
   # SQLite retourne des types primitifs (str, float, int) au lieu de date/Decimal/bool.
 
   # Ces avertissements Pydantic sont normaux en test et n'affectent pas la production (PostgreSQL).
@@ -74,6 +67,7 @@ filterwarnings = [
   "ignore:SelectableGroups dict interface is deprecated:DeprecationWarning",
   "ignore:DB-API extension cursor.connection used:UserWarning",
 ]
+pythonpath = ["."]
 
 [tool.coverage.run]
 source = ["app"]
@@ -84,36 +78,23 @@ omit = [
   "app/web/*",
   "app/api/*",
   "app/modules/*/web.py",
-  "app/modules/*/schemas_validation.py",
-  "app/modules/*/repository.py",
-  "app/modules/*/service.py",
-  "app/core/storage.py",
+  "app/infra/storage.py",
+  "app/infra/worker.py",
+  "app/infra/websockets.py",
+  "app/infra/perf_cache.py",
+  "app/infra/document_numbering.py",
+  "app/infra/image_optimizer.py",
+  "app/infra/printing/*",
   "app/utils/mobile_connect.py",
   "app/utils/tool_pages.py",
-  "app/services/*",
-  "app/services/print_service.py",
-  # Fichiers requérant une vraie base de données (exclus des tests unitaires)
-  "app/core/database.py",
-  "app/core/db.py",
-  "app/core/db_helpers.py",
-  "app/core/db_access.py",
-  "app/core/schema.py",
-  "app/core/document_numbering.py",
+  # Fichiers d'infrastructure
   "app/core/idempotency.py",
-  "app/core/worker.py",
   "app/core/observability.py",
   "app/core/logging.py",
-  "app/core/websockets.py",
   "app/core/timeout_middleware.py",
-  "app/core/async_db.py",
-  "app/core/connection.py",
   "app/core/auth_cookie.py",
-  "app/core/activity.py",
-  "app/core/audit.py",
-  # Fichiers trop liés à l'infrastructure pour être testés unitairement
   "app/core/model_utils.py",
   "app/core/request_state.py",
-  "app/core/perf_cache.py",
   "app/core/events.py",
 ]
 
@@ -132,6 +113,3 @@ ignore = ["E501"]
 "tests/*" = ["T201", "E402", "F841", "E701", "E702", "E741"]
 "launcher.py" = ["T201", "E402"]
 "create_offline_bundle.py" = ["T201"]
-
-
-

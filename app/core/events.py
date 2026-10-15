@@ -31,13 +31,14 @@ from typing import Any, Callable
 from app.core.activity import log_activity
 from app.core.audit import audit_event
 from app.core.config import DATABASE_URL
-from app.core.db_helpers import execute_db, pool_manager, query_db
-from app.core.perf_cache import _BACKEND
-from app.core.storage import backup_database
-from app.core.websockets import manager
-from app.core.worker import enqueue_background_task
+from app.core.database import execute_db, pool_manager, query_db
+from app.core.uow import register_post_commit_hook
+from app.infra.perf_cache import _BACKEND, invalidate_cache_domains
+from app.infra.storage import backup_database
+from app.infra.websockets import manager
+from app.infra.worker import enqueue_background_task
 from app.modules.reports.repository import refresh_client_balances_view
-from app.services.alert_service import broadcast_overdue_alerts, check_stock_alerts
+from app.modules.admin.alert_service import broadcast_overdue_alerts, check_stock_alerts
 
 logger = logging.getLogger("fabouanes.events")
 
@@ -235,26 +236,50 @@ def _auto_backup(event: DomainEvent) -> None:
 
 
 def _auto_websocket(event: DomainEvent) -> None:
-    """Diffuse un message WebSocket lors d'une modification d'opération."""
-    # Seuls certains types d'entités doivent déclencher un rafraîchissement
+    """Diffuse un message WebSocket lors d'une modification d'opération (déchargé post-commit)."""
     if event.entity_type in ("sale", "purchase", "payment", "sale_document", "purchase_document"):
-        manager.broadcast_sync("refresh_operations")
+        register_post_commit_hook(lambda: manager.broadcast_sync("refresh_operations"))
 
 
 def _auto_refresh_balances(event: DomainEvent) -> None:
-    """Refresh the mv_client_balances materialized view after financial mutations."""
+    """Refresh the mv_client_balances materialized view after financial mutations (déchargé post-commit)."""
     if event.entity_type in ("sale", "payment", "client", "sale_document"):
-        try:
-            try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                loop = None
-            if loop is not None and loop.is_running():
-                loop.create_task(refresh_client_balances_view())
-            else:
-                asyncio.run(refresh_client_balances_view())
-        except Exception:
-            logger.debug("Could not refresh client balances view after %s.%s", event.action, event.entity_type)
+        register_post_commit_hook(refresh_client_balances_view)
+
+
+def _auto_check_stock_alert(event: DomainEvent) -> None:
+    """Déclenche la vérification des alertes de stock après une modification d'inventaire (déchargé post-commit)."""
+    if event.action == "invalidate":
+        return
+    if event.entity_type in ("sale", "purchase", "production_batch", "raw_material", "finished_product"):
+        register_post_commit_hook(check_stock_alerts)
+
+
+def _auto_domain_cache_invalidation(event: DomainEvent) -> None:
+    """Invalidation chirurgicale du cache basée sur les tags/domaines métier concernés."""
+    if event.action == "invalidate":
+        return
+
+    domains = set()
+    et = event.entity_type
+    if et in ("sale", "raw_sale", "sale_document"):
+        domains.update(["sales", "dashboard", "clients"])
+    elif et in ("purchase", "purchase_document"):
+        domains.update(["purchases", "dashboard", "stock"])
+    elif et in ("payment",):
+        domains.update(["sales", "purchases", "clients", "dashboard"])
+    elif et in ("raw_material", "finished_product", "production_batch", "stock", "inventory"):
+        domains.update(["stock", "dashboard"])
+    elif et in ("client",):
+        domains.update(["clients", "dashboard"])
+    elif et in ("expense",):
+        domains.update(["dashboard"])
+    else:
+        domains.add("dashboard")
+
+    if domains:
+        d_list = list(domains)
+        register_post_commit_hook(lambda d=d_list: invalidate_cache_domains(*d))
 
 
 def _auto_invalidate_cache(event: DomainEvent) -> None:
@@ -294,24 +319,6 @@ def _auto_invalidate_all_cache(event: DomainEvent) -> None:
             logger.debug("Failed to clear remote cache: %s", e)
 
 
-def _auto_check_stock_alert(event: DomainEvent) -> None:
-    """Déclenche la vérification des alertes de stock après une modification d'inventaire."""
-    if event.action == "invalidate":
-        return
-    if event.entity_type in ("sale", "purchase", "production_batch", "raw_material", "finished_product"):
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-        if loop is not None and loop.is_running():
-            loop.create_task(check_stock_alerts())
-        else:
-            try:
-                asyncio.run(check_stock_alerts())
-            except Exception:
-                logger.debug("Stock alert check fallback failed (non-critical)")
-
-
 def _auto_rebuild_catalog_embeddings(event: DomainEvent) -> None:
     """Déclenche la regénération des embeddings après une modification du catalogue."""
     if event.action == "invalidate":
@@ -332,30 +339,39 @@ def _auto_rebuild_catalog_embeddings(event: DomainEvent) -> None:
         logger.debug("Catalog embedding rebuild trigger failed (non-critical)")
 
 
-# ── Enregistrement des listeners par défaut au chargement du module ──
-on("invalidate.cache", _auto_invalidate_cache)
-on("invalidate.client_cache", _auto_invalidate_client_cache)
-on("invalidate.all_cache", _auto_invalidate_all_cache)
-on("*", _auto_audit)
-on("*", _auto_activity)
-on("create.*", _auto_backup)
-on("update.*", _auto_backup)
-on("delete.*", _auto_backup)
+def reset_default_listeners() -> None:
+    """Enregistre tous les listeners par défaut sur l'Event Bus."""
+    _listeners.clear()
+    on("invalidate.cache", _auto_invalidate_cache)
+    on("invalidate.client_cache", _auto_invalidate_client_cache)
+    on("invalidate.all_cache", _auto_invalidate_all_cache)
+    on("*", _auto_audit)
+    on("*", _auto_activity)
+    on("create.*", _auto_backup)
+    on("update.*", _auto_backup)
+    on("delete.*", _auto_backup)
 
-on("create.*", _auto_websocket)
-on("update.*", _auto_websocket)
-on("delete.*", _auto_websocket)
+    on("create.*", _auto_websocket)
+    on("update.*", _auto_websocket)
+    on("delete.*", _auto_websocket)
 
-on("create.*", _auto_refresh_balances)
-on("update.*", _auto_refresh_balances)
-on("delete.*", _auto_refresh_balances)
+    on("create.*", _auto_refresh_balances)
+    on("update.*", _auto_refresh_balances)
+    on("delete.*", _auto_refresh_balances)
 
-on("create.*", _auto_check_stock_alert)
-on("update.*", _auto_check_stock_alert)
-on("delete.*", _auto_check_stock_alert)
+    on("create.*", _auto_check_stock_alert)
+    on("update.*", _auto_check_stock_alert)
+    on("delete.*", _auto_check_stock_alert)
 
-on("*.raw_material", _auto_rebuild_catalog_embeddings)
-on("*.finished_product", _auto_rebuild_catalog_embeddings)
+    on("create.*", _auto_domain_cache_invalidation)
+    on("update.*", _auto_domain_cache_invalidation)
+    on("delete.*", _auto_domain_cache_invalidation)
+
+    on("*.raw_material", _auto_rebuild_catalog_embeddings)
+    on("*.finished_product", _auto_rebuild_catalog_embeddings)
+
+
+reset_default_listeners()
 
 
 # Choix importants :

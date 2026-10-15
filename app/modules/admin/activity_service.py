@@ -8,7 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_sessionmaker
-from app.core.perf_cache import async_cached_result
+from app.infra.perf_cache import async_cached_result
 
 ACTION_LABELS = {
     "backup_now": "a créé une sauvegarde",

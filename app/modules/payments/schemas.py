@@ -7,7 +7,7 @@ from typing import Any, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.modules.catalog.schemas_validation import parse_numeric
+from app.modules.catalog.schemas import parse_decimal
 
 
 class PaymentCreate(BaseModel):
@@ -69,15 +69,15 @@ class PaymentCreateSchema(BaseModel):
 class PaymentFormSchema(BaseModel):
     client_id: int
     sale_link: Optional[str] = Field(default="")
-    amount: float
+    amount: Decimal
     payment_date: date = Field(default_factory=date.today)
     payment_type: str = Field(default="versement")
     notes: Optional[str] = Field(default="")
 
     @field_validator("amount", mode="before")
     @classmethod
-    def parse_amount(cls, val: Any) -> float:
-        return parse_numeric(val)
+    def parse_amount(cls, val: Any) -> Decimal:
+        return parse_decimal(val)
 
     @field_validator("payment_date", mode="before")
     @classmethod

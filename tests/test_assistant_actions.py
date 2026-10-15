@@ -39,19 +39,19 @@ async def test_assistant_contacts_all_actions():
         assert res is not None and res.get("success") is True
 
     # 4. add_supplier
-    with mock.patch("app.services.contact_directory_service.create_supplier_from_form", mock.AsyncMock(return_value=10)):
+    with mock.patch("app.modules.clients.directory_service.create_supplier_from_form", mock.AsyncMock(return_value=10)):
         res = await handle_contacts("add_supplier", {"name": "Fournisseur Alpha", "phone": "021000000"}, mock_session_maker)
         assert res is not None and res.get("success") is True
 
     # 5. modify_supplier
-    with mock.patch("app.services.contact_directory_service.get_supplier", mock.AsyncMock(return_value={"name": "Alpha"})), \
-         mock.patch("app.services.contact_directory_service.update_supplier_from_form", mock.AsyncMock(return_value=None)):
+    with mock.patch("app.modules.clients.directory_service.get_supplier", mock.AsyncMock(return_value={"name": "Alpha"})), \
+         mock.patch("app.modules.clients.directory_service.update_supplier_from_form", mock.AsyncMock(return_value=None)):
         res = await handle_contacts("modify_supplier", {"supplier_id": 10, "name": "Fournisseur Beta"}, mock_session_maker)
         assert res is not None and res.get("success") is True
 
     # 6. delete_supplier
-    with mock.patch("app.services.contact_directory_service.get_supplier", mock.AsyncMock(return_value={"name": "Beta"})), \
-         mock.patch("app.services.contact_directory_service.delete_supplier_by_id", mock.AsyncMock(return_value=None)):
+    with mock.patch("app.modules.clients.directory_service.get_supplier", mock.AsyncMock(return_value={"name": "Beta"})), \
+         mock.patch("app.modules.clients.directory_service.delete_supplier_by_id", mock.AsyncMock(return_value=None)):
         res = await handle_contacts("delete_supplier", {"supplier_id": 10}, mock_session_maker)
         assert res is not None and res.get("success") is True
 
@@ -72,11 +72,11 @@ async def test_handle_contacts_modify_delete_not_found():
         res_del = await handle_contacts("delete_client", {"client_id": 999999}, mock_session_maker)
         assert res_del is not None and "error" in res_del
 
-    with mock.patch("app.services.contact_directory_service.get_supplier", mock.AsyncMock(return_value=None)):
+    with mock.patch("app.modules.clients.directory_service.get_supplier", mock.AsyncMock(return_value=None)):
         res_supp = await handle_contacts("modify_supplier", {"supplier_id": 999999, "name": "Fournisseur Test"}, mock_session_maker)
         assert res_supp is not None and "error" in res_supp
 
-    with mock.patch("app.services.contact_directory_service.get_supplier", mock.AsyncMock(return_value=None)):
+    with mock.patch("app.modules.clients.directory_service.get_supplier", mock.AsyncMock(return_value=None)):
         res_del_supp = await handle_contacts("delete_supplier", {"supplier_id": 999999}, mock_session_maker)
         assert res_del_supp is not None and "error" in res_del_supp
 

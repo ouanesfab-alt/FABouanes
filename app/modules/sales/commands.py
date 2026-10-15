@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import date
+from decimal import Decimal
 import inspect
 import logging
 from typing import Any, Tuple
@@ -9,16 +10,16 @@ from typing import Any, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select, text
 
-from app.core.document_numbering import next_doc_number
+from app.infra.document_numbering import next_doc_number
 from app.core.events import DomainEvent, emit
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.core.models import FinishedProduct, Payment, RawMaterial, RawSale, Sale, SaleDocument, StockMovement
-from app.core.perf_cache import invalidate_cache_domains
+from app.infra.perf_cache import invalidate_cache_domains
 from app.core.request_state import get_state_value
 from app.modules.sales.repository import RawSaleRepository, SaleDocumentRepository, SaleRepository
-from app.modules.sales.schemas_validation import SaleFormSchema
-from app.modules.sales.validation import SalesValidator
-from app.services.stock_service import qty_to_kg
+from app.modules.sales.schemas import SaleFormSchema
+from app.modules.sales.schemas import SalesValidator
+from app.modules.catalog.stock_service import qty_to_kg
 
 logger = logging.getLogger(__name__)
 
@@ -54,40 +55,44 @@ class SalesCommands:
         client_id: int | None,
         item_kind: str,
         item_id: int,
-        qty: float,
+        qty: Decimal | float,
         unit: str,
-        unit_price: float,
+        unit_price: Decimal | float,
         sale_type: str,
         sale_date: date,
         notes: str,
-        amount_paid_input: float = 0.0,
+        amount_paid_input: Decimal | float = Decimal("0.00"),
         document_id: int | None = None,
         custom_item_name: str = "",
     ) -> Tuple[str, int]:
-        total = round(qty * unit_price, 2)
+        d_qty = Decimal(str(qty))
+        d_unit_price = Decimal(str(unit_price))
+        total = round(d_qty * d_unit_price, 2)
         requested_sale_type = normalize_sale_type(sale_type, client_id)
 
         SalesValidator.validate_sale_type(client_id, requested_sale_type)
-        SalesValidator.validate_quantity(qty)
+        SalesValidator.validate_quantity(float(d_qty))
 
-        amount_paid = round(total if requested_sale_type == "cash" else max(0.0, min(amount_paid_input, total)), 2)
-        balance_due = round(max(0.0, total - amount_paid), 2)
+        d_amount_paid_input = Decimal(str(amount_paid_input or 0.0))
+        amount_paid = round(total if requested_sale_type == "cash" else max(Decimal("0.00"), min(d_amount_paid_input, total)), 2)
+        balance_due = round(max(Decimal("0.00"), total - amount_paid), 2)
 
         if item_kind == "finished":
             item, qty_kg = await SalesValidator.validate_stock_availability(
-                "finished", item_id, qty, unit, "", self.session
+                "finished", item_id, float(d_qty), unit, "", self.session
             )
-            stock_before = float(item.stock_qty)
-            cost_snapshot = float(item.avg_cost)
-            profit_amount = round(total - qty_kg * cost_snapshot, 2)
+            d_qty_kg = Decimal(str(qty_kg))
+            stock_before = Decimal(str(item.stock_qty))
+            cost_snapshot = Decimal(str(item.avg_cost))
+            profit_amount = round(total - d_qty_kg * cost_snapshot, 2)
 
             sale_row = Sale(
                 client_id=client_id,
                 document_id=document_id,
                 finished_product_id=item_id,
-                quantity=qty,
+                quantity=d_qty,
                 unit=unit,
-                unit_price=unit_price,
+                unit_price=d_unit_price,
                 total=total,
                 sale_type=requested_sale_type,
                 amount_paid=amount_paid,
@@ -101,12 +106,12 @@ class SalesCommands:
             await self.session.flush()
             row_id = sale_row.id
 
-            stock_after = max(0.0, round(stock_before - qty_kg, 4))
+            stock_after = max(Decimal("0.00"), round(stock_before - d_qty_kg, 4))
             item.stock_qty = stock_after
             await self._safe_add(item)
 
             await self.record_stock_movement(
-                "finished", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "sale", row_id
+                "finished", item_id, "out", float(d_qty_kg), "kg", float(stock_before), float(stock_after), "create_sale", "sale", row_id
             )
 
             if requested_sale_type == "credit" and amount_paid > 0 and client_id:
@@ -132,20 +137,21 @@ class SalesCommands:
             unit = "unite"
 
         item, qty_kg = await SalesValidator.validate_stock_availability(
-            "raw", item_id, qty, unit, custom_item_name, self.session
+            "raw", item_id, float(d_qty), unit, custom_item_name, self.session
         )
         custom_item_name = custom_item_name.strip() if str(item.name or "").strip().casefold() == "autre" else ""
-        stock_before = float(item.stock_qty)
-        cost_snapshot = float(item.avg_cost)
-        profit_amount = round(total - qty_kg * cost_snapshot, 2)
+        d_qty_kg = Decimal(str(qty_kg))
+        stock_before = Decimal(str(item.stock_qty))
+        cost_snapshot = Decimal(str(item.avg_cost))
+        profit_amount = round(total - d_qty_kg * cost_snapshot, 2)
 
         raw_sale_row = RawSale(
             client_id=client_id,
             document_id=document_id,
             raw_material_id=item_id,
-            quantity=qty,
+            quantity=d_qty,
             unit=unit,
-            unit_price=unit_price,
+            unit_price=d_unit_price,
             total=total,
             sale_type=requested_sale_type,
             amount_paid=amount_paid,
@@ -160,12 +166,12 @@ class SalesCommands:
         await self.session.flush()
         row_id = raw_sale_row.id
 
-        stock_after = max(0.0, round(stock_before - qty_kg, 4))
+        stock_after = max(Decimal("0.00"), round(stock_before - d_qty_kg, 4))
         item.stock_qty = stock_after
         await self._safe_add(item)
 
         await self.record_stock_movement(
-            "raw", item_id, "out", qty_kg, "kg", stock_before, stock_after, "create_sale", "raw_sale", row_id
+            "raw", item_id, "out", float(d_qty_kg), "kg", float(stock_before), float(stock_after), "create_sale", "raw_sale", row_id
         )
 
         if requested_sale_type == "credit" and amount_paid > 0 and client_id:
@@ -349,9 +355,9 @@ class SalesCommands:
                 await self.session.delete(doc)
             return
 
-        total = float(finished["total_amount"] or 0) + float(raw["total_amount"] or 0)
-        paid = float(finished["paid_amount"] or 0) + float(raw["paid_amount"] or 0)
-        due = float(finished["due_amount"] or 0) + float(raw["due_amount"] or 0)
+        total = Decimal(str(finished["total_amount"] or 0)) + Decimal(str(raw["total_amount"] or 0))
+        paid = Decimal(str(finished["paid_amount"] or 0)) + Decimal(str(raw["paid_amount"] or 0))
+        due = Decimal(str(finished["due_amount"] or 0)) + Decimal(str(raw["due_amount"] or 0))
 
         doc = await self.doc_repo.get(document_id)
         if doc:

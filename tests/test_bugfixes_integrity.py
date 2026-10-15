@@ -5,8 +5,8 @@ import pytest
 from app.core.exceptions import ValidationError
 from app.modules.clients.service import ClientService
 from app.modules.sales.commands import normalize_sale_type
-from app.modules.sales.schemas_validation import SaleFormSchema
-from app.services.contact_directory_service import delete_supplier_by_id
+from app.modules.sales.schemas import SaleFormSchema
+from app.modules.clients.directory_service import delete_supplier_by_id
 
 
 def test_normalize_sale_type():
@@ -106,7 +106,7 @@ async def test_assistant_tool_actions_contacts_handles_delete_client_validation_
 @pytest.mark.asyncio
 async def test_legacy_delete_payment_emits_event_and_invalidates_cache():
     """Legacy delete_payment_by_id in payment_service.py emits DomainEvent and invalidates cache."""
-    from app.services.payment_service import delete_payment_by_id
+    from app.modules.payments.service import delete_payment_by_id
 
     session = AsyncMock()
     mock_payment = MagicMock()
@@ -117,8 +117,8 @@ async def test_legacy_delete_payment_emits_event_and_invalidates_cache():
 
     with patch("app.modules.payments.service.PaymentsService.reverse_payment_allocations", new=AsyncMock()), \
          patch("app.core.events.emit") as mock_emit, \
-         patch("app.core.perf_cache.invalidate_cache_domains") as mock_inval, \
-         patch("app.core.storage.mark_backup_needed"):
+         patch("app.infra.perf_cache.invalidate_cache_domains") as mock_inval, \
+         patch("app.infra.storage.mark_backup_needed"):
         ok = await delete_payment_by_id(123, db=session)
 
     assert ok is True
@@ -132,7 +132,7 @@ async def test_legacy_delete_payment_emits_event_and_invalidates_cache():
 @pytest.mark.asyncio
 async def test_apply_raw_material_consumption_accepts_model_and_int():
     """Verify apply_raw_material_consumption resolves ID from int, dict, or object."""
-    from app.services.stock_service import apply_raw_material_consumption
+    from app.modules.catalog.stock_service import apply_raw_material_consumption
 
     session = AsyncMock()
     mock_db_mat = MagicMock()
@@ -147,7 +147,7 @@ async def test_apply_raw_material_consumption_accepts_model_and_int():
         def __init__(self, id):
             self.id = id
 
-    with patch("app.services.stock_service.record_stock_movement", new=AsyncMock()):
+    with patch("app.modules.catalog.stock_service.record_stock_movement", new=AsyncMock()):
         await apply_raw_material_consumption(FakeModel(5), 10.0, "production", 1, db=session)
         # 2. As an integer directly
         await apply_raw_material_consumption(5, 5.0, "production", 1, db=session)
@@ -156,7 +156,7 @@ async def test_apply_raw_material_consumption_accepts_model_and_int():
 @pytest.mark.asyncio
 async def test_apply_finished_production_accepts_model_and_int():
     """Verify apply_finished_production resolves ID from int, dict, or object."""
-    from app.services.stock_service import apply_finished_production
+    from app.modules.catalog.stock_service import apply_finished_production
 
     session = AsyncMock()
     mock_db_prod = MagicMock()
@@ -171,14 +171,14 @@ async def test_apply_finished_production_accepts_model_and_int():
         def __init__(self, id):
             self.id = id
 
-    with patch("app.services.stock_service.record_stock_movement", new=AsyncMock()):
+    with patch("app.modules.catalog.stock_service.record_stock_movement", new=AsyncMock()):
         await apply_finished_production(FakeModel(8), 5.0, 500.0, 1, db=session)
         await apply_finished_production(8, 5.0, 500.0, 1, db=session)
 
 
 def test_tonne_unit_conversion():
     """Verify qty_to_kg and unit_price_to_kg properly handle tonne/t units."""
-    from app.services.stock_service import qty_to_kg, unit_price_to_kg
+    from app.modules.catalog.stock_service import qty_to_kg, unit_price_to_kg
 
     assert qty_to_kg(2.5, "tonne") == 2500.0
     assert qty_to_kg(1.0, "tonnes") == 1000.0
@@ -192,7 +192,7 @@ def test_tonne_unit_conversion():
 async def test_sale_commands_empty_lines_validation():
     """SalesCommands raises ValidationError when sale has no lines."""
     from app.modules.sales.commands import SalesCommands
-    from app.modules.sales.schemas_validation import SaleFormSchema
+    from app.modules.sales.schemas import SaleFormSchema
 
     session = AsyncMock()
     commands = SalesCommands(session)
@@ -215,7 +215,7 @@ async def test_sale_commands_empty_lines_validation():
 @pytest.mark.asyncio
 async def test_purchase_service_empty_lines_validation():
     """PurchaseService raises ValidationError when purchase document has no lines."""
-    from app.modules.purchases.schemas_validation import PurchaseFormSchema
+    from app.modules.purchases.schemas import PurchaseFormSchema
     from app.modules.purchases.service import PurchaseService
 
     session = AsyncMock()

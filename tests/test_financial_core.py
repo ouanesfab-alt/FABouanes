@@ -596,7 +596,7 @@ class TestRegistry:
 
 
 # =============================================================================
-# 6. app.core.schema.api_validation — branches manquées (18-23, 28-36)
+# 6. app.modules.*.schemas — validations API
 # =============================================================================
 
 class TestApiValidationSchemas:

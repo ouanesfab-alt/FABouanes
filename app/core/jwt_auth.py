@@ -19,7 +19,7 @@ from fastapi import HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import PyJWTError
 
-from app.core import db_helpers
+from app.core import database as db_helpers
 from app.core.config import settings
 from app.core.permissions import has_permission
 

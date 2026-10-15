@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.modules.assistant.sql_tools import dry_run_sql
+from app.modules.assistant.sql_write import dry_run_sql
 
 READ_ONLY_TOOL_NAMES = frozenset(
     {
@@ -24,6 +24,7 @@ READ_ONLY_TOOL_NAMES = frozenset(
         "redirect_to",
         "remember",
         "run_system_maintenance",
+        "run_financial_reconciliation",
         "search_clients",
         "search_products",
         "search_web",

@@ -37,6 +37,9 @@ class Supplier(SQLModel, table=True):
     purchase_documents: list[PurchaseDocument] = Relationship(
         sa_relationship=relationship("PurchaseDocument", back_populates="supplier")
     )
+    supplier_payments: list["SupplierPayment"] = Relationship(
+        sa_relationship=relationship("SupplierPayment", back_populates="supplier")
+    )
 
 
 class Purchase(SQLModel, table=True):
@@ -93,3 +96,26 @@ class PurchaseDocument(SQLModel, table=True):
     supplier: Optional[Supplier] = Relationship(
         sa_relationship=relationship("Supplier", back_populates="purchase_documents")
     )
+
+
+class SupplierPayment(SQLModel, table=True):
+    __tablename__ = "supplier_payments"
+    __table_args__ = (
+        Index("idx_supplier_payments_supplier_date", "supplier_id", "payment_date"),
+        Index("idx_supplier_payments_date", "payment_date"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    supplier_id: int = Field(foreign_key="suppliers.id")
+    purchase_id: Optional[int] = Field(default=None, foreign_key="purchases.id")
+    purchase_document_id: Optional[int] = Field(default=None, foreign_key="purchase_documents.id")
+    payment_type: str = Field(default="versement")
+    amount: Decimal = Field(sa_column=Column(Numeric(15, 2)))
+    payment_date: date
+    notes: Optional[str] = Field(default=None)
+    created_at: datetime = Field(default_factory=_now)
+
+    supplier: Optional[Supplier] = Relationship(
+        sa_relationship=relationship("Supplier", back_populates="supplier_payments")
+    )
+

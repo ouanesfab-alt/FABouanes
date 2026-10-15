@@ -101,6 +101,14 @@ def get_gemini_tools() -> List[Dict[str, Any]]:
                     },
                 },
                 {
+                    "name": "run_financial_reconciliation",
+                    "description": "Exécute un audit financier approfondi à 360° (concordance des créances clients, dettes fournisseurs, cohérence physique des stocks, PMP et partie double de la balance SCF). Retourne un diagnostic clair des anomalies ou certifie la conformité totale.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {},
+                    },
+                },
+                {
                     "name": "execute_write_sql",
                     "description": (
                         "Exécute une seule requête SQL d'écriture (INSERT, UPDATE ou DELETE) "

@@ -13,7 +13,7 @@ from app.core.models import ProductionBatchItem, SavedRecipe, SavedRecipeItem
 from app.core.permissions import PERMISSION_PRODUCTION_DELETE, PERMISSION_PRODUCTION_READ, PERMISSION_PRODUCTION_WRITE
 from app.modules.production.schemas import ProductionCreateSchema
 from app.modules.catalog.repository import list_production_batches, list_recipes
-from app.services.production_service import create_production_from_form, delete_production_by_id
+from app.modules.production.service import create_production_from_form, delete_production_by_id
 
 router = APIRouter(prefix="/api/v1", tags=["production"])
 

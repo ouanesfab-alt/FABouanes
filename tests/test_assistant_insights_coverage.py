@@ -48,7 +48,7 @@ async def test_handle_insights_unknown():
 
 @pytest.mark.asyncio
 async def test_handle_insights_weather():
-    from app.core.perf_cache import invalidate_cache_domains
+    from app.infra.perf_cache import invalidate_cache_domains
 
     invalidate_cache_domains("assistant")
     mock_maker = MagicMock()

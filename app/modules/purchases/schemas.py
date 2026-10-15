@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.modules.catalog.schemas_validation import parse_numeric
+from app.modules.catalog.schemas import parse_decimal
 
 
 class SupplierValidationSchema(BaseModel):
@@ -24,15 +25,15 @@ class SupplierValidationSchema(BaseModel):
 
 class PurchaseLineSchema(BaseModel):
     raw_material_id: str = Field(..., min_length=3)
-    quantity: float
+    quantity: Decimal
     unit: str = Field("kg", min_length=1)
-    unit_price: float
+    unit_price: Decimal
     custom_item_name: Optional[str] = Field(default="")
 
     @field_validator("quantity", "unit_price", mode="before")
     @classmethod
-    def parse_fields(cls, val: Any) -> float:
-        return parse_numeric(val)
+    def parse_fields(cls, val: Any) -> Decimal:
+        return parse_decimal(val)
 
     @field_validator("raw_material_id")
     @classmethod

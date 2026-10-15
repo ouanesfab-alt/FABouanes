@@ -10,18 +10,18 @@ from app.core.async_db import close_async_engine
 from app.core.audit import start_audit_worker, stop_audit_worker
 from app.core.config import settings, validate_security_runtime, validate_single_worker_runtime
 from app.core.database import bootstrap_and_migrate
-from app.core.db_helpers import db_manager, execute_db  # noqa: F401
+from app.core.database import db_manager, execute_db  # noqa: F401
 from app.core.events import shutdown as events_shutdown, startup as events_startup
 from app.core.logging import configure_logging
 from app.core.middleware import preload_static_files
 from app.core.observability import instrument_app, setup_observability
-from app.core.perf_cache import warm_cache
+from app.infra.perf_cache import warm_cache
 from app.core.registry import get_enabled_modules
 from app.core.runtime_paths import ensure_runtime_dirs, paths
-from app.core.websockets import shutdown as ws_shutdown, startup as ws_startup
-from app.core.worker import start_worker, stop_worker
+from app.infra.websockets import shutdown as ws_shutdown, startup as ws_startup
+from app.infra.worker import start_worker, stop_worker
 from app.modules.assistant.service import close_http_clients
-from app.services.backup_service import shutdown_background_services, start_background_services
+from app.modules.admin.backup_service import shutdown_background_services, start_background_services
 from app.web.deps import preload_templates
 
 logger = logging.getLogger("fabouanes")

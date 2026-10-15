@@ -1,3 +1,7 @@
+"""
+Routes web du Tableau de Bord (Dashboard).
+"""
+
 from __future__ import annotations
 
 import logging
@@ -9,7 +13,7 @@ from sqlalchemy import Float, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_db import get_async_session
-from app.core.db_helpers import db_manager
+from app.core.database import db_manager
 from app.core.models import FinishedProduct, Sale
 from app.modules.assistant.schema_context import get_gemini_api_key
 from app.modules.reports.repository import (
@@ -176,7 +180,6 @@ async def api_sabrina_smart_summary(
         return JSONResponse({"error": "Authentification requise."}, status_code=401)
 
     try:
-        # 1. Calculate items running out of stock within 7 days based on 30-day sales rate
         cutoff_30d = date.today() - timedelta(days=30)
         daily_rate_expr = func.coalesce(func.sum(Sale.quantity), 0.0) / 30.0
 
@@ -201,7 +204,6 @@ async def api_sabrina_smart_summary(
         depletions_res = await db.execute(depletion_stmt)
         predicted_depletions = depletions_res.mappings().all()
 
-        # 2. Get yesterday's sales KPI
         yesterday = date.today() - timedelta(days=1)
         yesterday_stmt = select(func.coalesce(func.sum(Sale.total), 0.0)).where(Sale.sale_date == yesterday)
         yesterday_total = float(await db.scalar(yesterday_stmt) or 0.0)
@@ -224,7 +226,5 @@ async def api_sabrina_smart_summary(
             }
         )
     except Exception as exc:
-        import logging
-
         logging.getLogger("fabouanes").error("Smart summary error: %s", exc)
         return JSONResponse({"success": False, "alerts": [], "yesterday_sales_fmt": "0 DA"})
