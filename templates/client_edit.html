@@ -25,8 +25,12 @@
           <input name="address" id="inputAddress" value="{{ client.address }}" class="form-control">
         </div>
         <div class="span-6">
-          <label for="inputCredit" class="form-label mb-1">Crédit initial</label>
+          <label for="inputCredit" class="form-label mb-1">Crédit initial (DA)</label>
           <input name="opening_credit" id="inputCredit" value="{{ "%.2f"|format(client.opening_credit|float) }}" type="number" inputmode="decimal" step="0.01" class="form-control">
+        </div>
+        <div class="span-6">
+          <label for="inputCreditLimit" class="form-label mb-1">Plafond de crédit autorisé (DA)</label>
+          <input name="credit_limit" id="inputCreditLimit" value="{{ "%.2f"|format(client.credit_limit|float) if client.credit_limit else '' }}" type="number" inputmode="decimal" step="0.01" class="form-control" placeholder="Illimité si vide">
         </div>
         <div class="span-12">
           <label for="inputNotes" class="form-label mb-1">Notes</label>

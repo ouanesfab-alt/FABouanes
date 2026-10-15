@@ -58,8 +58,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest httpx pytest-cov pytest-timeout ruff
-      - name: Run tests
+      - name: Run Python Backend tests
         run: python -m pytest --cov=app --cov-fail-under=75 --timeout=30 --cov-report=term-missing --cov-report=xml -q
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Frontend Unit tests
+        run: node --test tests_frontend/test_js_modules.test.js
 
       - name: Upload coverage
         if: always()

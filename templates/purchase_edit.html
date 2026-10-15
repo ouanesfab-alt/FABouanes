@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% import 'partials/macros.html' as macros %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
   .doc-lines-shell{display:flex;flex-direction:column;gap:16px;}
@@ -36,10 +37,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="span-6">
           <label class="form-label">Fournisseur</label>
-          <select name="supplier_id" class="form-select">
-            <option value="">Sans fournisseur</option>
-            {% for s in suppliers %}<option value="{{ s.id }}" {% if purchase_document.supplier_id == s.id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
-          </select>
+          {{ macros.render_supplier_select(suppliers, selected_id=purchase_document.supplier_id, placeholder='Sans fournisseur') }}
         </div>
         <div class="span-6">
           <label class="form-label">Date</label>

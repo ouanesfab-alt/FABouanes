@@ -47,6 +47,10 @@
           <label for="inputCredit" class="form-label mb-1">Crédit / dette initiale (DA)</label>
           <input name="opening_credit" type="number" inputmode="decimal" step="0.01" value="{{ client.opening_credit if client else '0' }}" class="form-control" id="inputCredit">
         </div>
+        <div class="span-6" id="creditLimitWrapper">
+          <label for="inputCreditLimit" class="form-label mb-1">Plafond de crédit autorisé (DA)</label>
+          <input name="credit_limit" type="number" inputmode="decimal" step="0.01" value="{{ client.credit_limit if client and client.credit_limit else '' }}" class="form-control" id="inputCreditLimit" placeholder="Illimité si vide">
+        </div>
         
         <div class="span-12">
           <label for="inputNotes" class="form-label mb-1">Notes / Observations</label>
@@ -93,6 +97,10 @@ document.addEventListener('DOMContentLoaded', () => {
       contactForm.action = CLIENT_ACTION;
       creditFieldWrapper.style.display = 'block';
       document.getElementById('inputCredit').disabled = false;
+      const creditLim = document.getElementById('creditLimitWrapper');
+      if (creditLim) creditLim.style.display = 'block';
+      const inputLim = document.getElementById('inputCreditLimit');
+      if (inputLim) inputLim.disabled = false;
       pageTitle.textContent = "Ajouter un client";
       pageSummary.textContent = "Renseignez les coordonnées et le crédit initial avant d'enregistrer la fiche client.";
       infoNoteText.textContent = "Le crédit initial sert de point de départ pour le suivi des dettes et des versements du client.";
@@ -103,6 +111,10 @@ document.addEventListener('DOMContentLoaded', () => {
       contactForm.action = SUPPLIER_ACTION;
       creditFieldWrapper.style.display = 'none';
       document.getElementById('inputCredit').disabled = true;
+      const creditLim = document.getElementById('creditLimitWrapper');
+      if (creditLim) creditLim.style.display = 'none';
+      const inputLim = document.getElementById('inputCreditLimit');
+      if (inputLim) inputLim.disabled = true;
       pageTitle.textContent = "Ajouter un fournisseur";
       pageSummary.textContent = "Créez une fiche fournisseur simple pour suivre les achats et les références de contact.";
       infoNoteText.textContent = "Ajoutez ici les informations pratiques utiles aux prochains achats et aux rappels de livraison.";

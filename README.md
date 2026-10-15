@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="static/FABOuanes_desktop.ico" alt="FABOuanes" width="72" />
+  <img src="static/FABOuanes.ico" alt="FABOuanes" width="72" />
 </p>
 
 <h1 align="center">FABOuanes</h1>

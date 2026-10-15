@@ -31,6 +31,7 @@ class Client(SQLModel, table=True):
     address: Optional[str] = Field(default=None)
     notes: Optional[str] = Field(default=None)
     opening_credit: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
+    credit_limit: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(15, 2), nullable=True))
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
 
@@ -48,10 +49,12 @@ class Client(SQLModel, table=True):
         sa_relationship=relationship("SaleDocument", back_populates="client")
     )
 
-    @field_validator("opening_credit", mode="before")
+    @field_validator("opening_credit", "credit_limit", mode="before")
     @classmethod
-    def _coerce_opening_credit(cls, v: Any) -> Decimal:
+    def _coerce_opening_credit(cls, v: Any) -> Decimal | None:
         """Coerce float/str retournés par SQLite en Decimal."""
+        if v is None:
+            return None
         if not isinstance(v, Decimal):
             return Decimal(str(v))
         return v

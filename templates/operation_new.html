@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% import 'partials/macros.html' as macros %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
   /* Unique layout styles for operation lines */
@@ -55,10 +56,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="span-6">
           <label for="supplierSelect" class="form-label mb-1">Fournisseur</label>
-          <select name="supplier_id" class="form-select" id="supplierSelect">
-            <option value="">Sans fournisseur</option>
-            {% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
-          </select>
+          {{ macros.render_supplier_select(suppliers, id='supplierSelect', placeholder='Sans fournisseur') }}
         </div>
         <div class="span-6">
           <label for="purchaseDate" class="form-label mb-1">Date</label>
@@ -108,10 +106,8 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="span-4">
           <label for="clientSelect" class="form-label mb-1">Client</label>
-          <select name="client_id" class="form-select" id="clientSelect">
-            <option value="">Comptoir (cash)</option>
-            {% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
-          </select>
+          {{ macros.render_client_select(clients, id='clientSelect', placeholder='Comptoir (cash)') }}
+          {{ macros.render_client_credit_badge('clientCreditBadge') }}
         </div>
         <div class="span-4">
           <label for="saleTypeSelect" class="form-label mb-1">Règlement</label>
@@ -170,9 +166,8 @@
         
         <div class="span-6">
           <label for="paymentClientSelect" class="form-label mb-1">Client</label>
-          <select name="client_id" class="form-select" id="paymentClientSelect" required>
-            {% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
-          </select>
+          {{ macros.render_client_select(clients, id='paymentClientSelect', required=true, placeholder='Sélectionner un client...') }}
+          {{ macros.render_client_credit_badge('paymentClientCreditBadge') }}
         </div>
         <div class="span-3">
           <label for="paymentAmount" class="form-label mb-1">Montant (DA)</label>

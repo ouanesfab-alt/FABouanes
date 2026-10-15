@@ -50,8 +50,8 @@ echo        [OK] Dépendances Python installées.
 
 rem 4. Création automatique du raccourci Bureau & Menu Démarrer Windows 10/11
 echo [4/5] Création des raccourcis Windows (Bureau & Menu Démarrer)...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$w = New-Object -ComObject WScript.Shell; $desktop = [Environment]::GetFolderPath('Desktop'); $s = $w.CreateShortcut([System.IO.Path]::Combine($desktop, 'FABOuanes ERP.lnk')); $s.TargetPath = '%cd%\LANCER.bat'; $s.WorkingDirectory = '%cd%'; $s.IconLocation = '%cd%\static\FABOuanes_desktop.ico'; $s.Description = 'FABOuanes ERP Enterprise'; $s.Save()" >nul 2>&1
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$w = New-Object -ComObject WScript.Shell; $programs = [Environment]::GetFolderPath('Programs'); $s = $w.CreateShortcut([System.IO.Path]::Combine($programs, 'FABOuanes ERP.lnk')); $s.TargetPath = '%cd%\LANCER.bat'; $s.WorkingDirectory = '%cd%'; $s.IconLocation = '%cd%\static\FABOuanes_desktop.ico'; $s.Description = 'FABOuanes ERP Enterprise'; $s.Save()" >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$w = New-Object -ComObject WScript.Shell; $desktop = [Environment]::GetFolderPath('Desktop'); $s = $w.CreateShortcut([System.IO.Path]::Combine($desktop, 'FABOuanes ERP.lnk')); $s.TargetPath = '%cd%\LANCER.bat'; $s.WorkingDirectory = '%cd%'; $s.IconLocation = '%cd%\static\FABOuanes.ico'; $s.Description = 'FABOuanes ERP Enterprise'; $s.Save()" >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$w = New-Object -ComObject WScript.Shell; $programs = [Environment]::GetFolderPath('Programs'); $s = $w.CreateShortcut([System.IO.Path]::Combine($programs, 'FABOuanes ERP.lnk')); $s.TargetPath = '%cd%\LANCER.bat'; $s.WorkingDirectory = '%cd%'; $s.IconLocation = '%cd%\static\FABOuanes.ico'; $s.Description = 'FABOuanes ERP Enterprise'; $s.Save()" >nul 2>&1
 echo        [OK] Raccourcis 'FABOuanes ERP' créés sur le Bureau et le Menu Démarrer.
 
 rem 5. Lancement de l'application en mode Fenêtre Windows Desktop

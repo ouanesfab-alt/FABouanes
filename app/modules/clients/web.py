@@ -106,6 +106,7 @@ async def clients_submit(request: Request, db: AsyncSession = Depends(get_async_
             address=validated_schema.address or "",
             notes=validated_schema.notes or "",
             opening_credit=validated_schema.opening_credit or 0.0,
+            credit_limit=validated_schema.credit_limit,
         )
         service = ClientService(db)
         await service.create_client(schema)
@@ -215,6 +216,7 @@ async def edit_client_page(request: Request, client_id: int, db: AsyncSession = 
         "address": client.address,
         "notes": client.notes,
         "opening_credit": client.opening_credit,
+        "credit_limit": client.credit_limit,
     }
     return templates.TemplateResponse("client_edit.html", template_context(request, client=client_dict))
 

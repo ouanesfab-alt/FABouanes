@@ -12,6 +12,7 @@ class ClientBaseSchema(BaseModel):
     address: str | None = None
     notes: str | None = None
     opening_credit: float = Field(default=0.0)
+    credit_limit: Optional[Decimal] = Field(default=None)
 
     @field_validator("name")
     @classmethod
@@ -28,6 +29,25 @@ class ClientBaseSchema(BaseModel):
             return None
         cleaned = str(val).strip()
         return cleaned if cleaned else None
+
+    @field_validator("credit_limit", mode="before")
+    @classmethod
+    def clean_credit_limit(cls, val: Any) -> Decimal | None:
+        if val is None or val == "":
+            return None
+        if isinstance(val, (int, float, Decimal)):
+            d_val = Decimal(str(val))
+        else:
+            cleaned = str(val).replace(",", ".").replace(" ", "").replace("\xa0", "").strip()
+            if not cleaned:
+                return None
+            try:
+                d_val = Decimal(cleaned)
+            except Exception:
+                raise ValueError("Le plafond de crédit doit être un nombre valide.")
+        if d_val < Decimal("0"):
+            raise ValueError("Le plafond de crédit ne peut pas être négatif.")
+        return d_val
 
     @field_validator("opening_credit", mode="before")
     @classmethod
@@ -61,6 +81,7 @@ class ClientValidationSchema(BaseModel):
     address: Optional[str] = Field(default="")
     notes: Optional[str] = Field(default="")
     opening_credit: Optional[Decimal] = Field(default=Decimal("0.0000"))
+    credit_limit: Optional[Decimal] = Field(default=None)
 
     @field_validator("name", mode="before")
     @classmethod

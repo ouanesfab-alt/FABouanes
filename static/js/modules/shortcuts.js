@@ -58,6 +58,50 @@ export function initShortcutsModule() {
       return;
     }
 
+    // F2: Focus Client Selector in active form
+    if (e.key === 'F2') {
+      e.preventDefault();
+      const clientSelector = document.getElementById('clientSelect') 
+        || document.getElementById('saleEditClientSelect')
+        || document.getElementById('paymentClientSelect')
+        || document.getElementById('inputName')
+        || document.querySelector('select[name="client_id"]');
+      if (clientSelector) {
+        clientSelector.focus();
+        if (typeof clientSelector.scrollIntoView === 'function') {
+          clientSelector.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+      return;
+    }
+
+    // Ctrl + S or Ctrl + Enter: Submit the active form directly
+    if (isCmdOrCtrl && (e.key === 'Enter' || e.key.toLowerCase() === 's')) {
+      const activeForm = document.activeElement?.closest('form') 
+        || document.querySelector('form:not([style*="display: none"]):not([hidden])');
+      if (activeForm) {
+        e.preventDefault();
+        const submitBtn = activeForm.querySelector('button[type="submit"], input[type="submit"], .btn-success, .btn-primary');
+        if (submitBtn && !submitBtn.disabled) {
+          submitBtn.click();
+        } else if (typeof activeForm.requestSubmit === 'function') {
+          activeForm.requestSubmit();
+        }
+      }
+      return;
+    }
+
+    // Number keys 1, 2, 3 on quick_add page to switch category cards
+    if (!isInput && ['1', '2', '3'].includes(e.key)) {
+      const qaCards = document.querySelectorAll('.qa-card');
+      const idx = parseInt(e.key, 10) - 1;
+      if (qaCards[idx]) {
+        e.preventDefault();
+        qaCards[idx].click();
+      }
+      return;
+    }
+
     // Ctrl + B: Shortcut to Bons Space
     if (isCmdOrCtrl && e.key.toLowerCase() === 'b') {
       e.preventDefault();

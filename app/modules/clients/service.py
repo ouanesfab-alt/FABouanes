@@ -164,6 +164,7 @@ class ClientService:
             address="",
             notes=schema.notes,
             opening_credit=schema.opening_credit,
+            credit_limit=schema.credit_limit,
         )
         created = await self.repo.create(client)
 
@@ -218,6 +219,7 @@ class ClientService:
             address=decrypt_val(client.address, key),
             notes=client.notes,
             opening_credit=client.opening_credit,
+            credit_limit=client.credit_limit,
             created_at=client.created_at,
             updated_at=client.updated_at,
         )
@@ -229,6 +231,8 @@ class ClientService:
         client.address = encrypt_val(schema.address, key)
         client.notes = schema.notes
         client.opening_credit = schema.opening_credit
+        if schema.credit_limit is not None:
+            client.credit_limit = schema.credit_limit
 
         updated = await self.repo.update(client)
 

@@ -127,6 +127,20 @@ async def api_delete_user(request: Request, user_id: int, db: AsyncSession = Dep
     return result
 
 
+@router.post("/users/{user_id}/unlock")
+async def api_unlock_user_account(request: Request, user_id: int):
+    enforce_permission(request, PERMISSION_USERS_MANAGE)
+    from app.core.audit import audit_event
+    from app.modules.users.repository import get_user_by_id, unlock_user_account
+
+    user = await get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(404, "Utilisateur non trouvé")
+    unlocked = await unlock_user_account(user_id)
+    audit_event("account_unlock", "user", user_id, after={"username": user["username"]})
+    return {"ok": True, "unlocked": unlocked, "user_id": user_id}
+
+
 # ==========================================
 # SAUVEGARDES & RESTAURATION
 # ==========================================

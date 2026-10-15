@@ -73,3 +73,66 @@ def test_parse_production_form_helper():
     assert len(parsed["items"]) == 2
     assert parsed["items"][0]["raw_material_id"] == 1
     assert parsed["items"][0]["quantity"] == 10.5
+
+
+@pytest.mark.asyncio
+async def test_production_yield_and_shrinkage_calculation():
+    """Vérifie le calcul exact de la freinte et du rendement en Decimal."""
+    from decimal import Decimal
+    from unittest.mock import AsyncMock, MagicMock, patch
+    from app.modules.production.service import _create_production_from_form_impl
+
+    mock_db = AsyncMock()
+
+    # Finished product mock
+    prod_mock = MagicMock()
+    prod_mock.model_dump.return_value = {"id": 1, "name": "Aliment Bovin", "stock_qty": Decimal("500"), "avg_cost": Decimal("40")}
+    res_prod = MagicMock()
+    res_prod.scalar_one_or_none.return_value = prod_mock
+
+    # Raw material mock (1000 kg total consumed)
+    raw1 = MagicMock()
+    raw1.model_dump.return_value = {"id": 10, "name": "Maïs", "stock_qty": Decimal("2000"), "avg_cost": Decimal("30")}
+    raw2 = MagicMock()
+    raw2.model_dump.return_value = {"id": 11, "name": "Soja", "stock_qty": Decimal("1000"), "avg_cost": Decimal("50")}
+    res_mat = MagicMock()
+    res_mat.scalars.return_value.all.return_value = [raw1, raw2]
+
+    # Batch return mock
+    batch_mock = MagicMock()
+    batch_mock.model_dump.return_value = {
+        "id": 99,
+        "finished_product_id": 1,
+        "output_quantity": Decimal("980.00"),
+        "total_raw_quantity": Decimal("1000.00"),
+        "waste_quantity": Decimal("20.00"),
+        "yield_rate": Decimal("98.00"),
+    }
+    res_batch = MagicMock()
+    res_batch.scalar_one_or_none.return_value = batch_mock
+
+    mock_db.execute = AsyncMock(side_effect=[res_prod, res_mat, res_batch])
+
+    form = {
+        "finished_product_id": 1,
+        "output_quantity": "980",  # 980 kg produced from 1000 kg ingredients => 20 kg waste (2% freinte)
+        "production_date": "2026-05-15",
+        "notes": "Test freinte",
+        "save_recipe": "0",
+        "raw_material_id[]": [10, 11],
+        "quantity[]": ["600", "400"],
+    }
+
+    with patch("app.modules.production.service.apply_raw_material_consumption", new_callable=AsyncMock), \
+         patch("app.modules.production.service.apply_finished_production", new_callable=AsyncMock), \
+         patch("app.modules.production.service.log_activity"), \
+         patch("app.modules.production.service.audit_event"), \
+         patch("app.modules.production.service.invalidate_sellable_items_cache"), \
+         patch("app.modules.production.service.mark_backup_needed"):
+
+        result = await _create_production_from_form_impl(form, mock_db)
+
+        assert result["total_raw_quantity"] == Decimal("1000")
+        assert result["waste_quantity"] == Decimal("20")
+        assert result["yield_rate"] == Decimal("98.00")
+

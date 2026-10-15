@@ -64,6 +64,8 @@ class SalesCommands:
         amount_paid_input: Decimal | float = Decimal("0.00"),
         document_id: int | None = None,
         custom_item_name: str = "",
+        allow_overlimit: bool = False,
+        skip_credit_check: bool = False,
     ) -> Tuple[str, int]:
         d_qty = Decimal(str(qty))
         d_unit_price = Decimal(str(unit_price))
@@ -76,6 +78,11 @@ class SalesCommands:
         d_amount_paid_input = Decimal(str(amount_paid_input or 0.0))
         amount_paid = round(total if requested_sale_type == "cash" else max(Decimal("0.00"), min(d_amount_paid_input, total)), 2)
         balance_due = round(max(Decimal("0.00"), total - amount_paid), 2)
+
+        if not skip_credit_check and requested_sale_type == "credit" and balance_due > Decimal("0.00"):
+            await SalesValidator.validate_client_credit_limit(
+                client_id, balance_due, self.session, allow_overlimit=allow_overlimit
+            )
 
         if item_kind == "finished":
             item, qty_kg = await SalesValidator.validate_stock_availability(
@@ -397,6 +404,19 @@ class SalesCommands:
         if not lines:
             raise ValidationError("La vente doit contenir au moins une ligne d'article.")
 
+        total_balance_due = Decimal("0.00")
+        if sale_type == "credit":
+            for line in lines:
+                total_balance_due += round(Decimal(str(line.quantity)) * Decimal(str(line.unit_price)), 2)
+
+        if sale_type == "credit" and total_balance_due > Decimal("0.00"):
+            await SalesValidator.validate_client_credit_limit(
+                client_id,
+                total_balance_due,
+                self.session,
+                allow_overlimit=schema.allow_overlimit,
+            )
+
         use_document = len(lines) > 1
         newly_unlocked = []
 
@@ -420,6 +440,7 @@ class SalesCommands:
                 notes,
                 paid_amount,
                 custom_item_name=line.custom_item_name,
+                skip_credit_check=True,
             )
 
             await self.session.commit()
@@ -474,6 +495,7 @@ class SalesCommands:
                     paid_amount,
                     document_id=doc_id,
                     custom_item_name=line.custom_item_name,
+                    skip_credit_check=True,
                 )
             )
 
@@ -541,6 +563,19 @@ class SalesCommands:
             if not await self.reverse_sale(str(line["row_kind"]), int(line["row_id"]), recalc=False):
                 raise ValueError("Impossible de modifier cette facture.")
 
+        total_balance_due = Decimal("0.00")
+        if sale_type == "credit":
+            for line in lines:
+                total_balance_due += round(Decimal(str(line.quantity)) * Decimal(str(line.unit_price)), 2)
+
+        if sale_type == "credit" and total_balance_due > Decimal("0.00"):
+            await SalesValidator.validate_client_credit_limit(
+                client_id,
+                total_balance_due,
+                self.session,
+                allow_overlimit=schema.allow_overlimit,
+            )
+
         # Update parent document header attributes
         doc = await self.doc_repo.get(document_id)
         if doc:
@@ -573,6 +608,7 @@ class SalesCommands:
                     paid_amount,
                     document_id=document_id,
                     custom_item_name=line.custom_item_name,
+                    skip_credit_check=True,
                 )
             )
 
@@ -644,6 +680,19 @@ class SalesCommands:
             if not await self.reverse_sale(kind, row_id, recalc=False):
                 raise ValueError("Impossible de modifier cette vente.")
 
+            total_balance_due = Decimal("0.00")
+            if sale_type == "credit":
+                for line in lines:
+                    total_balance_due += round(Decimal(str(line.quantity)) * Decimal(str(line.unit_price)), 2)
+
+            if sale_type == "credit" and total_balance_due > Decimal("0.00"):
+                await SalesValidator.validate_client_credit_limit(
+                    client_id,
+                    total_balance_due,
+                    self.session,
+                    allow_overlimit=schema.allow_overlimit,
+                )
+
             created_lines: list[tuple[str, int]] = []
             for line in lines:
                 parts = line.item_key.split(":")
@@ -666,6 +715,7 @@ class SalesCommands:
                         paid_amount,
                         document_id=doc_id,
                         custom_item_name=line.custom_item_name,
+                        skip_credit_check=True,
                     )
                 )
 
@@ -718,6 +768,7 @@ class SalesCommands:
             notes,
             paid_amount,
             custom_item_name=line.custom_item_name,
+            allow_overlimit=schema.allow_overlimit,
         )
 
         await self.session.commit()

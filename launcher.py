@@ -151,7 +151,7 @@ BACKUP_DIR = DATA_DIR / "backups"
 LOCAL_BACKUP_DIR = BACKUP_DIR / "local"
 LOG_DIR = DATA_DIR / "logs"
 STATE_FILE = DATA_DIR / "desktop_install_state.json"
-DESKTOP_ICON_PATH = STATIC_DIR / "FABOuanes_desktop.ico"
+DESKTOP_ICON_PATH = STATIC_DIR / "FABOuanes.ico"
 FALLBACK_ICON_PATH = STATIC_DIR / "FABOuanes.ico"
 SPLASH_LOGO_PATH = STATIC_DIR / "desktop_logo_shield.webp"
 os.chdir(BASE_DIR)

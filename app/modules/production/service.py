@@ -194,13 +194,22 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
     if not recipe_lines:
         raise ValueError("Ajoute au moins une matière première dans la recette.")
 
-    recipe_id = None
+    waste_qty = max(Decimal("0.00"), total_recipe_qty - output_qty)
+    yield_rate = (
+        round((output_qty / total_recipe_qty) * Decimal("100.00"), 2)
+        if total_recipe_qty > Decimal("0.00")
+        else Decimal("100.00")
+    )
+    unit_cost = (total_cost / output_qty) if output_qty > Decimal("0.00") else Decimal("0.00")
 
     batch = ProductionBatch(
         finished_product_id=finished_id,
         output_quantity=output_qty,
         production_cost=total_cost,
-        unit_cost=(total_cost / output_qty) if output_qty > Decimal("0") else Decimal("0.00"),
+        unit_cost=unit_cost,
+        total_raw_quantity=total_recipe_qty,
+        waste_quantity=waste_qty,
+        yield_rate=yield_rate,
         production_date=production_date_obj,
         notes=notes,
     )
@@ -223,6 +232,7 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
 
     await apply_finished_production(product, output_qty, total_cost, batch_id, db=db)
 
+    recipe_id = None
     if save_recipe_flag:
         recipe_id = await save_recipe_definition(
             finished_id, recipe_name or f"Recette {product['name']}", notes, recipe_lines, _current_user_id(), db=db
@@ -259,6 +269,9 @@ async def _create_production_from_form_impl(form, db: AsyncSession):
         "recipe_id": recipe_id,
         "recipe_label": recipe_name or f"Recette {product['name']}",
         "remainder": remainder,
+        "total_raw_quantity": total_recipe_qty,
+        "waste_quantity": waste_qty,
+        "yield_rate": yield_rate,
     }
 
 

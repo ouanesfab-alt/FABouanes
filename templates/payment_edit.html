@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% import 'partials/macros.html' as macros %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
   .payment-edit-page{display:flex;flex-direction:column;gap:16px;}
@@ -37,9 +38,8 @@
         </div>
         <div class="span-6">
           <label class="form-label">Client</label>
-          <select name="client_id" class="form-select" required>
-            {% for c in clients %}<option value="{{ c.id }}" {% if payment.client_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
-          </select>
+          {{ macros.render_client_select(clients, selected_id=payment.client_id, required=true) }}
+          {{ macros.render_client_credit_badge('paymentEditClientCreditBadge') }}
         </div>
         <div class="span-6">
           <label class="form-label">Créance liée</label>

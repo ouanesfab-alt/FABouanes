@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from decimal import Decimal
+import inspect
 import math
 from datetime import date
 from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, text
 
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.models import Client, FinishedProduct, RawMaterial
@@ -43,6 +44,7 @@ class SaleFormSchema(BaseModel):
     sale_type: Optional[str] = Field(default=None)
     sale_date: date = Field(default_factory=date.today)
     notes: Optional[str] = Field(default="")
+    allow_overlimit: bool = Field(default=False)
     lines: List[SaleLineSchema] = Field(default_factory=list)
 
     @model_validator(mode="before")
@@ -83,6 +85,13 @@ class SaleFormSchema(BaseModel):
                     data["sale_type"] = None
             else:
                 data["sale_type"] = None
+
+            # Parse allow_overlimit
+            ao = data.get("allow_overlimit") or data.get("force_credit")
+            if ao in {"1", "true", "True", True, "on", "yes"}:
+                data["allow_overlimit"] = True
+            elif ao in {"0", "false", "False", False, "off", "no"} or ao is None:
+                data["allow_overlimit"] = False
 
             # Parse date
             s_date = data.get("sale_date")
@@ -152,6 +161,59 @@ class SalesValidator:
             client = await session.get(Client, client_id)
             if not client:
                 raise NotFoundError("Client", client_id)
+
+    @staticmethod
+    async def validate_client_credit_limit(
+        client_id: int | None,
+        additional_debt: Decimal,
+        session: AsyncSession,
+        allow_overlimit: bool = False,
+    ) -> None:
+        if not client_id or additional_debt <= Decimal("0.00") or allow_overlimit:
+            return
+
+        client_res = session.get(Client, client_id)
+        if inspect.isawaitable(client_res):
+            client = await client_res
+        else:
+            client = client_res
+
+        if not client:
+            return
+
+        credit_limit = getattr(client, "credit_limit", None)
+        if not credit_limit or inspect.isawaitable(credit_limit):
+            return
+        try:
+            d_limit = Decimal(str(credit_limit))
+        except Exception:
+            return
+        if d_limit <= Decimal("0.00"):
+            return
+
+        stmt_bal = text("""
+            SELECT (
+                c.opening_credit
+                + COALESCE((SELECT SUM(total) FROM sales WHERE client_id = c.id AND sale_type = 'credit'), 0)
+                + COALESCE((SELECT SUM(total) FROM raw_sales WHERE client_id = c.id AND sale_type = 'credit'), 0)
+                - COALESCE((SELECT SUM(amount) FROM payments WHERE client_id = c.id AND payment_type IN ('versement', 'avance')), 0)
+            ) AS balance
+            FROM clients c WHERE c.id = :cid
+        """)
+        res_bal = await session.execute(stmt_bal, {"cid": client_id})
+        scalar_val = res_bal.scalar() if hasattr(res_bal, "scalar") else None
+        if inspect.isawaitable(scalar_val):
+            scalar_val = await scalar_val
+        curr_bal = Decimal(str(scalar_val or "0.00"))
+        projected = curr_bal + additional_debt
+
+        if projected > d_limit:
+            c_name = getattr(client, "name", f"Client #{client_id}")
+            raise ValidationError(
+                f"Plafond de crédit dépassé pour {c_name} : encours actuel ({curr_bal:,.2f} DA) + "
+                f"nouvelle créance ({additional_debt:,.2f} DA) = {projected:,.2f} DA "
+                f"(plafond autorisé : {d_limit:,.2f} DA)."
+            )
 
     @staticmethod
     def validate_sale_type(client_id: int | None, sale_type: str) -> None:

@@ -30,6 +30,9 @@ class ProductionBatch(SQLModel, table=True):
     output_quantity: Decimal = Field(sa_column=Column(Numeric(15, 2)))
     production_cost: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
     unit_cost: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2)))
+    total_raw_quantity: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2), nullable=True))
+    waste_quantity: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(15, 2), nullable=True))
+    yield_rate: Decimal = Field(default=Decimal("100.00"), sa_column=Column(Numeric(6, 2), nullable=True))
     production_date: date
     notes: Optional[str] = Field(default=None)
 
@@ -47,7 +50,7 @@ class ProductionBatch(SQLModel, table=True):
             return date.fromisoformat(v)
         return v
 
-    @field_validator("output_quantity", "production_cost", "unit_cost", mode="before")
+    @field_validator("output_quantity", "production_cost", "unit_cost", "total_raw_quantity", "waste_quantity", "yield_rate", mode="before")
     @classmethod
     def _coerce_decimals(cls, v: Any) -> Decimal:
         """Coerce float/str retournés par SQLite/Postgres en Decimal."""

@@ -12,31 +12,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import api_error, api_success, require_api_user
 from app.api.v1._common import json_response
 from app.core.async_db import get_async_session
+from app.modules.expenses.schemas import (
+    ExpenseBaseSchema,
+    ExpenseCreateSchema,
+    ExpenseOutSchema,
+    ExpenseUpdateSchema,
+)
 from app.modules.expenses.service import add_expense, get_expense, list_expenses, modify_expense, remove_expense
 
 router = APIRouter(prefix="/api/v1", tags=["expenses"])
 
 # ── Schémas de données OpenAPI ──
-
-
-class ExpenseBaseSchema(BaseModel):
-    date: d_cls = Field(..., description="Date de la dépense (format YYYY-MM-DD)")
-    category: str = Field("general", description="Catégorie (general, transport, loyer, salaires...)")
-    description: Optional[str] = Field(None, description="Description ou note descriptive de la charge")
-    amount: float = Field(..., gt=0.0, description="Montant de la dépense")
-    payment_method: str = Field("cash", description="Moyen de paiement (cash, cheque, virement, autre)")
-
-
-class ExpenseCreateSchema(ExpenseBaseSchema):
-    pass
-
-
-class ExpenseUpdateSchema(ExpenseBaseSchema):
-    pass
-
-
-class ExpenseOutSchema(ExpenseBaseSchema):
-    id: int = Field(..., description="Identifiant unique de la dépense")
 
 
 class ExpensesListResponse(BaseModel):

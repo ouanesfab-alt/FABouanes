@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% import 'partials/macros.html' as macros %}
 {% set edit_locked = sale_document.id and has_linked_payments %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
@@ -39,10 +40,8 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="span-4">
           <label class="form-label">Client</label>
-          <select name="client_id" class="form-select" id="saleEditClientSelect" {% if edit_locked %}disabled{% endif %}>
-            <option value="">Comptoir (cash)</option>
-            {% for c in clients %}<option value="{{ c.id }}" {% if sale_document.client_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
-          </select>
+          {{ macros.render_client_select(clients, selected_id=sale_document.client_id, name='client_id', id='saleEditClientSelect', placeholder='Comptoir (cash)', disabled=edit_locked) }}
+          {{ macros.render_client_credit_badge('saleEditClientCreditBadge') }}
         </div>
         <div class="span-4">
           <label class="form-label">Règlement</label>

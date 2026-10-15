@@ -1,5 +1,5 @@
 # ─── Stage 1: Builder ────────────────────────────────────────────────
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /build
 
@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 
 # ─── Stage 2: Production ─────────────────────────────────────────────
-FROM python:3.11-slim AS production
+FROM python:3.12-slim AS production
 
 LABEL maintainer="FABOuanes"
 LABEL description="FABOuanes - Application de gestion de production et ventes"

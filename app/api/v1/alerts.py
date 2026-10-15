@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,17 +18,48 @@ from app.core.permissions import PERMISSION_CATALOG_READ, PERMISSION_CATALOG_WRI
 router = APIRouter(prefix="/api/v1", tags=["alerts"])
 
 
-@router.get("/alerts")
+class StockAlertOut(BaseModel):
+    id: int = Field(..., description="Identifiant unique de l'alerte")
+    item_kind: str = Field(..., description="Type d'article (raw ou finished)")
+    item_id: int = Field(..., description="Identifiant de l'article")
+    current_qty: Decimal = Field(..., description="Quantité actuelle en stock")
+    threshold_qty: Decimal = Field(..., description="Seuil critique de déclenchement")
+    triggered_at: datetime = Field(..., description="Horodatage de l'alerte")
+    acknowledged_at: datetime | None = Field(default=None, description="Horodatage d'acquittement")
+
+
+class AlertsListResponse(BaseModel):
+    success: bool = True
+    data: list[StockAlertOut]
+    meta: dict[str, Any] | None = None
+
+
+class AlertAcknowledgeResponse(BaseModel):
+    success: bool = True
+    data: dict[str, bool]
+
+
+@router.get(
+    "/alerts",
+    response_model=AlertsListResponse,
+    summary="Lister les alertes de stock actives",
+    description="Récupère la liste des alertes de stock non encore acquittées.",
+)
 async def api_get_alerts(request: Request, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_CATALOG_READ)
     stmt = select(StockAlert).where(StockAlert.acknowledged_at.is_(None)).order_by(StockAlert.triggered_at.desc())
     res = await db.execute(stmt)
     alerts = res.scalars().all()
     rows = [a.model_dump() for a in alerts]
-    return json_response(api_success(rows))
+    return json_response(api_success(rows, {"returned": len(rows)}))
 
 
-@router.post("/alerts/{alert_id}/acknowledge")
+@router.post(
+    "/alerts/{alert_id}/acknowledge",
+    response_model=AlertAcknowledgeResponse,
+    summary="Acquitter une alerte de stock",
+    description="Marque une alerte de stock comme lue / traitée.",
+)
 async def api_acknowledge_alert(request: Request, alert_id: int, db: AsyncSession = Depends(get_async_session)):
     require_api_user(request, PERMISSION_CATALOG_WRITE)
     alert = await db.get(StockAlert, alert_id)

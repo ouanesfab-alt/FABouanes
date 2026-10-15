@@ -227,6 +227,7 @@
             <th class="col-qty">Qt produite</th>
             <th class="col-money hide-mobile">Coût total</th>
             <th class="col-money hide-mobile">Coût / kg</th>
+            <th class="col-yield hide-mobile text-center">Rendement / Freinte</th>
             <th class="col-actions">Actions</th>
           </tr>
         </thead>
@@ -264,6 +265,18 @@
             <td class="cell-num col-money text-muted hide-mobile">
               {{ p.unit_cost|money }}
             </td>
+            <td class="cell-num col-yield hide-mobile text-center text-nowrap">
+              {% if p.yield_rate is defined and p.yield_rate is not none %}
+                <span class="badge {% if p.yield_rate >= 98 %}bg-success-subtle text-success border border-success-subtle{% elif p.yield_rate >= 90 %}bg-warning-subtle text-warning border border-warning-subtle{% else %}bg-danger-subtle text-danger border border-danger-subtle{% endif %}">
+                  {{ "%.1f"|format(p.yield_rate|float) }}%
+                </span>
+                {% if p.waste_quantity and p.waste_quantity > 0 %}
+                <small class="text-danger ms-1" title="Freinte / Perte matière">-{{ "%.1f"|format(p.waste_quantity|float) }} kg</small>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
             <td class="col-actions text-nowrap">
               <div class="d-flex gap-1 justify-content-end">
                 <a href="{{ print_url }}" class="btn btn-sm btn-outline-primary" title="Imprimer le bon" onclick="openInvoice(event,this.closest('a').href)">
@@ -277,7 +290,7 @@
           </tr>
           {% else %}
           <tr>
-            <td colspan="7" class="text-muted text-center py-5">
+            <td colspan="8" class="text-muted text-center py-5">
               <div class="py-3">
                 <i class="bi bi-box-seam text-muted" style="font-size: 2.2rem; opacity: 0.5;"></i>
                 <div class="mt-2 fw-medium">Aucun lot de production enregistré.</div>

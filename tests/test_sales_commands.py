@@ -66,6 +66,51 @@ class TestSalesValidatorAsync:
         with pytest.raises(NotFoundError):
             await SalesValidator.validate_client(99, session)
 
+    async def test_credit_limit_within_limit_ok(self):
+        from decimal import Decimal
+        from app.modules.sales.schemas import SalesValidator
+        session = AsyncMock()
+        client_mock = MagicMock()
+        client_mock.credit_limit = Decimal("50000.00")
+        client_mock.name = "Client Test"
+        session.get.return_value = client_mock
+        res_bal = MagicMock()
+        res_bal.scalar.return_value = Decimal("10000.00")
+        session.execute.return_value = res_bal
+
+        # 10,000 current + 15,000 new <= 50,000 limit -> OK
+        await SalesValidator.validate_client_credit_limit(1, Decimal("15000.00"), session)
+
+    async def test_credit_limit_exceeded_raises(self):
+        from decimal import Decimal
+        from app.modules.sales.schemas import SalesValidator
+        from app.core.exceptions import ValidationError
+        session = AsyncMock()
+        client_mock = MagicMock()
+        client_mock.credit_limit = Decimal("20000.00")
+        client_mock.name = "Client Dépassé"
+        session.get.return_value = client_mock
+        res_bal = MagicMock()
+        res_bal.scalar.return_value = Decimal("15000.00")
+        session.execute.return_value = res_bal
+
+        # 15,000 current + 10,000 new > 20,000 limit -> raises
+        with pytest.raises(ValidationError, match="Plafond de crédit dépassé"):
+            await SalesValidator.validate_client_credit_limit(1, Decimal("10000.00"), session)
+
+    async def test_credit_limit_forced_overlimit_ok(self):
+        from decimal import Decimal
+        from app.modules.sales.schemas import SalesValidator
+        session = AsyncMock()
+        client_mock = MagicMock()
+        client_mock.credit_limit = Decimal("10000.00")
+        session.get.return_value = client_mock
+
+        # Over limit but allow_overlimit=True -> skips and succeeds
+        await SalesValidator.validate_client_credit_limit(
+            1, Decimal("25000.00"), session, allow_overlimit=True
+        )
+
     async def test_finished_stock_ok(self):
         from app.modules.sales.schemas import SalesValidator
         session = AsyncMock()

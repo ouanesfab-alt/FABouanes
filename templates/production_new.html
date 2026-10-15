@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% import 'partials/macros.html' as macros %}
 {% block content %}
 <style nonce="{{ csp_nonce }}">
   .production-form-page {
@@ -176,11 +177,7 @@
 
         <div class="col-md-6">
           <label for="finishedProduct" class="form-label mb-1">Produit fini à fabriquer</label>
-          <select name="finished_product_id" id="finishedProduct" class="form-select" required>
-            {% for p in products %}
-            <option value="{{ p.id }}">{{ p.name }}</option>
-            {% endfor %}
-          </select>
+          {{ macros.render_product_select(products, id='finishedProduct', required=true) }}
         </div>
 
         <div class="col-md-3 col-6">
@@ -416,15 +413,17 @@ function updateRecipeSummary() {
   if (remain > 0) {
     recipeStatus.textContent = `Incomplet (${fmt(remain)} kg)`;
     recipeStatus.style.color = 'var(--system-orange)';
-    recipeStatusSub.textContent = 'Ajoutez des matières pour combler';
+    recipeStatusSub.textContent = 'Ajoutez des matières pour combler la cible';
   } else if (remain < 0) {
-    recipeStatus.textContent = `Dépassement (+${fmt(Math.abs(remain))} kg)`;
-    recipeStatus.style.color = 'var(--system-red)';
-    recipeStatusSub.textContent = 'La recette dépasse la quantité';
+    const freinte = Math.abs(remain);
+    const rendement = total > 0 ? ((out / total) * 100).toFixed(1) : '100.0';
+    recipeStatus.textContent = `Freinte : ${fmt(freinte)} kg (${rendement}%)`;
+    recipeStatus.style.color = 'var(--system-blue)';
+    recipeStatusSub.textContent = `Rendement usine : ${rendement}% (perte matière)`;
   } else {
     recipeStatus.textContent = 'Recette équilibrée';
     recipeStatus.style.color = 'var(--system-green)';
-    recipeStatusSub.textContent = 'Mélange 100% conforme';
+    recipeStatusSub.textContent = 'Rendement 100% sans freinte';
   }
 }
 
