@@ -77,6 +77,7 @@ def test_payment_create_schema_string_amount_cleaned():
 @pytest.mark.asyncio
 async def test_apply_payment_to_entry_partial():
     session = mock.AsyncMock()
+    session.add = MagicMock()
     service = PaymentsService(session)
 
     sale = Sale(
@@ -109,6 +110,7 @@ async def test_apply_payment_to_entry_partial():
 @pytest.mark.asyncio
 async def test_apply_payment_to_entry_overpay_capped():
     session = mock.AsyncMock()
+    session.add = MagicMock()
     service = PaymentsService(session)
 
     sale = Sale(
@@ -140,6 +142,7 @@ async def test_apply_payment_to_entry_overpay_capped():
 @pytest.mark.asyncio
 async def test_create_payment_record_advance():
     session = mock.AsyncMock()
+    session.add = MagicMock()
     service = PaymentsService(session)
 
     # Mock client existence check
@@ -179,6 +182,7 @@ async def test_create_payment_record_zero_amount():
 @pytest.mark.asyncio
 async def test_reverse_payment_allocations():
     session = mock.AsyncMock()
+    session.add = MagicMock()
     service = PaymentsService(session)
 
     sale = Sale(
